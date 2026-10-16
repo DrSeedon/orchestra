@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K1-luna-r1",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 6018,
+ "output_tokens": 1220,
+ "input_tokens": 46782,
+ "cache_read_tokens": 41984,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.00150964,
+ "seconds": 23.9,
+ "contamination_flag": false,
+ "final_text": "[Scene: A conversation scrolls past; the agent keeps working.]\nAn AI agent works through a long conversation, using what’s been said to keep the task moving.\n\n[Scene: The conversation fills a frame, then condenses into a note.]\nBut the model has a limited window: it can only work with so much conversation at once. When that window gets too full, the conversation is compressed into a summary, and the work continues from there.\n\n[Scene: A tiny detail fades from the page; the summary remains.]\nThat summary is the bridge to what came before. Anything important that doesn’t make it into the summary is gone from the agent’s working context. The agent may continue confidently, but it can’t use details it no longer has.\n\n[Scene: A person asks the agent specific questions about earlier work.]\nSo how do you know whether the summary did its job? Check it. Ask the agent questions about the old work: what decision was made, what detail mattered, or what was left to do. If it can answer from the summary, the handoff is working. If not, the missing information needs to be carried forward.\n\n[Scene: The summary sits beside the ongoing conversation.]\nA summary isn’t a perfect memory. It’s a compact record that helps the agent continue—and a good one is tested before you rely on it.\n\n[Check: `wc -w` counted 222 words, under the 260-word limit.]"
+}

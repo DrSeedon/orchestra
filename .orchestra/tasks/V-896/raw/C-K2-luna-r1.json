@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K2-luna-r1",
+ "task": "K2",
+ "kind": "creative",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 13363,
+ "output_tokens": 1125,
+ "input_tokens": 62030,
+ "cache_read_tokens": 49792,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0022842200000000004,
+ "seconds": 15.8,
+ "contamination_flag": false,
+ "final_text": "Concept: A live agent status board turns each running agent into a compact work card, with a shared timeline that makes progress and blockers scannable.\n\nThe owner sees ten cards at once, each showing the agent’s current objective, latest milestone, time since its last state change, and a clear state: working, waiting, or stalled. Each card includes a brief evidence snippet, such as a changed file, tool call, or pending question, with a link to the conversation for details. The owner can sort by longest idle, filter to waiting or stalled agents, and answer or nudge from the card.\n\nUnlike a log list, the board summarizes the current state across agents instead of making the owner reconstruct it from ten chronological streams. State and elapsed time make inactivity visible.\n\nMain risk: summaries can become stale or overconfident. Show each card’s source and update time, and let agents mark uncertainty.\n\nIndependent check applied: `wc -w` confirms this concept is 189 words, under the 300-word limit."
+}

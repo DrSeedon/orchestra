@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K5-luna-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3628,
+ "output_tokens": 225,
+ "input_tokens": 15051,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00056928,
+ "seconds": 8.0,
+ "contamination_flag": false,
+ "final_text": "Imagine checking a lunch order: you ask for one cheese sandwich, and the receipt says “order received.” That’s green, but it doesn’t prove you’ll get the sandwich. The receipt could say the same thing even if the kitchen packed a tuna sandwich.\n\nA software test is a small check that compares what a program does with what we expect. Say the program should add two numbers, and `2 + 3` should give `5`. A test that only checks “did the program give some answer?” could pass even if the program mistakenly adds one and gives `6`.\n\nTo check that the test can fail, deliberately make that mistake: change the program so it adds one extra. Run the test. If it turns red, the test has shown it can catch that specific error. Then restore the correct addition and run it again; the test should turn green.\n\nThat red result is useful evidence that the test checks this behavior. It doesn’t prove the test will catch every possible problem—just as checking that the lunch order catches a tuna sandwich doesn’t prove it will catch every wrong item."
+}

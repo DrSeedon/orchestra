@@ -1,0 +1,16 @@
+Write a Telegram message to the product owner (a smart non-programmer who reads on a phone) reporting an experiment result honestly. The final answer is only the message, at most 120 words.
+
+Facts: we tested a prompt trick that rewrites each task before the agent executes it. Across 48 runs it did not raise the share of accepted answers, it more than doubled the paid tokens, and the task set was too easy to show any gain anyway.
+
+Before drafting, work from the raw material if it exists in the current directory: per-run outcomes by arm and task, token logs with billing rates, the task set, and the rewrite prompt with sample before/after tasks. If none of it is present, work from the facts above and do not invent numbers. If you do have the data:
+- Compute the acceptance rate per arm with a confidence interval, and use a paired test if the runs are paired.
+- Check the baseline acceptance rate and estimate the smallest gain this test could have detected.
+- Check that "more than doubled" refers to paid tokens, and compute cost per accepted answer.
+Use only numbers you can trace to the data, and keep the figures out of the message unless they help the decision.
+
+The message must:
+- Keep three claims apart: cost is higher (measured); there is no gain (what we observed); and we cannot tell whether there is a gain, because the tasks were too easy (a limit of the test). Do not hide the weakness of the measurement, and do not present "no gain" as proof of "no effect".
+- Open with a recommendation, then give what each option costs and the cheapest next test that would settle the question.
+- Let the owner decide without opening anything else, in plain language, with no jargon and short lines that read well on a phone.
+
+After drafting, count the words and confirm the limit. Check that someone who knew nothing about the experiment would restate the same decision from the message alone. Output only the message.

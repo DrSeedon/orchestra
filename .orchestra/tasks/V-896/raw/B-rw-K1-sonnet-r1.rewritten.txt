@@ -1,0 +1,15 @@
+Write the narration script for a 75-second explainer video for non-technical viewers, titled 'Why an AI agent forgets after a long session, and what a summary does about it'.
+
+Facts you may use: an agent works in a long conversation; when the conversation grows too big for the model's window it is compressed into a summary and work continues from that; details that were not carried into the summary are gone; a good summary is checked by asking the agent questions about the old work.
+
+Before writing:
+1. Look in the current directory (only there) for raw material such as session transcripts, generated summaries, or docs on context compaction. If you find any, base the example on what was actually lost between the transcript and its summary. If there is none, use only the facts above and do not invent specifics or statistics.
+2. Choose ONE everyday analogy and ONE takeaway for the viewer. Test where the analogy misleads (for example, it must not suggest random forgetting; the loss comes from what the summary left out) and pick or adjust it so it doesn't.
+3. Make the last beat the verification idea: quizzing the agent about old work to check the summary.
+
+Constraints:
+- Spoken pace is about 150 words per minute, so aim for 170-200 spoken words; never exceed 260 words in total (narration plus scene directions). Check with `wc -w` and compute the read-aloud time (words / 150 x 60); revise until it falls between 70 and 80 seconds.
+- No jargon unless explained in the same sentence; aim for a grade 6-8 reading level.
+- Every one of the four facts must be traceable to a specific line; add nothing that contradicts them.
+
+Final answer format: only the script, with a one-line scene direction before each part. No preface, notes, word count, or checklist in the final answer.

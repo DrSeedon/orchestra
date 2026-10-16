@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K1-luna-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3655,
+ "output_tokens": 270,
+ "input_tokens": 15033,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00058998,
+ "seconds": 7.5,
+ "contamination_flag": false,
+ "final_text": "[Scene: An agent and a person talk; the conversation grows into a long scroll.]\nAn AI agent can work with you through a long conversation. It follows the details as the work unfolds.\n\n[Scene: The scroll reaches a frame, then folds into a short note.]\nBut the model has a limit to how much conversation it can hold at once. When the conversation gets too big, it’s compressed into a summary.\n\n[Scene: The agent reads the note and resumes the task.]\nThe agent continues from that summary. It can keep working, but it’s now relying on what the summary says.\n\n[Scene: Some details fade away as the note stays visible.]\nAnything important that didn’t make it into the summary is gone from the agent’s view. It may forget a decision, a constraint, or why something was done.\n\n[Scene: A person asks the agent questions about earlier work; the agent checks the summary.]\nSo how can you tell whether a summary is good? Ask the agent questions about the old work. Can it recall the key choices and details? If not, the summary may need to carry more forward.\n\n[Scene: The agent continues, with the checked summary beside it.]\nA summary is a bridge across a long session. The better it preserves what matters, the more smoothly the work can continue."
+}

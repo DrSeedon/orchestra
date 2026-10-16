@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K1-sonnet-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3047,
+ "output_tokens": 606,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2439,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0165378,
+ "seconds": 7.7,
+ "contamination_flag": false,
+ "final_text": "**Why an AI Agent Forgets After a Long Session, and What a Summary Does About It**\n\n**Scene 1 (0:00–0:10)** *A person chatting with a friendly robot assistant at a desk, with a long scroll of messages growing behind them.*\nImagine hiring an assistant for a big project. You work together for hours, and the conversation just keeps growing.\n\n**Scene 2 (0:10–0:25)** *The scroll of messages fills a small window frame and starts spilling past its edges.*\nBut an AI model can only keep so much in view at once. That limit is called its window. When the conversation grows too big to fit, something has to give.\n\n**Scene 3 (0:25–0:42)** *The long scroll is squeezed by a press into a single short page labeled \"Summary.\" The robot picks it up.*\nSo the conversation is compressed into a summary. The assistant carries on from that short page instead of the full history. It's like moving house and packing only one suitcase.\n\n**Scene 4 (0:42–0:55)** *Items fall out of the suitcase: a sticky note labeled \"client's deadline\" fades away as the robot looks puzzled.*\nHere's the catch. Any detail that didn't make it into the summary is gone. The agent won't know it ever existed. That's why, after a long session, it can suddenly forget something you told it earlier.\n\n**Scene 5 (0:55–1:08)** *A tester holds up question cards. The robot answers, and checkmarks appear next to the right answers.*\nSo how do we know a summary is good? We test it. We ask the agent questions about the old work. If it answers correctly, the important details made it through.\n\n**Scene 6 (1:08–1:15)** *The robot hands over a tidy suitcase, smiling, as the title card appears.*\nA good summary means fewer lost details, and an assistant that keeps working with you."
+}

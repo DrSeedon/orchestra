@@ -1,0 +1,8 @@
+Investigate the two reported failures as separate incidents unless evidence shows a common cause. Do not run the full suite (`pytest tests/`), change files, or read outside the project directory. Small, time-bounded targeted commands are allowed.
+
+1. For the exit-137 run, map pytest’s reported progress to the tests and teardown activity at that point. Inspect the project’s pytest configuration, plugins, fixtures, and test process setup. Use available process or OS/container evidence to determine whether the process was OOM-killed or terminated for another reason. If external kill records are unavailable, state that limitation and distinguish verified facts from hypotheses.
+2. For the hang near 85–88%, identify the test and fixture teardown in progress. Trace the `TestClient(app)` lifecycle through application startup and shutdown hooks, fixture dependencies, background tasks, and threads. Use a time-bounded focused reproduction and capture relevant Python thread/process state to identify the blocking path.
+3. Use the smallest targeted commands needed to validate each root cause. Do not infer a cause solely from the approximate progress percentage, exit code, or the fact that free memory was observed.
+4. Report each conclusion with the supporting evidence, including file and function names, reproduction or diagnostic commands, and any uncertainty. Recommend the smallest appropriate fix, but do not implement it.
+
+Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names) and the recommendation.

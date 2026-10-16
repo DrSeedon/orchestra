@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K1-sonnet-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 5941,
+ "output_tokens": 2476,
+ "input_tokens": 4,
+ "cache_read_tokens": 9675,
+ "cache_create_tokens": 3461,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.040547,
+ "seconds": 21.2,
+ "contamination_flag": false,
+ "final_text": "**Why an AI agent forgets after a long session, and what a summary does about it**\n\n**Scene 1 (0:00–0:12): A person types to a chat window; the conversation scrolls on and on.**\nImagine giving an AI agent a big job. Hour after hour, you talk, it works, and the conversation grows longer.\n\n**Scene 2 (0:12–0:27): A desk with a fixed-size sheet of paper filling with notes until it's full.**\nBut the model can only hold so much at once. That limit is its window, like a desk with room for only so many pages. Eventually, the conversation no longer fits.\n\n**Scene 3 (0:27–0:42): The pile of pages is squeezed into one short page; work continues from it.**\nSo the conversation is compressed into a summary. The old pages are set aside, and work carries on from that short page alone.\n\n**Scene 4 (0:42–0:55): A few words on the summary fade out; a question mark appears where a detail was.**\nHere's the catch. Any detail that didn't make it into the summary is gone. The agent can't look it up. It simply doesn't know it anymore. That's the forgetting.\n\n**Scene 5 (0:55–1:08): A quizmaster asks the agent questions about earlier work; checkmarks appear.**\nSo how do we know a summary is good? We test it. We ask the agent questions about the old work. If it answers correctly, the important details survived.\n\n**Scene 6 (1:08–1:15): The title returns over a calm, tidy desk.**\nLong sessions don't have to mean lost work. A checked summary keeps what matters.\n\n*Check: the independent criterion is `wc -w` on the script file, which must report 260 words or fewer. Bash is disabled here, so I couldn't run it. I counted by hand instead: about 241 words, excluding the title line. That is a weaker check than running `wc -w`.*"
+}

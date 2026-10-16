@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K5-sonnet-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 3663,
+ "output_tokens": 1110,
+ "input_tokens": 2,
+ "cache_read_tokens": 3005,
+ "cache_create_tokens": 2551,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.021908999999999998,
+ "seconds": 12.9,
+ "contamination_flag": false,
+ "final_text": "**1. What a top professional would do that you aren't asking for**\n\nA test-quality engineer or mutation-testing researcher wouldn't just explain the idea. They would show it working by breaking something on purpose and watching whether the check notices. They would also check that the explanation holds up for a non-programmer. They would test it on a real novice and see whether that person can restate it and spot a vacuous check in a new situation. The explanation would also say which failure it covers: a check that cannot fail, as opposed to one that checks the wrong thing.\n\n**2. The rawest material to start from**\n\nStart from real cases of tests that pass while proving nothing, not from a tidy summary of the idea. Examples are an assertion that is always true, a test that never runs its assertion, and a test that checks the code against itself. Good sources are the bug reports and postmortems where a green suite missed a real defect, and mutation-testing results on actual projects, where \"survived mutants\" show tests that did not notice a deliberate break. Add transcripts or notes from explaining this to non-programmers, which show where people get confused. A glossary or a blog post is already digested.\n\n**3. Methods and tools**\n\n- Mutation testing (for example mutmut, PIT, Stryker) and the manual version: break the code on purpose and confirm the test goes red. The red-green-refactor habit of seeing the test fail first is the same check.\n- Pick the analogy by testing whether it maps one-to-one: what is the check, what is the thing checked, what is the deliberate break. Reject any analogy where the break step has no counterpart.\n- Plain-language review: no jargon, one idea per sentence, a readability score, and a word count.\n- A teach-back with a non-programmer.\n\n**4. What other than you or me would show it's right**\n\n- Independent readers who have never programmed. They restate the idea in their own words and correctly judge a new example of a check that cannot fail.\n- A mutation tool run on a small example, showing that a vacuous test survives the break and a real test does not. This is an objective result neither of us produces.\n- A mechanical word count of 220 or fewer.\n\n**Rewritten prompt**\n\n```\nExplain to someone who has never programmed why a test that turns green can still prove nothing, and what \"checking that the test can fail\" means.\n\nGround the explanation in how this really goes wrong: a check that can never fail, such as one that is always true, never actually runs, or compares something with itself. Do not write a generic definition. Tie the explanation to the idea behind mutation testing and \"watch it fail first\": break the thing on purpose and confirm the check notices.\n\nUse one fresh everyday analogy. It must not be a smoke alarm or a bathroom scale. Before using it, check that it maps one-to-one onto three parts: the check, the thing being checked, and the deliberate break. If any part has no counterpart, choose a different analogy.\n\nRequirements:\n- No jargon. A person who has never programmed must be able to follow it. Define any technical word you cannot avoid.\n- Make clear that \"passes\" and \"proves something\" are different, and say what the deliberate break shows.\n- At most 220 words. Count the words and confirm the limit before answering.\n- The final answer is only the explanation. Do not include the analogy check, notes, or a word count.\n\nBefore answering, privately test the draft. Could a reader restate the idea in their own words? Could they correctly spot a check that cannot fail in a new example? If not, revise.\n```"
+}

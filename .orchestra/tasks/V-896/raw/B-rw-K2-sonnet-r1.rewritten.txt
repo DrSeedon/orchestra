@@ -1,0 +1,14 @@
+The owner of a multi-agent coding platform cannot tell at a glance what each of ten running agents is doing, or whether it is stuck, waiting, or making progress. Reading each agent's chat log is too slow. Propose ONE dashboard feature concept that fixes this.
+
+Method (do this before writing; do not show the work):
+1. Start from the rawest material available, not from summaries or existing status fields: tool-call sequences with timestamps, file diffs/git activity, command and test outputs, and blocked-on-input events. If the working directory contains traces, logs, or platform code, inspect those directly. If it contains none, say in one clause that the concept rests on assumed signals.
+2. Define "stuck", "waiting", and "progressing" as observable, checkable signals (e.g. repeated identical tool calls, silence beyond that agent's own baseline, diff growth, test-result change, pending permission/question). Prefer signals that actually exist in the data you inspected.
+3. Test the concept against at least two concrete failure scenarios (e.g. an agent looping on the same failing test; an agent silently waiting on a permission prompt). Check that the owner would notice each one within seconds, and that a false "stuck" alarm would not bury real ones.
+4. Compare against the obvious alternative, a log list, on the owner's actual decision: "which agent needs me, and what do I do?"
+5. State how the owner could verify the concept independently of you: a labeled sample of past runs with precision/recall on "stuck", and a timed glance test on replayed incidents.
+
+Final answer: only the concept, at most 300 words, containing exactly:
+- the core idea in one sentence;
+- what the owner sees and does, concretely;
+- why it works better than a log list;
+- the main risk.

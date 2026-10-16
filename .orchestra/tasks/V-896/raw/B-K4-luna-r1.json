@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K4-luna-r1",
+ "task": "K4",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 7467,
+ "output_tokens": 178,
+ "input_tokens": 45433,
+ "cache_read_tokens": 38144,
+ "cache_create_tokens": 0,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.0011993400000000001,
+ "seconds": 7.5,
+ "contamination_flag": false,
+ "final_text": "I can’t estimate the effect or paid-token cost: this directory contains no run-level experiment records. Without them, any comparison would be invented. The only study details provided are 48 runs on tasks too easy to show any gain, which is a weak measurement—not proof that rewriting has no effect. Next step: stop the trick, keep using it, or test it on harder tasks once the records are available."
+}

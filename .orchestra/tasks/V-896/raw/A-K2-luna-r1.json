@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K2-luna-r1",
+ "task": "K2",
+ "kind": "creative",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3528,
+ "output_tokens": 168,
+ "input_tokens": 15008,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00053648,
+ "seconds": 6.9,
+ "contamination_flag": false,
+ "final_text": "A live **agent status board** turns each of the ten agents into a compact, updating card that shows its current task, latest meaningful action, elapsed time since progress, and state: working, waiting, or possibly stuck.\n\nThe owner sees all ten cards at once, with waiting and stale agents surfaced; selecting a card reveals its recent activity and offers focused actions such as opening the conversation or nudging the agent. “Possibly stuck” is a signal based on stale progress, not a definitive diagnosis.\n\nUnlike a log list, the board answers “who needs attention?” at a glance and lets the owner compare agents without reading each history. The main risk is misleading status: sparse or delayed activity can make a healthy agent look stuck, so show when the status was last updated and let the owner inspect the underlying activity."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K5-sonnet-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3328,
+ "output_tokens": 908,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2418,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0194738,
+ "seconds": 9.8,
+ "contamination_flag": false,
+ "final_text": "Imagine you ask a proofreader, \"Found any mistakes?\" and they answer, \"None!\" That's only reassuring if they actually read the pages. If they were handed blank paper, they'd say \"None!\" every time.\n\nA software test is a proofreader for a program. \"Green\" means \"no mistakes found.\" But a test can go green while checking nothing useful. It might look at the wrong thing, or ask a question so loose that every answer passes, like \"Is this document a document?\"\n\nSo you check that the test can fail. Deliberately plant a mistake in the program, such as changing a price from 10 to 11, and run the test again. In the analogy, you slip a typo into the pages and see whether the proofreader catches it. If the test turns red, it's really watching. If it stays green, it was proving nothing, and its earlier green proved nothing either.\n\nThe habit: never trust a pass you've never seen fail.\n\n**External check:** the word limit can be checked by running `wc -w` on this text. I couldn't run it here, so my hand count of roughly 200 words is unverified."
+}

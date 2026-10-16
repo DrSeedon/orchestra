@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K1-sonnet-r1",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4341,
+ "output_tokens": 1842,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2497,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.029129800000000004,
+ "seconds": 14.9,
+ "contamination_flag": false,
+ "final_text": "**Why an AI agent forgets after a long session, and what a summary does about it**\n\n**[0:00–0:12] Scene:** A person chats with a friendly robot; the chat scrolls endlessly upward.\nImagine working with an AI agent for hours. Every message, every file, every decision piles up in one long conversation.\n\n**[0:12–0:27] Scene:** The scrolling chat hits a glowing frame labeled \"window\"; the top lines fade.\nBut the model can only see so much at once. That limit is its window. When the conversation grows too big, it can't all fit.\n\n**[0:27–0:42] Scene:** Many pages shrink into one short note.\nSo the conversation is compressed into a summary, and work continues from that note, not from the full history.\n\n**[0:42–0:55] Scene:** A small sticky note slips off the page and vanishes.\nHere's the catch: any detail that didn't make it into the summary is gone. The agent won't know it ever existed.\n\n**[0:55–1:15] Scene:** An examiner with a clipboard quizzes the robot about earlier work; checkmarks appear.\nSo how do we trust a summary? We test it. Ask the agent questions about the old work. If it answers correctly, the summary kept what mattered. If not, it needs fixing.\n\n*Check:* The independent criterion is the word count, which should be at most 260. I counted by hand because I have no shell here. The narration is 117 words, and the whole script, including directions and timestamps, is about 215. You can confirm with `wc -w` on the pasted text."
+}

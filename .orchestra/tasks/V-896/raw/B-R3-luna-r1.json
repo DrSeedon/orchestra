@@ -1,0 +1,23 @@
+{
+ "run_id": "B-R3-luna-r1",
+ "task": "R3",
+ "kind": "research",
+ "arm": "B",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 63962,
+ "output_tokens": 2678,
+ "input_tokens": 339812,
+ "cache_read_tokens": 278528,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.01025268,
+ "seconds": 117.7,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n1. Exit 137: Cause undetermined. `pyproject.toml` configures pytest to exclude `live_probe` by default; plugins include `pytest-timeout` and `xdist`. The global `tests/conftest.py` fixtures isolate databases and environment, but I found no evidence that they explain a kill. A targeted `python -m pytest --collect-only -q` collected 4,065 tests and then stopped on a collection error in `tests/test_kb_index_injection_522.py` because the default pipeline file is missing. That is current collection evidence, not evidence about the earlier run. Exit 137 alone does not establish OOM, and the original run’s process or container kill records were unavailable. Recommendation: retain the original run’s pytest output and inspect its supervisor/container termination records before attributing the exit to OOM.\n\n2. Hang near 85–88%: I could not identify a unique test from the percentage because the original command, collected-test count, and last node ID were not provided. In this checkout’s collection order, that range falls within `tests/test_tg_bridge.py`; those tests do not use `TestClient(app)`. The nearby `TestClient` lifecycle tests are in `tests/test_startup_bridge.py`, which collects around 80%, so the reported range does not identify them in this checkout.\n\n   I ran the bounded reproduction `timeout 35s python -m pytest -vv -s tests/test_startup_bridge.py tests/test_tg_bridge.py`. All 202 tests passed in 9.91 seconds. In `app/main.py`, `lifespan()` starts the bridge, usage snapshot, and other services as background tasks; `_shutdown_runtime()` cancels and awaits them, then shuts down file delivery, bridge, renderer, jobs, and sessions. `tests/test_startup_bridge.py::TestBridgeOffCriticalPath::test_shutdown_survives_bridge_that_never_came_up` specifically checks cancellation of a bridge task sleeping for an hour, and passed. This reproduction provides no blocking stack or thread state, so it does not establish a hang root cause. Recommendation: capture the last pytest node ID and a thread dump from the original hung process, then reproduce that exact test with a timeout. No files were changed."
+}

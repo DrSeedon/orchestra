@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K5-luna-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 3823,
+ "output_tokens": 354,
+ "input_tokens": 15117,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0006403800000000001,
+ "seconds": 7.8,
+ "contamination_flag": false,
+ "final_text": "1. A top professional would trace the test’s claim back to the behavior it is supposed to protect, then challenge that claim with a deliberately wrong version of the behavior. They would check that the test fails for the right reason, and passes again when the correct behavior is restored.\n\n2. They would start from the raw test code and the behavior it exercises, along with the smallest relevant change that should make that behavior wrong—not a summary of the test or a report that it passed.\n\n3. They would use a mutation-testing approach: introduce a targeted fault, run the test, inspect the failure, then restore the code and rerun it. For this small explanation, they’d use that workflow to make the wording precise, rather than actually modify a project.\n\n4. The result is supported by the test runner’s observable outcomes: the test fails with the fault present and passes after it is removed. A reader can also check that the analogy accurately maps those two outcomes.\n\n```text\nExplain to someone who has never programmed why a test that turns green can still prove nothing, and what “checking that the test can fail” means.\n\nStart from the raw test behavior: a test can pass even when it would also pass if the behavior it is meant to protect were wrong. Explain the idea of deliberately introducing a small, relevant fault and checking that the test fails, then restoring the correct behavior and checking that it passes. Make clear that the failure should be caused by the fault the test is meant to catch.\n\nUse one fresh everyday analogy—not a smoke alarm or a bathroom scale—and make the mapping between the analogy and the test behavior clear. Keep the explanation accurate, plain, and at most 220 words.\n\nFinal answer: only the explanation.\n```"
+}

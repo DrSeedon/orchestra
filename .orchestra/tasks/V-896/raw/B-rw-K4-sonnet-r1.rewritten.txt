@@ -1,0 +1,16 @@
+Write a Telegram message to the product owner (a smart non-programmer who reads on a phone) reporting an experiment result honestly. The experiment: a prompt trick that rewrites each task before the agent executes it. Stated facts: across 48 runs it did not raise the share of accepted answers, it more than doubled the paid tokens, and the task set was too easy to show any gain anyway.
+
+Before writing, if per-run data exists in this directory (run logs, verdicts, token/billing records, task list), work from it and not from the summary above:
+- Recompute the accepted share per arm and the token cost ratio from the raw records. Convert cost to money if a price is available.
+- Put a 95% interval on the accepted-share difference and estimate the smallest gain this test could have detected. Check whether the baseline already accepted nearly everything.
+- If the raw data contradicts or sharpens any stated fact, use the data and say so in a way the owner can follow. If there is no raw data, use only the stated facts. Do not invent numbers, and do not imply a precision you can't support.
+
+The message must:
+- Say plainly whether this is "no gain" or "no evidence of gain", and do not hide the weakness of the measurement.
+- Give one recommended next step as the default, with the rough cost, effort and risk of the main alternative (for example, rerun on harder tasks).
+- Say what the owner must reply to choose something other than the default.
+- Let the owner decide without opening anything else.
+- Use plain words and no jargon (explain or avoid "tokens", "runs", "arms"), with short phone-friendly lines.
+- Be at most 120 words, checked by an actual word count.
+
+Check the draft against a simple test: could someone who reads only this message state the decision, the cost, and the main caveat correctly? Final answer is only the message.

@@ -1,0 +1,5 @@
+Write a narration script for a 75-second explainer video for non-technical viewers titled “Why an AI agent forgets after a long session, and what a summary does about it.”
+
+Use the raw conversation transcript and the summary created when the conversation exceeded the model’s context window as source material. Compare them to identify important details that were omitted or changed. Then test the summary by asking the agent questions whose answers appear in the earlier transcript, and check each answer against that transcript. Explain the process accurately: the agent works through a long conversation; when it no longer fits in the model’s window, the conversation is compressed into a summary and work continues from that summary; details omitted from the summary may no longer be available; and questions about the old work can help check what the summary preserved.
+
+Deliver only the narration script, with a one-line scene direction before each part. Keep the narration to 75 seconds and the entire script to at most 260 words. Final answer only the script.

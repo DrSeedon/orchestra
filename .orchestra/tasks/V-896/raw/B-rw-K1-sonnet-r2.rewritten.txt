@@ -1,0 +1,14 @@
+Write the narration script for a 75-second explainer video for non-technical viewers, titled 'Why an AI agent forgets after a long session, and what a summary does about it'.
+
+Facts you may use (make no claims beyond these; anything else must be clearly metaphor): an agent works in a long conversation; when the conversation grows too big for the model's window it is compressed into a summary and work continues from that; details that were not carried into the summary are gone; a good summary is checked by asking the agent questions about the old work.
+
+Method:
+- Before writing, check the working directory for real source material (transcripts, summaries, docs). If any exists, base the example on it; if none, say nothing about it and use only the facts above. Do not invent evidence.
+- Budget time first: about 150 words per minute means roughly 185-190 spoken words for 75 seconds. Scene directions count toward the 260-word hard cap, so keep the total at or under 260 words with the spoken narration near 185.
+- Pick one concrete everyday metaphor, check that it fits all four facts, and use it throughout. Do not mix metaphors.
+- Give each part one job: hook, the problem, what the summary does, what gets lost, how a good summary is checked, takeaway.
+- Address likely misconceptions: the AI is not lazy or broken, and it does not remember the way a person does.
+- Use plain words at a reading level of about Flesch 70 or higher. Do not use jargon such as "token", "context window" or "LLM" unless explained in plain words.
+- Verify before finishing: count the words with a tool, and trace each sentence to one of the four facts or mark it as metaphor, then fix any sentence that does neither. Keep this tracing out of the final answer.
+
+Deliver: the narration with a one-line, producible scene direction before each part, at most 260 words in total. The final answer is only the script.

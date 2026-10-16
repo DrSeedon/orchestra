@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K5-luna-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3614,
+ "output_tokens": 207,
+ "input_tokens": 15055,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00056068,
+ "seconds": 6.6,
+ "contamination_flag": false,
+ "final_text": "A green test tells you, “The test passed today.” It doesn’t automatically tell you, “The test would catch the problem it was written for.” A test might pass even when the protected behavior is wrong—for example, because it never checks the important result.\n\nChecking that a test can fail means making a small, deliberate change that breaks that specific behavior, then running the test. If the test turns red because of that change, it shows the test can detect the problem. Restore the correct behavior and run it again; it should turn green.\n\nImagine a doorbell test: press the button and listen for a chime. The button and chime are the behavior; the test is listening for the chime. Temporarily disconnect the chime wire. If the test still reports success, it isn’t really checking whether the doorbell rings. If it reports failure because there’s no chime, it catches the fault it was meant to catch. Reconnect the wire, and the test should pass again."
+}

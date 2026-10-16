@@ -1,0 +1,23 @@
+{
+ "run_id": "A-R3-luna-r1",
+ "task": "R3",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 82963,
+ "output_tokens": 3760,
+ "input_tokens": 587491,
+ "cache_read_tokens": 508288,
+ "cache_create_tokens": 0,
+ "turns": 16,
+ "cost_usd_api_equiv": 0.014883180000000001,
+ "seconds": 63.7,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n- The browser stall has a confirmed cause: `tests/test_frontend.py::_start_dashboard_server` originally sent Uvicorn output to an unread `stdout=PIPE`. When the pipe filled, the server blocked while logging and stopped answering HTTP. The local diagnostic report records a reproduction: the server was in `pipe_write`, HTTP timed out, and draining the pipe restored HTTP 200 without restarting the server. The current helper uses a temporary file instead, so that specific defect appears fixed in this snapshot. Recommendation: keep the regression coverage in `tests/test_dashboard_server_output.py`; use cgroup OOM evidence to diagnose exit 137 separately.\n\n- The `TestClient(app)` teardown has an unbounded shutdown path: `app.main.lifespan` awaits `_shutdown_runtime`, which awaits `manager.shutdown_all`; that gathers `session.stop()` calls, and `AgentSession.stop()` awaits `_disconnect_backend()`, including `backend.disconnect()`. A backend that does not finish disconnecting can therefore hang fixture teardown indefinitely. Recommendation: bound backend shutdown and report which session/backend exceeded the limit.\n\n- I can’t establish the root cause of exit 137 from this snapshot alone. Exit 137 means the process received SIGKILL; host free memory does not rule out a container or cgroup memory limit. The pipe deadlock explains stalled HTTP, not a kill, and the local browser diagnostics report roughly 1.2 GB peak sampled RSS without a kill. Check the runner’s cgroup memory limit and OOM counters to confirm whether the suite process was OOM-killed before attributing 137 to a test."
+}

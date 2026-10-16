@@ -1,0 +1,3 @@
+Inspect the mechanism’s source code and configuration, along with the owner’s rules file and neighboring entries. Trace when the mechanism triggers, how it determines that no live background job exists, and what rule-identifying message it sends. Use the existing vocabulary and rule style to develop five candidate names, each with a rationale of six words or fewer. Choose the name that best balances clarity, memorability, and operational accuracy. Write a one-sentence rule for the owner’s rules file that accurately states the behavior and its reason.
+
+Return only these three parts: (1) five candidate names, each with its rationale; (2) your pick; (3) the rule sentence. Keep the entire response to at most 150 words.

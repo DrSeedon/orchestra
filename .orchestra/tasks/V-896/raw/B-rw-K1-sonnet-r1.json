@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K1-sonnet-r1",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 4793,
+ "output_tokens": 2161,
+ "input_tokens": 2,
+ "cache_read_tokens": 3005,
+ "cache_create_tokens": 2630,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.032735,
+ "seconds": 19.8,
+ "contamination_flag": false,
+ "final_text": "**1. What a top professional would do that you didn't ask for**\n- They would check the length. 260 words in 75 seconds is about 208 words per minute, which is too fast for narration. Comfortable pace is 140–160 wpm, so the real target is about 170–200 spoken words, with 260 as a ceiling only.\n- They would build the script around one running analogy and one takeaway. Then they would test where the analogy breaks. For example, a desk that fills up with notes suggests the agent loses things at random. The real cause is that the summary leaves things out.\n- They would turn the fourth fact into the closing beat: a good summary is verified by quizzing the agent about old work.\n- They would read the script aloud with a stopwatch and cut anything that trips the tongue.\n\n**2. Rawest material to start from**\nStart from a real long agent session instead of the four-fact digest. That means the full transcript before compaction, the summary the system produced, and a diff showing which details were dropped. The vendor documentation on context windows and compaction is the next layer down. The other raw input is the questions non-technical people actually ask about this, such as \"why did it forget what I told it an hour ago?\" I can only look inside this directory, so the script should first check it for such material. If there is none, it should use only your four facts and invent no specifics.\n\n**3. Methods and tools**\n- `wc -w` for the word count.\n- Read-aloud timing at 150 wpm (words ÷ 150 × 60 gives seconds).\n- A readability check, aiming for roughly a grade 6–8 reading level, with no jargon such as \"token\" or \"context window\" unless the script explains it in the same sentence.\n- A fact-traceability checklist that maps each of the four facts to a line in the script.\n- An analogy stress test.\n- Scene directions written as one-line visual cues.\n\n**4. What other than you or me would show it's right**\n- A stopwatch or text-to-speech read-through that lands at 70–80 seconds.\n- `wc -w` output within the limit.\n- A teach-back from one non-technical reader. After reading or hearing the script, they should be able to say in their own words why the agent forgets and what the summary does.\n- A technical reviewer who confirms the claims match how compaction actually works.\n\n**Rewritten prompt**\n\n```\nWrite the narration script for a 75-second explainer video for non-technical viewers, titled 'Why an AI agent forgets after a long session, and what a summary does about it'.\n\nFacts you may use: an agent works in a long conversation; when the conversation grows too big for the model's window it is compressed into a summary and work continues from that; details that were not carried into the summary are gone; a good summary is checked by asking the agent questions about the old work.\n\nBefore writing:\n1. Look in the current directory (only there) for raw material such as session transcripts, generated summaries, or docs on context compaction. If you find any, base the example on what was actually lost between the transcript and its summary. If there is none, use only the facts above and do not invent specifics or statistics.\n2. Choose ONE everyday analogy and ONE takeaway for the viewer. Test where the analogy misleads (for example, it must not suggest random forgetting; the loss comes from what the summary left out) and pick or adjust it so it doesn't.\n3. Make the last beat the verification idea: quizzing the agent about old work to check the summary.\n\nConstraints:\n- Spoken pace is about 150 words per minute, so aim for 170-200 spoken words; never exceed 260 words in total (narration plus scene directions). Check with `wc -w` and compute the read-aloud time (words / 150 x 60); revise until it falls between 70 and 80 seconds.\n- No jargon unless explained in the same sentence; aim for a grade 6-8 reading level.\n- Every one of the four facts must be traceable to a specific line; add nothing that contradicts them.\n\nFinal answer format: only the script, with a one-line scene direction before each part. No preface, notes, word count, or checklist in the final answer.\n```"
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K5-luna-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3526,
+ "output_tokens": 207,
+ "input_tokens": 14967,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0005518800000000001,
+ "seconds": 6.2,
+ "contamination_flag": false,
+ "final_text": "A green test only means the test passed. It doesn’t automatically mean it checked the right thing.\n\nImagine a friend asks you to sort a basket of laundry into darks and lights. You look at the basket afterward and say, “Looks good!” But if you never checked whether the clothes were actually sorted, your approval proves nothing. A test can be like that: it may run successfully while never noticing the problem it’s meant to catch.\n\n“Checking that the test can fail” means deliberately create the problem the test is supposed to detect and make sure the test turns red. If a test is meant to catch a dark sock in the lights pile, put one there and confirm the test complains. If it stays green, the test may be looking in the wrong place, checking the wrong rule, or not checking at all.\n\nOnce it turns red for the mistake and green when the mistake is fixed, you have evidence that it can spot that particular problem. It still doesn’t prove there are no other problems."
+}

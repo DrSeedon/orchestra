@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K5-luna-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "1",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 4727,
+ "output_tokens": 383,
+ "input_tokens": 15992,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00074238,
+ "seconds": 8.9,
+ "contamination_flag": false,
+ "final_text": "1. **What a top professional would add:** They would show the difference between a test that merely runs and one that would catch the specific bug it is meant to detect. They would explain the full check: make a small, controlled change that should break the behavior, confirm the test turns red, then restore the correct behavior and confirm it turns green again.\n\n2. **Rawest material:** Start from a tiny example with an expected result, the test itself, and two outcomes: one where the feature works and one where a deliberate defect is present. That is more revealing than a general definition of testing.\n\n3. **Methods and tools:** Use a concrete before-and-after walkthrough, keeping the analogy consistent and everyday. Apply a basic mutation check: deliberately introduce one plausible mistake and see whether the test catches it. Avoid jargon or define it plainly.\n\n4. **What would show it is right:** The explanation should be understandable to a nonprogrammer, accurately distinguish “passes” from “can catch the intended mistake,” and not imply that one failure proves a test is complete. A reviewer familiar with software testing could verify those claims.\n\n```text\nExplain to someone who has never programmed why a test that turns green can still prove nothing, and what “checking that the test can fail” means.\n\nUse one fresh everyday analogy (not a smoke alarm or bathroom scale). Ground the explanation in a tiny example: state what result is expected, show how the test could pass while missing a plausible mistake, then describe deliberately making that mistake to check whether the test turns red. Explain that restoring correct behavior should make it green again. Clarify that this check gives evidence the test catches that particular mistake; it does not prove the test catches every problem.\n\nUse plain language, define any necessary technical term, and keep the analogy consistent. At most 220 words. Final answer is only the explanation.\n```"
+}

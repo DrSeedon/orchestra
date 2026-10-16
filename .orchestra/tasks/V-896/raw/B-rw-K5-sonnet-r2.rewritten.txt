@@ -1,0 +1,13 @@
+Explain to someone who has never programmed why a test that turns green can still prove nothing, and what "checking that the test can fail" means.
+
+Ground the explanation in how this really goes wrong: a check that can never fail, such as one that is always true, never actually runs, or compares something with itself. Do not write a generic definition. Tie the explanation to the idea behind mutation testing and "watch it fail first": break the thing on purpose and confirm the check notices.
+
+Use one fresh everyday analogy. It must not be a smoke alarm or a bathroom scale. Before using it, check that it maps one-to-one onto three parts: the check, the thing being checked, and the deliberate break. If any part has no counterpart, choose a different analogy.
+
+Requirements:
+- No jargon. A person who has never programmed must be able to follow it. Define any technical word you cannot avoid.
+- Make clear that "passes" and "proves something" are different, and say what the deliberate break shows.
+- At most 220 words. Count the words and confirm the limit before answering.
+- The final answer is only the explanation. Do not include the analogy check, notes, or a word count.
+
+Before answering, privately test the draft. Could a reader restate the idea in their own words? Could they correctly spot a check that cannot fail in a new example? If not, revise.

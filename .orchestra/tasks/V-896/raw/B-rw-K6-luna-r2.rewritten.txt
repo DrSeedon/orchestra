@@ -1,0 +1,8 @@
+Using the owner’s actual Telegram voice notes, their transcripts, the notes vault and its filing structure, and real questions asked about those notes, create:
+- a one-word product name that is pronounceable in both Russian and English;
+- a tagline of at most eight words;
+- a three-sentence pitch that makes a skeptical friend want to try it.
+
+First inspect a small, representative sample end to end: compare source audio with transcripts and filed notes, then trace sample answers back to the notes that support them. Use transcription alignment, vault search, and a claim-to-evidence table to ground the copy in the actual experience. Avoid claims the evidence does not support.
+
+The final answer must be at most 90 words total and contain only these three parts: product name, tagline, and pitch.

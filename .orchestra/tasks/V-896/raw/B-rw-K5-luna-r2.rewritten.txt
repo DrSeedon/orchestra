@@ -1,0 +1,7 @@
+Explain to someone who has never programmed why a test that turns green can still prove nothing, and what “checking that the test can fail” means.
+
+Start from the raw test behavior: a test can pass even when it would also pass if the behavior it is meant to protect were wrong. Explain the idea of deliberately introducing a small, relevant fault and checking that the test fails, then restoring the correct behavior and checking that it passes. Make clear that the failure should be caused by the fault the test is meant to catch.
+
+Use one fresh everyday analogy—not a smoke alarm or a bathroom scale—and make the mapping between the analogy and the test behavior clear. Keep the explanation accurate, plain, and at most 220 words.
+
+Final answer: only the explanation.

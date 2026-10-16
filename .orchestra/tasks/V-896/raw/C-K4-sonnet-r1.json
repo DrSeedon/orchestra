@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K4-sonnet-r1",
+ "task": "K4",
+ "kind": "creative",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3058,
+ "output_tokens": 416,
+ "input_tokens": 4,
+ "cache_read_tokens": 9671,
+ "cache_create_tokens": 2638,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.0166542,
+ "seconds": 11.6,
+ "contamination_flag": false,
+ "final_text": "**Result: the task-rewriting trick isn't worth keeping on.**\n\nOver 48 runs, it didn't raise the share of accepted answers. It more than doubled the paid tokens, so it costs far more for no visible gain.\n\n**Weakness:** our tasks were too easy, since the agent already succeeded without help. This test couldn't have shown a gain, so it doesn't prove the trick is useless on hard work.\n\n**Recommendation:** leave it off. Only retest if you care about hard tasks, using a harder set.\n\n**How to check:** compare the accepted-answer counts and billed token totals from the runs yourself. I had no run data here, so I haven't verified these numbers.\n\nShould I plan the harder retest?"
+}

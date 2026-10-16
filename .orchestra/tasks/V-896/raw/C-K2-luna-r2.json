@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K2-luna-r2",
+ "task": "K2",
+ "kind": "creative",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4842,
+ "output_tokens": 553,
+ "input_tokens": 45761,
+ "cache_read_tokens": 41472,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.00112012,
+ "seconds": 10.8,
+ "contamination_flag": false,
+ "final_text": "An agent radar turns ten live sessions into a single board of status cards, each showing its current phase, last meaningful event and time, progress change, and any explicit wait or blocker.\n\nThe owner can scan for stale or blocked cards, sort by inactivity, and open a selected card’s concise activity summary or jump into its chat when intervention is needed.\n\nUnlike a log list, the board makes agent states comparable at a glance; the main risk is misleading or stale status when agents fail to report structured updates.\n\nIndependent check: word count, applied with `wc -w` — 105 words."
+}

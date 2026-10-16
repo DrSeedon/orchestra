@@ -1,0 +1,23 @@
+{
+ "run_id": "A-R2-luna-r1",
+ "task": "R2",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 25073,
+ "output_tokens": 1079,
+ "input_tokens": 175802,
+ "cache_read_tokens": 151808,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.004456979999999999,
+ "seconds": 25.1,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe proposal’s retention assumption does not hold in this code. `app/db.py:cleanup_old_logs()` is deliberately disabled and raises an error; `SessionManager.start_background_tasks()` in `app/manager.py` documents that age-based log cleanup was removed so agent history remains research data. There is no current age-based retention schedule to synchronize blob deletion with.\n\n`AgentSession._handle_event()` in `app/session.py` logs `tool_result` content directly through `_log()`. The existing `add_log()` in `app/db.py` inserts the content as-is and documents that log rows are immutable. Copying files at this point would need to reliably identify image payloads and their source files across backends. That relationship is not universal: for example, `backend_codex.py` emits an image-view result containing a `file_path`, while the UI in `app/static/js/app.js` also handles embedded base64 and can fall back to that original path. A copied file could differ from the embedded image, and some results may not have a usable referenced path.\n\nLogs disappear when their session row is deleted: `logs.session_id` references `sessions(id) ON DELETE CASCADE` in `app/db.py`. Any blob store would therefore need cleanup tied to session deletion as well as any future log-retention policy. Archiving a session does not delete its logs.\n\nRecommendation: don’t implement blob copying with the proposed “delete when log retention expires” lifecycle as-is. First decide whether logs will ever expire; today they do not. If the immediate goal is to shrink SQLite, consider externalizing recognized image payloads while preserving the log’s immutable content semantics through a durable blob reference and a reader path that serves it. Define cleanup against actual log/session deletion, and ensure recovery and orphan cleanup are covered before rollout. If no such reader-path change is planned, leave the image data in the log rather than create blobs whose lifetime and retrieval semantics are unclear."
+}

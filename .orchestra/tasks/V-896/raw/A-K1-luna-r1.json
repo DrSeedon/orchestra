@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K1-luna-r1",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4194,
+ "output_tokens": 490,
+ "input_tokens": 30200,
+ "cache_read_tokens": 26496,
+ "cache_create_tokens": 0,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.0008803600000000001,
+ "seconds": 7.3,
+ "contamination_flag": false,
+ "final_text": "# Why an AI agent forgets after a long session, and what a summary does about it\n\n[Scene: A conversation grows, filling a frame around an AI agent.]\n\n**Narration:** An AI agent works through a long conversation, building up context as it goes. But the model has a limit to how much of that conversation it can hold in its window at once.\n\n[Scene: The crowded conversation folds into a shorter note.]\n\n**Narration:** When the conversation gets too big, it’s compressed into a summary. The agent then continues the work using that summary as its starting point.\n\n[Scene: The note appears beside a few details that have faded away.]\n\n**Narration:** That saves room, but it comes with a tradeoff: details that didn’t make it into the summary are gone. The agent may not remember a small decision, an earlier explanation, or a detail you expected it to keep.\n\n[Scene: A person asks the agent questions about earlier work; the summary is checked.]\n\n**Narration:** So how can you tell whether a summary is good? Ask the agent questions about the old work. If it can answer the important questions, the summary carried enough forward. If it can’t, something useful may have been left behind.\n\n[Scene: The agent continues, guided by the checked summary.]\n\n**Narration:** A summary isn’t a perfect copy of the conversation. It’s a bridge to what comes next—and checking that bridge helps the work continue on solid ground."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "C-R3-luna-r1",
+ "task": "R3",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 86283,
+ "output_tokens": 2687,
+ "input_tokens": 425868,
+ "cache_read_tokens": 342272,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.01312582,
+ "seconds": 81.9,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n1. The varying-position failures are consistent with the browser dashboard subprocess blocking on its output pipe. In `tests/test_frontend.py`, `_start_dashboard_server` launches Uvicorn with a pipe; the pipe is drained only for diagnostics, so normal server output can fill it and block the event loop. The targeted evidence in `tests/.diag534/evidence.txt` records the server in `pipe_write`; draining the pipe restored HTTP 200 without restarting the server or browser. That explains a stalled run eventually being killed with exit 137; the evidence does not establish an OOM kill. Recommendation: retain the existing fix in this snapshot, which redirects output to a temporary file, and check whether the run that returned 137 was killed by an external timeout or supervisor.\n\n2. The snapshot does not establish the reported `TestClient(app)` teardown hang’s root cause. `app.main.lifespan` calls `_shutdown_runtime` after the client exits; that routine awaits several shutdown steps, including `manager.shutdown_all()`. The identified pipe defect concerns the separate Uvicorn subprocess fixture, so it cannot by itself explain a hang in teardown of a fixture wrapping `TestClient(app)`. Recommendation: capture a stack dump while that teardown is stuck, or instrument the shutdown steps to identify which await fails to return before proposing a fix.\n\nIndependent criterion applied: the targeted pipe evidence records an intervention and its observable outcome: after draining 3934 bytes from the blocked server’s pipe, the same server returned HTTP 200. I could not independently check a cgroup OOM counter: the current environment does not expose the host’s `memory.events` or `memory.max`."
+}

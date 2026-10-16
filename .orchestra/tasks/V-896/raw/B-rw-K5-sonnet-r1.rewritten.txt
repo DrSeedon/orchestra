@@ -1,0 +1,11 @@
+Write an explanation for someone who has never programmed, covering two things: (a) why a test that turns green (passes) can still prove nothing, and (b) what "checking that the test can fail" means.
+
+Before writing, work like a testing educator:
+- Ground the claim in real failure modes of vacuous tests: assertions that always pass, tests with no assertion, tests that never run the code under test, and tests that compare something to itself. Mutation testing (deliberately breaking the code to see whether any test notices) is the formal version of "checking that the test can fail."
+- Draft several candidate everyday analogies that are fresh. Do not use a smoke alarm or a bathroom scale, and avoid other stock examples. For each, map it part by part onto the real situation: the thing being checked, the check, the green light, and deliberately breaking the thing to see if the check reacts. Keep the analogy whose mapping is complete and has no misleading parts.
+- Address the common misreading directly: "green means it works."
+- Check the draft for jargon a non-programmer wouldn't know, and for being 220 words or fewer.
+
+Use exactly one analogy. Make sure the reader could say back, in their own words, why green isn't proof and what it means to make the test fail on purpose.
+
+Final answer format: only the explanation, at most 220 words. Do not include the candidate analogies, the mapping, or any commentary.

@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K5-luna-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3523,
+ "output_tokens": 163,
+ "input_tokens": 15008,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00053398,
+ "seconds": 6.3,
+ "contamination_flag": false,
+ "final_text": "A green test is a bit like a friend saying, “I checked that the front door is locked,” when all they did was look at a note that says “door locked.” The note might be there whether the door is locked or wide open. So the green result shows only that the check passed; it doesn’t show that the check notices the problem it’s meant to catch.\n\n“Checking that the test can fail” means deliberately creating the problem the test is supposed to detect and seeing whether the test turns red. For the door example, you’d leave the door open and check that your friend’s method catches it. If it still says “locked,” the check is useless.\n\n**Independent check:** the 220-word limit. This explanation is under 220 words (about 112)."
+}

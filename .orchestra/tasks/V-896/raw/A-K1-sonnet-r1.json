@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K1-sonnet-r1",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3091,
+ "output_tokens": 650,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2439,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0169778,
+ "seconds": 8.0,
+ "contamination_flag": false,
+ "final_text": "**Why an AI Agent Forgets After a Long Session, and What a Summary Does About It**\n\n**Part 1 (0:00–0:10)**\n*Scene: A person chatting with a friendly robot assistant. Messages stack up on screen.*\nImagine hiring an assistant for a big project. You talk for hours. They read, write, and fix things. An AI agent works the same way, in one long conversation.\n\n**Part 2 (0:10–0:25)**\n*Scene: A glass window frames the chat. Older messages scroll up and out of view.*\nBut the AI can only see so much at once. Think of a window of fixed size. When the conversation grows too big to fit, the oldest parts no longer fit inside.\n\n**Part 3 (0:25–0:42)**\n*Scene: A long scroll of messages is squeezed into a short note card. The robot continues, holding only the card.*\nSo the conversation is compressed into a summary. The agent keeps working from that short note instead of the full history. It's like handing a colleague your handover notes at the end of a shift.\n\n**Part 4 (0:42–0:557)**\n*Scene: Small details, such as a file name or a decision, fall off the edge of the note card and fade away.*\nHere's the catch. Anything that didn't make it into the summary is gone. The agent won't remember it. Not because it's careless, but because that detail was never carried over.\n\n**Part 5 (0:55–1:07)**\n*Scene: A person holds up a clipboard and quizzes the robot about earlier work. Green checkmarks appear.*\nSo how do we know a summary is good? We test it. We ask the agent questions about the old work. If it answers correctly, the important details survived.\n\n**Part 6 (1:07–1:15)**\n*Scene: The robot waves beside a tidy note card. Title text fades in.*\nLong sessions mean summaries. Good summaries mean the agent remembers what matters.\n\n**Correction:** Part 4's timestamp should read 0:42–0:55."
+}

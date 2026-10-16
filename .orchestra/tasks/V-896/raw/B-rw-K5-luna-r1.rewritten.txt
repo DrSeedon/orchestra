@@ -1,0 +1,5 @@
+Explain to someone who has never programmed why a test that turns green can still prove nothing, and what “checking that the test can fail” means.
+
+Use one fresh everyday analogy (not a smoke alarm or bathroom scale). Ground the explanation in a tiny example: state what result is expected, show how the test could pass while missing a plausible mistake, then describe deliberately making that mistake to check whether the test turns red. Explain that restoring correct behavior should make it green again. Clarify that this check gives evidence the test catches that particular mistake; it does not prove the test catches every problem.
+
+Use plain language, define any necessary technical term, and keep the analogy consistent. At most 220 words. Final answer is only the explanation.

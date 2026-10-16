@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K1-luna-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 10704,
+ "output_tokens": 1758,
+ "input_tokens": 47090,
+ "cache_read_tokens": 38144,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.00215504,
+ "seconds": 20.3,
+ "contamination_flag": false,
+ "final_text": "# Why an AI agent forgets after a long session, and what a summary does about it\n\n[Scene: A conversation fills the screen, message by message.]\n\nAn AI agent works by following a conversation. You ask for help, it answers, and the exchange grows with every step.\n\n[Scene: The conversation reaches the edge of a frame; the oldest messages fold into a note.]\n\nBut the model can only consider a limited amount of conversation at once. When that space fills up, the earlier discussion is compressed into a summary. Then the agent continues using that summary and the newer messages.\n\n[Scene: The note stays visible as a few details fade away.]\n\nThat handoff keeps the work moving, but it can lose details. If a fact or decision doesn’t make it into the summary, the agent can’t rely on it later. It may seem to forget, because the original words are no longer available in its working context.\n\n[Scene: A person asks the agent what was decided earlier; the summary is checked against its reply.]\n\nA good summary captures what matters. And it should be checked: ask the agent questions about the earlier work. If it can answer accurately, the summary carried the useful details forward. If not, it may need a better summary before the conversation continues.\n\n[Scene: The conversation continues with the checked summary beside it.]\n\nSo a summary is a bridge across a long session—but only the information that crosses the bridge can guide what happens next.\n\n[Production check: `wc -w` counted 232 words; the 260-word limit is the criterion.]"
+}

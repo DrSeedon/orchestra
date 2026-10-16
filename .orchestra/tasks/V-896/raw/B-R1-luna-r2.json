@@ -1,0 +1,23 @@
+{
+ "run_id": "B-R1-luna-r2",
+ "task": "R1",
+ "kind": "research",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 85206,
+ "output_tokens": 4628,
+ "input_tokens": 456130,
+ "cache_read_tokens": 375552,
+ "cache_create_tokens": 0,
+ "turns": 14,
+ "cost_usd_api_equiv": 0.01412732,
+ "seconds": 64.8,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nFive parallel workers create a predictable conflict: they start from the same base commit, each edits `CHANGELOG.md` at the same `## Unreleased` insertion point, and the orchestrator merges them one by one. `app/workspace.py::create_worktree()` resolves the base when creating each worktree; `merge_worktree_to_main()` prechecks the moving target with `git merge-tree` and then uses `git merge --squash`. After the first merge changes that shared insertion point, later branches based on the old commit conflict there.\n\nThe snapshot has no `.git` metadata, so it contains no inspectable branch diffs or merge logs. Its checked-in `CLAUDE.md` links to the changelog but does not state the task-entry requirement; that requirement is given in the task. Historical notes in `docs/tasks/pipeline-rebase/` mention changelog edits and branches, but do not document this conflict.\n\n**Reproduction:** In a temporary Git repository inside the current directory, I created five branches from one base, had each insert a distinct entry beneath `## Unreleased`, then squash-merged them sequentially. Result: **4 conflicts out of 5 merges**. With `.gitattributes` assigning Git’s built-in `union` merge driver to `CHANGELOG.md`, the same run produced **0 conflicts and retained all 5 entries**. A per-task changelog-fragment-file variant also produced **0 conflicts**.\n\n**Recommendation:** Assign `CHANGELOG.md` the built-in `union` merge driver in `.gitattributes`. It directly addresses the shared-file conflict while letting workers keep the existing changelog-edit task, so agent tool-call impact is **measured as no additional agent action in the reproduction; the actual task-count effect is an estimate**, since the snapshot does not include agent tool logs. Per-task fragment files also avoid conflicts, but require changing the worker instructions and adding an aggregation step, so they offer no demonstrated tool-call advantage.\n\nThe union-driver result is measured for the reproduced insertion pattern. It preserves all entries there, though ordering and behavior for other overlapping edits were not evaluated."
+}

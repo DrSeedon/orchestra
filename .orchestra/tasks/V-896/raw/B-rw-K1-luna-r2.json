@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K1-luna-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 3908,
+ "output_tokens": 373,
+ "input_tokens": 15183,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00065648,
+ "seconds": 8.3,
+ "contamination_flag": false,
+ "final_text": "1. A top professional would distinguish what the model can still see from what the summary preserves, avoid implying that compression is a perfect or automatic memory, and make the old-work check concrete enough to show how summary quality is judged.\n\n2. They would start from the raw conversation transcript and the actual summary produced at the point where the conversation exceeded the model’s window, rather than a prewritten explanation of the process.\n\n3. They would compare the transcript with the summary, identify important details that were omitted or changed, then probe the agent with questions answerable from the old conversation. They would use a transcript diff or coverage checklist and record whether the answers are supported by the source.\n\n4. The original transcript is the reference: a reviewer can verify that the summary retained key details and that the agent’s answers match the conversation.\n\n```text\nWrite a narration script for a 75-second explainer video for non-technical viewers titled “Why an AI agent forgets after a long session, and what a summary does about it.”\n\nUse the raw conversation transcript and the summary created when the conversation exceeded the model’s context window as source material. Compare them to identify important details that were omitted or changed. Then test the summary by asking the agent questions whose answers appear in the earlier transcript, and check each answer against that transcript. Explain the process accurately: the agent works through a long conversation; when it no longer fits in the model’s window, the conversation is compressed into a summary and work continues from that summary; details omitted from the summary may no longer be available; and questions about the old work can help check what the summary preserved.\n\nDeliver only the narration script, with a one-line scene direction before each part. Keep the narration to 75 seconds and the entire script to at most 260 words. Final answer only the script.\n```"
+}

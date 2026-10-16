@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K2-sonnet-r2",
+ "task": "K2",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4160,
+ "output_tokens": 1169,
+ "input_tokens": 6,
+ "cache_read_tokens": 16398,
+ "cache_create_tokens": 2985,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.0269216,
+ "seconds": 20.7,
+ "contamination_flag": false,
+ "final_text": "**Data check:** The directory has no traces, logs, diffs, schemas or code. The only file is an empty MCP config. Everything below assumes the platform can emit timestamped events: tool call (name, args hash), command exit code, file diff (lines added and removed), error or retry, an \"awaiting input/approval\" flag, and a task-complete event. The rules are untested.\n\n**Concept: \"Agent Board\", an exception-first status wall**\n\n**Core idea:** Each agent gets a single state computed from its raw event stream by fixed rules, and the board shows only the agents that need the owner's decision.\n\n**Rules (the display depends on these):**\n- **Waiting:** the agent has emitted an explicit awaiting-input or approval event. Show the wait time.\n- **Stuck:** any of these holds for 5 minutes or more, with no explicit wait:\n  - The same tool call with the same args hash repeats 3 or more times.\n  - Error or retry events are at least 50% of the last 10 actions.\n  - Diff churn is high, but the net diff is about zero (edits are being reverted).\n  - There has been no meaningful action (edit, test run, commit) for 10 minutes. The agent is still emitting events, but none of them are meaningful.\n- **Progressing:** none of the above, and the net diff or the count of passing tests moved in the last 10 minutes.\n- **Idle/done:** a completion event has been emitted.\n\n**What the owner sees and does:**\n- A top strip shows counts, for example \"2 stuck · 1 waiting · 7 fine\".\n- Below it are only the stuck and waiting agents, stuck first, each as one line: agent, task, a reason chip (\"same `pytest` call ×5\", \"waiting on approval 12m\"), and a small sparkline of activity.\n- The progressing agents collapse into a row of ten small green dots. Hovering or clicking a dot opens that agent's log.\n- Each exception row has three buttons: Open log, Nudge/Answer, Kill/Restart. A snooze option lets the owner silence a row for 15 minutes.\n\n**Why it beats a log list:**\n- A log list makes the owner read ten streams to find the odd ones out, so the time grows with the number of agents.\n- The board puts the exceptions at the top, so the owner reads the strip and then at most a few rows. Healthy agents cost almost nothing to check.\n- The reason chip says why an agent is flagged, so the owner can decide without opening the log.\n- The log list is the right tool once the owner is investigating one agent. The board only makes the choice of which agent to investigate.\n\n**Main risk:** The thresholds are guesses, so false alarms (a long compile or a deliberate retry loop) would teach the owner to ignore the board. Missed stuck states are the worse failure, because an agent producing varied but pointless actions looks like it is progressing.\n\n**Validation, not yet done:** Replay recorded traces from past runs with owner-labeled stuck periods. Measure detection lag, false alarms per agent-hour, and missed stuck periods. Tune the thresholds on that data, then time how long owners take to find the stuck agents in the board versus a log list."
+}

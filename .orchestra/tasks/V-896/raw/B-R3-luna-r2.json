@@ -1,0 +1,23 @@
+{
+ "run_id": "B-R3-luna-r2",
+ "task": "R3",
+ "kind": "research",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 45806,
+ "output_tokens": 1980,
+ "input_tokens": 334258,
+ "cache_read_tokens": 290432,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.00827692,
+ "seconds": 34.8,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n1. Exit 137 around 35–40%: The cause is not established from this snapshot. Exit 137 indicates the process was killed, but the varying completion point and apparently free memory do not identify who killed it or why. `pyproject.toml` configures `addopts = [\"-m\", \"not live_probe\"]`; it does not enable xdist. `tests/conftest.py` has several autouse fixtures, but source inspection alone does not show that they cause an OOM. Recommendation: capture the failing run’s process and cgroup memory events (including `memory.events`/`oom_kill`) and the exact command; use those to distinguish an OOM kill from an external SIGKILL and identify the responsible process.\n\n2. Teardown hang with `TestClient(app)`: I could not reproduce or establish a hang. The relevant shutdown path is `app.main.lifespan` → `_shutdown_runtime`, which cancels startup tasks and awaits bridge, renderer, background-job, and session shutdown. `tests/conftest.py::_no_tg_bridge` mocks bridge start/stop for ordinary tests. The focused command `pytest -q --timeout=20 tests/test_startup_bridge.py` completed: all 3 tests passed in 5.17 seconds, including the test that shuts down while bridge startup is pending. Recommendation: rerun only the hanging test with pytest-timeout plus a teardown stack dump or instrumentation around each await in `_shutdown_runtime`; that will identify the specific blocked cleanup step. The reported 85–88% position does not identify it."
+}

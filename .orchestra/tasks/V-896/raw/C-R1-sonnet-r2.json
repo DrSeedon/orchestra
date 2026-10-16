@@ -1,0 +1,23 @@
+{
+ "run_id": "C-R1-sonnet-r2",
+ "task": "R1",
+ "kind": "research",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 17313,
+ "output_tokens": 2717,
+ "input_tokens": 10,
+ "cache_read_tokens": 58175,
+ "cache_create_tokens": 14586,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.09716899999999999,
+ "seconds": 39.2,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n**Cause.** The merge failures come from where entries go in `CHANGELOG.md`. I could not find the project rule text itself. `CLAUDE.md` only links the file at line 3, and I found no `.gitattributes`, hook or CI file in the snapshot.\n\n- Entries are newest-first. The preamble ends at line 5, and the latest entry, `## v2.35.5 — 2026-08-04 — #69 …`, starts at line 7. Every new entry therefore goes at that same spot, right after the preamble.\n- All five branches are cut from the same point, so each inserts its block at the same position. Git sees five edits to the same hunk, and every merge after the first conflicts.\n- Entries are also named by version number. The file has 69 `## v` headings, and the preamble (lines 3–5) admits that versions 2.31.0–2.33.0 were used twice after two parallel changelogs were merged. Five parallel agents will each pick \"latest + 1\", so they collide on the heading as well as the position.\n- Each entry is large: about 10–15 dense lines, as in v2.35.4 (lines 22–40). A conflict inside one is expensive to resolve by hand.\n\n**Conflicts per N branches.** With a shared insertion point, the first merge succeeds and each later one conflicts, assuming the orchestrator merges one branch at a time and each later branch's insertion overlaps the already-merged one. That gives N−1 conflicts for N branches, so 4 of 5, and it grows linearly. In practice the later merges fail on top of the earlier conflict resolutions too. This is my reasoning from the structure, not a measured result.\n\n**Cost per task in tool calls.** Each conflict costs a failed merge, a read of the conflicted file, an edit and a re-add. That is roughly 4–6 extra calls per conflicted branch, and it falls on the orchestrator. The version-number choice adds a read of the top of the file for each task.\n\n**Cheapest durable fix: stop sharing one file region.** Use one fragment file per task, for example `changelog.d/<task-id>.md`, with no version number in the filename or body. The orchestrator, or a script run at release time, concatenates the fragments into `CHANGELOG.md` and assigns the version.\n- Conflicts drop to 0 per N, because the branches add different files.\n- The agent needs 1 call (a Write of a new file) and no Read of `CHANGELOG.md`.\n- The project rule stays intact: every task still adds an entry.\n- Cost: a small assemble script, plus one line in `CLAUDE.md` changing the rule from \"edit CHANGELOG.md\" to \"add a fragment\".\n\n**Weaker alternatives**\n- `.gitattributes` with `CHANGELOG.md merge=union` is a one-line fix. It is cheap but fragile. It silently keeps both sides, so it can interleave or garble multi-line blocks, and it does not fix duplicate version numbers.\n- Appending at the end of the file instead of the top moves the collision rather than removing it. Every branch would still append at the same end-of-file spot.\n- Having the orchestrator write the changelog entries after merging works, but it serialises the work and drops the per-task entry the rule asks for.\n\n**External check.** Run five scratch branches from the same commit, each adding one entry, and merge them in sequence. Do it once with the current top-insert layout and once with fragment files. `git merge` exit codes and `git status` showing unmerged paths give the conflict count directly. Expected: 4 conflicts against 0. A second check is `grep -c '^## v2\\.35\\.6' CHANGELOG.md` after merging, which shows whether version headings collided.\n\n**Not applied.** The directory is not a git repository, and I was told not to change files. I could not run the merge experiment, so the conflict counts above come from reading `CHANGELOG.md` and git's merge behaviour, not from a run."
+}

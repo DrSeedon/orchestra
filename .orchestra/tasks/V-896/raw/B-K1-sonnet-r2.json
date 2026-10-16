@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K1-sonnet-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 5376,
+ "output_tokens": 2423,
+ "input_tokens": 4,
+ "cache_read_tokens": 10038,
+ "cache_create_tokens": 2949,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.038041599999999995,
+ "seconds": 22.3,
+ "contamination_flag": false,
+ "final_text": "**Why an AI agent forgets after a long session, and what a summary does about it**\n\n**[Scene 1: Hook. A person frowns at a chat screen; a question mark pops up.]**\nHours into a project, your AI agent gets a detail wrong. Something you told it earlier. Is it lazy? Is it broken? Neither.\n\n**[Scene 2: The problem. A worker at a tiny desk as paper pages stack up.]**\nThink of it as a worker at a small desk. Every message in a long session lands on the desk as another page. The pile keeps growing, until it is too big for the desk.\n\n**[Scene 3: What the summary does. The worker writes one note, sweeps the pile away.]**\nSo the worker does something sensible. They write a short summary note of everything so far, clear the desk, and keep working from that note alone.\n\n**[Scene 4: What gets lost. A few pages fade out as they fall off the note.]**\nHere's the catch. Any detail that didn't make it onto the note is gone. Not hidden in a drawer. Gone. And this worker doesn't remember the way you do, with a feeling of what happened. The note is all they have.\n\n**[Scene 5: The check. A questioner holds up cards; the worker answers from the note.]**\nSo how do we know a note is good? We test it. Someone asks the worker questions about the old work. If the answers come back right, the note kept what mattered.\n\n**[Scene 6: Takeaway. The worker, now with a tidy desk and one clear note, gives a thumbs up.]**\nSo when an agent drops a detail, it's not laziness. It's a note that missed something. Good summaries, properly checked, help long work keep going."
+}

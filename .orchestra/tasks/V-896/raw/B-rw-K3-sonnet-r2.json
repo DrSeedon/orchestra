@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K3-sonnet-r2",
+ "task": "K3",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 4084,
+ "output_tokens": 1447,
+ "input_tokens": 2,
+ "cache_read_tokens": 3005,
+ "cache_create_tokens": 2635,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.025615000000000002,
+ "seconds": 16.6,
+ "contamination_flag": false,
+ "final_text": "**1. What a top professional would do that you aren't asking for**\n\nThey wouldn't brainstorm names from the description. They would first pin down what the mechanism actually does: the exact trigger (silence threshold, definition of \"live background job\"), the wake message, and what it asks the agent to do. A name that overstates the behavior misleads. For example, \"watchdog\" implies it kills things, and \"heartbeat\" implies agents ping. They would also check that no candidate collides with an existing term, flag, or log string, and that the rule sentence matches the style of the rules already in the owner's file.\n\n**2. Rawest material to start from**\n\n- The mechanism's own source and config: the trigger condition, threshold values, and the literal wake-message text.\n- The real idle incidents: raw transcripts or logs of agents that stalled, not a summary of them.\n- The owner's existing rules file, for tone, length, and how rules cite their reasons.\n- A search of the repo and docs for existing names and vocabulary.\n\nIn this directory, that means the code, config, logs, and rules file if they exist. If none are present, the prompt should say so and treat the description as the only source.\n\n**3. Methods and tools**\n\n- Grep the codebase for each candidate name and its near-synonyms to check for collisions.\n- Read the trigger code to confirm which conditions the name has to cover: silence past a limit, and no live background job.\n- Read a few stalled-agent transcripts to see what the waiting looked like, and borrow the vocabulary the team already uses.\n- Compare the draft rule against the existing rules for format and for whether it states both the behavior and its reason.\n- Count the words.\n\n**4. What else would show it's right**\n\n- Collision check: grep finds no existing use of the chosen name.\n- Fidelity check: every clause of the rule matches the trigger code and the wake message.\n- Cold-reader test: someone who hasn't seen the design reads only the name and the rule and correctly predicts when an agent is woken.\n- Consistency: the rule reads like its neighbors in the owner's rules file.\n\n**Rewritten prompt**\n\n```\nAgents on a platform sometimes go quietly idle for hours, waiting for something that will never come, and nobody notices. The platform now blocks this: when an agent has been silent past a limit and has no live background job, it is woken with a message naming the rule it broke.\n\nBefore writing, work from primary sources in the current directory (and nowhere outside it):\n1. Find and read the mechanism's source/config: the exact trigger condition, the threshold, the definition of \"live background job\", and the literal wake-message text. Also read any raw logs or transcripts of idle agents, and the owner's rules file if present. If any of these are absent, say so in one line to me before the answer, not in the answer, and rely on the description above.\n2. Grep the directory for every candidate name and close synonyms; discard any that collide with an existing identifier, flag, log string, or rule name.\n3. Make sure each name describes what the mechanism does (wakes an idle agent), not something it doesn't do (e.g. killing, pinging, or monitoring in general).\n4. Match the style, tone, and length of the existing rules when writing the new rule.\n\nThen verify: the rule's clauses match the trigger code and wake message; the chosen name has no collisions; a reader who sees only the name and rule could correctly predict when an agent is woken; the total is at most 150 words.\n\nFinal answer is only these three parts, at most 150 words in total:\n(1) five candidate names, each with a rationale of six words or fewer;\n(2) your pick;\n(3) a one-sentence rule for the owner's rules file that states the behaviour and its reason.\n```"
+}

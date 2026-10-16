@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K3-sonnet-r1",
+ "task": "K3",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 4205,
+ "output_tokens": 1568,
+ "input_tokens": 2,
+ "cache_read_tokens": 3005,
+ "cache_create_tokens": 2635,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.026825,
+ "seconds": 15.7,
+ "contamination_flag": false,
+ "final_text": "**1. What a top professional would do that you aren't asking for**\nThey would not name the mechanism from your one-paragraph summary. They would first establish what it actually does: the exact trigger conditions, the wake message, and which rule it cites. Then they would check that the name and the rule sentence say the same thing as the implementation. They would also check that the name doesn't collide with existing terms and that the rule's stated reason matches the real failure mode.\n\n**2. Rawest material to start from**\n- The mechanism's source and config: the silence threshold, the \"live background job\" check, and the wake-message text.\n- Logs or transcripts of real idle episodes and real wake-ups, including what each agent was waiting on.\n- The owner's existing rules file, for its voice, length and format.\n- The platform's existing vocabulary, such as identifiers, docs and other mechanism names.\n\n**3. Methods and tools**\n- Grep or glob for the threshold, wake text, and terms like idle, watchdog, silent, stall and heartbeat.\n- Read the trigger logic to separate \"silent\" from \"waiting on a live job\".\n- Extract 2–3 real incidents as a timeline: last activity, what was awaited, time to wake.\n- Collision-check each candidate name against the codebase and docs.\n- Score the candidates against explicit criteria: accurate, distinct, short, and self-explaining when it appears in a wake message.\n- Read the rule sentence against the real wake message.\n\n**4. What else would show the result is right**\n- The code and logs: the name and rule must match the real trigger and the real failure.\n- Grep results showing no name collision.\n- The existing rules file, which the new rule must match in style.\n- Ideally a cold read: someone, or a fresh agent, sees only the wake message and says what they must do.\n\n**Rewritten prompt**\n\n```\nAgents on a platform sometimes go quietly idle for hours while waiting for something that will never come, and nobody notices. The platform now blocks this with a mechanism: when an agent has been silent past a limit and has no live background job, it is woken with a message naming the rule it broke.\n\nBefore writing anything, work from primary material in the current directory (read-only, stay inside it):\n- Find the mechanism's implementation and config (grep/glob for idle, silent, watchdog, stall, heartbeat, wake, timeout, background job). Record the actual silence threshold, the exact \"no live background job\" condition, and the exact wake-message text.\n- Find any logs or transcripts of real idle episodes or wake-ups. Reconstruct 2-3 as short timelines: last activity, what the agent was waiting on, how long before it was woken.\n- Find the owner's rules file and any existing docs. Note its voice, sentence length and format, and the platform's existing vocabulary.\n- Grep every candidate name against the codebase and docs to rule out collisions or near-duplicates.\n- If any of this material is missing, say so in one line outside the answer and work from the task description alone. Do not invent details.\n\nThen produce, scored against: accurate to what the code does, distinct from existing terms, short, and self-explaining when it appears in a wake message:\n(1) five candidate names for this mechanism, each with a six-word-or-shorter rationale,\n(2) your pick,\n(3) a one-sentence rule for the owner's rules file that states the behaviour and its reason, matching the rules file's style and consistent with the real wake message and real failure mode.\n\nCheck before answering: the rule's reason matches the observed failure, the pick has no grep collision, and a reader who sees only the wake message would know what to do.\n\nAt most 150 words in total. Final answer is only these three parts.\n```"
+}

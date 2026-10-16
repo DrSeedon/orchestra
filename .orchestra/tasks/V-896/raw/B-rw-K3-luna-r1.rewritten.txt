@@ -1,0 +1,3 @@
+Using raw platform event traces for agent activity, background-job lifecycle, wake messages, and the applicable rule text, verify the mechanism’s operational contract: what counts as silence, how live jobs are identified, and how the violated rule is attributed. Correlate idle episodes, inspect boundary cases, and use a trace query or small replay to check for spurious or missed wakes. Treat event logs and independent confirmation from the platform owner as the correctness evidence.
+
+Then provide: (1) five candidate names for this mechanism, each with a rationale of six words or fewer; (2) your pick; (3) a one-sentence rule for the owner’s rules file stating the behavior and its reason. At most 150 words total. Final answer only these three parts.

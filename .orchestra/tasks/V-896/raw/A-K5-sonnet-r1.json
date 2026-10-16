@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K5-sonnet-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 2718,
+ "output_tokens": 356,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2360,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0137218,
+ "seconds": 9.3,
+ "contamination_flag": false,
+ "final_text": "Imagine you hire a night guard and want to know whether the locked-door check works. Each morning the guard's checklist says \"Front door: locked ✓\". Green tick, every day. But suppose the guard never actually tries the handle. They just tick the box. The tick appears whether the door is locked or wide open, so it tells you nothing.\n\nA software test is that checklist tick. \"Green\" only means that the test found no problem. It doesn't tell you whether the test was capable of finding one. A test might check the wrong thing, check something that is always true, or never run the part that matters. It would still show green.\n\n\"Checking that the test can fail\" means deliberately unlocking the door and seeing whether the guard reports it. In software, you break the thing being tested on purpose. For example, you change a calculation so it gives the wrong answer. Then you run the test again.\n\n- If it turns red, the test is paying attention. You can trust its green.\n- If it stays green, the test was only ticking boxes. It would have stayed green even when the code was wrong.\n\nYou then undo the damage. A test is only worth trusting once you've seen it say \"no\" at least once."
+}

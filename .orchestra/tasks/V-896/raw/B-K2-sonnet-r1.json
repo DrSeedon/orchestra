@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K2-sonnet-r1",
+ "task": "K2",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4058,
+ "output_tokens": 1003,
+ "input_tokens": 6,
+ "cache_read_tokens": 16526,
+ "cache_create_tokens": 3049,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.025543200000000002,
+ "seconds": 16.4,
+ "contamination_flag": false,
+ "final_text": "**Concept: the Attention Board**\n\nThe directory has no traces, logs, or platform code, so this concept rests on assumed signals: timestamped tool calls, diffs, test outputs, and pending permission or question events.\n\n**Core idea:** Replace the agent list with a board that sorts ten agents by \"needs the owner now\". Each agent gets one state computed from raw events, with a one-line reason and a one-click action.\n\n**What the owner sees and does:**\n- The board has three bands. \"Needs you\" is at the top, \"Stuck?\" is in the middle, and \"Progressing\" is collapsed at the bottom.\n- **Waiting** is an open permission prompt or question with no reply. The card shows the question text and a timer. The owner clicks Approve or Deny, or types an answer, without opening the chat.\n- **Stuck** requires at least one of these checkable signals:\n  - The same tool call with the same arguments has run three or more times.\n  - The same test failure signature has appeared in the last N runs.\n  - The agent has been silent for more than 3× its own median gap between events.\n  - Diff size has not changed across many tool calls.\n- **Progressing** means the diff is growing, the failing-test count is falling, or new files are being touched.\n- Each stuck card shows its evidence, such as \"pytest test_auth failed identically 6×, no diff change in 14 min\". The owner can nudge the agent, give a hint, or kill and restart it.\n- Stuck is only flagged when two signals agree. A silent agent running a long build is not flagged if a process is alive and producing output.\n\n**Why it beats a log list:**\n- A log list makes the owner read ten streams to infer state. The board states the state and shows the evidence.\n- A waiting agent looks the same as a quiet one in a log. Here it goes to the top within seconds, with the question and the action attached.\n- Ranking and the two-signal rule keep a false alarm from burying a real one. A suspected-stuck card sits below confirmed waiting cards and can be dismissed for that agent's current task.\n- The decision \"which agent needs me, and what do I do?\" is answered by position and button, not by reading.\n\n**Main risk:** Thresholds that are wrong for a particular task type. Loops that vary slightly each time will be missed, and legitimately slow work will be flagged. Either failure makes the owner stop trusting the board.\n\n**Independent verification:**\n- Label a sample of past runs by hand as stuck or not. Report precision and recall for the \"stuck\" call against those labels.\n- Replay known incidents and time how long a person needs to spot the problem agent. The target is under 10 seconds, compared against the same incidents shown as a log list."
+}

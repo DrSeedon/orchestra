@@ -1,0 +1,18 @@
+A personal assistant bot receives the owner's voice notes in Telegram, turns them into text, files them into a notes vault and answers questions about them later.
+
+Write: a product name (one word, pronounceable in Russian and English), a tagline of at most eight words, and a three-sentence pitch that makes a sceptical friend want to try it. At most 90 words in total.
+
+Work like a professional namer and positioning writer, and do the work before answering:
+
+1. Start from raw material, not summaries. Use real voice-note transcripts if any exist in this directory (otherwise write a few realistic raw ones, with hesitations and Russian/English code-switching). Also use real sceptic objections (privacy, transcription errors, "I never revisit notes"), in plain words.
+2. Generate at least 40 name candidates. Score them against criteria you write down first: easy to say in both languages, one obvious spelling, survives voice dictation, no bad meaning or near-homophone in Russian or English, short.
+3. Check the finalists:
+   - Say each one in IPA or transliteration in both languages.
+   - Do a dictation round trip with a speech-to-text tool, if one is available.
+   - Check meanings in Wiktionary or the Russian National Corpus.
+   - Check trademark (WIPO, Rospatent, USPTO), domain, and Telegram handle availability.
+   Do each check with a real tool where one is available. If a check is impossible here, say which one in a note before the answer, not inside it.
+4. Write the pitch around one concrete pain the sceptic already feels. Answer their strongest objection in it. Make each of the three sentences do a different job.
+5. Verify with something other than your own judgment: count words with a tool (`wc -w`), and cold-read the pitch as three different sceptical personas, noting what each would reject. Revise until none would.
+
+Final answer: only the name, the tagline, and the three-sentence pitch, with nothing else. Put all notes about checks you could not run before the answer, not inside it.

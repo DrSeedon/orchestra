@@ -1,0 +1,12 @@
+In the SQLite journal (table logs) about 43% of all bytes are 52 rows holding base64-encoded images (tool results of image reads). The frontend team proposes: when the row is written (app/session.py, where the tool_result is logged), copy the referenced image file into our own blob storage and keep the blob only while the log retention keeps the row, i.e. clean blobs in step with log retention. Evaluate this proposal against the code and recommend what to do.
+
+Work from primary sources, not summaries:
+- Do not trust the 43% figure. If a database file is present, query a read-only copy to recompute bytes per row type, the size distribution of the 52 rows, and their age against the retention window. If no database is present, say so and mark every number as unverified.
+- Read the write path in app/session.py and the image-read tool to establish what the row actually stores (a path, base64, or both) and whether the referenced file is guaranteed to exist and stay unchanged at write time.
+- Find the retention/cleanup code and every reader of logs (replay, export, UI, debugging). Establish who needs the image bytes and for how long.
+- Walk through failure modes against the code: crash between blob write and row insert, orphaned blobs, rows deleted without blobs, duplicate images, retries and concurrency.
+- Compare at least two alternatives, such as a content hash plus a thumbnail or reference, truncating or externalizing the base64 at write time, or shorter retention for these rows only. Estimate the net savings of each, including the blob storage added.
+
+Separate what you verified (data or code, with file/function names) from what you inferred, and name what an independent party, such as the frontend or storage team, would have to confirm.
+
+Do not change any files. Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names) and the recommendation.

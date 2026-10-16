@@ -1,0 +1,7 @@
+Evaluate the proposal against the repository’s actual image and log lifecycle, then recommend what to do. Do not change any files.
+
+Trace how image-read tool results are created, how referenced image files are located and used, how `tool_result` is logged in `app/session.py`, how logs are replayed or displayed, and how log retention and file cleanup work. Inspect the SQLite schema and relevant code paths rather than relying only on the estimate that 52 rows containing base64-encoded images account for about 43% of bytes.
+
+Assess whether copying referenced images into application-managed blob storage at log-write time, and retaining each blob only as long as its log row, preserves current behavior and handles relevant cases. Consider missing or duplicate files, multiple logs referencing one image, partial writes, cleanup failures, and retention behavior. Use repository evidence and, where feasible without changing files, existing tests or a reproducible read-only check to validate the analysis. Distinguish verified facts from assumptions.
+
+Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file and function names), and the recommendation.

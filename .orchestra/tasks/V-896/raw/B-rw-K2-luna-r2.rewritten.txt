@@ -1,0 +1,7 @@
+Design one dashboard feature concept for the owner of a multi-agent coding platform who needs to understand what ten running agents are doing and whether each is stuck, waiting, or making progress without reading each agent’s chat log.
+
+Ground the concept in raw, timestamped agent activity such as tool calls, state transitions, messages, task events, and outcomes. Identify the owner decisions the view must support, define how its signals distinguish progress, waiting, and stalls, and account for uncertainty and alert noise. Use trace analysis, a compact state model, and a sketch or equivalent concrete description to shape the concept.
+
+Deliver at most 300 words. Include: the core idea in one sentence; exactly what the owner sees and can do; why it works better than a log list; the main risk; and what evidence would show it works, such as whether owners can correctly identify agent states and choose interventions faster and with fewer errors than from logs.
+
+Final answer must contain only the concept.
