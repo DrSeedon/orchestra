@@ -134,7 +134,10 @@ def test_abandoned_lease_expires_for_restart_recovery(tmp_path, monkeypatch):
     assert scheduler.acquire("replacement", "new-run")["granted"]
 
 
-def test_delegated_cgroup_configuration_moves_root_members_and_sets_limits(tmp_path, monkeypatch):
+@pytest.mark.parametrize("swap_controller_available", [True, False])
+def test_delegated_cgroup_configuration_moves_root_members_and_sets_limits(
+    tmp_path, monkeypatch, caplog, swap_controller_available,
+):
     service = tmp_path / "orchestra.service"
     api = service / "orchestra-api"
     api.mkdir(parents=True)
@@ -143,6 +146,8 @@ def test_delegated_cgroup_configuration_moves_root_members_and_sets_limits(tmp_p
     (service / "cgroup.procs").write_text("")
     (service / "memory.high").write_text("1400")
     (service / "memory.max").write_text("1600")
+    if swap_controller_available:
+        (service / "memory.swap.max").write_text("max")
     (service / "memory.current").write_text("900")
     (service / "cpu.weight").write_text("100")
     (service / "io.weight").write_text("default 100")
@@ -160,17 +165,24 @@ def test_delegated_cgroup_configuration_moves_root_members_and_sets_limits(tmp_p
         (api / "cgroup.procs").write_text("\n".join(pids))
 
     import app.agent_cgroups as cgroups
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text("SwapTotal:       4194304 kB\n")
+    monkeypatch.setattr(cgroups, "HOST_MEMINFO_PATH", meminfo)
     monkeypatch.setattr(cgroups, "_move_processes", move_all)
     original_mkdir = Path.mkdir
 
     def fake_mkdir(path, *args, **kwargs):
         result = original_mkdir(path, *args, **kwargs)
         if path.name == "agents":
-            for filename, value in {
+            initial_files = {
                 "cpu.weight": "100", "io.weight": "default 100",
                 "memory.high": "0", "memory.max": "0", "memory.current": "0",
-            }.items():
-                (path / filename).write_text(value)
+            }
+            if swap_controller_available:
+                initial_files["memory.swap.max"] = "0"
+            for filename, value in initial_files.items():
+                if not (path / filename).exists():
+                    (path / filename).write_text(value)
         return result
 
     monkeypatch.setattr(Path, "mkdir", fake_mkdir)
@@ -184,6 +196,14 @@ def test_delegated_cgroup_configuration_moves_root_members_and_sets_limits(tmp_p
     assert (agents / "io.weight").read_text() == "default 50"
     assert (agents / "memory.high").read_text() == "1050"
     assert (agents / "memory.max").read_text() == "1400"
+    if swap_controller_available:
+        assert (agents / "memory.swap.max").read_text() == str(1024 ** 3)
+
+        configure_agent_cgroup(service)
+        assert (agents / "memory.swap.max").read_text() == str(1024 ** 3)
+    else:
+        assert not (agents / "memory.swap.max").exists()
+        assert sum("agent swap limit unavailable" in record.message for record in caplog.records) == 1
 
 
 def test_workflow_balancer_can_be_disabled_without_blocking_workers(monkeypatch):
@@ -394,6 +414,9 @@ def test_workflow_runner_gets_its_own_leaf_group(tmp_path, monkeypatch):
 def test_agent_limits_do_not_depend_on_service_usage(tmp_path, monkeypatch):
     import app.agent_cgroups as cgroups
 
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text("SwapTotal:       4194304 kB\n")
+    monkeypatch.setattr(cgroups, "HOST_MEMINFO_PATH", meminfo)
     monkeypatch.setattr(cgroups, "_move_processes", lambda *_: None)
     results = []
     for current in ("0", "900", "1399"):
@@ -403,10 +426,15 @@ def test_agent_limits_do_not_depend_on_service_usage(tmp_path, monkeypatch):
         for name, value in {
             "cgroup.controllers": "cpu io memory", "cgroup.subtree_control": "cpu io memory",
             "memory.high": "1400", "memory.max": "1600", "memory.current": current,
+            "memory.swap.max": "max",
             "cpu.weight": "100", "io.weight": "default 100",
         }.items():
             (service / name).write_text(value)
         (service / "agents/memory.current").write_text("0")
         agents = cgroups.configure_agent_cgroup(service)
-        results.append(((agents / "memory.high").read_text(), (agents / "memory.max").read_text()))
-    assert results == [("1050", "1400")] * 3
+        results.append((
+            (agents / "memory.high").read_text(),
+            (agents / "memory.max").read_text(),
+            (agents / "memory.swap.max").read_text(),
+        ))
+    assert results == [("1050", "1400", str(1024 ** 3))] * 3
