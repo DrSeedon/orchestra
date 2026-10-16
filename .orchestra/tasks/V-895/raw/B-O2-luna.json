@@ -1,0 +1,23 @@
+{
+ "run_id": "B-O2-luna",
+ "task": "O2",
+ "kind": "open",
+ "arm": "B",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "note": "",
+ "paid_tokens": 35502,
+ "output_tokens": 1206,
+ "input_tokens": 238584,
+ "cache_read_tokens": 204288,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.00607548,
+ "seconds": 21.1,
+ "contamination_flag": true,
+ "final_text": "ROOT CAUSE: `luna` dispatches to the `harness` runtime (`wf_run.py` `agent` → `wf_adapters.py:run_adapter` → `run_harness` → `app/harness/oneshot.py:run_oneshot`). That path joins only `text` events from the model response; the task’s JSON schema is not sent as provider-enforced structured output. `wf_run.py:_parse_and_validate` then calls `json.loads(result.text)` and journals `invalid JSON` when the text is empty or non-JSON. The journal shows the parse symptom; without the raw response, it does not establish which text the provider returned.\n\nRetries are blocked because `Budget.exhausted()` returns true when **either** dollars reach budget **or** `dispatched_calls` reaches `max_calls` (`wf_run.py:119–137`). `agent` checks that before every attempt (`:819–829`), including schema retries. Thus three dispatched calls exhaust the global call limit even though spend is only $0.016; `retry_deferred` records that guard, and `partial_reason=budget` follows from it. `attempt_finished.cost_usd` increments dollar spend separately (`:883–894`); low spend does not restore call allowance."
+}

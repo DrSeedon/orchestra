@@ -1,0 +1,23 @@
+{
+ "run_id": "C-C3-luna",
+ "task": "C3",
+ "kind": "closed",
+ "arm": "C",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "..                                                                       [100%]\n2 passed in 0.21s\n",
+ "paid_tokens": 16211,
+ "output_tokens": 947,
+ "input_tokens": 134944,
+ "cache_read_tokens": 119680,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.0031967,
+ "seconds": 31.6,
+ "contamination_flag": false,
+ "final_text": "In [app/session.py](/home/kesha/bench895/runs/C-C3-luna/app/session.py), Claude’s pre-compact minimum and arm threshold are now 30%; Codex keeps 5% through the new `CODEX_PRECOMPACT_MIN_CONTEXT_PCT` constant. The external check was `python -m py_compile app/session.py`, which passed."
+}

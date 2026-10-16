@@ -1,0 +1,23 @@
+{
+ "run_id": "B-O3-luna",
+ "task": "O3",
+ "kind": "open",
+ "arm": "B",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 19311,
+ "output_tokens": 1073,
+ "input_tokens": 137406,
+ "cache_read_tokens": 119168,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.0035519800000000006,
+ "seconds": 26.7,
+ "contamination_flag": true,
+ "final_text": "ROOT CAUSE: In [app/mcp_stdio.py](app/mcp_stdio.py:1842), `get_worker_logs(name, limit=20)` calls `GET /api/sessions/{name}/logs` with `scope` and `after_id=0`, but never sends `limit`. It only applies `logs[-limit:]` after `_api` has received and decoded the response, so the caller sees 20 entries while the full history has already crossed the API.\n\nThe endpoint, [get_session_logs](app/routes/sessions.py:732), defaults to `limit=500`; for `after_id=0` it ignores that parameter and calls `get_logs(session_id, after_id=0)` without a limit. [get_logs](app/db.py:1286) then retrieves up to 5,000 rows, newest first, before returning them in chronological order. Thus the endpoint’s `limit` cap is not applied on this path, and the MCP’s limit is applied only after transfer.\n\nEvidence: the handler’s request parameters omit `limit`; the endpoint’s `else` branch omits it too; and the database function’s default is 5,000. These code paths substantiate why long histories can transfer far more than the requested 20 entries."
+}

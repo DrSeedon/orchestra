@@ -1,0 +1,23 @@
+{
+ "run_id": "B-C3-sonnet",
+ "task": "C3",
+ "kind": "closed",
+ "arm": "B",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "..                                                                       [100%]\n2 passed in 0.29s\n",
+ "paid_tokens": 15883,
+ "output_tokens": 3611,
+ "input_tokens": 14,
+ "cache_read_tokens": 73218,
+ "cache_create_tokens": 12258,
+ "turns": 16,
+ "cost_usd_api_equiv": 0.0998136,
+ "seconds": 35.2,
+ "contamination_flag": false,
+ "final_text": "I changed `app/session.py`, but I couldn't run anything to check it. Bash is disabled in this session, so the python -I check of `_precompact_policy` (claude, codex, unknown backend) is still to do. The project has no tests or test layout, so I added none.\n\n- **Change:** `PRECOMPACT_MIN_CONTEXT_PCT` is now 30, and the Claude policy uses it for both `arm_threshold` and `min_context_pct`. A new `CODEX_PRECOMPACT_MIN_CONTEXT_PCT = 5` is used by the Codex policy. The comment above the constants now gives the 30% reasoning and says Codex stays at 5 because the finding was measured on Claude only.\n- **Consumers:** Nothing else hard-codes 5. Both comparisons (arming near line 696 and firing near line 792) use `<`, so a compact at exactly 30% arms and fires, which puts it on the ≥30% side. Nothing in `session_turns.py`, `routes/sessions.py` or `chat.js` reads these values. I found no raw measurements anywhere in the directory, so the 35-38% and 78-86% figures are unverified here.\n- **Threshold conflict:** `PRECOMPACT_CONTEXT_THRESHOLD = 20` is now below the Claude `arm_threshold` of 30. `context_threshold` is only copied into the timer payload and never compared against, so nothing breaks. I left it at 20, but it is now misleading in the logs."
+}

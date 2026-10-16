@@ -1,0 +1,23 @@
+{
+ "run_id": "A-O3-sonnet",
+ "task": "O3",
+ "kind": "open",
+ "arm": "A",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 7525,
+ "output_tokens": 1068,
+ "input_tokens": 10,
+ "cache_read_tokens": 32082,
+ "cache_create_tokens": 6447,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0429044,
+ "seconds": 13.6,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: The MCP tool never passes `limit` to the API, so the trimming to 20 entries happens client-side after the server has already sent a large batch.\n\n- **Tool side:** `get_worker_logs` in `app/mcp_stdio.py:1842` calls `GET /api/sessions/{name}/logs` with only `scope` and `after_id=0`. It then slices `logs[-limit:]` in Python, so `limit` is never sent to the server.\n- **Endpoint side:** `get_session_logs` in `app/routes/sessions.py:732-767` has a `limit` parameter (default 500, max 1000). In the `after_id` branch (line 760) it calls `get_logs(session_id, after_id=after_id)` without `limit`. `get_logs` in `app/db.py:1286` therefore uses its own default of 5000 rows.\n- **Cost per call:** The endpoint reads up to 5000 `SELECT *` rows and runs `_decode_log_provenance` and `annotate` on each. It then JSON-serializes the whole list with `sort_keys`, md5-hashes the body for an ETag, and returns it. That is megabytes for a long-history worker, and the MCP client discards all but 20 entries.\n\nFix, not applied: have the endpoint pass `limit` to `get_logs`, and have the tool send `limit` in its request."
+}

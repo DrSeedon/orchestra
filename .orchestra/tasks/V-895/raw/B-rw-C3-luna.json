@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-C3-luna",
+ "task": "C3",
+ "kind": "closed",
+ "arm": "B",
+ "model": "luna",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "note": "ok",
+ "paid_tokens": 3880,
+ "output_tokens": 342,
+ "input_tokens": 15186,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0006412799999999999,
+ "seconds": 6.7,
+ "contamination_flag": false,
+ "final_text": "1. A top professional would verify the policy’s full decision path and its boundary behavior, then check that existing callers and tests still treat Claude and Codex differently as intended. You didn’t ask for that verification.\n2. They would start from the raw policy implementation, its call sites, and focused tests or fixtures—not only the summarized measurement and requested constants.\n3. They would trace `_precompact_policy` and its callers, inspect the relevant tests, and use focused tests or a small boundary check around 30% to validate each backend’s returned `min_context_pct` and `arm_threshold`.\n4. The independent evidence would be the test results and the policy’s observed outputs for Claude and Codex at the threshold and on either side of it.\n\n```text\nIn app/session.py, idle pre-compact policy currently uses PRECOMPACT_MIN_CONTEXT_PCT = 5. Measurements show that Claude compacts started below 30% context cut only 35–38% and rewrite the cache, while above 30% they cut 78–86%.\n\nInspect the raw implementation of _precompact_policy, its callers, and relevant tests or fixtures. Update the policy so Claude sessions return min_context_pct and arm_threshold of 30 using PRECOMPACT_MIN_CONTEXT_PCT = 30. Codex sessions must retain 5 through a separate class constant CODEX_PRECOMPACT_MIN_CONTEXT_PCT, and each backend’s policy must use its own constant. Check the relevant boundary behavior and run focused tests or checks that demonstrate the returned values for both backends around 30%.\n\nEdit files in this directory in place. Final answer: two or three sentences saying what you changed.\n```"
+}

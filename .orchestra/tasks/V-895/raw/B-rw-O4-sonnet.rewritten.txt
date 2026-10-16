@@ -1,0 +1,12 @@
+A worker produced a DOCX and the chat showed a download link to it. A few days later, after the worker was archived, clicking the link shows "not found", although the file exists in the project's main checkout. Find the root cause.
+
+Work from primary sources, not documentation or summaries:
+- Find the code that creates the link, the endpoint/handler that serves it, and the code that archives a worker. Read the full chain.
+- Determine what the link encodes (absolute path, worker-relative path, worker/session ID) and how the server resolves it to a filesystem path at click time.
+- Identify what archiving changes or removes (worktree, registry entry, stored cwd, worker lookup), and which exact branch of the resolver returns "not found" as a result.
+- Rule out alternatives explicitly: frontend/proxy 404, path-containment check, stale base directory, missing file in main checkout.
+- Verify by evidence: cite file:line for the failing condition; confirm the same link would resolve before archiving and explain why it differs afterward; check any existing tests for archive/file serving. You may run read-only simulations of the resolution logic, with scripts kept outside the project directory.
+
+Do not change any files. Stay inside this directory.
+
+Final answer: start with 'ROOT CAUSE:' and give, in at most 1200 characters, the file(s), function(s)/endpoint(s) and the mechanism.

@@ -1,0 +1,18 @@
+cron_command jobs currently kill the scheduled command after 30 seconds (_CRON_COMMAND_TIMEOUT_SECONDS in app/bg_jobs.py), which is too short for real checks.
+
+Required behavior: the limit is 600 seconds, and the docstring of the bg_create MCP tool in app/mcp_stdio.py tells callers that each cron_command run is killed after 600 s without a wake.
+
+Work from the source, not from summaries:
+1. Read the full timeout path in app/bg_jobs.py: _fire_cron_command, _communicate_cron_command, and the code that kills the subprocess. Read the complete bg_create docstring in app/mcp_stdio.py. It sits on a very long line, so don't rely on truncated grep output.
+2. Grep the whole tree, including tests/, scripts/ and docs, for every other place that states or depends on the 30 s limit ("30 seconds", "30s", "30 s", the constant name). Update every one that refers to this limit. Derive messages from the constant where the code already does so.
+3. Check whether 600 s conflicts with other limits that apply to a running cron_command (cron interval or overlap handling, job lease or heartbeat, MCP call timeout, session idle timeouts). Don't redesign any of them. If one clearly conflicts, say so in the final answer.
+4. Confirm that a timed-out run still kills the whole process group, not just the shell.
+
+Verify with something other than your own reading:
+- Run the existing tests for bg_jobs and mcp_stdio (python -I -m pytest, if available) and report any failures plainly.
+- Add or adjust a test that (a) asserts the constant is 600 and the bg_create docstring says "600 s" with no stale "30", and (b) runs a real subprocess such as `sleep` with the constant patched small, checking that it is killed and that the timeout message and log line show the right number.
+- Re-grep at the end to show no stale reference to the old limit remains.
+
+Edit the files in this directory in place and keep the change minimal. Work only inside this directory.
+
+Final answer: two or three sentences saying what you changed.

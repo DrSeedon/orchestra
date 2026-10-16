@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-C4-luna",
+ "task": "C4",
+ "kind": "closed",
+ "arm": "B",
+ "model": "luna",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "note": "ok",
+ "paid_tokens": 3824,
+ "output_tokens": 332,
+ "input_tokens": 15140,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00063168,
+ "seconds": 6.4,
+ "contamination_flag": false,
+ "final_text": "1. **What a top professional would do:** Treat the timeout as a contract shared by the scheduler and the MCP tool, and check that the implementation and caller-facing wording agree without expanding the change’s scope.\n\n2. **Rawest material:** The source of truth is the current code in `app/bg_jobs.py` and `app/mcp_stdio.py`, including the timeout constant, the cron command’s termination path, and the `bg_create` tool docstring.\n\n3. **Methods and tools:** Inspect those definitions and their direct call sites with targeted file reads and search; make the smallest in-place edit, then verify the configured limit and documented behavior match. Use no broader refactor or unrelated changes.\n\n4. **What would show it is right:** The edited source shows a 600-second timeout applied to each `cron_command` run and says in the `bg_create` docstring that the run is killed after 600 seconds without a wake.\n\n```text\nUpdate the cron_command timeout contract in this directory, editing files in place.\n\nInspect the current timeout constant and cron command termination path in app/bg_jobs.py, along with the bg_create MCP tool docstring in app/mcp_stdio.py. Set the per-run timeout to 600 seconds and update the docstring to tell callers that each cron_command run is killed after 600 seconds without a wake. Keep the change limited to what is needed for these two behaviors.\n\nVerify from the edited source that the timeout is enforced and the caller-facing wording matches it. Do not read or list anything outside this directory.\n\nFinal answer: two or three sentences saying what you changed.\n```"
+}

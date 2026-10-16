@@ -1,0 +1,23 @@
+{
+ "run_id": "B-C4-luna",
+ "task": "C4",
+ "kind": "closed",
+ "arm": "B",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "..                                                                       [100%]\n2 passed in 0.14s\n",
+ "paid_tokens": 15435,
+ "output_tokens": 882,
+ "input_tokens": 129625,
+ "cache_read_tokens": 115072,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0030470200000000005,
+ "seconds": 33.1,
+ "contamination_flag": false,
+ "final_text": "Set the per-run `cron_command` timeout to 600 seconds; the existing `asyncio.wait_for` enforces it, and the timeout path kills the process during cleanup. Updated the `bg_create` docstring to say each run is killed after 600 seconds without a wake."
+}

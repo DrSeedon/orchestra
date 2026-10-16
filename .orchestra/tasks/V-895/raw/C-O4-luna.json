@@ -1,0 +1,23 @@
+{
+ "run_id": "C-O4-luna",
+ "task": "O4",
+ "kind": "open",
+ "arm": "C",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 38073,
+ "output_tokens": 1208,
+ "input_tokens": 343041,
+ "cache_read_tokens": 306176,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.00735226,
+ "seconds": 20.0,
+ "contamination_flag": true,
+ "final_text": "ROOT CAUSE: The chat’s Send File download button uses the original absolute path saved as `fp` and requests `/api/files/raw?path=…` ([chat.js](/home/kesha/bench895/runs/C-O4-luna/app/static/js/chat.js:3429)). The `/api/files/raw` endpoint serves that path directly and returns 404 when it no longer exists ([system.py](/home/kesha/bench895/runs/C-O4-luna/app/routes/system.py:276)). Archiving/removing the worker calls `remove_worktree`, which deletes that worktree ([manager.py](/home/kesha/bench895/runs/C-O4-luna/app/manager.py:1173), [workspace.py](/home/kesha/bench895/runs/C-O4-luna/app/workspace.py:2770)). So the link still points into the deleted worker checkout; a copy in the main checkout does not help because the URL is path-based, not a durable file ID or snapshot. This is distinct from `publish_artifact`, which snapshots content and has its own expiry.\n\nIndependent check: `git worktree remove --force <worker-worktree>` removes that path; requesting `/api/files/raw?path=<that-path>/<file>.docx` then returns 404, while the main-checkout copy remains accessible."
+}

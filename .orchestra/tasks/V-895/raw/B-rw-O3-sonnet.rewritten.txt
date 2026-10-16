@@ -1,0 +1,12 @@
+The MCP tool get_worker_logs(name, limit=20) is slow and transfers megabytes over the API for workers with long histories, even though only 20 entries were requested. Find the root cause.
+
+Method:
+- Work from primary source only: the code on the call path. Do not rely on README, docs, comments, or docstrings as evidence; treat them as claims to verify.
+- Trace the full path: MCP tool definition -> API client -> HTTP route/handler -> data-access/query layer (plus schema/index definitions). Use Grep to find every definition and call site of get_worker_logs, the endpoint path, and `limit`, and Read each hop.
+- Build a parameter-flow trace for `limit`: at each layer, say whether it is received, renamed, defaulted, dropped, or applied. Identify the first layer where it stops bounding the data.
+- Check specifically for: limit not forwarded by the tool; endpoint ignoring limit; full-history load followed by slicing; missing LIMIT / ORDER BY without an index; pagination loops that fetch everything; client-side truncation after a full fetch.
+- Separate the two symptoms (latency vs. bytes over the wire) and confirm that your single root cause explains both. Explicitly rule out at least the main alternatives you considered.
+- Counterfactual check: state what one-line change would make data volume bounded by `limit` end to end, and confirm no other layer would still pull or send unbounded data.
+- Back every claim with a quoted file:line from the code. If tests or fixtures exist that exercise this endpoint, use them as corroboration. Do not change any files.
+
+Final answer: start with 'ROOT CAUSE:' and give, in at most 1200 characters, the file(s), function(s)/endpoint(s) and the mechanism, with file:line references.

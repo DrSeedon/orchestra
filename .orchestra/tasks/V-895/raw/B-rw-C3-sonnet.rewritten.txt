@@ -1,0 +1,11 @@
+In app/session.py, the idle pre-compact floor PRECOMPACT_MIN_CONTEXT_PCT is 5. Measurements show that Claude compacts started below 30% context cut only 35-38% and rewrite the cache, while above 30% they cut 78-86%.
+
+Required behavior: _precompact_policy returns min_context_pct and arm_threshold of 30 for Claude sessions (PRECOMPACT_MIN_CONTEXT_PCT = 30); Codex sessions keep 5 through a new separate class constant CODEX_PRECOMPACT_MIN_CONTEXT_PCT; each backend's policy uses its own constant.
+
+Do this with more depth, not more scope:
+1. Before editing, find every consumer of PRECOMPACT_MIN_CONTEXT_PCT, arm_threshold, min_context_pct and context_threshold (app/session.py including the uses near lines 695 and 772, app/session_turns.py, app/routes/sessions.py, app/static/js/chat.js, and any tests). Check whether anything hard-codes 5 or whether the Claude PRECOMPACT_CONTEXT_THRESHOLD of 20 now conflicts with an arm_threshold of 30. If it does, report the conflict in your final answer, but do not change that threshold unless the required behavior forces it.
+2. Look in this directory for the raw compact measurements (logs, data files, notes) behind the 35-38% / 78-86% figures. If they exist, check which side of the 30% boundary a compact at exactly 30% falls on and that the existing comparison operator matches. If they don't exist, say so and don't invent numbers.
+3. Update the stale comment above the constant (the 5%/2,638-token cost argument) so it matches the 30% floor and explains why Codex stays at 5.
+4. Verify with something other than reading your own diff: run the existing tests if there are any, and check _precompact_policy for claude, codex and an unknown backend (expect None). Use python -I and run it from outside the project directory. Add a small test only if the project already has a test layout to put it in.
+
+Edit the files in this directory in place. Final answer: two or three sentences saying what you changed.

@@ -1,0 +1,11 @@
+A dynamic workflow ran three tasks, each with a JSON schema, budget_usd=3 and max_calls=3. The manifest shows spent_usd=0.016, dispatched_calls=3 and partial_reason=budget. Every task's journal reads attempt_finished, then schema_invalid ("invalid JSON: Expecting value at line 1 column 1"), then retry_deferred with reason=budget. No task produced valid output, though only 0.5% of the budget was spent. Find the root cause(s) in scripts/wf_run.py.
+
+Work from the raw evidence, not summaries:
+1. Start from the raw journal and manifest files in this directory, if present. Note the raw attempt_finished payloads (the exact text handed to the JSON parser) and the manifest's cost and call counters.
+2. In scripts/wf_run.py, trace the full path: how the call is made, how the response (stdout/stderr/exit code/envelope fields) is turned into the string passed to json.loads, where schema_invalid is emitted, and where retry_deferred and partial_reason are decided.
+3. Treat these as two possibly separate faults and test each: (a) why the parser receives non-JSON at position 0 (empty text, prose preamble, markdown fence, wrong envelope field, error text, schema passed in a way that changes the output format); (b) why a retry is deferred for "budget" when 0.016 of 3 USD is spent, for example max_calls=3 being exhausted by the first attempts and reported as budget, a reserved or worst-case cost estimate, or a wrong comparison or counter. Also decide whether (a) causes (b).
+4. Verify by reproducing, not by reasoning alone: run json.loads (python3 -I) on the journaled payloads or on the code's extraction logic to reproduce the exact error message, and check that your explanation accounts for all of: identical failure on all three tasks, column 1, spend of about 0.016, dispatched_calls=3, and the "budget" label. Do not trust comments or names; confirm against what the code does.
+
+Do not change any files, and work only inside this directory.
+
+Final answer: start with 'ROOT CAUSE:' and give, in at most 1200 characters, the file(s), function(s)/endpoint(s) and the mechanism.

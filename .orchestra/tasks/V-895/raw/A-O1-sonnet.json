@@ -1,0 +1,23 @@
+{
+ "run_id": "A-O1-sonnet",
+ "task": "O1",
+ "kind": "open",
+ "arm": "A",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 17860,
+ "output_tokens": 2694,
+ "input_tokens": 14,
+ "cache_read_tokens": 65007,
+ "cache_create_tokens": 15152,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.10057740000000001,
+ "seconds": 26.6,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: `toggle_tg_topic` in `app/routes/sessions.py` (`PATCH /api/sessions/{name}/tg-topic`, ~line 3528) persists with the wrong dict. I read the code but did not run it.\n\nThe handler sets `found.tg_topic = enabled`, then calls `save_session(found.to_dict())`. `AgentSession.to_dict()` (`app/session.py` ~4552–4602) is the UI/API view of the session, not the DB row. The DB row comes from `_to_db_dict()` (~4495–4526), which `_persist()` uses.\n\n`save_session` (`app/db.py` ~254–373) runs a named-parameter INSERT … ON CONFLICT with `:param` bindings. `to_dict()` doesn't fit those bindings:\n- It has no `mcp_servers_custom`, `total_cache_*`-style serialized fields, `context_tokens`, `session_id_history`, `effort`, `runtime_handoff`, `last_summary` or `history_import_source`. Some get `setdefault` values, but `mcp_servers_custom` has none, so the bind fails.\n- `disabled_tools` and `owned_dirs` are raw Python lists, which sqlite can't bind.\n- `tg_topic` and the other fields are in a different shape from what the SQL expects.\n\nSo the sqlite call raises, and the endpoint returns 500. In `api()` that throws, which `app.js` ~3277 catches and logs as \"TG topic toggle failed\". Nothing is written, and the in-memory flag changes at most transiently, so a refresh shows the old value.\n\nThe correct path already exists. `update_session_fields(name, scope, tg_topic=...)` in `app/manager.py` ~1461 is used by the POST `/tg_topic` route (~1653). Alternatively the handler could call `found._persist()`."
+}

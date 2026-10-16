@@ -1,0 +1,23 @@
+{
+ "run_id": "B-O4-sonnet",
+ "task": "O4",
+ "kind": "open",
+ "arm": "B",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "note": "",
+ "paid_tokens": 37658,
+ "output_tokens": 4818,
+ "input_tokens": 32,
+ "cache_read_tokens": 329979,
+ "cache_create_tokens": 32808,
+ "turns": 26,
+ "cost_usd_api_equiv": 0.2454718,
+ "seconds": 43.3,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: The download link holds the worker's absolute worktree path. Archiving deletes that worktree, so the file-serving handler can no longer find the file.\n\n- **What the link encodes:** the raw `path` the worker passed to `send_file`, for example `<repo>/worktrees/<scope>/<worker>/report.docx`. `chat.js:2764-2768` stores it in the card's `dataset.filePath`. The Download button builds `/api/files/raw?path=<abs path>&download=1` (`chat.js:3454`, `app.js:163-187`). There is no session ID or worker lookup, and nothing rewrites the path to the main checkout.\n- **Resolver:** `get_file_raw`, `app/routes/system.py:276-282`. `_is_safe_path` only checks allowed roots and denied parts. Then `target = Path(path)` and `if not target.is_file(): return 404 \"not found\"` (`system.py:281-282`).\n- **What archiving does:** `manager.remove` (`manager.py:1173-1181`) calls `remove_worktree` (`workspace.py:2770-2800`), which runs `git worktree remove --force` on `session.worktree_path`. It then calls `archive_session`. The DOCX directory is deleted, so `is_file()` is false and the handler returns 404.\n- **Before archiving:** the same URL passes `_is_safe_path` (`WORKTREE_ROOT` is `<repo>/worktrees`, `workspace.py:26`, under an allowed root) and `is_file()` is true.\n- **Alternatives ruled out:**\n  - The 404 is a JSON `{\"error\":\"not found\"}` from the backend, not a frontend or proxy error.\n  - A containment failure would return 403 (`system.py:279`), not 404.\n  - There is no stale base directory, because the path is absolute and not resolved against any stored cwd.\n  - The file does exist in the main checkout, but under a different path that the link never points to.\n- **Artifact links:** the `/api/artifacts/open/...` links serve stored snapshots and don't depend on the worktree. They are not the failing path.\n\nI couldn't check existing tests: there is no tests directory in this snapshot, and a search for the file route returned nothing. I didn't run a simulation of the resolver. The conclusion comes from reading the code."
+}
