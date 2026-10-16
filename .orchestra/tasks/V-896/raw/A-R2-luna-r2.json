@@ -1,0 +1,23 @@
+{
+ "run_id": "A-R2-luna-r2",
+ "task": "R2",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 24948,
+ "output_tokens": 946,
+ "input_tokens": 183874,
+ "cache_read_tokens": 159872,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.00447192,
+ "seconds": 16.9,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe proposal’s retention premise does not match the code. In `app/db.py`, `cleanup_old_logs()` is deliberately disabled and raises an error; `app/manager.py` records that log retention was removed because agent history is research data. There is no active age-based log deletion to synchronize blob cleanup with. Logs can also disappear when their parent session is deleted, because the schema uses `ON DELETE CASCADE` (documented in `get_logs_sync()`).\n\nThe relevant image paths vary by backend and are not a dependable source of archival blobs. `app/backend_codex.py` turns an `imageView` item into a `ViewImage` tool call and logs a result containing its `file_path`. The frontend uses that path for a live file request and has a base64 fallback for image results. But `app/session.py` logs `tool_result` as `event.content` through `_log()`, which schedules an asynchronous `add_log()` call. It does not resolve paths or copy files. A logged path may later be unavailable or point to changed content; a copy started asynchronously at log-write time could also lose a race with file removal or modification.\n\nThe code supports concern about large image payloads: `get_logs_before()` caps responses because a single base64 row can be hundreds of kilobytes, and `get_logs_sync()` also caps content. Those are transport limits; they do not establish that the proposed row type always contains a usable file reference.\n\nRecommendation: don’t adopt the proposal as stated. First identify which of the 52 rows contain base64 versus paths, and which producers/backends emit each form. If preserving images is required, store them at the point the image is produced or read, when the bytes are available, and log a stable blob ID or content hash. Define blob deletion against actual log deletion events, including session cascade deletion; with the current no-retention policy, blobs should not be age-pruned in step with logs. For reducing SQLite size, consider an explicit migration that replaces embedded base64 with blob references while preserving retrieval behavior."
+}

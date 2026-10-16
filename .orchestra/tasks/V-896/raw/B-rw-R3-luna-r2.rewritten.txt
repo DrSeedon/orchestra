@@ -1,0 +1,11 @@
+Working only inside the current project directory, diagnose two failures in `pytest tests/` without running the full suite. Do not change any files.
+
+Reported symptoms:
+- One run is killed with exit code 137 and no summary, at a varying point around 35–40% completion, despite apparently ample free memory.
+- A different run configuration hangs near 85–88% during teardown of a fixture that wraps `TestClient(app)`.
+
+For each symptom, independently establish the root cause rather than inferring it from the reported completion percentage. Inspect the relevant test and fixture source, app lifespan and shutdown behavior, and any project-local pytest configuration or plugins that affect execution. Use small targeted pytest commands, focused instrumentation, or process/resource observations as needed; do not run the full suite and do not modify files.
+
+Report only causes supported by evidence. For each, state the mechanism, cite the relevant file and function or fixture names, and give a concrete recommendation. If the available evidence cannot establish a cause, identify what remains uncertain and the smallest targeted observation that would resolve it.
+
+Final answer: at most 600 words, plain text, starting with `FINDINGS:`. State the conclusions, the evidence (file/function names), and the recommendation.

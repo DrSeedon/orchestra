@@ -1,0 +1,13 @@
+CHANGELOG.md in this project is edited by five worker agents in parallel. Each works on its own git branch cut from the same point, and the orchestrator merges the branches one by one. Merges keep failing on CHANGELOG.md, and the project rule says every task must add an entry. Work out why this happens and what the cheapest durable fix is. What matters to the owner: merge conflicts per N parallel branches, and the number of tool calls an agent needs per task.
+
+Work from primary sources, not summaries:
+1. Find the exact wording and enforcement point of the "every task must add an entry" rule (CLAUDE.md, AGENTS.md, contributing docs, hooks, CI, prompts). Quote it.
+2. Read the orchestrator's merge code or script and the agent task prompts: merge order, strategy, and what agents are told to do with the changelog.
+3. Read CHANGELOG.md itself: structure, the insertion point recent entries used, and any version/date lines that get rewritten. Check .gitattributes, merge drivers, hooks and release scripts that touch it.
+4. If agent logs or transcripts exist in the directory, count the actual tool calls per changelog edit. Treat any existing notes or prior diagnoses in the repo as unverified claims.
+
+Establish the cause by reproduction, not theory. In a scratch directory OUTSIDE the project (never inside it), run git init, cut N branches from one commit, have each add an entry the way the agents do, and merge them one by one for N = 2..5. Separate layout-caused conflicts (shared insertion point, trailing lines, shared header) from agent-behavior-caused ones (re-sorting, rewrapping, version/date bumps).
+
+Compare at least these fixes on conflicts per N branches and on tool calls per task: per-task fragment files assembled at release time (towncrier/changie style), merge=union in .gitattributes, the orchestrator writing the entry after merging, and append-only at end of file. Recommend the cheapest durable one, and say what it costs in rule or prompt changes.
+
+Do not change any files in the project. Scratch work goes only in a separate temporary directory. Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names, plus the simulation commands and conflict counts so they can be rerun) and the recommendation.

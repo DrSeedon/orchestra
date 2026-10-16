@@ -1,0 +1,23 @@
+{
+ "run_id": "B-R2-luna-r2",
+ "task": "R2",
+ "kind": "research",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 38832,
+ "output_tokens": 1863,
+ "input_tokens": 337641,
+ "cache_read_tokens": 300672,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.0076351200000000004,
+ "seconds": 27.4,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nVerified facts: `app/db.py` defines `logs.content` as a single `TEXT` column. `add_log()` inserts the supplied content unchanged; `Session._handle_event()` passes the full `tool_result` content to `_log()`, which schedules `add_log()` asynchronously in `app/session.py`. No log-write path copies image files or rewrites their references. Claude results are flattened to text by `_extract_tool_result()`; Codex `imageView` results contain a `file_path`, and its `ViewImage` tool-use event also carries that path (`app/backend_claude.py`, `app/backend_codex.py`).\n\nReplay returns stored rows: `get_logs()`, `get_logs_before()`, `get_logs_sync()`, and `/api/logs/{log_id}` in `app/db.py` and `app/routes/sessions.py`. Long content can be capped for history or sync, then fetched whole by log ID. The browser renders image payloads from embedded base64 when present; Codex `ViewImage` cards instead request the original path through `/api/files/raw` (`app/static/js/app.js`, `app/routes/system.py`). That route returns 404 if the file is gone. Thus logs can remain readable while the original image is unavailable.\n\nRetention is indefinite by policy: `cleanup_old_logs()` in `app/db.py` raises because log deletion was explicitly disabled. Deleting a session cascades to its logs through the foreign key; replacing an archived session also deletes its prior row and cascades. Archiving alone retains logs. The browser’s IndexedDB mirror prunes logs for sessions no longer live, but that does not delete server logs. The claimed 52 rows and 43% byte share are not independently verified here.\n\nRecommendation: don’t adopt “one blob per log row, retained only as long as that row” as stated. Since logs usually have no age-based expiry, this would preserve blobs indefinitely too, while adding cleanup and consistency risks. More critically, row-tied ownership mishandles duplicate references and multiple logs sharing a file: deleting one row could remove a blob another row still needs. Async log writes also mean copying before or after `add_log()` can leave orphan blobs or rows pointing at absent blobs after partial failure; cleanup failures can leak storage.\n\nIf reducing DB size is worthwhile, first define a blob reference model with shared-file deduplication or per-row independent copies, atomic/repairable write semantics, and cleanup driven by actual row deletion (session cascades/replacement included), not assumed age retention. Preserve original-path fallback where the UI needs it, and test missing files and replay after source-file removal. Existing code confirms the lifecycle constraints; proposal behavior is not implemented or validated by tests."
+}

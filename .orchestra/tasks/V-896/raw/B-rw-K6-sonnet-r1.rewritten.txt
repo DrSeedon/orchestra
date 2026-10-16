@@ -1,0 +1,11 @@
+A personal assistant bot receives the owner's voice notes in Telegram, turns them into text, files them into a notes vault and answers questions about them later.
+
+Write: a product name (one word, pronounceable in Russian and English), a tagline of at most eight words, and a three-sentence pitch that makes a sceptical friend want to try it. At most 90 words in total.
+
+Work like a professional namer and copywriter before answering:
+- Start from raw material, not advice articles: if any voice-note transcripts, notes, or user feedback exist in this directory, read them first and use their real wording and pain points. Otherwise base the pitch on the most likely sceptic objection (for example "I never reread my notes", "transcription will garble it", "it's my private voice"), and answer that objection with one concrete claim rather than adjectives.
+- Draft at least 30 candidate names. Cut them against criteria you fix beforehand: one word, easy to say for both a Russian and an English speaker, stress unambiguous, survives Cyrillic↔Latin transliteration, no unfortunate or rude meaning or sound-alike in either language, not an obvious copy of an existing bot or note app.
+- Check the shortlist for meanings and collisions with whatever tools you have. Do not claim a name is free as a trademark, domain or Telegram handle unless you actually verified it. If you cannot verify, leave that unclaimed.
+- Measure the length with a tool (for example `wc -w` on the final text), not by estimate. The name, tagline and pitch together must be at most 90 words, the tagline at most eight words, and the pitch exactly three sentences.
+
+Final answer: only these three parts, the name, the tagline and the pitch. No candidate lists, no explanations, no verification notes.

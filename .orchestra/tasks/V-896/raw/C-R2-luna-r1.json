@@ -1,0 +1,23 @@
+{
+ "run_id": "C-R2-luna-r1",
+ "task": "R2",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 47470,
+ "output_tokens": 1289,
+ "input_tokens": 302181,
+ "cache_read_tokens": 256000,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.0078226,
+ "seconds": 47.5,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe proposal’s retention rule does not match this code. `app/db.py:cleanup_old_logs()` is explicitly disabled and raises an error; `app/manager.py:SessionManager.start_background_tasks()` says log retention was removed because agent history must never be deleted. Logs are deleted only when a session is deleted, through the foreign key cascade or explicit session deletion. Blobs tied to log retention would therefore be effectively permanent, and cleanup would also need to handle session deletion.\n\nThe image data also does not consistently include a usable source-file reference. In `app/session.py:AgentSession._handle_event()`, every main-session `tool_result` is logged as `event.content`. The Claude backend’s `_extract_tool_result()` reduces tool-result blocks to text (`app/backend_claude.py`), while the Codex backend emits some image events with a `file_path` (`app/backend_codex.py`). The UI can use that path to load an image through `/api/files/raw` (`app/static/js/app.js`, `app/routes/system.py`), but a path can refer to a file that later changes or disappears. For base64 results, the UI renders the embedded image directly. A single representation and reference contract would be needed before copying files could reliably replace those payloads.\n\nThe log is an immutable record: `app/db.py:add_log()` documents an insert-only invariant, and `app/static/js/app.js` mirrors rows based on it. Replacing base64 content with a blob reference would change what historical log readers receive and require coordinated UI/API handling. Existing pagination and sync paths cap oversized content (`get_logs_before()`, `get_logs_sync()`), so the current code already limits transfer size, though the original SQLite storage remains large.\n\nRecommendation: do not implement “copy referenced file and delete blob with log retention” as proposed. Retention is permanent, and source paths are not reliable across event types or over time. If reducing SQLite growth is still a goal, first define a durable image-reference format for all relevant backends, preserve access for historical logs, and define blob lifecycle around session deletion or an explicit archival/retention policy. Keep the log immutable and ensure the frontend can render both existing base64 rows and new references.\n\nExternal independent check applied: `rg -n \"cleanup_old_logs|periodic_db_cleanup|DELETE FROM logs|DELETE.*sessions\" app` shows no active log-retention job or `DELETE FROM logs`; `cleanup_old_logs()` is the disabled tombstone. No files were changed."
+}

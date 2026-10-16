@@ -1,0 +1,84 @@
+== RESEARCH coverage (mean of 6 findings, mean of 2 graders) ==
+A model=None n=12 mean=0.243 [0.149,0.344]
+A model=luna n=6 mean=0.146 [0.069,0.215]
+A model=sonnet n=6 mean=0.340 [0.181,0.479]
+   A R1 n=4 mean=0.365 vals=[0.17, 0.54, 0.21, 0.54]
+   A R2 n=4 mean=0.292 vals=[0.38, 0.33, 0.21, 0.25]
+   A R3 n=4 mean=0.073 vals=[0.04, 0.04, 0.0, 0.21]
+B model=None n=12 mean=0.302 [0.163,0.451]
+B model=luna n=6 mean=0.174 [0.069,0.306]
+B model=sonnet n=6 mean=0.431 [0.208,0.639]
+   B R1 n=4 mean=0.427 vals=[0.46, 0.21, 0.54, 0.5]
+   B R2 n=4 mean=0.438 vals=[0.12, 0.75, 0.67, 0.21]
+   B R3 n=4 mean=0.042 vals=[0.04, 0.08, 0.04, 0.0]
+C model=None n=12 mean=0.385 [0.264,0.497]
+C model=luna n=6 mean=0.243 [0.097,0.389]
+C model=sonnet n=6 mean=0.528 [0.458,0.597]
+   C R1 n=4 mean=0.427 vals=[0.21, 0.54, 0.5, 0.46]
+   C R2 n=4 mean=0.479 vals=[0.5, 0.29, 0.46, 0.67]
+   C R3 n=4 mean=0.250 vals=[0.04, 0.0, 0.38, 0.58]
+-- paired differences vs A (cell = task x model x rep) --
+B-A n=12 mean diff=+0.059 [-0.031,+0.156] up/down/tie=3/3/6 sign p=1.000 sd=0.174
+C-A n=12 mean diff=+0.142 [+0.059,+0.240] up/down/tie=8/1/3 sign p=0.039 sd=0.171
+-- cross-only grader (grader model != author model) --
+A n=12 mean=0.271
+B n=12 mean=0.326
+C n=12 mean=0.410
+== CREATIVE win-rate of arm over A (decision = pair x judge) ==
+B vs A all: n=48 win=0.375 [0.250,0.500]
+B vs A cross-only: n=24 win=0.417 [0.208,0.625]
+B vs A luna authors: n=24 win=0.167 [0.042,0.333]
+B vs A sonnet authors: n=24 win=0.583 [0.375,0.792]
+   pair-level (n=24): B wins/losses/split=6/12/6 sign p=0.238; judge agreement=0.75
+   K1: B win share 0.50 (n pairs 4)
+   K2: B win share 0.38 (n pairs 4)
+   K3: B win share 0.00 (n pairs 4)
+   K4: B win share 0.38 (n pairs 4)
+   K5: B win share 0.75 (n pairs 4)
+   K6: B win share 0.25 (n pairs 4)
+C vs A all: n=48 win=0.250 [0.125,0.375]
+C vs A cross-only: n=24 win=0.250 [0.083,0.417]
+C vs A luna authors: n=24 win=0.333 [0.167,0.542]
+C vs A sonnet authors: n=24 win=0.167 [0.042,0.333]
+   pair-level (n=24): C wins/losses/split=4/16/4 sign p=0.012; judge agreement=0.83
+   K1: C win share 0.50 (n pairs 4)
+   K2: C win share 0.25 (n pairs 4)
+   K3: C win share 0.12 (n pairs 4)
+   K4: C win share 0.12 (n pairs 4)
+   K5: C win share 0.00 (n pairs 4)
+   K6: C win share 0.50 (n pairs 4)
+position: A shown as Y won 38/51, shown as X won 28/45
+words per answer (creative):
+   A mean words=163
+   B mean words=187
+   C mean words=170
+== PAID TOKENS ==
+None A: paid=736497 turns=277 usd_api_eq=3.53
+None B: paid=935267 turns=344 usd_api_eq=2.94
+None C: paid=756441 turns=297 usd_api_eq=3.61
+   geo paid B/A kind=None model=None: 2.29 [1.87,2.75] n=36
+   geo paid B/A kind=None model=luna: 2.28 [1.73,3.01] n=18
+   geo paid B/A kind=None model=sonnet: 2.29 [1.72,2.91] n=18
+   geo paid C/A kind=None model=None: 1.15 [0.98,1.33] n=36
+   geo paid C/A kind=None model=luna: 1.18 [0.88,1.54] n=18
+   geo paid C/A kind=None model=sonnet: 1.11 [0.97,1.26] n=18
+research A: paid=648279 turns=251 usd_api_eq=3.35
+research B: paid=684221 turns=251 usd_api_eq=2.23
+research C: paid=649032 turns=252 usd_api_eq=3.35
+   geo paid B/A kind=research model=None: 1.36 [0.98,1.98] n=12
+   geo paid B/A kind=research model=luna: 1.52 [0.96,2.84] n=6
+   geo paid B/A kind=research model=sonnet: 1.22 [0.79,1.89] n=6
+   geo paid C/A kind=research model=None: 1.02 [0.80,1.30] n=12
+   geo paid C/A kind=research model=luna: 1.16 [0.80,1.72] n=6
+   geo paid C/A kind=research model=sonnet: 0.90 [0.67,1.08] n=6
+creative A: paid=88218 turns=26 usd_api_eq=0.18
+creative B: paid=251046 turns=93 usd_api_eq=0.71
+creative C: paid=107409 turns=45 usd_api_eq=0.27
+   geo paid B/A kind=creative model=None: 2.96 [2.56,3.39] n=24
+   geo paid B/A kind=creative model=luna: 2.80 [2.17,3.61] n=12
+   geo paid B/A kind=creative model=sonnet: 3.14 [2.84,3.52] n=12
+   geo paid C/A kind=creative model=None: 1.21 [0.99,1.47] n=24
+   geo paid C/A kind=creative model=luna: 1.19 [0.80,1.68] n=12
+   geo paid C/A kind=creative model=sonnet: 1.24 [1.14,1.38] n=12
+rewrite share of B tokens: 0.16
+failed cells: []; contamination flagged: 15

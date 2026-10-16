@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K4-sonnet-r2",
+ "task": "K4",
+ "kind": "creative",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3067,
+ "output_tokens": 422,
+ "input_tokens": 4,
+ "cache_read_tokens": 9671,
+ "cache_create_tokens": 2641,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.0167262,
+ "seconds": 9.0,
+ "contamination_flag": false,
+ "final_text": "**Prompt-rewrite experiment: no benefit shown**\n\nWe tested a trick that rewrites each task before the agent runs it. We ran 48 runs.\n\n- **Accepted answers:** the share did not go up.\n- **Cost:** paid tokens more than doubled.\n- **Weak point:** our task set was too easy, so even a real gain wouldn't have shown. This is \"no evidence of benefit\", not proof that it fails.\n\n**Recommendation:** don't adopt it now. Retest only if you want a real answer, using harder tasks and the same acceptance check.\n\n**How to verify:** count accepted answers per arm from the raw run logs. I had no logs here, so I couldn't check the numbers myself. They come from the experiment report.\n\nRetest, or drop it?"
+}

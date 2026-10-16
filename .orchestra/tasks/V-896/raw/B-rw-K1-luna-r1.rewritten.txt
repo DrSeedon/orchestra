@@ -1,0 +1,5 @@
+Write a narration script for a 75-second explainer video for non-technical viewers, titled “Why an AI agent forgets after a long session, and what a summary does about it.”
+
+Before writing, inspect the raw conversation before compression and the summary used to continue from it. Compare them to identify details that were preserved, lost, or changed. Check the summary by asking the agent specific questions about information present in the original conversation, and verify each factual claim in the script against this evidence. Keep the explanation clear about what the summary carries forward and what can be lost; do not imply that an AI agent’s memory works like a person’s.
+
+Deliver the narration with a one-line scene direction before each part, at most 260 words in total. Make the spoken narration fit 75 seconds when read aloud at a natural pace. Final answer is only the script.

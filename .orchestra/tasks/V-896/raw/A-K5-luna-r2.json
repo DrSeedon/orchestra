@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K5-luna-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3492,
+ "output_tokens": 173,
+ "input_tokens": 14967,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0005348800000000001,
+ "seconds": 7.1,
+ "contamination_flag": false,
+ "final_text": "A green test means “the program behaved as the test expected.” It doesn’t automatically mean the test expected the right thing. For example, a test might check that a shopping list contains “milk” when it should contain “bread.” It passes, but proves the wrong detail.\n\nA test can also pass without really checking anything: it might always report success, or the part of the program it’s meant to examine might never run.\n\n“Checking that the test can fail” means deliberately change the program so it does the wrong thing, then run the test. If the test turns red, it noticed the mistake. If it stays green, the test may be looking in the wrong place—or not looking at all.\n\nThat check doesn’t prove the test catches every possible problem. It shows that it can catch at least the particular mistake you introduced."
+}

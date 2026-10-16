@@ -1,0 +1,17 @@
+Agents on a platform sometimes go quietly idle for hours while waiting for something that will never come, and nobody notices. The platform now blocks this with a mechanism: when an agent has been silent past a limit and has no live background job, it is woken with a message naming the rule it broke.
+
+Before writing anything, work from primary material in the current directory (read-only, stay inside it):
+- Find the mechanism's implementation and config (grep/glob for idle, silent, watchdog, stall, heartbeat, wake, timeout, background job). Record the actual silence threshold, the exact "no live background job" condition, and the exact wake-message text.
+- Find any logs or transcripts of real idle episodes or wake-ups. Reconstruct 2-3 as short timelines: last activity, what the agent was waiting on, how long before it was woken.
+- Find the owner's rules file and any existing docs. Note its voice, sentence length and format, and the platform's existing vocabulary.
+- Grep every candidate name against the codebase and docs to rule out collisions or near-duplicates.
+- If any of this material is missing, say so in one line outside the answer and work from the task description alone. Do not invent details.
+
+Then produce, scored against: accurate to what the code does, distinct from existing terms, short, and self-explaining when it appears in a wake message:
+(1) five candidate names for this mechanism, each with a six-word-or-shorter rationale,
+(2) your pick,
+(3) a one-sentence rule for the owner's rules file that states the behaviour and its reason, matching the rules file's style and consistent with the real wake message and real failure mode.
+
+Check before answering: the rule's reason matches the observed failure, the pick has no grep collision, and a reader who sees only the wake message would know what to do.
+
+At most 150 words in total. Final answer is only these three parts.

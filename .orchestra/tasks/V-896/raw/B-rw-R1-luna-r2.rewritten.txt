@@ -1,0 +1,11 @@
+CHANGELOG.md in this project is edited by five worker agents in parallel. Each works on its own git branch cut from the same point, and the orchestrator merges the branches one by one. Merges keep failing on CHANGELOG.md, and the project rule says every task must add an entry.
+
+Work out why this happens and recommend the cheapest durable fix. Treat “cheapest” as minimizing the owner’s two stated costs: merge conflicts per N parallel branches and tool calls an agent needs per task.
+
+Base the analysis on the raw project evidence: find the changelog requirement, inspect the orchestrator’s branch creation and merge implementation, and examine relevant branch diffs, conflict examples, or logs available in this project. Trace the requirement through the workflow to identify the mechanism that causes conflicts. Do not rely only on summaries or assumptions about the cause.
+
+Compare plausible fixes against both costs. Where the project evidence is insufficient, reproduce the current behavior and candidate fixes in a controlled Git scenario with N parallel branches, using temporary files or worktrees only. Report the setup and results so the comparison can be repeated. Recommend the least costly durable fix supported by that evidence.
+
+Do not change project files.
+
+Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names), and the recommendation. Include the observed or reproduced conflict counts and agent tool-call impact; distinguish measured results from estimates.

@@ -1,0 +1,12 @@
+In the SQLite journal (table logs), about 43% of all bytes are 52 rows holding base64-encoded images (tool results of image reads). The frontend team proposes: when the row is written (app/session.py, where the tool_result is logged), copy the referenced image file into our own blob storage and keep the blob only while log retention keeps the row, i.e. clean blobs in step with log retention. Evaluate this proposal against the code and recommend what to do.
+
+Work from primary material, not summaries:
+- Verify the 43% claim yourself on the actual database file, read-only or on a temporary copy outside the project. Use sqlite3 queries (SUM(length()) by row, the dbstat virtual table if available), and report the real count, bytes and share. Hash the decoded images to measure duplication.
+- Read the real write path in app/session.py, find every reader of logs (replay, export, resume, UI) with ripgrep, and read the actual retention/deletion code: what triggers it, what it deletes by, and whether VACUUM runs.
+- Check whether the referenced image file still exists, is stable and has a durable path at the moment the row is written.
+
+Evaluate the proposal on: correctness (does the copy match what was read; atomicity with the DB commit), failure modes (crash between blob write and commit, or between row delete and blob delete; orphans; shared blobs referenced by several rows; concurrent writers), whether anything still needs the base64 inline, privacy/erasure, backup/restore consistency, and migration of the existing rows. Compare it with cheaper alternatives (hash plus reference with dedup, compression, truncating at write time, a side table) and say which is best and why.
+
+Do not change any files. For every conclusion, separate what you measured or read (cite file/function/line, query and result) from what you infer, and list what you could not verify and who would have to confirm it (e.g. consumers of the logs, retention owner).
+
+Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names) and the recommendation.

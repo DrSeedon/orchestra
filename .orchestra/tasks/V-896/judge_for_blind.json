@@ -1,0 +1,86 @@
+{
+ "A": {
+  "key": {
+   "task": "K2",
+   "model": "sonnet",
+   "rep": "2",
+   "first": "B",
+   "second": "A"
+  },
+  "judges": [
+   {
+    "judge": "sonnet",
+    "winner": "A",
+    "reason": "Both exceed 300 words, but X breaks the limit far worse and adds non-concept sections (data check, validation). Y is concrete and fits the brief, with a strong intent-sentence idea."
+   },
+   {
+    "judge": "luna",
+    "winner": "B",
+    "reason": "Y offers more operationally specific detection rules and an exception-first view; its added data caveat and validation plan still fit under 300 words."
+   }
+  ]
+ },
+ "B": {
+  "key": {
+   "task": "K5",
+   "model": "sonnet",
+   "rep": "2",
+   "first": "B",
+   "second": "A"
+  },
+  "judges": [
+   {
+    "judge": "sonnet",
+    "winner": "B",
+    "reason": "Y is more insightful: the self-comparing bouncer, the 'what would make you complain?' test and the 5-equals-5 example. Both fit the limit; X is cleaner but more generic."
+   },
+   {
+    "judge": "luna",
+    "winner": "B",
+    "reason": "X offers sharper paired examples—self-comparison and a fake ticket—and a concrete failure check; Y’s guard/card analogy is less vivid and specific."
+   }
+  ]
+ },
+ "C": {
+  "key": {
+   "task": "K1",
+   "model": "sonnet",
+   "rep": "1",
+   "first": "B",
+   "second": "A"
+  },
+  "judges": [
+   {
+    "judge": "sonnet",
+    "winner": "B",
+    "reason": "Y stays within 260 words and has a clean format. Its desk and handover-note images are concrete, and its quiz asks what was decided and why. X likely exceeds the limit and has a timestamp typo and a correction note."
+   },
+   {
+    "judge": "luna",
+    "winner": "B",
+    "reason": "X uses a clear handover-note metaphor and stays within the brief’s format. Y adds unsupported claims, a malformed timestamp, and a correction outside the script."
+   }
+  ]
+ },
+ "D": {
+  "key": {
+   "task": "K4",
+   "model": "luna",
+   "rep": "1",
+   "first": "A",
+   "second": "B"
+  },
+  "judges": [
+   {
+    "judge": "sonnet",
+    "winner": "A",
+    "reason": "Y reports the actual facts (no gain, over 2x tokens, easy tasks) honestly and offers a decision. X refuses, claims missing data, and omits the key results."
+   },
+   {
+    "judge": "luna",
+    "winner": "A",
+    "reason": "Y reports the result, measurement weakness, and cost concretely in a phone-friendly decision message; X invents missing records and withholds facts supplied by the brief."
+   }
+  ]
+ }
+}

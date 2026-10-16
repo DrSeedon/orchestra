@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K5-sonnet-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 3728,
+ "output_tokens": 1175,
+ "input_tokens": 2,
+ "cache_read_tokens": 3005,
+ "cache_create_tokens": 2551,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.022559000000000003,
+ "seconds": 13.3,
+ "contamination_flag": false,
+ "final_text": "**1. What a top professional would do that you're not asking for**\n\nA teacher of testing, or a mutation-testing researcher, wouldn't just write a good analogy. They would check that the analogy has the same structure as the problem. A vacuous test is one that passes whatever the code does. So the analogy needs a check that can't fail, and a way to \"break the thing on purpose and see whether the check notices.\" They would also find where real learners go wrong. The usual misreading is \"green means the code works.\" The explanation should correct that directly. They would try it on a real novice and see whether that person can restate the idea unaided.\n\n**2. The rawest material to start from**\n\n- Real vacuous tests: assertions that always pass, tests with no assertion, tests that check a mock against itself, and tests that never run the code under test.\n- Real mutation-testing output, where a deliberately broken program still passes the suite (\"surviving mutants\").\n- Actual novice misconceptions, taken from transcripts, forum questions or classroom notes, not from a summary of them.\n- Everyday objects you have handled yourself, so the analogy comes from observation and not from a list of stock examples.\n\n**3. Methods and tools**\n\n- Mutation testing (for example mutmut, Stryker, PIT) and the red-green-refactor habit of watching a test fail first.\n- Analogy mapping: list the parts of the problem (code, test, pass, break it deliberately) and match each to a part of the analogy. Drop any part that doesn't map.\n- Plain-language checks: no jargon, a word count, and a test-read by someone who has never programmed.\n- Comparing several candidate analogies against the mapping, then choosing one.\n\n**4. What other than you or me would show it's right**\n\n- A non-programmer reads it and can explain it back in their own words, including what \"checking that the test can fail\" means.\n- An experienced engineer or testing instructor confirms the analogy is faithful and implies no false claims.\n- Mechanical checks: the word count is 220 or fewer, the analogy isn't a smoke alarm or bathroom scale, and the output is only the explanation.\n- Optionally, a real mutation-testing run showing a vacuous test surviving, to confirm the claim itself.\n\n**Rewritten prompt**\n\n```\nWrite an explanation for someone who has never programmed, covering two things: (a) why a test that turns green (passes) can still prove nothing, and (b) what \"checking that the test can fail\" means.\n\nBefore writing, work like a testing educator:\n- Ground the claim in real failure modes of vacuous tests: assertions that always pass, tests with no assertion, tests that never run the code under test, and tests that compare something to itself. Mutation testing (deliberately breaking the code to see whether any test notices) is the formal version of \"checking that the test can fail.\"\n- Draft several candidate everyday analogies that are fresh. Do not use a smoke alarm or a bathroom scale, and avoid other stock examples. For each, map it part by part onto the real situation: the thing being checked, the check, the green light, and deliberately breaking the thing to see if the check reacts. Keep the analogy whose mapping is complete and has no misleading parts.\n- Address the common misreading directly: \"green means it works.\"\n- Check the draft for jargon a non-programmer wouldn't know, and for being 220 words or fewer.\n\nUse exactly one analogy. Make sure the reader could say back, in their own words, why green isn't proof and what it means to make the test fail on purpose.\n\nFinal answer format: only the explanation, at most 220 words. Do not include the candidate analogies, the mapping, or any commentary.\n```"
+}

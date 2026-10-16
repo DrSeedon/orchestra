@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K5-sonnet-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 2684,
+ "output_tokens": 322,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2360,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.013381800000000001,
+ "seconds": 6.2,
+ "contamination_flag": false,
+ "final_text": "Imagine you hire a night guard and want to know whether the building is secure. Each morning the guard hands you a card that says \"All doors locked ✔.\" A green card feels reassuring. But what if the guard never actually tries the handles? Or only checks a door that was never unlocked? The card would say ✔ every single day, whatever the real state of the building.\n\nA software test is like that card. It's a small program that checks whether another program behaves correctly, and \"green\" means it reported no problems. But a test can be written so that it can't notice problems at all. It might check the wrong thing, or check something that is always true. Then green only means \"the test ran,\" not \"the software works.\"\n\n\"Checking that the test can fail\" is the fix. You deliberately break the thing being tested, for example by leaving a door unlocked on purpose, and run the test again. If the test turns red, you've learned it really does look at the doors. If it stays green, you've caught a guard who was only filling in cards. A test you've seen fail for the right reason is one whose green you can trust."
+}

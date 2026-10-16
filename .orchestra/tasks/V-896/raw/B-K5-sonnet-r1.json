@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K5-sonnet-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3159,
+ "output_tokens": 449,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2708,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0160438,
+ "seconds": 7.6,
+ "contamination_flag": false,
+ "final_text": "**Why green can prove nothing**\n\nImagine you hire an inspector to confirm your restaurant's fridge keeps food cold. Every day, they hand you a card stamped \"PASS.\" Reassuring, until you learn how they work. Maybe they never open the fridge door. Maybe they check the fridge's temperature against itself (\"it's the same as it is\") and always agree. Maybe they forgot to bring a thermometer. The stamp is the same every time. It says only that the inspector didn't complain, not that the fridge is cold.\n\nA computer test is that inspector, and \"green\" is the PASS stamp. Green means the test found no problem. It doesn't mean the test was able to find one. A test can be green because it checks nothing, always agrees with itself, or never touches the thing it's meant to examine. So \"green means it works\" is a misreading: green only means \"no alarm was raised.\"\n\n**Checking that the test can fail**\n\nThe fix is to sabotage the fridge on purpose: unplug it, then see whether the inspector's card changes to FAIL. If the stamp still says PASS, you've learned the inspector is useless. If it flips, you've learned the PASS stamp means something. Do this to a test by deliberately breaking the code and watching for red. Specialists call a systematic version of this \"mutation testing.\"\n\nSo: green is trustworthy only after you've seen the same check go red when the thing is broken."
+}

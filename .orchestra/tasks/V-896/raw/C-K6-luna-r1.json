@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K6-luna-r1",
+ "task": "K6",
+ "kind": "creative",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 3089,
+ "output_tokens": 494,
+ "input_tokens": 48419,
+ "cache_read_tokens": 45824,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.00096474,
+ "seconds": 9.0,
+ "contamination_flag": false,
+ "final_text": "Sona\n\nYour voice, found when you need it.\n\nSend a voice note to Sona, and it turns your words into searchable notes in your own vault. Ask what you said about a person, plan, or passing idea, and get an answer grounded in those notes. No new filing habit to learn: just talk, then find the thought again when it matters."
+}

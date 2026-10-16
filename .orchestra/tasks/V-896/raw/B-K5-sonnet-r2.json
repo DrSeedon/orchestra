@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K5-sonnet-r2",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "B",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4374,
+ "output_tokens": 1689,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2683,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.028343800000000002,
+ "seconds": 14.0,
+ "contamination_flag": false,
+ "final_text": "A green light means a check found no problem. It does not mean the check could have found one. That difference is everything.\n\nPicture a bouncer at a concert door whose job is to stop people with fake tickets. All night, nobody is turned away. Is the door secure? Maybe. But maybe the bouncer waves everyone through, or fell asleep, or \"verifies\" each ticket by comparing it with itself, which always matches. Every one of those gives the same calm night as an honest bouncer with no fakers. In programming, a test is this bouncer, and the program is the ticket line. A test \"passes\" when it lets everything in. That alone proves nothing.\n\nSo you break things on purpose. Send in a ticket you know is fake. If the bouncer stops it, you've learned the check can actually notice trouble, so its earlier silence meant something. If the fake walks in, the check was decoration. Programmers do this by deliberately damaging their program and confirming the test reports a failure. Doing it before trusting the test is called \"watch it fail first\"; doing it systematically is called mutation testing.\n\nTo spot a dud: \"Check that 5 equals 5\" cannot fail. Ask of any check, \"What would make you complain?\" If nothing could, a green result is noise."
+}

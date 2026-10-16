@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K1-luna-r2",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 8063,
+ "output_tokens": 741,
+ "input_tokens": 45594,
+ "cache_read_tokens": 38272,
+ "cache_create_tokens": 0,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.00148542,
+ "seconds": 14.6,
+ "contamination_flag": false,
+ "final_text": "[Scene: A long conversation scrolls past, filling the screen.]\n\nAn AI agent works through a conversation, using the earlier messages as context.\n\n[Scene: The conversation reaches the edge of a glowing frame.]\n\nBut the model has a limited context window. When the conversation no longer fits, it’s compressed into a summary, and the work continues from that summary.\n\n[Scene: The full conversation fades; a short summary remains.]\n\nThe summary carries forward selected details. Anything it leaves out may no longer be available to the agent, even if it mattered earlier.\n\n[Scene: A question appears beside the summary, then a transcript page opens.]\n\nOne way to check what survived is to ask about earlier work: for example, “What decision did we make?” or “Which detail did we rule out?” Then compare the answers with the original transcript. That shows what the summary preserved—and what it missed.\n\n[Scene: Summary and transcript sit side by side.]\n\nFor this script, the transcript and summary weren’t available to compare, so no specific omissions or test answers can be verified. The principle is simple: a summary helps the agent keep going, but questions checked against the old conversation reveal how much of that work it still carries."
+}

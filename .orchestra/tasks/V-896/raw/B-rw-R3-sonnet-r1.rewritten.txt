@@ -1,0 +1,15 @@
+Running the full test suite of this project (`pytest tests/`) is killed with exit code 137 and no summary, at a varying position around 35-40% of the way, even though the machine has plenty of free memory. A different run configuration of the same suite hangs forever near 85-88%, during the teardown of a fixture that wraps TestClient(app). Find the root causes of both without running the full suite (small targeted commands are allowed).
+
+Work like a specialist in pytest and async-Python failure forensics:
+
+1. Treat the symptoms as evidence. 137 means SIGKILL, which is not proof of an OOM kill. Test at least these hypotheses against the code: a cgroup or RLIMIT limit, a test or fixture that sends SIGKILL (os.kill, killpg, subprocess or multiprocessing cleanup), and a real per-test memory growth. Explain why the kill position varies and why the hang position is stable, and say what differs between the two run configurations (xdist, ordering, plugins, env vars, flags). Say whether the two failures share a cause.
+
+2. Start from raw material, not summaries: conftest.py files, fixtures, pytest config, the app's lifespan/startup/shutdown code, and the tests near each position (map percentages to test ids with `pytest --collect-only -q`). Grep the repo for kill, signal, setrlimit, Thread, create_task, lifespan, TestClient, portal, fork, daemon, atexit. Read the installed source of starlette, anyio and httpx for TestClient.__exit__ and portal shutdown, and note the versions.
+
+3. Use targeted tools: small single-test or single-module runs (-p no:randomly, -p no:xdist, -v -s), faulthandler (faulthandler_timeout) or py-spy dump on a hung targeted run to see every thread's stack, strace -f -e trace=kill,tgkill,setrlimit to find who sends the signal, and per-test measurement of memory (resource.getrusage, tracemalloc, /usr/bin/time -v). Check ulimit -a and any cgroup limits visible from inside this directory.
+
+4. Verify with evidence that is independent of your reasoning: a small reproduction of each failure, and then the failure disappearing when the suspected cause is neutralized through env vars, flags or a throwaway copy placed in a new directory. Cite strace output, thread stacks, limit values, or library source/known upstream issues. Say clearly which claims are verified and which are inferred.
+
+Constraints: work only inside this directory, do not read or list anything outside it, and do not change any files in the project.
+
+Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names) and the recommendation.

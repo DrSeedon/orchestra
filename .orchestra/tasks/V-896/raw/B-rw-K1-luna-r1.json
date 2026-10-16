@@ -1,0 +1,23 @@
+{
+ "run_id": "B-rw-K1-luna-r1",
+ "task": "K1",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "1",
+ "stage": "rewrite",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "ok",
+ "paid_tokens": 3891,
+ "output_tokens": 356,
+ "input_tokens": 15183,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00064798,
+ "seconds": 6.6,
+ "contamination_flag": false,
+ "final_text": "1. A top professional would check that every claim is accurate and that the explanation makes clear both what the summary preserves and what it can lose, without implying that an agent’s memory works like a person’s.\n\n2. They would start from the raw conversation before compression and the actual summary produced from it—not a retelling of the process.\n\n3. They would compare the conversation with the summary, trace which details were preserved, lost, or changed, then test the summary by asking the agent specific questions whose answers are in the original conversation. They would use a claim-by-claim fact check and a timed read-through to confirm accuracy and fit.\n\n4. The original conversation provides the reference for what was said; the agent’s answers show what it can recover from the summary; and a word count and read-through show whether the script meets the length and timing constraints.\n\n```text\nWrite a narration script for a 75-second explainer video for non-technical viewers, titled “Why an AI agent forgets after a long session, and what a summary does about it.”\n\nBefore writing, inspect the raw conversation before compression and the summary used to continue from it. Compare them to identify details that were preserved, lost, or changed. Check the summary by asking the agent specific questions about information present in the original conversation, and verify each factual claim in the script against this evidence. Keep the explanation clear about what the summary carries forward and what can be lost; do not imply that an AI agent’s memory works like a person’s.\n\nDeliver the narration with a one-line scene direction before each part, at most 260 words in total. Make the spoken narration fit 75 seconds when read aloud at a natural pace. Final answer is only the script.\n```"
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "A-R3-luna-r2",
+ "task": "R3",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 60419,
+ "output_tokens": 2721,
+ "input_tokens": 517218,
+ "cache_read_tokens": 459520,
+ "cache_create_tokens": 0,
+ "turns": 14,
+ "cost_usd_api_equiv": 0.0117255,
+ "seconds": 42.4,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n- The host’s free memory does not rule out a memory limit. Exit 137 means the test process received SIGKILL; this checkout’s `pyproject.toml` does not configure pytest to use xdist, so the files inspected do not establish what killed it. Check the process’s cgroup `memory.max` and `memory.events` during a targeted reproduction, and sample RSS by test file. The varying failure point fits a cumulative resource limit, but there is not enough evidence here to name a code-level memory leak.\n\n- The TestClient teardown goes through `app.main.lifespan` → `_shutdown_runtime`, which awaits `shutdown_merge_operations`, file delivery shutdown, `bg_manager.shutdown()`, and `manager.shutdown_all()`. `manager.shutdown_all()` awaits each session’s `stop()`. The `client` fixture in `tests/test_api.py` enters this lifecycle for every test using that fixture. Those are concrete places to instrument with faulthandler or phase logging to identify the blocked await; source inspection alone does not establish which one hangs.\n\n- One lifecycle gap is visible: `lifespan` starts the task from `runaway_guard.ensure_task(app)`, but `_shutdown_runtime` never cancels or awaits `app.state.runaway_guard_task`. This is a teardown defect worth fixing, though `run_loop()` sleeps with `asyncio.sleep`, so it does not by itself explain an indefinite hang.\n\nRecommendation: first reproduce the hang with one affected TestClient test and capture all thread stacks plus the last shutdown phase; separately check the test process’s cgroup limit and OOM counters while monitoring RSS. Then address the confirmed blocking await and add cancellation/awaiting of the runaway guard to lifecycle shutdown. No files were changed, and the full suite was not run."
+}

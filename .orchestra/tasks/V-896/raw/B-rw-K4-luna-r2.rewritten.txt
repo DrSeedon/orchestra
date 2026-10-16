@@ -1,0 +1,5 @@
+Write a Telegram message to the product owner, a smart non-programmer reading on a phone, reporting this experiment honestly and enabling a decision without opening anything else.
+
+Use the underlying run-level records for all 48 experiments, the original task set, and the acceptance definition as evidence. Verify the denominators, acceptance shares, and paid-token comparison with a reproducible calculation. State only what the experiment supports: the prompt trick, which rewrites each task before execution, did not raise the accepted-answer share in these runs and more than doubled paid tokens. Make clear that the task set was too easy to demonstrate a gain, so this weak measurement does not establish that the trick has no benefit on harder tasks. Summarize the practical tradeoff and recommend a proportionate next step, such as stopping for now or retesting on harder tasks, without implying certainty beyond the evidence.
+
+Keep it concise, phone-readable, and at most 120 words. Final answer is only the message.

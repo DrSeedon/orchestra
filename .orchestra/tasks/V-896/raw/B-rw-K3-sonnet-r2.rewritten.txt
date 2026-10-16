@@ -1,0 +1,14 @@
+Agents on a platform sometimes go quietly idle for hours, waiting for something that will never come, and nobody notices. The platform now blocks this: when an agent has been silent past a limit and has no live background job, it is woken with a message naming the rule it broke.
+
+Before writing, work from primary sources in the current directory (and nowhere outside it):
+1. Find and read the mechanism's source/config: the exact trigger condition, the threshold, the definition of "live background job", and the literal wake-message text. Also read any raw logs or transcripts of idle agents, and the owner's rules file if present. If any of these are absent, say so in one line to me before the answer, not in the answer, and rely on the description above.
+2. Grep the directory for every candidate name and close synonyms; discard any that collide with an existing identifier, flag, log string, or rule name.
+3. Make sure each name describes what the mechanism does (wakes an idle agent), not something it doesn't do (e.g. killing, pinging, or monitoring in general).
+4. Match the style, tone, and length of the existing rules when writing the new rule.
+
+Then verify: the rule's clauses match the trigger code and wake message; the chosen name has no collisions; a reader who sees only the name and rule could correctly predict when an agent is woken; the total is at most 150 words.
+
+Final answer is only these three parts, at most 150 words in total:
+(1) five candidate names, each with a rationale of six words or fewer;
+(2) your pick;
+(3) a one-sentence rule for the owner's rules file that states the behaviour and its reason.

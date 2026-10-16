@@ -1,0 +1,23 @@
+{
+ "run_id": "C-R3-luna-r2",
+ "task": "R3",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 44680,
+ "output_tokens": 1806,
+ "input_tokens": 343674,
+ "cache_read_tokens": 300800,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.008198400000000002,
+ "seconds": 31.6,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n1. The exit 137 is consistent with the full run’s real Chromium workload exceeding a process or cgroup memory limit, despite free host memory. The suite includes many browser tests in `tests/test_frontend.py`; `dashboard_browser` starts a Chromium browser and a dashboard server for the module. Pytest’s default configuration excludes only `live_probe`, while the browser marker is used only by the separate merge-gate command. Recommendation: run browser tests separately or exclude them from this full-suite configuration, and check the process/cgroup memory limit and OOM logs to confirm the kill source. The varying cutoff fits cumulative memory pressure, but this checkout alone does not prove which process the kernel killed.\n\n2. The hang is explained by `tests/test_git_task_api.py::test_http_creation_key_conflict_keeps_the_409_contract`: it creates `TestClient(app)` without a context manager or closing it. That bypasses the lifespan teardown. In contrast, `tests/test_api.py::client` yields its client inside `with TestClient(app)`, and `app/main.py`’s lifespan teardown cancels the bridge task and awaits shutdown of the renderer, background jobs, and session manager. Recommendation: make the offending test use a context manager so teardown runs deterministically. This identifies the lifecycle defect; it does not establish which alternate run configuration exposes the hang.\n\nExternal check: run `pytest -q tests/test_git_task_api.py::test_http_creation_key_conflict_keeps_the_409_contract`; it should pass and exit rather than leave its client lifecycle open. I did not run it, so this check remains unapplied."
+}

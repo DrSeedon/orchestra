@@ -1,0 +1,23 @@
+{
+ "run_id": "A-R1-sonnet-r2",
+ "task": "R1",
+ "kind": "research",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 18957,
+ "output_tokens": 2474,
+ "input_tokens": 8,
+ "cache_read_tokens": 41970,
+ "cache_create_tokens": 16475,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.09905,
+ "seconds": 28.8,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n**Why merges fail**\n- CHANGELOG.md is a single 69-entry file. The newest entry goes at the top, right under the header. Entries run `## v2.35.5` (line 7), then `v2.35.4` (line 22), `v2.35.3` (line 41), and so on.\n- All five branches fork from the same commit. Each agent inserts its block at the same spot, line 6/7, directly above the same `## v2.35.5` heading.\n- Git sees five different insertions at one anchor. The first merge succeeds. Every later merge conflicts, because the context on both sides of the insertion has changed.\n- The entries also share a second collision point: each header carries a sequential version number (`v2.35.3`, `v2.35.4`, `v2.35.5`, and so on). Five parallel agents all pick \"latest + 1\", so even a clean text merge would produce duplicate version numbers. The header at lines 3-4 admits this has already happened: versions 2.31.0-2.33.0 were each used twice for different changes.\n- Entries are long, with multi-line bullets of 5-15 lines. That makes each conflict hunk large and slow to resolve by hand.\n- I found no mitigation in the project. There is no `.gitattributes` (so no `merge=union`), no `changelog.d/` fragment directory, and no changelog policy in CLAUDE.md. CLAUDE.md only links to the file (line 3). I could not find the \"every task must add an entry\" rule in CLAUDE.md. I did not search the whole repo for it, so it may live elsewhere.\n\n**Cost for the owner**\n- Conflicts: with N parallel branches there are N-1 conflicting merges, because only the first one is clean. Expected conflicts grow linearly, about N-1 per round. Every conflict is certain, not probabilistic, because all branches edit the same line.\n- Tool calls per task: a normal edit needs about 2 calls (Read the top of the file, then Edit). Each conflict resolution adds about 4-6 calls (see the conflict, Read, Edit, check markers, continue the merge). Those calls fall on the orchestrator, or on an agent that has to rebase. The rule is cheap at 2 calls per task, but the merge step costs roughly 5 times more.\n\n**Options**\n1. `.gitattributes` with `CHANGELOG.md merge=union`. This costs one line and no change to agent workflow, so there are no extra tool calls. The conflicts disappear. It still has two problems:\n   - The version numbers still collide.\n   - Union merge can interleave lines from different entries. That is unlikely when each entry is one contiguous block at the top, but it is not guaranteed.\n   - It also requires the orchestrator's git to honour the attribute, which it does for built-in `union`.\n2. Fragment files, one per task, such as `changelog.d/<task-id>.md`, with no version in the file. The orchestrator, or a script, assembles them into CHANGELOG.md at release time.\n   - This gives zero conflicts: N branches add N distinct files.\n   - Agent cost stays at 1 call, a single Write with no prior Read. That is cheaper than today's Read plus Edit.\n   - The version number is assigned once, at assembly time, which removes the duplicate-version problem.\n   - The downsides are a small assembly script and a one-line change to the project rule. A release step would also have to concatenate the fragments.\n3. Keep the single file but have the orchestrator, not the agents, write the entries from the branch reports. This is serial, which defeats the parallelism, and it adds orchestrator tool calls. I don't recommend it.\n\n**Recommendation**\nUse option 2 as the durable fix. It removes the shared edit point, so merge conflicts per N branches drop from N-1 to 0 at any N. It also drops each agent's cost to one Write call per task, and it fixes the version collisions that `merge=union` would leave.\n\nDo two things:\n- Change the rule to \"add `changelog.d/<task-id>.md`, no version number, no edits to CHANGELOG.md\".\n- Add a small step in the orchestrator, or a script in `scripts/`, that folds the fragments into CHANGELOG.md under the next version and deletes them. A `.gitattributes` `CHANGELOG.md merge=union` line is a reasonable stopgap for today, but it is not the lasting fix.\n\nI did not run a merge to reproduce the conflicts. The conclusion rests on reading the file layout, and I changed no files."
+}

@@ -1,0 +1,9 @@
+CHANGELOG.md in this project is edited by five worker agents in parallel. Each works on its own git branch cut from the same point, and the orchestrator merges the branches one by one. Merges keep failing on CHANGELOG.md, and the project rule says every task must add an entry.
+
+Trace the complete changelog workflow from the rule and task instructions through agent edits to branch merging. Use the raw project instructions, scripts, hooks, task templates, changelog contents, and available history or diffs as evidence. Identify the specific mechanism that causes the conflicts.
+
+Compare plausible durable fixes using the owner’s two criteria: expected CHANGELOG.md merge conflicts as the number of parallel branches N grows, and tool calls an agent needs per task. Quantify or model those costs for representative N values, explain assumptions, and recommend the cheapest durable fix. Use targeted repository searches and history/diff inspection; reproduce or simulate concurrent edits if the available evidence is insufficient to distinguish the options.
+
+Do not change any files.
+
+Final answer: at most 600 words, plain text, starting with 'FINDINGS:'. State the conclusions, the evidence (file/function names), and the recommendation.

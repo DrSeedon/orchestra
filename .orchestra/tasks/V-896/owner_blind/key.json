@@ -1,0 +1,30 @@
+{
+ "A": {
+  "task": "K2",
+  "model": "sonnet",
+  "rep": "2",
+  "first": "B",
+  "second": "A"
+ },
+ "B": {
+  "task": "K5",
+  "model": "sonnet",
+  "rep": "2",
+  "first": "B",
+  "second": "A"
+ },
+ "C": {
+  "task": "K1",
+  "model": "sonnet",
+  "rep": "1",
+  "first": "B",
+  "second": "A"
+ },
+ "D": {
+  "task": "K4",
+  "model": "luna",
+  "rep": "1",
+  "first": "A",
+  "second": "B"
+ }
+}

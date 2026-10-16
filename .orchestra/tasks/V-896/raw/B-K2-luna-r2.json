@@ -1,0 +1,23 @@
+{
+ "run_id": "B-K2-luna-r2",
+ "task": "K2",
+ "kind": "creative",
+ "arm": "B",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 4290,
+ "output_tokens": 601,
+ "input_tokens": 30313,
+ "cache_read_tokens": 26624,
+ "cache_create_tokens": 0,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.0009356400000000001,
+ "seconds": 16.4,
+ "contamination_flag": false,
+ "final_text": "**Core idea:** A live “Agent Pulse” board turns timestamped activity traces into ten evidence-backed timelines, showing whether each agent is progressing, waiting, or stalled and what intervention is available.\n\n```text\nAgent      State       Evidence / since          Owner action\nA-01       Progress    tests passed → next task  Open checkpoint\nA-02       Waiting     approval requested · 6m  Approve / reply\nA-03       Unclear     same tool retry · 4m      Inspect trace\n...\n```\n\nEach row shows the task, compact state, elapsed time in that state, last meaningful event, and a short event strip of tool calls, state transitions, messages, task changes, and outcomes. Select a row to inspect its timestamped trace; filter by state or task; pause, resume, redirect, or open the relevant conversation. “Unclear” is explicit when evidence is sparse or contradictory.\n\n**Trace analysis and state model:** For each agent, order raw events by timestamp and compare successive task and outcome signals. A new task milestone, completed tool result, or reported outcome supports **Progress**. An explicit request for input, approval, or a tool response supports **Waiting**, with the wait’s target shown. Repeated failures or retries, no meaningful event past a task-specific threshold, or a task with no observable advancement supports **Possible stall**—never a certainty. Missing heartbeats, delayed event ingestion, and conflicting signals lower confidence and suppress definitive alerts. Group repeated retries into one alert; surface new failures and overdue waits, with snooze and per-agent thresholds.\n\n**Owner decisions:** Who needs a response, who is advancing, and which agent merits inspection or intervention now.\n\n**Why better than logs:** It compares agents at a glance, prioritizes actionable evidence, and retains the trace behind each summary instead of requiring ten chat-log reviews.\n\n**Main risk:** A quiet but healthy long-running tool may look stalled.\n\n**Evidence it works:** In a timed study against log lists, owners classify agent states and choose interventions faster, with fewer state and action errors; verify classifications against timestamped traces and outcomes."
+}

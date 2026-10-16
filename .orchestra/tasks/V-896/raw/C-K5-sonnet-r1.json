@@ -1,0 +1,23 @@
+{
+ "run_id": "C-K5-sonnet-r1",
+ "task": "K5",
+ "kind": "creative",
+ "arm": "C",
+ "model": "sonnet",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 2809,
+ "output_tokens": 389,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2418,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0142838,
+ "seconds": 7.8,
+ "contamination_flag": false,
+ "final_text": "Imagine you hire a night guard and check on them by phoning the front desk each morning. The log says \"All quiet.\" Green light. But what if the guard never walks the building and writes \"All quiet\" every night no matter what? The log is always green, so it tells you nothing about the building.\n\nA software test works the same way. It's a small check that says \"pass\" when the program behaves correctly. A test can pass for the wrong reasons. It might check nothing, or check something that's always true, like confirming that 5 equals 5. Green then means only that the test ran. It doesn't mean the program works.\n\n\"Checking that the test can fail\" means deliberately breaking the program, or staging a fake break-in, and watching the test react. Break the thing it's supposed to protect. If the test turns red, it really is watching. If it stays green, it was a guard asleep at the desk, and you've learned its green was worthless.\n\nA passing result only means something if you've seen the same check fail when it should.\n\n**Independent check:** The criterion is observable and sits outside my reasoning. Take any real test, break the code on purpose, and run it. A trustworthy test turns red. I can't apply that here, because this directory has no test to run, and the analogy is explanatory rather than code."
+}
