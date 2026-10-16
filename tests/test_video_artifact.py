@@ -13,7 +13,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/video_artifact"))
 from video_text import caption_text, normalize_vosk_text, UnsupportedVoskSymbol
-from tts_worker_tera import add_wordwise_russian_stress, compose_audio, split_pause_segments
+from tts_worker_tera import add_wordwise_russian_stress, compose_audio, render_phrase, split_pause_segments
+
+MANIM_PY = Path.home() / ".local/share/orchestra-manim/env/bin/python"
 
 spec = importlib.util.spec_from_file_location("video_artifact_make", ROOT / "scripts/video_artifact/make.py")
 make = importlib.util.module_from_spec(spec)
@@ -159,18 +161,49 @@ def test_tera_worker_patches_the_imported_normalizer_globals(monkeypatch):
     assert module.normalize_text() is add_wordwise_russian_stress
 
 
-def test_tera_punctuation_and_explicit_pause_insert_silence_in_samples():
-    segments = split_pause_segments("Раз, два. Ответ [0.6] готов")
-    assert [value for kind, value in segments if kind == "pause"] == [0.33, 0.63, 0.6]
-    pieces = [("text", b"\x01\x00" * 100) if kind == "text" else (kind, value)
-              for kind, value in segments]
-    audio = compose_audio(pieces, sample_rate=1000)
-    cursor = 100 * 2
-    for duration in (0.33, 0.63, 0.6):
-        count = round(duration * 1000) * 2
-        assert audio[cursor:cursor + count] == b"\0" * count
-        cursor += count + 100 * 2
-    assert len(audio) == cursor
+def test_tera_splits_only_at_sentence_ends_and_explicit_markers():
+    segments = split_pause_segments("Сначала, затем: итог — вот он. Число 2.5 и т.д. остаются целыми! Ответ [0.6] готов")
+    assert segments == [
+        ("text", "Сначала, затем: итог — вот он."), ("gap", None),
+        ("text", "Число 2.5 и т.д. остаются целыми!"), ("gap", None),
+        ("text", "Ответ"), ("pause", 0.6), ("text", "готов"),
+    ]
+
+
+def test_tera_short_sentence_is_glued_to_the_next_one():
+    assert split_pause_segments("Итак. Теперь посмотрим на результат.") == [("text", "Итак. Теперь посмотрим на результат.")]
+    assert split_pause_segments("Теперь посмотрим на результат. Нет.") == [
+        ("text", "Теперь посмотрим на результат."), ("gap", None), ("text", "Нет.")]
+
+
+@pytest.mark.skipif(not MANIM_PY.exists(), reason="нужен numpy из окружения Manim")
+def test_tera_sentence_gap_scales_with_rate_and_counts_model_tail(tmp_path):
+    import subprocess
+
+    code = """
+import sys
+sys.path.insert(0, %r)
+import numpy as np
+import tts_worker_tera as t
+sr = 1000
+speech = np.full(500, 0.5, dtype='float32')
+tail = np.zeros(100, dtype='float32')
+def gap_len(chunk, rate):
+    out = t.compose_audio([('text', chunk), ('gap', None), ('text', speech)], sample_rate=sr, rate=rate)
+    return len(out) - len(chunk) - len(speech)
+bare = gap_len(speech, 1.0)
+assert abs(bare - 420) <= 1, bare
+assert abs(gap_len(speech, 1.2) - 350) <= 1
+assert abs(gap_len(np.concatenate([speech, tail]), 1.0) - 320) <= 1
+assert gap_len(np.concatenate([speech, np.zeros(900, dtype='float32')]), 1.0) == 0
+""" % str(Path(make.__file__).parent)
+    run = subprocess.run([str(MANIM_PY), "-c", code], capture_output=True, text=True, timeout=60, cwd=tmp_path)
+    assert run.returncode == 0, run.stderr
+
+
+def test_tera_explicit_pause_is_literal_silence():
+    audio = compose_audio([("text", b"\x01\x00" * 100), ("pause", 0.6), ("text", b"\x01\x00" * 100)], sample_rate=1000)
+    assert audio[200:200 + 1200] == b"\0" * 1200 and len(audio) == 1600
 
 
 def test_silent_step_requires_hold_and_has_no_lead_time(tmp_path):
@@ -651,7 +684,6 @@ def test_tera_cache_separates_voices_and_keeps_stress_setting(tmp_path, monkeypa
     assert [(job["voice"], job["stress"]) for job in jobs_seen] == [("ru_m5", True), ("ru_f1", False)]
 
 
-MANIM_PY = Path.home() / ".local/share/orchestra-manim/env/bin/python"
 _FONT_PROBE = """
 import sys
 sys.path.insert(0, {dir!r})
@@ -733,3 +765,20 @@ def test_manim_text_cache_is_dropped_when_bundled_fonts_change(tmp_path, monkeyp
     (fonts / "a.ttf").write_bytes(b"font-v2")
     make.fresh_text_cache(media)
     assert not (media / "texts").exists()
+
+
+def test_tera_render_phrase_synthesizes_each_sentence_once_and_never_the_gap():
+    calls = []
+
+    class FakeModel:
+        def generate_speech(self, text, **kwargs):
+            calls.append(text)
+            return b"\x01\x00" * 100
+
+    job = {"text": "Первое длинное предложение, с запятой. Второе предложение здесь [0.5] и конец.",
+           "voice": "ru_m1", "rate": 1.0, "index": 0}
+    audio = render_phrase(FakeModel(), job)
+    assert calls == ["<ru>Первое длинное предложение, с запятой.</ru>",
+                     "<ru>Второе предложение здесь</ru>", "<ru>и конец.</ru>"]
+    assert not any("None" in call for call in calls)
+    assert len(audio) == 3 * 200 + 2 * round(0.42 * 44_100) + 2 * round(0.5 * 44_100)

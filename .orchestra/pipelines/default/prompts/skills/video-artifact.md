@@ -39,8 +39,10 @@ for all phrases because `construct()` needs the complete timing plan.
   numeric literals, but does not infer their grammatical case (`в 2026 году` becomes an uninflected
   «две тысячи двадцать шесть году»). Write Russian numbers as words with the required case for both
   Tera and Vosk (for example «в две тысячи двадцать шестом году»). Use 1–2 sentences, 2–6 s at
-  rate 1.0, and 30–90 s total. Tera inserts 0.33 s after commas, colons, semicolons and dashes,
-  and 0.63 s after sentence punctuation inside a phrase; add `[0.6]` in `say` for an explicit pause.
+  rate 1.0, and 30–90 s total. Tera synthesizes each sentence whole, so the model itself
+  intonates commas, colons and dashes; between sentences the tool adds only the missing silence up to 0.42 s divided
+  by `--rate` (the model's own tail counts). A sentence of three vowels or fewer is glued to the next one. Add `[0.6]`
+  in `say` for an explicit pause.
   A silent beat uses `say: ""` with a positive `hold`. Avoid officialese; write as spoken.
 - **English video:** `make.py … --lang en` uses Kokoro-82M instead of Vosk and Deepgram with
   `language=en`. English `say` may contain digits, names, and `#2`; Kokoro reads them, rejecting
