@@ -1,0 +1,14 @@
+In app/bg_jobs.py, BgJobManager.create limits a job's lifetime through timeout_seconds. For job_type 'timer' a cap MAX_TIMER_TIMEOUT (8 days) is applied even when delay_seconds is longer, so a timer with a 10-day delay gets expires_at earlier than trigger_at and never fires.
+
+Required behavior: a timer's lifetime must always be at least delay_seconds + 3600 seconds, for any delay; the timer cap constant is removed; when the delay needs no extension the timer's timeout_seconds is clamped to [1, MAX_TIMEOUT]; all other job types stay clamped to [1, MAX_TIMEOUT]. The no-expiry path (_NO_EXPIRY_TYPES with timeout_seconds <= 0) is unchanged.
+
+Work from the raw material, in this order:
+1. Read create, _validate_config, the timer runner and _start_task in app/bg_jobs.py. Read the bg_jobs schema (app/schema.sql) and the bg_* persistence and expiry-sweep queries in app/db.py (around lines 1920-1965 and 2105). Read the callers that pass timeout_seconds (app/routes/bg.py, app/routes/merge_operations.py, app/limit_wake.py).
+2. Before editing, reproduce the bug. Write a throwaway test script outside the repo that calls create with a 10-day timer against a temporary SQLite database. Read the persisted row back and confirm expires_at < trigger_at.
+3. Confirm nothing downstream re-caps or kills a long timer early. Check that the timer task does not apply its own timeout, that the sweep (expires_at < now) cannot expire it before trigger_at, and that _validate_config bounds delay_seconds sanely. If you find a second cap or an unbounded delay, fix it only if it is needed for the stated behavior. Otherwise report it.
+
+Then edit the files in this directory in place: remove MAX_TIMER_TIMEOUT and every reference to it (grep to prove none remain), and implement the required behavior.
+
+Verify with a boundary table, run against the persisted row and not just the return value, and with a frozen clock. For timers, use delays 0, 1, 82800, 82801, 8 days, 10 days and a very large value. Check that expires_at - trigger_at >= 3600 in every case, and that a timer whose delay needs no extension has timeout_seconds clamped to [1, MAX_TIMEOUT]. For a non-timer type, check that timeout_seconds is clamped to [1, MAX_TIMEOUT]. Confirm the same test fails on the original code and passes after the fix. Run py_compile and any existing tests. If you add a test file, put it where the repo's tests live, or say that none exist.
+
+Final answer: two or three sentences saying what you changed.

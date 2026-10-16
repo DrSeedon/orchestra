@@ -1,0 +1,5 @@
+In app/session.py, idle pre-compact policy currently uses PRECOMPACT_MIN_CONTEXT_PCT = 5. Measurements show that Claude compacts started below 30% context cut only 35–38% and rewrite the cache, while above 30% they cut 78–86%.
+
+Inspect the raw implementation of _precompact_policy, its callers, and relevant tests or fixtures. Update the policy so Claude sessions return min_context_pct and arm_threshold of 30 using PRECOMPACT_MIN_CONTEXT_PCT = 30. Codex sessions must retain 5 through a separate class constant CODEX_PRECOMPACT_MIN_CONTEXT_PCT, and each backend’s policy must use its own constant. Check the relevant boundary behavior and run focused tests or checks that demonstrate the returned values for both backends around 30%.
+
+Edit files in this directory in place. Final answer: two or three sentences saying what you changed.

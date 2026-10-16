@@ -1,0 +1,5 @@
+In app/workspace.py, update _git_cmd so that when the caller passes text=True and omits errors, subprocess.run receives errors='replace' (UTF-8 remains the decoding encoding). Preserve any explicit errors argument and leave non-text calls unchanged.
+
+First inspect _git_cmd, its nearby call sites, and relevant tests. Add a focused regression test that simulates Git output containing invalid UTF-8 and verifies the default replacement behavior, an explicit errors override, and unchanged non-text behavior. Run that test and the relevant existing tests.
+
+Edit the files in this directory in place. Final answer: two or three sentences saying what you changed.

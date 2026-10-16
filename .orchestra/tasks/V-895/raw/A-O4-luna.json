@@ -1,0 +1,23 @@
+{
+ "run_id": "A-O4-luna",
+ "task": "O4",
+ "kind": "open",
+ "arm": "A",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 32773,
+ "output_tokens": 786,
+ "input_tokens": 210675,
+ "cache_read_tokens": 178688,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.00537858,
+ "seconds": 32.8,
+ "contamination_flag": true,
+ "final_text": "ROOT CAUSE: `app/static/js/chat.js` builds the chat’s Download link in the `mcp__orchestra__send_file` handler from the original file path: `/api/files/raw?path=<fp>&download=1`. That endpoint, `get_file_raw` in `app/routes/system.py`, serves the file from that path; it does not copy or preserve it. When a worker is removed, `SessionManager.remove` in `app/manager.py` calls `remove_worktree` before archiving the session, and `app/workspace.py` removes the worktree directory. The DOCX can still exist in the main checkout, but the link points to its deleted worktree copy, so the endpoint returns 404."
+}

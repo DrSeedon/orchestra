@@ -1,0 +1,9 @@
+Inspect the project snapshot in the current directory without changing any files. Trace the execution path in `scripts/wf_run.py` from provider dispatch and raw response handling through JSON parsing, schema validation, retry decisions, and budget accounting. Use targeted source searches and line-numbered reads to identify the relevant functions, branches, and recorded fields; treat the manifest and journal symptoms below as observations to explain, not as sufficient evidence of cause.
+
+A dynamic workflow ran with three tasks, each with a JSON schema, `budget_usd=3`, and `max_calls=3`. The manifest reports `spent_usd=0.016`, `dispatched_calls=3`, and `partial_reason=budget`. Each task journal records `attempt_finished`, then `schema_invalid` with `invalid JSON: Expecting value at line 1 column 1`, then `retry_deferred` with reason `budget`. No task produced valid output.
+
+Identify the root cause or causes. Explain the code mechanisms that produce the invalid JSON and defer retries despite the reported spend being only 0.5% of budget. Ground each finding in the specific file, function, and relevant endpoint or code path, and distinguish observed symptoms from causal mechanisms.
+
+Do not change any files.
+
+Final answer: start with `ROOT CAUSE:` and give, in at most 1200 characters, the file(s), function(s)/endpoint(s), and mechanism.

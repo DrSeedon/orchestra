@@ -1,0 +1,23 @@
+{
+ "run_id": "B-O3-sonnet",
+ "task": "O3",
+ "kind": "open",
+ "arm": "B",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "note": "",
+ "paid_tokens": 12833,
+ "output_tokens": 2124,
+ "input_tokens": 10,
+ "cache_read_tokens": 41146,
+ "cache_create_tokens": 10699,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.07228520000000001,
+ "seconds": 19.7,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: `limit` is never sent to the server, and the server would ignore it if it were. The tool fetches a large tail of the history and slices it client-side.\n\n- **Tool, `app/mcp_stdio.py:1844`:** `_api(\"GET\", f\"/api/sessions/{name}/logs\", params={\"scope\": SCOPE, \"after_id\": 0})`. `limit` is dropped here. It is used only at `:1850`, in `logs[-limit:]`, after the full response has arrived.\n- **Route, `app/routes/sessions.py:760`:** the `else` branch calls `get_logs(session_id, after_id=after_id)`. The route accepts `limit` (default 500, capped at 1000, `:735` and `:739`), but only the `before_id > 0` branch uses it (`:756`). Here `limit` is received and then dropped.\n- **DB, `app/db.py:1286`:** `get_logs(..., limit: int = 5000)` runs `SELECT * ... ORDER BY id DESC LIMIT ?`. With the default, it returns up to 5000 full rows.\n- **Response, `sessions.py:761-762`:** the route annotates and JSON-serializes all of those rows. It applies no `max_bytes` or `cap`, because those apply only to `get_logs_before`.\n\n**Both symptoms:** up to 5000 rows are read (`SELECT *`, including large `content`), decoded, annotated, hashed for the ETag and sent. That explains both the latency and the megabytes on the wire.\n\n**Alternatives ruled out:**\n- **Missing index:** `idx_logs_session ON logs(session_id, id DESC)` (`schema.sql:613`) fits the query.\n- **Missing LIMIT or ORDER BY:** both are present in `db.py`.\n- **Pagination loop:** there is only one request.\n- **Unbounded full-history load:** the read is capped at 5000 rows, so the problem is a 250× over-fetch (5000 versus 20), not an unlimited one.\n\n**Counterfactual:** no single line fixes this end to end.\n- Changing only `sessions.py:760` to pass `limit=limit` bounds the read at the route default of 500.\n- Changing only the tool to send `\"limit\": limit` does nothing, because the route ignores it.\n- Both are needed to get 20.\n\nI found no tests covering this path."
+}

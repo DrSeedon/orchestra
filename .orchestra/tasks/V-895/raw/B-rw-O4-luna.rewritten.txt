@@ -1,0 +1,5 @@
+A worker produced a DOCX, and the chat showed a download link. A few days later, after the worker was archived, clicking the link returned “not found,” although the file still exists in the project’s main checkout.
+
+Find the root cause by tracing the link from the stored chat message through link generation and download request handling, and by inspecting the relevant worker archive and file-storage behavior. Start with the rawest available evidence: the stored message/link, archive metadata, file path and timestamps, and relevant existing logs, then inspect the source code. Use targeted code search to identify the exact functions and endpoints involved. Corroborate the proposed mechanism with independent evidence from the repository or existing records. Do not change any files.
+
+Final answer: start with “ROOT CAUSE:” and state the file(s), function(s)/endpoint(s), and mechanism in at most 1200 characters.

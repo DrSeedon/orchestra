@@ -1,0 +1,23 @@
+{
+ "run_id": "A-O2-luna",
+ "task": "O2",
+ "kind": "open",
+ "arm": "A",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 17059,
+ "output_tokens": 816,
+ "input_tokens": 107507,
+ "cache_read_tokens": 91264,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.00294494,
+ "seconds": 24.4,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: In `scripts/wf_run.py`, `Budget.exhausted()` treats the call limit as a hard stop alongside the dollar limit: it returns true when either `spent_usd >= maximum_usd` **or** `dispatched_calls >= maximum_calls`. The dispatcher increments `dispatched_calls` for each attempt, not each task. With three tasks and `max_calls=3`, their first attempts consume all three calls; after schema validation fails, the retry loop records `retry_deferred` with `reason=budget` even though only $0.016 of $3 was spent. The empty response is separately rejected by `_parse_and_validate()` as invalid JSON. `Engine._restore()` also rebuilds the call count from every `dispatched` journal event, preserving the exhausted limit on resume."
+}

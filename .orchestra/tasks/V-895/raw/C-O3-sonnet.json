@@ -1,0 +1,23 @@
+{
+ "run_id": "C-O3-sonnet",
+ "task": "O3",
+ "kind": "open",
+ "arm": "C",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 7837,
+ "output_tokens": 1340,
+ "input_tokens": 10,
+ "cache_read_tokens": 32296,
+ "cache_create_tokens": 6487,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0458272,
+ "seconds": 14.8,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: The `limit` the caller asks for never reaches the database query. The cap is applied only after the full payload has been fetched, serialized, and sent.\n\n- **`app/mcp_stdio.py`, `get_worker_logs()` (line ~1844):** It calls `GET /api/sessions/{name}/logs` with `params={\"scope\": SCOPE, \"after_id\": 0}`. It does not send `limit`. It then keeps only the last N entries with `logs[-limit:]` in Python.\n- **`app/routes/sessions.py`, `get_session_logs()` (line ~760):** In the default branch (`before_id == 0`) it calls `get_logs(session_id, after_id=after_id)`. The endpoint's own `limit` parameter (default 500, capped at 1000) is ignored here. It is only used on the `before_id` path.\n- **`app/db.py`, `get_logs()` (line 1286):** `get_logs` therefore falls back to its default `limit=5000`. With `after_id=0` it selects the newest 5000 rows, which can include large tool outputs. The endpoint then runs `annotate` on every row, runs `json.dumps` on the whole list, and computes an MD5 ETag over it.\n- **Effect:** A worker with a long history sends up to 5000 log rows (megabytes) over the API for a 20-entry request. The trimming happens client-side.\n- **Fix:** Pass `limit` from the tool, and have the endpoint pass `limit` to `get_logs`.\n\n**External check:** I did not run anything, so this rests on reading the code. You can check it independently. Call `GET /api/sessions/<longworker>/logs?scope=...&after_id=0&limit=20` and count the entries and bytes. If the cause is right, you get up to 5000 entries regardless of `limit`. After the fix you should get exactly 20."
+}

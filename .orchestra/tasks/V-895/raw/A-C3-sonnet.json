@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C3-sonnet",
+ "task": "C3",
+ "kind": "closed",
+ "arm": "A",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "..                                                                       [100%]\n2 passed in 0.19s\n",
+ "paid_tokens": 6258,
+ "output_tokens": 1046,
+ "input_tokens": 8,
+ "cache_read_tokens": 24175,
+ "cache_create_tokens": 5204,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.036127,
+ "seconds": 12.7,
+ "contamination_flag": false,
+ "final_text": "In `app/session.py`, `PRECOMPACT_MIN_CONTEXT_PCT` is now 30, so Claude sessions get `min_context_pct` and `arm_threshold` of 30 from `_precompact_policy`. I added a separate class constant, `CODEX_PRECOMPACT_MIN_CONTEXT_PCT = 5`, and the Codex policy now reads that instead. I replaced the old comment above the Claude constant with one giving the 30% measurement rationale. I didn't run any tests."
+}

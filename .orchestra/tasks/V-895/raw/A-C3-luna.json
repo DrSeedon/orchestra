@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C3-luna",
+ "task": "C3",
+ "kind": "closed",
+ "arm": "A",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "..                                                                       [100%]\n2 passed in 0.72s\n",
+ "paid_tokens": 16034,
+ "output_tokens": 621,
+ "input_tokens": 88501,
+ "cache_read_tokens": 73088,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0025826800000000004,
+ "seconds": 13.1,
+ "contamination_flag": false,
+ "final_text": "Updated `app/session.py` so Claude’s pre-compact minimum and arm threshold are 30%, while Codex uses the new `CODEX_PRECOMPACT_MIN_CONTEXT_PCT` constant set to 5%. Each backend policy now uses its own constant."
+}

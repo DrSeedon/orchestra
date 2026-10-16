@@ -1,0 +1,23 @@
+{
+ "run_id": "C-O1-sonnet",
+ "task": "O1",
+ "kind": "open",
+ "arm": "C",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 20479,
+ "output_tokens": 2954,
+ "input_tokens": 18,
+ "cache_read_tokens": 103116,
+ "cache_create_tokens": 17507,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.1202272,
+ "seconds": 30.7,
+ "contamination_flag": true,
+ "final_text": "ROOT CAUSE: `toggle_tg_topic` (`PATCH /api/sessions/{name}/tg-topic`, `app/routes/sessions.py:3528-3536`) saves the session with the wrong serializer, so the save raises and nothing is written.\n\n- **Mechanism:** The handler sets `found.tg_topic = enabled`, then calls `save_session(found.to_dict())`. `AgentSession.to_dict()` (`app/session.py:4552`) builds the API/UI view of the session, not the DB view. That view omits columns that `save_session`'s named-parameter INSERT (`app/db.py:304-373`) needs and that `save_session` has no `setdefault` for. These include `session_id` and `finished_at`.\n- **Failure:** sqlite3 raises `ProgrammingError: You did not supply a value for binding parameter :session_id`. The endpoint returns 500, `api()` throws, and the frontend logs \"TG topic toggle failed\" (`app/static/js/app.js:3277`).\n- **Other mismatches:** `to_dict` also truncates `system_prompt` to 500 characters and leaves `disabled_tools` and `owned_dirs` as lists rather than JSON strings. So even if the save succeeded, it would corrupt data.\n- **Correct paths:** The right serializer is `_to_db_dict()` (`app/session.py:4485`, used by `_persist`). The sibling `POST /tg_topic` handler (`sessions.py:1653`) uses `manager.update_session_fields`, which persists correctly. The UI calls the broken PATCH endpoint instead.\n\n**Check:** I haven't run any of this, so the mechanism comes from reading the code. A check independent of my reasoning is to call `curl -X PATCH '/api/sessions/<name>/tg-topic?scope=<s>&enabled=true'` on a running instance. It should return 500, and the server log should show the sqlite binding error. After switching to `update_session_fields`, it should return 200, and `sqlite3 <db> \"select tg_topic from sessions where name='<name>'\"` should show 1."
+}

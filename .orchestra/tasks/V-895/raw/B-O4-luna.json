@@ -1,0 +1,23 @@
+{
+ "run_id": "B-O4-luna",
+ "task": "O4",
+ "kind": "open",
+ "arm": "B",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 55538,
+ "output_tokens": 1663,
+ "input_tokens": 319987,
+ "cache_read_tokens": 266112,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.008880119999999998,
+ "seconds": 54.2,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: The link is a path-based `/api/files/raw?path=…` link to the DOCX in the worker’s worktree. `app/static/js/chat.js` builds raw file URLs; `app/routes/system.py:get_file_raw` returns 404 when that exact path no longer exists. Archiving through `app/manager.py:Manager.remove` removes the worker worktree with `remove_worktree` before marking the session archived (`app/db.py:archive_session`). The DOCX can remain in the main checkout, but the stored link still targets the removed worktree path.\n\nThis snapshot contains no stored chat message, archive row, DOCX, or logs, so I could not verify the specific URL or timestamps against raw instance records. The code confirms the failure mechanism; the claim that this message’s link used the worker path follows from the reported symptom."
+}

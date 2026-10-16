@@ -1,0 +1,23 @@
+{
+ "run_id": "C-O2-sonnet",
+ "task": "O2",
+ "kind": "open",
+ "arm": "C",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 27480,
+ "output_tokens": 1404,
+ "input_tokens": 4,
+ "cache_read_tokens": 9729,
+ "cache_create_tokens": 26072,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.12028180000000001,
+ "seconds": 15.8,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: two defects in `scripts/wf_run.py`, both in `WorkflowEngine.agent()`, combine to produce the journal you saw.\n\n1. **First attempt never asks for JSON.** `current_prompt = rendered` is used for attempt 1 (around line 796). The schema and the \"return only JSON\" instruction are added only by `_schema_retry_prompt()`, which runs after a failure. The model therefore answers in free text, and `_parse_and_validate()` calls `json.loads(raw)` with no fence or prose extraction. That gives \"Expecting value at line 1 column 1\" and a `schema_invalid` event for every task.\n\n2. **Retries count against the call cap.** Each attempt does `self.budget.dispatched_calls += 1` (around line 830). `Budget.exhausted()` returns true when `dispatched_calls >= max_calls`, not only when money runs out. With 3 tasks and `max_calls=3`, the first attempts alone use all 3 calls. The retry check at lines 819-829 then sees the cap reached, journals `retry_deferred` with reason \"budget\" and sets `partial_reason=\"budget\"`. The USD budget is nearly untouched ($0.016 of $3), so the \"budget\" label is misleading.\n\n**Check:** I only reasoned from the code and the manifest and did not run anything. The manifest does match it: `dispatched_calls=3` equals `max_calls=3`.\n\nIndependent test: run the same three tasks against a stub adapter that returns `\"Sure: {...}\"`, once with `max_calls=3` and once with `max_calls=9`. If I'm right, the first run reproduces `retry_deferred`, and the second shows retries that succeed once the schema reaches the prompt. I haven't run this."
+}

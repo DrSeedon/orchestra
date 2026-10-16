@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C1-luna",
+ "task": "C1",
+ "kind": "closed",
+ "arm": "A",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "......                                                                   [100%]\n6 passed in 0.46s\n",
+ "paid_tokens": 10604,
+ "output_tokens": 563,
+ "input_tokens": 83001,
+ "cache_read_tokens": 72960,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0020152,
+ "seconds": 13.9,
+ "contamination_flag": false,
+ "final_text": "Removed `MAX_TIMER_TIMEOUT`. Timers now get a lifetime of at least `delay_seconds + 3600` seconds; when no extension is needed, their timeout is clamped to `[1, MAX_TIMEOUT]`. Other job types keep the same clamp."
+}

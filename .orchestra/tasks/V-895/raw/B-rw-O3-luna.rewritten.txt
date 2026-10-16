@@ -1,0 +1,5 @@
+The MCP tool `get_worker_logs(name, limit=20)` is slow and transfers megabytes through the API for workers with long histories, despite the caller requesting only 20 entries. Find and substantiate the root cause.
+
+Trace the request end to end: inspect the MCP tool definition and handler, the API request and response path, and the underlying log retrieval or database query. Identify where and how the limit is applied, and determine why it fails to keep the transferred response to the requested entries. Use the raw implementation and, where available, a representative long-history worker or existing measurements. Compare response sizes or retrieved entry counts for `limit=20` and a larger history if this can be done without changing files.
+
+Do not change any files. Final answer: start with `ROOT CAUSE:`, name the relevant file(s), function(s), endpoint(s), and explain the mechanism in at most 1200 characters. State the evidence that supports the finding.

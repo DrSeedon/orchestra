@@ -1,0 +1,5 @@
+In this project, trace the timer lifecycle in `app/bg_jobs.py` and relevant callers, constants, and tests. Fix `BgJobManager.create` so every timer’s lifetime is at least `delay_seconds + 3600` seconds, including delays longer than eight days; remove the timer-specific cap constant. When that minimum extension is not needed, clamp a timer’s `timeout_seconds` to `[1, MAX_TIMEOUT]`. Keep all other job types clamped to `[1, MAX_TIMEOUT]`.
+
+Add or update focused tests covering delays below, at, and above `MAX_TIMEOUT`, including a delay longer than eight days, and verify that timer expiry is never earlier than its trigger time and other job types retain their existing clamp behavior. Run the relevant tests.
+
+Edit the files in this directory in place. Final answer: two or three sentences saying what you changed.

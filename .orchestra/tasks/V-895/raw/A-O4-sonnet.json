@@ -1,0 +1,23 @@
+{
+ "run_id": "A-O4-sonnet",
+ "task": "O4",
+ "kind": "open",
+ "arm": "A",
+ "model": "sonnet",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "note": "",
+ "paid_tokens": 15893,
+ "output_tokens": 2268,
+ "input_tokens": 18,
+ "cache_read_tokens": 81821,
+ "cache_create_tokens": 13607,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.0935082,
+ "seconds": 25.5,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: The download link holds the worker's absolute worktree path, and nothing remaps that path when the worktree is removed. I traced this by reading the code. I didn't run it.\n\n- **Link:** The chat builds the link in `app/static/js/app.js` `_sendFileRawUrl()` (also `chat.js` around lines 3433 and 3454). It has the form `/api/files/raw?path=<encoded absolute path>&download=1`. The path points inside the worker's git worktree, for example `<Orchestra>/worktrees/<worker>/report.docx`. It is stored in the message as that literal string.\n- **Endpoint:** `get_file_raw()` in `app/routes/system.py` (~line 276) serves the file. It does only `Path(path).is_file()` on the literal path and returns 404 `{\"error\":\"not found\"}` otherwise. It has no session or worktree lookup, no fallback to the repo's main checkout, and no path rewriting.\n- **Archive:** When the worker is archived, the worktree is deleted by `remove_worktree` in `app/workspace.py` (`git worktree remove --force`, ~lines 767 and 875). The periodic and startup worktree cleanup in `manager.py` (~lines 2393 and 2402) does the same for stale worktrees. The old path then no longer exists.\n- **Main checkout:** The merged copy of the file lives at a different path. The stored link still points at the removed worktree path, so the request returns 404 even though the file exists."
+}

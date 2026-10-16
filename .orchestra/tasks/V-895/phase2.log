@@ -1,0 +1,17 @@
+B-O3-sonnet ok - 12833 7
+B-O2-luna ok - 35502 11
+B-O2-sonnet ok acc 27219 13
+B-O1-sonnet ok acc 22301 15
+B-O3-luna ok acc 19311 8
+B-O1-luna ok acc 30021 15
+B-O4-sonnet ok - 37658 26
+B-C1-sonnet ok acc 40686 18
+B-C2-sonnet ok acc 16522 15
+B-O4-luna ok acc 55538 12
+B-C2-luna ok acc 16654 10
+B-C3-sonnet ok acc 15883 16
+B-C1-luna ok acc 18677 14
+B-C3-luna ok acc 28167 14
+B-C4-luna ok acc 15435 7
+B-C4-sonnet ok acc 29241 22
+PHASE2_EXIT=0

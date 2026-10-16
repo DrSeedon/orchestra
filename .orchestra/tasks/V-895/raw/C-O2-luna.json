@@ -1,0 +1,23 @@
+{
+ "run_id": "C-O2-luna",
+ "task": "O2",
+ "kind": "open",
+ "arm": "C",
+ "model": "luna",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "note": "",
+ "paid_tokens": 16919,
+ "output_tokens": 1351,
+ "input_tokens": 112720,
+ "cache_read_tokens": 97152,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00320382,
+ "seconds": 16.5,
+ "contamination_flag": false,
+ "final_text": "ROOT CAUSE: В [scripts/wf_run.py](/home/kesha/bench895/runs/C-O2-luna/scripts/wf_run.py:134), `Budget.exhausted()` срабатывает, когда исчерпан **любой** лимит: доллары или число вызовов. `WorkflowEngine.run` увеличивает `dispatched_calls` для каждой попытки, а не для каждой задачи; в `_restore` счётчик восстанавливается по событиям `dispatched`. Поэтому первые попытки трёх задач исчерпали `max_calls=3`. В цикле retry следующая попытка отложена с `reason=budget`, хотя денежный лимит почти не затронут.\n\nВ `_parse_and_validate` пустой ответ для схемы, отличной от `string`, закономерно становится `schema_invalid`: JSON-парсер получает пустую строку. Это объясняет ошибку в журнале, но не остановку повторов.\n\nНезависимая проверка — выполнить `Budget.exhausted()` с указанными значениями. Применил: `python -c ...` вывел `remaining_usd=2.984`, `remaining_calls=0`, `exhausted=True`."
+}
