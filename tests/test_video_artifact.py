@@ -567,11 +567,18 @@ def test_russian_cli_defaults_to_local_tera_voice(monkeypatch, tmp_path, selecte
     monkeypatch.setattr(make, "TERA_INDEXER", tmp_path / "unicode_indexer.json")
     make.TERA_INDEXER.write_text(json.dumps([0] * 65_536))
     make._tera_character_table.cache_clear()
+    monkeypatch.setattr(make, "tera_stress", lambda steps, enabled: [{**step, "_tts_text": step["say"]} for step in steps])
     monkeypatch.setattr(make, "synthesize", lambda _steps, *_args, **kwargs: assert_tera_default(kwargs, expected))
     monkeypatch.setattr(make, "plan", lambda *_: {"steps": [], "T": 0})
     monkeypatch.setattr(make, "voice_track", lambda *_: None)
     monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
     make.main()
+
+
+def test_tera_build_without_local_model_fails_with_install_hint(tmp_path, monkeypatch):
+    monkeypatch.setattr(make, "TTS_TERA_PYTHON", tmp_path / "missing-python")
+    with pytest.raises(SystemExit, match="нет локальной TeraTTS"):
+        make.tera_stress([{"say": "Фраза."}], enabled=True)
 
 
 def assert_tera_default(kwargs, expected):
