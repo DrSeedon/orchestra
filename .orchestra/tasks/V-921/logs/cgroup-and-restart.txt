@@ -1,0 +1,71 @@
+Observed after incident; cgroup event counters are cumulative.
+2026-10-17T11:45:13+02:00
+===/sys/fs/cgroup/system.slice/orchestra.service/memory.max
+17179869184
+===/sys/fs/cgroup/system.slice/orchestra.service/memory.swap.max
+max
+===/sys/fs/cgroup/system.slice/orchestra.service/memory.events
+low 296294
+high 2886761
+max 0
+oom 0
+oom_kill 7
+oom_group_kill 0
+===/sys/fs/cgroup/system.slice/orchestra.service/memory.swap.events
+high 0
+max 554559
+fail 3019383
+===/sys/fs/cgroup/system.slice/orchestra.service/agents/memory.max
+15032385536
+===/sys/fs/cgroup/system.slice/orchestra.service/agents/memory.swap.max
+1073741824
+===/sys/fs/cgroup/system.slice/orchestra.service/agents/memory.events
+low 190652
+high 174604
+max 0
+oom 0
+oom_kill 4
+oom_group_kill 0
+===/sys/fs/cgroup/system.slice/orchestra.service/agents/memory.swap.events
+high 0
+max 554559
+fail 2958894
+===/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api/memory.max
+max
+===/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api/memory.swap.max
+max
+===/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api/memory.events
+low 73165
+high 0
+max 0
+oom 0
+oom_kill 3
+oom_group_kill 0
+===/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api/memory.swap.events
+high 0
+max 0
+fail 60200
+/sys/fs/cgroup/system.slice/orchestra.service/agents/memory.swap.max 2026-10-17 07:07:45.587078439 +0200
+2026-10-17T07:07:32+02:00 vmi3407579 systemd[1]: Stopping orchestra.service - Orchestra AI Agent Orchestrator...
+2026-10-17T07:07:44+02:00 vmi3407579 systemd[1]: Stopped orchestra.service - Orchestra AI Agent Orchestrator.
+2026-10-17T07:07:44+02:00 vmi3407579 systemd[1]: Starting orchestra.service - Orchestra AI Agent Orchestrator...
+2026-10-17T07:07:45+02:00 vmi3407579 python[2734821]: INFO:     Started server process [2734821]
+2026-10-17T07:07:45+02:00 vmi3407579 python[2734821]: INFO:     Waiting for application startup.
+2026-10-17T07:08:02+02:00 vmi3407579 python[2734821]: systemd readiness published after application startup gates
+2026-10-17T07:08:02+02:00 vmi3407579 systemd[1]: Started orchestra.service - Orchestra AI Agent Orchestrator.
+2026-10-17T07:08:02+02:00 vmi3407579 python[2734821]: INFO:     Application startup complete.
+2026-10-17T09:20:52+02:00 vmi3407579 kernel: Free swap  = 0kB
+2026-10-17T09:20:52+02:00 vmi3407579 kernel: Total swap = 16777212kB
+2026-10-17T09:20:53+02:00 vmi3407579 kernel: oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,global_oom,task_memcg=/system.slice/orchestra.service/orchestra-api,task=python,pid=2734821,uid=1001
+2026-10-17T09:20:53+02:00 vmi3407579 kernel: Out of memory: Killed process 2734821 (python) total-vm:1955684kB, anon-rss:336180kB, file-rss:9580kB, shmem-rss:0kB, UID:1001 pgtables:1352kB oom_score_adj:800
+2026-10-17T09:37:00+02:00 vmi3407579 python[3087298]: bg_job created: bg-dc64eb05e4 type=run target=gamelab-bots
+2026-10-17T09:37:00+02:00 vmi3407579 python[3087298]: bg_job bg-dc64eb05e4: run started pid=3091040 on=local timeout=4200s cmd_len=525
+2026-10-17T09:42:50+02:00 vmi3407579 python[3087298]: bg_job created: bg-365b4e3d07 type=run target=rilsy
+2026-10-17T09:42:51+02:00 vmi3407579 python[3087298]: bg_job bg-365b4e3d07: run started pid=3104630 on=local timeout=1800s cmd_len=105
+2026-10-17T09:44:21+02:00 vmi3407579 python[3087298]: bg_job bg-365b4e3d07: run done pid=3104630 exit=0 lines=0
+2026-10-17T09:44:21+02:00 vmi3407579 python[3087298]: bg_job bg-365b4e3d07: triggered → rilsy
+2026-10-17T09:44:41+02:00 vmi3407579 python[3087298]: bg_job created: bg-b46f75d5f5 type=run target=rilsy
+2026-10-17T09:44:41+02:00 vmi3407579 python[3087298]: bg_job bg-b46f75d5f5: run started pid=3109132 on=local timeout=3600s cmd_len=241
+2026-10-17T09:46:52+02:00 vmi3407579 systemd[1]: orchestra.service: Main process exited, code=killed, status=9/KILL
+2026-10-17T09:47:43+02:00 vmi3407579 python[3114402]: bg_job bg-dc64eb05e4: interrupted → notified gamelab-bots
+2026-10-17T09:47:45+02:00 vmi3407579 python[3114402]: bg_job bg-b46f75d5f5: interrupted → notified rilsy

@@ -1,0 +1,341 @@
+Under memory pressure, flushing caches.
+systemd invoked oom-killer: gfp_mask=0x140cca(GFP_HIGHUSER_MOVABLE|__GFP_COMP), order=0, oom_score_adj=0
+CPU: 6 PID: 1 Comm: systemd Not tainted 6.8.0-136-generic #136-Ubuntu
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org 04/01/2014
+Call Trace:
+ <TASK>
+ dump_stack_lvl+0x76/0xa0
+ dump_stack+0x10/0x20
+ dump_header+0x49/0x210
+ oom_kill_process+0x118/0x280
+ ? srso_return_thunk+0x5/0x5f
+ ? oom_evaluate_task+0x143/0x1e0
+ out_of_memory+0x103/0x350
+ __alloc_pages_may_oom+0x10c/0x1d0
+ __alloc_pages_slowpath.constprop.0+0x4d9/0xa70
+ __alloc_pages+0x31f/0x350
+ alloc_pages_mpol+0x91/0x210
+ alloc_pages+0x5b/0xd0
+ folio_alloc+0x15/0x40
+ filemap_alloc_folio+0xf4/0x100
+ __filemap_get_folio+0x199/0x2e0
+ filemap_fault+0x15c/0x8e0
+ __do_fault+0x3d/0x190
+ do_read_fault+0x133/0x200
+ do_fault+0xf0/0x260
+ handle_pte_fault+0x114/0x1d0
+ __handle_mm_fault+0x654/0x790
+ handle_mm_fault+0x18a/0x380
+ do_user_addr_fault+0x169/0x670
+ exc_page_fault+0x83/0x1b0
+ asm_exc_page_fault+0x27/0x30
+RIP: 0033:0x76bdb709b801
+Code: Unable to access opcode bytes at 0x76bdb709b7d7.
+RSP: 002b:00007fff56a289e0 EFLAGS: 00010293
+RAX: 0000000000000008 RBX: 0000607d34e8e600 RCX: 000076bdb7132c10
+RDX: 0000000000000008 RSI: 00000000ffffffff RDI: 0000607d34e8e600
+RBP: 00007fff56a28a10 R08: 0000000000000010 R09: 0000000000006089
+R10: 000076bdb7181980 R11: 0000000000000246 R12: 00000000ffffffff
+R13: 0000000000000000 R14: 0000607d34bdf500 R15: 0000000000000000
+ </TASK>
+Mem-Info:
+active_anon:2879267 inactive_anon:3066262 isolated_anon:0
+ active_file:6740 inactive_file:12880 isolated_file:0
+ unevictable:28 dirty:77 writeback:4
+ slab_reclaimable:38743 slab_unreclaimable:47819
+ mapped:18795 shmem:925 pagetables:35928
+ sec_pagetables:0 bounce:0
+ kernel_misc_reclaimable:0
+ free:40670 free_pcp:0 free_cma:0
+Node 0 active_anon:11517068kB inactive_anon:12265048kB active_file:26960kB inactive_file:51520kB unevictable:112kB isolated(anon):0kB isolated(file):0kB mapped:75180kB dirty:308kB writeback:16kB shmem:3700kB shmem_thp:0kB shmem_pmdmapped:0kB anon_thp:1335296kB writeback_tmp:0kB kernel_stack:23584kB pagetables:143712kB sec_pagetables:0kB all_unreclaimable? no
+Node 0 DMA free:11264kB boost:0kB min:40kB low:52kB high:64kB reserved_highatomic:0KB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15360kB mlocked:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]: 0 2962 23978 23978 23978
+Node 0 DMA32 free:92300kB boost:0kB min:8340kB low:11372kB high:14404kB reserved_highatomic:0KB active_anon:1728712kB inactive_anon:1214316kB active_file:2316kB inactive_file:1832kB unevictable:0kB writepending:0kB present:3129192kB managed:3063656kB mlocked:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]: 0 0 21016 21016 21016
+Node 0 Normal free:59116kB boost:0kB min:59196kB low:80716kB high:102236kB reserved_highatomic:0KB active_anon:9788516kB inactive_anon:11050572kB active_file:25848kB inactive_file:49392kB unevictable:112kB writepending:324kB present:22020096kB managed:21529560kB mlocked:112kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]: 0 0 0 0 0
+Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 1*1024kB (U) 1*2048kB (M) 2*4096kB (M) = 11264kB
+Node 0 DMA32: 603*4kB (UME) 489*8kB (UME) 307*16kB (UME) 262*32kB (UME) 186*64kB (UME) 142*128kB (UME) 84*256kB (UME) 39*512kB (UE) 2*1024kB (ME) 0*2048kB 0*4096kB = 93220kB
+Node 0 Normal: 1003*4kB (UME) 433*8kB (UME) 276*16kB (UME) 223*32kB (ME) 157*64kB (UME) 75*128kB (UME) 36*256kB (UME) 15*512kB (UM) 5*1024kB (UM) 0*2048kB 0*4096kB = 60692kB
+Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+36526 total pagecache pages
+15537 pages in swap cache
+Free swap  = 0kB
+Total swap = 16777212kB
+6291320 pages RAM
+0 pages HighMem/MovableOnly
+139176 pages reserved
+0 pages hwpoisoned
+Tasks state (memory values in pages):
+[  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name
+[    764]   101   764     2667      251      219       32         0    69632      224          -900 dbus-daemon
+[    771]     0   771   337005     1174     1078       96         0   159744      573             0 hysteria
+[    801]     0   801     4762      204      140       64         0    81920      416             0 systemd-logind
+[    809] 65534   809   324410     1440     1312      128         0   208896     1184             0 xray
+[    867]     0   867    27513      192       64      128         0   114688     2336             0 unattended-upgr
+[    904]     0   904     1537       96        0       96         0    49152       32             0 agetty
+[    916]     0   916     1526       96        0       96         0    53248       32             0 agetty
+[1764588]  1001 1764588   324218     1204     1076      128         0   192512      704           800 xray
+[2726558]     0 2726558   339160      480      384       96         0   253952     2880             0 tailscaled
+[2461932]     0 2461932     5009      224       64      160         0    86016      384           100 systemd
+[2461933]     0 2461933     5294      205      109       96         0    77824      320           100 (sd-pam)
+[3169948]   109 3169948  1043342      403       83      320         0   434176     3197          -900 tinyproxy
+[1256448]     0 1256448     3851      416      128      288         0    73728      448             0 sshd
+[2682935]  1001 2682935     1969      134        6      128         0    49152       96           800 bash
+[2682938]  1001 2682938   179546     1143      631      512         0   397312    27904           800 jupyter-lab
+[2688110]  1001 2688110   204576      817      305      512         0   262144     8544           800 python3
+[2697550]  1001 2697550   204605      764      252      512         0   258048     8704           800 python3
+[ 909335]  1001 909335     7419      512      192      320         0    98304     2112             0 python3
+[ 909355]   988 909355     8796      512      160      352         0   114688     2944             0 python3
+[ 909457]     0 909457   188921     1044      417      627         0   299008    15232             0 uvicorn
+[ 909474]   987 909474   485668      979      403      576         0   327680     9792             0 python
+[ 909553]  1001 909553   220370     1222      742      480         0   380928    18720          -700 telegram-bot-ap
+[1639903]  1001 1639903     5115      192       64      128         0    81920      512           100 systemd
+[1639918]  1001 1639918     5293      304      144      160         0    77824      288           100 (sd-pam)
+[3812431]  1001 3812431     2399       96        0       96         0    57344      160           200 dbus-daemon
+[3945447]  1001 3945447   327190      586      362      224         0   385024     9056             0 redis-server
+[4031490]  1001 4031490     1936      160        0      160         0    61440       64             0 bash
+[4031496]  1001 4031496    97896      480      160      320         0   147456     2880             0 python3
+[4031497]  1001 4031497   174515      562      210      352         0   401408    22848             0 python
+[4031521]  1001 4031521    93647      317      189      128         0   294912    14848             0 python
+[4031522]  1001 4031522  3227987     1063      711      352         0  2539520    18912             0 node
+[4031533]  1001 4031533   317868      985      857      128         0   139264      411             0 esbuild
+[ 578260]  1001 578260     4198      329        9      320         0    73728      704           800 ssh
+[1157613]  1001 1157613    67499      266      106      160         0   253952     3456             0 uv
+[1157618]  1001 1157618    46750      587      395      192         0   245760    13472             0 uvicorn
+[3456284]  1001 3456284    72967      858      314      544         0   208896    10624           800 python
+[ 942473]     0 942473   335029     1736     1608      128         0   299008     1983             0 mtg
+[2706994]  1001 2706994     5033      192       96       96         0    77824     1344             0 python3
+[2706995]  1001 2706995    12556      247      151       96         0   143360     6336             0 python3
+[2706998]  1001 2706998    12501      266      106      160         0   143360     6240             0 python3
+[2706999]  1001 2706999    12767      200      104       96         0   139264     6496             0 python3
+[2707000]  1001 2707000    12775      249      121      128         0   139264     6528             0 python3
+[2707001]  1001 2707001    12985      230      102      128         0   147456     6752             0 python3
+[2707002]  1001 2707002    12910      212      116       96         0   143360     6656             0 python3
+[3743334]  1001 3743334    81388      544      160      384         0   131072     2400           800 python3
+[ 556347]   998 556347     4756      384       64      320         0    77824      192             0 systemd-network
+[ 556355]     0 556355    40173      592      192      400         0   315392      248          -250 systemd-journal
+[ 556423]   996 556423    22759      320       32      288         0    81920      160             0 systemd-timesyn
+[ 556495]     0 556495     6265      192       32      160         0    69632      384         -1000 systemd-udevd
+[ 556569]   991 556569     5427      288       96      192         0    90112      416             0 systemd-resolve
+[ 560354]   989 560354    77652      406      182      224         0   106496      832             0 polkitd
+[ 560379]   102 560379    55629      480      192      288         0    81920      384             0 rsyslogd
+[ 561068]     0 561068    13481      286      190       96         0    61440      352             0 nginx
+[ 561069]    33 561069    14015     1822      382      608       832    94208      448             0 nginx
+[ 561070]    33 561070    13949     1822      382      608       832    94208      416             0 nginx
+[ 561071]    33 561071    14043     1758      286      672       800    94208      512             0 nginx
+[ 561072]    33 561072    14014     1758      350      576       832    94208      416             0 nginx
+[ 561073]    33 561073    14023     1822      350      608       864    94208      480             0 nginx
+[ 561074]    33 561074    14015     1831      295      640       896    94208      544             0 nginx
+[ 561075]    33 561075    14108     1854      382      608       864    94208      544             0 nginx
+[ 561076]    33 561076    13996     1790      254      608       928    94208      544             0 nginx
+[ 561943]     0 561943   232304     4558     3450     1108         0   552960     1664             0 fail2ban-server
+[ 564252]  1001 564252   953806   160664   156408     4256         0  2863104   131744          -500 python3
+[ 564559]     0 564559     3039      544       96      448         0    73728      192         -1000 sshd
+[ 564957]     0 564957     1807      320       64      256         0    53248        0             0 cron
+[ 565753]  1001 565753  1401625    51015    42302     8713         0  1757184    10427          -500 claude
+[ 565799]  1001 565799    54956      213      117       96         0   192512    11328          -500 python
+[ 565800]  1001 565800    58146      234      106      128         0   225280    14208          -500 python
+[ 565802]  1001 565802    68372      247      151       96         0   303104    20704          -500 workspace-mcp
+[ 565857]  1001 565857   326229      274      146      128         0   819200     7040          -500 node
+[ 565870]  1001 565870     3783      460       76      384         0    65536      256          -500 ssh
+[ 565871]  1001 565871    58572      295      167      128         0   225280    12416          -500 python
+[ 831106]  1001 831106     4285      504       56      448         0    73728      768           800 ssh
+[ 905985]  1001 905985    38887      160       32      128         0    69632       32           200 gpg-agent
+[1205797]  1001 1205797     4058      378       26      352         0    73728      576           800 ssh
+[1254737]  1001 1254737   387124      355      163      192         0  1216512    23712           800 node
+[1353592]  1001 1353592   221516      422       70      352         0   249856     9696           800 python
+[1946906]   997 1946906   656064     3047     2183      864         0   798720    58656             0 python
+[1947464]  1001 1947464   229838     1654      886      768         0   200704     2944           600 python
+[1947465]  1001 1947465  1492085      234       74      160         0  5390336   555392           600 python
+[2561932]     0 2561932     3719      320      128      192         0    73728      288             0 sshd
+[2561941]  1002 2561941     5029      192       64      128         0    81920      416           100 systemd
+[2561943]  1002 2561943     5292      207       79      128         0    73728      352           100 (sd-pam)
+[2562017]  1002 2562017     3775      264      104      160         0    73728      384             0 sshd
+[2606423]     0 2606423     4503      648      168      480         0    77824     1152             0 sshd
+[2606425]     0 2606425     3866      608      128      480         0    73728      480             0 sshd
+[2606427]     0 2606427     3688      256       96      160         0    73728      320             0 sshd
+[2606482]   999 2606482     5077      192       64      128         0    94208      448           100 systemd
+[2606501]   999 2606501     5292      207       79      128         0    73728      352           100 (sd-pam)
+[2606688]   999 2606688     3997      733      285      448         0    77824      480             0 sshd
+[2608385]  1001 2608385  1401625    64068    51623    12445         0  1593344     4608          -500 claude
+[2608431]  1001 2608431    54956     4220     3996      224         0   200704     7424          -500 python
+[2608432]  1001 2608432    58146     7595     7371      224         0   221184     7264          -500 python
+[2608436]  1001 2608436    87138    13938    13618      320         0   323584     7808          -500 workspace-mcp
+[2608463]  1001 2608463   257033     2740     2612      128         0   655360        0          -500 node
+[2608474]  1001 2608474     3752      736      320      416         0    69632        0          -500 ssh
+[2608477]  1001 2608477    58572    12743    12519      224         0   229376        0          -500 python
+[2757266]  1001 2757266     1936      192       64      128         0    53248        0             0 bash
+[2757267]  1001 2757267   438101      227      131       96         0   647168    11744             0 uv
+[2757310]  1001 2757310  1411608    17839    17135      704         0  3792896   116695             0 python
+[2965335]  1001 2965335      701       96        0       96         0    45056        0           800 sh
+[2965348]  1001 2965348     3751      448       32      416         0    65536      288           800 ssh
+[2965356]     0 2965356     3688      256       96      160         0    73728      320             0 sshd
+[2965476]  1001 2965476     3744      393       41      352         0    73728      416             0 sshd
+[2965490]  1001 2965490   748425   248899   244643     4256         0  3575808   151653             0 python
+[2995725]  1001 2995725      701       96        0       96         0    49152        0           800 sh
+[2995730]  1001 2995730     3751      448       96      352         0    69632      224           800 ssh
+[2995731]     0 2995731     3687      224       64      160         0    69632      320             0 sshd
+[2995787]  1001 2995787     3744      425      137      288         0    69632      352             0 sshd
+[2995788]  1001 2995788     1936      192       64      128         0    57344        0             0 bash
+[2995789]  1001 2995789    79617     1408      640      768         0   122880     1632             0 python3
+[3025342]  1001 3025342      701       96        0       96         0    49152        0           800 sh
+[3025345]  1001 3025345   237911     5976     4732     1244         0   270336     8448           800 python
+[3035265]  1001 3035265      701      288        0      288         0    45056        0           800 sh
+[3087298]  1001 3087298   469871    36664    34950     1714         0  1437696   111720           800 python
+[3089393]  1001 3089393     1537      384        0      384         0    53248        0           800 tail
+[3089740]  1001 3089740  1406792    25818    25339      479         0  1626112    19131           800 claude
+[3089744]  1001 3089744  1404636    36942    36518      424         0  1433600     8004           800 claude
+[3089746]  1001 3089746  1404629    25483    25102      381         0  2019328    32511           800 claude
+[3089817]  1001 3089817    58542     1606      134     1472         0   229376    14208           800 python
+[3089882]  1001 3089882    58111     1355       75     1280         0   225280    14112           800 python
+[3089892]  1001 3089892    57955     1350       70     1280         0   217088    14080           800 python
+[3089896]  1001 3089896   259873      478       30      448         0  1064960     5632           800 node
+[3090015]  1001 3090015  1406544    44487    44090      397         0  1523712    15293           800 claude
+[3090098]  1001 3090098    59758     5007     3567     1440         0   241664    11904           800 python
+[3091040]  1001 3091040      701      352        0      352         0    49152        0           800 sh
+[3091043]  1001 3091043     1531      384        0      384         0    49152        0           800 timeout
+[3091044]  1001 3091044    57131      448        0      448         0   221184     1504           800 uv
+[3091047]  1001 3091047    29613     2855     1639     1216         0   135168     3680           800 python3
+[3091071]  1001 3091071   447980    38742    38390      352         0  7307264    11680           800 MainThread
+[3091144]  1001 3091144 12684812     1729     1372      357         0   708608     2560           800 chrome-headless
+[3091152]  1001 3091152 12640180      512       96      416         0   335872     1792           800 chrome-headless
+[3091153]  1001 3091153 12640179      800      384      416         0   335872     1536           800 chrome-headless
+[3091179]  1001 3091179 12696130     4860     4446      414         0   704512     2464           800 chrome-headless
+[3091181]  1001 3091181 12656711      576      192      384         0   425984     1984           800 chrome-headless
+[3091212]  1001 3091212 379578156     9209     8832      377         0   937984     3936           800 chrome-headless
+[3091224]  1001 3091224   118853    16739    16675       64         0   294912     6752           800 ffmpeg-linux
+[3094894]  1001 3094894  1403469    28919    28484      435         0  1335296     9975           800 claude
+[3094965]  1001 3094965    58146     1418      138     1280         0   221184    14208           800 python
+[3104716]  1001 3104716      701      320        0      320         0    45056        0             0 sh
+[3104717]  1001 3104717     1531      384        0      384         0    53248        0             0 timeout
+[3104718]  1001 3104718   106338    11702     9942     1760         0   479232    31712             0 python
+[3106335]  1001 3106335   320369     9710     7918     1792         0   507904    24864             0 python
+[3106505]  1001 3106505     1531      384        0      384         0    53248        0           800 timeout
+[3106506]  1001 3106506    57131      448        0      448         0   217088     1536           800 uv
+[3106509]  1001 3106509     9780     1184        0     1184         0   110592     3936           800 python3
+[3106511]  1001 3106511   257554    12120    11672      448         0  2056192     1760           800 node
+[3107000]  1001 3107000   444016    12729    12249      480         0  4325376    22516             0 MainThread
+[3107094]  1001 3107094 12697026     2536     2092      444         0   655360     2048             0 chrome-headless
+[3107110]  1001 3107110 12640180      544       96      448         0   331776     1792             0 chrome-headless
+[3107111]  1001 3107111 12640180     1184      704      480         0   339968     1184             0 chrome-headless
+[3107125]  1001 3107125 12679317     2416     1998      418         0   684032     2752           200 chrome-headless
+[3107129]  1001 3107129 12659306     1379      908      471         0   487424     1888             0 chrome-headless
+[3107218]  1001 3107218 379580684     4314     3954      360         0   827392     5312           300 chrome-headless
+[3107681]  1001 3107681  1402301    25129    24672      457         0  1146880     9560           800 claude
+[3107751]  1001 3107751    58147     3110     1862     1248         0   229376    12480           800 python
+[3107769]  1001 3107769  1402299    33805    33361      444         0  1298432     4776           800 claude
+[3107831]  1001 3107831    58146    10735     9455     1280         0   221184     4896           800 python
+[3108197]  1001 3108197  1404636    29276    28799      477         0  1331200    10546           800 claude
+[3108244]  1001 3108244    58541     1504        0     1504         0   225280    14304           800 python
+[3108245]  1001 3108245   259766      416        0      416         0  1089536     5504           800 node
+[3108246]  1001 3108246   257028      448        0      448         0   667648     2560           800 node
+[3108247]  1001 3108247   219445      416        0      416         0   466944     4384           800 uv
+[3108319]  1001 3108319    59867      480        0      480         0   249856    12320           800 python
+[3109132]  1001 3109132      701      320        0      320         0    49152        0           800 sh
+[3109140]  1001 3109140     1936      448       64      384         0    57344        0           800 bash
+[3109141]  1001 3109141     1936      512       64      448         0    61440        0           800 finish.sh
+[3109143]  1001 3109143     1936      448       64      384         0    49152        0           800 finish.sh
+[3109144]  1001 3109144     1936      480       64      416         0    57344        0           800 finish.sh
+[3109154]  1001 3109154     3751     1152      320      832         0    77824        0           800 ssh
+[3109160]  1001 3109160     3751     1120      288      832         0    69632       32           800 ssh
+[3109162]  1001 3109162     3751     1088      320      768         0    73728        0           800 ssh
+[3109164]     0 3109164     3689     1152      416      736         0    65536        0             0 sshd
+[3109166]     0 3109166     3688     1120      384      736         0    77824        0             0 sshd
+[3109167]     0 3109167     3687     1152      416      736         0    69632        0             0 sshd
+[3109336]  1001 3109336     3744      969      297      672         0    77824      192             0 sshd
+[3109370]  1001 3109370     3744      937      297      640         0    69632      192             0 sshd
+[3109380]  1001 3109380     3745      938      298      640         0    65536      160             0 sshd
+[3109390]  1001 3109390    11507      864        0      864         0   135168     5120             0 python3
+[3109395]  1001 3109395    15024      992      128      864         0   159744     8512             0 python3
+[3109397]  1001 3109397    11288      864        0      864         0   135168     4800             0 python3
+[3111154]  1001 3111154  4045047  2349402  2348929      473         0 29093888  1081856             0 ffmpeg
+[3111797]     0 3111797     2489      480        0      480         0    57344      192             0 cron
+[3111800]  1001 3111800      701      320        0      320         0    40960        0             0 sh
+[3111812]  1001 3111812     1936      416        0      416         0    53248       64             0 tender-cron.sh
+[3111815]  1001 3111815     1531      384        0      384         0    49152        0             0 timeout
+[3111817]  1001 3111817    10729     3937     2433     1504         0   126976     2528             0 python3
+[3111862]  1001 3111862  1910133  1102576  1102107      469         0 12697600   322336             0 ffmpeg
+[3112024]  1001 3112024  2693868  1419039  1418569      470         0 19394560   830592             0 ffmpeg
+[3113578]  1001 3113578  1401822    30526    30080      446         0  1105920     1856           800 claude
+[3113947]  1001 3113947      701      384        0      384         0    45056        0             0 sh
+[3113948]  1001 3113948     1531      384        0      384         0    53248        0             0 timeout
+[3113949]  1001 3113949    28187    21206    19702     1504         0   262144       64             0 python
+[3114126]  1001 3114126 379580547     7331     6952      379         0   790528     1138           300 chrome-headless
+[3114193]     0 3114193     3040      992      256      736         0    69632        0             0 sshd
+[3114194]   105 3114194     3040      893      253      640         0    69632        0             0 sshd
+oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,global_oom,task_memcg=/system.slice/orchestra.service/orchestra-api,task=python,pid=3087298,uid=1001
+Out of memory: Killed process 3087298 (python) total-vm:1879484kB, anon-rss:139800kB, file-rss:6856kB, shmem-rss:0kB, UID:1001 pgtables:1404kB oom_score_adj:800
+kworker/7:1: page allocation failure: order:0, mode:0x4cc0(GFP_KERNEL|__GFP_RETRY_MAYFAIL), nodemask=(null),cpuset=/,mems_allowed=0
+CPU: 7 PID: 3076468 Comm: kworker/7:1 Not tainted 6.8.0-136-generic #136-Ubuntu
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org 04/01/2014
+Workqueue: events kernfs_notify_workfn
+Call Trace:
+ <TASK>
+ dump_stack_lvl+0x76/0xa0
+ dump_stack+0x10/0x20
+ warn_alloc+0x174/0x1f0
+ __alloc_pages_slowpath.constprop.0+0x9af/0xa70
+ __alloc_pages+0x31f/0x350
+ allocate_slab+0x2e7/0x370
+ new_slab+0x38/0x60
+ ___slab_alloc+0x435/0x8e0
+ ? srso_return_thunk+0x5/0x5f
+ ? inotify_handle_inode_event+0x9a/0x250
+ ? __wake_up_common+0x79/0xb0
+ ? srso_return_thunk+0x5/0x5f
+ ? inotify_handle_inode_event+0x9a/0x250
+ __kmalloc+0x45a/0x4f0
+ inotify_handle_inode_event+0x9a/0x250
+ ? inotify_handle_inode_event+0x9a/0x250
+ fsnotify_handle_inode_event.isra.0+0x77/0x130
+ send_to_group+0x340/0x3f0
+ ? srso_return_thunk+0x5/0x5f
+ ? pick_eevdf+0x7a/0x1b0
+ ? srso_return_thunk+0x5/0x5f
+ fsnotify+0x262/0x710
+ kernfs_notify_workfn+0xc0/0x220
+ process_one_work+0x184/0x3a0
+ worker_thread+0x18b/0x330
+ ? srso_return_thunk+0x5/0x5f
+ ? __pfx_worker_thread+0x10/0x10
+ kthread+0xf2/0x120
+ ? __pfx_kthread+0x10/0x10
+ ret_from_fork+0x47/0x70
+ ? __pfx_kthread+0x10/0x10
+ ret_from_fork_asm+0x1b/0x30
+ </TASK>
+Mem-Info:
+active_anon:3198677 inactive_anon:2747506 isolated_anon:0
+ active_file:6964 inactive_file:12656 isolated_file:0
+ unevictable:28 dirty:0 writeback:0
+ slab_reclaimable:38715 slab_unreclaimable:47818
+ mapped:18768 shmem:925 pagetables:35958
+ sec_pagetables:0 bounce:0
+ kernel_misc_reclaimable:0
+ free:40529 free_pcp:62 free_cma:0
+Node 0 active_anon:12794708kB inactive_anon:10990024kB active_file:27856kB inactive_file:50624kB unevictable:112kB isolated(anon):0kB isolated(file):0kB mapped:75072kB dirty:0kB writeback:0kB shmem:3700kB shmem_thp:0kB shmem_pmdmapped:0kB anon_thp:1335296kB writeback_tmp:0kB kernel_stack:23280kB pagetables:143832kB sec_pagetables:0kB all_unreclaimable? yes
+Node 0 DMA free:11264kB boost:0kB min:40kB low:52kB high:64kB reserved_highatomic:0KB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15360kB mlocked:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]: 0 2962 23978 23978 23978
+Node 0 DMA32 free:92372kB boost:0kB min:8340kB low:11372kB high:14404kB reserved_highatomic:0KB active_anon:1885088kB inactive_anon:1058912kB active_file:1968kB inactive_file:1616kB unevictable:0kB writepending:0kB present:3129192kB managed:3063656kB mlocked:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]: 0 0 21016 21016 21016
+Node 0 Normal free:58480kB boost:0kB min:59196kB low:80716kB high:102236kB reserved_highatomic:0KB active_anon:10905416kB inactive_anon:9935316kB active_file:26500kB inactive_file:48372kB unevictable:112kB writepending:0kB present:22020096kB managed:21529560kB mlocked:112kB bounce:0kB free_pcp:248kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]: 0 0 0 0 0
+Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 1*1024kB (U) 1*2048kB (M) 2*4096kB (M) = 11264kB
+Node 0 DMA32: 540*4kB (UME) 403*8kB (UME) 306*16kB (UME) 262*32kB (UME) 186*64kB (UME) 142*128kB (UME) 84*256kB (UME) 39*512kB (UE) 2*1024kB (ME) 0*2048kB 0*4096kB = 92264kB
+Node 0 Normal: 816*4kB (UME) 408*8kB (UME) 276*16kB (UME) 228*32kB (ME) 153*64kB (ME) 75*128kB (UME) 36*256kB (UME) 15*512kB (UM) 5*1024kB (UM) 0*2048kB 0*4096kB = 59648kB
+Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+36262 total pagecache pages
+15531 pages in swap cache
+Free swap  = 12kB
+Total swap = 16777212kB
+6291320 pages RAM
+0 pages HighMem/MovableOnly
+139176 pages reserved
+0 pages hwpoisoned
+SLUB: Unable to allocate memory on node -1, gfp=0x404cc0(GFP_KERNEL_ACCOUNT|__GFP_RETRY_MAYFAIL)
+  cache: kmalloc-cg-32, object size: 32, buffer size: 32, default order: 0, min order: 0
+  node 0: slabs: 31, objs: 3968, free: 0
+Under memory pressure, flushing caches.
