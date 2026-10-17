@@ -102,3 +102,6 @@
 ## Правила: хвосты чистки (V-932, из V-931 п.5, п.14)
 - Сравнение effort оркестраторов `high` после 03.10, обещанное в комментарии `pipeline.yaml` через `.orchestra/tasks/V-683/complaint_rate.py`, так и не сделано; запустить сравнение или снять комментарий-обещание.
 - В `/home/kesha/projects/comfy-image-pipeline/AGENTS.md` (строки 100 и 168) мёртвые ссылки на старые каталоги задач и базы знаний (файлы `selected-pipeline.md` и `working-with-machines.md` переехали в `.orchestra/tasks/31/` и `.orchestra/kb/`); корень `dnd-game-master/AGENTS.md:203` и корень Orchestra описывали платформенный факт о чтении CLAUDE.md по-разному — у знания нет владельца. Чужие проекты, не правились.
+
+## Ролики
+- Скилл video-artifact указывает PLAYWRIGHT_BROWSERS_PATH в /mnt/data, а на VPS этого каталога нет; браузеры лежат в ~/.cache/ms-playwright (V-938). Поправить указание в скилле.
