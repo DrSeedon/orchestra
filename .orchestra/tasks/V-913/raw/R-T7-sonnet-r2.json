@@ -1,0 +1,30 @@
+{
+ "run_id": "R-T7-sonnet-r2",
+ "task": "T7",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 99041,
+ "output_tokens": 19684,
+ "input_tokens": 84,
+ "cache_read_tokens": 1933170,
+ "cache_create_tokens": 79273,
+ "turns": 46,
+ "cost_usd_api_equiv": 0.900734,
+ "seconds": 672.0,
+ "contamination_flag": false,
+ "files_created": [
+  "data/usage_cache.json",
+  "scratch/bin/claude",
+  "scratch/pg.py",
+  "scratch/repro.py",
+  "scratch/t2.py",
+  "scratch/test_retry.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Не установлена. Точный механизм для Claude CLI воспроизвести не удалось. Ниже — что доказано и что остаётся гипотезой.\n\n**Что доказано**\n- Ошибка приходит из `AgentSession._change_runtime_chat_locked` (app/session.py:3404-3413). Туда ведёт `change_model`, когда меняется рантайм.\n- Код `text_tail_source_release_failed` ставится, когда `_drain_persist()` или `_disconnect_backend()` бросают исключение.\n- `_drain_persist` исключения глотает (`gather(..., return_exceptions=True)`). Остаётся `backend.disconnect()`.\n- Для `ClaudeBackend` (app/backend_claude.py:1160) разовый сбой `disconnect` повтор не блокирует. В `finally` он обнуляет `_client`, поэтому второй вызов проходит.\n- Я проверил это в `scratch/test_retry.py` с настоящим `ClaudeBackend` и клиентом, который падает один раз. Первая попытка вернула `text_tail_source_release_failed`, вторая — `ok`.\n- Остановка транспорта SDK на убитом процессе тоже не падает (`scratch/t2.py`).\n- Значит «Claude CLI умер» сам по себе не даёт постоянной ошибки. Это расходится с описанием, где повтор падает всегда.\n\n**Правдоподобная гипотеза (не подтверждена на вашем сеансе)**\n- Постоянный отказ даёт только код, который хранит владельца процесса между попытками. Это `CodexBackend.disconnect` (app/backend_codex.py:1117-1132) вместе с `RuntimeProcessGroup.stop` (app/runtime_process_group.py:45-70).\n- `stop()` на каждой итерации вызывает `populated()`, который читает `cgroup.events`. Если cgroup-каталога уже нет (процесс мёртв, systemd убрал группу), летит `FileNotFoundError`. Ловится только `TimeoutError`.\n- `_process_group` обнуляется лишь в `_finalize_disconnect`, до которого дело не доходит. Каждый повтор снова читает отсутствующий каталог и падает.\n- `scratch/pg.py` показал: `stop()` на несуществующем пути дважды подряд бросает `FileNotFoundError`. Это воспроизводит «повтор всегда падает», но не доказывает, что именно так упала ваша сессия.\n- Условие: бэкенд сессии должен быть Codex с cgroup. Проверьте `backend_type` сессии и текст ошибки. В ответе `err_text` обрезан, и причина видна только в логах (`ClaudeBackend disconnect failed` или трейс `FileNotFoundError`).\n\n**Рекомендации**\n1. Сначала посмотреть лог сервиса вокруг попытки переключения и узнать реальный `backend_type` и исключение. Без этого гипотеза остаётся догадкой.\n2. Если подтвердится Codex: в `RuntimeProcessGroup.stop` и `populated()` считать `FileNotFoundError` признаком уже мёртвой группы и завершать очистку.\n3. В `CodexBackend.disconnect` при мёртвом процессе всё равно вызывать `_finalize_disconnect`.\n4. Опционально: в `_change_runtime_chat_locked` вернуть текст исключения в `error_code`, чтобы причина была видна в интерфейсе."
+}

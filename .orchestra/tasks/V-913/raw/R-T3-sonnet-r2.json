@@ -1,0 +1,28 @@
+{
+ "run_id": "R-T3-sonnet-r2",
+ "task": "T3",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 20672,
+ "output_tokens": 3942,
+ "input_tokens": 20,
+ "cache_read_tokens": 150049,
+ "cache_create_tokens": 16710,
+ "turns": 18,
+ "cost_usd_api_equiv": 0.1363098,
+ "seconds": 78.4,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py",
+  "scratch/tmppio9odnc/legacy3595375409818563524.db",
+  "scratch/tmppio9odnc/user_version=04780947417839612124.db",
+  "scratch/tmppio9odnc/user_version=58201516493119328895.db"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Most likely, the `codex_review` MCP stdio process opens the wrong database. It uses the default `data/orchestra.db`, not the live server's DB. I could not reproduce the exact failure, because the `data/orchestra.db` that triggers it is missing from this snapshot. The teammate's guess (the live DB needs migration) is not supported by the evidence.\n\nEvidence:\n- `app/mcp_stdio.py:4023-4025`: `codex_review` calls `init_db()` in its own process. It does this directly, not through the HTTP API at `ORCHESTRA_URL`.\n- `app/db.py`: `DB_PATH` is resolved at import time by `_resolve_db_path()`. It uses `ORCHESTRA_DB_PATH` if set, else `data/orchestra.db`.\n- `app/db.py:67-73`: `init_db` raises the \"offline migration\" error in two cases. One is `PRAGMA user_version` not equal to 1 (`SCHEMA_VERSION`) with a non-zero value. The other is `user_version` 0 with any user table present.\n- `app/manager.py:_make_mcp_config` builds the MCP env from `app/runtime_env.py:MCP_BASE_ENV`. That env passes only PYTHONPATH, the proxy variables and INTERNAL_TOKEN, plus ORCHESTRA_URL, SCOPE, ROLE and similar. `ORCHESTRA_DB_PATH` is never propagated. `.wf-mcp.json` is empty and does not help.\n- `app/main.py:lifespan` re-resolves `DB_PATH` after `load_dotenv()`. The server therefore sees its override. Whether the MCP child inherits it depends on the Codex runtime's env filtering, which I could not check.\n\nReproduction: `scratch/repro.py` calls `init_db` on three scratch DBs with `ORCHESTRA_DB_PATH` unset. A DB with a table and `user_version=0` gives the exact error message. So does `user_version=5`. An empty DB initialises fine. This shows the mechanism, not the trigger.\n\nNot reproduced or verified:\n- The real default DB's state. The snapshot has no `data/` directory.\n- Why the failure began on 12 September. A plausible trigger is that the default file was created or changed around then, for example by a stale legacy DB or a manual run. I have no mtime or history to confirm that.\n- Whether the live DB passes `init_db`. It was migrated on 11 September, so it probably does, but I did not check.\n\nFix I recommend:\n1. Check `PRAGMA user_version` and the tables of the default `data/orchestra.db`, and of the live DB. If the default file is a stale or stray copy, move it aside.\n2. Add `ORCHESTRA_DB_PATH` to `MCP_BASE_ENV` in `app/runtime_env.py`, or to `_make_mcp_config`, so the MCP child uses the same DB as the server.\n3. Better still, have `codex_review` reserve the receipt through the server API and stop calling `init_db()` from the MCP process."
+}

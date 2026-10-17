@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T5-sonnet-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16381,
+ "output_tokens": 2402,
+ "input_tokens": 10,
+ "cache_read_tokens": 54617,
+ "cache_create_tokens": 13969,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0908394,
+ "seconds": 28.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The teammate's guess is wrong. `_on_task_done` in `app/session.py` blames the old, healthy turn-listener task for a new turn that the mailbox delivery has already started. I traced this by reading the code. I did not run a reproduction.\n\n**Mechanism**\n1. In `_turn_event_loop` (session.py:2435), `_handle_event` processes the `turn_end` or `turn FAILED` event. That runs `after_turn_idle_actions` (session_turns.py:511).\n2. `mailbox.claim` returns queued messages. It logs \"mailbox: N — продолжаю ход\" and does `_spawn_bg(_deliver_mailbox)` (session_turns.py:548). This is the \"continue the turn instead of waking\" path.\n3. `_deliver_mailbox` calls `s.send(...)`. `send` sets status to RUNNING and logs the `user_message` row. It then awaits `_ensure_backend`, `provider_send` and the lifecycle lock. This is why the log shows `user_message`, then `error`, then `codex turn=… started`.\n4. `self._listen_task` still points at the old task during those awaits. The new task is only assigned at session.py:1683 or 2851, after `provider_send` returns.\n5. The old `async for backend.events()` loop reaches the end of its stream, because the turn ended. The old task then finishes normally with no exception.\n6. `_on_task_done` (session.py:2878) passes the `task is self._listen_task` check, because the old task is still the registered one. It sees `status == RUNNING` and no exception, and takes the \"silent death\" branch (2894-2896).\n7. That calls `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")`. This sets IDLE, logs the error, and calls `report_abnormal_end`, which sends \"Turn failed before an explicit report (no output)\".\n8. The new turn then starts and the worker looks alive. The second excerpt shows the same race, where the error row's timestamp is even earlier than the `user_message` row.\n\n**Why quota exhaustion shows up**\nA `rate_limit` failure ends the turn quickly, and the orchestrator or peers have often queued messages by then. That makes the mailbox path likely. The listener does not crash. Event 374011 shows the turn failing cleanly with `rate_limit`.\n\n**Evidence against a real crash**\n- A genuine crash would go through the `exc` branch and log \"listen task died: …\".\n- A genuine crash would also not be followed by a successful `codex turn=… started` within about 90 ms.\n\n**Recommended fix**\n- Fix the status check in `_on_task_done`. Treat RUNNING as a silent death only if the task finished without having seen its own turn end. A simple way is a turn generation counter (`_turn_gen` already exists). `_turn_event_loop` captures it at start, and `_on_task_done` ignores the task if the generation has moved on or the loop already consumed a `turn_end`.\n- Alternatively, make `send` set `_listen_task = None` or a sentinel at `_start_turn_state`. Then the old task fails the `task is not self._listen_task` guard at line 2879.\n- In `_turn_event_loop`, the same ownership check should guard the `finally` branch at 2466.\n- Add a regression test. It should run a mailbox-queued `turn_end` and assert there is no `report_abnormal_end` call and no error row."
+}

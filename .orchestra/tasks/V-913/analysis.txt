@@ -1,0 +1,59 @@
+== correct (cross-model grader), per group x arm x model
+T all     correct_cross  A 12/16  R 12/16   R-only 0 A-only 0 p=1.00
+T all     correct_same   A 12/16  R 11/15   R-only 0 A-only 0 p=1.00
+T all     correct_any    A 12/16  R 12/16   R-only 0 A-only 0 p=1.00
+T all     decoy          A 2/16   R 3/16    R-only 1 A-only 0 p=1.00
+T luna    correct_cross  A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+T luna    correct_same   A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+T luna    correct_any    A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+T luna    decoy          A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+T sonnet  correct_cross  A 12/16  R 12/16   R-only 0 A-only 0 p=1.00
+T sonnet  correct_same   A 12/16  R 11/15   R-only 0 A-only 0 p=1.00
+T sonnet  correct_any    A 12/16  R 12/16   R-only 0 A-only 0 p=1.00
+T sonnet  decoy          A 2/16   R 3/16    R-only 1 A-only 0 p=1.00
+K all     correct_cross  A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K all     correct_same   A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K all     correct_any    A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K all     decoy          A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K luna    correct_cross  A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K luna    correct_same   A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K luna    correct_any    A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K luna    decoy          A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K sonnet  correct_cross  A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K sonnet  correct_same   A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K sonnet  correct_any    A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+K sonnet  decoy          A 0/0    R 0/0     R-only 0 A-only 0 p=1.00
+
+== per task (cross-model correct, A vs R, both models, 2 reps -> /4)
+T1: A 0/2  R 0/2
+T2: A 2/2  R 2/2
+T3: A 2/2  R 2/2
+T4: A 2/2  R 2/2
+T5: A 2/2  R 2/2
+T6: A 2/2  R 2/2
+T7: A 0/2  R 0/2
+T8: A 2/2  R 2/2
+
+== reproduction
+T sonnet A: n=16 ran-commands 0, files-created 4, mean repro cmds 0.0, claims {'not_reproduced': 12, 'ran': 4}
+T sonnet R: n=16 ran-commands 0, files-created 16, mean repro cmds 0.0, claims {'ran': 16}
+
+== paid tokens and turns (sum; geo ratio R/A over matched cells, 95% bootstrap)
+T all     n=16 A 464025 R 553563 (x1.19) geo x1.32 [1.10; 1.64] | turns A 209 R 273 geo x1.51 [1.24; 1.84]
+T luna    n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+T sonnet  n=16 A 464025 R 553563 (x1.19) geo x1.32 [1.10; 1.62] | turns A 209 R 273 geo x1.51 [1.26; 1.85]
+K all     n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+K luna    n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+K sonnet  n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+C all     n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+C luna    n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+C sonnet  n=0 A 0 R 0 (xnan) geo - | turns A 0 R 0 geo -
+
+== creative: win-rate of R over A
+all: R wins 0/0 = nan
+luna authors: R wins 0/0 = nan
+sonnet authors: R wins 0/0 = nan
+cross-only: R wins 0/0 = nan
+pairs: R 0 / A 0 / tie 0, p=1.00
+
+contamination flags: 0 of 32

@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T4-sonnet-r1",
+ "task": "T4",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 22791,
+ "output_tokens": 2574,
+ "input_tokens": 10,
+ "cache_read_tokens": 86685,
+ "cache_create_tokens": 20207,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.12392500000000001,
+ "seconds": 52.1,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The mtime check works. `.env` is re-read, but its new value is never used, because a copy of the process environment taken at import time takes priority over it. Under systemd, `EnvironmentFile` puts `QUOTA_GATED_LANES=claude,sol` into the service's `os.environ`. That value then wins permanently over `.env`.\n\nEvidence (`app/quota_gate.py`):\n- Line 143 sets `_startup_quota_env = {name: os.environ.get(name) ...}` once, at import time.\n- `_live_quota_env()` (lines 173–200) does re-stat and re-parse `.env` when the mtime changes, and stores the result in `_dotenv_values`. This matches the debug log: new mtime, new values parsed.\n- The returned snapshot then picks `_startup_quota_env[name]` first whenever it `is not None`. It uses the `.env` value only when no startup value exists. Any variable already present in the process environment therefore overrides `.env` for the life of the process.\n- `quota_policy()` builds `gated_lanes` from that snapshot, so it keeps the old value.\n\nReproduction (`scratch/repro.py`, with `.env` pointed at a temp file):\n- With `QUOTA_GATED_LANES` unset in the environment, I wrote `claude,sol`, then wrote empty and bumped the mtime. The policy went from `['claude','sol']` to `[]`. This is the plain-local-shell behaviour.\n- With `QUOTA_GATED_LANES=claude,sol` exported, as systemd would do, the same edit left the policy at `['claude','sol']`. `_dotenv_values['QUOTA_GATED_LANES']` was `''`, so the file was re-read and its new value ignored.\n\nThis process matches both observations: the log shows the re-read, and the gate keeps the old value. I did not test an actual systemd unit; I simulated its effect by exporting the variable.\n\nThe teammate's guess (the mtime check doesn't fire) is refuted. The re-read happens, and the parsed `''` is visible in `_dotenv_values`.\n\nWhy the empty value in particular: even if you restart with `QUOTA_GATED_LANES=` in `.env`, systemd sets it to `\"\"`. That is `is not None`, so it still wins. Only a restart picks up the change, and only because `EnvironmentFile` is re-read at that point.\n\nTwo smaller points:\n- The module-level `GATED_LANES` and `CURVED_LANES` (lines 245–246) are frozen at import and never reload. Only `quota_policy()` is live, so any code still reading those constants will also see stale values.\n- The `os.environ` precedence may be deliberate, so that an explicit environment overrides the file. If so, it can't coexist with `EnvironmentFile` pointing at the same `.env`.\n\nRecommended fix, either of:\n1. Preferred: make the `.env` file the single source of truth for `QUOTA_*`. Remove `EnvironmentFile` from the unit, or filter `QUOTA_*` out of it. Alternatively, in `_live_quota_env` let a key present in `.env` win over `_startup_quota_env`, and use the startup value only when `.env` lacks the key.\n2. Without a code change, restart the service after editing `.env`.\n\nAlso replace the `GATED_LANES` and `CURVED_LANES` constants with `quota_policy()` lookups."
+}

@@ -7,8 +7,10 @@ import asyncio
 import json
 import os
 import signal
+import shlex
 import shutil
 import stat
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -249,9 +251,20 @@ def _prompt_with_rules(prompt: str, system_prompt: str) -> str:
 
 
 def _claude_tools(tools_level: str, network: bool) -> str:
-    # Bash stays closed: -p cannot run the V-773 PreToolUse filter, and bypassing it is not allowed.
+    # Bash only with tools="all" and network, behind the V-773 filter (_claude_bash_settings);
+    # without network a shell could still curl, and the CLI has no sandbox for it.
     base = "Read,Write,Edit,Glob,Grep" if tools_level == "all" else "Read,Glob,Grep"
+    if tools_level == "all" and network:
+        base += ",Bash"
     return f"{base},WebFetch,WebSearch" if network else base
+
+
+def _claude_bash_settings() -> str:
+    hook = Path(__file__).with_name("wf_bash_hook.py")
+    return json.dumps({"hooks": {"PreToolUse": [{
+        "matcher": "Bash",
+        "hooks": [{"type": "command", "command": f"{shlex.quote(sys.executable)} {shlex.quote(str(hook))}"}],
+    }]}})
 
 
 def _write_claude_mcp_config(cwd: Path, enabled: bool) -> Path:
@@ -373,6 +386,8 @@ async def run_claude(
         "--allowedTools",
         _claude_tools(tools, network),
     ]
+    if tools == "all" and network:
+        argv.extend(["--settings", _claude_bash_settings()])
     if system_prompt.strip():
         argv.extend(["--system-prompt", system_prompt.strip()])
     env = _workflow_process_env()

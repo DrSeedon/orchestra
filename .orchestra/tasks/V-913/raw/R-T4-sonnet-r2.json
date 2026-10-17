@@ -1,0 +1,26 @@
+{
+ "run_id": "R-T4-sonnet-r2",
+ "task": "T4",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 22811,
+ "output_tokens": 2559,
+ "input_tokens": 10,
+ "cache_read_tokens": 86367,
+ "cache_create_tokens": 20242,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.1238514,
+ "seconds": 64.4,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/r.py",
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: `app/quota_gate.py` gives the process environment captured at startup priority over `.env`. Under systemd, `EnvironmentFile` puts the old `QUOTA_GATED_LANES` into the environment, so the live `.env` edit is read but never used.\n\nEvidence:\n- `_startup_quota_env` (line 143) snapshots `os.environ` for every quota variable at import time.\n- In `_live_quota_env()` (lines 191-200), the snapshot value wins whenever it is `is not None`. The freshly parsed `.env` value is used only when the snapshot is `None`.\n- Under the systemd unit, `EnvironmentFile=.env` has already put `QUOTA_GATED_LANES=claude,sol` in the process environment. That is the old value, so the snapshot is not `None` and wins forever.\n- A plain local shell has no such variable, so the snapshot is `None`. The fresh `.env` value is used and the edit takes effect at once.\n- Your teammate's guess is wrong. The mtime check works: in my runs `_dotenv_values[\"QUOTA_GATED_LANES\"]` became `''` after the edit. That matches the debug log showing a new mtime and new parsed values. The re-read value is simply never consulted.\n- Setting `QUOTA_GATED_LANES=` to empty (what the owner did) makes no difference. In `quota_policy()`, `lanes_value` and `_parse_lanes` would turn `''` into an empty `frozenset()`, but the old non-empty environment value gets there first.\n\nReproduction (scratch/repro.py, with `_DOTENV_PATH` pointed at a temp `.env` and an mtime bump after the edit):\n- Environment variable not set (local): lanes go from `['claude','sol']` to `[]` after the edit.\n- Environment variable `QUOTA_GATED_LANES=claude,sol` set (systemd-like): lanes stay `['claude','sol']`, even though `_dotenv_values` shows `''`.\n\nI did not run the real systemd unit. I simulated it by setting the variable in the process environment, which should be equivalent. Part of my testing was muddied because my shell already had `QUOTA_GATED_LANES=claude,sol` exported. That is why my first \"local\" run showed no change. The clean `env -u` run behaves as described above.\n\nFix I recommend:\n1. In `_live_quota_env()`, make `.env` win over the startup snapshot when the key is present in `.env`. Fall back to the snapshot only for keys missing from `.env`. This matches the stated purpose of hot reload, and `.env` is the same file the unit loads.\n2. Alternatively, drop `EnvironmentFile` for these keys, or have the unit not export them. This is weaker, because the next restart will again freeze whatever is in the environment.\n3. Add a test with the variable set in the environment and a different value in `.env`. `tests/test_quota_gate.py` currently clears these variables, so it hides this case.\n\nSeparately, `GATED_LANES` and `CURVED_LANES` (lines 245-246) are frozen at import and never reload. Nothing in `app/` uses them, but they would be stale if anything did.\n\nWorkaround for now: restart the service, or remove the variable from the unit's environment."
+}

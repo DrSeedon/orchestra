@@ -1,0 +1,1 @@
+{"run_id": "R-T4-sonnet-r2", "judge": "sonnet", "ok": false, "grade": null, "raw": "{\"primary\": 1, \"supporting\": [1, 0.5, false], \"decoy_main\": false, \"reproduction\": \"ran\"}\n\nCorrection to format: the supporting list must contain only numbers.\n\n{\"primary\": 1, \"supporting\": [1, 0.5], \"decoy_main\": false, \"reproduction\": \"ran\"}"}

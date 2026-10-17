@@ -1,0 +1,27 @@
+{
+ "run_id": "R-T7-sonnet-r1",
+ "task": "T7",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 97934,
+ "output_tokens": 19713,
+ "input_tokens": 84,
+ "cache_read_tokens": 1829362,
+ "cache_create_tokens": 78137,
+ "turns": 51,
+ "cost_usd_api_equiv": 0.8757184000000002,
+ "seconds": 457.9,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/fakecli.py",
+  "scratch/repro.py",
+  "scratch/test_repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: I could not reproduce the failure, so I have no confirmed root cause. The Claude/dead-CLI hypothesis is ruled out by test. One Codex candidate remains, and I did not test it.\n\n**Where the error comes from**\n- `app/session.py::_change_runtime_chat_locked` (about line 3404) wraps `_drain_persist()` and `_disconnect_backend()` in a try block. Any `Exception` from either becomes `text_tail_source_release_failed`.\n- The UI (`app/static/js/app.js:2618`) renders that code as \"dialog switch blocked; source retained\". This path is used for any runtime change, such as Claude to Codex.\n- `_drain_persist` swallows exceptions (`gather(..., return_exceptions=True)`). So the exception must come from `backend.disconnect()`, or from the heartbeat/listen-task awaits in `_disconnect_backend` (`app/session.py:4054`).\n- On failure, `_disconnect_backend` deliberately keeps `self._backend` and the lifecycle tasks. The test `test_disconnect_failure_retains_backend_and_lifecycle_tasks` confirms this. A retry therefore calls the same `disconnect()` on the same object.\n\n**Claude backend: ruled out**\n- `ClaudeBackend.disconnect` (`app/backend_claude.py:1160`) re-raises SDK errors, but its `finally` clears `_client`. A second call is a no-op, so a retry could not fail every time.\n- I SIGKILLed a fake CLI under a real `ClaudeSDKClient`. `disconnect()` succeeded, and so did a second call.\n- I built a real `AgentSession` with a real `ClaudeBackend` over the killed fake CLI and called `change_model(\"gpt-5.6-sol\")`. It returned `ok: True`.\n- The scratch files are `scratch/fakecli.py`, `scratch/repro.py` and `scratch/test_repro.py`.\n\n**Remaining candidate (not reproduced)**\n- A failure that repeats on every retry fits `CodexBackend.disconnect` (`app/backend_codex.py:1117`) better than the Claude path. It calls `RuntimeProcessGroup.stop` (`app/runtime_process_group.py:46`).\n- `_finalize_disconnect` is what clears `_process_group`, and it runs only after `stop` returns. If `stop` raises, `_process_group` stays set. If the cgroup directory is already gone, `populated()` raises `FileNotFoundError` on every retry. The same would happen if a leftover unreaped process keeps the group \"populated\" until the timeout.\n- That would also explain why the session stays idle and retries never succeed.\n- I did not build this scenario. It is a guess, and it conflicts with the report that the dead process was a Claude CLI.\n\n**What I need to confirm it**\n- The service log line `ClaudeBackend disconnect failed: ...` or `[name] heartbeat/listen task failed on disconnect`.\n- The `backend_type` and `model` of the stuck session.\n- The `to_dict()` `runtime_connection`.\n- The exception text. `change_runtime_chat_locked` puts it in `err_text(error)`, in the `error` field of the response.\n\n**Recommended fix**\nOnce the disconnect error is identified, make `_change_runtime_chat_locked` tolerate a source whose process is already dead, as the same-runtime path at `app/session.py:3819` already does for an ambiguous source release. Concretely:\n- If `backend.is_alive` is False (or the process is gone), force-clear the backend's owned state.\n- Treat a missing cgroup path as already stopped.\n- Do not leave `self._backend` pinned to a dead object.\n\nI would not apply this blind, because the real error is still unknown."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T1-sonnet-r1",
+ "task": "T1",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 37804,
+ "output_tokens": 4550,
+ "input_tokens": 24,
+ "cache_read_tokens": 265841,
+ "cache_create_tokens": 33230,
+ "turns": 16,
+ "cost_usd_api_equiv": 0.23163620000000001,
+ "seconds": 60.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `NO_COMMITS_MERGED` is a mask, not the real failure. `normalize_merge_result` in `app/merge_operations.py` (around lines 1023-1036) overwrites any failed merge result that left `main` unmoved. The merge itself failed for some other reason, and I could not identify which one from this snapshot.\n\nEvidence:\n- `merge_worktree_to_main` in `app/workspace.py` always fills `target_before` and `target_after` in its result, including on failure.\n- Most of its failure paths don't set `commits_merged`. Examples: dirty target or worker tree, `merge-tree` precheck errors, conflicts, \"target checkout moved\", \"worker HEAD changed\", a diff-budget refusal, a prepare/journal failure, and a failed `git checkout`. On those paths `target_before == target_after` and `commits_merged` is 0 or missing.\n- `normalize_merge_result` (called from the runner near `merge_operations.py:1781`) tests only those three conditions. It never checks `raw[\"ok\"]`. So any failed result matches and is rewritten to `ok=False, code=\"NO_COMMITS_MERGED\", error=\"merge produced no new commits\"`.\n- The original `error`, `conflicts` and `state` are discarded. `_classify_failure` therefore never reaches its specific branches (TARGET_DIRTY, WORKER_DIRTY, CONFLICT, TARGET_MISSING, and so on). The orchestrator is left with the generic \"check worker\" action, and retrying gives the same answer.\n- The matching check in `app/routes/sessions.py:2102-2115` does require `result.get(\"ok\")`. Only the normalizer is too broad. Its own comment says it should apply to a \"successful response\".\n- The genuine zero-commit cases are narrower. They are the same-commit guard in `workspace.py` (around line 1347), the empty `git diff --cached` after `merge --squash` (around line 1670), and the final `target_changed` check (around line 1723). None of them fits a branch with one new commit adding `worker.txt`. So a real failure was masked.\n\nI did not run anything against the real repositories. The masked reason is probably something this code checks before merging:\n- `main` has uncommitted or untracked files in the main checkout (`_clean_worktree_error(target_wt, \"target\")`).\n- The worker tree is dirty.\n- The merge precheck failed.\n- The worker HEAD or branch drifted, or `main` moved.\n\nRecommended fix:\n1. Add `raw.get(\"ok\")` to the `no_commits_merged` condition in `normalize_merge_result`, so only a result that claims success but moved nothing is rewritten. A failed result keeps its own error, conflicts and code.\n2. To find the cause now, read the stored raw result for this operation, or the server log lines \"merge-tree failed\", \"merge_worktree squash failed\" and \"merge preparation failed\". Alternatively, run `git status --porcelain` in both the main checkout and the worker worktree. Fix whatever it reports, such as dirty files or a moved `main`, then start a new operation with a fresh `operation_id`.\n3. Add a regression test: a dirty-target failure result must normalize to `TARGET_DIRTY`, not `NO_COMMITS_MERGED`."
+}

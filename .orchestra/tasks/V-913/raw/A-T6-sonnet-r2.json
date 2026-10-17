@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T6-sonnet-r2",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 14836,
+ "output_tokens": 1958,
+ "input_tokens": 12,
+ "cache_read_tokens": 73774,
+ "cache_create_tokens": 12866,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.0858228,
+ "seconds": 30.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The worktree name for each call drops the occurrence counter that makes identical calls distinct, so byte-identical calls get the same worktree name. Your teammate's stale-directory guess isn't the cause.\n\nEvidence:\n- `ValueError: worktree already exists` is raised in `create_worktree` (`app/workspace.py:581-582`). It fires when `WORKTREE_ROOT/<repo_slug>/<name>` already exists.\n- `wf_run.py` `_call_key` (around line 517) returns `f\"{sha256(payload)}:{occurrence}\"`. The occurrence counter is what separates identical calls. Ten identical calls give `<digest>:0` through `<digest>:9`, all with the same digest.\n- In the call path (around line 818), the worktree name is `name = f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. `call_key[:12]` is only the first 12 hex characters of the digest. The `:N` suffix is cut off.\n- So all 10 identical calls get the same name, for example `wf-<run>-<digest12>-a0`.\n- With concurrency 3, the first call creates the directory. The next call's `wt_path.exists()` check then fails, and the error aborts the stage.\n- Calls with different prompts have different digests, so they never collide. That matches what you see.\n- The other per-call paths already use the full key. The scratch dir at line 655, the step file at line 775 and the archive at line 857 all use `call_key.replace(\":\", \"-\")`. Only the worktree name loses the suffix.\n- A fresh run directory and an empty `git worktree list` are consistent with this. The collision happens inside the run, between sibling calls. `create_worktree` holds `repo_mutation_lock`, but the lock only serialises the calls. The second one still sees the first one's directory.\n- I did not run a reproduction. This comes from reading the code.\n\nRecommended fix:\n- In `wf_run.py`, build the name from the full key with the colon replaced, for example `call_key.replace(\":\", \"-\")`. Alternatively, use `digest[:12]` plus `-o{occurrence}`. The result is `wf-<run24>-<digest12>-o<N>-a<attempt>`.\n- The name must stay deterministic. Resume and retry rely on the same call getting the same name, so don't use a random suffix.\n- Check the branch name too. It is `feat/<slug>/<name>`, so it becomes unique once the name does. Without this fix, a duplicate branch would hit \"checked out in another worktree\" as well.\n- Add a regression test that runs several identical calls with `tools=\"all\"` and asserts the worktree names are all different."
+}

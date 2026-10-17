@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T3-sonnet-r1",
+ "task": "T3",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 23250,
+ "output_tokens": 3601,
+ "input_tokens": 14,
+ "cache_read_tokens": 101231,
+ "cache_create_tokens": 19635,
+ "turns": 14,
+ "cost_usd_api_equiv": 0.1348242,
+ "seconds": 57.4,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Most likely, the `codex_review` MCP child process opens the default `data/orchestra.db` instead of the live server's database. That default file is unmigrated. I could not confirm this end to end, so treat it as a strong hypothesis. The teammate's guess, that the live DB is behind on schema, is not supported.\n\nEvidence:\n- `app/db.py` `_resolve_db_path()` reads `ORCHESTRA_DB_PATH` and falls back to `data/orchestra.db`. `DB_PATH` is fixed at import time.\n- `app/mcp_stdio.py` (~line 4025) calls `init_db()` inside the `codex_review` tool, on the child's own `DB_PATH`.\n- `init_db()` raises `database schema needs offline migration…` when `user_version != SCHEMA_VERSION` (1) and the file already has tables.\n- The live server calls `init_db()` in `app/main.py` (~lines 384-387) after `_resolve_db_path()`. It sees its own migrated DB, so it is healthy.\n- `app/manager.py::_make_mcp_config` builds the child env from `MCP_BASE_ENV` plus fixed keys. `MCP_BASE_ENV` is defined in `app/runtime_env.py` and carries only `PYTHONPATH` and the proxy and token variables. `ORCHESTRA_DB_PATH` is not forwarded, and I found no other place in `app/` that sets it for the child. Codex writes this env into its `config.toml`, so the child gets only these keys, unless Codex also passes its own environment through. I did not check that.\n\nReproduction: `scratch/repro.py` builds a DB with a table and `user_version=0`, then points `db.DB_PATH` at it, which is what the child resolves when the variable is missing. `init_db()` raises exactly `database schema needs offline migration before starting Orchestra`. With the variable set to a fresh path, it initializes without error. So the message is reproduced, but only for the case \"the child reads an unmigrated file\".\n\nNot reproduced or not established:\n- The snapshot has no `data/` directory and no git history. I could not inspect the real `data/orchestra.db` or its `user_version`.\n- I could not show why it started failing on 12 September, and the code did not change. The likely trigger is that the live server's DB was moved to `ORCHESTRA_DB_PATH` and migrated on 11 September, while the default file stayed stale. Before that, both paths may have pointed to the same file. This is unverified.\n\nChecks to confirm:\n1. Run `PRAGMA user_version` on `data/orchestra.db`. If the cause is right, it is 0 or a different value, not 1.\n2. Check `/proc/<mcp pid>/environ` of a running `mcp_stdio.py` for `ORCHESTRA_DB_PATH`. I expect it to be absent.\n\nRecommended fix: add `ORCHESTRA_DB_PATH` to the child env, for example in `runtime_env.MCP_BASE_ENV` or `_make_mcp_config`, so the child uses the live DB. Do not run the offline migration on the live DB, because it is already current. Separately, migrate or retire the stale default file."
+}
