@@ -1,0 +1,72 @@
+[CLAUDE.md] date=False ev=False any=False
+  - Не путать с ценами Сидона на продукт (пилот 29 900 + 9 900/мес, Оркестра 34 900/мес).
+
+[CLAUDE.md] date=False ev=False any=False
+  - biz-lead, legal-reviewer, verifier — УБИТЫ. biz-lead был прослойкой-почтальоном; юр. ревью и верификацию делает bizdev. Бизнес-воркерами управляешь сам
+
+[AGENTS.md] date=False ev=False any=False
+  - Any GPU pilot must acquire `C:\photobooth-gpu-exclusive.lock` with OS-exclusive `FileShare.None`; parallel setup/download is allowed, concurrent GPU measurements are not.
+
+[AGENTS.md] date=True ev=True any=True
+  - When attaching a delegated event handler keyed on an attribute, check that the same attribute does not also appear on an ancestor: `closest('[data-style]')` from a button inside `<section data-style=...>` matches the section too, so one tap submits twice. Bi
+
+[CLAUDE.md] date=True ev=True any=True
+  Дословно: «рынок РФ моделей ДЕРЬМО запомни… надо сделать чтобы кодекс и клауди продавать можно было, главное что РФ получает топ модели». Когда клиент просит ИИ для разработки, дизайна или работы команды, **не предлагать GigaCode, SourceCraft и другие российск
+
+[grill-me.md] date=False ev=False any=False
+  - Match the user's style: direct, without corporate language.
+
+[orchestra-agents.md] date=False ev=False any=False
+  | Project rules | `CLAUDE.md`, through the same `git pull` |
+
+[CLAUDE.md] date=True ev=False any=False
+  - 🔴 **Папка подачи на ноутбуке содержит ТОЛЬКО файлы, которые директор отправляет, пронумерованные по порядку.** Никаких инструкций, md, скриптов, черновиков в корне: всё служебное — в `_служебное/`. Инструкции по подаче не пишутся файлом вовсе: я объясняю в ч
+
+[full-cycle.md] date=False ev=True any=True
+  - Before completion, consider concrete failures for callers, old data and recovery (Pre-mortem). Run focused checks first; expand according to changed contracts and risk. A green command alone does not prove every requirement. For Python, name the relevant tes
+
+[CLAUDE.md] date=False ev=False any=False
+  - **`git add` только конкретные файлы, НИКОГДА `-A` или `.`.** Перед коммитом проверять staged на секреты (.mcp.json, .env, credentials). WIP auto-commit закоммитил OAuth-токен Директа в .mcp.json — пришлось чистить.
+
+[AGENTS.md] date=False ev=False any=True
+  - **Фотобудка.** Четыре правки владельца закрыты схемой baseline RED → fixed GREEN → своя мутация RED. Полный HTTP smoke и пиксельный гейт (`10` экранов, `3` мутационных контроля) зелёные. Однофайловое демо проверено по `file://`: восемь экранов, AFK `2 067 23
+
+[video-artifact.md] date=False ev=False any=False
+  English voice: `~/.local/share/orchestra-tts/en/` (`ORCHESTRA_TTS_EN_HOME`), with `kokoro-onnx` (MIT), `soundfile`, `kokoro-v1.0.onnx` (310 MB), and `voices-v1.0.bin` (28 MB; Kokoro-82M, Apache 2.0) from `thewh1teagle/kokoro-onnx` release `model-files-v1.0`. I
+
+[html-artifacts.md] date=False ev=False any=False
+  1. A node highlights its inputs, outputs, and linked measures; the highlight explains the dependency.
+
+[laptop-access.md] date=False ev=False any=False
+  Vault: `/mnt/data/Рабочий стол/Cursor/COG-second-brain` — existence checked in the same snapshot. The laptop's Orchestra folder is a checkout; this platform's running Orchestra instance is on the VPS. Access to the checkout does not authorize deployment or res
+
+[CLAUDE.md] date=False ev=False any=False
+  3. **Статус воркеров** — кто что делает (воркеры переживают компактификацию, память — нет)
+
+[CLAUDE.md] date=False ev=False any=True
+  Ежедневный лог бизнес-событий: `CHANGELOG-BUSINESS.md`. Обновлять после каждой сессии.
+
+[CLAUDE.md] date=False ev=False any=False
+  - **Класс А (делают агенты, проверяет директор):** тексты, SEO, мониторинг, отчёты, аудит, аналитика, новые сайты и страницы, автономные модули и боты, миграция контента. Считается по таблице ниже.
+
+[orchestration.md] date=False ev=False any=False
+  - `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead
+
+[CLAUDE.md] date=False ev=False any=False
+  🔴 **Инженерные развилки не выносим заказчику как вопросы — решаем и предлагаем.** Где работает языковая модель, как интегрируемся, какой протокол, где считается прогноз — это наша зона, и вопрос «а где у вас будет ИИ?» перекладывает на клиента нашу работу. У з
+
+[orchestrator.md] date=False ev=False any=False
+  - A table of numbers is required and is specified in `<user-answer-format>` below; the bridge renders it as an aligned monospace block. For non-numeric enumerations use `• name — value`, bullets, or numbered lists.
+
+[CLAUDE.md] date=False ev=False any=False
+  - `docs/HANDOFF-to-vps.md` — контекст переезда на VPS, чего нет в остальных файлах
+
+[orchestration.md] date=False ev=False any=False
+  **One task = one branch. One worker = one active task at a time.**
+
+[AGENTS.md] date=False ev=True any=True
+  - A per-item cost measured on real input beats the round number in the spec: a real pointer stroke produced a revision step of `7` (`1,8,15,…,134`), so 20 strokes reach `140` ticks against an accepted bound of `100`. Before changing the bound, establish WHICH 
+
+[worker.md] date=False ev=False any=False
+  - If you figured out something non-obvious — written to `.orchestra/` or project files
+
