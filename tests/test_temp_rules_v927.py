@@ -1,7 +1,10 @@
-"""V-927 — временные правила: промпт, срок, права, разовое уведомление, живая сессия."""
+"""V-927/V-934 — временные правила: файл в git, промпт, срок, права, разовое уведомление, живая сессия."""
 
 import asyncio
+import subprocess
+import sys
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,15 +17,15 @@ from app import temp_rules
 from tests.test_hot_apply import _run_one_turn, _worker
 from tests.test_session import _MockBackend
 
-ORCH_SCOPE = "/proj/a"
-ROOT = "/home/kesha/orchestra"
+ORCH_SCOPE = ROOT = B_SCOPE = ""  # real tmp git repos, set by the `env` fixture
 
 
 def iso(delta_hours: float) -> str:
     return (datetime.now(timezone.utc) + timedelta(hours=delta_hours)).isoformat()
 
 
-def session_row(name, *, scope=ORCH_SCOPE, role="orchestrator", orch=True):
+def session_row(name, *, scope=None, role="orchestrator", orch=True):
+    scope = scope or ORCH_SCOPE
     return {
         "id": f"id-{name}", "name": name, "scope": scope, "cwd": scope, "model": "test",
         "system_prompt": "", "status": "idle", "session_id": None, "cost_usd": 0.0,
@@ -47,11 +50,27 @@ def env(tmp_path, monkeypatch):
 
     monkeypatch.setattr(db, "DB_PATH", isolated)
     monkeypatch.setattr(sqlite3, "connect", guarded)
+    this = sys.modules[__name__]
+    for name in ("ORCH_SCOPE", "B_SCOPE", "ROOT"):
+        repo = tmp_path / name.lower()
+        repo.mkdir()
+        for cmd in (["init", "-q", "-b", "main"], ["config", "user.name", "t"],
+                    ["config", "user.email", "t@example.com"]):
+            subprocess.run(["git", "-C", str(repo), *cmd], check=True)
+        if name != "B_SCOPE":
+            (repo / ".orchestra").mkdir()
+            (repo / ".orchestra" / "layout.json").write_text("{}")
+        (repo / "README").write_text("x")
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-qm", "init"], check=True)
+        monkeypatch.setattr(this, name, str(repo))
     monkeypatch.setattr(temp_rules, "ORCHESTRA_SCOPE", ROOT)
+    monkeypatch.setattr(temp_rules, "_migrated", False)
+    temp_rules._warned.clear()
     db.init_db()
     actors = {
         "orch": session_row("orch-a"),
-        "other": session_row("orch-b", scope="/proj/b"),
+        "other": session_row("orch-b", scope=B_SCOPE),
         "root": session_row("Orchestra-orchestrator", scope=ROOT),
         "worker": session_row("w1", role="worker", orch=False),
     }
@@ -60,15 +79,15 @@ def env(tmp_path, monkeypatch):
     return actors
 
 
-def block(role="worker", is_orch=False, scope=ORCH_SCOPE, name="w1"):
-    return temp_rules.active_block(role=role, is_orch=is_orch, scope=scope, name=name)
+def block(role="worker", is_orch=False, scope=None, name="w1"):
+    return temp_rules.active_block(role=role, is_orch=is_orch, scope=scope or ORCH_SCOPE, name=name)
 
 
 def test_rule_reaches_target_role_only(env):
     temp_rules.add_rule(env["orch"], "USE-SONNET", "why", ["workers"], "expires", iso(1))
     assert "USE-SONNET" in block("worker", False)
     assert "USE-SONNET" not in block("orchestrator", True, name="orch-a")
-    assert "USE-SONNET" not in block("worker", False, scope="/proj/b")
+    assert "USE-SONNET" not in block("worker", False, scope=B_SCOPE)
 
 
 def test_agent_and_role_targets(env):
@@ -103,10 +122,10 @@ def test_permissions(env):
     def refused(call):
         with pytest.raises(temp_rules.RuleError) as caught:
             call()
-        assert caught.value.status_code == 403
+        assert caught.value.status_code in (403, 404)  # a foreign project's rule is not even visible
 
     refused(lambda: temp_rules.add_rule(env["worker"], "x", "why", ["all"], "expires", iso(1)))
-    refused(lambda: temp_rules.add_rule(env["orch"], "x", "why", ["all"], "expires", iso(1), project="/proj/b"))
+    refused(lambda: temp_rules.add_rule(env["orch"], "x", "why", ["all"], "expires", iso(1), project=B_SCOPE))
     refused(lambda: temp_rules.add_rule(env["orch"], "x", "why", ["all"], "expires", iso(1), project="*"))
     own = temp_rules.add_rule(env["orch"], "mine", "why", ["all"], "expires", iso(1))
     assert own["project"] == ORCH_SCOPE
@@ -248,22 +267,6 @@ def test_block_shows_mode_date_reason_and_author(env):
     assert all("orch-a" in l for l in lines.values())
 
 
-def test_old_table_without_reason_is_migrated_and_still_works(env):
-    from app import db
-    with db._conn() as conn:
-        conn.execute("DROP TABLE IF EXISTS temp_rules")
-        conn.execute(
-            """CREATE TABLE temp_rules (id TEXT PRIMARY KEY, text TEXT NOT NULL, project TEXT NOT NULL,
-            targets TEXT NOT NULL, expires_at TEXT, on_expire TEXT NOT NULL, author_session_id TEXT NOT NULL,
-            author_name TEXT NOT NULL, created_at TEXT NOT NULL, removed_at TEXT, notified_at TEXT)""")
-        conn.execute(
-            "INSERT INTO temp_rules VALUES('old-1','OLD-RULE',?,'[\"all\"]',?,'remove','id-orch-a','orch-a',?,NULL,NULL)",
-            (ORCH_SCOPE, iso(1), iso(-1)))
-    assert "OLD-RULE" in block()
-    new = temp_rules.add_rule(env["orch"], "NEW-RULE", "why", ["all"], "expires", iso(1))
-    assert {r["id"] for r in temp_rules.list_rules(env["orch"])} >= {"old-1", new["id"]}
-
-
 def test_orchestrator_module_reaches_orchestrators_not_workers():
     from app.pipeline import build_system_prompt
 
@@ -322,3 +325,142 @@ def test_no_live_recipient_keeps_notice_pending_and_warns_once(env, monkeypatch,
     # an orchestrator appears later → the same notice is delivered, not lost
     db.save_session(session_row("orch-new"))
     assert asyncio.run(temp_rules.notify_due(sender)) == 1
+
+
+def git(repo, *args):
+    return subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, check=True).stdout
+
+
+def rules_file(repo):
+    return Path(repo) / ".orchestra" / "temp-rules.yaml"
+
+
+def test_rule_is_written_to_the_project_file_and_committed_alone(env):
+    (Path(ORCH_SCOPE) / "someone-elses.txt").write_text("dirty tree")
+    (Path(ORCH_SCOPE) / "README").write_text("edited by someone")
+    rule = temp_rules.add_rule(env["orch"], "IN-GIT", "because", ["all"], "expires", iso(1))
+    assert "IN-GIT" in rules_file(ORCH_SCOPE).read_text() and rule["id"] in rules_file(ORCH_SCOPE).read_text()
+    assert git(ORCH_SCOPE, "show", "--name-only", "--format=%s", "HEAD").split() [-1] == ".orchestra/temp-rules.yaml"
+    assert rule["id"] in git(ORCH_SCOPE, "log", "-1", "--format=%s")
+    status = git(ORCH_SCOPE, "status", "--porcelain")
+    assert "someone-elses.txt" in status and "README" in status and "temp-rules" not in status
+    assert not rules_file(B_SCOPE).exists()
+
+
+def test_global_rule_lives_in_the_orchestra_repository(env):
+    rule = temp_rules.add_rule(env["root"], "EVERYWHERE", "why", ["all"], "expires", iso(1), project="*")
+    assert rule["id"] in rules_file(ROOT).read_text() and not rules_file(ORCH_SCOPE).exists()
+    assert "EVERYWHERE" in block(scope=B_SCOPE)
+
+
+def test_two_calls_in_a_row_both_land(env):
+    errors = []
+
+    def put(n):
+        try:
+            temp_rules.add_rule(env["orch"], f"RACE-{n}", "why", ["all"], "expires", iso(1))
+        except Exception as error:  # noqa: BLE001
+            errors.append(error)
+
+    threads = [threading.Thread(target=put, args=(n,)) for n in range(6)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors
+    text = block()
+    assert all(f"RACE-{n}" in text for n in range(6))
+    assert git(ORCH_SCOPE, "log", "--format=%s").count("temp-rules: set") == 6
+
+
+def test_hand_edit_is_honoured_and_bad_entries_are_skipped_once(env, caplog):
+    temp_rules.add_rule(env["orch"], "GOOD", "why", ["all"], "expires", iso(1))
+    path = rules_file(ORCH_SCOPE)
+    path.write_text(path.read_text() + (
+        "- id: rule-noreason\n  mode: permanent\n  targets: [all]\n  author: x\n  created_at: '2026-10-17'\n  text: NO-REASON\n"
+        "- id: rule-nodate\n  mode: review\n  targets: [all]\n  author: x\n  created_at: '2026-10-17'\n  text: NO-DATE\n  reason: r\n"
+        "- id: rule-hand\n  mode: permanent\n  targets: [all]\n  author: me\n  created_at: '2026-10-17'\n  text: HAND-ADDED\n  reason: r\n"))
+    with caplog.at_level("WARNING", logger="app.temp_rules"):
+        for _ in range(3):
+            text = block()
+    assert "GOOD" in text and "HAND-ADDED" in text and "NO-REASON" not in text and "NO-DATE" not in text
+    warned = [r.getMessage() for r in caplog.records]
+    assert sum("rule-noreason" in m for m in warned) == 1 and sum("rule-nodate" in m for m in warned) == 1
+
+
+def test_broken_file_never_breaks_prompt_building(env):
+    path = rules_file(ORCH_SCOPE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("rules: [unclosed")
+    assert block() == ""
+    with pytest.raises(temp_rules.RuleError) as caught:
+        temp_rules.add_rule(env["orch"], "x", "why", ["all"], "expires", iso(1))
+    assert caught.value.status_code == 409
+
+
+def test_global_entry_in_a_foreign_repository_is_ignored(env):
+    path = rules_file(B_SCOPE)
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "rules:\n- id: rule-evil\n  project: '*'\n  mode: permanent\n  targets: [all]\n  author: x\n"
+        "  created_at: '2026-10-17'\n  text: FOREIGN-GLOBAL\n  reason: r\n")
+    assert "FOREIGN-GLOBAL" not in block(scope=B_SCOPE) and "FOREIGN-GLOBAL" not in block()
+
+
+def test_commit_is_refused_off_mainline_and_nothing_is_left_behind(env):
+    git(ORCH_SCOPE, "checkout", "-q", "-b", "side")
+    with pytest.raises(temp_rules.RuleError, match="mainline"):
+        temp_rules.add_rule(env["orch"], "x", "why", ["all"], "expires", iso(1))
+    assert not rules_file(ORCH_SCOPE).exists()
+
+
+def test_failed_commit_restores_the_file(env):
+    hook = Path(ORCH_SCOPE) / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 1\n")
+    hook.chmod(0o755)
+    with pytest.raises(temp_rules.RuleError, match="commit"):
+        temp_rules.add_rule(env["orch"], "x", "why", ["all"], "expires", iso(1))
+    assert not rules_file(ORCH_SCOPE).exists() and "temp-rules" not in git(ORCH_SCOPE, "status", "--porcelain")
+
+
+def test_update_and_remove_are_committed_and_take_effect(env):
+    rule = temp_rules.add_rule(env["orch"], "LIVE", "why", ["all"], "review", iso(1))
+    temp_rules.update_rule(env["orch"], rule["id"], keep=True)
+    assert "permanent" in rules_file(ORCH_SCOPE).read_text() and "permanent" in block()
+    temp_rules.remove_rule(env["orch"], rule["id"])
+    assert "LIVE" not in block() and "remove" in git(ORCH_SCOPE, "log", "-1", "--format=%s")
+
+
+def test_database_table_is_moved_into_files_without_a_gap(env):
+    from app import db
+    with db._conn() as conn:
+        conn.execute(
+            """CREATE TABLE temp_rules (id TEXT PRIMARY KEY, text TEXT NOT NULL, project TEXT NOT NULL,
+            targets TEXT NOT NULL, expires_at TEXT, on_expire TEXT NOT NULL, author_session_id TEXT NOT NULL,
+            author_name TEXT NOT NULL, created_at TEXT NOT NULL, removed_at TEXT, notified_at TEXT,
+            reason TEXT NOT NULL DEFAULT '')""")
+        ins = "INSERT INTO temp_rules VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
+        conn.execute(ins, ("rule-old-global", "OLD-GLOBAL", "*", '["orchestrators"]', iso(24), "remove",
+                           "id-x", "Orchestra-orchestrator", iso(-1), None, None, "old reason"))
+        conn.execute(ins, ("rule-old-local", "OLD-LOCAL", ORCH_SCOPE, '["all"]', None, "notify",
+                           "id-x", "orch-a", iso(-1), None, None, ""))
+        conn.execute(ins, ("rule-old-gone", "OLD-REMOVED", ORCH_SCOPE, '["all"]', iso(5), "remove",
+                           "id-x", "orch-a", iso(-1), iso(-1), None, "r"))
+        conn.execute(ins, ("rule-old-over", "OLD-EXPIRED", ORCH_SCOPE, '["all"]', iso(-5), "remove",
+                           "id-x", "orch-a", iso(-9), None, None, "r"))
+    first = block("orchestrator", True, name="orch-a")
+    assert "OLD-GLOBAL" in first and "OLD-LOCAL" in first
+    assert "OLD-REMOVED" not in first and "OLD-EXPIRED" not in first
+    assert "old reason" in first and "OLD-GLOBAL" in rules_file(ROOT).read_text()
+    assert "move rules from the database" in git(ROOT, "log", "-1", "--format=%s")
+    with db._conn() as conn:
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "temp_rules" not in tables and "temp_rules_moved_to_git" in tables
+    temp_rules._migrated = False  # another process: nothing left to move, nothing duplicated
+    assert block("orchestrator", True, name="orch-a") == first
+    assert rules_file(ROOT).read_text().count("rule-old-global") == 1
+
+
+def test_project_without_orchestra_layout_is_refused_not_broken(env):
+    other = session_row("orch-b2", scope=B_SCOPE)
+    with pytest.raises(temp_rules.RuleError, match="layout"):
+        temp_rules.add_rule(other, "x", "why", ["all"], "expires", iso(1))
+    assert not (Path(B_SCOPE) / ".orchestra").exists()

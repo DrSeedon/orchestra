@@ -310,6 +310,9 @@ what caused it; an empty reason is refused), the targets (`all`, `orchestrators`
 `agent:<name>`), and the mode: `expires` (drops out by itself at the date), `review` (stays in force; at the
 date you are told once and then extend, make permanent or remove it) or `permanent` (no date). An orchestrator
 sets rules for its own project only; a rule for every project at once can be set only by the orchestrator of the
-Orchestra project itself.
+Orchestra project itself. Rules are stored in git, in `.orchestra/temp-rules.yaml` of the project's main checkout (rules for every
+project in the Orchestra repository), and each change is committed on its own; a hand edit or a pulled change
+takes effect from the next turn, and an entry without a reason or a required date is skipped. When two rules
+conflict, the later dated owner decision prevails (owner decision, 2026-10-17).
 
 </orchestration>

@@ -1,0 +1,16 @@
+# V-934 — temporary rules stored in git
+
+## Design
+- File: `<project main checkout>/.orchestra/temp-rules.yaml` (global `*` rules: same file in the Orchestra repository). YAML list `rules:`; entry fields `id, project (this|*), mode, expires_at, targets, author, created_at, text, reason`. `project: this` is stored instead of a path so the file is portable between machines.
+- Writes (`temp_rule_set/update/remove`): per-project `threading.Lock` around read → change → write → `git add` + `git commit --only -- .orchestra/temp-rules.yaml`. Refused (409, nothing written) when: no `.orchestra/layout.json` (a new `.orchestra/` would break the project's prompt assembly), HEAD detached or not the mainline, merge/rebase/cherry-pick in progress. Commit failure → original bytes restored.
+- Reads (prompt): every turn, own project file + Orchestra file; `*` honoured only from the Orchestra repo file. Invalid entries (no reason, no/invalid date for expires/review, bad mode/targets) skipped with one warning per entry; broken YAML → no rules + one warning; the prompt build never fails. The fingerprint mechanism of V-927 delivers hand/git edits to live sessions on their next turn.
+- Database keeps only `temp_rule_notices(scope, rule_id, due_at, notified_at)`; extending a rule changes `due_at` and re-arms the notice. Author found by name + project among live sessions; fallbacks as in V-933.
+- Permissions: orchestrators only; own project or `*`; `*` only `Orchestra-orchestrator` in the Orchestra scope. The cross-project allowance for the Orchestra orchestrator from V-927 is removed (it would have committed into another project's repository). A foreign project's rule is invisible (404), not 403.
+
+## Migration of `rule-1037e67c91`
+At the first prompt assembly after the restart `ensure_migrated()` writes the legacy `temp_rules` rows (not removed, not expired `expires`) into the files, commits them (`temp-rules: move rules from the database into git (...)`; if git refuses the file is still written so the rule never lapses), copies already-sent notice marks, and renames the table to `temp_rules_moved_to_git` (kept as evidence). The same call then reads the file, so the global rule is in the next prompt with no gap. Verify after restart: `git -C /home/kesha/orchestra log -1 -- .orchestra/temp-rules.yaml` and the rule in `temp_rule_list`.
+
+## Checks
+`uv run --frozen python -m pytest tests/test_temp_rules_v927.py tests/test_routes_surface.py tests/test_hot_apply.py tests/test_session.py tests/test_mcp_stdio.py tests/test_default_pipeline.py -q` → 496 passed. New tests use real temporary git repos (never the live checkout or database): file written and committed alone with a dirty tree, global rule location, 6 concurrent calls all landing, hand edit + bad entries warned once, broken file, foreign `*` ignored, off-mainline refusal, failed-commit restore, update/remove commits, no-layout refusal, table migration (idempotent). Mutations: per-call fresh lock reddens the race test; commit with `-a` instead of `--only` reddens the commit-alone test. Not verified: behaviour against the live main checkout (`merge_worker` and the service committing at the same moment).
+
+Restart needed (Python). Existing `rule-1037e67c91` moves on that restart.
