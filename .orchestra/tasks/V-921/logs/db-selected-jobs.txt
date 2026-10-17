@@ -1,0 +1,5 @@
+bg-18ddf406a4|research-video-style|||triggered|2026-10-17T07:01:44.271594+00:00
+bg-365b4e3d07|rilsy|||triggered|2026-10-17T07:42:50.947035+00:00
+bg-73314b6a94|video-platforma|||triggered|2026-10-17T07:00:15.870337+00:00
+bg-b46f75d5f5|rilsy|||failed|2026-10-17T07:44:41.548319+00:00
+bg-dc64eb05e4|gamelab-bots|||failed|2026-10-17T07:37:00.001515+00:00
