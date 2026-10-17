@@ -1,0 +1,244 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Временные правила — V-929</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mv{max-width:980px;margin:16px auto;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px #0000000d,0 6px 20px #0000000a}
+.mv h1{font-size:21px;margin:0 0 8px;letter-spacing:-.01em}.stg{overflow-x:auto}.stg>svg{width:100%;min-width:680px;height:auto;display:block}
+.cap{position:relative;min-height:4.4em;margin:8px 0}.cap b{display:block;font-size:16px}#capB{position:absolute;inset:0 0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:#f5f5f7;color:#1d1d1f;cursor:pointer;transition:transform .25s cubic-bezier(.3,1.5,.5,1),background-color .2s}
+.bar button:hover{background:#e8e8ed}.bar button:active{transform:scale(.88)}.bar svg{width:14px;height:14px;fill:currentColor}
+#bPlay{width:40px;height:40px;background:#007aff;color:#fff}#bPlay:hover{background:#0071e3}#bPlay svg{width:16px;height:16px}
+#bPlay path{transition:opacity .2s,transform .3s cubic-bezier(.3,1.5,.5,1);transform-box:fill-box;transform-origin:center}#bPlay .i2,#bPlay.on .i1{opacity:0;transform:scale(.4)}#bPlay.on .i2{opacity:1;transform:none}
+#seek{flex:1;min-width:140px;-webkit-appearance:none;appearance:none;height:4px;margin:0 4px;border-radius:2px;background:linear-gradient(#007aff 0 0) 0/var(--p,0%) 100% no-repeat,#e5e5ea;cursor:pointer}
+#seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek:hover::-webkit-slider-thumb{transform:scale(1.2)}#seek:hover::-moz-range-thumb{transform:scale(1.2)}
+#clock{font-variant-numeric:tabular-nums;min-width:92px;text-align:right;color:#6e6e73}.bar select{border:0;background:#f5f5f7;border-radius:8px;padding:6px 8px;font:inherit;cursor:pointer}
+.ch{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none}
+.ch li{--o:0;padding:3px 10px;border-radius:8px;cursor:pointer;background:color-mix(in srgb,#007aff calc(var(--o)*100%),#f5f5f7);color:color-mix(in srgb,#fff calc(var(--o)*100%),#1d1d1f)}.ch li:hover{filter:brightness(.96)}
+@media print{.bar{display:none}}@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="mv">
+<h1>Title: what we explain</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1280 590" role="img" aria-labelledby="st"><title id="st">Временные правила для агентов Orchestra</title>
+<defs>
+ <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#232b52"/><stop offset="1" stop-color="#1a2040"/></linearGradient>
+ <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f3d99c" stop-opacity=".55"/><stop offset="1" stop-color="#f3d99c" stop-opacity="0"/></radialGradient>
+ <radialGradient id="scr" cx=".45" cy=".4" r=".8"><stop offset="0" stop-color="#fbeec0"/><stop offset="1" stop-color="#e6cf8a"/></radialGradient>
+</defs>
+<g id="room">
+ <rect x="60" y="0" width="1160" height="600" fill="url(#wall)"/>
+ <rect x="60" y="405" width="1160" height="200" fill="#151a31"/>
+ <ellipse cx="640" cy="270" rx="430" ry="250" fill="url(#glow)"/>
+ <g><rect x="955" y="68" width="160" height="190" fill="#10152e" stroke="#46507c" stroke-width="7"/><path d="M1035 68V258M955 163H1115" stroke="#46507c" stroke-width="6"/>
+  <circle cx="1072" cy="112" r="22" fill="#e7e1c8"/><circle cx="1065" cy="106" r="4" fill="#cfc8ad"/><circle cx="1080" cy="119" r="3" fill="#cfc8ad"/>
+  <circle cx="985" cy="98" r="2" fill="#cfd5ea"/><circle cx="1000" cy="215" r="2" fill="#cfd5ea"/><circle cx="1090" cy="200" r="2" fill="#cfd5ea"/></g>
+ <g><circle cx="860" cy="100" r="36" fill="#e9e5d8" stroke="#2b2b30" stroke-width="6"/>
+  <line id="hh" x1="860" y1="100" x2="860" y2="80" stroke="#222" stroke-width="5" stroke-linecap="round"/>
+  <line id="hm" x1="860" y1="100" x2="860" y2="72" stroke="#222" stroke-width="3" stroke-linecap="round"/></g>
+ <g><rect x="165" y="70" width="170" height="135" rx="4" fill="#d9d4c6"/><rect x="165" y="70" width="170" height="34" rx="4" fill="#8f3b26"/>
+  <text x="250" y="93" text-anchor="middle" font-size="17" font-weight="700" fill="#f5efe4">Октябрь 2026</text>
+  <g fill="#7d7a73" id="calDots"></g><circle cx="281" cy="165" r="11" fill="none" stroke="#c9551b" stroke-width="3"/></g>
+ <path d="M400 385L440 352H900L940 385Z" fill="#6b3324"/><rect x="400" y="385" width="540" height="16" fill="#4e2419"/>
+ <rect x="418" y="401" width="16" height="140" fill="#43201a"/><rect x="906" y="401" width="16" height="140" fill="#43201a"/>
+ <rect x="518" y="186" width="244" height="134" rx="14" fill="#d8cfb5" stroke="#9a8f74" stroke-width="2"/>
+ <rect x="530" y="198" width="220" height="108" rx="8" fill="url(#scr)"/>
+ <rect x="612" y="320" width="56" height="22" fill="#bdb398"/><rect x="588" y="342" width="104" height="10" rx="3" fill="#a99f84"/>
+ <circle cx="752" cy="312" r="2.5" fill="#6fbf73"/>
+ <g id="mini" opacity="0"><use id="miniUse" href="#agents"/></g>
+ <path d="M990 352L1002 300L968 278" fill="none" stroke="#3a2a22" stroke-width="7" stroke-linecap="round"/>
+ <path d="M940 290Q955 255 990 262L978 300Z" fill="#c9551b"/><ellipse cx="992" cy="352" rx="26" ry="6" fill="#3a2a22"/>
+ <rect x="440" y="290" width="92" height="120" rx="10" fill="#7a2e1f"/><rect x="452" y="410" width="68" height="12" fill="#5d2318"/><rect x="480" y="422" width="10" height="70" fill="#2a2730"/>
+ <path d="M440 500H530" stroke="#2a2730" stroke-width="8" stroke-linecap="round"/>
+</g>
+
+<g id="agentsLayer" opacity="0">
+ <g id="agents">
+  <rect x="90" y="330" width="300" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="240" y="393" text-anchor="middle" font-size="36">воркер</text><path d="M640 140L240 330" stroke="#c9ced8" stroke-width="3" fill="none"/><rect x="490" y="330" width="300" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="640" y="393" text-anchor="middle" font-size="36">воркер</text><path d="M640 140L640 330" stroke="#c9ced8" stroke-width="3" fill="none"/><rect x="890" y="330" width="300" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="1040" y="393" text-anchor="middle" font-size="36">воркер</text><path d="M640 140L1040 330" stroke="#c9ced8" stroke-width="3" fill="none"/>
+  <rect x="470" y="40" width="340" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <text x="640" y="104" text-anchor="middle" font-size="38" font-weight="600">оркестратор</text>
+ </g>
+ <g id="tagO" opacity="0"><rect x="290" y="70" width="150" height="40" rx="8" fill="#eef0f3"/>
+  <text x="365" y="98" text-anchor="middle" font-size="22" fill="#6b7280">правила</text></g>
+ <g id="tag0" opacity="0"><rect x="165" y="444" width="150" height="40" rx="8" fill="#eef0f3"/><text x="240" y="472" text-anchor="middle" font-size="22" fill="#6b7280">правила</text></g><g id="tag1" opacity="0"><rect x="565" y="444" width="150" height="40" rx="8" fill="#eef0f3"/><text x="640" y="472" text-anchor="middle" font-size="22" fill="#6b7280">правила</text></g><g id="tag2" opacity="0"><rect x="965" y="444" width="150" height="40" rx="8" fill="#eef0f3"/><text x="1040" y="472" text-anchor="middle" font-size="22" fill="#6b7280">правила</text></g>
+ <g id="ruleTab" opacity="0"><rect id="ruleTabR" x="840" y="66" width="300" height="48" rx="10" fill="#d6e8f4" stroke="#0e5e9c" stroke-width="2"/>
+  <text id="ruleTabT" x="990" y="98" text-anchor="middle" font-size="24" fill="#0e5e9c">временное правило ✓</text></g>
+</g>
+<g id="sheetLayer" opacity="0">
+ <rect x="330" y="40" width="520" height="430" rx="10" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+ <text x="370" y="95" font-size="30" font-weight="600">правила агента</text>
+ <g fill="#dfe2e8"><rect x="370" y="125" width="420" height="14" rx="7"/><rect x="370" y="160" width="360" height="14" rx="7"/>
+  <rect x="370" y="195" width="400" height="14" rx="7"/><rect x="370" y="230" width="300" height="14" rx="7"/></g>
+ <g id="st0" opacity="0" transform="rotate(-4 510 170)"><rect x="400" y="120" width="220" height="100" rx="4" fill="#f6e3a1" stroke="#e2c86f"/><text x="510" y="180" text-anchor="middle" font-size="24" fill="#5b4a12">пока делай так</text></g><g id="st1" opacity="0" transform="rotate(5 720 140)"><rect x="610" y="90" width="220" height="100" rx="4" fill="#f6e3a1" stroke="#e2c86f"/><text x="720" y="150" text-anchor="middle" font-size="24" fill="#5b4a12">временно!</text></g><g id="st2" opacity="0" transform="rotate(3 580 280)"><rect x="470" y="230" width="220" height="100" rx="4" fill="#f6e3a1" stroke="#e2c86f"/><text x="580" y="290" text-anchor="middle" font-size="24" fill="#5b4a12">до релиза</text></g><g id="st3" opacity="0" transform="rotate(-6 810 300)"><rect x="700" y="250" width="220" height="100" rx="4" fill="#f6e3a1" stroke="#e2c86f"/><text x="810" y="310" text-anchor="middle" font-size="24" fill="#5b4a12">не трогать X</text></g><g id="st4" opacity="0" transform="rotate(-2 670 220)"><rect x="560" y="170" width="220" height="100" rx="4" fill="#f6e3a1" stroke="#e2c86f"/><text x="670" y="230" text-anchor="middle" font-size="24" fill="#5b4a12">срочно так</text></g>
+ <g id="harm" opacity="0" font-size="30" fill="#c9551b">
+  <text x="900" y="160">✗ забыли снять</text><text x="900" y="230">✗ мешает</text><text x="900" y="300">✗ токены</text>
+  <text x="935" y="340" font-size="24">на каждом шаге</text></g>
+</g>
+<g id="flagLayer" opacity="0">
+ <rect x="340" y="70" width="600" height="320" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+ <text x="390" y="140" font-size="34" font-weight="600">⚑ временный флаг</text>
+ <text id="flagOwner" x="390" y="230" font-size="32" fill="#0e5e9c" opacity="0">хозяин: тот, кто завёл</text>
+ <text id="flagTtl" x="390" y="310" font-size="32" fill="#0e5e9c" opacity="0">срок годности: дата</text>
+</g>
+<g id="cardLayer" opacity="0">
+ <rect id="card" x="190" y="30" width="900" height="420" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+ <text x="230" y="80" font-size="26" fill="#6b7280">временное правило</text>
+ <text id="rule1" x="230" y="145" font-size="32"></text>
+ <text id="rule2" x="230" y="195" font-size="32"></text>
+ <text x="230" y="285" font-size="26" fill="#6b7280">кому</text>
+ <g id="chip0"><rect id="chipR0" x="330" y="252" width="210" height="50" rx="25" fill="#eef0f3"/><text id="chipT0" x="435.0" y="285" text-anchor="middle" font-size="24" fill="#3b3e46">всем в проекте</text></g><g id="chip1"><rect id="chipR1" x="555" y="252" width="210" height="50" rx="25" fill="#eef0f3"/><text id="chipT1" x="660.0" y="285" text-anchor="middle" font-size="24" fill="#3b3e46">оркестраторам</text></g><g id="chip2"><rect id="chipR2" x="780" y="252" width="150" height="50" rx="25" fill="#eef0f3"/><text id="chipT2" x="855.0" y="285" text-anchor="middle" font-size="24" fill="#3b3e46">воркерам</text></g><g id="chip3"><rect id="chipR3" x="945" y="252" width="190" height="50" rx="25" fill="#eef0f3"/><text id="chipT3" x="1040.0" y="285" text-anchor="middle" font-size="24" fill="#3b3e46">одному агенту</text></g>
+ <text x="230" y="380" font-size="26" fill="#6b7280">срок</text>
+ <text id="due" x="330" y="381" font-size="30" class="mono" opacity="0">вт 20.10, 07:00 UTC</text>
+</g>
+<g id="timeLayer" opacity="0">
+ <path d="M150 120H1130" stroke="#c9ced8" stroke-width="4"/>
+ <path d="M900 85V155" stroke="#c9551b" stroke-width="4"/><text x="900" y="72" text-anchor="middle" font-size="26" fill="#c9551b">срок</text>
+ <circle id="now" cx="200" cy="120" r="14" fill="#0e5e9c"/>
+ <g id="mode1" opacity="0"><rect x="150" y="220" width="460" height="200" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <text x="180" y="275" font-size="28" fill="#6b7280">режим 1</text>
+  <text x="180" y="335" font-size="34" font-weight="600">снимается само</text>
+  <text id="mode1v" x="180" y="390" font-size="28" fill="#0e5e9c" opacity="0">✓ из промпта ушло</text></g>
+ <g id="mode2" opacity="0"><rect x="670" y="220" width="460" height="200" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <text x="700" y="275" font-size="28" fill="#6b7280">режим 2: автору, один раз</text>
+  <text id="ask1" x="700" y="335" font-size="30" font-weight="600"></text>
+  <text id="ask2" x="700" y="390" font-size="28" fill="#0e5e9c"></text></g>
+</g>
+<g id="prosLayer" opacity="0"><text id="pro0" x="170" y="90" font-size="34" fill="#0e5e9c" opacity="0">✓  не забывается и не копится</text><text id="pro1" x="170" y="182" font-size="34" fill="#0e5e9c" opacity="0">✓  у правила виден хозяин</text><text id="pro2" x="170" y="274" font-size="34" fill="#0e5e9c" opacity="0">✓  права разделены: на все проекты — только главный оркестратор</text><text id="pro3" x="170" y="366" font-size="34" fill="#0e5e9c" opacity="0">✓  без интерфейса: только инструменты агентов</text></g>
+<g id="consLayer" opacity="0">
+ <text x="150" y="110" font-size="26" fill="#6b7280">промпт агента</text>
+ <rect id="cache" x="150" y="140" width="980" height="30" rx="8" fill="#d6e8f4"/>
+ <text id="cacheT" x="160" y="163" font-size="20" fill="#0e5e9c">кеш</text>
+ <rect x="150" y="200" width="250" height="80" rx="10" fill="#eef0f3" stroke="#eef0f3" stroke-width="2"/><text x="275.0" y="250" text-anchor="middle" font-size="26" fill="#3b3e46">роль</text><rect x="410" y="200" width="310" height="80" rx="10" fill="#eef0f3" stroke="#eef0f3" stroke-width="2"/><text x="565.0" y="250" text-anchor="middle" font-size="26" fill="#3b3e46">правила проекта</text><rect x="730" y="200" width="200" height="80" rx="10" fill="#eef0f3" stroke="#eef0f3" stroke-width="2"/><text x="830.0" y="250" text-anchor="middle" font-size="26" fill="#3b3e46">память</text><rect x="940" y="200" width="190" height="80" rx="10" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><text x="1035.0" y="250" text-anchor="middle" font-size="26" fill="#c9551b">временные</text>
+ <text id="cons1" x="150" y="370" font-size="32" fill="#c9551b" opacity="0">✗ смена правила один раз сбрасывает кеш</text>
+ <text id="cons2" x="150" y="430" font-size="30" fill="#0e5e9c" opacity="0">поэтому блок — в самом конце, а правила — редкие</text>
+</g>
+<g id="textLayer" opacity="0">
+ <text x="640" y="200" text-anchor="middle" font-size="44" font-weight="600">правило = текст для модели</text>
+ <text id="noLock" x="640" y="300" text-anchor="middle" font-size="34" fill="#c9551b" opacity="0">✗ модель может нарушить: замка нет</text>
+</g>
+</svg></div>
+<div class="cap"><div id="capA" aria-live="polite"><b id="capT"></b><span id="capX"></span></div><div id="capB" aria-hidden="true"><b></b><span></span></div></div>
+<div class="bar"><button id="bPrev" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Play or pause"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Time"><span id="clock"></span>
+ <select id="rate" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+<ol class="ch" id="chap"></ol>
+</div>
+<script>
+// ── SCENE ──
+Paper.install();
+const PIC = Paper.picture('room', {x: 96, y: 18, w: 1088, h: 556});
+const VIEW = {from: [640, 252], to: [640, 235], scale: 5};
+$('miniUse').setAttribute('transform', Paper.miniature(VIEW));
+(() => { const c = $('calDots'); for (let k = 0; k < 28; k++) { const e = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  Object.entries({x: 176 + (k % 7) * 22, y: 116 + Math.floor(k / 7) * 22, width: 12, height: 9, rx: 2}).forEach(([a, v]) => e.setAttribute(a, v)); c.append(e); } })();
+const STEPS = [
+ {t: 'Команда агентов', say: 'Оркестра это команда ИИ-агентов: оркестратор раздаёт задачи, а воркеры их выполняют.',
+  sub: 'Orchestra — команда ИИ-агентов: оркестратор раздаёт задачи, воркеры их выполняют.', set: {mini: {opacity: 1}}, w: {mini: [.2, .35]}},
+ {t: 'Правила', say: 'Каждый агент работает по правилам: это текст, который модель перечитывает на каждом шаге.',
+  set: {tagO: {opacity: 1}, tag0: {opacity: 1}, tag1: {opacity: 1}, tag2: {opacity: 1}},
+  w: {tagO: [.35, .5], tag0: [.45, .6], tag1: [.5, .65], tag2: [.55, .7]}},
+ {t: 'Заплатка', say: 'Иногда нужна срочная заплатка: «пока делай так». Её дописывают в правила.',
+  set: {sheetLayer: {opacity: 1}, st0: {opacity: 1}}, w: {sheetLayer: [.1, .25], st0: [.55, .7]}},
+ {t: 'Навсегда', say: 'А дальше она живёт вечно: про неё забывают, она мешает, и каждый шаг тратит на неё токены.',
+  set: {st1: {opacity: 1}, st2: {opacity: 1}, st3: {opacity: 1}, st4: {opacity: 1}, harm: {opacity: 1}},
+  w: {st1: [.05, .15], st2: [.12, .22], st3: [.19, .29], st4: [.26, .36], harm: [.4, .55]}},
+ {t: 'Флаги', say: 'В разработке это знакомая история временных флагов: у каждого есть хозяин и срок годности.',
+  set: {sheetLayer: {opacity: 0}, flagLayer: {opacity: 1}, flagOwner: {opacity: 1}, flagTtl: {opacity: 1}},
+  w: {sheetLayer: [0, .1], flagLayer: [.08, .2], flagOwner: [.6, .7], flagTtl: [.75, .85]}},
+ {t: 'Временные правила', say: 'Теперь в Оркестре есть временные правила. Оркестратор пишет правило, выбирает, кому оно, и ставит срок.',
+  sub: 'Теперь в Orchestra есть временные правила. Оркестратор пишет правило, выбирает, кому оно, и ставит срок.',
+  set: {flagLayer: {opacity: 0}, cardLayer: {opacity: 1}, due: {opacity: 1}}, w: {flagLayer: [0, .1], cardLayer: [.08, .2], due: [.8, .9]}},
+ {t: 'Пример', say: 'Пример: до вторника Соннет берёт простое, Опус сложное, а Луна даёт только второе мнение. Так мы выжигаем недельный лимит Клода.',
+  sub: 'Пример: до вторника Sonnet — простое, Opus — сложное, Luna — только второе мнение. Так выжигаем недельный лимит Claude.',
+  set: {chipR1: {fill: '#d6e8f4', stroke: '#0e5e9c'}, chipT1: {fill: '#0e5e9c'}}, w: {chipR1: [.55, .65], chipT1: [.55, .65]}},
+ {t: 'Со следующего хода', say: 'Правило появляется у нужных агентов со следующего хода, без перезапуска.',
+  set: {cardLayer: {opacity: 0}, ruleTab: {opacity: 1}}, w: {cardLayer: [0, .12], ruleTab: [.4, .55]}},
+ {t: 'Режим 1', say: 'Когда срок выходит, есть два режима. Либо правило снимается само.',
+  set: {timeLayer: {opacity: 1}, now: {cx: 900}, mode1: {opacity: 1}, mode1v: {opacity: 1}},
+  w: {timeLayer: [.1, .22], now: [.2, .6], mode1: [.55, .7], mode1v: [.8, .92]}},
+ {t: 'Режим 2', say: 'Либо автору один раз приходит вопрос: продлить, оставить или снять.', set: {mode2: {opacity: 1}}, w: {mode2: [0, .12]}},
+ {t: 'Плюсы', say: 'Что хорошо: правило не забудется и не накопится, хозяин виден, права разделены, и никакого интерфейса.',
+  set: {timeLayer: {opacity: 0}, prosLayer: {opacity: 1}, pro0: {opacity: 1}, pro1: {opacity: 1}, pro2: {opacity: 1}, pro3: {opacity: 1}},
+  w: {timeLayer: [0, .08], prosLayer: [.06, .12], pro0: [.1, .2], pro1: [.32, .42], pro2: [.48, .58], pro3: [.68, .78]}},
+ {t: 'Минус: кеш', say: 'Что плохо. Каждое появление или снятие правила один раз сбрасывает кеш промпта у этих агентов, а пересоздание кеша на подписке стоит денег.',
+  set: {prosLayer: {opacity: 0}, consLayer: {opacity: 1}, cache: {fill: '#fde4d0'}, cons1: {opacity: 1}},
+  w: {prosLayer: [0, .08], consLayer: [.06, .14], cache: [.45, .55], cons1: [.5, .62]}},
+ {t: 'Поэтому', say: 'Поэтому блок стоит в самом конце промпта, а правила должны быть редкими.', set: {cons2: {opacity: 1}}, w: {cons2: [.05, .2]}},
+ {t: 'Не замок', say: 'И правило это просто текст для модели: она может его нарушить, механического замка нет.', sub: 'И правило — это просто текст для модели: она может его нарушить, механического замка нет.',
+  set: {consLayer: {opacity: 0}, textLayer: {opacity: 1}, noLock: {opacity: 1}}, w: {consLayer: [0, .1], textLayer: [.08, .2], noLock: [.55, .7]}},
+ {t: 'Итог', say: 'Срочное правило теперь живёт со сроком годности.', hold: 1.4,
+  set: {textLayer: {opacity: 0}}, w: {textLayer: [0, .15]}},
+];
+STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);
+STEPS.forEach(s => s.d ??= Math.max(3, s.say.length / 14));  // браузерный просмотр без озвучки
+function draw(i, p, t) {
+  const st = []; let at = 0; for (const s of STEPS) { st.push(at); at += s.d; }
+  const last = st.length - 1, d0 = STEPS[0].d;
+  Paper.brush(PIC, t, 0, 1.2);
+  // наезд в монитор в начале; в конце тот же путь назад (время отражено)
+  const tc = t < st[last] ? t : st[1] - (t - st[last]) * (st[1] - .4 * d0) / (STEPS[last].d * .6);
+  Paper.camera(PIC, Math.max(tc, 0), {...VIEW, t0: .4 * d0, t1: st[1] - .15});
+  $('room').setAttribute('opacity', (1 - Paper.fade(t, st[1] - .1) + Paper.fade(t, st[last] - .05)).toFixed(3));
+  // схема агентов: шаги 1–2 и 8 (там правило доходит до оркестратора)
+  const ag = Paper.fade(t, st[1] - .15) - Paper.fade(t, st[2], .3) + Paper.fade(t, st[7] + STEPS[7].d * .1, .35) - Paper.fade(t, st[8], .3);
+  $('agentsLayer').setAttribute('opacity', Math.max(0, ag).toFixed(3));
+  $('hm').setAttribute('transform', `rotate(${(300 + t * 9).toFixed(2)} 860 100)`);
+  $('hh').setAttribute('transform', `rotate(${(-40 + t * .75).toFixed(2)} 860 100)`);
+  const s6 = st[6], d6 = STEPS[6].d;
+  Paper.type($('rule1'), 'До вторника: Sonnet — простое, Opus — сложное,', t, s6 + .1, s6 + .1 + d6 * .3, {cursor: false});
+  Paper.type($('rule2'), 'Luna — только второе мнение.', t, s6 + .1 + d6 * .3, s6 + .1 + d6 * .45, {cursor: t < st[7]});
+  const s9 = st[9], d9 = STEPS[9].d;
+  Paper.type($('ask1'), 'срок вышел — реши:', t, s9 + .2, s9 + .2 + d9 * .3, {cursor: false});
+  Paper.type($('ask2'), 'продлить · оставить · снять', t, s9 + .2 + d9 * .3, s9 + .2 + d9 * .7, {cursor: t < st[10]});
+}
+// ── PLAYER ──
+function $(id){return document.getElementById(id)} // function declaration is hoisted; scenes may call $ before the player
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),SK=7;
+const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // critically damped spring
+const hex=/^#[0-9a-f]{6}$/i,mix=(a,b,p)=>typeof a=='number'&&typeof b=='number'?a+(b-a)*p:hex.test(a)&&hex.test(b)?'#'+[1,3,5].map(k=>Math.round(parseInt(a.substr(k,2),16)*(1-p)+parseInt(b.substr(k,2),16)*p).toString(16).padStart(2,'0')).join(''):p>0?b:a;
+const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-motion: reduce)').matches,FADE=.5,sp=EASE.spring;let T=0,t=0,on=false,last=0,ci=-1,gl=null;
+ const get=(e,a)=>{const v=a=='text'?e.textContent:e.getAttribute(a);return v!==null&&v!==''&&!isNaN(v)?+v:v};
+ // each attribute has its own segment list {t0,t1,a,b}; value holds between segments
+ for(const s of STEPS){for(const[id,o]of Object.entries(s.set||{}))for(const[a,v]of Object.entries(o)){const e=E[id]??=$(id),L=(TL[id]??={})[a]??=Object.assign([],{v0:get(e,a)}),
+   to=Array.isArray(v)?v[1]:v,st=a=='text'||/opacity/.test(a)||typeof to=='string',w=s.w?.[id];
+   L.push({t0:T+(w?w[0]*s.d:0),t1:T+(w?w[1]*s.d:st?Math.min(s.d,FADE):s.d),a:Array.isArray(v)?v[0]:(L.length?L.at(-1).b:L.v0)??to,b:to,e:s.e,st,m0:0,m1:0})}
+  S.push(T);T+=s.d}
+ // same-direction motion joins with shared velocity (monotone Fritsch–Butland spline)
+ for(const id in TL)for(const a in TL[id]){const L=TL[id][a];for(let k=1;k<L.length;k++){const x=L[k-1],y=L[k],h0=x.t1-x.t0,h1=y.t1-y.t0,d0=(x.b-x.a)/h0,d1=(y.b-y.a)/h1;
+   if(!x.st&&!y.st&&!x.e&&!y.e&&Math.abs(x.t1-y.t0)<1e-9&&x.b===y.a&&d0*d1>0)x.m1=y.m0=3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1)}}
+ for(const id in TL){const e=E[id],o=TL[id];if(o.along||!(o.text||o.opacity))continue;FX[id]=1;
+  if(o.text){const g=G[id]=e.cloneNode(true);g.removeAttribute('id');g.setAttribute('aria-hidden','true');e.after(g)}
+  for(const x of[e,G[id]])if(x)Object.assign(x.style,{transformBox:'fill-box',transformOrigin:'center'})}
+ const val=(L,t)=>{let g=null;for(const s of L)if(s.t0<t||s.t0<=0&&t<=0)g=s;if(!g)return[L.v0,1,L.v0,L.v0];
+  const h=g.t1-g.t0,p=h>0?clamp((t-g.t0)/h):1;if(p>=1)return[g.b,1,g.a,g.b];
+  if(g.m0||g.m1){const p2=p*p,p3=p2*p;return[(2*p3-3*p2+1)*g.a+(p3-2*p2+p)*h*g.m0+(3*p2-2*p3)*g.b+(p3-p2)*h*g.m1,p,g.a,g.b]}
+  const q=(EASE[g.e]||sp)(p);return[mix(g.a,g.b,q),q,g.a,g.b]};
+ const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // text change: old leaves before new appears, so letters do not overlap
+ const put=(e,a,v)=>{const c=e._c??={};if(c[a]===v)return;c[a]=v;a=='text'?e.textContent=v:a=='css'?e.style.transform=v:a[0]=='-'?e.style.setProperty(a,v):e.setAttribute(a,v)};
+ function frame(te){for(const id in TL){const e=E[id],o=TL[id],g=G[id],v={};for(const a in o)v[a]=val(o[a],te);let dy=0,gy=0,k=0;
+   for(const a in v)if(a!='text'&&a!='along'&&a!='at'&&v[a][0]!=null)put(e,a,v[a][0]);
+   if(v.opacity){const[,q,f,b]=v.opacity;k=f==0&&b!=0?1-q:b==0&&f!=0?q:0}
+   if(v.text&&!g)put(e,'text',v.text[0]);
+   if(g){const[x,q,f,b]=v.text,x2=f!==b&&q<1;put(e,'text',x2?b:x);put(g,'text',f);put(e,'fill-opacity',x2?xin(q):1);put(g,'fill-opacity',x2?xout(q):0);
+    if(x2){dy=(1-q)*6;gy=-q*6}for(const a in v)if(a!='text'&&a!='along'&&a!='at')put(g,a,e.getAttribute(a));if(v.along)put(g,'transform',e.getAttribute('transform'))}
+   if(FX[id]){const tf=d=>`translateY(${(d+k*6).toFixed(2)}px) scale(${(1-.03*k).toFixed(4)})`;put(e,'css',tf(dy));if(g)put(g,'css',tf(gy))}
+   if(v.along){const p=$(v.along[0]),pt=p.getPointAtLength(clamp(v.at?.[0]??0)*p.getTotalLength());put(e,'transform',`translate(${pt.x.toFixed(2)},${pt.y.toFixed(2)})`)}}}
+ const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
+ function seek(v){t=clamp(v,0,T);const i=at(t);frame(rm?end(i):t);if(typeof draw=='function')draw(i,rm?1:clamp((t-S[i])/STEPS[i].d),t);
+  if(i!==ci){ci=i;$('capT').textContent=(i+1)+'. '+STEPS[i].t;$('capX').textContent=STEPS[i].x;const B=$('capB').children;B[0].textContent=i?i+'. '+STEPS[i-1].t:'';B[1].textContent=i?STEPS[i-1].x:'';
+   [...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}
+  const q=rm||!i?1:sp(clamp((t-S[i])/FADE));[...$('chap').children].forEach((li,k)=>put(li,'--o',k==i?q:k==i-1?1-q:0));$('capA').style.cssText=`opacity:${xin(q)};transform:translateY(${(1-q)*6}px)`;$('capB').style.cssText=`opacity:${xout(q)};transform:translateY(${-q*6}px)`;
+  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' s'}
+ function tick(now){if(!on)return;seek(t+Math.max(0,now-last)/1000*$('rate').value);last=now;t>=T?pause():requestAnimationFrame(tick)}
+ function play(){gl=null;if(t>=T)t=0;on=true;last=performance.now();$('bPlay').classList.add('on');requestAnimationFrame(tick)}
+ function pause(){on=false;gl=null;$('bPlay').classList.remove('on')}
+ function glide(to){pause();if(rm)return seek(to);const a=t,t0=performance.now(),g=gl={to},f=now=>{if(gl!==g)return;const q=clamp((now-t0)/400);seek(q<1?a+(to-a)*EASE.out(q):to);if(q<1)requestAnimationFrame(f);else gl=null};requestAnimationFrame(f)}
+ const toggle=()=>on?pause():play(),next=()=>{const c=gl?gl.to:t,i=at(c);glide(c<end(i)-1e-3?end(i):end(Math.min(i+1,S.length-1)))},prev=()=>{const c=gl?gl.to:t,i=at(c);glide(i?end(i-1):0)};
+ $('seek').max=T;$('seek').oninput=e=>{pause();seek(+e.target.value)};$('bPlay').onclick=toggle;$('bNext').onclick=next;$('bPrev').onclick=prev;
+ STEPS.forEach((s,k)=>{const li=document.createElement('li');li.textContent=(k+1)+'. '+s.t;li.onclick=()=>{seek(S[k]);play()};$('chap').append(li)});
+ addEventListener('keydown',e=>{const f={' ':toggle,ArrowRight:next,ArrowLeft:prev,Home:()=>{pause();seek(0)},End:()=>{pause();seek(T)}}[e.key];if(f&&e.target.tagName!='SELECT'){e.preventDefault();f()}});
+ seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return t},T,S}})();
+</script></body></html>
