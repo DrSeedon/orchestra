@@ -1773,3 +1773,71 @@ async def test_v886_cron_schedule_end_returns_to_idle_without_wake(db):
     await jobs._expire_settle("bg-886-main")
     assert sent == []
     assert session.status == AgentStatus.IDLE
+
+
+# ── V-915: a run job's process must not outlive its INTERRUPTED verdict ──
+
+@pytest.mark.asyncio
+async def test_v915_restart_stops_orphaned_run_process_and_reports_honestly(db):
+    """The old generation dies without BgJobManager.shutdown (KillMode=process keeps the child)."""
+    from app.bg_jobs import BgJobManager
+    from app.db import bg_get_job, save_session
+    from app.session import AgentSession
+
+    now = datetime.now(timezone.utc)
+    session = AgentSession(
+        id="s-915", name="w915", scope="/scope-915", cwd="/scope-915",
+        model="gpt-5.6-sol", system_prompt="t", created_at=now,
+    )
+    save_session(session._to_db_dict())
+    sent = []
+
+    class Manager:
+        async def ensure_loaded_by_id(self, sid):
+            return session
+
+        async def send(self, sid, message, *, provenance):
+            sent.append(message)
+
+    old = BgJobManager()
+    old.set_session_manager(Manager())
+    created = await old.create(
+        "run", {"command": "sleep 300 & wait"}, "long job",
+        session.id, session.name, session.scope, "w915", timeout_seconds=600,
+    )
+    job_id = created["id"]
+    pid = 0
+    for _ in range(100):
+        process = json.loads(bg_get_job(job_id)["config"]).get("_process")
+        if process:
+            pid = process["pid"]
+            break
+        await asyncio.sleep(0.05)
+    assert pid, "run job did not record its process"
+    group = f"/proc/{pid}"
+    assert os.path.exists(group)
+
+    # "crash": the old generation never runs shutdown; a fresh manager restores from the DB.
+    old._tasks.pop(job_id).cancel = lambda *a, **k: None  # keep the orphan alive
+    new = BgJobManager()
+    new.set_session_manager(Manager())
+    try:
+        await new.restore_from_db()
+
+        for _ in range(100):
+            try:
+                os.killpg(pid, 0)
+            except ProcessLookupError:
+                break
+            await asyncio.sleep(0.05)
+        else:
+            pytest.fail("orphaned run process group survived the INTERRUPTED verdict")
+        row = bg_get_job(job_id)
+        assert row["status"] == "failed"
+        interrupted = [m for m in sent if "INTERRUPTED" in m.text]
+        assert len(interrupted) == 1 and "остановлен" in interrupted[0].text
+    finally:
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
