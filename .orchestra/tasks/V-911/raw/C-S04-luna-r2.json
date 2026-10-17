@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S04-luna-r2",
+ "task": "S04",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 40842,
+ "output_tokens": 1790,
+ "input_tokens": 245772,
+ "cache_read_tokens": 206720,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.0068674,
+ "seconds": 28.1,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe large field is `system_prompt`. `GET /api/orchestrators` in `app/routes/system.py:list_orchestrators` combines active sessions from `AgentSession.to_dict()` with database rows from `get_all_sessions()`. Active session serialization truncates the prompt to 500 characters, but database rows carry the full prompt. The endpoint does not remove it. That explains why its payload can be much larger than the 5-row count suggests. `app/manager.py:Manager.list_sessions` already omits `system_prompt` and `last_summary` from its session-list response; the orchestrator route does not apply that omission.\n\nConsumers of this endpoint:\n\n- `app/static/js/app.js:loadOrchestrators` reads `id`, `name`, `scope`, and `parent_name` for the picker and tabs. Tab rendering also reads `status`, `any_running`, `any_waiting`, `last_turn_ts`, `cache_ttl_seconds`, and `cache_ttl_approximate`.\n- `app/static/js/app.js:refreshSessions` uses `name`, `status`, `cost_usd`, `any_running`, and `scope` to update unread-tab state and status.\n- `app/mcp_stdio.py:list_orchestrators` reads `name`, `scope`, `status`, `cost_usd`, `context_pct`, and `description`.\n\nNone of these consumers reads `system_prompt`. The cut belongs in `list_orchestrators`, after active and database rows are combined and before returning them. Remove `system_prompt` from every result row there, including database-backed rows. Keep the fields listed above; dropping them would break picker, tab, unread-state, cache-pill, or MCP output behavior. The evidence supports dropping the prompt without breaking these consumers.\n\nThe apparent duplicate at startup has two call paths: `DOMContentLoaded` directly calls `loadOrchestrators()`, while `scheduleRefresh()` calls `refreshSessions()` after three seconds; `refreshSessions()` also fetches `/api/orchestrators` when `_orchFreshAt` is at least 15 seconds old. `_orchFreshAt` starts at zero, so this first refresh qualifies. The second request may be avoided when the first request and refresh happen within the 15-second window, but the code does not set `_orchFreshAt` in `loadOrchestrators`, so it is not guaranteed to be avoided.\n\nRecommendation: omit `system_prompt` at the endpoint’s response boundary, then consider sharing the initial fetch result or updating freshness when `loadOrchestrators` succeeds to avoid the redundant startup transfer.\n\nIndependent check applied: source search in `app/static/js/app.js` and `app/mcp_stdio.py` found no consumer reads of `system_prompt` from this endpoint; `tests/test_api.py::TestOrchestrators` currently checks response shape and cache-policy fields, not prompt omission. I did not run tests or modify files."
+}

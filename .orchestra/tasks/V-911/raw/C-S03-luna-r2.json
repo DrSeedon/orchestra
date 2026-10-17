@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S03-luna-r2",
+ "task": "S03",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 33145,
+ "output_tokens": 2308,
+ "input_tokens": 315509,
+ "cache_read_tokens": 284672,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00708442,
+ "seconds": 62.5,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe strongest match is `app.workspace.cleanup_stale_worktrees`, started at manager startup and then daily by `SessionManager._periodic_worktree_cleanup`. It scans every worktree directory under the shared `WORKTREE_ROOT`; for each path absent from the active-session list returned by `get_all_sessions()`, it checks only `git status --porcelain`. A clean tree is passed to `remove_worktree`, which runs `git worktree remove --force`. That removes the checkout and its Git worktree registration while preserving the branch. The cleaner then removes an empty per-repository directory. This fits the reported pattern.\n\nThe missing protection is ownership scoping: the sweeper treats the global session database as the complete inventory for every project under `WORKTREE_ROOT`. It does not verify that an unreferenced worktree belongs to this service/database, or require an age threshold or explicit deletion marker. A clean worktree missing from that inventory is enough to delete it. The branch surviving is consistent with this path.\n\nOther removal paths are `SessionManager.remove` (used by the session DELETE route and `remove_scope`), `discard_prepared_worktree`, setup-failure rollback in `create_worktree`, and the migration script’s forced removal of a target path. Explicit session removal can force-delete dirty content; the stale sweeper skips dirty trees. None is as consistent with simultaneous clean losses across projects.\n\nSuccessful cleanup logs exist in `cleanup_stale_worktrees` and the manager wrapper. However, those modules use `app.workspace` / `app.manager` loggers, while `app.main` attaches its handler only to the `orchestra` logger. With no root handler, their INFO messages can be dropped. Therefore an empty journal does not rule out successful cleanup; cleanup exceptions are warnings and should normally be visible.\n\nIndependent check applied: `pytest -q tests/test_workspace.py::TestCleanupStaleWorktrees` passed (5 tests). Those tests confirm that an unreferenced clean tree is removed, its branch is not the subject of deletion, and dirty or locked trees are retained. This validates the mechanism, but cannot prove which process fired on the affected server.\n\nRecommendation: disable the global stale-worktree sweeper until it has project-scoped ownership verification and a conservative deletion policy. Add a durable audit record before and after deletion, and ensure `app.workspace` and `app.manager` INFO logs reach journald."
+}

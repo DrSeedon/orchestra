@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S12-luna-r2",
+ "task": "S12",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 35836,
+ "output_tokens": 1439,
+ "input_tokens": 239453,
+ "cache_read_tokens": 205056,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.00620976,
+ "seconds": 31.7,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n- Spawn can leave an orphan worktree or branch. In `SessionManager.create_session`, the DB row is saved before `create_worktree`; the exception handler removes the session row, but `create_worktree` cleans up only errors during its copy/scaffold block. Cancellation or failure after Git creates the worktree but before the returned path is assigned to `session.worktree_path` bypasses cleanup. A process crash between those steps also leaves Git state without a row. This is real. Make spawn a recoverable transaction: record intent, create Git state, persist its identifiers, and compensate on every failure; add startup reconciliation for crashes. Don’t hold a DB transaction across Git work.\n\n- Spawn and initial task delivery are separate operations. `mcp_stdio.spawn_worker` creates the worker through `POST /api/sessions`, then sends the task through `/send`. Delivery failure leaves a valid worker with no initial task; the tool reports this and advises retrying delivery. This is an explicit partial-success state, not an apparent race. Treat creation plus task enqueue as one idempotent operation, or persist a pending initial task with the session so retries cannot duplicate workers or lose task intent.\n\n- `send_message` can race branch switching. `/send` reads `needs_switch`, performs `switch_worktree_branch`, persists `needs_switch=False`, then sends. It takes neither the per-session lock nor `_lifecycle_lock`, which `/switch-branch` does take. A concurrent send can therefore switch to an ad hoc branch while an explicit task switch is underway, or enqueue a message against branch metadata that no longer describes the worktree. This is real. Serialize all branch-changing sends and switch/merge operations under the same per-session lock plus lifecycle lock, and keep that lock through Git change and lifecycle persistence.\n\n- Switch can change Git without updating the session row. `/switch-branch` and merge’s `next_task_id` path run the Git switch before `persist_lifecycle`. A DB/persistence error or cancellation in between leaves Git on the new branch while `branch`, `task_id`, and `needs_switch` remain stale. `to_thread` cancellation does not stop its underlying Git operation, so cancellation can also let Git finish after the coroutine has abandoned persistence. This is real. Use a durable operation intent/recovery protocol; shield or await in-flight Git work and reconcile Git state before releasing the lock.\n\n- `switch_worktree_branch` resets the worktree to `from_ref` before acquiring the Git lock. Concurrent switch/merge calls can interleave reset and checkout despite the lock; session locks only protect requests within one process and only if every caller uses them. This is real across sessions/processes. Acquire a repository lock before the first Git mutation and use a consistent lock order (repository lock, then session lock) throughout.\n\n- Merge’s normal success path records `needs_switch=True` after Git merge, then optionally switches and records `False`. That intermediate flag correctly represents “merge complete, branch transition pending”; if the optional switch fails, `/send` can retry an ad hoc switch. If persistence fails after Git merge, however, the DB cannot indicate the completed merge/pending switch. Real failure; recover through durable intent and Git reconciliation.\n\n- Task Manager status is best effort. Spawn and switch update task status separately and swallow failures; Git/session state can advance while the task remains queued. This is real divergence. Persist a pending task-status update or use an outbox/retry mechanism.\n\n- Apparent duplicate-send race is prevented: `AgentSession.send` uses `_lifecycle_lock` when starting a turn, and merge/switch check idle while holding it. However, `SessionManager.get_session_lock` only coordinates those endpoints, not `/send`, so it does not protect the branch races above."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S07-luna-r1",
+ "task": "S07",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 52851,
+ "output_tokens": 1815,
+ "input_tokens": 287324,
+ "cache_read_tokens": 236288,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.00837398,
+ "seconds": 95.8,
+ "contamination_flag": true,
+ "final_text": "FINDINGS: Today, `report_bug_endpoint()` in `app/routes/system.py` writes a durable report with `_publish_bug_record()` and returns a `record_id` and read URL. It does not notify anyone. The GET endpoint exposes the stored reports; the existing report tests cover writing and reading, not notification.\n\nThe POST already receives both `scope` and `reporter`: `mcp_stdio.report_bug()` sends `WORKER_NAME` and `SCOPE`. That is enough to look up a likely addressee by scope, but it does not identify a unique orchestrator if multiple candidates share that scope, nor prove who owns the report. `app.notify.orchestrator_for_scope()` searches stored sessions for a non-archived orchestrator in the scope and returns the first match. `report_undelivered()` reuses that lookup and `session_manager.send()` delivery pattern. `manager._find_orchestrator_name()` is another lookup, but checks only loaded sessions. The send API in `app/routes/sessions.py` can load a stored recipient before sending.\n\nRecommendation: after a successful write, notify the orchestrator for the filed scope with a short message containing title, reporter, scope, and `record_id` or read URL. Reuse the notification helper’s explicit “no recipient” and delivery-failure logging behavior, but adapt its message semantics: this is a new report, not an undelivered worker task. Do not restore a UI badge; the owner removed it intentionally. Consider a durable outbox/retry path if notification must survive process failure after the report is written.\n\nThe plan should cover no orchestrator, archived or unloaded orchestrators, multiple orchestrators in one scope and deterministic recipient policy, scope normalization, send errors, and retries that could produce duplicate notifications. A report must remain successfully filed if notification fails; the response and logs should make that failure visible. Avoid including the full description or trace in the notification.\n\nIndependent check applied: `pytest -q tests/test_undelivered.py`, which exercises scope-based routing and the no-recipient case. It did not finish within the available 30-second command window, so I cannot claim a passing result. The existing `tests/test_api.py::TestBugReports` confirms report storage and reading, but does not check notification."
+}

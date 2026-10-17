@@ -1,0 +1,53 @@
+cells ok=96 failed=[]
+== COVERAGE by arm (mean over cells) ==
+cross A model=None n=48 mean=0.444
+cross A model=luna n=24 mean=0.347
+cross A model=sonnet n=24 mean=0.542
+cross C model=None n=48 mean=0.498
+cross C model=luna n=24 mean=0.365
+cross C model=sonnet n=24 mean=0.632
+same  A model=None n=48 mean=0.418
+same  A model=luna n=24 mean=0.278
+same  A model=sonnet n=24 mean=0.559
+same  C model=None n=47 mean=0.480
+same  C model=luna n=24 mean=0.372
+same  C model=sonnet n=23 mean=0.594
+mean  A model=None n=48 mean=0.431
+mean  A model=luna n=24 mean=0.312
+mean  A model=sonnet n=24 mean=0.550
+mean  C model=None n=47 mean=0.484
+mean  C model=luna n=24 mean=0.368
+mean  C model=sonnet n=23 mean=0.605
+== C - A PAIRED ==
+cross model=None n_cells=48 n_tasks=12 diff=+0.054 cluster95=[-0.014,+0.122] sd_cell=0.233 cells up/down/tie=24/12/12 tasks up/down=8/4 task-sign-p=0.388 task-diff-sd=0.124
+cross model=luna n_cells=24 n_tasks=12 diff=+0.017 cluster95=[-0.031,+0.073] sd_cell=0.135 cells up/down/tie=8/6/10 tasks up/down=6/3 task-sign-p=0.508 task-diff-sd=0.093
+cross model=sonnet n_cells=24 n_tasks=12 diff=+0.090 cluster95=[-0.031,+0.215] sd_cell=0.300 cells up/down/tie=16/6/2 tasks up/down=6/6 task-sign-p=1.000 task-diff-sd=0.231
+same  model=None n_cells=47 n_tasks=12 diff=+0.066 cluster95=[+0.018,+0.122] sd_cell=0.189 cells up/down/tie=21/13/13 tasks up/down=9/3 task-sign-p=0.146 task-diff-sd=0.099
+same  model=luna n_cells=24 n_tasks=12 diff=+0.094 cluster95=[-0.010,+0.215] sd_cell=0.241 cells up/down/tie=11/8/5 tasks up/down=6/4 task-sign-p=0.754 task-diff-sd=0.210
+same  model=sonnet n_cells=23 n_tasks=12 diff=+0.036 cluster95=[-0.000,+0.071] sd_cell=0.109 cells up/down/tie=10/5/8 tasks up/down=8/3 task-sign-p=0.227 task-diff-sd=0.065
+mean  model=None n_cells=47 n_tasks=12 diff=+0.053 cluster95=[+0.017,+0.090] sd_cell=0.164 cells up/down/tie=29/13/5 tasks up/down=9/3 task-sign-p=0.146 task-diff-sd=0.067
+mean  model=luna n_cells=24 n_tasks=12 diff=+0.056 cluster95=[-0.010,+0.137] sd_cell=0.171 cells up/down/tie=14/7/3 tasks up/down=8/4 task-sign-p=0.388 task-diff-sd=0.139
+mean  model=sonnet n_cells=23 n_tasks=12 diff=+0.051 cluster95=[-0.007,+0.116] sd_cell=0.160 cells up/down/tie=15/6/2 tasks up/down=7/4 task-sign-p=0.549 task-diff-sd=0.110
+-- per task C-A (cross) --
+   S01: -0.104 (n=4) A=0.58
+   S02: -0.104 (n=4) A=0.56
+   S03: +0.125 (n=4) A=0.25
+   S04: -0.125 (n=4) A=0.50
+   S05: +0.208 (n=4) A=0.25
+   S06: +0.021 (n=4) A=0.42
+   S07: +0.167 (n=4) A=0.48
+   S08: +0.042 (n=4) A=0.58
+   S09: +0.062 (n=4) A=0.38
+   S10: -0.021 (n=4) A=0.62
+   S11: +0.146 (n=4) A=0.54
+   S12: +0.229 (n=4) A=0.17
+== PAID TOKENS ==
+model=None n=48 ratio_of_sums C/A=1.148 cluster95=[1.084,1.217] geomean=1.157
+model=luna n=24 ratio_of_sums C/A=1.314 cluster95=[1.175,1.457] geomean=1.320
+model=sonnet n=24 ratio_of_sums C/A=1.016 cluster95=[0.948,1.090] geomean=1.014
+A: paid_sum=1508721 turns=608 usd_api_eq=5.02 mean_words=566
+C: paid_sum=1731578 turns=727 usd_api_eq=5.20 mean_words=554
+contamination flagged: A=15 C=18
+answers that mention an external check (arm visible to grader?): A=1 C=21
+== DECISION (protocol.md) ==
+gain>=+0.10: +0.054 -> False; CI lower>0: -0.012 -> False; paid ratio<=1.2: 1.148 -> True; ALL: False

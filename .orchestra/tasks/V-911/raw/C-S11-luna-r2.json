@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S11-luna-r2",
+ "task": "S11",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 41429,
+ "output_tokens": 1968,
+ "input_tokens": 399141,
+ "cache_read_tokens": 359680,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.008526900000000002,
+ "seconds": 99.0,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nNormal completed turns: `TurnManager.handle_turn_end` records the terminal status, then `after_turn_idle_actions` reaches `_idle_tail`, which calls `fire_auto_report` only when the session is not `WAITING`. In `fire_auto_report`, a successful silent turn returns without notifying the parent; turns marked `_did_report` also return, relying on the earlier report having reached its recipient. A pending report is an in-memory asyncio task, so `cancel_auto_report` can cancel it when a new turn starts, and a process restart can discard it before delivery. The durable fan-barrier manifest path is an exception: it records terminal state before scheduling delivery.\n\nFailures and listener death: backend-emitted `turn_end` events, including failed turns, go through `handle_turn_end` and can auto-report. But `AgentSession._finish_failed_running_turn` only sets IDLE, logs, persists, and publishes completion; it never invokes the report path. It is reached after repeated listener failures in `_persistent_event_loop`, Codex listener loss, and `_on_task_done` detecting unexpected listener exit. In `_turn_event_loop`’s `finally`, non-Codex turns can be set IDLE directly without a terminal event or report; `_on_task_done` then sees the session is no longer RUNNING and does not call `_finish_failed_running_turn`.\n\nRestart: `Manager.auto_resume_all` turns persisted RUNNING or INTERRUPTED sessions back to IDLE and injects a restart notice into the affected worker. It does not create a terminal report for the interrupted turn or notify its parent. A crash can also discard a scheduled `_auto_report_task`; the idle watcher helps only if one was configured. `idle_watch.check` is a polling notification for a quiescent worker tree, not a guaranteed per-turn delivery mechanism.\n\nDelivery failure: `Manager._make_idle_callback` calls `send`, and on exception `_record_undelivered_auto_report` records logs and attempts a separate notification. That fallback can fail too, leaving only logs/queued facts; the function explicitly has no retry. Thus “send attempted” is not equivalent to “parent learned.”\n\nRecommendation: make turn completion a durable, idempotent terminal record keyed by session and turn/event ID, written for every terminal path (including listener loss and restart recovery). Deliver parent notifications from a recoverable outbox, acknowledge only after acceptance, and replay on startup. Treat successful silent turns as completions when a parent is waiting; retain explicit reports as satisfying the same terminal record. Use idle-watch as reconciliation, not as the sole completion signal.\n\nExternal check applied: ran `pytest -q tests/test_listen_task_done_648.py tests/test_auto_report_undelivered.py tests/test_idle_watch.py`; it produced failures and did not finish within the command window. A focused rerun of the first two files also produced failures without a completed summary. The run therefore does not validate the audit; the independent check is inconclusive."
+}

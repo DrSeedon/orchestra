@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S01-luna-r1",
+ "task": "S01",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 20762,
+ "output_tokens": 1458,
+ "input_tokens": 144360,
+ "cache_read_tokens": 125056,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.00390996,
+ "seconds": 68.7,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe `auto-switch` refusal raised by `SessionManager.send()` propagates to its callers. It occurs before `session.send()`, so that attempted message is not delivered.\n\n- **HTTP send route / web UI — affected; high impact.** `app/routes/sessions.py:send_message` catches the exception and returns an error response (400 for `RuntimeError`/`KeyError`, otherwise 500). The browser caller in `app/static/js/app.js` shows the error, except on timeout, where it returns without clearing the pending bubble or showing an error. MCP’s `send_message` tool and `spawn_worker` task delivery also use this route; `app/mcp_stdio.py:send_message` reports “Send failed,” while `spawn_worker` wraps delivery errors through `_spawn_delivery_error`. The refusal should therefore be visible to these senders.\n\n- **Telegram bridge — affected; highest silent-loss risk.** `app/tg_bridge.py:_send_to_agent` queues the incoming message and acknowledges the handler before `_flush_batch` calls `_manager.send`. If delivery raises, the flush task has no local recovery or sender notification in this path. The Telegram sender can see the message as sent by Telegram without learning that Orchestra did not deliver it, making this the clearest “agent ignored me” failure.\n\n- **Background jobs — affected; moderate, usually recorded but not surfaced to the waiting agent.** `app/bg_jobs.py:_trigger` records a failed trigger and logs; `_expire_notify` and `_fail_notify` log send failure; cron paths log failures and continue. These errors are available in job state/logs, but the target worker receives no notice. For cron jobs, a failed send is not recorded as a fire, so a later scheduled attempt may retry.\n\n- **Limit wake — affected; lower silent-loss risk.** `app/limit_wake.py:run_wake_job` removes the delivery claim, persists “delivery failed,” records the background job failure, and re-raises. Operators can inspect job state/logs; the sleeping worker receives no wake message.\n\n- **Internal worker auto-report — affected; low sender-facing impact.** `app/manager.py:_on_worker_idle` sends a report to the orchestrator without catching the exception there. It can fail in the callback/logging path; there is no explicit report delivered to the orchestrator.\n\n- **Restart notice — affected; low impact.** `app/manager.py:_inject_restart_notice` catches and logs the failure. The worker receives no notice, and the sender learns only through logs.\n\nThe HTTP CI failure route in `app/routes/system.py` also calls `manager.send`; it returns an HTTP error on failure, so its caller can see the failure.\n\nRecommendation: preserve the explicit HTTP/MCP errors. Add delivery-failure handling at the Telegram queue/flush boundary so the originating chat receives a failure or can see a persistent delivery status; logging alone is insufficient. For background, limit-wake, and internal notifications, persist and expose a clear failed-delivery state to the responsible operator or sender. Do not automatically retry ambiguous sends unless delivery is made idempotent."
+}

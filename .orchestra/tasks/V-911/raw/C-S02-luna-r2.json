@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S02-luna-r2",
+ "task": "S02",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 27771,
+ "output_tokens": 2486,
+ "input_tokens": 260933,
+ "cache_read_tokens": 235648,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.00612798,
+ "seconds": 61.5,
+ "contamination_flag": false,
+ "final_text": "FINDINGS: `merge_worker` and `switch_worker_branch` can both succeed after a squash merge; “always fails” is too broad. Failure depends on which switch path runs and what the Git histories and trees contain.\n\nIn `merge_worktree_to_main`, `app/workspace.py` runs `git merge --squash <worker-branch>` and commits the resulting tree. A squash commit does not make the worker’s original commits ancestors of the base. The worker branch remains unchanged.\n\nIn `switch_worktree_branch`, a clean worktree is required. By default, `branch_content_status` first checks whether the worker head is already an ancestor of the base; if not, it uses `git merge-tree` and compares the prospective merge tree with the base tree. Thus squash ancestry alone does not cause failure: if merging the worker’s changes would leave the base tree unchanged, the check reports `content-noop` and permits the switch.\n\nThere are two distinct later cases:\n\n- If the requested branch is new, the function creates it at `from_ref`; it does not merge the old worker branch into it. A successful content check is enough to allow the switch.\n- If the requested branch already exists, the function checks it out and runs `git merge <from_ref>`. Divergent history or conflicting edits can make this merge fail. That can happen even when `force=True`.\n\nOn this path, `force=True` skips only `branch_content_status`. It does not override Git conflicts or bypass the later merge, branch checkout, dirty-tree check, or the same-branch base-ancestry check. If the worker is already on the requested branch but the requested base is not its ancestor, the function rejects the request regardless of force.\n\n`branch_content_status` is useful but is not a durable receipt that this worker’s work was merged. It correctly handles the ordinary squash case when the prospective merge produces the base tree unchanged—the existing test `test_squash_merged_content_switches_after_base_advances` exercises that. But it is a content-equivalence check, not proof of which operation introduced that content; it can also reject when changes were integrated with edits that conflict with the old branch.\n\nRecommendation: use the merge operation’s recorded outcome as the platform signal. `merge_worktree_to_main` returns the pinned `worker_branch` and `worker_head`, target before/after OIDs, and `commit_point`; `app/merge_operations.py` persists operation outcomes. Treat a confirmed successful, committed outcome for that exact worker branch and head as evidence that recreating from the recorded target is safe. Do not infer this solely from the current branch name or ancestry. Keep the content check as a fallback where no receipt exists.\n\nIndependent check: the existing `test_squash_merged_content_switches_after_base_advances` in `tests/test_workspace.py` passed when run with `pytest -q tests/test_workspace.py -k squash_merged_content_switches_after_base_advances` (pytest reported one passing test)."
+}

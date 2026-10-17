@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S10-luna-r1",
+ "task": "S10",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 28888,
+ "output_tokens": 2136,
+ "input_tokens": 376192,
+ "cache_read_tokens": 349440,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.0072376,
+ "seconds": 54.9,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe warning is emitted in one place: `AgentSession._on_task_done` in [app/session.py](/home/kesha/bench911/runs/C-S10-luna-r1/app/session.py:2548). It means the asyncio task ended without an uncaught exception or cancellation. “Silent death” is misleading: normal completion also takes this path.\n\nThe callback is attached at three sites: per-turn listener creation in `send`, persistent listener creation in `_activate_backend_tasks`, and per-turn listener creation in `_flush_pending`.\n\nWhat it means depends on the path:\n\n- A per-turn listener normally ends after `backend.events()` finishes. On `turn_end`, `session_turns.handle_turn_end` records the result and sets IDLE or WAITING. This is ordinary completion, not a lost turn.\n- Persistent listeners can return normally when the backend is absent, the session is IDLE, or the Codex turn has no active turn ID. Those cases are intentional or separately handled.\n- A per-turn event stream can also end without `turn_end`. Its `finally` block in `_turn_event_loop` sets RUNNING to IDLE for most backends without recording why it ended. That can hide an interrupted or incomplete turn. Codex with no active turn ID is explicitly marked failed, but this is not a general check for all backends.\n\nSo hundreds of warnings do not establish hundreds of lost turns. The actual risk is an event stream ending before a terminal `turn_end` event, with cleanup changing status to IDLE and obscuring whether the turn completed. `IDLE` and `WAITING` say only what the session status was when the callback ran; they do not prove that `turn_end` arrived, that the turn succeeded, or that its output was durably recorded. RUNNING is more actionable: the callback explicitly marks that exit as a failed turn.\n\nRecommendation: replace the generic warning with structured, path-aware logging: listener type/backend, exit reason, whether a terminal `turn_end` was observed, prior and final status, and—where available—active turn ID. Log expected per-turn completion at debug/info; report an unexpected stream end without `turn_end` as an error and invoke the existing failed-turn recovery. Keep exception details on the exception path.\n\nIndependent check applied: `pytest -q tests/test_error_watch.py` passed (11 tests). Those tests confirm the project classifies IDLE/WAITING warning lines as normal per-turn listener completion and RUNNING exits as actionable; they verify the monitoring classification, not whether a particular production turn was lost."
+}

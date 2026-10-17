@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S09-luna-r2",
+ "task": "S09",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 43023,
+ "output_tokens": 2361,
+ "input_tokens": 729302,
+ "cache_read_tokens": 688640,
+ "cache_create_tokens": 0,
+ "turns": 18,
+ "cost_usd_api_equiv": 0.0121331,
+ "seconds": 118.8,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n`merge_worker(task_outcome=\"continue\")` deliberately keeps task 5 assigned to the worker. `execute_merge_session()` prepares finalization with task 5 still in `terminal_session`; `finalize_merge_outcome()` closes the current task-run receipt only for outcome `complete`. The integration test `test_t3_continue_merge_keeps_task_bound_on_fresh_branch` confirms that continue leaves the task in progress and bound to the session.\n\nWhen switching to task 6, `switch_branch()` treats it as a new assignment and calls `bind_task_to_session()`. That updates the session’s task binding and calls `_open_task_run_for_task()`. The database’s `task_run_receipt_open()` allows only one open task-run receipt per session. Since task 5’s receipt remains `requested`, opening task 6’s receipt raises “open task run conflicts with current assignment provenance.” The error reflects the task-ID mismatch; `force=True` affects Git branch switching, not task-run receipt or assignment rules.\n\nThe merge-with-next path is also guarded: `execute_merge_session()` rejects `continue` with `next_task_id`; changing tasks requires `complete`. That path closes the current receipt and atomically assigns the next task. Thus the observed failures follow the implemented distinction between continuing task 5 and completing it before handoff.\n\nOptions:\n\n- **Recommended: complete task 5 with `next_task_id=6`** when the work is done. This uses the existing transactional handoff, closes task 5’s receipt, and assigns task 6. It preserves lifecycle semantics and avoids recovery ambiguity.\n- **If task 5 is not complete:** add an explicit handoff/interruption operation that closes task 5’s receipt as interrupted and releases or transfers its task binding before switching. This preserves audit history but requires defining whether task 5 is requeued or remains assigned.\n- **Allow switch to supersede the open receipt:** finish task 5’s receipt during binding replacement. This is a smaller change, but needs careful atomicity and rollback behavior because branch switching and database assignment currently span separate steps.\n- **Loosen the one-open-receipt-per-session constraint:** this could support concurrent assignment history, but undermines the current session-level provenance invariant and is a broader schema/consumer change.\n\nIndependent check: the existing task-lifecycle integration tests are the external criterion. I ran `uv run pytest -q tests/test_task_tracker_integration.py -k 'continue_merge_keeps_task_bound or complete_and_next_transition'`; both passed. No files were intentionally edited."
+}

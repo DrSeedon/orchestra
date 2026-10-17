@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S02-luna-r2",
+ "task": "S02",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 25689,
+ "output_tokens": 1464,
+ "input_tokens": 196641,
+ "cache_read_tokens": 172416,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.00487866,
+ "seconds": 43.3,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n- A normal switch to a new task branch usually does not merge histories: in `switch_worktree_branch`, if the target branch does not exist, it is created directly at `from_ref`. A Git merge conflict on this path requires an existing target branch; after checking it is not checked out elsewhere, the function merges `from_ref` into that branch. Conflict files are returned only if that merge fails.\n\n- `force=True` skips the `branch_content_status` check that would otherwise reject committed work not verified in the base. It does not force Git to resolve conflicts, reset an existing target branch, or change the later `git merge`. So it can get past the content gate, but cannot fix a conflict on the existing-target path. Dirty working trees and other safety checks still apply.\n\n- `merge_worker` uses `git merge --squash` and commits the resulting tree. The squash commit has the target as its parent, not the worker’s commits. Therefore the worker’s original commits are not made ancestors of the base; a history-only check such as `git rev-list base..HEAD` can still report them as ahead after a successful squash.\n\n- `branch_content_status` in `app/workspace.py` goes beyond ancestry: it runs a prospective `git merge-tree` of base and `HEAD`, then compares the result tree with the base tree. That can recognize a clean merge whose net result adds no content, including some squash cases. It is a useful content check, but it is not proof that a particular merge operation succeeded: tree equality is about net content, and the check does not identify which worker commit or operation was incorporated.\n\nRecommendation: use the durable merge operation’s recorded successful outcome, including its worker HEAD and resulting target commit, as the signal. Before recreating a branch from the base, verify the current base contains that recorded target commit. This ties the decision to the specific completed squash and avoids relying on worker-commit ancestry. Relevant code: `switch_worktree_branch`, `branch_content_status`, `_build_squash_message`, and the squash path in `merge_worker` (`app/workspace.py`); the MCP wrapper forwards `force` in `switch_worker_branch` (`app/mcp_stdio.py`)."
+}

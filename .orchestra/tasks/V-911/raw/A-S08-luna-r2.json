@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S08-luna-r2",
+ "task": "S08",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 17343,
+ "output_tokens": 1207,
+ "input_tokens": 146952,
+ "cache_read_tokens": 130816,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00352526,
+ "seconds": 20.9,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe 409 comes from a mismatch between two representations of the worker’s branch:\n\n- `merge_operations._session_snapshot()` gets `worker_branch` by running `inspect_worktree_identity()` on the worktree. That Git-observed value is stored as `accepted_worker_branch` when the operation is admitted.\n- `execute_merge_session()` in `app/routes/sessions.py` reloads the durable session row and compares its `row[\"branch\"]` with the pinned `expected_branch`. If they differ, it returns 409 with “session branch changed before merge.”\n\nSo the comparison is **the branch read from Git at admission versus the branch stored in the session database when execution begins**. The failure can occur even when nobody changed the worker: those two values were already out of sync.\n\nA new `operation_id` repeats the same admission process, so it pins the same Git branch and meets the same durable-row value. `worker_wip` inspects the worktree; it does not reconcile the session row. Refreshing it therefore cannot change the values being compared. The retry loop cannot escape unless the Git branch or database row changes.\n\nThere are later safeguards in `execute_merge_session()` and `workspace.merge_worktree_to_main()` that check the actual branch and HEAD against the pinned identity before mutation. Those checks protect against real drift and should remain.\n\nRecommendation: reconcile the durable branch record with the Git-observed branch through a controlled lifecycle update, then admit the operation using a coherent snapshot. Preserve the safety property by verifying the worker’s session identity and worktree path, and by retaining the locked pre-merge branch and HEAD checks. Do not simply remove the `row_branch != expected_branch` refusal: that would erase an identity check instead of fixing stale metadata."
+}

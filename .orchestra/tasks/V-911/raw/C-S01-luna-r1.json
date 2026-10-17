@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S01-luna-r1",
+ "task": "S01",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 22455,
+ "output_tokens": 1678,
+ "input_tokens": 224169,
+ "cache_read_tokens": 203392,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.004950620000000001,
+ "seconds": 105.3,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe risk is real: `SessionManager.send()` calls `_auto_switch_before_delivery()` before `session.send()` in `app/manager.py:880–893`. If auto-switch raises, the message is not delivered. The send call sites divide into paths that report the error and paths where it is hidden from the original sender.\n\nAffected paths and severity:\n\n- HTTP `/api/sessions/{name}/send` and MCP `send_message`: `app/routes/sessions.py:372–403` returns an error response; `app/mcp_stdio.py:721–730` turns it into “Send failed: …”. The sender gets an explicit failure. Low silent-loss risk.\n- CI webhook: `app/routes/system.py`’s CI failure handler returns HTTP 500 and logs the send failure. The webhook caller can observe failure, though whether it retries depends on the caller. Moderate operational risk.\n- Telegram inbound messages: `app/tg_bridge.py:349–365` flushes the batch through `_manager.send()`. The debounced task has no handler around that call; the message handler has already returned, so the Telegram sender receives no delivery-failure notice. The failure may appear as an unhandled task error. High silent-loss risk.\n- Background job completion, timeout, and failure notifications: `app/bg_jobs.py:511–579` records trigger failure and logs it; timeout/failure notifications log the exception. Cron and cron-command sends log errors and continue (`:631–647`, `:647–710`). The job owner or target agent is not told that the notification itself failed. High risk for completion notifications; moderate for cron.\n- Limit-wake: `app/limit_wake.py:672–700` removes the delivery claim, persists failure, fails the job, and re-raises. The job records an error, but the target receives no wake message. Moderate risk; retry state is preserved.\n- Internal auto-report and restart notice: `app/manager.py:1444` sends worker reports to the orchestrator without local error handling; restart notice catches and logs (`:1578–1587`). The worker/report sender does not learn the auto-report failed. Restart notice failure is only logged. Moderate risk.\n\nRecommendation: fix notification and retry behavior at the caller boundaries, especially Telegram batch flushing and background-job notification paths. Preserve the explicit error behavior of the HTTP/MCP boundary. Consider a shared delivery-failure reporting mechanism so asynchronous callers can surface failure to an owner or persist actionable retry state; do not report success or mark a job delivered when `send()` raises.\n\nIndependent check: `tests/test_adhoc_switch.py` covers auto-switch refusal and asserts that it raises `RuntimeError` (`test_adhoc_switch.py:142–172`). I attempted `pytest -q tests/test_adhoc_switch.py`, but it produced no result within the command’s 30-second window, so I cannot confirm a pass."
+}

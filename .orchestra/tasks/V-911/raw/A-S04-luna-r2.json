@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S04-luna-r2",
+ "task": "S04",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 24665,
+ "output_tokens": 2011,
+ "input_tokens": 178814,
+ "cache_read_tokens": 156160,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.0048325,
+ "seconds": 25.5,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe response is heavy because `/api/orchestrators` in `app/routes/system.py:list_orchestrators` combines active orchestrators from `AgentSession.to_dict()` with inactive records from `get_all_sessions()`. That DB helper in `app/db.py` runs `SELECT *`, so persisted rows include `system_prompt` and `last_summary`. Active sessions cap `system_prompt` at 500 characters in `app/session.py:AgentSession.to_dict`; DB-only rows do not. The code already documents the size impact in `app/manager.py:Manager`: `system_prompt` was measured at 46.9 KB of a 54.3 KB session-list response, with `last_summary` another 5.9%. The orchestrators route bypasses that class’s `_LIST_OMIT = (\"system_prompt\", \"last_summary\")` filtering.\n\nConsumers found:\n\n- Dashboard, `app/static/js/app.js:loadOrchestrators`: reads `parent_name`, `scope`, `id`, and `name` to filter, populate the picker, and select the saved/default orchestrator.\n- Dashboard tabs, `renderOrchTabs` and helpers: reads `name`, `scope`, `status`, `any_running`, `any_waiting`, and the cache-policy fields used by `_cachePill` (`cache_ttl_seconds`, `cache_ttl_approximate`, `last_turn_ts`).\n- Dashboard refresh, `refreshSessions`: compares `name`, `status`, and `scope`; updates `status`, `cost_usd`, and `any_running`.\n- MCP tool, `app/mcp_stdio.py:list_orchestrators`: reads `name`, `scope`, `context_pct`, `description`, `status`, and `cost_usd`.\n- The skill’s documented curl example only displays the response; its usage instructions say it needs `name` and `scope`.\n\nNo consumer found that reads `system_prompt` or `last_summary` from this endpoint. The prompt has its own route, `/api/sessions/{name}/prompt`.\n\nThe cut belongs in `list_orchestrators`, after active and DB rows are combined and before returning them. Apply the same omissions as `Manager._LIST_OMIT` so the endpoint avoids leaking those fields from DB-only records while preserving the fields its consumers use.\n\nThe startup duplicate is explained by two paths in `app/static/js/app.js`: the DOMContentLoaded handler directly calls `loadOrchestrators()`, then the first scheduled `refreshSessions()` calls it again because `_orchFreshAt` starts at `0`. If initial orchestrator selection triggers `onOrchestratorChange`, that also starts `refreshSessions()`, which can contribute to the overlap.\n\nRecommendation: omit `system_prompt` and `last_summary` in the route, then prevent the initial refresh from immediately fetching the same list already loaded by `loadOrchestrators`—for example, mark the list fresh after that load. This targets the documented bulky fields and avoids the redundant startup transfer."
+}

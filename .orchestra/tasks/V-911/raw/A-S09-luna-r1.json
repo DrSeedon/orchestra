@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S09-luna-r1",
+ "task": "S09",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 29258,
+ "output_tokens": 1422,
+ "input_tokens": 242364,
+ "cache_read_tokens": 214528,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.005639880000000001,
+ "seconds": 19.5,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n`merge_worker(task_outcome='continue')` succeeds and merges task 5’s branch, but its intended lifecycle is to keep task 5 bound and in progress. In `tm.prepare_merge_finalization`, the `continue` outcome sets `terminal_session.task_id` to the current task with `needs_switch=False`; `finalize_merge_outcome` does not finish that task’s run or release its binding. The worker is therefore still assigned to task 5 after the merge.\n\nThe switch failure follows from that state. `switch_worker_branch` calls `/api/sessions/{name}/switch-branch` (`mcp_stdio.py`), whose route resolves task 6 and switches the branch, then persists the new task binding through `manager.transition_lifecycle`. The assignment path opens a task-run receipt for the new task (`tm._open_task_run_for_task` → `db.task_run_receipt_open`). That function allows only one open task run per session and raises “open task run conflicts with current assignment provenance” if the existing receipt’s task identity differs. `force=True` only affects branch handling; it does not close or reconcile the old receipt.\n\n`merge_worker(task_outcome='complete', next_task_id=6)` is rejected earlier: `execute_merge_session` prepares lifecycle finalization, but task 5’s task run is still open and tied to its assignment. Completion closes it only in the post-merge finalizer (`finalize_merge_outcome` → `_finish_task_run_for_task`). Thus this call cannot safely complete task 5 while the earlier `continue` state remains unresolved. The schema’s unique open-run indexes per session and task (`schema.sql`) enforce the single-open-run invariant.\n\nOptions:\n\n1. **Explicitly finish task 5 before switching.** Add a lifecycle operation that atomically marks its run interrupted/completed as appropriate, releases task 5’s binding, then assigns task 6 and opens its run. Preserves receipt provenance and makes the transition auditable. Recommended.\n2. **Treat switching to another task as completion.** Make the switch route close the prior run and update task 5’s status/binding as part of the handoff. Convenient, but it gives a branch-switch action task-completion semantics that callers may not intend.\n3. **Allow multiple open runs or overwrite the old receipt.** This bypasses the conflict, but breaks the one-assignment-per-session invariant and weakens audit/review provenance; not recommended.\n4. **Repair the task-5 receipt/state manually.** Useful as an operational recovery for this incident, but it does not prevent recurrence.\n\n`continue` is explicitly designed to keep the same task (`tests/test_task_tracker_integration.py::test_t3_continue...`), and `continue` with `next_task_id` is rejected. So the durable fix is an explicit, atomic handoff/completion path, with manual repair only for already-stuck state."
+}

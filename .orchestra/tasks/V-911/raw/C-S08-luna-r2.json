@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S08-luna-r2",
+ "task": "S08",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 37044,
+ "output_tokens": 2001,
+ "input_tokens": 540003,
+ "cache_read_tokens": 504960,
+ "cache_create_tokens": 0,
+ "turns": 18,
+ "cost_usd_api_equiv": 0.009554400000000001,
+ "seconds": 96.2,
+ "contamination_flag": false,
+ "final_text": "FINDINGS: `execute_merge_session` pins the worker branch from the merge operation’s `expected_branch`, which `merge_operations` passes from `accepted_worker_branch`. That value comes from `_session_snapshot`, which reads the checked-out branch from Git via `inspect_worktree_identity`. The executor then compares it with `row_branch`, loaded from the durable session record. If those differ, it returns 409: “session branch changed before merge.”\n\nSo the refusal can occur even when nobody changed the worker during the merge: Git’s current branch and the session row’s stored branch disagree. A new operation snapshots the same Git branch and hits the same comparison. `worker_wip` reports Git worktree state but does not update the durable session branch, so following the suggested refresh action cannot repair that mismatch. The retry loop has no step that changes either side of this comparison.\n\nThe safety check is useful: the merge should be tied to the worker identity that was accepted. Fix the stale identity at its source by reconciling the durable session branch with the observed worktree branch through the existing validated branch-switch/update path, then take a fresh snapshot. Alternatively, make the merge path perform that reconciliation under the appropriate locks and revalidate the pinned identity before mutation. Do not simply drop the comparison; retain the final branch and HEAD checks under the repository mutation lock.\n\nIndependent check: `pytest -q tests/test_identity_drift.py`. I started it; it emitted seven passing-test dots but did not finish within 60 seconds, so I can’t report a completed test result."
+}

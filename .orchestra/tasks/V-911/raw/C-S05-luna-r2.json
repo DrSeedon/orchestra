@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S05-luna-r2",
+ "task": "S05",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 35648,
+ "output_tokens": 2560,
+ "input_tokens": 313152,
+ "cache_read_tokens": 280064,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.007389440000000001,
+ "seconds": 61.6,
+ "contamination_flag": true,
+ "final_text": "FINDINGS: The likely mechanism is a race between Codex’s `turn/start` acknowledgement and the actual start of the turn.\n\nIn `backend_codex.py`, `CodexBackend.send()` awaits the `turn/start` response, takes its turn ID, and immediately stores it in `_active_turn_id`. `AgentSession.send()` then creates the per-turn event listener and returns; the route returns HTTP 200. Codex’s separate `turn/started` notification arrives later. Until it does, a second message sees the session as RUNNING and `CodexBackend.send()` routes it to `turn/steer`. That can steer a turn whose execution has not visibly started yet, matching the “one message behind” symptom. The session status is set to RUNNING before submission, but `session_turns.py` sets it back to IDLE when it handles `turn/completed`. A very early completion or failed start can therefore make the worker appear idle after the request.\n\nThe obvious alternatives do not fit the code path:\n\n- Stale dashboard: the send route awaits `manager.send()`, and the session persists RUNNING before submitting. The relevant transition to IDLE is in turn-end handling, not just a dashboard refresh.\n- Lifecycle lock held: the lock covers the initial send, but is released before the route returns. A second send while RUNNING takes the mid-turn injection path before trying to acquire that lock.\n- Hibernate: Codex has `hibernate=False` in `runtime_registry.py`; session hibernation scheduling is not the cause.\n- Pending-message queue: the queue is used for compaction, runtimes without mid-turn injection, or when injection raises. Codex supports mid-turn injection, so the normal second-message path steers rather than queues.\n\nRecommendation: log and correlate `turn/start` response, `turn/started`, `turn/completed`, and `turn/steer` IDs and timestamps. If the race is confirmed, gate steering on the `turn/started` notification (or otherwise distinguish “accepted” from “started”), and retain a safe queue path during that interval.\n\nIndependent check applied: `pytest -q tests/test_backend_codex.py tests/test_session.py` passed (145 tests). These tests cover request dispatch and session lifecycle separately; they do not reproduce the app-server timing race, so the timing diagnosis remains an inference from the send and notification paths."
+}

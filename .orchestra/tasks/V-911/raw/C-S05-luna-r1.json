@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S05-luna-r1",
+ "task": "S05",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 40667,
+ "output_tokens": 2710,
+ "input_tokens": 456133,
+ "cache_read_tokens": 418176,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00933246,
+ "seconds": 128.6,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe code does not support a general “delivery is one turn behind” explanation. In `app/routes/sessions.py::send_message`, the route awaits `manager.send()` before returning 200. `app/manager.py::send` immediately delegates to `AgentSession.send()`.\n\nFor an idle Codex session, `app/session.py::AgentSession.send` takes the lifecycle lock, marks the session RUNNING and persists that state, awaits `CodexBackend.send()`, then starts `_turn_event_loop()`. In `app/backend_codex.py::CodexBackend.send`, the message goes into `turn/start`; the backend records the returned turn ID. Server notifications arriving before the listener starts are placed in `_notifications`, so this ordering alone does not discard the turn. The event loop consumes them, and `CodexBackend._convert_notification` emits `turn_end` only on `turn/completed`. `session_turns.py::TurnManager.handle_turn_end` then sets IDLE. Thus, an immediate return to IDLE requires a completion event or the event loop’s fallback after it exits; neither indicates that a queued message was silently delivered on a later turn.\n\nThe listed explanations do not fit the code path:\n\n- Stale dashboard: the backend’s own lifecycle sets and persists RUNNING before `turn/start`; the route response is not a dashboard-only state change.\n- Lifecycle lock held: `AgentSession.send` holds the lock while starting the turn and creating its listener, then releases it. `manager.send` adds no separate lock.\n- Hibernate: hibernation is scheduled after turn completion or listener exit; it does not explain an immediate idle transition after a successful start.\n- Pending-message queue: an idle session’s first message is sent directly. Queuing is for compacting, runtimes without mid-turn injection, or failed Codex steering. On an active Codex turn, `send` attempts `turn/steer`.\n\nA plausible boundary to inspect in a live reproduction is Codex’s `turn/start`/notification behavior together with `_turn_event_loop`’s unconditional IDLE fallback when the event iterator ends while status is RUNNING. The inspected code alone does not establish why that would happen in the reported case; capture the Codex notifications and session status/log sequence to identify the triggering event.\n\nIndependent check applied: `pytest -q tests/test_backend_codex.py tests/test_session.py -k 'codex or per_turn_runtime'` — 47 passed, 98 deselected. These tests cover turn start, steering, and per-turn lifecycle behavior, but do not reproduce the reported production timing."
+}

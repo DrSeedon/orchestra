@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S01-luna-r2",
+ "task": "S01",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 37824,
+ "output_tokens": 1649,
+ "input_tokens": 153679,
+ "cache_read_tokens": 117504,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.00561704,
+ "seconds": 45.1,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe refusal is raised by `SessionManager._auto_switch_before_delivery()` before `session.send()` runs, so that message is neither delivered nor logged as a worker `user_message`. All calls through `SessionManager.send()` share this behavior.\n\n- HTTP `/api/sessions/{name}/send` and MCP `send_message` (which calls that route): affected, but the sender gets an explicit error. `app/routes/sessions.py:send_message` returns the exception as an HTTP error; `app/mcp_stdio.py:send_message` turns it into “Send failed: …”. For spawn’s initial task, `mcp_stdio.py` reports delivery failure and tells the caller to use `send_message` after fixing the cause. Low risk of silent loss.\n- Telegram bridge: affected, and the human sender gets no failure notice. `tg_bridge.py:_send_to_agent` only queues; `_debounce_elapsed` later calls `_flush_batch`, which clears the batch before sending. A refusal then escapes the detached debounce task without a user-facing error or retry. High risk of silent loss; messages can look like an agent ignored them.\n- CI failure route: affected, but `routes/system.py` returns an HTTP 500 with the error. Low silent-loss risk.\n- Background jobs: timer completion, timeout/failure notifications, cron, and cron-command sends in `bg_jobs.py` catch errors and log them. Some mark the job failed; cron logs and continues without recording that fire. No direct notice to the worker’s sender. Medium risk: operators can find the log/job status, but may miss it.\n- Limit-wake: affected; `limit_wake.py:run_wake_job` clears the claim, persists “delivery failed,” fails the job, and logs/rethrows. The job record exposes failure, but the worker and original requester do not receive a direct notice. Medium risk.\n- Automatic reports and restart notices: `manager.py` auto-report callback and `_inject_restart_notice` catch and log failures only. No delivery to the intended recipient; medium risk.\n- Session-internal sends (rate-limit/turn-limit retries and similar): these call `AgentSession.send()` directly, bypassing the auto-switch refusal. `session.py` handles backend send failures by resetting status/queueing or logging as applicable; the specific refusal does not apply.\n\nRecommendation: keep the refusal and its clear error at the shared manager boundary, then make each asynchronous caller surface persistent failure. The urgent fix belongs in the Telegram debounce path: retain/report failed batches (or send a failure reply) instead of dropping the batch after the detached task raises. Add durable, visible failure status for background notifications, auto-reports, and restart notices; preserve the HTTP/MCP error behavior.\n\nIndependent check applied: `rg -n \"manager\\.send|session_manager\\.send|_manager\\.send|await self\\.send\" app` enumerated the production call sites reviewed above; the focused call-site search confirmed MCP routes through HTTP."
+}

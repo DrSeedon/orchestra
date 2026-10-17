@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S04-luna-r1",
+ "task": "S04",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 29538,
+ "output_tokens": 1312,
+ "input_tokens": 273346,
+ "cache_read_tokens": 245120,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.005929800000000001,
+ "seconds": 32.6,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe response is heavy because GET /api/orchestrators returns full session records. In app/routes/system.py:list_orchestrators, active orchestrators are serialized with AgentSession.to_dict() from app/session.py. That includes system_prompt (up to 500 characters), description, owned_dirs, task and token counters, and other session metadata. Database-only orchestrators come from get_all_sessions() and include all stored columns. The route then adds last_turn_ts, any_running, any_waiting, and cache-policy fields. The code identifies a separate list endpoint’s large fields—system_prompt and last_summary—as omitted there because consumers do not read them (app/manager.py:_LIST_OMIT), but that omission is not applied to this route.\n\nConsumers found:\n\n- Dashboard app.js:loadOrchestrators reads parent_name for filtering, and uses name, scope, id, status, cost_usd, context_pct, model, color, cache_ttl_seconds, cache_ttl_approximate, and last_turn_ts for tabs, selection, and cache pills. Tab status also uses any_running and any_waiting. Its 60-second refresh updates unread indicators from status and scope.\n- Dashboard app.js:refreshSessions uses the same route to update unread indicators; it reads name, status, and scope.\n- app/mcp_stdio.py:list_orchestrators formats name, scope, status, cost_usd, context_pct, and description.\n- app/routes/system.py itself derives any_running and any_waiting from scope and live session state.\n\nNo located consumer of GET /api/orchestrators reads system_prompt, owned_dirs, task_id, token/tool counters, or most other session metadata. The MCP listing does read description, so dropping that field would change its output.\n\nThe cut belongs in app/routes/system.py:list_orchestrators: construct a dedicated, compact orchestrator listing with the fields above instead of returning full `to_dict()`/database rows. Preserve description for MCP, and preserve the dashboard fields, including cache metadata and parent_name. This should reduce payload without breaking the identified consumers; confirm against any external clients before treating the field list as a universal API contract.\n\nThe startup duplicate has two independent callers: DOMContentLoaded calls loadOrchestrators(), and the first scheduled refresh calls refreshSessions(), which requests /api/orchestrators when its 15-second freshness window is empty. The refresh timer starts at 3 seconds, so both initial requests can overlap. The endpoint is also refreshed every 60 seconds by _startCacheCountdown(). Recommendation: return a compact, explicitly shaped response and avoid the initial duplicate by sharing the startup result with refreshSessions or deferring its orchestrator poll until the freshness interval expires."
+}

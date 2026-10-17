@@ -1,0 +1,28 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 570ms
+A-S01-sonnet-r1 FAIL 0 None
+A-S02-sonnet-r1 FAIL 0 None
+A-S03-sonnet-r1 FAIL 0 None
+A-S02-luna-r1 ok 29531 7
+A-S01-luna-r1 ok 20762 8
+A-S03-luna-r1 ok 24612 8
+A-S06-sonnet-r1 ok 29254 7
+A-S04-luna-r1 ok 29538 12
+A-S06-luna-r1 ok 25113 8
+A-S05-luna-r1 ok 32407 12
+A-S04-sonnet-r1 ok 35812 23
+A-S07-luna-r1 ok 35838 7
+A-S09-luna-r1 ok 29258 10
+A-S08-luna-r1 ok 28433 10
+A-S07-sonnet-r1 ok 19538 16
+A-S10-luna-r1 ok 15695 7
+A-S05-sonnet-r1 ok 52316 26
+A-S11-luna-r1 ok 28725 7
+A-S08-sonnet-r1 ok 29764 13
+A-S12-luna-r1 ok 40168 13
+A-S10-sonnet-r1 ok 21394 13
+A-S09-sonnet-r1 ok 47945 25
+A-S11-sonnet-r1 ok 43160 20
+A-S12-sonnet-r1 ok 54751 12
+EXIT=0
