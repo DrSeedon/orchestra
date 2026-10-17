@@ -132,6 +132,21 @@ def _isolate_production_db(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_temp_rules():
+    """Prompt assembly must not read the live `.orchestra/temp-rules.yaml` (V-936).
+
+    The file is committed in this repository, so any test that builds a prompt for a project
+    inside it would otherwise receive the live `<temporary-rules>` block. Tests of the rules
+    themselves restore the real name in their own fixture.
+    """
+    from app import temp_rules
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(temp_rules, "RULES_FILE", temp_rules.Path(".orchestra") / "temp-rules.isolated-in-tests.yaml")
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _isolate_project_catalog(tmp_path):
     """Каталог проектов — тоже боевые данные: тест не должен видеть живые теги.
 

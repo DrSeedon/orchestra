@@ -65,6 +65,7 @@ def env(tmp_path, monkeypatch):
         subprocess.run(["git", "-C", str(repo), "commit", "-qm", "init"], check=True)
         monkeypatch.setattr(this, name, str(repo))
     monkeypatch.setattr(temp_rules, "ORCHESTRA_SCOPE", ROOT)
+    monkeypatch.setattr(temp_rules, "RULES_FILE", Path(".orchestra") / "temp-rules.yaml")
     monkeypatch.setattr(temp_rules, "_migrated", False)
     temp_rules._warned.clear()
     db.init_db()
