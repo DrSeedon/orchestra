@@ -26,10 +26,18 @@ a separate state file with only current statuses; do not grow a chronicle there.
 already written, fix that entry instead of appending another version.
 
 Structure of a project's rules (owner decision, 2026-10-17). The root file (CLAUDE.md /
-AGENTS.md) is a core: only what almost every turn needs, plus a registry of lines
-"topic → file → when to read". Details live in topic Markdown files of the project, which
-agents read when the registry line says so and extend when a rule changes. A new rule or an
-owner decision with its date and quote goes into its topic file; the core gets one registry
+AGENTS.md) is the core and holds what is needed always: the essence of the project (what it
+does, for whom, the main structure), small rules that always apply and are not worth a file of
+their own, and a registry of lines "topic → file → when to read". What is needed only
+sometimes lives in topic Markdown files of the project, which agents read when the registry
+line says so and extend when a rule changes. Keep them in a directory that runtimes do
+not load by themselves (for example `.orchestra/kb/rules-*.md`) and never in `.claude/rules/`:
+Claude Code loads every `.md` there into context, so the registry silently becomes a full load
+(measured: an 18.5 KB core plus 171 KB in `.claude/rules/` put about 189 KB on every turn, and a
+model with file tools disabled still knew a fact that existed only in a topic file). To check
+the layout, ask a model without file tools for a fact that exists only in a topic file: it must
+not know it, while a fact from the core it must. A new rule that is not always needed, or an
+owner decision with its date and quote, goes into its topic file; the core gets one registry
 line, or one line with the conclusion and a link. The core is sent on every turn of every
 agent, so it has a size ceiling: 16 KiB, half of the 32 KiB at which the harness silently
 truncates project instructions. When the core outgrows the ceiling, move content into topic
