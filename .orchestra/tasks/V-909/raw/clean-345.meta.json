@@ -1,0 +1,1 @@
+{"id": "clean-345", "sha": "970ad5f362c9bc7afa59c07016b4157db6237f9c", "rc": 0, "seconds": 25.0, "usage": {"input_tokens": 132839, "cached_input_tokens": 94592, "cache_write_input_tokens": 0, "output_tokens": 1527, "reasoning_output_tokens": 500}, "diff_bytes": 84371, "dirty_after": "", "stderr": ""}

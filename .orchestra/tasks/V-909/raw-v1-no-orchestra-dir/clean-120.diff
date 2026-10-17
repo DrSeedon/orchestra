@@ -1,0 +1,866 @@
+diff --git a/app/bg_jobs.py b/app/bg_jobs.py
+index a94924b4596fe0780032764ec2964098be5595c6..50d9553a820cd496a9cd9028b9178d6e933f601b 100644
+--- a/app/bg_jobs.py
++++ b/app/bg_jobs.py
+@@ -1,13 +1,17 @@
+ """Background Jobs — server-side one-shot tasks that survive hibernate."""
+ 
+ import asyncio
++import array
+ import json
+ import logging
+ import os
+ import re
+ import signal
++import socket
++import sys
+ import time
+ from datetime import datetime, timezone, timedelta
++from pathlib import Path
+ from uuid import uuid4
+ 
+ from croniter import croniter
+@@ -21,6 +25,7 @@ from app.db import (
+     bg_get_jobs, bg_fail_job_if_active, bg_replace_job,
+     bg_reset_wake_triggering,
+ )
++from app.pidfd_exec import pidfd_send_group
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -31,6 +36,11 @@ DEFAULT_TIMEOUT = 3600
+ OUTPUT_PROGRESS_INTERVAL = 30
+ _CRON_COMMAND_TIMEOUT_SECONDS = 30
+ _NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
++_PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
++_PIDFD_HANDSHAKE_TIMEOUT = 5
++_PIDFD_TERM_GRACE = 3
++_PIDFD_KILL_GRACE = 2
++_PIDFD_POLL_INTERVAL = 0.05
+ 
+ _SSH_OPTS = [
+     "-o", "BatchMode=yes",
+@@ -111,26 +121,149 @@ def _validate_config(job_type: str, config: dict) -> str | None:
+     return None
+ 
+ 
+-async def _kill_proc(proc: asyncio.subprocess.Process) -> None:
+-    if proc.returncode is not None:
+-        return
++def _extract_pidfd(data: bytes, ancillary: list[tuple[int, int, bytes]]) -> int:
++    received: list[int] = []
++    for level, kind, payload in ancillary:
++        if level != socket.SOL_SOCKET or kind != socket.SCM_RIGHTS:
++            continue
++        rights = array.array("i")
++        rights.frombytes(payload[:len(payload) - len(payload) % rights.itemsize])
++        received.extend(rights)
++    if data != b"P":
++        for fd in received:
++            os.close(fd)
++        detail = data.decode(errors="replace") or "EOF"
++        raise RuntimeError(f"pidfd exec handshake failed: {detail}")
++    if len(received) != 1:
++        for fd in received:
++            os.close(fd)
++        raise RuntimeError(f"pidfd exec handshake received {len(received)} fds")
++    return received[0]
++
++
++async def _recv_pidfd(control: socket.socket) -> int:
++    loop = asyncio.get_running_loop()
++    future = loop.create_future()
++    fd_size = array.array("i").itemsize
++
++    def receive() -> None:
++        try:
++            data, ancillary, _flags, _address = control.recvmsg(
++                256,
++                socket.CMSG_SPACE(fd_size),
++                socket.MSG_CMSG_CLOEXEC,
++            )
++            result = _extract_pidfd(data, ancillary)
++        except BlockingIOError:
++            return
++        except BaseException as exc:
++            if not future.done():
++                future.set_exception(exc)
++        else:
++            if not future.done():
++                future.set_result(result)
++        finally:
++            if future.done():
++                loop.remove_reader(control.fileno())
++
++    control.setblocking(False)
++    loop.add_reader(control.fileno(), receive)
+     try:
+-        pgid = os.getpgid(proc.pid)
+-        os.killpg(pgid, signal.SIGTERM)
+-    except (ProcessLookupError, PermissionError):
+-        pass
++        return await future
++    finally:
++        loop.remove_reader(control.fileno())
++
++
++async def _spawn_bg_process(
++    command: str | list[str],
++    *,
++    shell: bool,
++    **kwargs,
++) -> asyncio.subprocess.Process:
++    parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
++    proc = None
++    pidfd = None
+     try:
+-        await asyncio.wait_for(proc.wait(), timeout=3)
+-    except (asyncio.TimeoutError, ProcessLookupError):
++        mode = "shell" if shell else "argv"
++        target = [command] if shell else list(command)
++        proc = await asyncio.create_subprocess_exec(
++            sys.executable,
++            _PIDFD_EXEC,
++            str(child.fileno()),
++            mode,
++            *target,
++            pass_fds=(child.fileno(),),
++            start_new_session=True,
++            **kwargs,
++        )
++        child.close()
++        pidfd = await asyncio.wait_for(
++            _recv_pidfd(parent), timeout=_PIDFD_HANDSHAKE_TIMEOUT,
++        )
++        if not pidfd_send_group(pidfd, 0):
++            raise RuntimeError("pidfd process group disappeared before exec ACK")
++        proc._orchestra_pidfd = pidfd
++        pidfd = None
+         try:
+-            pgid = os.getpgid(proc.pid)
+-            os.killpg(pgid, signal.SIGKILL)
+-        except (ProcessLookupError, PermissionError):
+-            pass
++            await asyncio.get_running_loop().sock_sendall(parent, b"A")
++        except BaseException:
++            parent.close()
++            await _kill_proc(proc)
++            raise
++        return proc
++    except BaseException:
++        if pidfd is not None:
++            os.close(pidfd)
++        if proc is not None and getattr(proc, "_orchestra_pidfd", None) is None:
++            child.close()
++            parent.close()
++            try:
++                await asyncio.wait_for(asyncio.shield(proc.wait()), timeout=2)
++            except (asyncio.TimeoutError, asyncio.CancelledError):
++                logger.error(
++                    "pidfd exec shim pid=%s did not exit after handshake failure",
++                    proc.pid,
++                )
++        raise
++    finally:
++        child.close()
++        parent.close()
++
++
++async def _cleanup_pidfd_group(proc: asyncio.subprocess.Process) -> None:
++    pidfd = getattr(proc, "_orchestra_pidfd", None)
++    if pidfd is None:
++        raise RuntimeError(f"process pid={proc.pid} has no stable pidfd identity")
++    proc._orchestra_pidfd = None
++    try:
++        alive = pidfd_send_group(pidfd, signal.SIGTERM)
++        deadline = asyncio.get_running_loop().time() + _PIDFD_TERM_GRACE
++        while alive and asyncio.get_running_loop().time() < deadline:
++            await asyncio.sleep(_PIDFD_POLL_INTERVAL)
++            alive = pidfd_send_group(pidfd, 0)
++        if alive:
++            pidfd_send_group(pidfd, signal.SIGKILL)
++            deadline = asyncio.get_running_loop().time() + _PIDFD_KILL_GRACE
++            while asyncio.get_running_loop().time() < deadline:
++                await asyncio.sleep(_PIDFD_POLL_INTERVAL)
++                if not pidfd_send_group(pidfd, 0):
++                    break
++            else:
++                raise RuntimeError(f"process group for pid={proc.pid} survived SIGKILL")
+         try:
+-            await asyncio.wait_for(proc.wait(), timeout=2)
+-        except Exception:
+-            pass
++            await asyncio.wait_for(asyncio.shield(proc.wait()), timeout=2)
++        except asyncio.TimeoutError:
++            logger.warning("process leader pid=%s was not reaped after group exit", proc.pid)
++    finally:
++        os.close(pidfd)
++
++
++async def _kill_proc(proc: asyncio.subprocess.Process) -> None:
++    cleanup = getattr(proc, "_orchestra_cleanup_task", None)
++    if cleanup is None:
++        cleanup = asyncio.create_task(_cleanup_pidfd_group(proc))
++        proc._orchestra_cleanup_task = cleanup
++    await asyncio.shield(cleanup)
+ 
+ 
+ def _orphan_session_stats(session_id: int) -> tuple[int, float]:
+@@ -519,11 +652,11 @@ class BgJobManager:
+         proc = None
+         output = ""
+         try:
+-            proc = await asyncio.create_subprocess_shell(
++            proc = await _spawn_bg_process(
+                 command,
++                shell=True,
+                 stdout=asyncio.subprocess.PIPE,
+                 stderr=asyncio.subprocess.PIPE,
+-                preexec_fn=os.setsid,
+             )
+             self._procs[job_id] = proc
+             try:
+@@ -590,10 +723,10 @@ class BgJobManager:
+                               target_name, target_scope, timeout):
+         proc = None
+         try:
+-            proc = await asyncio.create_subprocess_exec(
+-                "tail", "-F", "-n", "0", path,
++            proc = await _spawn_bg_process(
++                ["tail", "-F", "-n", "0", path],
++                shell=False,
+                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+-                preexec_fn=os.setsid,
+             )
+             self._procs[job_id] = proc
+             async with asyncio.timeout(timeout):
+@@ -619,9 +752,9 @@ class BgJobManager:
+         deadline = (time.time() + timeout) if timeout is not None else None
+         try:
+             while deadline is None or time.time() < deadline:
+-                proc = await asyncio.create_subprocess_shell(
+-                    command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+-                    preexec_fn=os.setsid,
++                proc = await _spawn_bg_process(
++                    command, shell=True,
++                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                 )
+                 self._procs[job_id] = proc
+                 try:
+@@ -647,10 +780,10 @@ class BgJobManager:
+                               target_name, target_scope, timeout):
+         proc = None
+         try:
+-            proc = await asyncio.create_subprocess_exec(
+-                "ssh", *_SSH_OPTS, host, command,
++            proc = await _spawn_bg_process(
++                ["ssh", *_SSH_OPTS, host, command],
++                shell=False,
+                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+-                preexec_fn=os.setsid,
+             )
+             self._procs[job_id] = proc
+             async with asyncio.timeout(timeout):
+@@ -682,15 +815,17 @@ class BgJobManager:
+             # that exceed asyncio's default 64KB StreamReader limit → ValueError
+             _STREAM_LIMIT = 16 * 1024 * 1024
+             if host:
+-                proc = await asyncio.create_subprocess_exec(
+-                    "ssh", *_SSH_OPTS, host, command,
++                proc = await _spawn_bg_process(
++                    ["ssh", *_SSH_OPTS, host, command],
++                    shell=False,
+                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+-                    preexec_fn=os.setsid, limit=_STREAM_LIMIT,
++                    limit=_STREAM_LIMIT,
+                 )
+             else:
+-                proc = await asyncio.create_subprocess_shell(
+-                    command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+-                    preexec_fn=os.setsid, limit=_STREAM_LIMIT,
++                proc = await _spawn_bg_process(
++                    command, shell=True,
++                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
++                    limit=_STREAM_LIMIT,
+                 )
+             self._procs[job_id] = proc
+             where = host or "local"
+diff --git a/app/pidfd_exec.py b/app/pidfd_exec.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2893cb8b6618fb5dd5385387010a05a3b2e7855f
+--- /dev/null
++++ b/app/pidfd_exec.py
+@@ -0,0 +1,89 @@
++"""Exec shim that hands its own pidfd to the parent before running a target."""
++
++import array
++import ctypes
++import errno
++import os
++import socket
++import sys
++
++
++PIDFD_SIGNAL_PROCESS_GROUP = 1 << 2
++
++_libc = ctypes.CDLL(None, use_errno=True)
++try:
++    _pidfd_open = _libc.pidfd_open
++    _pidfd_send_signal = _libc.pidfd_send_signal
++except AttributeError:
++    _pidfd_open = _pidfd_send_signal = None
++else:
++    _pidfd_open.argtypes = (ctypes.c_int, ctypes.c_uint)
++    _pidfd_open.restype = ctypes.c_int
++    _pidfd_send_signal.argtypes = (
++        ctypes.c_int,
++        ctypes.c_int,
++        ctypes.c_void_p,
++        ctypes.c_uint,
++    )
++    _pidfd_send_signal.restype = ctypes.c_int
++
++
++def pidfd_open_self() -> int:
++    if _pidfd_open is None:
++        raise OSError(errno.ENOSYS, "libc pidfd functions are unavailable")
++    fd = _pidfd_open(os.getpid(), 0)
++    if fd < 0:
++        error = ctypes.get_errno()
++        raise OSError(error, os.strerror(error))
++    return fd
++
++
++def pidfd_send_group(pidfd: int, sig: int) -> bool:
++    """Signal the retained process group; return False once the group is gone."""
++    if _pidfd_send_signal is None:
++        raise OSError(errno.ENOSYS, "libc pidfd functions are unavailable")
++    if _pidfd_send_signal(
++        pidfd, sig, None, PIDFD_SIGNAL_PROCESS_GROUP,
++    ) == 0:
++        return True
++    error = ctypes.get_errno()
++    if error == errno.ESRCH:
++        return False
++    raise OSError(error, os.strerror(error))
++
++
++def _send_pidfd(control: socket.socket, pidfd: int) -> None:
++    rights = array.array("i", [pidfd])
++    control.sendmsg(
++        [b"P"],
++        [(socket.SOL_SOCKET, socket.SCM_RIGHTS, rights)],
++    )
++
++
++def main() -> int:
++    if len(sys.argv) < 4 or sys.argv[2] not in {"shell", "argv"}:
++        return 64
++    control = socket.socket(fileno=int(sys.argv[1]))
++    try:
++        try:
++            pidfd = pidfd_open_self()
++        except OSError as exc:
++            control.send((f"E{exc.errno}:{exc.strerror}").encode())
++            return 70
++        try:
++            _send_pidfd(control, pidfd)
++        finally:
++            os.close(pidfd)
++        if control.recv(1) != b"A":
++            return 71
++    finally:
++        control.close()
++
++    if sys.argv[2] == "shell":
++        os.execv("/bin/sh", ["/bin/sh", "-c", sys.argv[3]])
++    os.execvp(sys.argv[3], sys.argv[3:])
++    return 72
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/docs/tasks/120/codex-review-plan.md b/docs/tasks/120/codex-review-plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..6014642bb9351ebfea5e370eafbf648cd8a30b62
+--- /dev/null
++++ b/docs/tasks/120/codex-review-plan.md
+@@ -0,0 +1,35 @@
++The proposed process lifecycle can execute targets on unsupported kernels and allows concurrent cancellation to return before termination is complete. Both gaps undermine the safety contract the plan is intended to establish.
++
++Full review comments:
++
++- [P1] Probe group-signal support before sending ACK — /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-memory/docs/tasks/120/plan.md:32-33
++  On Linux before 6.9, `pidfd_open` and the SCM_RIGHTS handoff can succeed while `PIDFD_SIGNAL_PROCESS_GROUP` is rejected, so this sequence ACKs the shim and executes the target before support is first exercised in `_kill_proc()`. That violates the fail-closed contract at lines 89–91 and can leave the group impossible to terminate safely; probe a signal-0 group operation on the received pidfd before ACK.
++
++- [P1] Make concurrent callers await the active cleanup — /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-memory/docs/tasks/120/plan.md:39-40
++  When timeout/finally cleanup already owns the pidfd and is waiting through the TERM grace period, `BgJobManager.cancel()` can cancel that owner and then invoke `_kill_proc()` itself; making the second invocation a no-op lets cancellation return before cleanup finishes and can prevent escalation to KILL for a TERM-ignoring group. Store a shared, cancellation-shielded cleanup task and make concurrent callers await it while keeping signaling and closing single-shot.
++
++## Author resolution after Round 2
++
++- **Pre-ACK support probe — ACK.** Plan now requires a successful group signal-0
++  operation on the received pidfd before ACK. Unsupported kernels close the control
++  channel; shim exits without executing target.
++- **Concurrent cleanup — ACK.** `_kill_proc()` now creates/stores one cleanup task
++  synchronously and every caller awaits it via `asyncio.shield()`. Signaling and fd
++  close remain single-shot; cancellation of one caller cannot cancel escalation.
++
++## Round (2026-08-01T11:23:31Z)
++
++Ну надо же, третий раунд действительно закрыл оба P1 😏
++
++### Re-review status
++
++- **FIXED** — pre-ACK group signal-0 probe теперь обязателен; при ошибке target не исполняется ([plan.md](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-memory/docs/tasks/120/plan.md:32)).
++- **FIXED** — concurrent/repeated callers ожидают один shielded cleanup task; TERM→KILL и закрытие pidfd остаются single-shot ([plan.md](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-memory/docs/tasks/120/plan.md:39)).
++
++### New findings
++
++Нет.
++
++### Verdict
++
++**APPROVED.** Оба прежних P1 закрыты, новых блокеров в статическом diff нет. Теперь ACK хотя бы не выдаётся как пропуск на аттракцион до проверки ремней.
+diff --git a/docs/tasks/120/plan.md b/docs/tasks/120/plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..25c9ae752ccd0e5c744986f75343175f310ffbee
+--- /dev/null
++++ b/docs/tasks/120/plan.md
+@@ -0,0 +1,128 @@
++# #120 — план безопасного завершения процессов
++
++Статус: implementation approved 2026-08-01. Порядок и отдельные коммиты заданы
++оркестратором: T1, затем T2. Код #93/#114/#116 и `pipelines/` не затрагивается.
++
++## Решение
++
++### SSH
++
++Удалить `_kill_stale()` и единственный startup-вызов `pkill -f`. Никакого нового
++cross-process discovery: текущий process чистится через существующий `t.proc`, а
++остатки production service после restart — через systemd
++`KillMode=control-group`. Рядом с startup оставить WHY-комментарий: ручной
++`SIGKILL` запуска вне systemd может оставить SSH, но безопасно доказать ownership
++после restart невозможно, поэтому Orchestra не ищет и не сигнализирует процессы по
++командной строке.
++
++Остаточная числовая гонка внутри `asyncio Process.terminate()/kill()` зафиксирована
++в отчёте с координатами, но не меняется: постановка явно отнесла live handles к
++другому классу.
++
++### Background jobs
++
++`asyncio.create_subprocess_*()` не возвращает atomic pidfd, поэтому обычный
++post-spawn `pidfd_open(proc.pid)` запрещён. Перед исходной командой запускается
++короткий Python exec shim:
++
++1. Parent создаёт `SOCK_SEQPACKET` socketpair и запускает shim с
++   `start_new_session=True`.
++2. Shim открывает pidfd на самого себя, передаёт fd parent через `SCM_RIGHTS` и ждёт
++   ACK. Исходная команда ещё не исполняется и не может успеть завершиться.
++3. Parent получает fd с `MSG_CMSG_CLOEXEC` и **до ACK** делает group signal-0 probe
++   через `PIDFD_SIGNAL_PROCESS_GROUP`. Только успешный probe разрешает ACK; на kernel
++   без group-flag support shim получает EOF и target не исполняется.
++4. После ACK shim закрывает control socket и делает `execvp()` команды (для shell
++   mode — `/bin/sh -c <command>`). PID/PGID/SID и pidfd identity сохраняются,
++   лишнего runtime-процесса после `exec` нет.
++5. `_kill_proc()` синхронно создаёт и сохраняет на `Process` единственный cleanup
++   task либо получает уже существующий. Все concurrent callers ждут тот же task
++   через `asyncio.shield()`; cancellation caller не отменяет TERM->KILL escalation.
++6. Внутренний cleanup атомарно забирает pidfd, посылает group TERM через
++   `pidfd_send_signal(..., PIDFD_SIGNAL_PROCESS_GROUP)`, ждёт исчезновения группы
++   безопасными signal-0 probes, затем при необходимости посылает group KILL.
++7. Pidfd закрывается ровно один раз. Повторный/concurrent cleanup ждёт сохранённый
++   результат, а не запускает сигналы повторно. Даже если leader уже exited/reaped,
++   retained pidfd продолжает адресовать исходную группу.
++
++Нет numeric fallback. Ошибка libc/kernel/handshake происходит до ACK: исходная
++команда не запускается, shim выходит после закрытия control socket, caller получает
++явный exception/job failure.
++
++## Предзарегистрированный ресурсный гейт
++
++Измерение после T2, последовательно под `nice -n 15`:
++
++- 100 запусков `/bin/true`: direct asyncio baseline против tracked shim;
++  median и p95 added wall time.
++- 3 запуска shim, удержанного до ACK: `Pss+SwapPss` из `smaps_rollup`; сравнение с
++  direct `/bin/sleep` baseline.
++- FD count parent до/после 100 fast runs.
++
++**STOP и эскалация до commit T2**, если added median >50 ms, added p95 >100 ms,
++transient shim `Pss+SwapPss` >32 MiB или остаётся хотя бы один FD. Это не performance
++target продукта, а потолок, после которого новый launch contract уже нельзя считать
++малой платой за correctness.
++
++## Tickets
++
++### T1 — Удалить broad SSH cleanup
++
++- Files: `app/ssh_tunnel.py`, `tests/test_proxy.py`, `docs/tasks/120/report.md`.
++- Commit: `#120: remove broad SSH process matching`.
++- AC:
++  - В `app/ssh_tunnel.py` и его tests нет `pkill`, `pgrep` и `_kill_stale`.
++  - `start_tunnel()` по-прежнему adopts уже слушающий external port и запускает
++    `_tunnel_loop()` для managed port.
++  - WHY-комментарий документирует systemd cleanup и исключение ручного запуска.
++  - Реальный foreign process с command line, совпадающей со старым regex, остаётся
++    жив после startup/stop disposable tunnel manager.
++  - Disposable owned SSH tunnel на свободном local port поднимается и завершается;
++    production service и его порты не рестартятся/не меняются.
++- blocked-by: none.
++
++### T2 — Stable pidfd process-group lifecycle
++
++- Files: новый `app/pidfd_exec.py`, `app/bg_jobs.py`, `tests/test_bg_jobs.py`,
++  `docs/tasks/120/report.md`, `docs/tasks/120/codex-review-impl.md`.
++- Commit: `#120: signal background process groups through pidfd`.
++- AC:
++  - Все шесть background-job spawn sites используют один tracked-spawn contract;
++    `preexec_fn=os.setsid`, `os.getpgid` и `os.killpg` удалены из `app/bg_jobs.py`.
++  - Shim self-opens pidfd before ACK and never executes the target without successful
++    handoff; shell and argv modes preserve current command semantics, stdout/stderr
++    pipes and `limit`.
++  - Unsupported pidfd group signal обнаруживается signal-0 probe **до ACK**;
++    malformed/EOF handoff, spawn failure и cancellation fail closed: target не
++    запускается, numeric signal не посылается, socket/pidfd закрываются, ошибка
++    видима caller/job state.
++  - Concurrent/repeated `_kill_proc()` signals/closes once; все callers ждут один
++    shielded cleanup task, cancellation одного caller не отменяет escalation и не
++    вызывает EBADF/foreign signal.
++  - Live leader + child: TERM removes whole group; unrelated process survives.
++  - Leader already waited/reaped + TERM-ignoring child: TERM leaves child, KILL
++    removes it; unrelated process survives.
++  - Normal exit, timeout, explicit cancel, manager shutdown, cron command, file,
++    command and SSH watch paths retain their current DB/notification semantics.
++  - Resource gate above passes and exact median/p95/PSS/FD numbers are recorded in
++    `report.md`.
++  - Focused tests and full suite pass under global test lock with `nice -n 15`.
++  - Codex implementation review has no unresolved blocking findings.
++- blocked-by: T1.
++
++## Что не менять
++
++- `app/manager.py`, `app/workspace.py`, `app/routes/sessions.py` (#93).
++- `app/routes/system.py` (#114), `app/rag.py` (#116), `pipelines/`.
++- SSH `t.proc.terminate()/kill()` live-handle paths и остальные signal sites из карты
++  #113.
++- systemd units, `.env`, proxy selection, production processes и service lifecycle.
++
++## Проверка
++
++1. T1 focused `tests/test_proxy.py` + disposable real-process fact.
++2. T1 commit до начала T2.
++3. T2 focused `tests/test_bg_jobs.py`, resource benchmark, real leader/child/
++   unrelated fact.
++4. Codex review diff; blocking findings verify/fix/debate, round 2 mandatory.
++5. Global test lock → full suite exactly once, log read once → release lock.
+diff --git a/tests/test_bg_jobs.py b/tests/test_bg_jobs.py
+index 27a179aba92b104eca704325ffbf371a7a1b26bb..56187a8928fa132c9b0ee041df23282d5d95ff51 100644
+--- a/tests/test_bg_jobs.py
++++ b/tests/test_bg_jobs.py
+@@ -2,6 +2,9 @@
+ 
+ import asyncio
+ import json
++import os
++import signal
++import sys
+ import threading
+ from datetime import datetime, timedelta, timezone
+ from unittest.mock import AsyncMock, MagicMock
+@@ -320,7 +323,8 @@ class TestCronCommand:
+             for index in range(4)
+         ]
+         create = AsyncMock(side_effect=processes)
+-        monkeypatch.setattr(module.asyncio, "create_subprocess_shell", create)
++        monkeypatch.setattr(module, "_spawn_bg_process", create)
++        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
+ 
+         async def communicate(proc):
+             return proc.output, proc.error
+@@ -362,11 +366,8 @@ class TestCronCommand:
+         mgr.set_session_manager(manager)
+         bg_save_job(self._job("cron-command-match", datetime.now(timezone.utc)))
+         proc = self._proc(output=b"ALERT: item 42\n", returncode=7)
+-        monkeypatch.setattr(
+-            module.asyncio,
+-            "create_subprocess_shell",
+-            AsyncMock(return_value=proc),
+-        )
++        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
++        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
+ 
+         async def communicate(process):
+             return process.output, process.error
+@@ -409,11 +410,8 @@ class TestCronCommand:
+         mgr.set_session_manager(manager)
+         bg_save_job(self._job("cron-command-empty-output", datetime.now(timezone.utc)))
+         proc = self._proc()
+-        monkeypatch.setattr(
+-            module.asyncio,
+-            "create_subprocess_shell",
+-            AsyncMock(return_value=proc),
+-        )
++        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
++        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
+ 
+         async def communicate(process):
+             return process.output, process.error
+@@ -445,11 +443,7 @@ class TestCronCommand:
+         mgr.set_session_manager(manager)
+         bg_save_job(self._job("cron-command-timeout", datetime.now(timezone.utc)))
+         proc = self._proc(output=b"ALERT: partial\n", returncode=None)
+-        monkeypatch.setattr(
+-            module.asyncio,
+-            "create_subprocess_shell",
+-            AsyncMock(return_value=proc),
+-        )
++        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
+ 
+         async def timeout(_process):
+             raise asyncio.TimeoutError
+@@ -490,11 +484,7 @@ class TestCronCommand:
+         mgr.set_session_manager(manager)
+         bg_save_job(self._job("cron-command-cancel", datetime.now(timezone.utc)))
+         proc = self._proc(returncode=None)
+-        monkeypatch.setattr(
+-            module.asyncio,
+-            "create_subprocess_shell",
+-            AsyncMock(return_value=proc),
+-        )
++        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
+         communicating = asyncio.Event()
+         never = asyncio.Event()
+ 
+@@ -577,17 +567,13 @@ class TestRunExecOutcome:
+         session.send.assert_awaited_once()
+ 
+     @pytest.mark.asyncio
+-    async def test_reports_child_that_keeps_stdout_open_without_signaling(
++    async def test_reports_child_that_keeps_stdout_open_before_safe_cleanup(
+         self, db, mgr_mock, caplog, monkeypatch,
+     ):
+         from app.bg_jobs import BgJobManager
+         from app.db import bg_get_jobs, bg_save_job
+ 
+         caplog.set_level("WARNING", logger="app.bg_jobs")
+-        monkeypatch.setattr(
+-            "app.bg_jobs.os.killpg",
+-            lambda *_: pytest.fail("observation must not signal a process group"),
+-        )
+         mgr = BgJobManager()
+         manager, session = mgr_mock
+         mgr.set_session_manager(manager)
+@@ -616,10 +602,6 @@ class TestRunExecOutcome:
+         from app.bg_jobs import BgJobManager
+         from app.db import bg_save_job
+ 
+-        monkeypatch.setattr(
+-            "app.bg_jobs.os.killpg",
+-            lambda *_: pytest.fail("cancellation must not signal a stale process group"),
+-        )
+         mgr = BgJobManager()
+         manager, _ = mgr_mock
+         mgr.set_session_manager(manager)
+@@ -690,3 +672,200 @@ class TestRunExecOutcome:
+         assert row["status"] == "failed"
+         assert "artifact" in row["error"].lower()
+         assert "FAILED" in session.send.await_args.args[0]
++
++
++class TestPidfdProcessLifecycle:
++    @pytest.mark.asyncio
++    async def test_shell_and_argv_modes_preserve_arguments(self):
++        from app.bg_jobs import _kill_proc, _spawn_bg_process
++
++        argv_proc = await _spawn_bg_process(
++            ["/usr/bin/printf", "%s", "argv value"],
++            shell=False,
++            stdout=asyncio.subprocess.PIPE,
++        )
++        argv_output, _ = await argv_proc.communicate()
++        await _kill_proc(argv_proc)
++
++        shell_proc = await _spawn_bg_process(
++            "printf '%s' 'shell value'",
++            shell=True,
++            stdout=asyncio.subprocess.PIPE,
++        )
++        shell_output, _ = await shell_proc.communicate()
++        await _kill_proc(shell_proc)
++
++        assert argv_output == b"argv value"
++        assert shell_output == b"shell value"
++
++    @pytest.mark.asyncio
++    async def test_unsupported_group_signal_fails_before_target_exec(
++        self, tmp_path, monkeypatch,
++    ):
++        import app.bg_jobs as module
++
++        marker = tmp_path / "must-not-exist"
++        monkeypatch.setattr(module, "pidfd_send_group", lambda _fd, _sig: False)
++
++        with pytest.raises(RuntimeError, match="disappeared before exec ACK"):
++            await module._spawn_bg_process(
++                f"touch {marker}", shell=True,
++                stdout=asyncio.subprocess.DEVNULL,
++                stderr=asyncio.subprocess.DEVNULL,
++            )
++
++        assert not marker.exists()
++
++    @pytest.mark.asyncio
++    async def test_cancelled_handshake_never_executes_target(
++        self, tmp_path, monkeypatch,
++    ):
++        import app.bg_jobs as module
++
++        marker = tmp_path / "must-not-exist"
++        receiving = asyncio.Event()
++
++        async def blocked_receive(_control):
++            receiving.set()
++            await asyncio.Event().wait()
++
++        monkeypatch.setattr(module, "_recv_pidfd", blocked_receive)
++        task = asyncio.create_task(module._spawn_bg_process(
++            f"touch {marker}", shell=True,
++            stdout=asyncio.subprocess.DEVNULL,
++            stderr=asyncio.subprocess.DEVNULL,
++        ))
++        await receiving.wait()
++        task.cancel()
++
++        with pytest.raises(asyncio.CancelledError):
++            await task
++        assert not marker.exists()
++
++    @pytest.mark.asyncio
++    async def test_concurrent_cleanup_is_single_and_cancellation_shielded(
++        self, monkeypatch,
++    ):
++        import app.bg_jobs as module
++
++        class Process:
++            pid = 12345
++            _orchestra_cleanup_task = None
++
++        proc = Process()
++        started = asyncio.Event()
++        release = asyncio.Event()
++        calls = 0
++
++        async def cleanup(_proc):
++            nonlocal calls
++            calls += 1
++            started.set()
++            await release.wait()
++
++        monkeypatch.setattr(module, "_cleanup_pidfd_group", cleanup)
++        first = asyncio.create_task(module._kill_proc(proc))
++        await started.wait()
++        second = asyncio.create_task(module._kill_proc(proc))
++        first.cancel()
++        with pytest.raises(asyncio.CancelledError):
++            await first
++        assert not second.done()
++
++        release.set()
++        await second
++        await module._kill_proc(proc)
++        assert calls == 1
++
++    @pytest.mark.asyncio
++    async def test_live_leader_and_child_are_terminated_but_unrelated_survives(self):
++        from app.bg_jobs import _kill_proc, _spawn_bg_process
++
++        code = """
++import os
++import time
++child = os.fork()
++if child == 0:
++    time.sleep(30)
++    os._exit(0)
++print(child, flush=True)
++time.sleep(30)
++"""
++        proc = await _spawn_bg_process(
++            [sys.executable, "-c", code],
++            shell=False,
++            stdout=asyncio.subprocess.PIPE,
++            stderr=asyncio.subprocess.DEVNULL,
++        )
++        child_pid = int((await asyncio.wait_for(proc.stdout.readline(), 2)).decode())
++        unrelated = await asyncio.create_subprocess_exec(
++            "/bin/sleep", "30", start_new_session=True,
++        )
++        try:
++            await _kill_proc(proc)
++            assert proc.returncode == -signal.SIGTERM
++            assert not os.path.exists(f"/proc/{child_pid}")
++            assert unrelated.returncode is None
++        finally:
++            if unrelated.returncode is None:
++                unrelated.terminate()
++            await unrelated.wait()
++
++    @pytest.mark.asyncio
++    async def test_reaped_leader_retains_group_identity_for_kill_escalation(
++        self, tmp_path, monkeypatch,
++    ):
++        import app.bg_jobs as module
++
++        child_file = tmp_path / "child.pid"
++        code = f"""
++import os
++import signal
++import time
++child = os.fork()
++if child == 0:
++    signal.signal(signal.SIGTERM, signal.SIG_IGN)
++    with open({str(child_file)!r}, "w") as fh:
++        fh.write(str(os.getpid()))
++    while True:
++        time.sleep(30)
++os._exit(0)
++"""
++        proc = await module._spawn_bg_process(
++            [sys.executable, "-c", code],
++            shell=False,
++            stdout=asyncio.subprocess.DEVNULL,
++            stderr=asyncio.subprocess.DEVNULL,
++        )
++        await asyncio.wait_for(proc.wait(), 2)
++        for _ in range(100):
++            if child_file.exists():
++                break
++            await asyncio.sleep(0.01)
++        else:
++            pytest.fail("TERM-ignoring child did not start")
++        child_pid = int(child_file.read_text())
++        unrelated = await asyncio.create_subprocess_exec(
++            "/bin/sleep", "30", start_new_session=True,
++        )
++        sent = []
++        real_send = module.pidfd_send_group
++
++        def record_send(pidfd, sig):
++            sent.append(sig)
++            return real_send(pidfd, sig)
++
++        monkeypatch.setattr(module, "pidfd_send_group", record_send)
++        monkeypatch.setattr(module, "_PIDFD_TERM_GRACE", 0.05)
++        monkeypatch.setattr(module, "_PIDFD_KILL_GRACE", 0.5)
++        monkeypatch.setattr(module, "_PIDFD_POLL_INTERVAL", 0.01)
++        try:
++            await module._kill_proc(proc)
++            assert signal.SIGTERM in sent
++            assert signal.SIGKILL in sent
++            assert not os.path.exists(f"/proc/{child_pid}")
++            assert unrelated.returncode is None
++        finally:
++            if unrelated.returncode is None:
++                unrelated.terminate()
++            await unrelated.wait()

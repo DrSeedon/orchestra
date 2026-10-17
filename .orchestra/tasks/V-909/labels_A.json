@@ -1,0 +1,832 @@
+{
+ "item-09": {
+  "item": "item-09",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED), so per protocol I did not investigate further. I only read the item and context files. I did not check the 12 changelog entries against their reports. Context shows the commit was later reverted (1cb218913, 2a5782d49), but that revert was a policy decision to remove auto-building the CHANGELOG, not a defect found in this diff."
+ },
+ "item-23": {
+  "item": "item-23",
+  "findings": [],
+  "notes": "The reviewer reported 'None' and APPROVED. Per the protocol I did no further investigation, so I did not check the diff or later history beyond what the context file shows."
+ },
+ "retro-01": {
+  "item": "retro-01",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "The fixture names `page`, `browser_context` and `dashboard_browser` are too generic. A non-browser test with a local fixture of the same name would be classified as `browser` and dropped from the blocking set.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "tests/conftest.py:487 matches `_BROWSER_FIXTURES & item.fixturenames`. A search of tests/ found no local `page` or `browser_context` fixture. The four `dashboard_browser` definitions (test_frontend.py:571, test_i18n_dashboard.py:80, test_system_chat_entry.py:24, test_frontend_context_panel_468.py:13) are all browser tests. The claim is speculative, with no concrete failing case."
+   }
+  ],
+  "notes": "I only partly saw the classification code. I did not read the original conftest.py at lines 326-333 from the commit, and grep of the current main showed the matching at line 487. The commit's own test `test_browser_inventory_is_explicit` pins the explicit set of browser nodes, which further reduces the risk the reviewer describes. I did not check whether the pinned inventory is still green."
+ },
+ "item-14": {
+  "item": "item-14",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "bootstrap's get_all_sessions() hides archived sessions, so an archived row with the same (name, scope) makes save_session() hit the UNIQUE(name, scope) constraint and raise sqlite3.IntegrityError, aborting startup.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "At ccc55e9, app/db.py get_all_sessions excludes archived rows by default (db.py:631-640 in current main). save_session upserts only ON CONFLICT(id), and the table has UNIQUE(name, scope) (db.py:64). A fresh uuid with name 'orchestrator' and scope '/workspace/project' therefore raises IntegrityError inside lifespan. Current main's app/bootstrap.py still has no archived handling. Low importance: it needs an archived default orchestrator and no other orchestrator. A restart after archiving the default one would hit it."
+   }
+  ],
+  "notes": "I did not run the code to reproduce the crash. The claim rests on reading the SQL and the filter. I did not check whether the UI or API lets a user archive the only orchestrator, or how often that happens. The bootstrap commit was reverted and restored on 2026-06-13 (4fd783410, a1c89c427), which doesn't bear on this defect."
+ },
+ "item-30": {
+  "item": "item-30",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "The task-card test scans only the first 25 tasks from the listing; a long description further down gives a false skip.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "tests/test_frontend.py in the diff: `listing.json()[\"tasks\"][:25]`, then `pytest.skip` with an explicit reason naming the scope and the 180-character threshold. The skip is loud, not silent. This is a speculative edge case with no concrete failing input, and the test still ran in the author's run (29 passed). Grep of current main finds neither `[:25]` nor `длиннее 180`, so the code was later changed or removed."
+   }
+  ],
+  "notes": "The reviewer raised one finding. I read the first 748 of 1101 lines of the ctx file, which covers the full diff and the first few later patches. I did not read the rest of the later history. I could not verify what replaced the code in current main."
+ },
+ "item-43": {
+  "item": "item-43",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "index_file embeds every occurrence of a new chunk text when the same text appears several times in the updated file. It could embed each distinct fresh text once and reuse the vector for the duplicates.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "In app/rag.py (diff lines 103-107), `fresh` keeps duplicates and `new_vecs` is consumed in order, so each chunk gets the right vector. The cost is only a repeated embedding of the same new text. The reviewer itself says correctness is unaffected. The diff has no evidence that duplicate chunks are common, and none of the 8 later commits on these files touch this spot."
+   }
+  ],
+  "notes": "I checked this against the diff and context file only; I did not open the current app/rag.py. I did not run the tests. The only finding is an optional optimization with no concrete failure, so I labeled it noise."
+ },
+ "item-32": {
+  "item": "item-32",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "model_policy_override_reason is logged unbounded and unsanitized, so a long value can bloat the logs",
+    "label": "noise",
+    "importance": "",
+    "evidence": "app/manager.py logs the stripped reason once per spawn in a warning. The caller is a trusted orchestrator agent on a single-owner platform, and the reviewer names no concrete failing input. Logging the reason is the intended behavior (docs/tasks/227/report.md)."
+   }
+  ],
+  "notes": "I read only the first 1157 of 2216 lines of the context file. That covered the full diff of app/ and the pipeline and test changes, but not the later-commit patches. I did not check whether a later commit added a length cap."
+ },
+ "item-16": {
+  "item": "item-16",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "fetch_models_from_proxy always sends ANTHROPIC_API_KEY as Authorization: Bearer and defaults to api.anthropic.com. Anthropic's API expects x-api-key, so the fetch can fail, and in enterprise mode a failure clears all models.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The feature targets a Bearer-auth proxy. Current main (app/models.py:841) still sends Bearer, so the header was never the defect. The real bug at this commit was the wrong env var (UPSTREAM_API instead of ANTHROPIC_BASE_URL), fixed in 2364a9e25. The reviewer did not claim that. The default api.anthropic.com URL is only a misconfiguration fallback.",
+    "note": "The clear-all-models-on-failure behaviour the reviewer mentions is real, but it is not what the finding claims."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "_infer_backend only treats IDs starting with 'gpt-' as codex. Namespaced IDs such as 'openai/gpt-5.5' fall through to the claude backend and are routed through the wrong runtime.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "Diff lines 129-132 use startswith('gpt-') while _generate_aliases handles 'provider/model' IDs. Backend inference was reworked in 3651919d7 ('route non-Claude/non-GPT models to opencode'), and current main has a ModelSpec registry. The failing input is plausible for a proxy that lists namespaced IDs, but whether a proxy-listed OpenAI model should use codex at all is unclear, so I rate it low."
+   }
+  ],
+  "notes": "I read only the first 1128 of 1413 lines of the ctx file, which covers the full diff and the first 5 or so later patches. I did not trace the later commits in full. I checked the current app/models.py by grep only. I could not verify the real proxy's auth scheme beyond the fact that main still uses Bearer."
+ },
+ "item-41": {
+  "item": "item-41",
+  "findings": [],
+  "notes": "The reviewer reported no findings (Blocking, Suggestion and Question were all «Нет»), so I did not investigate further. I did not read the second page of the context file (lines 883–1093)."
+ },
+ "retro-04": {
+  "item": "retro-04",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "F1 headroom arithmetic mixes GB/GiB units and the 55–68× range does not follow from the table",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The follow-up commit b9e9f6af rewrote the F1 passage and calls the old '57×, 55–68×' entry wrong ('смешивала единицы и НЕВЕРНА'). It now gives 53.6× and 57.6×, with a range of 53.6–76.1×."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "Equal shard peaks do not prove 'accumulation of state over the run'; per-process import cost or evenly spread heavy tests fit the data equally well",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The same commit adds the same caveat to F1 and downgrades the accumulation model from CONFIRMED to LIKELY, because no profiling of RSS growth within a shard was run."
+   },
+   {
+    "idx": 3,
+    "severity": "question",
+    "claim": "F4/A1: the claim that only one file got the stub is not proven for all eight failures; the eight node ids and their fixtures are needed",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The follow-up commit corrects 'единственный файл' to two files that have the stub (test_mcp_codex_review.py and test_project_context_review_488.py). It also lists the eight failing node ids and counts 8 of 8 'not a git repository' messages. So the original claim was indeed wrong."
+   },
+   {
+    "idx": 4,
+    "severity": "question",
+    "claim": "A3 and B1 are marked CONFIRMED without their own evidence; A3 has no traceback or signature, and B1 only points to F5",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The follow-up commit adds an A3 evidence paragraph with the five-argument signature, the call with three arguments, the verbatim TypeError and commit 748e81e3. It splits B1 from E in the F4 table. The original table lacked this support."
+   },
+   {
+    "idx": 5,
+    "severity": "blocking",
+    "claim": "F5: 'cannot go green on any machine' is stronger than checking that two SHAs are absent from one checkout",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The follow-up commit narrows the claim: the SHAs are unreachable from every ref in this repository, so no clone of origin gets them. It states explicitly that it does not prove the objects exist nowhere in the world, and calls the old wording 'шире доказательства'."
+   },
+   {
+    "idx": 6,
+    "severity": "suggestion",
+    "claim": "F6 options 1/2/3 are not exhaustive and the recommendation is premature without checking the contracts of all 14 tests",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The follow-up commit adds 'Перечень НЕ исчерпывающий' and lists the four extra branches. It also marks the recommendation as provisional because each test's contract was not analysed."
+   },
+   {
+    "idx": 7,
+    "severity": "suggestion",
+    "claim": "The counter-evidence section does not argue against its own strong conclusions: no alternative for F1, no refutation check for F5, no positive control for B1/B2",
+    "label": "noise",
+    "importance": "",
+    "evidence": "It is a request for more thoroughness, not a concrete defect. The F1 alternative and the F5 refutation limits were addressed under findings 2 and 5. Positive controls for fetch-depth and ffmpeg would only be nice to have."
+   }
+  ],
+  "notes": "The reviewed document is the earlier round-1 version of task 515's research.md. Its line numbers cited by the reviewer are not checkable against the commit given, which is the author's fix commit b9e9f6af. I judged the findings by the corrections in that commit, which confirm the original defects. I did not verify the raw logs or the SHA absence myself."
+ },
+ "item-49": {
+  "item": "item-49",
+  "findings": [],
+  "notes": "The reviewer approved with no findings (Blocking, Suggestion and Question were all None), so I did not investigate further. I read only the item file and its context file."
+ },
+ "item-38": {
+  "item": "item-38",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "fetchUsage: Promise.allSettled never rejects, so on /api/usage failure _usageData is set to null and snapshotSave('usage', null) overwrites the last good snapshot. The catch-path _restoreUsageSnapshot is never reached.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "In the diff's usage.js, `_usageData = usage.status==='fulfilled' ? usage.value : null` is followed unconditionally by `snapshotSave('usage', _usageData)`. The feature's own purpose (survive failed fetches) is defeated: the snapshot is wiped and the UI shows 'Usage unavailable'. Current main (usage.js ~899-911) saves only on fulfilled and calls _restoreUsageSnapshot in the failure branch, which confirms it was fixed later."
+   }
+  ],
+  "notes": "Checked the diff and the current usage.js on main. I did not identify the specific fixing commit sha. I did not examine the other changes in the diff (gzip, Grok negative cache, retry jitter, other snapshots) because the reviewer made no claims about them."
+ },
+ "item-35": {
+  "item": "item-35",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "Effort levels in the manifest map are validated against CODEX_REASONING_EFFORTS for every runtime. A Claude-specific entry such as {claude: minimal} would pass validation but could fail in the Claude backend.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The Claude backend (app/backend_claude.py:1116-1121) passes the level through with only an xhigh→high conversion for Claude models. The current CODEX_REASONING_EFFORTS (app/backend_codex.py:81) is {low, medium, high, xhigh, max} with no 'minimal'. The failure needs the owner to write a deliberately unsupported level, and the scalar effort form was never validated per runtime either. No later commit I found fixes this spot."
+   }
+  ],
+  "notes": "I could only read the first 907 of 2133 lines of the ctx file, so I did not see the later-commit patches. I checked the claim against current main only. I could not confirm whether 'minimal' was in the set at the reviewed commit; the reviewer says it was, but it is absent now."
+ },
+ "item-04": {
+  "item": "item-04",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED, with Blocking, Suggestion and Question all 'None'), so per the protocol I did not investigate further. I did not verify the diff against the repository."
+ },
+ "item-01": {
+  "item": "item-01",
+  "findings": [],
+  "notes": "The reviewer approved with no findings (blocking, suggestion and question sections all said 'Нет'), so I checked nothing further. I read the protocol, the item file and the first 714 of 1000 lines of the context file. I did not run any code."
+ },
+ "item-26": {
+  "item": "item-26",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "docs/tasks/35/codex-sdk.md holds only a `fatal: path ... exists on disk, but not in ...` git error, so the SDK Codex cross-review is not restored.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The diff shows codex-sdk.md as a single line, `fatal: path 'docs/tasks/35/codex-sdk.md' exists on disk, but not in 'task-35/review-sdk'`. The commit says it restores all codex docs, and this file contains an error message instead of a review. The harm is a missing doc, nothing more."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "docs/tasks/35/codex-reliability.md is only a pointer to a file in an external worktree, not the verdict itself.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The file is 5 lines. It links to /mnt/data/Projects/Python/orchestra/worktrees/.../review-reliability/docs/tasks/35/codex-reliability.md, which is an absolute path outside the repo. The verdict content is not restored, so the commit does not do what its subject says."
+   },
+   {
+    "idx": 3,
+    "severity": "suggestion",
+    "claim": "codex-architecture.md says review-architecture.md is absent, but that file is in this snapshot, so the statement is stale.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "codex-architecture.md is a historical Codex output, and it already carries a note from the review-architecture worker explaining why the file looked missing. Editing a verbatim review artifact to remove that is not a defect, and the added note already covers the discrepancy."
+   }
+  ],
+  "notes": "Only the first 596 of 820 lines of the ctx file were read. The reviewer's three claims concern only the diff text for docs/tasks/35 files, and that part was fully visible. I did not check later commits."
+ },
+ "item-25": {
+  "item": "item-25",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "DEFAULT_WORKFLOW_MODULES lists communication-style, user-values and knowledge-and-context, but those files are absent from .orchestra/pipelines/default/prompts/modules/. build_prompt_modules() therefore raises FileNotFoundError on every default WorkflowEngine.agent() call.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "`git ls-tree 45e3bbcd9` of that modules dir shows only background-jobs, code-quality, git-workflow, memory-search, model-routing, orchestration, report-format, research-method, self-improvement, task-management and worker-lifecycle. The diff makes missing modules raise instead of warn-and-skip, and agent() always calls build_prompt_modules. Commit 59e1b04c0 (#490) later created the three modules, which closes the gap. Importance is low because the dependency looks like planned sequencing with #490 and was resolved shortly after."
+   }
+  ],
+  "notes": "I checked the missing files with git ls-tree at the commit and with git log -S on later commits. I did not run the tests, so I don't know whether tests/test_wf_run.py overrides default_modules and hides the failure. I did not confirm whether #490 merged immediately before or after #494, so the exact length of the broken window is unknown."
+ },
+ "item-05": {
+  "item": "item-05",
+  "findings": [],
+  "notes": "The reviewer reported no findings (Blocking, Suggestion and Question were all 'none', verdict APPROVED), so I did not investigate further. I read the item file and the first 682 of 1222 lines of the context file."
+ },
+ "item-03": {
+  "item": "item-03",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED), so I did not investigate the diff or later commits."
+ },
+ "item-48": {
+  "item": "item-48",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "The new `.orchestra/projects.yaml` lists `/home/kesha/orchestra` in `include_scopes`. That path's own catalog is the same file, so the merged `catalog()` reads it twice and fails with `CatalogError`.",
+    "label": "real",
+    "importance": "high",
+    "evidence": "`app/project_catalog.py:282` loads `own_catalog_path(scope)` for each include, and for the Orchestra scope that is the home file itself. Revert commit 97b80e290 states the same failure: \"projects.yaml читал сам себя, CatalogError 'тег polus уже объявлен', task-инструменты всех проектов падали 5xx\"."
+   }
+  ],
+  "notes": "I read the item file, the first 776 of 1782 lines of its context file, `app/project_catalog.py` and the revert commit message. I did not read the rest of the context file or the other later commits. The reviewer's description of the failure is slightly off. The current `_parse_file` has a guard that rejects a self-include outright (line 170), and I did not check whether that guard existed at the reviewed commit. Either way the home file is rejected or double-read, so `catalog()` raises. Commit 97b80e290 confirms the production breakage."
+ },
+ "item-24": {
+  "item": "item-24",
+  "findings": [],
+  "notes": "Рецензент сообщил «Findings: None» (APPROVED), поэтому по протоколу я ничего не проверял дальше. Я прочитал только diff и ctx-файл (первые 641 строка из 1171), код в репозитории не открывал."
+ },
+ "item-45": {
+  "item": "item-45",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "A delayed auto-report callback reads _turn_gen via make_key() only when it runs. bump_turn_gen() no longer cancels the pending task, so a new turn can start first and the old signal takes the new turn's key. The new turn's own signal can then be deduplicated against it and lost.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The diff removes cancel_auto_report() from bump_turn_gen, and the task scheduled by fire_auto_report only runs make_key at execution time (manager.py:2112, turn_signals.py:72, key = session.id:BOOT_ID:_turn_gen). The cancel it dropped was what used to cover this race. The window is about one event-loop tick, so it is narrow. The current main still has this shape, so it was never fixed."
+   }
+  ],
+  "notes": "I could not run code, so I did not confirm that a send can land inside that one-tick window. I read the current make_key and bump_turn_gen on main and saw no later change to this spot. I did not open the later-commit patches."
+ },
+ "item-11": {
+  "item": "item-11",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "A delayed \"load full\" response can render one agent's compact log into another agent's chat after switching agents, exposing cross-project session data.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The click handler calls _renderCompactEvent with insertAndFollow = `element => element` (chat.js, added in the diff). That function inserts nothing into the DOM. After resetCompactEventCards() the map entry is gone, so a late response only builds a detached card and caches it in _compactEventCards. Nothing is appended to the current #chat, so there is no cross-agent display. The only side effect is a small stale map entry, which is harmless because compact IDs are unique UUIDs."
+   }
+  ],
+  "notes": "I read only the first 848 of 1812 lines of the context file, which covers the full chat.js render and click-handler code relevant to this claim. I did not read later commits or the current repo state. The no-insertion conclusion comes from reading the diff alone."
+ },
+ "item-29": {
+  "item": "item-29",
+  "findings": [],
+  "notes": "Reviewer reported no findings (APPROVED, 'None'). Per protocol I did not investigate further and did not check the code or the later commits."
+ },
+ "item-19": {
+  "item": "item-19",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "The symlink guard only checks the final SKILL.md. A symlinked .claude, skills or skill-name directory is followed by mkdir/cp/mv, which can write or replace files outside the repository.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The diff's dest.is_symlink() check (prompting.py, ~line 114) covers only the leaf, so the narrow claim is technically true. The only way to trigger it is for the user to have symlinked a directory inside their own repo or cwd, on a single-owner self-hosted platform where the agent already runs with that user's rights. The reviewer gives no concrete harmful input. The previous code (mkdir -p plus cp -p) and sync_agents_md, which the diff cites as the model, had the same exposure and no leaf guard at all. The 'security hole' framing does not fit this threat model."
+   }
+  ],
+  "notes": "I read only the first 875 of 1676 lines of the ctx file: the diff for prompting.py, session.py and workspace.py plus the docs. I did not see the later-commit list or patches, so I could not check whether the spot was later hardened. I also did not inspect the current main source. The 'noise' label rests on the threat model and on reading the diff."
+ },
+ "item-40": {
+  "item": "item-40",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "codexWebSearchSpec() returns a spec for any JSON object, so a structured MCP result such as {\"result\":\"...\",\"citations\":[...]} still takes the early return in the new `if (resultSpec)` branch. The card shows a generic activity and the result body is dropped.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The function (now at tool-renderers.js:55-80) returns null only for non-JSON, arrays and non-objects. Any other object gets a spec with empty queries, so the `if (resultSpec)` check added in b68ace2 passes and returns early. The existing `clean` regex that strips a leading `{\"result\":` suggests results are sometimes JSON-wrapped, so the case is plausible. The commit's goal is to render MCP result bodies, and this defeats it for that shape. I did not confirm that the MCP websearch tool actually emits such JSON, so the impact is narrow."
+   }
+  ],
+  "notes": "I could not run anything or check what the MCP websearch tool really returns. Nothing in the later history shows this spot being fixed, but I only saw the first 8 later patches in the context file. The finding is labelled real/low on the strength of reading codexWebSearchSpec."
+ },
+ "item-21": {
+  "item": "item-21",
+  "findings": [],
+  "notes": "The reviewer reported no findings (verdict APPROVED), so I did not investigate further, as the protocol says. The first 8 later commits I read (334c89b0f, 4eac349d7, 0afee6db5, afdf03ea0) only build on this diff and show no fix to the touched spots."
+ },
+ "item-42": {
+  "item": "item-42",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED, with no blocking, suggestion or question entries), so I did not investigate further. I read only the item file and its context file. I did not run the tests or check them against the repository."
+ },
+ "item-15": {
+  "item": "item-15",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "The KB line and tool-call-mix doc give 31.7% as the ceiling for two rules, 'recon in one pass' and 'probe env once'. Env probes and dependency installs were classified as 'work', so the ceiling is understated or imprecise.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The diff's docs/kb/token-efficiency.md says both rules cap at 31.7% and that 'work' is not cut at all. The same file's gaps section admits that dependency-install calls were not separated out of 'work', so the two statements contradict each other. This is a small accuracy flaw in a research note, with no effect on behavior."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "repeat_345.py loads the classifier from /tmp/classify4_345.py instead of the committed sibling file. Both scripts use a rolling 14-day window, so the published numbers cannot be reproduced.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "In the diff, repeat_345.py line 2 does `open('/tmp/classify4_345.py')` while classify4_345.py is committed in the same directory. Both scripts use `datetime('now','-14 days')`. The script breaks once /tmp is cleaned and re-runs on a different period. It is a research artifact, so the impact is low."
+   }
+  ],
+  "notes": "Only the reviewer output and the diff context were used. Not verified: whether later commits fixed either spot, because docs/tasks/345 is absent from current main. The context file was truncated at line 684 of 1196, so the later-commit list and patches were not read."
+ },
+ "retro-06": {
+  "item": "retro-06",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "Targeted review does not constrain `output` to the actor worktree, so an absolute or `..` path can still write into the target worktree.",
+    "label": "real",
+    "importance": "high",
+    "evidence": "The plan at b9a5777 now has a 'Keep target worktree read-only' section that resolves `output_abs` and rejects escapes. Its round-1 closure says the finding was accepted and the oracle was re-frozen with absolute and traversal cases. The fix shows the gap was genuine."
+   },
+   {
+    "idx": 2,
+    "severity": "blocking",
+    "claim": "The tests do not prove that validation runs before receipt reservation, usage rows or quota calls, so an implementation could leave orphan receipts and still pass.",
+    "label": "real",
+    "importance": "high",
+    "evidence": "Plan line 20 now requires validation before receipt reservation, quota readiness or job creation. Round 2 confirms the helper `_assert_no_preflight_writes` asserts zero receipts, usage rows, jobs and readiness calls."
+   },
+   {
+    "idx": 3,
+    "severity": "blocking",
+    "claim": "The rule that `target_worker` is rejected outside `implementation` mode has no test in the oracle.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The rule is in plan.md at line 22, but the 7ed0503b oracle did not test it. Round 2 confirms `test_t1_target_worker_is_rejected_outside_implementation` was added. It is a test-coverage gap, not a behavior defect."
+   },
+   {
+    "idx": 4,
+    "severity": "blocking",
+    "claim": "Target validation does not require non-empty or valid session identity, worktree, base branch or task ID, so a malformed worker could produce a receipt that never matches merge admission.",
+    "label": "real",
+    "importance": "high",
+    "evidence": "Plan step 5 now requires `id`, exact `name`, `task_id`, `worktree_path` and `base_branch` to be non-empty and consistent, returning `target_worker_invalid_session`. Round 2 confirms independent tests for each field."
+   },
+   {
+    "idx": 5,
+    "severity": "suggestion",
+    "claim": "The mutation section at plan.md:107 still cites the excluded oracle 7ed0503b, which contradicts the final oracle 3732d1c6.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "Line 107 of the committed plan now reads 3732d1c6, and line 145 records the stale reference as corrected. It was a true documentation inconsistency."
+   }
+  ],
+  "notes": "I read the plan at commit b9a5777 for the plan lines and the review-round summary. I could not verify the oracle test file or the line numbers the reviewer cited in the tests, and the .ctx.md file does not exist. Labels rest on the plan's own record that the findings were accepted and fixed, and on the reviewer's round-2 FIXED confirmations."
+ },
+ "item-17": {
+  "item": "item-17",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "The diff removes test_t2_385_platform_completion_trust_rule_is_base_owned_and_delivered, which checked the trust rule appears once and reaches every role; removal is unrelated to laptop-access, so retain it or replace it.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The removed test asserted a literal sentence of a prompt rule (tests/test_default_pipeline.py in the diff), which the project's code-quality policy says never to test. The rule is still in base.md:37. The removal is unrelated to laptop-access, but that is a scope remark, not a defect."
+   }
+  ],
+  "notes": "I did not check why the test was removed (commit message and task files not read). No later test covers the 'exactly once per role' delivery property; I grepped tests/ only for the rule's phrase."
+ },
+ "retro-07": {
+  "item": "retro-07",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "research.md:72 cites app/db.py:2828-2830 (constants) rather than review_receipt_finish 2987-3010 and review_receipt_set_outcome 3013-3018 for immutable provenance",
+    "label": "noise",
+    "importance": "",
+    "evidence": "F3 in research.md already cites `app/db.py:2828-2830, 3013-3018` for the outcome path and `app/db.py:2987-3010` for review_receipt_finish. The reviewer asks for citations that are already there."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "README update scope is incomplete because README.md:179 still says review is 'not yet enforced by the merge code'",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The research already covers this. F5 says README.md:179 contradicts production and Phase 3 must correct both statements. The affected-files list repeats 'stale not yet enforced statement near line 179'."
+   },
+   {
+    "idx": 3,
+    "severity": "suggestion",
+    "claim": "The checker (check_table.py) only verifies that RECORD_REVIEW_THEN_NEW_OPERATION exists, so the research should not describe it as checking both semantic claims",
+    "label": "noise",
+    "importance": "",
+    "evidence": "F5 in research.md already says the checker only asserts RECORD_REVIEW_THEN_NEW_OPERATION is present. It says the Phase-2 behavioral oracle, not the checker, must protect both claims, so the document never describes the checker as checking them."
+   },
+   {
+    "idx": 4,
+    "severity": "suggestion",
+    "claim": "target_worker should explicitly require a same-scope worker session, and the Phase-2 oracle should cover rejecting an orchestrator or wrong-scope target",
+    "label": "noise",
+    "importance": "",
+    "evidence": "F2 in research.md says 'The target must resolve in the caller's exact scope and must be a worker rather than an orchestrator; Phase 2 must freeze both rejection cases'. The test list also includes wrong-scope target and orchestrator-as-target."
+   },
+   {
+    "idx": 5,
+    "severity": "question",
+    "claim": "The research cites the probe script, tests, route code and git history even though the review scope excludes them. Which causal claims stand using only the named production paths?",
+    "label": "question_only",
+    "importance": "",
+    "evidence": "Asks for scope clarification only and claims no defect."
+   }
+  ],
+  "notes": "Checked research.md and README.md at commit 8d4d502 with git show, and the current db.py. I did not verify the app/db.py line numbers at that commit. All four suggestions are already covered by the document's own text."
+ },
+ "retro-05": {
+  "item": "retro-05",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "research.md says '7 files of 11 live' carry markers, but raw/final-counts-and-markers.txt shows 8, so the number should be 8.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The final research.md in commit 971d501 (line ~157) says '8 файлов из 11 живых', and the three files without markers give 8+3=11. The marker list in raw/final-counts-and-markers.txt matches 8. The reviewed draft's wrong number was fixed in this squashed commit, so the claim was true of the draft."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "research.md says '6 files of kesha-bot' for the UNVERIFIED rows, but the table has 8 files. The 12 rows are 8+1+3.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The final research.md line 188 reads '12 строк таблицы (8 файлов kesha-bot + verify_orchestra_move.py + 3 файла katya-work)'. Line 110 also says all 8 files. Line 210 records the correction of '6 файлов kesha-bot' to 8. The claim was true of the draft and later fixed."
+   }
+  ],
+  "notes": "The task 514 directory is not on current main, so I read the files with git show at 971d501. The squashed commit already contains the corrected numbers (8 and 8). The reviewer must have seen an earlier draft: the commit message says 'Luna review round 1 applied', and line 210 documents the 6→8 correction. Both findings were true of the draft and both were fixed. I did not check the line numbers 157-159 and 187-188 against the draft, since the draft is not available."
+ },
+ "item-27": {
+  "item": "item-27",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "When Grok 1.0.3 sends an empty servers_updated, a same-name replacement of the `orchestra` server passes the check. `init_progress.total` only compares server counts, so identity isolation is weakened. The reviewer asks to fail closed or add a handshake.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The diff makes the identity comparison conditional on the runtime echoing an identity, with `total` as the only substitute. A same-name replacement keeps `total` at 1, so it is not caught. The commit's own report.md admits the hole ('Остаточная дыра'). Later commit e9c34833e (#265, 'canary handshake so a same-name Grok MCP server cannot impersonate ours') closed it. I rate it low because exploiting it needs a trusted folder plus a hostile same-name server, on a single-owner platform, and it was a documented, deliberate trade-off. I did not read the code of e9c34833e itself."
+   }
+  ],
+  "notes": "Read only the first 1127 of 1984 lines of the ctx file. That covers the full reviewed diff and the later-commit list, but not the later commit patches. I did not inspect the repository's current code or the #265 patch, so I did not confirm how the canary handshake works or how well it closes the gap. The 'real' label rests on the commit's own admission plus the follow-up commit named #265."
+ },
+ "item-22": {
+  "item": "item-22",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "The SQLite trigger uses TRIM(NEW.id)='', which only strips spaces. A direct INSERT with id='\\t' or a newline passes the trigger, while the Python guard in save_session (.strip()) rejects it. The two checks disagree on what counts as empty.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The SQLite behavior is true (TRIM without a second argument strips only spaces; db.py trigger WHEN clause). But a tab-only id is not a ghost row: UPDATE ... WHERE id=? with that same id still matches it. So it does not cause the silent zero-row update that #54 targets. The report's own self-critique (item 2) says the trigger is not meant to validate id format. All real ids are uuids written through save_session, and the only caller that writes ids is the guarded path. Exotic, no concrete failing scenario."
+   }
+  ],
+  "notes": "Checked only the diff and the first 963 of 1232 context lines. I did not read the later patches in the second half or the current repo state, because the single finding is decided by the diff itself. Not verified: the SQLite TRIM claim was not run, only recalled from SQLite docs."
+ },
+ "item-36": {
+  "item": "item-36",
+  "findings": [],
+  "notes": "Reviewer reported no findings (APPROVED, no blocking/suggestion/question items), so I did not investigate further. I did not read the rest of the context file. The later history in the visible part shows the commit was reverted (75a8fbb36), then CLAUDE.md came back as a symlink (19ded26ad, 2bd067d76). The reviewer did not flag that, so I did not label it."
+ },
+ "retro-02": {
+  "item": "retro-02",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "stopped_codex_writer only samples T state; the old writer can resume after the final proof, so two writers can run on the same worktree. No kernel barrier or ownership transfer exists.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "backend_codex.py in the diff: the writer is group-stopped and still holds the flock. Resuming it needs an external SIGCONT, and it would resume the source thread, not the copy's new thread id. The proof is checked three times, including after thread/fork, and the notice tells operators not to resume. The reviewer names no concrete trigger on this single-owner platform. All of this code was later removed (no matches for stopped_codex_writer or writer_fork in app/ now; likely e6da7e30a, 'remove live adoption'), so this is a design limit of a best-effort recovery, not a defect."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "message_deliveries._resource recomputes runtime_recovery from the target session's current session_id_history instead of storing it in the delivery row. Old receipts can show a newer recovery, or none after the bounded [-10:] history truncation.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "message_deliveries.py diff lines 350-353: db.get_session(target)['session_id_history'] feeds writer_recovery_notice, and the row stores nothing. Any receipt for that target, including one that predates the recovery, therefore displays the latest recovery. This is a true but cosmetic inaccuracy."
+   },
+   {
+    "idx": 3,
+    "severity": "suggestion",
+    "claim": "The fan-summary and terminal fan-barrier send paths in routes/sessions.py call manager.send() but do not return runtime_recovery.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "In the diff, runtime_recovery is added only on the normal send path. The fan-barrier paths return {'ok','buffered','parent_name'} early. The notice also reaches the dashboard through to_dict and the logs, so this is a coverage preference, not a broken contract."
+   },
+   {
+    "idx": 4,
+    "severity": "suggestion",
+    "claim": "The recovery notice does not state the copy's cost or charging semantics.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "This is a documentation preference. The diff shows the fork is a local app-server thread/fork, and the new turn goes through the normal worker admission (see test_recovered_copy_requires_new_turn_quota...). No defect is claimed."
+   }
+  ],
+  "notes": "I read the diff and the first page of the context file (lines 1-1167 of 1688), then checked the current app/ tree with Grep. I did not read the later-commit patches, so I did not confirm which commit removed the feature; e6da7e30a is a guess from its title. I did not run the tests."
+ },
+ "item-37": {
+  "item": "item-37",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED, no blocking, suggestion or question entries), so I did not investigate further. I read only the protocol, the item file and the context file. I did not check the diff against the code, though the commit was reverted a day later (064167f87)."
+ },
+ "item-20": {
+  "item": "item-20",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED), so I did not investigate further. I read only the item and context files."
+ },
+ "item-28": {
+  "item": "item-28",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "merge_receipt_mode() is never called in the app, so merge_receipt_configured() stays false and the whole receipt flow is inactive on the merge path.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "Grep of current main finds merge_receipt_mode only at its definition (app/ia/merge_receipts.py:90) and in an acceptance test (.orchestra/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py:416). The other app files that reference merge_receipts (routes/sessions.py, merge_operations.py) only call merge_receipt_configured(), so every receipt branch they gate stays dead in production. It may be deliberate staging, hence low importance."
+   }
+  ],
+  "notes": "I did not read the later commits' patches beyond the first page of the context file, so I could not tell whether wiring was planned for a follow-up task. The conclusion rests on a grep of current main for merge_receipt_mode and merge_receipts, which shows no production caller."
+ },
+ "item-18": {
+  "item": "item-18",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "Task #319 is unimplemented in the diff. The only change is a memory note, docs/workers/artifact-quota-runway.md, and there is no controller or interactive artifact.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The ctx diff for df14b85 starts with a new file, docs/artifacts/quota-runway-controller.html (882 lines, line 5 of item-18.ctx.md). It is a full interactive controller with presets, sliders and a computeDecision function. The .md note is a second file at ctx line 893. The reviewer evidently saw only that note."
+   }
+  ],
+  "notes": "I read only the first 756 lines of the ctx file, which cover the HTML diff, and grepped the file headers for the rest. I did not check the HTML for bugs, because the reviewer raised no such claim. The later commits listed in the ctx file touch the same HTML artifact, and I did not read them."
+ },
+ "item-33": {
+  "item": "item-33",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "The diff bumps CODEX_CLI_HISTORY_VERSION from 0.150.1 to 0.153.4. The existing test test_codex_managed_state.py::test_codex_01501_state_signature_is_pinned_exactly still asserts 0.150.1 and so fails. The migration table is keyed by that constant, so it is now labeled with a version it was not captured from.",
+    "label": "real",
+    "importance": "high",
+    "evidence": "Later commit 3f8bffbf7 says the CLI applied migration 52 after the bump and rewrote the table. Its new comment says bumping the pin relabels an older CLI's signature as the new CLI's. Commit 6968f34f3 then re-keyed the table to a literal \"0.150.1\", and e7710f4d0 added a separate \"0.153.4\" entry. This confirms the mislabel and the missed coupling. I could not read the test file at the commit, and no tests in current main mention 0.150.1, so the failing assertion itself is unverified."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "The new Astra test only checks that the prices are positive. It does not pin the expected rates or the context length, so it is a weak regression oracle.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "tests/test_model_registry_503.py:245-251 checks that the registry entries exist and that the prices are positive. The project's testing policy says not to pin values that are deliberately changed, and the later catalog and price rewrites (f197e2958, f20796d3e) show these values move. Pinning them would add friction without catching a real defect."
+   }
+  ],
+  "notes": "I had no shell and could not read the test file as it was at the commit. No test in current main references 0.150.1, so the existence and failure of the pinned test is inferred from the reviewer's claim and from the later fix commits. The fixes show a real relabel defect, but not directly that the named test failed."
+ },
+ "item-47": {
+  "item": "item-47",
+  "findings": [],
+  "notes": "The reviewer reported no findings (APPROVED), so I did not investigate the code further. I read only the item file, its context file and the protocol."
+ },
+ "item-12": {
+  "item": "item-12",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "The cache guard `content.children.length > 1` fails for the 'No system prompt' and error states, which leave a single child. Every 3-second session refresh then refetches the prompt blocks for that agent.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "In the diff's `_loadInlinePrompt`, the guard is `_lastPromptAgent === agentName && content.children.length > 1`. The empty and error branches set a single `<span>`, so the guard never short-circuits. `updateAgentInfo` calls `_loadInlinePrompt` on every refresh. The result is repeated fetches and a 'Loading prompt...' flicker, but no crash or data loss."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "An in-flight prompt request can finish after the user switches agents and overwrite the newly selected agent's preview.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "`_loadInlinePrompt` sets `_lastPromptAgent` before the await and writes to the shared `#agent-prompt-content` after it, with no check that `agentName` is still selected. If A's slow response lands after B's, A's prompt is shown under B. The diff's own `updateAgentInfo(null)` path also resets `_lastPromptAgent`/hides the panel without invalidating a pending request, so a late response can render into a hidden panel. This is a UI-only race."
+   }
+  ],
+  "notes": "Verified from the diff and context only. Later commits 63bfa4e4c and 87892e50f revert the inline prompt; they read as a UX decision and do not point to either finding as the reason. I did not check how often `updateAgentInfo` is called beyond the reviewer's 3-second claim, and I did not inspect the current main code."
+ },
+ "item-31": {
+  "item": "item-31",
+  "findings": [],
+  "notes": "The reviewer reported no findings (verdict APPROVED), so I did not investigate further. I read only the item file, its context file and the protocol."
+ },
+ "item-02": {
+  "item": "item-02",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "recentOrchs stores only names, so if the saved selection is unavailable and a recent name exists in several scopes (UNIQUE(name, scope)), the fallback lookup may pick the wrong scope; store scope alongside name.",
+    "label": "preexisting",
+    "importance": "",
+    "evidence": "The name-only recentOrchs format and the name-based lookup were already in the old code: the removed sort used recent.indexOf(a.name), and selectOrchestrator (unchanged) saves names only. The diff's new fallback `recent.map(name => orchData.find(o => o.name === name))` only picks a default when lastScope/lastName don't match. The worst case is opening a same-named orchestrator in another scope as the default, which the user can switch away from. No later commit on main changed this."
+   }
+  ],
+  "notes": "Verified from the diff and context only. I did not check the current app.js, and I did not confirm whether duplicate orchestrator names across scopes occur in practice."
+ },
+ "item-06": {
+  "item": "item-06",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "Both DeepSeek IDs are mapped to the claude backend, which passes the model ID straight to Claude Code. No DeepSeek provider config or routing is added, so the worker cannot use DeepSeek.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The diff only adds entries to the models.py tables. The project's follow-up commits (6ad906508 #86 and 2364a9e25 #91) use an Anthropic-compatible proxy via ANTHROPIC_BASE_URL with /v1/models, so passing a DeepSeek ID through the Claude runtime appears to be the intended design. The reviewer shows no concrete failing input. The reverting commit f36f1fdb1 has no stated reason. Commit 3651919d7 ('#96 phase 2') later moved non-Claude models to an opencode backend, which hints the Claude path was not enough, but I did not confirm that."
+   }
+  ],
+  "notes": "The diff is only models.py (+15 lines of table entries). I could not verify whether the proxy actually served DeepSeek at that commit, because the #85 task directory was not found and the revert message gives no reason. If the Claude-backend route failed in practice, this would turn into a real finding."
+ },
+ "item-08": {
+  "item": "item-08",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "Literal markers such as `bwrap:` are searched across the whole artifact and the captured process output, so a valid review that quotes one of them is marked blind and rejected.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "app/bg_jobs.py in the diff (about line 43) makes the markers deliberately narrow and fail-closed. The test `test_exit_zero_verdict_with_bwrap_is_still_blind` asserts this behavior. The worker note in the diff explains that the broad `sandbox.*fail` marker was avoided on purpose. The reviewer gave no concrete failing input. Matching `bwrap:` at the start of a line is a plausible false positive, but the cost is an owner-visible FAILED notice, and the owner can rerun the review. `_BLIND_REVIEW` and `_blind_review_error` no longer exist in current app/."
+   }
+  ],
+  "notes": "I checked the diff and the later-history patches in the context file, and grepped current main for the symbols. I did not find which commit removed them. The first 8 later commits shown do not touch the blind-review logic. The retirement of review gates in f5713f4df is only a guess."
+ },
+ "item-34": {
+  "item": "item-34",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "--budget-seconds is only checked between routes; an in-progress route (request timeouts, 20s retry sleeps) and the catalog fetch can exceed the budget.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "Confirmed in scripts/probe_free_models.py main(): the deadline check is only at the top of the per-route loop, and the help text says 'stop probing after this much wall time'. The overrun is bounded (about 90s x 2 requests per route) and the not_probed status still works. This is a cosmetic limitation of an owner-run probe script, not a defect."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "--model builds a set, so repeated model args are probed in nondeterministic order.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "Confirmed: `wanted = set(args.model)` then `for mid in wanted`. Only the order of probing changes, and results are keyed by model. This is a style or preference point with no functional impact."
+   }
+  ],
+  "notes": "Only the diff in the ctx file was read; I did not check later commits or the current repo. I also did not check the test changes past line 621 of the ctx file, because the reviewer made no claims about them."
+ },
+ "retro-03": {
+  "item": "retro-03",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "tests/test_mcp_stdio.py: the diff drops the search_memory RAG-disabled fallback test with its local rg guidance, so coverage of that agent-facing contract is reduced.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "tests/test_search_deadline.py::test_disabled_rag_names_the_flag (shown in the same diff context) still asserts the RAG_ENABLED=false message and 'rg ' in the output. Only the subprocess run of the rg command was lost. search_memory was later removed entirely in 98238cb42 (V-718), so the lost check protected nothing lasting."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "tests/test_merge_ref_gate.py: the renamed test asserts only that the merge is not blocked. It does not assert that the unresolved reference is preserved as metadata, although the docstring says so.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The docstring claims unresolved metadata is preserved, but the diff adds no assertion for it. The follow-up c61f56e85 added `assert result[\"finalization\"][\"unresolved_task_refs\"] == [\"999\"]` to the same test, which confirms the gap. It is a small test-completeness gap, not a production defect."
+   }
+  ],
+  "notes": "Checked only against the diff, the context file and the later-commit patches. I did not open the current repository files. The reviewer's claim that migration compatibility is correct was not verified, and it is not a defect claim anyway."
+ },
+ "item-10": {
+  "item": "item-10",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "blocking",
+    "claim": "All Codex review commands run with `-s danger-full-access -a never`, so prompt-injected repository content could make Codex run arbitrary commands with the service account's access.",
+    "label": "noise",
+    "importance": "",
+    "evidence": "The commit's report.md reproduces that `bwrap` and `unshare` fail on this host, so `read-only` and `workspace-write` cannot run and every review is blind. `danger-full-access` is the only working mode. The platform is single-owner and self-hosted, and the reviewer proposes no boundary that works here. Later commits (e.g. 2cb314128, 503e71ec9) keep `-s danger-full-access -a never`."
+   },
+   {
+    "idx": 2,
+    "severity": "suggestion",
+    "claim": "The failure detector greps the whole JSONL and the round file for broad patterns (`sandbox.{0,80}(fail|reject)`, 'could not … review … file'). A valid review, or command output that merely contains such text, would be rejected.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "In the diff, `grep -Eiq` runs over the whole `jsonl_file` and `round_tmp` and exits 70 before `finalize`. The JSONL includes command_execution output, so a review that reads a file containing 'bwrap:' (for example this commit's own diff) fails and the review is discarded. Commit 106961b53 then replaced the grep with a check of `agent_message` items only, and added the test `test_codex_review_ignores_failure_marker_in_command_output`. That commit also keeps the review file on guard failure."
+   }
+  ],
+  "notes": "I read only the item file and its context file, and did not inspect the current repository. The fix for finding 2 comes from the patch of 106961b53 shown in the context file. The agent_message-only check still uses the broad patterns. I could not verify whether Codex's sandbox actually fails on this host; I relied on the commit's own report."
+ },
+ "item-46": {
+  "item": "item-46",
+  "findings": [],
+  "notes": "The reviewer reported no findings (no blocking items, suggestions or questions), so I did not investigate further. I only read the protocol, the item file and its context file."
+ },
+ "item-44": {
+  "item": "item-44",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "When models.spark is configured but policy.spark is None, _spark_candidate returns excluded before the `staying` carve-out. A continuation already running on Spark can therefore be moved to another model, which resets its native session.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The diff returns `verdict(\"excluded\", \"spark_not_eligible\")` on `policy.spark is None` before `staying` is computed. That contradicts the diff's own rule that running work is never evicted, and the new tests cover the carve-out only with a spark block present. It needs a Spark session left running after the operator removes the block, and the plan AC says a missing block means Spark is never selected. The router is also inert, with no production callers. The file no longer exists at /home/kesha/orchestra/app/runtime_router.py, so I could not check later fixes."
+   }
+  ],
+  "notes": "I read only the diff context page (lines 1-948 of the ctx file) and did not read the later-commit patches. I could not verify later handling because app/runtime_router.py is absent on current main. The finding is a true but narrow inconsistency, so I labeled it low importance."
+ },
+ "item-39": {
+  "item": "item-39",
+  "findings": [],
+  "notes": "The reviewer reported no findings, so I did not investigate further. I read only the item file, its context file and the protocol."
+ },
+ "item-07": {
+  "item": "item-07",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "In _recv_pidfd's receive() callback, the pidfd extracted by recvmsg/_extract_pidfd is discarded without closing if the future was already cancelled before set_result, so the descriptor leaks.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "app/bg_jobs.py in the diff, receive(): `result = _extract_pidfd(...)` is followed by `if not future.done(): future.set_result(result)`, with no else branch that closes `result`. Cancelling the awaiting task (or the wait_for timeout) cancels `future` immediately. The task's `finally: remove_reader` only runs when the task resumes, so the reader callback can still fire in between with data ready. The window is narrow, and the leaked fd is a pidfd for a shim that is never ACKed, so the shim sees EOF and exits. I did not check whether a later commit fixed this."
+   }
+  ],
+  "notes": "I read only the first 1269 of 2175 lines of the ctx file. That covers the whole production diff and part of the tests; I did not read the later-commit patches or the rest of the tests. I could not run code, so the cancellation race is reasoned from asyncio semantics (Task.cancel cancels the awaited future directly) and not reproduced."
+ },
+ "item-13": {
+  "item": "item-13",
+  "findings": [
+   {
+    "idx": 1,
+    "severity": "suggestion",
+    "claim": "Clicking the ⓘ help icon bubbles to the usage bar's click handler and starts a refresh. Stop propagation on the icon.",
+    "label": "real",
+    "importance": "low",
+    "evidence": "The diff adds a click listener on #usage-bar with no exclusion for #usage-info-btn, which sits inside the bar, so a click on the icon triggers fetchUsage(). Later commit c6022d4ad ('open usage details without refreshing the bar') fixed it: current usage.js:525-527 calls stopPropagation on the icon, and :952 skips clicks whose target is inside #usage-info-btn."
+   }
+  ],
+  "notes": "I did not read the c6022d4ad patch itself (the context file shows only the first 8 later commits). I confirmed the fix from the current state of usage.js on main. The impact is one extra /api/usage request per icon click, so it is minor."
+ }
+}

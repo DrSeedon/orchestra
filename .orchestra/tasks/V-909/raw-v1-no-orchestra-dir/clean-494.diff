@@ -1,0 +1,1720 @@
+diff --git a/app/harness/oneshot.py b/app/harness/oneshot.py
+index 977d314bba6eb5ea021b4ce741a21b22dcef25d5..82480ff3488582fb0786c05b10a1c4f0065c49c9 100644
+--- a/app/harness/oneshot.py
++++ b/app/harness/oneshot.py
+@@ -1,4 +1,4 @@
+-"""Stateless read-only entry point for one Harness turn."""
++"""Stateless capability-scoped entry point for one Harness turn."""
+ 
+ from __future__ import annotations
+ 
+@@ -8,14 +8,17 @@ import json
+ import os
+ from pathlib import Path
+ 
+-from app.harness import tools
++from app.harness import prompts, tools
+ from app.harness.llm import OpenRouterClient
+ from app.harness.loop import AgentLoop
+ from app.harness.mcp import MCPClient
+ from app.models import get_model_spec, validate_harness_model_spec
+ 
+ 
+-async def run_oneshot(*, prompt: str, model: str, cwd: Path) -> dict:
++async def run_oneshot(
++    *, prompt: str, model: str, cwd: Path, tools_level: str = "read",
++    network: bool = True, mcp: bool = True, system_prompt: str = "", llm=None,
++) -> dict:
+     spec = get_model_spec(model)
+     validate_harness_model_spec(spec)
+     key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY", "")
+@@ -24,46 +27,56 @@ async def run_oneshot(*, prompt: str, model: str, cwd: Path) -> dict:
+     base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+     if not base_url.rstrip("/").endswith("/v1"):
+         base_url = base_url.rstrip("/") + "/v1"
+-    llm = OpenRouterClient(
+-        api_key=key,
+-        model=model,
+-        base_url=base_url,
++    llm = llm or OpenRouterClient(
++        api_key=key, model=model, base_url=base_url,
+         supported_parameters=spec.supported_parameters,
+     )
+-    loop = AgentLoop(
+-        llm=llm,
+-        mcp=MCPClient(),
+-        cwd=str(cwd),
+-        history=[{
+-            "role": "system",
+-            "content": (
+-                "You are a read-only workflow agent. Use read, glob, and grep only when needed. "
+-                "Return the requested result and do not modify files."
+-            ),
+-        }],
+-        tool_schemas=tools.readonly_tool_schemas(),
+-        max_context=spec.context_length,
+-        readonly_mode=True,
+-    )
+-    text: list[str] = []
++    mcp_client = MCPClient()
+     try:
++        if mcp and tools_level == "all" and network:
++            from app.runtime_registry import _load_scope_mcp_servers
++
++            await mcp_client.connect(_load_scope_mcp_servers(str(cwd)))
++        own_schemas = (
++            tools.tool_schemas() if tools_level == "all" else tools.readonly_tool_schemas()
++        )
++        if not network:
++            own_schemas = [
++                item
++                for item in own_schemas
++                if item.get("function", {}).get("name") != "bash"
++            ]
++        schemas = prompts.merge_tool_schemas(own_schemas, mcp_client.tool_schemas())
++        loop = AgentLoop(
++            llm=llm,
++            mcp=mcp_client,
++            cwd=str(cwd),
++            history=[{"role": "system", "content": system_prompt.strip()}],
++            tool_schemas=schemas,
++            max_context=spec.context_length,
++            readonly_mode=tools_level != "all",
++        )
++        text: list[str] = []
+         async for event in loop.run(prompt):
+             if event.type == "text":
+                 text.append(event.content)
++        usages = loop.round_usages
++        return {
++            "text": "".join(text).strip(),
++            "ok": loop.ok,
++            "stop_reason": loop.stop_reason,
++            "error": loop.error_detail,
++            "cost_usd": sum(float(item.get("cost") or 0) for item in usages),
++            "usage": {
++                "input_tokens": sum(int(item.get("prompt_tokens") or 0) for item in usages),
++                "output_tokens": sum(
++                    int(item.get("completion_tokens") or 0) for item in usages
++                ),
++            },
++        }
+     finally:
++        await mcp_client.disconnect()
+         await llm.aclose()
+-    usages = loop.round_usages
+-    return {
+-        "text": "".join(text).strip(),
+-        "ok": loop.ok,
+-        "stop_reason": loop.stop_reason,
+-        "error": loop.error_detail,
+-        "cost_usd": sum(float(item.get("cost") or 0) for item in usages),
+-        "usage": {
+-            "input_tokens": sum(int(item.get("prompt_tokens") or 0) for item in usages),
+-            "output_tokens": sum(int(item.get("completion_tokens") or 0) for item in usages),
+-        },
+-    }
+ 
+ 
+ def main() -> int:
+diff --git a/app/pipeline.py b/app/pipeline.py
+index 02f11b94cc3c546055b1c5046e46e74979337bb0..d5cc57f6ae58c7c0ea045ef6eac8d75e47d1f0ca 100644
+--- a/app/pipeline.py
++++ b/app/pipeline.py
+@@ -565,6 +565,21 @@ def template_path(pipeline_name: str, template: str) -> Path:
+     return PIPELINES_DIR / pipeline_name / "templates" / template
+ 
+ 
++def build_prompt_modules(pipeline_name: str, modules: list[str] | tuple[str, ...]) -> str:
++    """Assemble named modules from the canonical pipeline prompt library."""
++    parts: list[str] = []
++    for module in modules:
++        if not _is_safe_rel(module):
++            raise ValueError(f"unsafe module name '{module}' (abs или '..')")
++        path = prompt_path(pipeline_name, f"modules/{module}.md")
++        if not path.is_file():
++            raise FileNotFoundError(
++                f"pipeline '{pipeline_name}' module '{module}' not found at {path}"
++            )
++        parts.append(path.read_text().strip())
++    return "\n\n".join(parts)
++
++
+ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
+     """Собрать system_prompt из prompt_layers резолвнутой роли.
+ 
+@@ -587,17 +602,9 @@ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
+         p = prompt_path(pipeline_name, layer)
+         if p.is_file():
+             parts.append(p.read_text())
+-    for m in rr.modules:
+-        mp = prompt_path(pipeline_name, f"modules/{m}.md")
+-        if mp.is_file():
+-            # ``.strip()`` — точное соответствие upstream ``_load_modules`` (manager.py):
+-            # модули инлайнятся обрезанными, разделитель между ними ровно ``\n\n``.
+-            # Без strip хвостовые ``\n`` в файле дают ``\n\n\n`` и расхождение с upstream.
+-            parts.append(mp.read_text().strip())
+-        else:
+-            logger.warning(
+-                "pipeline '%s' role '%s': module '%s' not found at %s — skipped",
+-                pipeline_name, role, m, mp)
++    module_text = build_prompt_modules(pipeline_name, rr.modules)
++    if module_text:
++        parts.append(module_text)
+     return "\n\n".join(parts)
+ 
+ 
+diff --git a/scripts/wf_adapters.py b/scripts/wf_adapters.py
+index ff9c3f9b42a026f36189a1b7fdda29029021fcd5..42f5a0046374e722c757ed7a05d202ea9e2d9801 100644
+--- a/scripts/wf_adapters.py
++++ b/scripts/wf_adapters.py
+@@ -7,9 +7,12 @@ import asyncio
+ import json
+ import os
+ import signal
++import shutil
++import stat
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ from typing import Any
++from uuid import uuid4
+ 
+ 
+ @dataclass(frozen=True)
+@@ -160,7 +163,8 @@ def persist_turn_usage(
+ 
+ 
+ async def _run_process(
+-    argv: list[str], prompt: str, cwd: Path, timeout: float
++    argv: list[str], prompt: str, cwd: Path, timeout: float,
++    *, env: dict[str, str] | None = None,
+ ) -> tuple[int, str, str]:
+     try:
+         proc = await asyncio.create_subprocess_exec(
+@@ -169,7 +173,7 @@ async def _run_process(
+             stdout=asyncio.subprocess.PIPE,
+             stderr=asyncio.subprocess.PIPE,
+             cwd=cwd,
+-            env=os.environ.copy(),
++            env=env or os.environ.copy(),
+             start_new_session=True,
+         )
+     except OSError as error:
+@@ -214,25 +218,88 @@ def _failed(runtime: str, model: str, reason: str, *, stop_reason: str) -> Adapt
+     )
+ 
+ 
+-async def run_codex(prompt: str, *, model: str, cwd: Path, timeout: float) -> AdapterResult:
++def _prompt_with_rules(prompt: str, system_prompt: str) -> str:
++    if not system_prompt.strip():
++        return prompt
++    return f"<workflow_rules>\n{system_prompt.strip()}\n</workflow_rules>\n\n{prompt}"
++
++
++def _claude_tools(tools_level: str, network: bool) -> str:
++    if tools_level == "all" and network:
++        return "default"
++    if tools_level == "all":
++        return "Read,Write,Edit,Glob,Grep"
++    if tools_level == "read" and network:
++        return "Read,Glob,Grep,WebFetch,WebSearch"
++    return "Read,Glob,Grep"
++
++
++def _write_claude_mcp_config(cwd: Path, enabled: bool) -> Path:
++    from app.runtime_registry import _load_scope_mcp_servers
++
++    servers = _load_scope_mcp_servers(str(cwd)) if enabled else {}
++    path = cwd / ".wf-mcp.json"
++    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
++    with os.fdopen(fd, "w", encoding="utf-8") as fh:
++        json.dump({"mcpServers": servers}, fh, ensure_ascii=False)
++    if stat.S_IMODE(path.stat().st_mode) != 0o600:
++        raise PermissionError(f"unsafe MCP config permissions: {path}")
++    return path
++
++
++async def run_codex(
++    prompt: str, *, model: str, cwd: Path, timeout: float,
++    tools: str = "all", network: bool = True, mcp: bool = True,
++    system_prompt: str = "", state_dir: Path | None = None,
++) -> AdapterResult:
+     binary = os.environ.get("WF_CODEX_BIN", "codex")
++    sandbox = "danger-full-access" if tools == "all" and network else (
++        "workspace-write" if tools == "all" else "read-only"
++    )
+     argv = [
+         binary,
+         "-m",
+         model,
+         "-s",
+-        "read-only",
++        sandbox,
+         "-a",
+         "never",
+         "exec",
+         "--ephemeral",
+-        "--ignore-user-config",
+         "--ignore-rules",
++        "-c",
++        f'web_search="{"live" if network else "disabled"}"',
+         "--skip-git-repo-check",
+         "--json",
+         "-",
+     ]
+-    rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
++    run_env = os.environ.copy()
++    private_home = None
++    if mcp:
++        from app.backend_codex import CodexBackend, _write_private
++        from app.runtime_registry import _load_scope_mcp_servers
++
++        root = (state_dir or cwd).resolve()
++        root.mkdir(parents=True, exist_ok=True)
++        private_home = root / f".wf-codex-home-{uuid4().hex}"
++        private_home.mkdir(mode=0o700)
++        servers = _load_scope_mcp_servers(str(cwd))
++        backend = CodexBackend(model=model, cwd=str(cwd), mcp_servers=servers)
++        _write_private(private_home / "config.toml", backend._mcp_servers_toml() + "\n")
++        base_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
++        auth = base_home / "auth.json"
++        if auth.is_file():
++            (private_home / "auth.json").symlink_to(auth)
++        run_env["CODEX_HOME"] = str(private_home)
++    else:
++        argv.insert(argv.index("--ignore-rules"), "--ignore-user-config")
++    try:
++        rc, stdout, stderr = await _run_process(
++            argv, _prompt_with_rules(prompt, system_prompt), cwd, timeout, env=run_env
++        )
++    finally:
++        if private_home is not None:
++            shutil.rmtree(private_home)
+     if rc != 0:
+         return _failed("codex", model, stderr or stdout or f"exit code {rc}", stop_reason="timeout" if rc == 124 else "error")
+     try:
+@@ -241,8 +308,13 @@ async def run_codex(prompt: str, *, model: str, cwd: Path, timeout: float) -> Ad
+         return _failed("codex", model, str(error), stop_reason="invalid_output")
+ 
+ 
+-async def run_claude(prompt: str, *, model: str, cwd: Path, timeout: float) -> AdapterResult:
++async def run_claude(
++    prompt: str, *, model: str, cwd: Path, timeout: float,
++    tools: str = "all", network: bool = True, mcp: bool = True,
++    system_prompt: str = "", state_dir: Path | None = None,
++) -> AdapterResult:
+     binary = os.environ.get("WF_CLAUDE_BIN", "claude")
++    mcp_config = _write_claude_mcp_config(cwd, mcp)
+     argv = [
+         binary,
+         "-p",
+@@ -254,11 +326,16 @@ async def run_claude(prompt: str, *, model: str, cwd: Path, timeout: float) -> A
+         "",
+         "--strict-mcp-config",
+         "--mcp-config",
+-        '{"mcpServers":{}}',
++        str(mcp_config),
+         "--tools",
+-        "",
++        _claude_tools(tools, network),
+     ]
+-    rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
++    if system_prompt.strip():
++        argv.extend(["--system-prompt", system_prompt.strip()])
++    try:
++        rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
++    finally:
++        mcp_config.unlink(missing_ok=True)
+     if rc != 0:
+         return _failed("claude", model, stderr or stdout or f"exit code {rc}", stop_reason="timeout" if rc == 124 else "error")
+     try:
+@@ -267,12 +344,20 @@ async def run_claude(prompt: str, *, model: str, cwd: Path, timeout: float) -> A
+         return _failed("claude", model, str(error), stop_reason="invalid_output")
+ 
+ 
+-async def run_harness(prompt: str, *, model: str, cwd: Path, timeout: float) -> AdapterResult:
++async def run_harness(
++    prompt: str, *, model: str, cwd: Path, timeout: float,
++    tools: str = "all", network: bool = True, mcp: bool = True,
++    system_prompt: str = "", state_dir: Path | None = None,
++) -> AdapterResult:
+     from app.harness.oneshot import run_oneshot
+ 
+     try:
+         row = await asyncio.wait_for(
+-            run_oneshot(prompt=prompt, model=model, cwd=cwd), timeout=max(1.0, timeout)
++            run_oneshot(
++                prompt=prompt, model=model, cwd=cwd, tools_level=tools,
++                network=network, mcp=mcp, system_prompt=system_prompt,
++            ),
++            timeout=max(1.0, timeout),
+         )
+     except asyncio.TimeoutError:
+         return _failed("harness", model, f"timed out after {timeout:g}s", stop_reason="timeout")
+@@ -295,15 +380,29 @@ async def run_harness(prompt: str, *, model: str, cwd: Path, timeout: float) ->
+ 
+ 
+ async def run_adapter(
+-    prompt: str, *, model: str, cwd: Path, timeout: float
++    prompt: str, *, model: str, cwd: Path, timeout: float,
++    tools: str = "all", network: bool = True, mcp: bool = True,
++    system_prompt: str = "", state_dir: Path | None = None,
+ ) -> AdapterResult:
+     from app.models import backend_for_model
+ 
+     runtime = backend_for_model(model)
+     if runtime == "codex":
+-        return await run_codex(prompt, model=model, cwd=cwd, timeout=timeout)
++        return await run_codex(
++            prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
++            network=network, mcp=mcp, system_prompt=system_prompt,
++            state_dir=state_dir,
++        )
+     if runtime == "claude":
+-        return await run_claude(prompt, model=model, cwd=cwd, timeout=timeout)
++        return await run_claude(
++            prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
++            network=network, mcp=mcp, system_prompt=system_prompt,
++            state_dir=state_dir,
++        )
+     if runtime == "harness":
+-        return await run_harness(prompt, model=model, cwd=cwd, timeout=timeout)
++        return await run_harness(
++            prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
++            network=network, mcp=mcp, system_prompt=system_prompt,
++            state_dir=state_dir,
++        )
+     return _failed(runtime, model, f"runtime '{runtime}' has no wf_run one-shot adapter", stop_reason="unsupported")
+diff --git a/scripts/wf_run.py b/scripts/wf_run.py
+index d93a2fdeec9d1677b7e977a154cf2a5d84b06bdb..b651cbebff8e39fbbbc6ffc2c5c52dc7ccbf6112 100644
+--- a/scripts/wf_run.py
++++ b/scripts/wf_run.py
+@@ -12,6 +12,8 @@ import json
+ import os
+ import re
+ import shlex
++import shutil
++import subprocess
+ import sys
+ import urllib.error
+ import urllib.parse
+@@ -32,6 +34,13 @@ UsageWriter = Callable[..., bool]
+ ReadinessChecker = Callable[[str], Awaitable[dict]]
+ _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+ _SCHEMA_META = {"$schema", "$id", "title", "description", "default", "examples"}
++DEFAULT_WORKFLOW_MODULES: tuple[str, ...] = (
++    "communication-style",
++    "user-values",
++    "knowledge-and-context",
++    "memory-search",
++    "code-quality",
++)
+ 
+ 
+ class Journal:
+@@ -74,6 +83,7 @@ class WorkflowValue:
+     data: Any
+     value_id: str
+     result_path: str
++    workspace_path: str = ""
+     free_sources: frozenset[str] = field(default_factory=frozenset)
+     verified_sources: frozenset[str] = field(default_factory=frozenset)
+ 
+@@ -82,6 +92,7 @@ class WorkflowValue:
+             "data": self.data,
+             "value_id": self.value_id,
+             "result_path": self.result_path,
++            "workspace_path": self.workspace_path,
+             "free_sources": sorted(self.free_sources),
+             "verified_sources": sorted(self.verified_sources),
+         }
+@@ -92,6 +103,7 @@ class WorkflowValue:
+             data=row.get("data"),
+             value_id=str(row["value_id"]),
+             result_path=str(row["result_path"]),
++            workspace_path=str(row.get("workspace_path") or ""),
+             free_sources=frozenset(str(item) for item in row.get("free_sources") or []),
+             verified_sources=frozenset(
+                 str(item) for item in row.get("verified_sources") or []
+@@ -255,6 +267,18 @@ async def _readiness(model: str) -> dict:
+     return await asyncio.to_thread(request)
+ 
+ 
++async def _await_despite_cancellation(task: asyncio.Task) -> tuple[Any, int]:
++    cancellations = 0
++    current = asyncio.current_task()
++    while True:
++        try:
++            return await asyncio.shield(task), cancellations
++        except asyncio.CancelledError:
++            cancellations += 1
++            if current is not None:
++                current.uncancel()
++
++
+ def _mem_available_bytes() -> int | None:
+     try:
+         for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+@@ -265,6 +289,118 @@ def _mem_available_bytes() -> int | None:
+     return None
+ 
+ 
++def _current_branch(repository: Path) -> str:
++    result = subprocess.run(
++        ["git", "branch", "--show-current"],
++        cwd=repository, capture_output=True, text=True,
++    )
++    branch = result.stdout.strip()
++    if result.returncode != 0 or not branch:
++        detail = result.stderr.strip() or result.stdout.strip() or "detached HEAD"
++        raise RuntimeError(f"cannot resolve workflow workspace base branch: {detail}")
++    return branch
++
++
++_WORKSPACE_PRIVATE_TOPLEVEL = frozenset({
++    ".git", ".env", ".mcp.json", ".claude", ".codex", ".wf-mcp.json",
++    ".pytest_cache", "__pycache__",
++})
++
++
++def _workspace_files(worktree: Path) -> set[str]:
++    files: set[str] = set()
++    for root, dirs, names in os.walk(worktree):
++        relative_root = Path(root).relative_to(worktree)
++        dirs[:] = [
++            name for name in dirs
++            if name not in _WORKSPACE_PRIVATE_TOPLEVEL
++        ]
++        for name in names:
++            relative = relative_root / name
++            if any(part in _WORKSPACE_PRIVATE_TOPLEVEL for part in relative.parts):
++                continue
++            files.add(str(relative))
++    return files
++
++
++def _snapshot_worktree(
++    worktree: Path, destination: Path, initial_head: str, baseline_files: set[str],
++) -> None:
++    changed = subprocess.run(
++        ["git", "diff", "--name-only", "-z", initial_head, "--"],
++        cwd=worktree, check=True, capture_output=True,
++    ).stdout.split(b"\0")
++    local = subprocess.run(
++        ["git", "ls-files", "-m", "-o", "--exclude-standard", "-z"],
++        cwd=worktree, check=True, capture_output=True,
++    ).stdout.split(b"\0")
++    after_files = _workspace_files(worktree)
++    names = sorted(
++        {os.fsdecode(item) for item in changed + local if item}
++        | (after_files - baseline_files)
++    )
++    copied: list[str] = []
++    deleted: list[str] = []
++    destination.mkdir(parents=True, exist_ok=True)
++    root = worktree.resolve()
++    for name in names:
++        source = (worktree / name).resolve()
++        if source != root and root not in source.parents:
++            raise ValueError(f"workspace output escapes worktree: {name}")
++        if not source.is_file():
++            deleted.append(name)
++            continue
++        target = destination / name
++        target.parent.mkdir(parents=True, exist_ok=True)
++        shutil.copy2(source, target)
++        copied.append(name)
++    manifest = destination / "workspace.json"
++    manifest.write_text(json.dumps({"copied": copied, "deleted": deleted}, ensure_ascii=False))
++
++
++def _reset_prepared_worktree(repository: Path, prepared: Any) -> None:
++    from app.workspace import _reset_worktree_to_ref, repo_mutation_lock
++
++    with repo_mutation_lock(repository):
++        _reset_worktree_to_ref(
++            prepared.path, prepared.initial_head, str(repository)
++        )
++
++
++def _prepare_workspace_sync(
++    repository: Path, name: str, base_branch: str,
++) -> tuple[Any, set[str]]:
++    from app.workspace import create_worktree, discard_prepared_worktree
++
++    prepared = create_worktree(str(repository), name, "", base_branch)
++    try:
++        return prepared, _workspace_files(Path(prepared.path))
++    except BaseException:
++        discard_prepared_worktree(str(repository), prepared)
++        raise
++
++
++def _cleanup_workspace_sync(
++    repository: Path,
++    prepared: Any,
++    archive: Path,
++    baseline_files: set[str],
++) -> None:
++    from app.workspace import discard_prepared_worktree
++
++    snapshot_error = None
++    try:
++        _snapshot_worktree(
++            Path(prepared.path), archive, prepared.initial_head, baseline_files
++        )
++    except Exception as error:
++        snapshot_error = error
++    _reset_prepared_worktree(repository, prepared)
++    discard_prepared_worktree(str(repository), prepared)
++    if snapshot_error is not None:
++        raise snapshot_error
++
++
+ class WorkflowEngine:
+     def __init__(
+         self,
+@@ -281,6 +417,10 @@ class WorkflowEngine:
+         readiness_checker: ReadinessChecker | None = None,
+         scope: str | None = None,
+         task_id: str | None = None,
++        workspace_repo: Path | None = None,
++        workspace_base_branch: str = "",
++        pipeline_name: str = "default",
++        default_modules: Iterable[str] = DEFAULT_WORKFLOW_MODULES,
+     ):
+         if not _RUN_ID.fullmatch(run_id):
+             raise ValueError("run_id must contain only letters, digits, dot, underscore, or dash")
+@@ -304,6 +444,23 @@ class WorkflowEngine:
+         self.budget = Budget(budget_usd, max_calls)
+         self.scope = scope if scope is not None else os.environ.get("ORCHESTRA_SCOPE", "")
+         self.task_id = task_id if task_id is not None else os.environ.get("ORCHESTRA_TASK_ID", "")
++        if workspace_repo is None and adapter is None:
++            from app.workspace import repo_root
++
++            self.workspace_repo = Path(repo_root(str(ROOT))).resolve()
++        else:
++            self.workspace_repo = (
++                Path(workspace_repo).resolve() if workspace_repo is not None else None
++            )
++        self.workspace_base_branch = workspace_base_branch or (
++            _current_branch(
++                ROOT if workspace_repo is None and adapter is None else self.workspace_repo
++            )
++            if self.workspace_repo is not None
++            else ""
++        )
++        self.pipeline_name = pipeline_name
++        self.default_modules = tuple(default_modules)
+         self.session_id = f"wf:{run_id}"
+         self.partial_reason = ""
+         self._occurrences: dict[str, int] = {}
+@@ -392,9 +549,26 @@ class WorkflowEngine:
+         escalate: bool = False,
+         hard: bool = False,
+         label: str = "",
++        tools: str = "all",
++        network: bool = True,
++        mcp: bool = True,
++        modules: Iterable[str] | None = None,
++        capability_reason: str = "",
+     ) -> WorkflowValue | None:
+         if purpose not in {"work", "verify", "synthesis"}:
+             raise ValueError("purpose must be work, verify, or synthesis")
++        if tools not in {"all", "read"}:
++            raise ValueError("tools must be 'all' or 'read'")
++        downgraded = tools != "all" or not network or not mcp
++        if downgraded and not capability_reason.strip():
++            raise ValueError("restricted capabilities require capability_reason")
++        module_names = tuple(self.default_modules if modules is None else modules)
++        if any(not isinstance(name, str) or not name for name in module_names):
++            raise ValueError("modules must contain non-empty names")
++        from app.pipeline import build_prompt_modules
++
++        system_prompt = build_prompt_modules(self.pipeline_name, module_names)
++        effective_mcp = bool(mcp and tools == "all" and network)
+         input_values = list(inputs)
+         if any(not isinstance(item, WorkflowValue) for item in input_values):
+             raise TypeError("inputs must contain WorkflowValue objects")
+@@ -426,6 +600,11 @@ class WorkflowEngine:
+             "purpose": purpose,
+             "loss_tolerant": loss_tolerant,
+             "label": label,
++            "tools": tools,
++            "network": bool(network),
++            "mcp": effective_mcp,
++            "modules": module_names,
++            "capability_reason": capability_reason.strip(),
+         })
+         if call_key in self._completed:
+             if self._completed[call_key] is None:
+@@ -477,6 +656,7 @@ class WorkflowEngine:
+         total_cost = 0.0
+         final_data: Any = None
+         result: AdapterResult | None = None
++        workspace_path = ""
+         start_attempt, schema_error = self._retry_state.get(call_key, (0, ""))
+         if schema_error and schema is not None:
+             current_prompt = _schema_retry_prompt(rendered, schema_error, schema)
+@@ -498,42 +678,44 @@ class WorkflowEngine:
+                     })
+                     break
+                 self.budget.dispatched_calls += 1
+-                self.journal.append({
+-                    "event": "dispatched",
+-                    "call_key": call_key,
+-                    "attempt": attempt + 1,
+-                    "model": selected,
+-                    "runtime": runtime,
+-                })
+             semaphore = self._codex_semaphore if runtime == "codex" else self._semaphore
++            event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
+             async with self._semaphore:
+                 if semaphore is self._semaphore:
+-                    result = await self.adapter(
+-                        current_prompt, model=selected, cwd=scratch, timeout=timeout
++                    result, workspace_path = await self._run_attempt(
++                        current_prompt,
++                        model=selected,
++                        runtime=runtime,
++                        scratch=scratch,
++                        timeout=timeout,
++                        call_key=call_key,
++                        attempt=attempt + 1,
++                        event_id=event_id,
++                        tools=tools,
++                        network=bool(network),
++                        mcp=effective_mcp,
++                        system_prompt=system_prompt,
++                        modules=module_names,
++                        capability_reason=capability_reason.strip(),
+                     )
+                 else:
+                     async with semaphore:
+-                        result = await self.adapter(
+-                            current_prompt, model=selected, cwd=scratch, timeout=timeout
++                        result, workspace_path = await self._run_attempt(
++                            current_prompt,
++                            model=selected,
++                            runtime=runtime,
++                            scratch=scratch,
++                            timeout=timeout,
++                            call_key=call_key,
++                            attempt=attempt + 1,
++                            event_id=event_id,
++                            tools=tools,
++                            network=bool(network),
++                            mcp=effective_mcp,
++                            system_prompt=system_prompt,
++                            modules=module_names,
++                            capability_reason=capability_reason.strip(),
+                         )
+-            event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
+-            if self.usage_writer is not None:
+-                try:
+-                    self.usage_writer(
+-                        result=result,
+-                        event_id=event_id,
+-                        session_id=self.session_id,
+-                        scope=self.scope,
+-                        task_id=self.task_id,
+-                    )
+-                except Exception as error:
+-                    self.journal.append({
+-                        "event": "accounting_failed",
+-                        "call_key": call_key,
+-                        "attempt": attempt + 1,
+-                        "error": f"{type(error).__name__}: {error}",
+-                    })
+-                    raise RuntimeError(f"turn_usage accounting failed: {error}") from error
+             realized = float(result.cost_usd or 0)
+             total_cost += realized
+             async with self._state_lock:
+@@ -576,7 +758,13 @@ class WorkflowEngine:
+                 self.partial_reason = "budget"
+             else:
+                 self.partial_reason = self.partial_reason or reason
+-            self._finish(call_key, None, reason=reason, cost_usd=total_cost)
++            self._finish(
++                call_key,
++                None,
++                reason=reason,
++                cost_usd=total_cost,
++                error=result.error if result is not None else "",
++            )
+             return None
+ 
+         own_id = call_key
+@@ -587,6 +775,7 @@ class WorkflowEngine:
+             data=final_data,
+             value_id=own_id,
+             result_path=str(step_path),
++            workspace_path=workspace_path,
+             free_sources=frozenset(output_free),
+             verified_sources=frozenset(output_verified),
+         )
+@@ -601,6 +790,128 @@ class WorkflowEngine:
+         )
+         return value
+ 
++    async def _run_attempt(
++        self,
++        prompt: str,
++        *,
++        model: str,
++        runtime: str,
++        scratch: Path,
++        timeout: float,
++        call_key: str,
++        attempt: int,
++        event_id: str,
++        tools: str,
++        network: bool,
++        mcp: bool,
++        system_prompt: str,
++        modules: tuple[str, ...],
++        capability_reason: str,
++    ) -> tuple[AdapterResult, str]:
++        prepared = None
++        cwd = scratch
++        archive = ""
++        baseline_files: set[str] = set()
++        if tools == "all" and self.workspace_repo is not None:
++            name = f"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}"
++            prepare_task = asyncio.create_task(asyncio.to_thread(
++                _prepare_workspace_sync,
++                self.workspace_repo,
++                name,
++                self.workspace_base_branch,
++            ))
++            try:
++                (prepared, baseline_files), cancellations = (
++                    await _await_despite_cancellation(prepare_task)
++                )
++            except BaseException:
++                async with self._state_lock:
++                    self.budget.dispatched_calls -= 1
++                    self.journal.append({
++                        "event": "prepare_failed",
++                        "call_key": call_key,
++                        "attempt": attempt,
++                    })
++                raise
++            if cancellations:
++                cleanup_task = asyncio.create_task(asyncio.to_thread(
++                    _cleanup_workspace_sync,
++                    self.workspace_repo,
++                    prepared,
++                    self.run_dir / "cancelled-workspaces" / name,
++                    baseline_files,
++                ))
++                await _await_despite_cancellation(cleanup_task)
++                async with self._state_lock:
++                    self.budget.dispatched_calls -= 1
++                    self.journal.append({
++                        "event": "prepare_cancelled",
++                        "call_key": call_key,
++                        "attempt": attempt,
++                    })
++                raise asyncio.CancelledError
++            cwd = Path(prepared.path)
++            archive_path = (
++                self.run_dir / "workspaces" / call_key.replace(":", "-") / f"attempt-{attempt}"
++            )
++            archive = str(archive_path)
++        async with self._state_lock:
++            self.journal.append({
++                "event": "dispatched",
++                "call_key": call_key,
++                "attempt": attempt,
++                "model": model,
++                "runtime": runtime,
++                "tools": tools,
++                "network": network,
++                "mcp": mcp,
++                "modules": list(modules),
++                "system_prompt_bytes": len(system_prompt.encode()),
++                "capability_reason": capability_reason,
++            })
++        try:
++            result = await self.adapter(
++                prompt,
++                model=model,
++                cwd=cwd,
++                timeout=timeout,
++                tools=tools,
++                network=network,
++                mcp=mcp,
++                system_prompt=system_prompt,
++                state_dir=scratch,
++            )
++            if self.usage_writer is not None:
++                try:
++                    self.usage_writer(
++                        result=result,
++                        event_id=event_id,
++                        session_id=self.session_id,
++                        scope=self.scope,
++                        task_id=self.task_id,
++                    )
++                except Exception as error:
++                    self.journal.append({
++                        "event": "accounting_failed",
++                        "call_key": call_key,
++                        "attempt": attempt,
++                        "error": f"{type(error).__name__}: {error}",
++                    })
++                    raise RuntimeError(f"turn_usage accounting failed: {error}") from error
++            return result, archive
++        finally:
++            if prepared is not None:
++                cleanup_task = asyncio.create_task(asyncio.to_thread(
++                    _cleanup_workspace_sync,
++                    self.workspace_repo,
++                    prepared,
++                    Path(archive),
++                    baseline_files,
++                ))
++                _, cancellations = await _await_despite_cancellation(cleanup_task)
++                if cancellations:
++                    raise asyncio.CancelledError
++
+     def _finish(
+         self,
+         call_key: str,
+@@ -610,6 +921,7 @@ class WorkflowEngine:
+         cost_usd: float = 0,
+         model: str = "",
+         runtime: str = "",
++        error: str = "",
+     ) -> None:
+         row = {
+             "event": "completed",
+@@ -618,6 +930,7 @@ class WorkflowEngine:
+             "cost_usd": cost_usd,
+             "model": model,
+             "runtime": runtime,
++            "error": error,
+             "value": value.to_record() if value is not None else None,
+         }
+         self.journal.append(row)
+@@ -686,11 +999,17 @@ class WorkflowEngine:
+                 {
+                     "call_key": key,
+                     "reason": row.get("reason"),
++                    "error": row.get("error") or None,
+                     "result_path": (
+                         row.get("value", {}).get("result_path")
+                         if isinstance(row.get("value"), dict)
+                         else None
+                     ),
++                    "workspace_path": (
++                        row.get("value", {}).get("workspace_path")
++                        if isinstance(row.get("value"), dict)
++                        else None
++                    ),
+                 }
+                 for key, row in self._step_records.items()
+             ],
+diff --git a/tests/test_wf_run.py b/tests/test_wf_run.py
+index 59f9e6e7a4b7d8b057719cd81fec2748226d9538..5ad06795bd532c04fc8a11926bddd8984d2e0f6d 100644
+--- a/tests/test_wf_run.py
++++ b/tests/test_wf_run.py
+@@ -1,5 +1,6 @@
+ import json
+ import sqlite3
++import subprocess
+ from pathlib import Path
+ 
+ import pytest
+@@ -17,6 +18,17 @@ from scripts.wf_run import WorkflowEngine, validate_pilot_manifest
+ FIXTURES = Path(__file__).parent / "fixtures" / "wf"
+ 
+ 
++def _git_repo(path: Path) -> Path:
++    path.mkdir()
++    subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
++    subprocess.run(["git", "config", "user.email", "wf@example.invalid"], cwd=path, check=True)
++    subprocess.run(["git", "config", "user.name", "WF Test"], cwd=path, check=True)
++    (path / "seed.txt").write_text("seed\n")
++    subprocess.run(["git", "add", "seed.txt"], cwd=path, check=True)
++    subprocess.run(["git", "commit", "-m", "seed"], cwd=path, check=True, capture_output=True)
++    return path
++
++
+ def _result(text: str, *, cost: float = 0.01, runtime: str = "codex", model: str = "gpt-5.6-luna"):
+     return AdapterResult(
+         text=text,
+@@ -29,6 +41,11 @@ def _result(text: str, *, cost: float = 0.01, runtime: str = "codex", model: str
+     )
+ 
+ 
++def _engine(*args, **kwargs):
++    kwargs.setdefault("default_modules", ())
++    return WorkflowEngine(*args, **kwargs)
++
++
+ @pytest.mark.asyncio
+ async def test_resume_ignores_a_truncated_tail_and_continues_after_completed_calls(tmp_path):
+     first_calls = []
+@@ -37,7 +54,7 @@ async def test_resume_ignores_a_truncated_tail_and_continues_after_completed_cal
+         first_calls.append(prompt)
+         return _result("first-result")
+ 
+-    engine = WorkflowEngine("resume-case", tmp_path, budget_usd=2, adapter=first_adapter)
++    engine = _engine("resume-case", tmp_path, budget_usd=2, adapter=first_adapter)
+     first = await engine.agent("first", model="luna")
+     assert first.data == "first-result"
+     with engine.journal.path.open("ab") as fh:
+@@ -49,14 +66,14 @@ async def test_resume_ignores_a_truncated_tail_and_continues_after_completed_cal
+         resumed_calls.append(prompt)
+         return _result("second-result")
+ 
+-    resumed = WorkflowEngine("resume-case", tmp_path, budget_usd=2, adapter=resumed_adapter)
++    resumed = _engine("resume-case", tmp_path, budget_usd=2, adapter=resumed_adapter)
+     cached = await resumed.agent("first", model="luna")
+     second = await resumed.agent("second", model="luna")
+ 
+     assert cached.data == "first-result"
+     assert second.data == "second-result"
+     assert resumed_calls == ["second"]
+-    replay = WorkflowEngine("resume-case", tmp_path, budget_usd=2, adapter=resumed_adapter)
++    replay = _engine("resume-case", tmp_path, budget_usd=2, adapter=resumed_adapter)
+     assert (await replay.agent("first", model="luna")).data == "first-result"
+     assert (await replay.agent("second", model="luna")).data == "second-result"
+     assert resumed_calls == ["second"]
+@@ -70,7 +87,7 @@ async def test_budget_exhaustion_returns_none_and_marks_manifest_partial(tmp_pat
+         calls.append(prompt)
+         return _result(prompt, cost=1.01)
+ 
+-    engine = WorkflowEngine("budget-case", tmp_path, budget_usd=1, adapter=adapter)
++    engine = _engine("budget-case", tmp_path, budget_usd=1, adapter=adapter)
+     assert await engine.agent("spends-the-budget", model="luna") is not None
+     assert await engine.agent("must-not-dispatch", model="luna") is None
+ 
+@@ -80,6 +97,303 @@ async def test_budget_exhaustion_returns_none_and_marks_manifest_partial(tmp_pat
+     assert manifest["partial_reason"] == "budget"
+ 
+ 
++@pytest.mark.asyncio
++async def test_full_tools_network_and_mcp_are_default_per_agent_call(tmp_path):
++    seen = []
++
++    async def adapter(prompt, **kwargs):
++        seen.append((prompt, kwargs))
++        return _result("done")
++
++    engine = _engine("full-default", tmp_path, budget_usd=1, adapter=adapter)
++    assert await engine.agent("work", model="luna") is not None
++    assert seen[0][1]["tools"] == "all"
++    assert seen[0][1]["network"] is True
++    assert seen[0][1]["mcp"] is True
++    assert await engine.agent(
++        "offline", model="luna", network=False,
++        capability_reason="offline deterministic check",
++    ) is not None
++    assert seen[1][1]["network"] is False
++    assert seen[1][1]["mcp"] is False
++
++
++@pytest.mark.asyncio
++async def test_agent_modules_use_the_canonical_pipeline_builder(tmp_path):
++    from app.pipeline import build_prompt_modules
++
++    seen = []
++
++    async def adapter(_prompt, **kwargs):
++        seen.append(kwargs["system_prompt"])
++        return _result("done")
++
++    engine = _engine("module-subscription", tmp_path, budget_usd=1, adapter=adapter)
++    await engine.agent("work", model="luna", modules=["code-quality"])
++    assert seen == [build_prompt_modules("default", ["code-quality"])]
++
++
++def test_build_system_prompt_still_flows_through_public_module_builder(monkeypatch):
++    from app import pipeline
++
++    original = pipeline.build_prompt_modules
++    seen = []
++
++    def recording_builder(pipeline_name, modules):
++        seen.append((pipeline_name, tuple(modules)))
++        return original(pipeline_name, modules)
++
++    monkeypatch.setattr(pipeline, "build_prompt_modules", recording_builder)
++    prompt = pipeline.build_system_prompt("default", "worker")
++    assert prompt
++    assert seen == [("default", tuple(pipeline.get_role("default", "worker").modules))]
++
++
++def test_build_system_prompt_keeps_every_configured_worker_module():
++    from app import pipeline
++
++    prompt = pipeline.build_system_prompt("default", "worker")
++    for name in pipeline.get_role("default", "worker").modules:
++        body = pipeline.prompt_path("default", f"modules/{name}.md").read_text().strip()
++        assert body in prompt, name
++
++
++def test_missing_prompt_module_fails_loud():
++    from app.pipeline import build_prompt_modules
++
++    with pytest.raises(FileNotFoundError, match="missing-workflow-module"):
++        build_prompt_modules("default", ["missing-workflow-module"])
++
++
++def test_default_workflow_module_interface_is_frozen():
++    from scripts.wf_run import DEFAULT_WORKFLOW_MODULES
++
++    assert DEFAULT_WORKFLOW_MODULES == (
++        "communication-style",
++        "user-values",
++        "knowledge-and-context",
++        "memory-search",
++        "code-quality",
++    )
++
++
++@pytest.mark.asyncio
++async def test_parallel_writers_use_distinct_real_worktrees(tmp_path):
++    import asyncio
++
++    repo = _git_repo(tmp_path / "repo")
++    arrived = 0
++    lock = asyncio.Lock()
++    both_ready = asyncio.Event()
++    workspaces = {}
++
++    async def adapter(prompt, *, cwd, **_kwargs):
++        nonlocal arrived
++        workspaces[prompt] = Path(cwd)
++        (Path(cwd) / f"{prompt}.txt").write_text(prompt)
++        async with lock:
++            arrived += 1
++            if arrived == 2:
++                both_ready.set()
++        await both_ready.wait()
++        other = "two" if prompt == "one" else "one"
++        assert not (Path(cwd) / f"{other}.txt").exists()
++        return _result(prompt)
++
++    engine = _engine(
++        "isolated-writers",
++        tmp_path / "run",
++        budget_usd=1,
++        adapter=adapter,
++        workspace_repo=repo,
++        workspace_base_branch="main",
++    )
++    values = await engine.parallel([
++        lambda: engine.agent("one", model="luna"),
++        lambda: engine.agent("two", model="luna"),
++    ])
++    assert workspaces["one"] != workspaces["two"]
++    assert all(not path.exists() for path in workspaces.values())
++    archived = [Path(value.workspace_path) for value in values]
++    assert any((path / "one.txt").read_text() == "one" for path in archived if (path / "one.txt").is_file())
++    assert any((path / "two.txt").read_text() == "two" for path in archived if (path / "two.txt").is_file())
++    listed = subprocess.run(
++        ["git", "worktree", "list", "--porcelain"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout
++    assert listed.count("worktree ") == 1
++
++
++@pytest.mark.asyncio
++async def test_committed_workspace_is_archived_reset_and_discarded(tmp_path):
++    repo = _git_repo(tmp_path / "repo")
++
++    async def adapter(_prompt, *, cwd, **_kwargs):
++        cwd = Path(cwd)
++        (cwd / "committed.txt").write_text("committed output\n")
++        subprocess.run(["git", "add", "committed.txt"], cwd=cwd, check=True)
++        subprocess.run(
++            ["git", "-c", "user.email=wf@example.invalid", "-c", "user.name=WF", "commit", "-m", "agent output"],
++            cwd=cwd, check=True, capture_output=True,
++        )
++        return _result("done")
++
++    engine = _engine(
++        "committed-workspace", tmp_path / "run", budget_usd=1, adapter=adapter,
++        workspace_repo=repo, workspace_base_branch="main",
++    )
++    value = await engine.agent("work", model="luna")
++    assert (Path(value.workspace_path) / "committed.txt").read_text() == "committed output\n"
++    listed = subprocess.run(
++        ["git", "worktree", "list", "--porcelain"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout
++    assert listed.count("worktree ") == 1
++    branches = subprocess.run(
++        ["git", "branch", "--format=%(refname:short)"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout.splitlines()
++    assert branches == ["main"]
++
++
++@pytest.mark.asyncio
++async def test_new_ignored_workspace_output_is_archived(tmp_path):
++    repo = _git_repo(tmp_path / "repo")
++    (repo / ".gitignore").write_text("*.log\n")
++    subprocess.run(["git", "add", ".gitignore"], cwd=repo, check=True)
++    subprocess.run(["git", "commit", "-m", "ignore logs"], cwd=repo, check=True, capture_output=True)
++
++    async def adapter(_prompt, *, cwd, **_kwargs):
++        (Path(cwd) / "result.log").write_text("ignored but requested\n")
++        return _result("done")
++
++    engine = _engine(
++        "ignored-output", tmp_path / "run", budget_usd=1, adapter=adapter,
++        workspace_repo=repo, workspace_base_branch="main",
++    )
++    value = await engine.agent("work", model="luna")
++    assert (Path(value.workspace_path) / "result.log").read_text() == "ignored but requested\n"
++
++
++@pytest.mark.asyncio
++async def test_workspace_setup_failure_is_retryable_not_paid_unknown(tmp_path, monkeypatch):
++    import app.workspace as workspace
++
++    repo = _git_repo(tmp_path / "repo")
++    original = workspace.create_worktree
++    with monkeypatch.context() as context:
++        context.setattr(
++            workspace, "create_worktree",
++            lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("disk full")),
++        )
++        first = _engine(
++            "setup-retry", tmp_path / "run", budget_usd=1, adapter=lambda: None,
++            workspace_repo=repo, workspace_base_branch="main",
++        )
++        with pytest.raises(RuntimeError, match="disk full"):
++            await first.agent("work", model="luna")
++    monkeypatch.setattr(workspace, "create_worktree", original)
++
++    calls = []
++
++    async def adapter(prompt, **_kwargs):
++        calls.append(prompt)
++        return _result("done")
++
++    resumed = _engine(
++        "setup-retry", tmp_path / "run", budget_usd=1, adapter=adapter,
++        workspace_repo=repo, workspace_base_branch="main",
++    )
++    assert await resumed.agent("work", model="luna") is not None
++    assert calls == ["work"]
++
++
++@pytest.mark.asyncio
++async def test_cancellation_during_worktree_create_discards_late_result(tmp_path, monkeypatch):
++    import asyncio
++    import threading
++    import app.workspace as workspace
++
++    repo = _git_repo(tmp_path / "repo")
++    original = workspace.create_worktree
++    started = threading.Event()
++    release = threading.Event()
++    finished = threading.Event()
++
++    def delayed_create(*args, **kwargs):
++        started.set()
++        assert release.wait(5)
++        result = original(*args, **kwargs)
++        finished.set()
++        return result
++
++    monkeypatch.setattr(workspace, "create_worktree", delayed_create)
++    engine = _engine(
++        "cancel-create", tmp_path / "run", budget_usd=1,
++        adapter=lambda: None, workspace_repo=repo, workspace_base_branch="main",
++    )
++    task = asyncio.create_task(engine.agent("work", model="luna"))
++    assert await asyncio.to_thread(started.wait, 5)
++    task.cancel()
++    task.cancel()
++    release.set()
++    with pytest.raises(asyncio.CancelledError):
++        await task
++    assert await asyncio.to_thread(finished.wait, 5)
++    listed = subprocess.run(
++        ["git", "worktree", "list", "--porcelain"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout
++    assert listed.count("worktree ") == 1
++    assert subprocess.run(
++        ["git", "branch", "--format=%(refname:short)"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout.splitlines() == ["main"]
++
++
++@pytest.mark.asyncio
++async def test_cancellation_during_snapshot_still_resets_and_discards(tmp_path, monkeypatch):
++    import asyncio
++    import threading
++    import scripts.wf_run as wf
++
++    repo = _git_repo(tmp_path / "repo")
++    original = wf._snapshot_worktree
++    started = threading.Event()
++    release = threading.Event()
++
++    def delayed_snapshot(*args, **kwargs):
++        started.set()
++        assert release.wait(5)
++        return original(*args, **kwargs)
++
++    async def adapter(_prompt, *, cwd, **_kwargs):
++        (Path(cwd) / "result.txt").write_text("result")
++        return _result("done")
++
++    monkeypatch.setattr(wf, "_snapshot_worktree", delayed_snapshot)
++    engine = _engine(
++        "cancel-snapshot", tmp_path / "run", budget_usd=1,
++        adapter=adapter, workspace_repo=repo, workspace_base_branch="main",
++    )
++    task = asyncio.create_task(engine.agent("work", model="luna"))
++    assert await asyncio.to_thread(started.wait, 5)
++    task.cancel()
++    task.cancel()
++    release.set()
++    with pytest.raises(asyncio.CancelledError):
++        await task
++    listed = subprocess.run(
++        ["git", "worktree", "list", "--porcelain"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout
++    assert listed.count("worktree ") == 1
++    assert subprocess.run(
++        ["git", "branch", "--format=%(refname:short)"], cwd=repo,
++        check=True, capture_output=True, text=True,
++    ).stdout.splitlines() == ["main"]
++
++
+ @pytest.mark.asyncio
+ async def test_parallel_calls_reserve_max_call_budget_before_dispatch(tmp_path):
+     calls = []
+@@ -89,7 +403,7 @@ async def test_parallel_calls_reserve_max_call_budget_before_dispatch(tmp_path):
+         await __import__("asyncio").sleep(0)
+         return _result(prompt)
+ 
+-    engine = WorkflowEngine(
++    engine = _engine(
+         "call-reservation", tmp_path, budget_usd=2, max_calls=1, adapter=adapter,
+     )
+     values = await engine.parallel([
+@@ -116,7 +430,7 @@ async def test_schema_retries_twice_with_validation_error_then_returns_none(tmp_
+         "required": ["answer"],
+         "additionalProperties": False,
+     }
+-    engine = WorkflowEngine("schema-case", tmp_path, budget_usd=2, adapter=adapter)
++    engine = _engine("schema-case", tmp_path, budget_usd=2, adapter=adapter)
+     assert await engine.agent("give answer", model="luna", schema=schema) is None
+     assert len(prompts) == 3
+     assert "Validation error:" not in prompts[0]
+@@ -134,7 +448,7 @@ async def test_schema_retry_accepts_a_later_valid_response(tmp_path):
+         prompts.append(prompt)
+         return _result(next(outputs))
+ 
+-    engine = WorkflowEngine("schema-recovers", tmp_path, budget_usd=2, adapter=adapter)
++    engine = _engine("schema-recovers", tmp_path, budget_usd=2, adapter=adapter)
+     value = await engine.agent(
+         "give answer",
+         model="luna",
+@@ -158,7 +472,7 @@ async def test_dispatched_is_fsynced_before_adapter_invocation(tmp_path):
+         assert rows[-1]["event"] == "dispatched"
+         return _result("done")
+ 
+-    engine = WorkflowEngine("write-ahead", tmp_path, budget_usd=2, adapter=adapter)
++    engine = _engine("write-ahead", tmp_path, budget_usd=2, adapter=adapter)
+     assert await engine.agent("work", model="luna") is not None
+ 
+ 
+@@ -175,7 +489,7 @@ async def test_engine_persists_usage_before_terminal_journal_record(tmp_path):
+         receipts.append(kwargs)
+         return True
+ 
+-    engine = WorkflowEngine(
++    engine = _engine(
+         "usage-integration",
+         tmp_path,
+         budget_usd=2,
+@@ -192,6 +506,120 @@ async def test_engine_persists_usage_before_terminal_journal_record(tmp_path):
+     ]
+ 
+ 
++@pytest.mark.asyncio
++async def test_usage_is_persisted_for_full_and_restricted_capabilities(tmp_path):
++    receipts = []
++
++    async def adapter(prompt, **_kwargs):
++        return _result(prompt)
++
++    def usage_writer(**kwargs):
++        receipts.append(kwargs)
++        return True
++
++    engine = _engine(
++        "usage-capabilities", tmp_path, budget_usd=1,
++        adapter=adapter, usage_writer=usage_writer,
++    )
++    await engine.agent("full", model="luna")
++    await engine.agent(
++        "restricted", model="luna", tools="read",
++        capability_reason="read-only audit",
++    )
++    assert len(receipts) == 2
++    assert all(row["result"].cost_usd == 0.01 for row in receipts)
++
++
++@pytest.mark.asyncio
++async def test_restricted_capabilities_require_an_inline_reason(tmp_path):
++    engine = _engine("restriction-reason", tmp_path, budget_usd=1, adapter=lambda: None)
++    with pytest.raises(ValueError, match="capability_reason"):
++        await engine.agent("work", model="luna", tools="read")
++
++
++@pytest.mark.asyncio
++async def test_harness_read_capability_rejects_a_hallucinated_write(tmp_path, monkeypatch):
++    from app.harness.llm import LLMEvent
++    from app.harness.oneshot import run_oneshot
++
++    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
++
++    class FakeLLM:
++        def __init__(self):
++            self.round = 0
++            self.saw_refusal = False
++
++        async def stream(self, history, _schemas, **_kwargs):
++            self.round += 1
++            if self.round == 1:
++                yield LLMEvent(
++                    "tool_call_done",
++                    tool_id="write-1",
++                    tool_name="write",
++                    arguments=json.dumps({"path": "forbidden.txt", "content": "bad"}),
++                )
++                yield LLMEvent("final", finish_reason="tool_calls", usage={})
++                return
++            self.saw_refusal = any(
++                "[read-only]" in str(item.get("content")) for item in history
++                if item.get("role") == "tool"
++            )
++            yield LLMEvent("text_delta", text="done")
++            yield LLMEvent("final", finish_reason="stop", usage={})
++
++        async def aclose(self):
++            return None
++
++    llm = FakeLLM()
++    row = await run_oneshot(
++        prompt="try to write",
++        model="z-ai/glm-5.2:free",
++        cwd=tmp_path,
++        tools_level="read",
++        network=True,
++        mcp=False,
++        system_prompt="",
++        llm=llm,
++    )
++    assert row["ok"] is True
++    assert llm.saw_refusal is True
++    assert not (tmp_path / "forbidden.txt").exists()
++
++
++@pytest.mark.asyncio
++async def test_standalone_harness_default_is_not_writable(tmp_path, monkeypatch):
++    from app.harness.llm import LLMEvent
++    from app.harness.oneshot import run_oneshot
++
++    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
++
++    class FakeLLM:
++        def __init__(self):
++            self.round = 0
++
++        async def stream(self, _history, _schemas, **_kwargs):
++            self.round += 1
++            if self.round == 1:
++                yield LLMEvent(
++                    "tool_call_done", tool_id="write-1", tool_name="write",
++                    arguments=json.dumps({"path": "escaped.txt", "content": "bad"}),
++                )
++                yield LLMEvent("final", finish_reason="tool_calls", usage={})
++                return
++            yield LLMEvent("text_delta", text="done")
++            yield LLMEvent("final", finish_reason="stop", usage={})
++
++        async def aclose(self):
++            return None
++
++    row = await run_oneshot(
++        prompt="write", model="z-ai/glm-5.2:free", cwd=tmp_path,
++        network=True, mcp=False, system_prompt="", llm=FakeLLM(),
++    )
++    assert row["ok"] is True
++    assert not (tmp_path / "escaped.txt").exists()
++
++
+ @pytest.mark.asyncio
+ async def test_free_output_requires_a_verify_step_before_synthesis(tmp_path):
+     calls = []
+@@ -201,7 +629,7 @@ async def test_free_output_requires_a_verify_step_before_synthesis(tmp_path):
+         runtime = "harness" if model.endswith(":free") else "codex"
+         return _result('{"ok": true}', runtime=runtime, model=model)
+ 
+-    engine = WorkflowEngine("free-gate", tmp_path, budget_usd=2, adapter=adapter)
++    engine = _engine("free-gate", tmp_path, budget_usd=2, adapter=adapter)
+     with pytest.raises(ValueError, match="loss_tolerant"):
+         await engine.agent("unsafe draft", model="z-ai/glm-5.2:free")
+     free = await engine.agent(
+@@ -231,7 +659,7 @@ async def test_dispatched_without_terminal_event_resumes_as_unknown_not_a_second
+     async def interrupted(_prompt, **_kwargs):
+         raise RuntimeError("simulated process loss")
+ 
+-    first = WorkflowEngine("unknown-call", tmp_path, budget_usd=2, adapter=interrupted)
++    first = _engine("unknown-call", tmp_path, budget_usd=2, adapter=interrupted)
+     with pytest.raises(RuntimeError, match="process loss"):
+         await first.agent("work", model="luna")
+ 
+@@ -241,7 +669,7 @@ async def test_dispatched_without_terminal_event_resumes_as_unknown_not_a_second
+         calls.append(prompt)
+         return _result("duplicate")
+ 
+-    resumed = WorkflowEngine("unknown-call", tmp_path, budget_usd=2, adapter=must_not_run)
++    resumed = _engine("unknown-call", tmp_path, budget_usd=2, adapter=must_not_run)
+     assert await resumed.agent("work", model="luna") is None
+     assert calls == []
+     assert resumed.write_manifest()["partial_reason"] == "outcome_unknown"
+@@ -252,7 +680,7 @@ async def test_attempt_finished_without_completed_resumes_as_unknown(tmp_path):
+     async def adapter(_prompt, **_kwargs):
+         return _result("charged-result")
+ 
+-    first = WorkflowEngine("finished-no-result", tmp_path, budget_usd=2, adapter=adapter)
++    first = _engine("finished-no-result", tmp_path, budget_usd=2, adapter=adapter)
+ 
+     def lose_completion(*_args, **_kwargs):
+         raise RuntimeError("crash before completed")
+@@ -267,7 +695,7 @@ async def test_attempt_finished_without_completed_resumes_as_unknown(tmp_path):
+         calls.append(prompt)
+         return _result("duplicate")
+ 
+-    resumed = WorkflowEngine(
++    resumed = _engine(
+         "finished-no-result", tmp_path, budget_usd=2, adapter=must_not_run,
+     )
+     assert await resumed.agent("work", model="luna") is None
+@@ -288,7 +716,7 @@ async def test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt(tmp_
+         "properties": {"answer": {"type": "string"}},
+         "required": ["answer"],
+     }
+-    first = WorkflowEngine(
++    first = _engine(
+         "deferred-schema", tmp_path, budget_usd=2, max_calls=1, adapter=invalid,
+     )
+     assert await first.agent("work", model="luna", schema=schema) is None
+@@ -302,7 +730,7 @@ async def test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt(tmp_
+         resumed_calls.append(prompt)
+         return _result('{"answer": "ok"}')
+ 
+-    resumed = WorkflowEngine(
++    resumed = _engine(
+         "deferred-schema", tmp_path, budget_usd=2, max_calls=2, adapter=valid,
+     )
+     value = await resumed.agent("work", model="luna", schema=schema)
+@@ -324,7 +752,7 @@ async def test_unknown_spend_conservatively_exhausts_dollar_budget(tmp_path):
+         ledger.append(kwargs["result"].cost_usd)
+         raise RuntimeError("crash after ledger commit")
+ 
+-    first = WorkflowEngine(
++    first = _engine(
+         "unknown-spend",
+         tmp_path,
+         budget_usd=1,
+@@ -341,7 +769,7 @@ async def test_unknown_spend_conservatively_exhausts_dollar_budget(tmp_path):
+         resumed_calls.append(prompt)
+         return _result("extra", cost=0.1)
+ 
+-    resumed = WorkflowEngine("unknown-spend", tmp_path, budget_usd=1, adapter=must_not_run)
++    resumed = _engine("unknown-spend", tmp_path, budget_usd=1, adapter=must_not_run)
+     assert await resumed.agent("charged-call", model="luna") is None
+     assert await resumed.agent("another-call", model="luna") is None
+     assert resumed_calls == []
+@@ -354,7 +782,7 @@ async def test_crash_after_final_schema_checkpoint_restores_schema_failure(tmp_p
+         return _result("not-json")
+ 
+     schema = {"type": "object"}
+-    first = WorkflowEngine("final-schema", tmp_path, budget_usd=2, adapter=invalid)
++    first = _engine("final-schema", tmp_path, budget_usd=2, adapter=invalid)
+ 
+     def lose_completion(*_args, **_kwargs):
+         raise RuntimeError("crash before schema completion")
+@@ -369,7 +797,7 @@ async def test_crash_after_final_schema_checkpoint_restores_schema_failure(tmp_p
+         calls.append(prompt)
+         return _result('{"ok": true}')
+ 
+-    resumed = WorkflowEngine("final-schema", tmp_path, budget_usd=2, adapter=must_not_run)
++    resumed = _engine("final-schema", tmp_path, budget_usd=2, adapter=must_not_run)
+     assert await resumed.agent("work", model="luna", schema=schema) is None
+     assert calls == []
+     assert resumed.write_manifest()["partial_reason"] == "schema"
+@@ -385,7 +813,7 @@ async def test_transient_quota_skip_is_rechecked_on_resume(tmp_path):
+     async def available(_model):
+         return {"state": "available"}
+ 
+-    first = WorkflowEngine(
++    first = _engine(
+         "quota-resume", tmp_path, budget_usd=2, adapter=lambda *args, **kwargs: None,
+         readiness_checker=blocked,
+     )
+@@ -397,7 +825,7 @@ async def test_transient_quota_skip_is_rechecked_on_resume(tmp_path):
+         calls.append(prompt)
+         return _result("done")
+ 
+-    resumed = WorkflowEngine(
++    resumed = _engine(
+         "quota-resume", tmp_path, budget_usd=2, adapter=adapter,
+         readiness_checker=available,
+     )
+@@ -408,13 +836,13 @@ async def test_transient_quota_skip_is_rechecked_on_resume(tmp_path):
+ 
+ @pytest.mark.asyncio
+ async def test_historical_budget_skip_clears_after_larger_budget_resume(tmp_path):
+-    first = WorkflowEngine("budget-resume", tmp_path, budget_usd=0, adapter=lambda *a, **k: None)
++    first = _engine("budget-resume", tmp_path, budget_usd=0, adapter=lambda *a, **k: None)
+     assert await first.agent("work", model="luna") is None
+ 
+     async def adapter(_prompt, **_kwargs):
+         return _result("done")
+ 
+-    resumed = WorkflowEngine("budget-resume", tmp_path, budget_usd=1, adapter=adapter)
++    resumed = _engine("budget-resume", tmp_path, budget_usd=1, adapter=adapter)
+     assert await resumed.agent("work", model="luna") is not None
+     assert resumed.write_manifest()["complete"] is True
+ 
+@@ -445,6 +873,95 @@ def test_adapter_parsers_use_captured_real_cli_outputs():
+     assert claude.cost_usd == pytest.approx(0.016103)
+ 
+ 
++@pytest.mark.asyncio
++async def test_codex_capability_flags_make_full_network_the_default(tmp_path, monkeypatch):
++    import scripts.wf_adapters as adapters
++
++    calls = []
++    raw = (FIXTURES / "codex-exec.jsonl").read_text()
++
++    async def fake_process(argv, prompt, cwd, timeout, **kwargs):
++        calls.append((argv, prompt, cwd, timeout, kwargs))
++        return 0, raw, ""
++
++    monkeypatch.setattr(adapters, "_run_process", fake_process)
++    await adapters.run_codex(
++        "work", model="gpt-5.6-luna", cwd=tmp_path, timeout=30,
++        system_prompt="RULE", tools="all", network=True, mcp=True,
++    )
++    full = calls[-1][0]
++    assert full[full.index("-s") + 1] == "danger-full-access"
++    assert 'web_search="live"' in full
++    assert "--ignore-user-config" not in full
++    assert calls[-1][1].startswith("<workflow_rules>\nRULE")
++
++    await adapters.run_codex(
++        "work", model="gpt-5.6-luna", cwd=tmp_path, timeout=30,
++        tools="read", network=False, mcp=False,
++    )
++    restricted = calls[-1][0]
++    assert restricted[restricted.index("-s") + 1] == "read-only"
++    assert 'web_search="disabled"' in restricted
++    assert "--ignore-user-config" in restricted
++
++
++@pytest.mark.asyncio
++async def test_codex_mcp_uses_private_scope_config_not_global_home(tmp_path, monkeypatch):
++    import scripts.wf_adapters as adapters
++
++    cwd = tmp_path / "workspace"
++    state = tmp_path / "state"
++    cwd.mkdir()
++    state.mkdir()
++    (cwd / ".mcp.json").write_text(json.dumps({
++        "mcpServers": {"scope-only": {"command": "scope-mcp", "env": {"TOKEN": "secret"}}},
++    }))
++    captured = {}
++
++    async def fake_process(argv, prompt, run_cwd, timeout, **kwargs):
++        home = Path(kwargs["env"]["CODEX_HOME"])
++        captured["home"] = home
++        captured["config"] = (home / "config.toml").read_text()
++        return 0, (FIXTURES / "codex-exec.jsonl").read_text(), ""
++
++    monkeypatch.setattr(adapters, "_run_process", fake_process)
++    await adapters.run_codex(
++        "work", model="gpt-5.6-luna", cwd=cwd, state_dir=state,
++        timeout=30, tools="all", network=True, mcp=True,
++    )
++    assert 'mcp_servers."scope-only"' in captured["config"]
++    assert '"TOKEN" = "secret"' in captured["config"]
++    assert not captured["home"].exists()
++
++
++@pytest.mark.asyncio
++async def test_claude_full_capability_loads_scoped_mcp_without_project_rules(tmp_path, monkeypatch):
++    import scripts.wf_adapters as adapters
++
++    (tmp_path / ".mcp.json").write_text(json.dumps({
++        "mcpServers": {"local": {"command": "example-mcp", "args": ["--stdio"]}},
++    }))
++    captured = {}
++
++    async def fake_process(argv, prompt, cwd, timeout, **_kwargs):
++        captured["argv"] = argv
++        config_path = Path(argv[argv.index("--mcp-config") + 1])
++        captured["config"] = json.loads(config_path.read_text())
++        return 0, (FIXTURES / "claude-print.json").read_text(), ""
++
++    monkeypatch.setattr(adapters, "_run_process", fake_process)
++    await adapters.run_claude(
++        "work", model="claude-haiku-4-5", cwd=tmp_path, timeout=30,
++        tools="all", network=True, mcp=True, system_prompt="RULE",
++    )
++    argv = captured["argv"]
++    assert argv[argv.index("--tools") + 1] == "default"
++    assert argv[argv.index("--setting-sources") + 1] == ""
++    assert argv[argv.index("--system-prompt") + 1] == "RULE"
++    assert captured["config"]["mcpServers"]["local"]["command"] == "example-mcp"
++    assert not (tmp_path / ".wf-mcp.json").exists()
++
++
+ def test_sessionless_usage_is_written_immediately_and_is_replay_safe(tmp_path, monkeypatch):
+     from app import db
+ 
+@@ -472,7 +989,7 @@ def test_sessionless_usage_is_written_immediately_and_is_replay_safe(tmp_path, m
+ 
+ 
+ def test_manifest_contains_ready_resume_command(tmp_path):
+-    engine = WorkflowEngine(
++    engine = _engine(
+         "resume-command", tmp_path, budget_usd=3,
+         workflow_path=Path("data/workflow-runs/sample.wf.py"),
+     )
+@@ -485,7 +1002,7 @@ def test_manifest_contains_ready_resume_command(tmp_path):
+ 
+ def test_manifest_can_use_a_runner_specific_resume_command(tmp_path):
+     command = "python scripts/wf_pilot.py --resume pilot-487 --budget-usd 1"
+-    engine = WorkflowEngine(
++    engine = _engine(
+         "pilot-487",
+         tmp_path,
+         budget_usd=1,
+@@ -510,7 +1027,7 @@ async def test_executes_a_top_level_await_workflow(tmp_path):
+     async def adapter(prompt, **_kwargs):
+         return _result(prompt.upper())
+ 
+-    engine = WorkflowEngine(
++    engine = _engine(
+         "exec-workflow", tmp_path / "run", budget_usd=2, adapter=adapter,
+     )
+     assert await engine.execute(workflow) == ["A", "B"]

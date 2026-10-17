@@ -1,0 +1,820 @@
+# Context for item-26
+
+## Diff reviewed (-U20, capped at 1500 lines)
+
+diff --git a/docs/tasks/35/codex-architecture.md b/docs/tasks/35/codex-architecture.md
+new file mode 100644
+index 000000000..8283ef787
+--- /dev/null
++++ b/docs/tasks/35/codex-architecture.md
+@@ -0,0 +1,17 @@
++## Summary
++
++`docs/tasks/35/review-architecture.md` is not present in this checkout, so I could not review the full architecture-finding list. I verified the two named findings against actual code.
++
++> Note (review-architecture worker): Codex's `codex_review` MCP tool runs in the **source repo** cwd, not the worker's worktree, so it could not see `review-architecture.md` (which lives only on the worker branch — that's why the file appeared "missing"). It validated the two findings I passed inline via `context=`. The full finding list is in `review-architecture.md` on this branch.
++
++## Findings
++
++**blocking:** `app/main.py:558` calls `session._disconnect_client()`, but `AgentSession` defines `_disconnect_backend()` at `app/session.py:736` and other lifecycle call sites use `_disconnect_backend()`. This route will crash with `AttributeError` when `/api/sessions/{name}/restart-cli` is used. The finding is correct.
++
++**suggestion:** `app/tm.py:16-23` hardcodes `data/orchestra.db` and opens SQLite directly, while `app/db.py:12-25` honors `ORCHESTRA_DB_PATH`. The finding is correct, but severity should be scoped: it is not a universal production blocker if the default DB path is used. It does break env-selected DB isolation for tests/worktrees/alternate deployments and can split task-manager data from the main app DB.
++
++**question:** The requested source file is missing. If there were additional architecture findings in `review-architecture.md`, they could not be validated here.
++
++## Verdict
++
++Both named findings are real. The restart endpoint issue is accurately blocking because it crashes that API path. The task-manager DB-path issue is a real architecture/config consistency bug, but calling it broadly blocking would be overstated for the current MVP unless `ORCHESTRA_DB_PATH` is part of the active runtime/test workflow.
+diff --git a/docs/tasks/35/codex-correctness.md b/docs/tasks/35/codex-correctness.md
+new file mode 100644
+index 000000000..66abb02e3
+--- /dev/null
++++ b/docs/tasks/35/codex-correctness.md
+@@ -0,0 +1,45 @@
++## Summary
++
++Checked `docs/tasks/35/review-correctness.md` from the `review-correctness` worktree against the current main checkout. Most compact/persist/session-state concerns are real, but several severities are overstated for MVP scale, and two merge/stat findings are false as written.
++
++Highest-priority real risks: compact re-entry/session_id loss, unordered full-row `_persist()` writes, auto-compact racing a new turn, and `auto_resume_all()` rewriting archived/error/waiting rows to `idle`.
++
++## Findings
++
++### blocking
++
++- P0-1: REAL - `compact()` has no re-entry guard and clears `_compacting` before the fresh-session ack turn, so manual/auto compacts can overlap and race `session_id`, `_backend`, and pending messages.
++- P1-1: REAL - `compact()` sets `self.session_id = None` and then `send()` persists a running snapshot with `session_id=NULL`; restart in that window drops the session from `auto_resume_all()`.
++- P1-3: REAL - `_persist()` snapshots a whole row and dispatches unordered executor writes, so an older running/cwd/cost snapshot can commit after a newer idle/current snapshot.
++- MISSED: REAL - `_auto_compact()` sleeps 2s and calls `compact()` without rechecking `status`; a queued or user-started next turn can be running by then, and compact will cancel the listener/backend mid-turn.
++- MISSED: REAL - `auto_resume_all()` runs `UPDATE sessions SET status='idle' WHERE status != 'idle'`, which also resurrects `archived`/`error` sessions, not just stale `running` rows.
++- MISSED: REAL - `_cherry_pick_branch()` ignores `git commit` failure in the unrelated-history fallback and still returns `ok=True`; the caller can then hard-reset the worker branch to target and lose the unmerged worker commits from that branch.
++
++### suggestion
++
++- P0-2: REAL, title overstated - listener recreation after compact is OK because `_backend` is set to `None`, but the 60s poll can return `ok=True` without proving the ack turn completed or context dropped.
++- P0-3: REAL as duplicate of P1-3 - the specific `_refresh_context_from_api()` stale-running example is not the main path, but unordered full-row persists are a real state race.
++- P0-4: REAL, severity overstated - `remove_worktree()` is not serialized with the merge lock, so merge/remove can fail or leave confusing git state; branch deletion/corruption is overstated.
++- P1-2: REAL - cost accounting assumes monotonic `total_cost_usd`; a new Claude session after compact can undercount, and a process resume can also double-count if the SDK reports cumulative resumed-session cost.
++- P1-4: REAL - prompt hash/injected flags are mutated before `_ensure_backend()`/`backend.send()` succeeds, so a failed send can suppress future prompt refresh.
++- P1-6: REAL - waiting sessions are excluded from `resumable` and then rewritten to `idle`, losing bg-job waiting state across restart.
++- P2-1: REAL - Claude listener reconnect can retry every ~2s indefinitely with no cap; noisy but not data-corrupting.
++- P2-3: REAL - `_idle_hibernate()` ignores `_pending_messages`; more importantly, an already scheduled hibernate can disconnect an idle backend while compact is using it.
++- P2-4: REAL - `_load_from_db()` runs `git rev-parse` synchronously inside async resume; startup stalls are real but not correctness-critical at this scale.
++- P3-1: REAL nit - `_codex_reasoning_effort()` has a dead branch returning `"high"` both ways.
++- P3-3: REAL nit - `old_session_id` in `compact()` is unused.
++- P3-4: REAL nit - `_on_task_done()` leaves `_turn_start` non-zero on silent listener death.
++- MISSED: REAL - `manager.remove()` only removes a worktree when the session is loaded in memory; deleting an unloaded DB row leaves its worktree/branch orphaned and can block a future spawn with the same name.
++- MISSED: REAL - `create_session()` deletes the DB row on failure after `create_worktree()`, but does not remove the just-created worktree/branch; retrying the same worker can then fail forever on `worktree already exists`.
++- MISSED: REAL - `_parse_merged_commits()` uses `_TASK_REF_RE.search()`, so a squash commit mentioning multiple task refs links stats only to the first ref, not all refs.
++
++### question
++
++- P1-5: FALSE-POSITIVE as written - `_fire_auto_report()` copies `last_texts` before scheduling, and `_turn_logs` never contains `stop_reason=` from `_handle_turn_end()` anyway; the real issue is simply that `sr` is always empty.
++- P1-7: FALSE-POSITIVE as written - `_parse_merged_commits()` uses `search()`, not `finditer()`, so it does not double-count stats across multiple task refs; it under-attributes to the first ref instead.
++- P2-2: FALSE-POSITIVE - `get_session_lock()` is used by merge and switch-branch endpoints in `app/main.py`, so it is not dead code.
++- P3-2: FALSE-POSITIVE - `_extract_tool_result()` has no `KeyError` path for missing `result`; this is just a narrow display contract.
++
++## Verdict
++
++The review is directionally useful but over-severes several items. Treat compact/session persistence as blocking work, fix `auto_resume_all()` status rewriting before relying on archived/waiting state, and harden the unrelated-history merge fallback. The merge-stat double-count claim and dead-lock claim should not be carried forward as stated.
+diff --git a/docs/tasks/35/codex-reliability.md b/docs/tasks/35/codex-reliability.md
+new file mode 100644
+index 000000000..cb675fc7a
+--- /dev/null
++++ b/docs/tasks/35/codex-reliability.md
+@@ -0,0 +1,5 @@
++Wrote the calibrated review verdict to:
++
++[docs/tasks/35/codex-reliability.md](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-reliability/docs/tasks/35/codex-reliability.md)
++
++I verified the claims against the actual source files and flagged the wrong/overstated ones, especially the same-name HTTP spawn race and the `create_task()` GC framing.
+\ No newline at end of file
+diff --git a/docs/tasks/35/codex-sdk.md b/docs/tasks/35/codex-sdk.md
+new file mode 100644
+index 000000000..df574f61e
+--- /dev/null
++++ b/docs/tasks/35/codex-sdk.md
+@@ -0,0 +1 @@
++fatal: path 'docs/tasks/35/codex-sdk.md' exists on disk, but not in 'task-35/review-sdk'
+diff --git a/docs/tasks/35/review-architecture.md b/docs/tasks/35/review-architecture.md
+new file mode 100644
+index 000000000..3e54bc111
+--- /dev/null
++++ b/docs/tasks/35/review-architecture.md
+@@ -0,0 +1,134 @@
++# Review #35 — Architecture, Dead Code & Optimization
++
++Scope: all Python in `app/` (backend_claude, session, manager, workspace, models, events, db, main, mcp_stdio, tg_bridge, tm + the helpers they touch).
++
++Severity: **P0** crash/correctness · **P1** real bug or meaningful debt · **P2** simplification/cleanup · **P3** nit.
++
++---
++
++## P0 — Crash / correctness
++
++### [P0] `restart_cli` calls a method that doesn't exist → 500 on every use
++`app/main.py:558`
++```python
++await session._disconnect_client()
++```
++`AgentSession` has **no** `_disconnect_client` — the method is `_disconnect_backend` (renamed during the codex-backend refactor; the old name lingers only in `CHANGELOG.md:261` and `docs/archive/research/codex-backend-plan.md:80`). The `♻️ Restart CLI` button is wired in `dashboard.html:147` + `app.js:355`, so clicking it 500s. Line 559 also reaches into `session.status.__class__("idle")` to dodge the `AgentStatus` import — fragile.
++
++**Fix:**
++```python
++await session._disconnect_backend()
++session.status = AgentStatus.IDLE   # import AgentStatus from app.session
++session._persist()
++```
++(`AgentStatus` is already importable from `app.session`.)
++
++---
++
++## P1 — Real bugs / meaningful debt
++
++### [P1] `tm.py` ignores `ORCHESTRA_DB_PATH` → two modules, two databases
++`app/tm.py:16-28` hardcodes its own `DB_PATH` and `_conn()`, duplicating `app/db.py:9-35`. But `db.py` honors `ORCHESTRA_DB_PATH` (env override for per-worktree/test DBs, added so parallel branches don't lock each other — see `_resolve_db_path`), while `tm.py` does **not**. Any test or worktree that sets `ORCHESTRA_DB_PATH` gets `db.py` pointed at DB-A and `tm.py` pointed at DB-B (the default `data/orchestra.db`). Silent split-brain: sessions in one file, tasks in another.
++
++**Blast radius (per Codex):** bites only when `ORCHESTRA_DB_PATH` is set — i.e. tests and parallel worktrees (exactly what that override was added for). Default single-DB production is unaffected. Still P1: the fix is a deletion, not new code, and it removes a live test-isolation footgun.
++
++**Fix:** delete `tm.py`'s `DB_PATH` + `_conn()`, `from app.db import _conn`. One connection helper, one path resolution. (12 lines deleted > a second copy.)
++
++### [P1] `_codex_reasoning_effort` is a dead branch — both arms return `"high"`
++`app/session.py:147-150`
++```python
++def _codex_reasoning_effort(self) -> str:
++    if self.is_orchestrator:
++        return "high"
++    return "high"
++```
++The `if` does nothing. Either it should differentiate (orchestrator vs worker effort) or it should be `return "high"`. As written it's a trap: reads like there's a policy, there isn't.
++
++**Fix:** collapse to `return "high"`, or inline `"high"` at the one call site (`session.py:134`) and delete the method.
++
++### [P1] `tg_bridge` log-streaming is an N-loop of 0.5–2s DB polls — one task per orchestrator, forever
++`app/tg_bridge.py:848-969` (`stream_logs`) runs `while True: get_logs(...); sleep(2)` per orchestrator topic, and `app/main.py:482-497` (`stream_session_logs`) runs `sleep(0.5)` per open dashboard SSE connection. Every loop is a fresh `sqlite3.connect()` + `SELECT ... WHERE id > ?`. With K orchestrators + M dashboard tabs that's (K/2 + 2M) connects/sec against one WAL file, 24/7, even when every agent is idle. This is the single biggest steady-state cost in the system.
++
++**Fix (MVP-appropriate):** keep polling but (a) reuse one connection per loop instead of reconnecting each tick (`_conn()` opens a new fd + 3 PRAGMAs every 500 ms), and (b) back off the interval when the last poll returned 0 rows (e.g. 0.5s→3s while idle). No pub/sub rebuild needed. `idx_logs_session (session_id, id DESC)` already makes the query cheap; the connect churn is the waste.
++
++### [P1] `auto_resume_all` resets every non-idle row to `idle` for ALL scopes, unconditionally
++`app/manager.py:882` `UPDATE sessions SET status='idle' WHERE status != 'idle'` runs inside `auto_resume_all` with no scope filter and before load attempts. Rows whose `cwd`/`scope` no longer exists (skipped at 890/903) are silently flipped to `idle` in the DB but never loaded into memory — they now show as resumable "idle" agents that aren't running. Minor, but it makes the DB lie about state for dead worktrees. Consider only flipping rows you actually attempt to resume, or mark unloadable rows `error`/`archived`.
++
++---
++
++## P2 — Dead code & simplification
++
++### [P2] Dead module: `app/backend.py` (`AgentBackend` Protocol) never imported
++`app/backend.py` — the `AgentBackend` Protocol is defined but **zero** imports exist anywhere in `app/` (grep confirms only the definition site). `session._make_backend` instantiates `ClaudeBackend`/`CodexBackend` directly; nothing type-checks against the Protocol. It's aspirational documentation, not wiring.
++**Fix:** delete the file, or if you want it as a contract, actually annotate `AgentSession._backend: AgentBackend`. Right now it's "оставлю на всякий случай" — git remembers.
++
++### [P2] Dead DB functions: `get_orchestrators`, `get_resumable_orchestrators`, `mark_stale_sessions`
++`app/db.py:635, 644, 653` — none are called from anywhere in `app/` (grep: only definitions). `auto_resume_all` does its own inline `SELECT`s instead of using `get_resumable_orchestrators`. `mark_stale_sessions` is fully orphaned. ~35 lines of unused SQL.
++**Fix:** delete all three.
++
++### [P2] Dead no-op: `tg_bridge._react_processing`
++`app/tg_bridge.py:368-369` is `async def _react_processing(msg): pass`, awaited 6× in the media handlers (984, 1005, 1034, 1046, 1060, 1072). It does nothing — leftover from a reaction feature that was gutted.
++**Fix:** delete the function and the 6 call sites.
++
++### [P2] Dead alias: `workspace._ensure_repo_on_main`
++`app/workspace.py:157` `_ensure_repo_on_main = _ensure_repo_on_branch` — "обратная совместимость" alias, never referenced (grep: only the assignment). Project rule is explicitly *no compat shims*.
++**Fix:** delete the line.
++
++### [P2] Redundant wrapper: `manager.auto_resume_orchestrators`
++`app/manager.py:925-926` is a one-line passthrough to `auto_resume_all`, with one caller (`main.py:37`). The name also lies — it resumes workers too.
++**Fix:** call `auto_resume_all` directly in `main.py:37`, delete the wrapper.
++
++### [P2] Three near-identical "expandable blockquote" senders in tg_bridge
++`app/tg_bridge.py` — `_send_expandable_return` (386), `_send_expandable` (461), and the body of `_edit_expandable` (441) all build the same `header\n{conv_body}` + single `EXPANDABLE_BLOCKQUOTE` entity + try/except fallback. `_send_expandable` and `_send_expandable_return` differ only in `return`. The send/edit split is real (different Bot API call), but send-vs-send-return is pure duplication.
++**Fix:** keep one `_send_expandable` that returns the message; drop `_send_expandable_return`. ~15 lines. (Verify callers don't depend on the non-returning variant swallowing the result — they don't; the return is just ignored.)
++
++### [P2] `_extract_tool_result` JSON-unwrap is dead for the orchestra MCP path
++`app/backend_claude.py:73-78` tries `json.loads(text)` and returns `parsed['result']` if present. Orchestra's own MCP tools (`mcp_stdio.py`) return **plain strings**, not `{"result": ...}` envelopes. This unwrap only fires for tools that happen to emit that exact shape. Harmless, but it's speculative handling of a format the codebase doesn't produce — flag for confirmation rather than blind delete (some third-party MCP might rely on it).
++
++### [P2] `is_orchestrator` persisted as a column AND derived from `role` — two sources of truth
++`session.py:785` writes `is_orchestrator` (derived from `role`) to its own DB column, while every read path already recomputes it via `is_orchestrator_role(role)` (`manager.py`, `db.py:638`). The column is redundant with `role`; queries that still use `is_orchestrator = 1 OR role IN (...)` (`db.py:638, 647`) carry the belt-and-suspenders cost. Not urgent (migration risk), but worth noting: `role` is the real key, `is_orchestrator` is a cached bool that can drift.
++
++---
++
++## P3 — Nits / consistency
++
++### [P3] Inline `import` scattered where a top-level import would do
++Repeated function-body imports of stable stdlib/local modules: `import os` (`backend_claude.py:103`), `import json as json` inside `mcp_stdio.spawn_worker` (82, 92 — imported twice in one function), `import subprocess, datetime` (`manager.py:376`), `import json` (`main.py:478, 890, 900, 1168`), `from app.db import _conn` repeated in 4 `main.py` endpoints (596, 614, 633, 687). Lazy imports are justified to break cycles (`tg_bridge`, `bg_jobs`) — but these are plain stdlib/no-cycle cases. Minor context noise; tighten opportunistically when touching the function.
++
++### [P3] `max_tokens = 200000` magic default repeated ≥5 places
++`backend_claude.py:239,258`, `session.py:411,759`, `main.py:471`, `manager.py:758`. `CONTEXT_LIMITS` in `models.py` is the single source — but the `.get(model, 200000)` fallback literal is copy-pasted. Define `DEFAULT_CONTEXT_LIMIT = 200000` in `models.py` and reference it.
++
++### [P3] `_CODEX_BIN` hardcodes an absolute user path
++`mcp_stdio.py:601` `_CODEX_BIN = "/home/maxim/.npm-global/bin/codex"`. Breaks on the VPS / any other user. Should be `shutil.which("codex") or os.environ.get("CODEX_BIN", ...)` like `backend_claude.py:104` already does for the `claude` CLI. Inconsistent with the existing pattern in the same codebase.
++
++### [P3] `change_scope` migrates `bg_jobs`/`test_lock`/`tm_projects` but the function lives in db.py while the orchestration lives in manager — split brain on "what moves with a scope"
++`db.py:460-505` knows the full list of tables keyed by scope. If a new scope-keyed table is added, this is the one place that must be updated, but nothing enforces it. Not a bug today — flagging as a maintenance landmine. A one-line comment listing "tables keyed by scope" at the top would help future-you.
++
++---
++
++## Summary of concrete deletions (safe, mechanical)
++| What | Where | ~Lines |
++|------|-------|-------|
++| `_disconnect_client` → `_disconnect_backend` (P0 fix) | main.py:558 | 2 |
++| `tm.py` DB_PATH + `_conn` dup → import from db (P1) | tm.py:16-28 | -12 |
++| `_codex_reasoning_effort` dead branch (P1) | session.py:147 | -3 |
++| `app/backend.py` dead Protocol | whole file | -18 |
++| `get_orchestrators` / `get_resumable_orchestrators` / `mark_stale_sessions` | db.py | -35 |
++| `_react_processing` + 6 calls | tg_bridge.py | -7 |
++| `_ensure_repo_on_main` alias | workspace.py:157 | -2 |
++| `auto_resume_orchestrators` wrapper | manager.py:925 | -2 |
++| `_send_expandable_return` merge into `_send_expandable` | tg_bridge.py | -15 |
++
++Net: ~95 lines removed, one user-facing 500 fixed, one split-brain DB risk closed — no behavior change beyond the P0/P1 fixes.
++
++## Codex cross-review reconciliation
++Codex (`codex-architecture.md`) could only validate the two findings I passed inline — its `codex_review` tool runs in the source-repo cwd, not this worktree, so it saw `review-architecture.md` as "missing" (it lives on this branch). It independently confirmed:
++- **P0** `_disconnect_client` → **blocking**, crashes with `AttributeError`. Confirmed against `_disconnect_backend` at `session.py:736`. No change.
++- **P1** `tm.py` DB path → **real, but scope the severity**. Codex's point is fair: it only bites when `ORCHESTRA_DB_PATH` is set. Per `db.py:_resolve_db_path`'s own docstring, that override exists *specifically* for "разным worktree/веткам и тестам держать свою БД" — so the split-brain is live exactly in the test/worktree workflow the override was built for, but **not** in default single-DB production. I'm keeping it at P1 (the fix is a 12-line deletion that also removes a duplicate connection helper — cheap, and it closes a real test-isolation footgun) but the practical blast radius is tests/worktrees, not the prod DB. Adjusted the finding text to say so.
++
++The remaining findings (dead code, polling cost, etc.) were not externally validated — they're verified by my own grep against the tree (call-site counts cited inline).
++
++## What I deliberately did NOT flag
++- The `merge_worktree_to_main` flat 130-line function (workspace.py:252) reads as a long arrow but every branch is a distinct git failure mode with a real recovery path. Splitting it would scatter the `finally` stash/restore invariant — leave it flat. **3 lines > abstraction** cuts the other way here.
++- The verbose `_handle_event` dispatch (session.py:329) — a dict-dispatch table would be "cleverer" but the explicit `elif` chain is the readable, debuggable form for ~10 event types. Keep.
++- `db._migrate` — ugly but it's append-only migration history; rewriting risks data. Don't touch.
+diff --git a/docs/tasks/35/review-correctness.md b/docs/tasks/35/review-correctness.md
+new file mode 100644
+index 000000000..d76996929
+--- /dev/null
++++ b/docs/tasks/35/review-correctness.md
+@@ -0,0 +1,202 @@
++# Review #35 — Correctness & Race Conditions
++
++Scope: `app/backend_claude.py`, `app/session.py`, `app/manager.py`, `app/workspace.py`
++Reviewer: review-correctness (Opus). Focus: real bugs that break the system, not style.
++
++Severity: **P0** = crash/data loss · **P1** = wrong behavior · **P2** = degradation · **P3** = smell.
++
++---
++
++## P0 — Crash / Data Loss
++
++### P0-1 — `compact()` re-entry corrupts session: `_compacting` cleared before `send()`, opens window for double-compact and lost messages
++`app/session.py:649-652`
++
++`compact()` sets `self._compacting = False` (line 649) **before** calling `self.send(preamble...)` (line 652). The whole point of `_compacting` is to gate `send()` into the pending-queue (lines 167-171) and to gate `_handle_turn_end`'s auto-compact trigger (line 442 `not self._compacting`). By clearing it one line too early:
++
++1. The acknowledge turn started by `send()` (652) runs with `_compacting=False`. When that turn ends, `_handle_turn_end` runs the `ctx_pct > 90` check (line 442). If the summary turn still reports high context (the API refresh in `_refresh_context_from_api` can lag), it fires **`_auto_compact()` again → recursive compact** while we're still inside the first one.
++2. Any message that arrived during the COMPACT_PROMPT turn (lines 625-632) was queued because `_compacting` was True. But nothing flushes `_pending_messages` here — `send()` at 652 goes through the lifecycle lock and starts a brand-new turn ignoring the queue. The queued messages are only flushed on the *next* `turn_end`. Acceptable, but combined with (1) the queued user messages can interleave with a second compaction.
++
++**Worse:** there is **no re-entrancy guard at the top of `compact()`**. `_auto_compact` (line 710) and a manual `compact_worker` MCP call can both call `compact()` concurrently. Two compactions race on `self.session_id` (set to None at 648, then read by the resume path in `_make_backend`), on `self._backend` (both do `backend = self._backend or self._make_backend()` then `self._backend = None` in finally), and on cancelling `_listen_task`. Result: one compaction disconnects the backend the other is mid-send on → `RuntimeError: not connected` or a dangling client, and `session_id` can end up None permanently → **next resume starts a fresh session, full context loss.**
++
++**Fix:**
++```python
++async def compact(self) -> dict:
++    if self._compacting:
++        return {"ok": False, "error": "compact already in progress"}
++    self._compacting = True
++    try:
++        ... # all the body
++        # keep _compacting True across the ack send:
++        preamble = PREAMBLE.format(summary=summary)
++        await self.send(preamble + "Acknowledge briefly.")  # but send() gates on _compacting!
++    finally:
++        self._compacting = False
++```
++Note the tension: `send()` (167) queues when `_compacting` is True, but compact's own ack send (652) must NOT be queued. Resolve by sending the ack through the backend directly (bypass `send()`), then clear `_compacting`, then flush pending. Minimal version:
++```python
++    old_session_id = self.session_id
++    self.session_id = None
++    preamble = PREAMBLE.format(summary=summary)
++    async with self._lifecycle_lock:
++        self._bump_turn_gen(); self._turn_logs = []
++        self._turn_start = asyncio.get_event_loop().time()
++        self.status = AgentStatus.RUNNING; self._persist()
++        backend = await self._ensure_backend()
++        await backend.send(preamble + "Acknowledge briefly.")
++    self._compacting = False
++    if self._pending_messages:
++        asyncio.create_task(self._flush_pending())
++```
++and add the `if self._compacting: return ...` guard at the top.
++
++---
++
++### P0-2 — `compact()` cancels the listen task but the new turn never gets a listener → permanent zombie
++`app/session.py:612-617, 638-652`
++
++`compact()` cancels `self._listen_task` (612) and in `finally` sets `self._backend = None` (639). Then `send(preamble...)` (652) calls `_ensure_backend()` which **only creates a new `_listen_task` when it had to create a new backend** (`_ensure_backend` 236-252: the `create_task(_claude_event_loop())` is reached because `_backend is None` here, so this path is OK). **But** the `for _ in range(60)` poll (654-657) waits for `status == IDLE`. If the ack turn's `turn_end` never arrives (SDK hiccup), `compact()` returns `{"ok": True}` after 60s regardless, while `_compacting` is already False and a turn may still be RUNNING. The caller (`compact_worker` MCP) reports success on a session that's still mid-turn. Lower impact than P0-1 but the 60s blind poll with a hardcoded success return is a real correctness gap: **`after_pct` is read (659) with no guarantee the new turn finished**, so the reported compaction result can be a lie (`before_pct == after_pct` reported as success).
++
++**Fix:** track the ack turn via an event/future set in `_handle_turn_end` for this generation, await it with timeout, and return `{"ok": False, "error": "ack turn did not complete"}` on timeout instead of a fabricated success.
++
++---
++
++### P0-3 — `_handle_turn_end` mutates state then schedules async work, but reads `self.status`/context concurrently with `_refresh_context_from_api` and auto-compact
++`app/session.py:421, 440, 444`
++
++`_handle_turn_end` fires three `asyncio.create_task()` calls — `_refresh_context_from_api` (421), `_notify_scope_idle` (440), `_auto_compact` (444) — and these run **after** the function returns, concurrently with the next `send()`. The ordering bug: `_refresh_context_from_api` (691) writes `self._last_context["percentage"]` and calls `self._persist()`. `_auto_compact` (710) → `compact()` reads `self._last_context["percentage"]` at 608. Meanwhile the hibernate task may have already disconnected the backend (so `_refresh_context_from_api`'s `self._backend` check at 692 races with `_disconnect_backend` setting it None). These are individually guarded by `if not self._backend`, but the **`_persist()` calls race**: `_refresh_context_from_api._persist()` and `_handle_turn_end._persist()` (438) both run `run_in_executor(save_session, self._to_db_dict())`. `_to_db_dict()` snapshots mutable state at call time; two snapshots taken microseconds apart can be written to SQLite **out of order** (executor threads, no ordering guarantee), so a stale `status="running"` snapshot can overwrite a fresh `status="idle"`. See P1-3 for the systemic version.
++
++**Fix:** serialize persists per-session (single-flight or a monotonic version column). At minimum, have `_refresh_context_from_api` update only context fields via a targeted UPDATE rather than a full-row `save_session` that can clobber status/cost.
++
++---
++
++### P0-4 — Worktree merge does not hold a lock against worktree removal / concurrent session teardown
++`app/workspace.py:252` (`merge_worktree_to_main`) vs `app/manager.py:552-563` (`remove`)
++
++`merge_worktree_to_main` takes a **file lock on `.git/orchestra-merge.lock`** (261) which serializes two merges against each other — good. But `remove()` (manager 552) calls `remove_worktree` (560) with **no such lock**. If the orchestrator merges worker A while killing worker A (or B in the same repo), `git worktree remove --force` (workspace 565) can run while the merge is mid-`git checkout main` / `git stash pop`, leaving the repo on the wrong branch or with a stuck stash. Worse: removing worker A's worktree while its branch is being squash-merged can delete the branch's working tree out from under `git merge --squash` → merge aborts with a confusing error, and the `finally` restore (377) may run against a now-inconsistent repo. **Two merges are serialized; merge-vs-remove and merge-vs-switch_branch are not** (switch_worktree_branch does take the same lock at 502, so that pair is fine; remove is the hole).
++
++**Fix:** acquire the same `.git/orchestra-merge.lock` in `remove_worktree`/`remove()` before touching the worktree, or refuse removal while a merge lock is held.
++
++---
++
++## P1 — Wrong Behavior
++
++### P1-1 — `session_id` set to None during compact is observable by other coroutines → stale resume
++`app/session.py:648`
++
++`self.session_id = None` (648) is set, then `send()` (652) reads it via `_make_backend` → `resume_id = self._session_id or self._resume_id`. Between 648 and the new turn obtaining a fresh `session_id` from `ResultMessage` (backend_claude 232-233), **any concurrent path that persists** (e.g. a queued `_persist` from `_refresh_context_from_api`) writes `session_id=NULL` to the DB. If the server restarts in that window, `auto_resume_all` (manager 878-881) filters `WHERE session_id IS NOT NULL` → **the session is silently not resumed**. The agent vanishes after a restart that lands mid-compact.
++
++**Fix:** don't null `session_id` in memory; pass `resume=None` explicitly into the next backend build instead (add a `force_fresh` flag to `_make_backend`). Keep the DB row's `session_id` pointing at the last good token until the new one lands.
++
++### P1-2 — `cost_usd` / token totals double-count or lose data across reconnect
++`app/session.py:399-407`
++
++`_handle_turn_end` does `self.cost_usd += max(0, new_cost - self._last_cost)` and `self._last_cost = new_cost`. `new_cost` is `total_cost_usd` from the `ResultMessage`, which the SDK reports **cumulatively per session_id**. After a `reconnect()` (backend_claude 181) or compact (new session_id), the SDK's cumulative cost **resets to a smaller number** for the new session. Then `new_cost - self._last_cost` is negative → clamped to 0 by `max(0, …)`, so the **first turn after every reconnect/compact contributes $0 cost** (under-count). Conversely `total_turns += nt` (405) uses per-turn `num_turns`, which is fine. Token totals (406-407) use per-turn deltas — fine. Only cost is wrong, and only mildly (under-reports). Monopoly-money project, so **P1 not P0**, but the dashboard cost is provably wrong after any compaction.
++
++**Fix:** reset `self._last_cost = 0` whenever `session_id` changes (detect in `_handle_turn_end` when `sid != previous`).
++
++### P1-3 — Persist races: full-row `save_session` from multiple coroutines can resurrect stale status/cost
++`app/session.py:765-768`
++
++`_persist()` snapshots the *entire* row via `_to_db_dict()` and writes it on a thread-pool executor with **no ordering guarantee**. Callers: `_handle_turn_end` (438), `_refresh_context_from_api` (704), `interrupt` (589), `_flush_pending` (477), `_idle_hibernate` indirectly, etc. Two near-simultaneous persists with different snapshots → SQLite `ON CONFLICT DO UPDATE` applies whichever executor thread commits last. Observed consequences: status flips back to `running` after going idle; a refreshed-but-stale cost overwrites a newer one. The `_drain_persist` helper (770) is only awaited in `change_orchestrator_scope` — everywhere else persists float free.
++
++**Fix:** make `_persist` single-flight (coalesce: if a persist is in-flight, mark dirty and re-persist once it completes) OR move to field-scoped UPDATEs. The single-flight pattern is ~10 lines and matches the project's "one way" principle.
++
++### P1-4 — `_template_hash` update on injection is lost if the inject turn fails
++`app/session.py:208-213`
++
++In `send()`, when templates changed, `self._template_hash = current_th` (210) and `self._prompt_injected = True` (213) are set **before** the turn is actually sent (231). If `_ensure_backend()` raises (225-229), the function sets status IDLE and re-raises, but `_template_hash`/`_prompt_injected` are **already mutated** and never rolled back. Next `send()` sees `_prompt_injected=True` → **skips re-injecting the updated prompt**, so the worker runs the rest of its life on the *old* instructions even though the hash claims it's updated. Silent stale-prompt bug.
++
++**Fix:** set `_prompt_injected`/`_template_hash` only after `await backend.send(message)` succeeds (move past line 231).
++
++### P1-5 — `_fire_auto_report` reads `_turn_logs` that the next turn clears → empty/over-stale reports
++`app/session.py:379, 447` + `216`/`473`
++
++`_fire_auto_report` (369) captures `last_texts = self._turn_logs[-5:]` synchronously (379) — good, it copies. But it's called at line 447 **after** `_handle_turn_end` already set `self.status = IDLE` (437) and **before** `_schedule_hibernate` (453). If a `send()` lands between turn_end and the auto-report task actually running `on_idle`, `send()` resets `self._turn_logs = []` (216) under the lifecycle lock. Since `last_texts` was already copied, the report content is safe — **but** `_make_idle_callback._on_worker_idle` (manager 812) re-reads `worker_session._turn_logs` live for the stop_reason (813), which by then may be the *next* turn's logs or empty → wrong `stop_reason` appended to the report, or none.
++
++**Fix:** pass the stop_reason into the `on_idle` callback alongside `last_texts` instead of re-reading `_turn_logs` live in the callback.
++
++### P1-6 — `auto_resume_all` flips ALL non-idle rows to idle before resume, losing `waiting` (bg-job) state
++`app/manager.py:882`
++
++`c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")` resets `running` **and `waiting`** to `idle`. A session that was `waiting` on a background job (session 434) loses that state on restart; `was_running` (875) only captured `running`, so `waiting` sessions get neither a restart notice nor their waiting status back. The bg job (if it survives) will still try to wake the agent, but the agent's status no longer reflects that it's parked. Minor divergence, but it's a documented feature ("bg jobs survive hibernate") that's broken across restart.
++
++**Fix:** capture `waiting` ids too and restore them, or re-derive waiting state from `bg_manager.has_active_jobs` during resume.
++
++### P1-7 — `_parse_merged_commits` attributes a multi-task squash commit's stats to ONLY the first task ref; co-referenced tasks get zero
++`app/workspace.py:424` (corrected after Codex cross-review — original draft had the symptom backwards)
++
++`_parse_merged_commits` walks `old_head..HEAD` and attributes file stats by parsing the task ref **from the squash commit's message** using `_TASK_REF_RE.search(message)` (424) — which returns **only the first match**. A squash commit whose message references both `#10` and `#11` (because `_build_squash_message` concatenates all sub-commit refs) is therefore attributed entirely to `#10`; **`#11` silently gets nothing** in the returned `by_par` dict. Downstream payment/stat distribution under-reports for every co-referenced task after the first. (My initial draft claimed double-counting via `.finditer`; the code actually uses `.search`, so the real bug is under-attribution, not double-count.) P1 — wrong stats, no crash.
++
++**Fix:** iterate refs — `for m in _TASK_REF_RE.finditer(message): ...` — and attribute the commit to each referenced task (or document a deliberate first-ref-wins rule and have `_build_squash_message` not emit the others).
++
++---
++
++## P2 — Degradation
++
++### P2-1 — `_claude_event_loop` reconnect loop can spin tightly on repeated immediate failures
++`app/session.py:256-298`
++
++On exception, the loop reconnects (285) and `continue`s the outer `while True`. `reconnect()` (backend_claude 181) sleeps 2s, but if `events()` immediately raises again (e.g. backend returns instantly because client is None after a failed connect), the loop re-enters, reconnects, and on **success of reconnect but immediate re-failure of events()** there's no backoff between iterations beyond reconnect's own 2s. Under a persistently broken backend this is a 2s-interval spin logging errors forever (status was set IDLE only on reconnect *failure*, 295-298). Tolerable but noisy and resource-wasting.
++
++**Fix:** add a failure counter; after N consecutive reconnects, give up → set IDLE, `_backend=None`, stop.
++
++### P2-2 — ~~`get_session_lock` is dead code~~ → **CORRECTED to P3**: minor unbounded Lock dict, but the helper IS used
++`app/manager.py:333-338`
++
++**Correction (Codex cross-review):** my "zero callers" claim was a scoping error — I grepped only the 4 review files. `get_session_lock` has **two live callers** in `app/main.py:752` and `app/main.py:794` (`async with manager.get_session_lock(session_id):`), serializing per-session API operations. **Not dead code.** The only residual issue is that `_session_locks` never evicts on `remove()`, so it accumulates one `asyncio.Lock` per distinct session id for the process lifetime — a slow, bounded leak that's negligible for an MVP. Downgraded to **P3**; optional fix: `pop` the lock in `remove()`.
++
++### P2-3 — `_idle_hibernate` checks `status != IDLE` but not pending messages → can hibernate with queued work
++`app/session.py:495-507`
++
++`_idle_hibernate` re-checks `status != IDLE` under the lock (501) but not `self._pending_messages`. If a message was queued (e.g. during compact) and the flush task hasn't flipped status to RUNNING yet (there's a 0.3s sleep in `_flush_pending` 456), hibernate can disconnect the backend (506) right as the flush is about to send. `_flush_pending` then calls `_ensure_backend()` (478) which reconnects — so it self-heals, but you pay a disconnect+reconnect and a possible lost-turn window. Cheap guard avoids it.
++
++**Fix:** `if self.status != AgentStatus.IDLE or self._pending_messages: return` at line 501.
++
++### P2-4 — `_load_from_db` runs `git rev-parse` synchronously in the event loop during resume
++`app/manager.py:723-733`
++
++`auto_resume_all` → `_load_from_db` calls `subprocess.run(["git", "rev-parse", ...])` (724) **without** `asyncio.to_thread`. During mass resume of many workers this blocks the event loop per worker (each git call is ~10-50ms but serialized and blocking). Same pattern in `_auto_commit_if_dirty` is correctly wrapped in `asyncio.to_thread` (manager 505). Inconsistent and blocks startup.
++
++**Fix:** wrap the branch-detection subprocess in `asyncio.to_thread`.
++
++---
++
++## P3 — Smells
++
++### P3-1 — `_codex_reasoning_effort` always returns `"high"` for both branches
++`app/session.py:147-150` — the `if self.is_orchestrator` is dead; both return `"high"`. Collapse to `return "high"`.
++
++### P3-2 — `_extract_tool_result` swallows JSON with a top-level `result` key only
++`app/backend_claude.py:73-79` — if the tool result JSON is a list or a dict without `result`, it returns the raw text. Fine, but the `try/except (ValueError, TypeError)` won't catch a `KeyError` — there is none here, just noting the narrow contract. No action.
++
++### P3-3 — `old_session_id` computed but unused
++`app/session.py:647` — `old_session_id = self.session_id` is assigned and never read. Dead. Remove.
++
++### P3-4 — `_on_task_done` sets status IDLE on "silent death" but doesn't clear `_turn_start`
++`app/session.py:523-527` — leaves `_turn_start` non-zero, so a later resumed turn's timeout math (265) compares against a stale start time and can trigger a spurious immediate "turn timeout". Minor; reset `_turn_start = 0` there.
++
++---
++
++## Summary table
++
++| ID | Sev | File:line | One-liner |
++|----|-----|-----------|-----------|
++| P0-1 | P0 | session.py:649 | `_compacting` cleared before ack send → recursive/concurrent compact, lost session_id |
++| P0-2 | P0 | session.py:654 | compact 60s blind poll returns fabricated success |
++| P0-3 | P0 | session.py:421,704 | full-row persist races between turn_end and context refresh |
++| P0-4 | P0 | workspace.py:252 vs manager.py:560 | merge holds lock; remove_worktree doesn't → repo corruption |
++| P1-1 | P1 | session.py:648 | session_id=None observable → not resumed after restart |
++| P1-2 | P1 | session.py:400 | cost under-counts first turn after every reconnect/compact |
++| P1-3 | P1 | session.py:765 | unordered full-row persists resurrect stale status |
++| P1-4 | P1 | session.py:208-213 | stale-prompt: inject flags set before send succeeds |
++| P1-5 | P1 | manager.py:813 | auto-report re-reads live _turn_logs → wrong stop_reason |
++| P1-6 | P1 | manager.py:882 | resume drops `waiting` bg-job state |
++| P1-7 | P1 | workspace.py:424 | squash stats go to first task ref only; co-refs get zero (corrected) |
++| P2-1 | P2 | session.py:285 | reconnect loop can spin without backoff cap |
++| P2-2 | P3 | manager.py:333 | `_session_locks` never evicted (minor leak; NOT dead — used in main.py) |
++| P2-3 | P2 | session.py:501 | hibernate ignores pending messages |
++| P2-4 | P2 | manager.py:724 | blocking git rev-parse in event loop on resume |
++| P3-1..4 | P3 | various | dead code / minor cleanups |
++
++**Top fixes by impact:** P0-1 (compact re-entry) and P1-1/P0-2 (session_id loss) are the highest-value — they cause real context loss, the worst failure mode for this system. P0-4 (merge vs remove lock) is the highest data-integrity risk on the git side.
+diff --git a/docs/tasks/35/review-sdk.md b/docs/tasks/35/review-sdk.md
+new file mode 100644
+index 000000000..970b3a6a1
+--- /dev/null
++++ b/docs/tasks/35/review-sdk.md
+@@ -0,0 +1,210 @@
++# Review #35 — SDK/CLI Contract & Integration
++
++Scope: `app/backend_claude.py`, `app/session.py`, `app/models.py`
++SDK: `claude-agent-sdk==0.1.72` (source at `/mnt/data/Projects/Python/orchestra/.venv/.../claude_agent_sdk/`)
++
++Severity: **P0** crash/data-loss · **P1** wrong behavior/value · **P2** missed feature or fragility · **P3** nit/cleanup
++
++---
++
++## Summary table
++
++| # | Sev | File:line | Issue |
++|---|-----|-----------|-------|
++| 1 | P1 | backend_claude.py:248-275 | `usage.get("iterations")` — the SDK never produces an `iterations` key. Dead branch; cost calc relies entirely on the `else` flat path. |
++| 2 | P1 | backend_claude.py:254-259 | `context_pct` from billing usage omits `output_tokens` and `cache_create` double-counts. Diverges from real `get_context_usage()`. |
++| 3 | P1 | backend_claude.py:189-208 | `ThinkingBlock` never handled — extended thinking text is silently dropped from logs. |
++| 4 | P1 | backend_claude.py:187-292 | `AssistantMessage.error` and `ResultMessage.is_error`/`errors` ignored — auth/billing/rate-limit failures look like normal idle turns. |
++| 5 | P2 | backend_claude.py:31-38 | Blocked-tools list is stale vs SDK's real tool names (`Task` already the canonical subagent tool; `ScheduleWakeup`/`Cron*` may not exist). Verify against `get_server_info()`. |
++| 6 | P2 | backend_claude.py:110-117 | `betas=["context-1m-2025-08-07"]` NOT passed — 1M context for `[1m]` models relies solely on the `[1m]` model-name suffix reaching the CLI. Fragile. |
++| 7 | P2 | backend_claude.py:201-202 | `ServerToolResultBlock.content` is `dict`, but `_extract_tool_result` is tuned for `ToolResultBlock` (str/list). Web-search/fetch results render as `str(dict)`. |
++| 8 | P2 | session.py:591-661 | `compact()` reinvents CLI compaction with a manual summary prompt instead of the SDK's real compact path; loses session continuity (drops `session_id`, starts fresh). |
++| 9 | P2 | backend_claude.py:163-179 | `get_context_usage()` maxTokens already accounts for autocompact buffer; we store it but `context_usage()` never surfaces `rawMaxTokens`, causing pct mismatch vs CONTEXT_LIMITS. |
++| 10 | P3 | models.py:14-23 | `CONTEXT_LIMITS`/`TOKEN_PRICES` hardcode 1M for `[1m]` but real ceiling depends on beta being active; no fallback if beta silently inactive. |
++| 11 | P3 | backend_claude.py:294-303 | `compact_boundary` handled via `isinstance(SystemMessage)` + subtype string — correct, but brittle: relies on `case _` fallback in parser. Document it. |
++| 12 | P2 | backend_claude.py:110-117 | Several useful options unused: `max_budget_usd`, `fallback_model`, `hooks` (PreCompact/Stop), `output_format`, `add_dirs`, `session_store`. |
++
++---
++
++## P1 findings (wrong values / silent data loss)
++
++### 1. `usage["iterations"]` does not exist — dead code path
++**`backend_claude.py:248-275`**
++
++```python
++iters = usage.get("iterations", [])      # always []
++last = iters[-1] if iters else usage
++...
++if iters:                                # NEVER taken
++    for it in iters: cost_cached += ...
++else:                                     # always taken
++    cost_cached = (input_tokens*p_in + ...)
++```
++
++The CLI result message carries a **flat** Anthropic-style `usage` dict (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`) — confirmed: the string `"iterations"` appears **nowhere** in the SDK (`grep -rn iterations claude_agent_sdk/*.py` → only an unrelated comment). The per-model breakdown that *would* play the role of `iterations` is **`ResultMessage.model_usage`** (`data["modelUsage"]`), which we never read.
++
++**Impact:** `iters` is always empty, so the `if iters:` loop is dead. Functionally the `else` branch is correct, so cost isn't wrong — but the code is misleading and the `last = iters[-1] if iters else usage` line is pure noise.
++
++**Fix:** Delete the `iterations` branch entirely. Either (a) trust `ResultMessage.total_cost_usd` (the SDK already computes real cost — we capture it as `cost_usd`), and drop the manual `cost_cached` recalculation, or (b) if multi-model turns matter, iterate `model_usage` (keyed by model name) instead of the phantom `iterations`.
++
++```python
++# usage is flat — no iterations
++cache_create = usage.get("cache_creation_input_tokens", 0) or 0
++cache_read   = usage.get("cache_read_input_tokens", 0) or 0
++input_tokens = usage.get("input_tokens", 0) or 0
++output_tokens= usage.get("output_tokens", 0) or 0
++```
++
++---
++
++### 2. `context_pct` from billing usage is structurally wrong vs real context
++**`backend_claude.py:254-259`**
++
++```python
++total = input_tokens + cache_create + cache_read
++ctx_pct = int(total * 100 / max_tokens)
++```
++
++This is the **billing** token count for the *last assistant turn*, not the **context window occupancy**. Two divergences:
++
++1. It sums `input + cache_create + cache_read` — but on a cache hit the *same* prompt prefix is counted as `cache_read`, and the live, uncached delta as `input`. That sum ≈ the full prompt size, so as a rough context proxy it's OK — **but** it omits `output_tokens` of accumulated history and does not reflect what the CLI's own `/context` reports.
++2. The SDK exposes the **authoritative** value via `get_context_usage()` → `percentage` / `totalTokens` / `maxTokens`. We already call it in `_refresh_context_from_api()` (session.py:691) right after turn_end and overwrite `_last_context["percentage"]`. So the billing-derived `ctx_pct` is a throwaway that's shown for ~1s until the API refresh lands, then replaced.
++
++**Impact:** transient wrong percentage on the dashboard right at turn end; confusing when they differ by >30% (session.py:702 logs a "context corrected" jump that is really just our bad estimate being fixed).
++
++**Fix:** Stop computing `ctx_pct`/`ctx_tokens` from billing usage in `_convert`. Emit `turn_end` with cost only, and let `_refresh_context_from_api()` be the single source for context (it already is, on a 5s-timeout best-effort path). If you need an immediate value, prefer `model_usage`/`get_context_usage()` over the billing sum. Note the `maxTokens` from `get_context_usage()` is **post-autocompact-buffer**; `rawMaxTokens` is the true window — pick one consistently.
++
++---
++
++### 3. `ThinkingBlock` is dropped
++**`backend_claude.py:189-208`**
++
++`_convert` handles `TextBlock`, `ToolUseBlock`, `ToolResultBlock`, `ServerToolResultBlock` — but **not `ThinkingBlock`** (fields: `thinking: str`, `signature: str`). Opus with extended thinking emits these. They're silently discarded.
++
++**Impact:** when an agent "thinks" for a long time (the heartbeat at session.py:553 even logs "possible long thinking"), the dashboard shows nothing — looks like a hang. Lost observability into the most expensive part of a turn.
++
++**Fix:** add a branch:
++```python
++elif isinstance(block, ThinkingBlock) and block.thinking:
++    events.append(AgentEvent("thinking", block.thinking))
++```
++(import `ThinkingBlock`; add a `thinking` event type or fold into `status`/`text` with a marker). Low risk, pure addition.
++
++---
++
++### 4. Error states ignored — failed turns look successful
++**`backend_claude.py:187-292`**
++
++- `AssistantMessage.error` (`AssistantMessageError` = `authentication_failed | billing_error | rate_limit | invalid_request | server_error | unknown`) — never read.
++- `ResultMessage.is_error: bool` — never read; we hardcode `"ok": True` (line 279).
++- `ResultMessage.errors: list[str]` and `permission_denials` — never read.
++
++```python
++events.append(AgentEvent("turn_end", ..., metadata={ "ok": True, ... }))  # always True
++```
++
++**Impact:** an auth/billing/rate-limit failure ends the turn; `_handle_turn_end` (session.py:392) reads `meta.get("ok", True)` → `True`, sets status IDLE, fires auto-report as if work completed. A rate-limited or billing-dead agent reports "done" with empty output. **This is the worst finding for an autonomous orchestrator** — silent failure is exactly the "fail loud" anti-pattern the project forbids.
++
++**Fix:**
++```python
++is_err = bool(getattr(msg, "is_error", False))
++err_list = getattr(msg, "errors", None) or []
++events.append(AgentEvent("turn_end", ..., metadata={
++    "ok": not is_err,
++    "is_error": is_err,
++    "errors": err_list,
++    ...
++}))
++```
++And in `_convert` for `AssistantMessage`, surface `msg.error` as an `error` event so the heartbeat/auto-report logic can react (e.g. don't auto-report a billing failure as success; surface to orchestrator).
++
++---
++
++## P2 findings (missed features / fragility)
++
++### 5. Blocked-tools names may be stale
++**`backend_claude.py:31-38`**
++
++`_ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]` and `_ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList"]`.
++
++The SDK's subagent tool is **`Task`** (confirmed: `parse_message` builds `TaskStartedMessage` from `type:"system", subtype:"task_started"`). `"Agent"` is hedged as a legacy alias — fine, CLI ignores unknown names. But `ScheduleWakeup`/`Cron*` are guesses; if those tool names changed, the disallow is a silent no-op and the agent *can* schedule.
++
++**Fix:** call `client.get_server_info()` once after connect — it returns the live command/tool list — and assert the names you intend to block actually exist; log a warning if a blocked name is absent (so a renamed tool fails loud instead of silently re-enabling).
++
++### 6. `betas` not passed — 1M context depends only on `[1m]` suffix
++**`backend_claude.py:110-117`**
++
++`ClaudeAgentOptions` has `betas: list[SdkBeta]` and the only valid value is `"context-1m-2025-08-07"`. We do **not** set it. Recent commit `8f6426e` "restores 1M context by passing model name with `[1m]` suffix to CLI" — meaning the whole 1M path hinges on the CLI parsing `[1m]` out of the model string. That's brittle and undocumented.
++
++**Fix:** for `[1m]` models, also set `options.betas = ["context-1m-2025-08-07"]`. Belt-and-suspenders: if the suffix path ever breaks again, the beta still activates 1M. Verify via `get_context_usage().rawMaxTokens == 1_000_000`.
++
++### 7. `ServerToolResultBlock` content is a dict, not str/list
++**`backend_claude.py:64-79, 201-202`**
++
++`ServerToolResultBlock.content: dict[str, Any]` (web_search/web_fetch/code_execution results). `_extract_tool_result` handles `list` and `dict`, but the `dict` branch only pulls `raw.get('text', str(raw))` — server-tool results don't carry a top-level `text`, so it falls to `str(dict)` → ugly blob in logs.
++
++**Fix:** branch on block type, or detect server-tool result shape and render the relevant field. Low priority (cosmetic in logs).
++
++### 8. `compact()` bypasses the SDK's real compaction
++**`session.py:591-661`**
++
++We manually send a `COMPACT_PROMPT`, capture the model's free-text summary, then **drop `session_id`** (line 648) and start a brand-new session seeded with a `PREAMBLE` summary. Meanwhile the SDK/CLI has *native* compaction: it emits `compact_boundary` SystemMessages (which we already detect at backend_claude.py:294) with `preTokens`/`postTokens`, and there's a `PreCompact` hook event. The CLI's auto-compact preserves the real session and tool-result history; our manual path throws away the session and reconstructs from a lossy text summary.
++
++**Impact:** manual compact loses structured history, tool results, file context — only a prose summary survives. Also: at session.py:442, `ctx_pct > 90` triggers our manual `_auto_compact`, racing the CLI's own auto-compact (which fires at `autoCompactThreshold`). Two compaction mechanisms fighting.
++
++**Fix:** prefer the CLI's native auto-compact (it's already enabled — `isAutoCompactEnabled`). Drop the manual `>90%` trigger, or gate it on `not isAutoCompactEnabled`. If a manual handoff summary is genuinely wanted, keep it but **don't null the session_id** — let the CLI compact in place. At minimum, stop racing the CLI.
++
++### 9. `maxTokens` vs `rawMaxTokens` mismatch
++**`backend_claude.py:163-179`, `session.py:701`**
++
++`get_context_usage()` returns both `maxTokens` (reduced by autocompact buffer) and `rawMaxTokens` (true window). We read `maxTokens` and store it as the denominator. But `CONTEXT_LIMITS` (models.py) holds the **raw** 1M/200k. So `percentage` from the SDK (computed against reduced `maxTokens`) and our `ctx_pct` (computed against raw `CONTEXT_LIMITS`) use **different denominators** → they can't agree even when both are "right".
++
++**Fix:** pick one denominator. Recommend: read `rawMaxTokens` from `get_context_usage()` and use the SDK's own `percentage` everywhere; delete the parallel `CONTEXT_LIMITS`-based pct in `_convert` (ties into finding #2).
++
++### 12. Unused options worth adopting
++**`backend_claude.py:110-117`**
++
++`ClaudeAgentOptions` fields we don't use that map to real Orchestra needs:
++- **`max_budget_usd`** — hard cost ceiling per session. Orchestra tracks cost manually; this enforces it at the CLI.
++- **`fallback_model`** — auto-failover when primary model is rate-limited (directly mitigates finding #4's rate_limit case).
++- **`hooks`** (`PreCompact`, `Stop`, `SubagentStart`/`Stop`) — server-side callbacks instead of polling message stream; cleaner than the current `TaskStarted/Progress/Notification` parsing for subagent lifecycle.
++- **`add_dirs`** — grant a worker read access to sibling dirs without leaving its worktree.
++- **`session_store`** — pluggable session persistence (we roll our own SQLite resume via `resume=`).
++
++Not bugs — but `fallback_model` and `max_budget_usd` are cheap wins for an autonomous orchestrator.
++
++---
++
++## P3 / nits
++
++### 10. `[1m]` limits assume beta is active
++**`models.py:14-23`** — `CONTEXT_LIMITS["claude-opus-4-8[1m]"] = 1_000_000`. If the beta/suffix path silently fails (as it did pre-`8f6426e`), the real window is 200k but we'd compute pct against 1M → agent hits a wall at "20%". Mitigated by finding #6 (pass the beta) + #9 (read `rawMaxTokens` and trust it over the hardcoded table).
++
++### 11. `compact_boundary` detection is fallback-dependent
++**`backend_claude.py:294-303`** — works because the parser routes unknown subtypes to the bare `SystemMessage` `case _`. Correct today. Add a comment noting it depends on the SDK NOT promoting `compact_boundary` to a dedicated subclass (if it ever does, the `isinstance(SystemMessage) and not isinstance(Task*)` guard still holds, so low risk).
++
++---
++
++## What we DO use correctly (sanity check)
++- Persistent `ClaudeSDKClient` + `query()` for mid-turn inject — matches SDK design (query writes to stdin, doesn't block). ✓
++- `receive_messages()` infinite loop in the event loop — correct (we manage turn boundaries via `ResultMessage`). ✓
++- `can_use_tool` permission callback + `disallowed_tools` split — correct: subagent launch bypasses the permission callback (arrives as `TaskStartedMessage`), so blocking it needs `disallowed_tools`, exactly as the comment at :33-36 explains. ✓
++- `system_prompt` preset `{"type":"preset","preset":"claude_code","append":...}` — valid `SystemPromptPreset`. ✓
++- `setting_sources=["user","project","local"]` — valid `SettingSource` list. ✓
++- `compact_boundary` capture — correct (finding #11 is just documentation). ✓
++
++---
++
++## Priority recommendation
++1. **#4** (error states) — P1, fix first; silent failure in an autonomous orchestrator is the highest-risk bug here.
++2. **#3** (thinking blocks) — P1, trivial addition, big observability win.
++3. **#1 + #2 + #9** (cost/context calc) — P1, fix together: delete the `iterations` branch, drop billing-derived `ctx_pct`, standardize on `get_context_usage()` + `rawMaxTokens`.
++4. **#6** (betas) — P2, one line, de-risks the whole 1M story.
++5. **#8** (compaction race) — P2, stop the manual `>90%` trigger fighting the CLI.
++
++---
++
++## Codex cross-review status
++`codex_review(mode="exec")` was launched **twice** (bg jobs `bg-1a3847c59f`, `bg-abb94ed3bc`). Neither produced output — `docs/tasks/35/codex-sdk.md` was never written, no `codex` process running, `.codex` is 0 bytes. The MCP tool reports "started" but the GPT-5.5 backend does not complete/write. Filed as an Orchestra platform bug. Per "fail loud, not creative" I did not improvise a bash workaround (rules require Codex review via the `codex_review()` MCP tool only).
++
++The findings above stand on direct SDK-source verification (grep + read of `claude_agent_sdk` 0.1.72): the phantom `iterations` key, `ContextUsageResponse` shape, `AssistantMessage.error`/`ResultMessage.is_error` fields, and the parser's `compact_boundary` routing were all confirmed against source, not assumed.
+
+
+## Later history of the touched files on main (after this commit)
+
+1 later commits touch these paths; the first 40 (oldest first):
+498c0d149 2026-09-03 Orchestra: migrate project state to .orchestra
+
+## Patches of the first 8 later commits, restricted to the touched paths (each capped at 150 lines)
+
+### 498c0d149 Orchestra: migrate project state to .orchestra
+
+diff --git a/docs/tasks/35/codex-architecture.md b/docs/tasks/35/codex-architecture.md
+deleted file mode 100644
+index 8283ef787..000000000
+--- a/docs/tasks/35/codex-architecture.md
++++ /dev/null
+@@ -1,17 +0,0 @@
+-## Summary
+-
+-`docs/tasks/35/review-architecture.md` is not present in this checkout, so I could not review the full architecture-finding list. I verified the two named findings against actual code.
+-
+-> Note (review-architecture worker): Codex's `codex_review` MCP tool runs in the **source repo** cwd, not the worker's worktree, so it could not see `review-architecture.md` (which lives only on the worker branch — that's why the file appeared "missing"). It validated the two findings I passed inline via `context=`. The full finding list is in `review-architecture.md` on this branch.
+-
+-## Findings
+-
+-**blocking:** `app/main.py:558` calls `session._disconnect_client()`, but `AgentSession` defines `_disconnect_backend()` at `app/session.py:736` and other lifecycle call sites use `_disconnect_backend()`. This route will crash with `AttributeError` when `/api/sessions/{name}/restart-cli` is used. The finding is correct.
+-
+-**suggestion:** `app/tm.py:16-23` hardcodes `data/orchestra.db` and opens SQLite directly, while `app/db.py:12-25` honors `ORCHESTRA_DB_PATH`. The finding is correct, but severity should be scoped: it is not a universal production blocker if the default DB path is used. It does break env-selected DB isolation for tests/worktrees/alternate deployments and can split task-manager data from the main app DB.
+-
+-**question:** The requested source file is missing. If there were additional architecture findings in `review-architecture.md`, they could not be validated here.
+-
+-## Verdict
+-
+-Both named findings are real. The restart endpoint issue is accurately blocking because it crashes that API path. The task-manager DB-path issue is a real architecture/config consistency bug, but calling it broadly blocking would be overstated for the current MVP unless `ORCHESTRA_DB_PATH` is part of the active runtime/test workflow.
+diff --git a/docs/tasks/35/codex-correctness.md b/docs/tasks/35/codex-correctness.md
+deleted file mode 100644
+index 66abb02e3..000000000
+--- a/docs/tasks/35/codex-correctness.md
++++ /dev/null
+@@ -1,45 +0,0 @@
+-## Summary
+-
+-Checked `docs/tasks/35/review-correctness.md` from the `review-correctness` worktree against the current main checkout. Most compact/persist/session-state concerns are real, but several severities are overstated for MVP scale, and two merge/stat findings are false as written.
+-
+-Highest-priority real risks: compact re-entry/session_id loss, unordered full-row `_persist()` writes, auto-compact racing a new turn, and `auto_resume_all()` rewriting archived/error/waiting rows to `idle`.
+-
+-## Findings
+-
+-### blocking
+-
+-- P0-1: REAL - `compact()` has no re-entry guard and clears `_compacting` before the fresh-session ack turn, so manual/auto compacts can overlap and race `session_id`, `_backend`, and pending messages.
+-- P1-1: REAL - `compact()` sets `self.session_id = None` and then `send()` persists a running snapshot with `session_id=NULL`; restart in that window drops the session from `auto_resume_all()`.
+-- P1-3: REAL - `_persist()` snapshots a whole row and dispatches unordered executor writes, so an older running/cwd/cost snapshot can commit after a newer idle/current snapshot.
+-- MISSED: REAL - `_auto_compact()` sleeps 2s and calls `compact()` without rechecking `status`; a queued or user-started next turn can be running by then, and compact will cancel the listener/backend mid-turn.
+-- MISSED: REAL - `auto_resume_all()` runs `UPDATE sessions SET status='idle' WHERE status != 'idle'`, which also resurrects `archived`/`error` sessions, not just stale `running` rows.
+-- MISSED: REAL - `_cherry_pick_branch()` ignores `git commit` failure in the unrelated-history fallback and still returns `ok=True`; the caller can then hard-reset the worker branch to target and lose the unmerged worker commits from that branch.
+-
+-### suggestion
+-
+-- P0-2: REAL, title overstated - listener recreation after compact is OK because `_backend` is set to `None`, but the 60s poll can return `ok=True` without proving the ack turn completed or context dropped.
+-- P0-3: REAL as duplicate of P1-3 - the specific `_refresh_context_from_api()` stale-running example is not the main path, but unordered full-row persists are a real state race.
+-- P0-4: REAL, severity overstated - `remove_worktree()` is not serialized with the merge lock, so merge/remove can fail or leave confusing git state; branch deletion/corruption is overstated.
+-- P1-2: REAL - cost accounting assumes monotonic `total_cost_usd`; a new Claude session after compact can undercount, and a process resume can also double-count if the SDK reports cumulative resumed-session cost.
+-- P1-4: REAL - prompt hash/injected flags are mutated before `_ensure_backend()`/`backend.send()` succeeds, so a failed send can suppress future prompt refresh.
+-- P1-6: REAL - waiting sessions are excluded from `resumable` and then rewritten to `idle`, losing bg-job waiting state across restart.
+-- P2-1: REAL - Claude listener reconnect can retry every ~2s indefinitely with no cap; noisy but not data-corrupting.
+-- P2-3: REAL - `_idle_hibernate()` ignores `_pending_messages`; more importantly, an already scheduled hibernate can disconnect an idle backend while compact is using it.
+-- P2-4: REAL - `_load_from_db()` runs `git rev-parse` synchronously inside async resume; startup stalls are real but not correctness-critical at this scale.
+-- P3-1: REAL nit - `_codex_reasoning_effort()` has a dead branch returning `"high"` both ways.
+-- P3-3: REAL nit - `old_session_id` in `compact()` is unused.
+-- P3-4: REAL nit - `_on_task_done()` leaves `_turn_start` non-zero on silent listener death.
+-- MISSED: REAL - `manager.remove()` only removes a worktree when the session is loaded in memory; deleting an unloaded DB row leaves its worktree/branch orphaned and can block a future spawn with the same name.
+-- MISSED: REAL - `create_session()` deletes the DB row on failure after `create_worktree()`, but does not remove the just-created worktree/branch; retrying the same worker can then fail forever on `worktree already exists`.
+-- MISSED: REAL - `_parse_merged_commits()` uses `_TASK_REF_RE.search()`, so a squash commit mentioning multiple task refs links stats only to the first ref, not all refs.
+-
+-### question
+-
+-- P1-5: FALSE-POSITIVE as written - `_fire_auto_report()` copies `last_texts` before scheduling, and `_turn_logs` never contains `stop_reason=` from `_handle_turn_end()` anyway; the real issue is simply that `sr` is always empty.
+-- P1-7: FALSE-POSITIVE as written - `_parse_merged_commits()` uses `search()`, not `finditer()`, so it does not double-count stats across multiple task refs; it under-attributes to the first ref instead.
+-- P2-2: FALSE-POSITIVE - `get_session_lock()` is used by merge and switch-branch endpoints in `app/main.py`, so it is not dead code.
+-- P3-2: FALSE-POSITIVE - `_extract_tool_result()` has no `KeyError` path for missing `result`; this is just a narrow display contract.
+-
+-## Verdict
+-
+-The review is directionally useful but over-severes several items. Treat compact/session persistence as blocking work, fix `auto_resume_all()` status rewriting before relying on archived/waiting state, and harden the unrelated-history merge fallback. The merge-stat double-count claim and dead-lock claim should not be carried forward as stated.
+diff --git a/docs/tasks/35/codex-reliability.md b/docs/tasks/35/codex-reliability.md
+deleted file mode 100644
+index cb675fc7a..000000000
+--- a/docs/tasks/35/codex-reliability.md
++++ /dev/null
+@@ -1,5 +0,0 @@
+-Wrote the calibrated review verdict to:
+-
+-[docs/tasks/35/codex-reliability.md](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-reliability/docs/tasks/35/codex-reliability.md)
+-
+-I verified the claims against the actual source files and flagged the wrong/overstated ones, especially the same-name HTTP spawn race and the `create_task()` GC framing.
+\ No newline at end of file
+diff --git a/docs/tasks/35/codex-sdk.md b/docs/tasks/35/codex-sdk.md
+deleted file mode 100644
+index df574f61e..000000000
+--- a/docs/tasks/35/codex-sdk.md
++++ /dev/null
+@@ -1 +0,0 @@
+-fatal: path 'docs/tasks/35/codex-sdk.md' exists on disk, but not in 'task-35/review-sdk'
+diff --git a/docs/tasks/35/review-architecture.md b/docs/tasks/35/review-architecture.md
+deleted file mode 100644
+index 3e54bc111..000000000
+--- a/docs/tasks/35/review-architecture.md
++++ /dev/null
+@@ -1,134 +0,0 @@
+-# Review #35 — Architecture, Dead Code & Optimization
+-
+-Scope: all Python in `app/` (backend_claude, session, manager, workspace, models, events, db, main, mcp_stdio, tg_bridge, tm + the helpers they touch).
+-
+-Severity: **P0** crash/correctness · **P1** real bug or meaningful debt · **P2** simplification/cleanup · **P3** nit.
+-
+----
+-
+-## P0 — Crash / correctness
+-
+-### [P0] `restart_cli` calls a method that doesn't exist → 500 on every use
+-`app/main.py:558`
+-```python
+-await session._disconnect_client()
+-```
+-`AgentSession` has **no** `_disconnect_client` — the method is `_disconnect_backend` (renamed during the codex-backend refactor; the old name lingers only in `CHANGELOG.md:261` and `docs/archive/research/codex-backend-plan.md:80`). The `♻️ Restart CLI` button is wired in `dashboard.html:147` + `app.js:355`, so clicking it 500s. Line 559 also reaches into `session.status.__class__("idle")` to dodge the `AgentStatus` import — fragile.
+-
+-**Fix:**
+-```python
+-await session._disconnect_backend()
+-session.status = AgentStatus.IDLE   # import AgentStatus from app.session
+-session._persist()
+-```
+-(`AgentStatus` is already importable from `app.session`.)
+-
+----
+-
+-## P1 — Real bugs / meaningful debt
+-
+-### [P1] `tm.py` ignores `ORCHESTRA_DB_PATH` → two modules, two databases
+-`app/tm.py:16-28` hardcodes its own `DB_PATH` and `_conn()`, duplicating `app/db.py:9-35`. But `db.py` honors `ORCHESTRA_DB_PATH` (env override for per-worktree/test DBs, added so parallel branches don't lock each other — see `_resolve_db_path`), while `tm.py` does **not**. Any test or worktree that sets `ORCHESTRA_DB_PATH` gets `db.py` pointed at DB-A and `tm.py` pointed at DB-B (the default `data/orchestra.db`). Silent split-brain: sessions in one file, tasks in another.
+-
+-**Blast radius (per Codex):** bites only when `ORCHESTRA_DB_PATH` is set — i.e. tests and parallel worktrees (exactly what that override was added for). Default single-DB production is unaffected. Still P1: the fix is a deletion, not new code, and it removes a live test-isolation footgun.
+-
+-**Fix:** delete `tm.py`'s `DB_PATH` + `_conn()`, `from app.db import _conn`. One connection helper, one path resolution. (12 lines deleted > a second copy.)
+-
+-### [P1] `_codex_reasoning_effort` is a dead branch — both arms return `"high"`
+-`app/session.py:147-150`
+-```python
+-def _codex_reasoning_effort(self) -> str:
+-    if self.is_orchestrator:
+-        return "high"
+-    return "high"
+-```
+-The `if` does nothing. Either it should differentiate (orchestrator vs worker effort) or it should be `return "high"`. As written it's a trap: reads like there's a policy, there isn't.
+-
+-**Fix:** collapse to `return "high"`, or inline `"high"` at the one call site (`session.py:134`) and delete the method.
+-
+-### [P1] `tg_bridge` log-streaming is an N-loop of 0.5–2s DB polls — one task per orchestrator, forever

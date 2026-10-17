@@ -1,0 +1,17 @@
+PROJECT CONTEXT (tool-owned; calibrate review severity):
+- Scale: distributed platform team, production
+- Users: high-load multi-project orchestration
+- Stack: Python 3.12+, FastAPI, Jinja2, SSE, SQLite, Codex and Claude runtimes
+- Philosophy: simple shared runtime with explicit contracts and deterministic agent workflows
+- What matters: correctness, isolation, data integrity, durable delivery, and truthful operator state
+- What does NOT matter: enterprise ceremony, speculative abstractions, or maximizing test coverage as an end in itself
+
+CALLER-SUPPLIED TASK CALIBRATION:
+Task: #503: freeze Astra registry regression oracle
+END CALLER-SUPPLIED TASK CALIBRATION
+
+Review calibration: blocking = crash/corrupt/security; suggestion = real improvement; nit = skip.
+Review the exact committed implementation snapshot pinned by the server.
+Run `git diff --binary --full-index f355cdae80424ca19c6f1102343964335acf4a90...6b3971a3913d31d4acac61d31e03f0a5265818d2` and review that complete diff; do not substitute HEAD or a task file.
+Return the complete review in your final response. Do not edit files.
+Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish the requested review; preserve partial findings.

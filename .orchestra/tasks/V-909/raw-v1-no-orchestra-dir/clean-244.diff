@@ -1,0 +1,69 @@
+diff --git a/app/backend_codex.py b/app/backend_codex.py
+index 0b8550fde9073cbbfafb71ed1d99df98a74b3675..afc14a3f0062f835559b5ce6bd4df5610529f2b8 100644
+--- a/app/backend_codex.py
++++ b/app/backend_codex.py
+@@ -331,7 +331,7 @@ ORCHESTRA_FULL_MCP_TOOLS = (
+     "update_worker_description", "update_worker_prompt", "get_worker_info",
+     "task_create", "task_update", "task_list", "task_get", "payment_receive",
+     "payment_status", "bg_create", "bg_list", "bg_cancel", "search_memory",
+-    "codex_review",
++    "codex_review", "open_fan",
+ )
+ 
+ 
+diff --git a/docs/tasks/244/codex-review-impl.md b/docs/tasks/244/codex-review-impl.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..04879ab0778a5e967127ed51d67e80c90967c3cf
+--- /dev/null
++++ b/docs/tasks/244/codex-review-impl.md
+@@ -0,0 +1,13 @@
++## Summary
++
++APPROVED. `open_fan` is included in the Codex allowlist and rendered TOML. The registration-derived guard detects missing and stale entries while preserving exactly the two intentional exclusions.
++
++## Findings
++
++None.
++
++## Verdict
++
++APPROVED
++
++`uv run pytest -q tests/test_backend_codex.py` → **78 passed in 7.86s**.
+diff --git a/tests/test_backend_codex.py b/tests/test_backend_codex.py
+index 76e1ec14e256407f3b0ec5e5c3ced8d786ce0ea7..0fbd957d62194ffff4060556a46346b4dcfd2c12 100644
+--- a/tests/test_backend_codex.py
++++ b/tests/test_backend_codex.py
+@@ -18,6 +18,7 @@ import pytest
+ from app.backend_codex import (
+     CodexBackend,
+     CodexProtocolError,
++    ORCHESTRA_FULL_MCP_TOOLS,
+     CODEX_CONTEXT_LIMITS,
+     CODEX_TOKEN_PRICES,
+     CODEX_REASONING_EFFORTS,
+@@ -242,6 +243,16 @@ def test_effort_passthrough_and_fallback():
+ # новый носитель: проверяется то же самое (command/args/env/enabled_tools/url), но там,
+ # где оно теперь находится.
+ 
++
++def test_full_mcp_allowlist_tracks_registered_tools():
++    from app.mcp_stdio import mcp
++
++    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
++    enabled = set(ORCHESTRA_FULL_MCP_TOOLS)
++
++    assert enabled <= registered
++    assert registered - enabled == {"resolve_merge_operation", "send_chart"}
++
+ def test_mcp_config_rendered_into_config_toml_not_argv():
+     import tomllib
+     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp", mcp_servers={
+@@ -261,6 +272,7 @@ def test_mcp_config_rendered_into_config_toml_not_argv():
+     assert srv["env"]["WORKER_NAME"] == "w1"
+     assert "send_message" in srv["enabled_tools"]
+     assert "spawn_worker" in srv["enabled_tools"]
++    assert "open_fan" in srv["enabled_tools"]
+ 
+ 
+ def test_mcp_config_supports_url_only_servers():

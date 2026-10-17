@@ -1,0 +1,466 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index f1c7af14de0d4d4ad1ec8fe27f54ca264b5a9a86..b626e2f78d5d71c46be865226820afbd316dc179 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,8 +1,9 @@
+ # Orchestra — правила работы
+ 
+-Общий источник правил проекта — этот версионируемый AGENTS.md.
+-CLAUDE.md — побайтно одинаковое зеркало для Claude, а не независимый источник.
+-После правки AGENTS.md выполняй python scripts/check_instruction_contract.py --sync.
++Единственный источник правил проекта — этот версионируемый AGENTS.md; его читают оба CLI.
++CLAUDE.md в корне быть не должно: Claude Code подхватывает ОБА файла сразу, и разошедшиеся
++копии дают агенту два противоречащих набора правил (проверено 19.09.2026 на 2.1.263).
++Проверка контракта: python scripts/check_instruction_contract.py.
+ Правила поведения агентов всех проектов принадлежат .orchestra/pipelines/default/prompts/,
+ а этот файл регулирует работу над самой Orchestra.
+ 
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7c64a51708dddf853942c09574a3f709d6bedee5..0390cd196191b512ef3c40cb14222f61c5ffe866 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -30,6 +30,24 @@
+   английские подписи и пришпилен к английской локали через `window.__ORCH_LANG__` —
+   его ожидания остались дословно прежними.
+ 
++### Removed
++- 🪞 **Зеркало `CLAUDE.md` убрано: корневые правила проекта живут в одном `AGENTS.md`**
++  (удалён `CLAUDE.md`; `scripts/check_instruction_contract.py` больше не умеет `--sync`, а
++  ЗАПРЕЩАЕТ появление дубля; `app/workspace.py` — `PROJECT_FILES` копирует в worktree и
++  `AGENTS.md`). Claude Code 2.1.263 читает `AGENTS.md` сам — проверено экспериментом: в пустом
++  каталоге с одним `AGENTS.md` агент назвал записанное в нём кодовое слово. Проверен и случай
++  двух файлов: CLI подхватывает ОБА сразу и сообщает о расхождении, то есть копия — не
++  «совместимость», а второй источник правды.
++  *Triggered case:* пока зеркало существовало, оно дважды разъезжалось с источником; в одном
++  из случаев `CLAUDE.md` был на 671 байт короче и не содержал правил владельца про маскирование
++  секретов и про Codex — Claude-агенты их просто не видели.
++  *Known tradeoff:* проекты, где в корне лежит только `CLAUDE.md` (например `University`),
++  продолжают работать через `sync_agents_md`, который копирует их правила в `AGENTS.md` для
++  Codex; этот путь не тронут.
++  *Reasoning:* пользовательский уровень остаётся на `~/.claude/CLAUDE.md` — глобальный
++  `~/.claude/AGENTS.md` CLI НЕ читает (проверено там же), поэтому дубля наверху нет: у нас
++  `~/.codex/AGENTS.md` симлинком указывает на тот же файл.
++
+ ### Fixed
+ - 🧯 **Один кривой вызов инструмента больше не убивает остаток сессии воркера**
+   (`app/harness/loop.py` — `_sanitize_tool_args`, вызывается после диспетча раунда).
+diff --git a/CLAUDE.md b/CLAUDE.md
+deleted file mode 100644
+index f1c7af14de0d4d4ad1ec8fe27f54ca264b5a9a86..0000000000000000000000000000000000000000
+--- a/CLAUDE.md
++++ /dev/null
+@@ -1,98 +0,0 @@
+-# Orchestra — правила работы
+-
+-Общий источник правил проекта — этот версионируемый AGENTS.md.
+-CLAUDE.md — побайтно одинаковое зеркало для Claude, а не независимый источник.
+-После правки AGENTS.md выполняй python scripts/check_instruction_contract.py --sync.
+-Правила поведения агентов всех проектов принадлежат .orchestra/pipelines/default/prompts/,
+-а этот файл регулирует работу над самой Orchestra.
+-
+-## Границы полномочий
+-
+-- Не добавляй в корневые инструкции отчёты, логи аварий, текущие проценты квот,
+-  длинные примеры и разовые обходы. В корне остаются только ограничения, нужные
+-  практически любой задаче. Исследовательские выводы — в KB, результаты — в tasks.
+-  Новое постоянное правило требует согласования владельца; существующее уточняй
+-  у его владельца, не дописывай ещё одну версию в конец файла.
+-  Каждый корневой файл должен быть меньше 16 KiB. Не повышай этот предел ради
+-  очередного дополнения и не подключай подробности через автоматические импорты.
+-
+-- Выполняй согласованную задачу в её границах. Исследование не разрешает реализацию,
+-  а разовое «делай» не создаёт постоянного разрешения на другие работы.
+-- Рестарт Orchestra инициирует только владелец. Самостоятельно не перезапускай,
+-  не останавливай и не запускай Orchestra или telegram-bot-api, даже ради аварии.
+-  Если Python-правки требуют рестарта, сообщи об этом одной строкой и жди команды.
+-  После состоявшегося рестарта проверь cut_names и восстанови срезанных воркеров;
+-  не принимай потерянное продолжение за отказ работника выполнять задачу.
+-- Не выкатывай код и не выполняй git pull на VPS самостоятельно.
+-  Не обращайся к чужим оркестраторам ради инфраструктурной координации.
+-- Git remote origin — наш публичный. Другие remotes (включая enterprise и vadim)
+-  не трогай. Сверяй git remote -v; не делай force-push и не теряй чужие коммиты.
+-- Существующие чужие правки сохраняй. Работай в отдельной ветке/worktree;
+-  мерж и запуск сервисов не следуют автоматически из успешных тестов.
+-  Не убивай full-cycle воркера только из-за завершённого merge: он может ждать
+-  следующего этапа. Условия завершения принадлежат модулю worker-lifecycle.
+-- Перед закрытием воркера сохрани результат в main либо выводы и причину отказа
+-  в хронике со ссылкой на исходную ветку. Одна preserve/*-метка не заменяет
+-  извлечение знаний; полномочия на мерж и удаление проверяются отдельно.
+-- **Маскирование секретов снято с пути ОТОБРАЖЕНИЯ и живёт только на границе публикации (решение владельца 06.09.2026, дословно: «журнал наш бд по дефолту должен быть гит игнор и утечки быть не должно, а на фронте мне не ломай секреты отображение»).** `db.add_log`, `live_broker.publish` и копии доставок пишут и отдают содержимое ДОСЛОВНО: `data/` целиком под `.gitignore` (`git check-ignore -v data/orchestra.db` → `.gitignore:11`), в индексе её нет, наружу журнал не публикуется. Маскирование там не предотвращало утечку, а портило рабочие данные — ссылка-приглашение MTProto-прокси приходила изуродованной, потому что её ПУБЛИЧНЫЙ параметр `secret=` попадал под общее правило. `app/secret_mask.py` и его тесты сохранены и остаются владельцем правила: применять их надо к тому, что уезжает В GIT и наружу, а не к тому, что владелец читает у себя. Остаточный риск назван явно: агент, копирующий содержимое лога в трекаемый артефакт, по-прежнему может протащить секрет — поэтому сырые выгрузки проверяются фильтром ПО ФОРМЕ секрета перед коммитом, и это единственное место, где маска обязательна.
+-- Не публикуй пароли, OAuth-токены, ключи, содержимое .env или секреты из логов.
+-  Секрет в собственном локальном хранилище сам по себе не доказывает утечку.
+-  Не ротируй его и не останавливай работу только из-за существования; публичную
+-  утечку сообщай немедленно. Сырые выгрузки проверяй перед коммитом.
+-- Ноутбук владельца — рабочая машина: тяжёлые проверки последовательно,
+-  nice=15 и MemoryMax=2G. /tmp может быть tmpfs; большие временные данные — /mnt/data.
+-  Не убивай процессы по широкому pkill/сохранённому PGID; работай с точным владельцем.
+-- Никаких новых платных API-вызовов вместо подписки без разрешения.
+-  OpenRouter Harness допускает только точные разрешённые :free маршруты.
+-
+-## Текущие владельцы и рабочие пути
+-
+-- FastAPI + SSE, SQLite, внешние CLI и stdio MCP; главный код — app/.
+-  Локальный dashboard обычно на 127.0.0.1:8888. Состояние конкретного сервиса
+-  проверяй read-only; исторический рассказ не подтверждает, что он сейчас запущен.
+-- Модели, effort и допуск: текущий pipeline, model-routing и app/quota_gate.py.
+-  Не меняй политику по историческим процентам. Денежные суммы dashboard —
+-  API-equivalent, не счёт владельцу; цена API не доказывает размер подписочной квоты.
+-- Чат показывает свежий сетевой snapshot последних сообщений, затем SSE.
+-  Не возвращай зеркало истории в IndexedDB или stale-while-revalidate для чата.
+-- База знаний — .orchestra/kb/, доказательства задач — .orchestra/tasks/,
+-  память — .orchestra/workers/, история — в Git по kb/history.md.
+-  Raw-отчёт не становится текущим правилом без проверки и принятия вывода.
+-
+-## Найти нужное, не прочитать всё
+-
+-Оглавление тем и порядок поиска по нему платформа вставляет в системный промпт сама
+-(`app/kb_index.py`, модуль knowledge). Здесь остаётся только обязанность автора:
+-новую тему заводи файлом в .orchestra/kb/ И строкой с кратким описанием в
+-.orchestra/kb/README.md — тема без этой строки до агентов не доедет.
+-Запись и поиск: .orchestra/pipelines/default/prompts/modules/knowledge.md.
+-
+-## Реализация и проверка
+-
+-- Перед починкой симптома сверь текущий код. Историю изменения символа изучай
+-  при регрессии, неясном происхождении поведения или риске отменить прежнее решение.
+-  Не меняй соседние системы, не расширяй задачу и не добавляй новую зависимость
+-  в обязательный промпт раньше, чем её реальный путь проверен.
+-- Один владелец правила и состояния; данные из API, конфигов и текущего кода
+-  важнее исторического замера. Индекс/проекция не заменяет канонический источник.
+-- Тестируй поведение: отрицательное и разрешающее плечо, границы, конкурентность,
+-  восстановление. Зелёный тест должен краснеть при возвращении дефекта.
+-  Таймауты тестов ограничивают зависание, а не подменяют замер производительности.
+-- Тесты не используют боевую БД, токены TG, NOTIFY_SOCKET живого сервиса и настоящие
+-  CLI провайдеров без отдельной цели прогона. Копия живой SQLite — backup(), не cp.
+-- CLI-окружение проверяется по месту импорта: запускай тесты через python -m pytest,
+-  а не консольный pytest; в отчёте укажи абсолютный путь импортированного app-модуля.
+-- Прежние опыты замеров — .orchestra/kb/evidence-methods.md. Разделяй до/после и шум;
+-  не объявляй улучшение по размеру файла, числу тестов или имени модели.
+-- Не выдавай код на диске за работающий Python в живом процессе.
+-  JS/CSS могут загрузиться без рестарта; Python/CLI-конфиги имеют свой жизненный цикл.
+-- Ошибки платформы фиксируй через report_bug, если инструмент доступен;
+-  результаты своей задачи сохраняй в .orchestra/tasks/<id>/.
+-- До закрытия работы: проверь diff, нужные тесты, отсутствие секретов и потерь
+-  чужих правок. Сообщи результат, фактическую проверку и оставшийся риск.
+-
+-## Исторический источник
+-
+-Полный прежний документ доступен в Git:
+-`git show 9a1735f1695519a445f393802c2154bd37337e38:.orchestra/archive/instructions/2026-09-05-CLAUDE.md`.
+-Это история, не действующие правила. Остальные исходники — по .orchestra/kb/history.md.
+diff --git a/README.md b/README.md
+index 288284704fec41048ea46925d9a58b3c8d5df8a4..5412938bdf693286b8497e0cd57face45c16bb94 100644
+--- a/README.md
++++ b/README.md
+@@ -124,7 +124,7 @@ not to*:
+ | Grok kept current with Claude and Codex | 🚫 | Added for one narrow job and left unmaintained. It still runs; it is not a peer |
+ | Lexical project memory agents must read before working | ✅ | `.orchestra/kb/`, one fact per line with the command that proves it |
+ | Vector / semantic memory | 🚫 | Built, measured, retired: on an 18-question holdout from this repo, vector search scored **0 unique wins against 6 for plain `rg`**. The implementation and optional ML dependencies have been removed |
+-| Bounded shared startup instructions | ✅ | `AGENTS.md` and `CLAUDE.md` are byte-identical. The KB topic directory is not in them: the platform injects it into the system prompt from `.orchestra/kb/README.md` of the agent's own project, so a new topic is visible on the next turn without a restart. CI rejects drift, missing topics and oversized files (`python3 scripts/check_instruction_contract.py`). Topic details and the full former guide stay on demand |
++| Bounded shared startup instructions | ✅ | `AGENTS.md` is the single root rules file — both Claude Code and Codex read it, and a `CLAUDE.md` copy is refused because the agent receives BOTH at once and any drift hands it contradictory rules. The KB topic directory is not in them: the platform injects it into the system prompt from `.orchestra/kb/README.md` of the agent's own project, so a new topic is visible on the next turn without a restart. CI rejects the duplicate, missing topics and oversized files (`python3 scripts/check_instruction_contract.py`). Topic details and the full former guide stay on demand |
+ | Dashboard (`dashboard.html` via `app/routes/system.py:77`) and Telegram control (`app/tg_bridge.py`) | ✅ | Voice messages are transcribed with Deepgram `nova-3`, `app/transcription.py:72` |
+ | Terminal client, desktop or mobile app | 🚫 | Never built: the workplace is the dashboard plus Telegram. Phone access is Telegram, not an app |
+ | Browser-side cache of chat history | 🚫 | Built, then removed on purpose: a local mirror cannot prove nothing appeared after its watermark, so it can show a stale frame as current. `no-store` is set on the server (`app/routes/sessions.py:602`) and on the client (`app/static/js/app.js:1274`) |
+diff --git a/README.ru.md b/README.ru.md
+index 87827e91f0b24bfdf1cde725eb289087d499e2a3..399a69609494b2a54a87f5c70f877d5024359154 100644
+--- a/README.ru.md
++++ b/README.ru.md
+@@ -124,7 +124,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
+ | Grok поддерживается наравне с Claude и Codex | 🚫 | Заведён под одну узкую задачу и с тех пор не развивается. Он работает, но он не равный |
+ | Лексическая память проекта, которую агент обязан прочитать до работы | ✅ | `.orchestra/kb/`, один факт в строке и команда, которая его доказывает |
+ | Векторная / семантическая память | 🚫 | Сделали, замерили, убрали: на holdout из 18 вопросов по этому репозиторию у вектора **0 уникальных побед против 6 у обычного `rg`**. Реализация по-прежнему в коде и работает, если её включить (`--extra rag`, по умолчанию выключено) — просто мы на ней больше не строим |
+-| Ограниченный общий стартовый контекст | ✅ | `AGENTS.md` и `CLAUDE.md` побайтно одинаковы. Оглавления KB в них нет: платформа вставляет его в системный промпт из `.orchestra/kb/README.md` проекта самого агента, поэтому новая тема видна на следующем ходе без рестарта. CI отвергает рассинхрон, пропущенные темы и превышение размера (`python3 scripts/check_instruction_contract.py`). Подробности тем и полный прежний гид читаются по необходимости |
++| Ограниченный общий стартовый контекст | ✅ | `AGENTS.md` — единственный корневой файл правил: его читают и Claude Code, и Codex, а копия `CLAUDE.md` запрещена, потому что агенту доезжают ОБА файла сразу и любое расхождение даёт ему два противоречащих набора правил. Оглавления KB в них нет: платформа вставляет его в системный промпт из `.orchestra/kb/README.md` проекта самого агента, поэтому новая тема видна на следующем ходе без рестарта. CI отвергает дубль, пропущенные темы и превышение размера (`python3 scripts/check_instruction_contract.py`). Подробности тем и полный прежний гид читаются по необходимости |
+ | Дашборд (`dashboard.html` через `app/routes/system.py:77`) и управление из Telegram (`app/tg_bridge.py`) | ✅ | Голосовые расшифровываются Deepgram `nova-3`, `app/transcription.py:72` |
+ | Терминальный клиент, десктопное или мобильное приложение | 🚫 | Не делали: рабочее место — дашборд плюс Telegram. С телефона работают через Telegram, а не через приложение |
+ | Кеш истории чата на стороне браузера | 🚫 | Сделали и осознанно убрали: локальное зеркало не может доказать, что после его watermark ничего не появилось, поэтому оно способно показать устаревший кадр как свежий. `no-store` выставлен и на сервере (`app/routes/sessions.py:602`), и на клиенте (`app/static/js/app.js:1274`) |
+diff --git a/app/workspace.py b/app/workspace.py
+index b09268a93edf37c0b513869b47247d49e513cc86..6f6d2fb020ec54eda13842b46c2ed9e0141b0520 100644
+--- a/app/workspace.py
++++ b/app/workspace.py
+@@ -26,7 +26,10 @@ logger = logging.getLogger(__name__)
+ WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
+ # Files copied into each new worktree so workers get project config without
+ # being on the main branch (CLAUDE.md = project rules, .env = secrets, .mcp.json = tools)
+-PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
++# AGENTS.md читают оба CLI (Claude Code 2.1.263 и Codex), CLAUDE.md остаётся ради
++# проектов, где он ещё единственный источник правил. Копируем оба: отсутствующий
++# файл просто пропускается, а worktree без правил — это агент без правил.
++PROJECT_FILES = ("AGENTS.md", "CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
+ 
+ 
+ @dataclass
+diff --git a/scripts/check_instruction_contract.py b/scripts/check_instruction_contract.py
+index 4dffc5bf883f0fe3d19446118c0ae165466cb353..5abbded3864cd86173ce0ce731e6e9aa42e66b22 100644
+--- a/scripts/check_instruction_contract.py
++++ b/scripts/check_instruction_contract.py
+@@ -1,10 +1,8 @@
+-"""Check the shared root rules; --sync explicitly regenerates the Claude copy."""
++"""Check the shared root rules: one file, under budget, with a complete KB index."""
+ import argparse
+-import os
+ from pathlib import Path
+ import re
+ import sys
+-import tempfile
+ 
+ _REPO_ROOT = Path(__file__).resolve().parents[1]
+ if str(_REPO_ROOT) not in sys.path:
+@@ -13,7 +11,12 @@ if str(_REPO_ROOT) not in sys.path:
+ from app.kb_index import kb_topic_files, kb_topic_index
+ 
+ MAX_INSTRUCTION_BYTES = 16 * 1024
+-FILES = ("AGENTS.md", "CLAUDE.md")
++SOURCE = "AGENTS.md"
++# Claude Code 2.1.263 читает CLAUDE.md И AGENTS.md ОБА сразу (проверено экспериментом
++# 19.09.2026: два файла с разными правилами — агент назвал оба и указал расхождение).
++# Пока копия существовала, она дважды разъезжалась с источником, и Claude-агенты
++# не видели части правил владельца. Поэтому дубль запрещён, а не синхронизируется.
++FORBIDDEN_DUPLICATE = "CLAUDE.md"
+ 
+ 
+ def check_kb_index(root: Path) -> None:
+@@ -46,51 +49,24 @@ def _validate(body: bytes, name: str) -> None:
+ 
+ 
+ def check(root: Path) -> None:
+-    bodies = [_read(root / name) for name in FILES]
+-    for name, body in zip(FILES, bodies):
+-        _validate(body, name)
+-    if bodies[0] != bodies[1]:
+-        raise ValueError("AGENTS.md and CLAUDE.md differ; run --sync after editing AGENTS.md")
++    _validate(_read(root / SOURCE), SOURCE)
++    duplicate = root / FORBIDDEN_DUPLICATE
++    if duplicate.exists() or duplicate.is_symlink():
++        raise ValueError(
++            f"{FORBIDDEN_DUPLICATE} is back: both files reach the agent at once and a drift "
++            f"feeds it contradictory rules. Keep {SOURCE} only")
+     check_kb_index(root)
+ 
+ 
+-def sync(root: Path) -> None:
+-    body = _read(root / "AGENTS.md")
+-    _validate(body, "AGENTS.md")
+-    check_kb_index(root)  # before any write: a bad index must leave both copies untouched
+-    for name in FILES:
+-        if (root / name).is_symlink():
+-            raise ValueError(f"{name}: refusing to overwrite a symlink")
+-    _write(root / "CLAUDE.md", body)
+-    check(root)
+-
+-
+-def _write(target: Path, body: bytes) -> None:
+-    if target.exists() and target.read_bytes() == body:
+-        return
+-    fd, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
+-    try:
+-        os.fchmod(fd, 0o644)
+-        with os.fdopen(fd, "wb") as output:
+-            output.write(body)
+-        os.replace(temporary, target)
+-    finally:
+-        Path(temporary).unlink(missing_ok=True)
+-
+-
+ def main() -> int:
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+-    parser.add_argument("--sync", action="store_true")
+     args = parser.parse_args()
+     try:
+-        if args.sync:
+-            sync(args.root)
+-        else:
+-            check(args.root)
++        check(args.root)
+     except (OSError, ValueError) as error:
+         parser.exit(1, f"Instruction contract: {error}\n")
+-    print("Instruction contract OK: identical, non-empty UTF-8 root rules below 16 KiB each")
++    print(f"Instruction contract OK: {SOURCE} is the only root rules file, below 16 KiB")
+     return 0
+ 
+ 
+diff --git a/tests/test_instruction_contract.py b/tests/test_instruction_contract.py
+index d31349d28d2aea299533fbd3c04b5e11892e9d6b..744d878020efd58616ca2d8fef51f38a11600db3 100644
+--- a/tests/test_instruction_contract.py
++++ b/tests/test_instruction_contract.py
+@@ -1,95 +1,80 @@
+-from pathlib import Path
++"""Контракт корневых правил: один файл, под бюджетом, с полным оглавлением KB.
++
++Claude Code 2.1.263 читает CLAUDE.md И AGENTS.md ОБА (проверено экспериментом 19.09.2026:
++два файла с разными правилами — агент назвал оба и указал расхождение). Пока копия
++существовала, она дважды разъезжалась с источником, и Claude-агенты не видели части правил
++владельца. Поэтому тест сторожит ОТСУТСТВИЕ дубля, а не его синхронность.
++"""
++import shutil
+ import subprocess
+ import sys
++from pathlib import Path
+ 
+ import pytest
+ 
+-from scripts.check_instruction_contract import MAX_INSTRUCTION_BYTES, check, sync
++SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "check_instruction_contract.py"
++REPO = Path(__file__).resolve().parents[1]
+ 
+ 
+ @pytest.fixture
+ def root(tmp_path):
+-    kb = tmp_path / ".orchestra/kb"
++    shutil.copy(REPO / "AGENTS.md", tmp_path / "AGENTS.md")
++    kb = tmp_path / ".orchestra" / "kb"
+     kb.mkdir(parents=True)
+-    (kb / "README.md").write_text("- [runtime](runtime.md) — Runtime: запуск и ошибки\n")
+-    (kb / "runtime.md").write_text("# Runtime\nDetails remain on demand.\n")
+-    (tmp_path / "AGENTS.md").write_text("# Rules\nNever restart without authority.\n")
+-    (tmp_path / "CLAUDE.md").write_text("old copy")
+-    sync(tmp_path)
++    shutil.copy(REPO / ".orchestra" / "kb" / "README.md", kb / "README.md")
++    for topic in (REPO / ".orchestra" / "kb").glob("*.md"):
++        if topic.name != "README.md":
++            shutil.copy(topic, kb / topic.name)
+     return tmp_path
+ 
+ 
+-def test_sync_mirrors_the_source_without_inlining_the_topic_index(root):
+-    check(root)
+-    source = (root / "AGENTS.md").read_bytes()
+-    assert (root / "CLAUDE.md").read_bytes() == source
+-    assert b"Never restart without authority." in source
+-    # The topic list is injected by the platform (app.kb_index), so neither the topic
+-    # description nor its body may appear in the committed rules.
+-    assert "Runtime: запуск и ошибки" not in source.decode()
+-    assert b"Details remain on demand" not in source
+-    before = [(root / name).stat().st_mtime_ns for name in ("AGENTS.md", "CLAUDE.md")]
+-    sync(root)
+-    assert before == [(root / name).stat().st_mtime_ns for name in ("AGENTS.md", "CLAUDE.md")]
+-
+-
+-def test_one_sided_edit_is_rejected_without_repair(root):
+-    target = root / "CLAUDE.md"
+-    target.write_bytes(target.read_bytes() + b"\nOne-sided rule")
+-    before = target.read_bytes()
+-    with pytest.raises(ValueError, match="differ"):
+-        check(root)
+-    assert target.read_bytes() == before
+-
+-
+-def test_unindexed_topic_is_rejected_but_needs_no_root_edit(root):
+-    kb = root / ".orchestra/kb"
+-    (kb / "network.md").write_text("# Network")
+-    with pytest.raises(ValueError, match="missing from README"):
+-        check(root)
+-    before = (root / "AGENTS.md").read_bytes()
+-    index = kb / "README.md"
+-    index.write_text(index.read_text() + "- [network](network.md) — Сеть: диагностика\n")
+-    check(root)
+-    assert (root / "AGENTS.md").read_bytes() == before
+-
+-
+-def test_equal_utf8_bloat_is_rejected_and_sync_does_not_touch_other_copy(root):
+-    source = root / "AGENTS.md"
+-    source.write_text(source.read_text() + "я" * (MAX_INSTRUCTION_BYTES // 2))
+-    before = (root / "CLAUDE.md").read_bytes()
+-    with pytest.raises(ValueError, match="budget"):
+-        sync(root)
+-    assert (root / "CLAUDE.md").read_bytes() == before
+-    (root / "CLAUDE.md").write_bytes(source.read_bytes())
+-    with pytest.raises(ValueError, match="budget"):
+-        check(root)
+-
+-
+-@pytest.mark.parametrize("mutation", ["empty", "import", "broken_link", "duplicate", "description"])
+-def test_invalid_sources_fail_before_writes(root, mutation):
+-    source = root / "AGENTS.md"
+-    index = root / ".orchestra/kb/README.md"
+-    (root / "CLAUDE.md").write_text("stale mirror")
+-    if mutation == "empty":
+-        source.write_text("")
+-    elif mutation == "import":
+-        source.write_text(source.read_text() + "\nRead @archive.md now.\n")
+-    elif mutation == "broken_link":
+-        index.write_text(index.read_text().replace("(runtime.md)", "(missing.md)"))
+-    elif mutation == "duplicate":
+-        index.write_text(index.read_text() * 2)
+-    else:
+-        index.write_text("- [runtime](runtime.md) —    \n")
+-    before = (source.read_bytes(), (root / "CLAUDE.md").read_bytes())
+-    with pytest.raises(ValueError):
+-        sync(root)
+-    assert before == (source.read_bytes(), (root / "CLAUDE.md").read_bytes())
+-
+-
+-def test_ci_command_fails_on_drift(root):
+-    (root / "CLAUDE.md").write_text("different")
+-    script = Path(__file__).parents[1] / "scripts/check_instruction_contract.py"
+-    result = subprocess.run([sys.executable, str(script), "--root", str(root)], capture_output=True, text=True)
++def _run(root: Path):
++    return subprocess.run([sys.executable, str(SCRIPT), "--root", str(root)],
++                          capture_output=True, text=True)
++
++
++def test_single_source_passes(root):
++    assert _run(root).returncode == 0
++
++
++def test_claude_md_coming_back_is_rejected(root):
++    """Дубль не «чинится синхронизацией» — он запрещён: агенту доезжают оба файла."""
++    (root / "CLAUDE.md").write_text((root / "AGENTS.md").read_text(), encoding="utf-8")
++
++    result = _run(root)
++
++    assert result.returncode == 1
++    assert "CLAUDE.md" in result.stderr
++
++
++def test_duplicate_is_rejected_even_as_a_symlink(root):
++    (root / "CLAUDE.md").symlink_to(root / "AGENTS.md")
++
++    assert _run(root).returncode == 1
++
++
++def test_oversized_rules_are_rejected(root):
++    body = (root / "AGENTS.md").read_text(encoding="utf-8")
++    (root / "AGENTS.md").write_text(body + "x" * 17_000, encoding="utf-8")
++
++    result = _run(root)
++
++    assert result.returncode == 1
++    assert "16 KiB" in result.stderr
++
++
++def test_unindexed_kb_topic_is_rejected(root):
++    (root / ".orchestra" / "kb" / "brand-new-topic.md").write_text("# тема", encoding="utf-8")
++
++    result = _run(root)
++
+     assert result.returncode == 1
+-    assert "differ" in result.stderr
++    assert "brand-new-topic" in result.stderr
++
++
++def test_root_import_is_rejected(root):
++    """Импорт в корне вернул бы нас к скрытому второму источнику правил."""
++    body = (root / "AGENTS.md").read_text(encoding="utf-8")
++    (root / "AGENTS.md").write_text(body + "\n@./extra-rules.md\n", encoding="utf-8")
++
++    assert _run(root).returncode == 1
+diff --git a/tests/test_knowledge_instruction_source.py b/tests/test_knowledge_instruction_source.py
+index b4f255d540fba7d48d0ead9325ba0b9af29316c9..570200de6b6a4d067292157c9bd0b3b20ad0951a 100644
+--- a/tests/test_knowledge_instruction_source.py
++++ b/tests/test_knowledge_instruction_source.py
+@@ -16,8 +16,12 @@ def test_original_rules_are_preserved_byte_for_byte():
+ 
+ 
+ def test_both_clients_get_the_same_bounded_rules_and_current_topic_index():
++    """Один файл на оба CLI: Claude Code 2.1.263 читает AGENTS.md сам (проверено 19.09.2026),
++    Codex читал его всегда. Отдельная копия CLAUDE.md не синхронизируется, а запрещена —
++    агенту доезжают ОБА файла, и разошедшиеся копии дают два противоречащих набора правил."""
+     from scripts.check_instruction_contract import check
+-    subprocess.run(["git", "ls-files", "--error-unmatch", "AGENTS.md", "CLAUDE.md"], cwd=ROOT, check=True)
++    subprocess.run(["git", "ls-files", "--error-unmatch", "AGENTS.md"], cwd=ROOT, check=True)
++    assert not (ROOT / "CLAUDE.md").exists()
+     check(ROOT)
+ 
+ 

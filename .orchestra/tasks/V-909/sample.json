@@ -1,0 +1,481 @@
+{
+ "newest": "2026-10-17T08:46:56",
+ "cutoff": "2026-10-03T08:46:56",
+ "seed": 909,
+ "widened_available": 0,
+ "clean_pool_units": 432,
+ "items": [
+  {
+   "id": "bad-35",
+   "stratum": "bad",
+   "task": "35",
+   "sha": "270db54eb4377073a43191b6232eec9894e11d68",
+   "lines": 614,
+   "files": 7
+  },
+  {
+   "id": "bad-51",
+   "stratum": "bad",
+   "task": "51",
+   "sha": "ddd889d301fd6f171c51a087320ad830566cd174",
+   "lines": 15,
+   "files": 2
+  },
+  {
+   "id": "bad-88",
+   "stratum": "bad",
+   "task": "88",
+   "sha": "ccc55e9cf76b50c54fa6ed2d2c3c991a2efe8641",
+   "lines": 99,
+   "files": 2
+  },
+  {
+   "id": "bad-85",
+   "stratum": "bad",
+   "task": "85",
+   "sha": "a05b13d0ca26a88ce159f400fd02c19ac54a9f2b",
+   "lines": 15,
+   "files": 1
+  },
+  {
+   "id": "bad-90",
+   "stratum": "bad",
+   "task": "90",
+   "sha": "e3e180c113a78b6195151017abae2f605372031b",
+   "lines": 42,
+   "files": 2
+  },
+  {
+   "id": "bad-91",
+   "stratum": "bad",
+   "task": "91",
+   "sha": "a755646c6afdb940f7a1d2e1f71d4768c5ac5d35",
+   "lines": 236,
+   "files": 5
+  },
+  {
+   "id": "bad-52",
+   "stratum": "bad",
+   "task": "52",
+   "sha": "08c3932dc106279a5f8d7c92a09823ddc0710710",
+   "lines": 29,
+   "files": 1
+  },
+  {
+   "id": "bad-V-600",
+   "stratum": "bad",
+   "task": "V-600",
+   "sha": "4dd81e7e3a18b4527c3875a9772d5afdcc23237a",
+   "lines": 339,
+   "files": 9
+  },
+  {
+   "id": "bad-V-621",
+   "stratum": "bad",
+   "task": "V-621",
+   "sha": "0059e6757edf3badf7267c23def512d03a4aef06",
+   "lines": 1162,
+   "files": 15
+  },
+  {
+   "id": "clean-V-607",
+   "stratum": "clean",
+   "task": "V-607",
+   "sha": "2bdb6742f57db6cb0262dd700fd4a824af88fdfe",
+   "date": "2026-09-21T09:07:43",
+   "subj": "#V-607: порядок вкладок оркестраторов больше не пляшет от того, кого открывали последним",
+   "lines": 29,
+   "files": 1
+  },
+  {
+   "id": "clean-293",
+   "stratum": "clean",
+   "task": "293",
+   "sha": "e114aadcf7a1af9c5918c37affd03cc23e029af7",
+   "date": "2026-08-16T13:23:59",
+   "subj": "#293: #293: freeze VPN project registration oracle",
+   "lines": 126,
+   "files": 1
+  },
+  {
+   "id": "clean-V-680",
+   "stratum": "clean",
+   "task": "V-680",
+   "sha": "951d0d470408f6248993eb2915efe29db67367cc",
+   "date": "2026-10-02T09:56:52",
+   "subj": "V-680: durable сигнал конца хода воркера родителю вместо idle-сторожа",
+   "lines": 897,
+   "files": 8
+  },
+  {
+   "id": "clean-446",
+   "stratum": "clean",
+   "task": "446",
+   "sha": "71240bd4f2d629ad259fbb1949fd3819827c0e1f",
+   "date": "2026-09-03T14:26:30",
+   "subj": "#446: suppress raw telemetry from user channels",
+   "lines": 103,
+   "files": 6
+  },
+  {
+   "id": "clean-369",
+   "stratum": "clean",
+   "task": "369",
+   "sha": "d9dc81df639e5550eec2e5ecda53159c646ca3e0",
+   "date": "2026-08-22T10:13:46",
+   "subj": "#369: #369: retake bubble screenshots — positive visibility check + frozen DOM clone + pix",
+   "lines": 86,
+   "files": 4
+  },
+  {
+   "id": "clean-V-572",
+   "stratum": "clean",
+   "task": "V-572",
+   "sha": "5bb162d53ad0c494b015fdae9a78e6ee83649860",
+   "date": "2026-09-13T16:16:51",
+   "subj": "V-572: document verified laptop SSH route and stage personal pointers",
+   "lines": 43,
+   "files": 3
+  },
+  {
+   "id": "clean-54",
+   "stratum": "clean",
+   "task": "54",
+   "sha": "180f78bd491e2f7bb605ca9df6778ee84182f1e8",
+   "date": "2026-08-04T07:47:21",
+   "subj": "#54: #54: sessions.id не может быть пустым — схема, триггер, гард в коде, громкий ноль стр",
+   "lines": 334,
+   "files": 7
+  },
+  {
+   "id": "clean-277",
+   "stratum": "clean",
+   "task": "277",
+   "sha": "9268255cf199a0b95e9001e803c3f13544256896",
+   "date": "2026-08-14T12:33:28",
+   "subj": "#277: #277: drop quota percents from the turn-ended TG line",
+   "lines": 175,
+   "files": 5
+  },
+  {
+   "id": "clean-244",
+   "stratum": "clean",
+   "task": "244",
+   "sha": "0b380893636f30e35bd805058aeea07bceaf136c",
+   "date": "2026-08-13T08:11:48",
+   "subj": "#244: #244: expose open_fan to Codex workers",
+   "lines": 27,
+   "files": 3
+  },
+  {
+   "id": "clean-73",
+   "stratum": "clean",
+   "task": "73",
+   "sha": "8967bf9711de2ab854fb3d09d0901fa775d0a2c9",
+   "date": "2026-08-04T11:35:54",
+   "subj": "#73: #73: фаза 1 — цена элемента измерена, найден третий вариант дешевле обоих",
+   "lines": 323,
+   "files": 6
+  },
+  {
+   "id": "clean-202",
+   "stratum": "clean",
+   "task": "202",
+   "sha": "b68ace2194ece85d754b1ad578e85651c92b9dd9",
+   "date": "2026-08-20T12:19:17",
+   "subj": "#202: бабл веб-поиска показывает запрос и результат",
+   "lines": 20,
+   "files": 1
+  },
+  {
+   "id": "clean-149",
+   "stratum": "clean",
+   "task": "149",
+   "sha": "6c95039bcf352184d92bcd47df940e0b8da8f5bb",
+   "date": "2026-08-05T18:27:47",
+   "subj": "#149: #149: research — скиллы не доезжают до живых агентов (22 протухших копии, 16 оркестр",
+   "lines": 715,
+   "files": 9
+  },
+  {
+   "id": "clean-355",
+   "stratum": "clean",
+   "task": "355",
+   "sha": "34fb2350a8224f2991dbe722afc29070daf02bee",
+   "date": "2026-08-25T04:12:31",
+   "subj": "#355: #355: add verified merge receipts",
+   "lines": 590,
+   "files": 4
+  },
+  {
+   "id": "clean-V-672",
+   "stratum": "clean",
+   "task": "V-672",
+   "sha": "87f4ffd1e875fb3517dee3c6234e248e3b9f5dcd",
+   "date": "2026-09-29T16:51:43",
+   "subj": "V-672: #V-672: group compaction activity in chat",
+   "lines": 702,
+   "files": 10
+  },
+  {
+   "id": "clean-203",
+   "stratum": "clean",
+   "task": "203",
+   "sha": "2a5ae8b335a99d87bb2733aa9fa8bc06662ca6ef",
+   "date": "2026-08-12T05:25:56",
+   "subj": "#203: #203: Luna escalation path; move model-routing to a module for spawn-capable roles",
+   "lines": 201,
+   "files": 7
+  },
+  {
+   "id": "clean-344",
+   "stratum": "clean",
+   "task": "344",
+   "sha": "3d6d4121e31c040482f29532e3234de26561640b",
+   "date": "2026-08-19T10:47:42",
+   "subj": "#344: #344: вердикт панели квот считается одним владельцем — сводка не расходится с телом",
+   "lines": 103,
+   "files": 3
+  },
+  {
+   "id": "clean-356",
+   "stratum": "clean",
+   "task": "356",
+   "sha": "a73e8ed669926e1caf94f97983c33c577db8dae2",
+   "date": "2026-08-19T17:14:35",
+   "subj": "#356: usage-bar — 5h без статуса разблокировки, Spark со своей подписью",
+   "lines": 82,
+   "files": 2
+  },
+  {
+   "id": "clean-4",
+   "stratum": "clean",
+   "task": "4",
+   "sha": "18d8061390dcdf2fce8b777d94079ab2438a35c0",
+   "date": "2026-07-01T13:11:32",
+   "subj": "#4: #proxy-fix: force stable id='direct' for direct proxy",
+   "lines": 739,
+   "files": 12
+  },
+  {
+   "id": "clean-180",
+   "stratum": "clean",
+   "task": "180",
+   "sha": "208c7fcae99b53232394a1bf7382f3db90284937",
+   "date": "2026-08-14T12:18:51",
+   "subj": "#180: #180: _run_exec rejects blind review artifacts",
+   "lines": 133,
+   "files": 3
+  },
+  {
+   "id": "clean-120",
+   "stratum": "clean",
+   "task": "120",
+   "sha": "a0bec5f5b93417d7bfcad1c1438f6b827811d8a9",
+   "date": "2026-08-01T13:36:02",
+   "subj": "#120: safe process signaling — pidfd exec shim, remove broad pkill",
+   "lines": 692,
+   "files": 5
+  },
+  {
+   "id": "clean-329",
+   "stratum": "clean",
+   "task": "329",
+   "sha": "1fe3cf1d7592f59b78de3728d0b5e4a5a0e54180",
+   "date": "2026-08-18T14:35:18",
+   "subj": "#329: один владелец логики пулов — квотная арифметика вырезана из манифеста, блок выключен",
+   "lines": 983,
+   "files": 11
+  },
+  {
+   "id": "clean-94",
+   "stratum": "clean",
+   "task": "94",
+   "sha": "8491f441e5f617091268808295538890a26cd144",
+   "date": "2026-08-05T13:39:14",
+   "subj": "#94: #94: путь картинки вставляется в позицию каретки, а не в конец поля",
+   "lines": 278,
+   "files": 6
+  },
+  {
+   "id": "clean-179",
+   "stratum": "clean",
+   "task": "179",
+   "sha": "ce2ddc45721460c57e18a56ecc11abe8e69e42a0",
+   "date": "2026-08-11T10:30:33",
+   "subj": "#179: #179: restore executable Codex reviews",
+   "lines": 371,
+   "files": 8
+  },
+  {
+   "id": "clean-9",
+   "stratum": "clean",
+   "task": "9",
+   "sha": "2739e0b8de4a329fb4ff8a3cd9137295eef4459d",
+   "date": "2026-08-03T11:35:10",
+   "subj": "#9: версия в URL статики + правила кеширования",
+   "lines": 185,
+   "files": 8
+  },
+  {
+   "id": "clean-216",
+   "stratum": "clean",
+   "task": "216",
+   "sha": "ecfcba9812a598efa1f80301414c95bbc56c315a",
+   "date": "2026-08-12T09:16:47",
+   "subj": "#216: #216: Spark выбирается по opt-in оператора; Sol-first порядок полос",
+   "lines": 523,
+   "files": 6
+  },
+  {
+   "id": "clean-345",
+   "stratum": "clean",
+   "task": "345",
+   "sha": "970ad5f362c9bc7afa59c07016b4157db6237f9c",
+   "date": "2026-08-19T11:05:22",
+   "subj": "#345: #345: ресёрч benjamin-plus — разбор скилла, метода авторесёрча, применимость; тема t",
+   "lines": 884,
+   "files": 7
+  },
+  {
+   "id": "clean-112",
+   "stratum": "clean",
+   "task": "112",
+   "sha": "58155da638ebdd1c4f87f2f331ecdd7b6166aad6",
+   "date": "2026-08-01T13:56:26",
+   "subj": "#112: #112: refresh stale usage on demand",
+   "lines": 177,
+   "files": 2
+  },
+  {
+   "id": "clean-197",
+   "stratum": "clean",
+   "task": "197",
+   "sha": "24d6308d4fabe61cbbe497d8e9e750e304e500db",
+   "date": "2026-08-20T17:06:11",
+   "subj": "#197: #197: кеш последнего успешного ответа, джиттер ретраев, негативный кеш провайдера",
+   "lines": 1260,
+   "files": 11
+  },
+  {
+   "id": "clean-503",
+   "stratum": "clean",
+   "task": "503",
+   "sha": "d6155f9d4b4f01427c708e0ade542ab2fba7015b",
+   "date": "2026-09-05T13:00:21",
+   "subj": "#503: freeze Astra registry regression oracle",
+   "lines": 45,
+   "files": 4
+  },
+  {
+   "id": "clean-47",
+   "stratum": "clean",
+   "task": "47",
+   "sha": "ade096c2d3367677f7cde49ac9cdbb5f94b4114b",
+   "date": "2026-08-04T06:48:29",
+   "subj": "#47: #47: исследование — предложенный минимум уходит по тому же сломанному каналу",
+   "lines": 485,
+   "files": 7
+  },
+  {
+   "id": "clean-398",
+   "stratum": "clean",
+   "task": "398",
+   "sha": "41d7182d84fe5bf0ee6ec0f7c59ef5a5e0d8471a",
+   "date": "2026-08-25T19:22:04",
+   "subj": "#398: preserve post-commit merge fields",
+   "lines": 110,
+   "files": 5
+  },
+  {
+   "id": "clean-227",
+   "stratum": "clean",
+   "task": "227",
+   "sha": "5c346ffd58228eef4a0231b066169d058a621e21",
+   "date": "2026-08-13T07:53:05",
+   "subj": "#227: #227: enforce worker model policy at spawn",
+   "lines": 540,
+   "files": 13
+  },
+  {
+   "id": "clean-145",
+   "stratum": "clean",
+   "task": "145",
+   "sha": "ce54d49a65bce648cece8d18fc053679e41251d3",
+   "date": "2026-08-07T05:20:12",
+   "subj": "#145: #145: браузерные тесты логинятся кредами из окружения вместо скипа по auth",
+   "lines": 198,
+   "files": 3
+  },
+  {
+   "id": "clean-V-593",
+   "stratum": "clean",
+   "task": "V-593",
+   "sha": "67ee5df0385b4dfec19052c8658447c76d6e4a4c",
+   "date": "2026-09-17T17:37:55",
+   "subj": "#V-593: блокировка бесплатных маршрутов, отказавших в нашей пробе",
+   "lines": 49,
+   "files": 3
+  },
+  {
+   "id": "clean-264",
+   "stratum": "clean",
+   "task": "264",
+   "sha": "a3ca2eeee50f3dc51eaa01e6373a13a00130f7c0",
+   "date": "2026-08-13T12:28:32",
+   "subj": "#264: #264: поднять Grok как рантайм воркера — снять коллизию .mcp.json и починить сверку ",
+   "lines": 869,
+   "files": 10
+  },
+  {
+   "id": "clean-319",
+   "stratum": "clean",
+   "task": "319",
+   "sha": "df14b85107dec8ea2b5da25f260b4d07d85cad71",
+   "date": "2026-08-18T07:43:51",
+   "subj": "#319: #319: add quota runway controller interactive artifact",
+   "lines": 885,
+   "files": 2
+  },
+  {
+   "id": "clean-214",
+   "stratum": "clean",
+   "task": "214",
+   "sha": "6b2249c59e177e55507e5a20b0214f3ee1fd944d",
+   "date": "2026-08-12T08:48:18",
+   "subj": "#214: #214: эффорт по модели — карта модель→ступень в манифесте",
+   "lines": 1178,
+   "files": 12
+  },
+  {
+   "id": "clean-324",
+   "stratum": "clean",
+   "task": "324",
+   "sha": "67c6a9dc005c6763525725cffbcd72f0731a05f3",
+   "date": "2026-08-18T10:41:13",
+   "subj": "#324: #324: refuse to start the TG bridge outside the systemd-activated instance",
+   "lines": 514,
+   "files": 6
+  },
+  {
+   "id": "clean-494",
+   "stratum": "clean",
+   "task": "494",
+   "sha": "45e3bbcd9faa676c386ea2f4dab5e6d15876a0f3",
+   "date": "2026-09-05T10:50:31",
+   "subj": "#494: freeze capability and isolation oracles",
+   "lines": 1193,
+   "files": 5
+  },
+  {
+   "id": "clean-V-582",
+   "stratum": "clean",
+   "task": "V-582",
+   "sha": "a8d2e20ad49d3f107717055567afe824970f457d",
+   "date": "2026-09-17T09:20:21",
+   "subj": "V-582: #V-582: харнес-маршруты из живого каталога, допуск по данным провайдера",
+   "lines": 566,
+   "files": 13
+  }
+ ]
+}

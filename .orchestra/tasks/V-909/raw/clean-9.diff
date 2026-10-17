@@ -1,0 +1,293 @@
+diff --git a/app/deps.py b/app/deps.py
+index fe24a262274ccaab9b34817cebc93248f9296f25..a54127d4495829bbbbdc37c93bf76ca26aad8a74 100644
+--- a/app/deps.py
++++ b/app/deps.py
+@@ -1,8 +1,30 @@
+ """Shared dependencies for routers — avoids importing from main."""
+ 
++from pathlib import Path
++
+ from fastapi.templating import Jinja2Templates
+ 
+ from app.manager import SessionManager
+ 
+ manager = SessionManager()
+ templates = Jinja2Templates(directory="app/templates")
++
++_STATIC_DIR = Path(__file__).parent / "static"
++
++
++def static_url(path: str) -> str:
++    """Ссылка на статику с версией в query — только так браузер узнаёт о правке.
++
++    Версия = mtime файла: изменился файл → изменился URL → браузер идёт за новым
++    и без Ctrl-Shift-R. Не изменился → берёт из кеша вообще без запроса (immutable
++    в main.py). Плата за mtime вместо хеша содержимого: git checkout, вернувший тот
++    же байт-в-байт файл, всё равно обновит время и стоит одной лишней загрузки.
++    Файла нет → отдаём путь как есть: видимый 404 честнее тихой подмены.
++    """
++    try:
++        return f"/static/{path}?v={(_STATIC_DIR / path).stat().st_mtime_ns:x}"
++    except OSError:
++        return f"/static/{path}"
++
++
++templates.env.globals["static_url"] = static_url
+diff --git a/app/main.py b/app/main.py
+index 411052c5be6e2f7a6184cc57811832c7b01653f5..e3f739e5b205e1ef9a787f2f916dd79b7742a5c2 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -4,6 +4,7 @@ import asyncio
+ import logging
+ import os
+ from contextlib import asynccontextmanager
++from urllib.parse import parse_qs
+ 
+ from fastapi import FastAPI, Request
+ from fastapi.responses import JSONResponse, RedirectResponse
+@@ -83,8 +84,29 @@ async def lifespan(app: FastAPI):
+     await manager.shutdown_all()
+ 
+ 
++class VersionedStatic(StaticFiles):
++    """Есть ?v= в URL → кешируем навсегда, нет → обязательная ревалидация.
++
++    Версию проставляет static_url() из app/deps.py. Ошибиться здесь можно только
++    в безопасную сторону: забыли версию — юзер платит лишним 304, а не сидит
++    неделю со старым кодом, как было без Cache-Control вовсе (задача #9).
++    """
++
++    async def get_response(self, path, scope):
++        response = await super().get_response(path, scope)
++        # Только 200: закешировать навечно 404 по версионному URL — значит спрятать
++        # файл от юзера до конца жизни профиля браузера
++        versioned = b"v" in parse_qs(scope.get("query_string", b""))
++        response.headers["Cache-Control"] = (
++            "public, max-age=31536000, immutable"
++            if versioned and response.status_code == 200
++            else "no-cache"
++        )
++        return response
++
++
+ app = FastAPI(title="Orchestra", lifespan=lifespan)
+-app.mount("/static", StaticFiles(directory="app/static"), name="static")
++app.mount("/static", VersionedStatic(directory="app/static"), name="static")
+ 
+ from app.routes.tm import router as tm_router
+ from app.routes.bg import router as bg_router
+diff --git a/app/routes/system.py b/app/routes/system.py
+index 84037802cec8731d946ac3c8e672b7cb97b33dbe..38349760a9af2e98b0f9540e0e4cab8f0eeb5d21 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -70,14 +70,17 @@ async def dashboard(request: Request):
+         "is_auth_enabled": is_auth_enabled(),
+         "is_owner_mode": is_owner_mode(),
+         "client_name": os.getenv("CLIENT_NAME", "Client"),
+-    })
++    # Кешировать HTML нельзя: в нём лежат версии статики, устареет он — версии
++    # не обновятся, и весь механизм из #9 перестанет работать
++    }, headers={"Cache-Control": "no-cache"})
+ 
+ 
+ @router.get("/login", response_class=HTMLResponse)
+ async def login_page(request: Request):
+     if not is_auth_enabled():
+         return RedirectResponse("/", status_code=302)
+-    return templates.TemplateResponse(request, "login.html", {"error": ""})
++    return templates.TemplateResponse(request, "login.html", {"error": ""},
++                                      headers={"Cache-Control": "no-cache"})
+ 
+ 
+ @router.post("/login")
+diff --git a/app/templates/dashboard.html b/app/templates/dashboard.html
+index aab5f8e629490f5feaba0b897535e0a1661957bd..8ee3595fb9547b785a7bbb13ed77269e3b03f130 100644
+--- a/app/templates/dashboard.html
++++ b/app/templates/dashboard.html
+@@ -2,9 +2,9 @@
+ <html lang="en">
+ <head>
+     <meta charset="UTF-8">
+-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
++    <link rel="icon" href="{{ static_url('favicon.svg') }}" type="image/svg+xml">
+     <title>🎼 Orchestra</title>
+-    <script src="/static/css/vendor/tailwind.js"></script>
++    <script src="{{ static_url('css/vendor/tailwind.js') }}"></script>
+     <script>
+       // Design tokens via Tailwind config (CDN). Lift faint slate shades to meet WCAG AA
+       // on the #0a0e17 bg, and route sans utilities to Inter (hybrid typography).
+@@ -22,13 +22,13 @@
+         } },
+       };
+     </script>
+-    <script src="/static/css/vendor/marked.min.js"></script>
+-    <script src="/static/css/vendor/purify.min.js"></script>
+-    <script src="/static/css/vendor/diff_match_patch.js"></script>
++    <script src="{{ static_url('css/vendor/marked.min.js') }}"></script>
++    <script src="{{ static_url('css/vendor/purify.min.js') }}"></script>
++    <script src="{{ static_url('css/vendor/diff_match_patch.js') }}"></script>
+     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+-    <script src="/static/css/vendor/highlight.min.js"></script>
+-    <link rel="stylesheet" href="/static/css/vendor/highlight-github-dark.min.css">
+-    <link rel="stylesheet" href="/static/css/style.css">
++    <script src="{{ static_url('css/vendor/highlight.min.js') }}"></script>
++    <link rel="stylesheet" href="{{ static_url('css/vendor/highlight-github-dark.min.css') }}">
++    <link rel="stylesheet" href="{{ static_url('css/style.css') }}">
+ </head>
+ <body class="h-screen overflow-hidden flex flex-col" data-currency="{{ currency_symbol }}" data-hide-thinking="{{ 'true' if hide_thinking else 'false' }}" data-auth-enabled="{{ 'true' if is_auth_enabled else 'false' }}" data-client-name="{{ client_name }}">
+     <div id="rate-limit-banner" class="hidden items-center justify-center gap-2 px-4 py-2 bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs"></div>
+@@ -305,10 +305,10 @@
+         </div>
+     </div>
+ 
+-    <script src="/static/js/utils.js"></script>
+-    <script src="/static/js/tool-renderers.js"></script>
+-    <script src="/static/js/usage.js"></script>
+-    <script src="/static/js/analytics.js"></script>
+-    <script src="/static/js/app.js"></script>
++    <script src="{{ static_url('js/utils.js') }}"></script>
++    <script src="{{ static_url('js/tool-renderers.js') }}"></script>
++    <script src="{{ static_url('js/usage.js') }}"></script>
++    <script src="{{ static_url('js/analytics.js') }}"></script>
++    <script src="{{ static_url('js/app.js') }}"></script>
+ </body>
+ </html>
+diff --git a/app/templates/login.html b/app/templates/login.html
+index b3ebd5f22f7f10e9be04e6fdbd5cd4aaf22944b2..94eaba0818564ecb6f7f5809f3f367987a15bf54 100644
+--- a/app/templates/login.html
++++ b/app/templates/login.html
+@@ -3,7 +3,7 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
++    <link rel="icon" href="{{ static_url('favicon.svg') }}" type="image/svg+xml">
+     <title>🎼 Orchestra — Login</title>
+     <style>
+         * { margin: 0; padding: 0; box-sizing: border-box; }
+diff --git a/docs/tasks/9/codex-review.md b/docs/tasks/9/codex-review.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..39d6b9465fbd1d8213d8a8a2c113dde5b28bc03e
+--- /dev/null
++++ b/docs/tasks/9/codex-review.md
+@@ -0,0 +1,26 @@
++# #9 — cross-LLM ревью: вердикта нет
++
++**Codex недоступен — лимиты подписки исчерпаны.** Гейт снят оркестратором. Вердикта второй
++модели по этому дифу **не существует**; ниже только мой self-review.
++
++## Self-review
++
++Что нашёл у себя и исправил до коммита:
++
++1. **Вечный кеш на 404.** Первая версия вешала заголовок в `file_response`, и я собирался
++   ставить `immutable` по одному факту наличия `?v=`. Для несуществующего файла это означало бы
++   спрятать его от браузера до конца жизни профиля: положишь файл позже — юзер его не увидит.
++   Условие ужато до `status_code == 200`.
++2. **Разбор query «на глазок».** Проверка `b"v=" in query_string` считает версией любой параметр,
++   в имени которого есть `v=` (`?nov=1`). Заменено на `parse_qs`, точное совпадение ключа.
++   Проверено curl'ом.
++3. **Позиционное обращение к чужому API.** `file_response(*args)` и `args[2]` — угадывание
++   сигнатуры Starlette; переехал на `get_response(self, path, scope)`, где `scope` назван явно.
++
++Слабое место, оставленное осознанно, — версия из mtime, а не из хеша содержимого (разбор
++и триггер отката в report.md).
++
++Отдельно про метод проверки: сначала я считал запросы к `/static/` и решил, что кеш не работает
++(12 запросов при F5 без правок). Настоящая картина — `transferSize: 0`, то есть сеть не тронута
++вовсе; событие `response` в Playwright приходит и на попадание в кеш. Вывод по числу событий был
++бы ложным — цифру давал инструмент, а не система.
+diff --git a/docs/tasks/9/report.md b/docs/tasks/9/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..efdde0494ecfe83faf2e3fe2b3d191e8c61d53e7
+--- /dev/null
++++ b/docs/tasks/9/report.md
+@@ -0,0 +1,76 @@
++# #9 — статика доезжает до браузера непредсказуемо
++
++## Что было
++
++`app.js` (342 КБ) отдавался вообще без `Cache-Control`, ссылка в шаблоне — без версии.
++Браузер в этом случае применяет эвристику и может держать старую копию, не перепроверяя.
++Симптом: после мержа фикса юзер видит старое поведение и жмёт Ctrl-Shift-R.
++
++Проверено попутно: nginx статику **не** отдаёт и не кеширует — `location /` просто проксирует
++на `127.0.0.1:8888`, то есть заголовки FastAPI доходят до браузера как есть.
++
++## Решение
++
++Версия в query + разные правила кеширования для версионного и голого URL.
++
++1. **`static_url()` в `app/deps.py`** — Jinja-глобал, отдаёт `/static/<path>?v=<mtime_ns>`.
++   Изменился файл → изменился URL → браузер идёт за новым. Шаблоны переведены на него
++   (13 ссылок в `dashboard.html`, 1 в `login.html`).
++2. **`VersionedStatic` в `app/main.py`** — есть `?v=` и ответ 200 → `max-age=31536000, immutable`
++   (браузер не перепроверяет вообще); нет версии → `no-cache` (обязательная ревалидация, ETag
++   уже отдаётся, ответ 304 стоит копейки).
++3. **HTML — `no-cache`** (`dashboard`, `login`). В нём лежат версии статики: устареет он —
++   версии не обновятся, и весь механизм перестанет работать.
++
++Почему именно так, а не хеш в имени файла: нет сборки и не хочется её заводить, переименование
++потребовало бы генерации файлов на диске. Почему не «просто `no-cache` на всё»: канал юзера
++15–80 КБ/с, 342 КБ на каждый заход — плохой ответ.
++
++Правило выбрано так, чтобы **ошибка была безопасной**: забыли версию у нового файла — юзер
++платит лишним 304, а не сидит со старым кодом.
++
++## Приёмка (реальный браузер, обычный F5, не Ctrl-Shift-R)
++
++Мерил `transferSize` из Resource Timing, а не число запросов: на попадание в кеш событие
++`response` в Playwright всё равно приходит, и по нему кажется, будто файл качается.
++
++| шаг | из кеша без запроса | ревалидация 304 | полная загрузка | по сети |
++|---|---|---|---|---|
++| 1. первый заход | 0 | 0 | 12 | 1083.7 КБ |
++| 2. F5, ничего не менялось | 12 | 0 | 0 | **0 КБ** |
++| 3. F5 после правки `app.js` | 11 | 0 | **1** (`js/app.js`) | 333.7 КБ |
++
++Маркер в файле на шаге 3 сменился с 1 на 2 — правка доехала **обычным F5**. Скрипт:
++`/tmp/test_cache2.py`, стенд — `/tmp/harness.py` (реальные `VersionedStatic`, `static_url` и роут
++дашборда, поднятые на :8899 из worktree; живой сервис не трогался).
++
++Краевые случаи:
++
++```
++GET /static/js/nope.js?v=deadbeef  → 404, immutable НЕ ставится (иначе файл спрятан от юзера навсегда)
++GET /static/js/app.js?nov=1        → 200, cache-control: no-cache (чужой параметр не считается версией)
++```
++
++## Что важно знать при выкатке
++
++- **Требуется рестарт orchestra** — это Python-код. До рестарта ничего не меняется.
++- Переход должен быть чистым без Ctrl-Shift-R: HTML отдаётся без валидаторов и потому
++  запрашивается заново, а ссылки в нём — новые URL, которых в кеше нет. Если у кого-то
++  всё же залипнет старый HTML, одного F5 хватит, и дальше проблема не воспроизводится.
++
++## Известная дыра (не закрывал)
++
++Версия = `mtime`, а не хеш содержимого. Два следствия:
++
++- `git checkout`, вернувший тот же файл байт-в-байт, обновит mtime → одна лишняя загрузка.
++  Дёшево, мирюсь.
++- Если mtime когда-нибудь поедет **назад** при изменившемся содержимом (развёртывание через
++  `rsync -a`, распаковка архива с сохранением времён, восстановление из бэкапа), браузер отдаст
++  закешированную навечно старую копию. Наш деплой — git, он всегда ставит текущее время, поэтому
++  оставил как есть. Лечится переходом на хеш содержимого с кешем по `(path, mtime, size)`.
++
++## Тесты
++
++`tests/test_auth.py tests/test_frontend.py tests/test_api.py` → **59 failed, 76 passed, 8 errors**.
++Ровно тот же результат на базе ветки без моих правок (`git stash` → прогон → `stash pop`), то есть
++красное не от этой задачи.
+diff --git a/docs/workers/frontend.md b/docs/workers/frontend.md
+index 03cac1a2b2e5355175d422c2664a8ebe7bf1ef0c..736ac4f5819a8544613239f96c13d143ae7ce347 100644
+--- a/docs/workers/frontend.md
++++ b/docs/workers/frontend.md
+@@ -8,5 +8,7 @@
+   Причина: глифы ►/‖/○ в 9px развалились из-за хинтинга шрифта; индикатор переделали на ⚡/☕️/⏳ в кружке 17px из общих `_STATUS_ICON` / `_STATUS_COLOR` / `_STATUS_BG`.
+ - Аналитика живёт в `app/static/js/analytics.js`; не возвращай её в `app.js`.
+ - Правку фронта НЕЛЬЗЯ проверить на живом :8888 — статику он отдаёт из основного чекаута, не из моего worktree. Симптом обманчивый: страница работает, а твоей функции просто нет (`typeof _stashChatDom → undefined`). Проверять так: Playwright + `page.route('**/static/js/app.js', lambda r: r.fulfill(body=<файл из worktree>))`, а «до/после» мерить `git show HEAD:путь` против рабочей копии.
++- Python-правку (роуты, StaticFiles, deps) на живом :8888 не проверить — он требует рестарта, а рестартить нельзя. Поднимай свой стенд из worktree: `/tmp/harness.py` импортирует РЕАЛЬНЫЕ классы (`from app.main import VersionedStatic`, `from app.routes.system import router`) и монтирует их в голый FastAPI на :8899, без менеджера сессий и lifespan. Работать надо с `os.chdir(worktree)` — пути `app/static` и `app/templates` относительные. Гасить стенд по PID из `ss -ltnp | grep :8899`, НЕ `pkill -f` (шаблон совпадает с собственной командной строкой и убивает мой же шелл — проверено).
++- Кеш браузера мерить только по `transferSize` из Resource Timing: событие `response` в Playwright приходит и на попадание в кеш, по числу запросов кажется, что кеш не работает. `transferSize=0` — сеть не тронута, `0 < transferSize < encodedBodySize` — 304.
+ - Клиентский CPU (кодирование картинок и т.п.) на этом VPS мерить нельзя: при LA 11–19 одна и та же операция даёт 405 мс и 13.7 с. Ловить спокойный момент бесполезно — либо считать по МП из чистого замера, либо просить прогон на машине юзера. В отчёте так и писать: «не измерено», а не подставлять цифру с перегруженной машины.
+ - Прежде чем кешировать/переиспользовать куски чата — вспомни, что часть узлов ещё НЕ строки лога: черновик стрима (`streamBubble`), локальное эхо (`localMessages`), отложенный финал (`_streamDeferredFinal`). Их строка придёт позже с id > lastId → дубль, а если строку уже прочитали, выкинешь узел → потеря. Логика в `_stashChatDom`.

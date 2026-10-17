@@ -1,0 +1,1 @@
+{"id": "bad-V-621", "sha": "0059e6757edf3badf7267c23def512d03a4aef06", "rc": 0, "seconds": 47.3, "usage": {"input_tokens": 389953, "cached_input_tokens": 343168, "cache_write_input_tokens": 0, "output_tokens": 2646, "reasoning_output_tokens": 1311}, "diff_bytes": 84861, "dirty_after": "", "stderr": ""}

@@ -1,0 +1,1227 @@
+diff --git a/app/db.py b/app/db.py
+index 0d5b86bf4861e4b9a1ac0c276e234c92294c1ace..aae323b601dbac2db6cd70919e696bcfa15c6896 100644
+--- a/app/db.py
++++ b/app/db.py
+@@ -86,9 +86,8 @@ _QUOTA_POLICY_TABLE_SQL = """
+         """
+ 
+ # Пороги совпадают с fallback-константами гейта (app/quota_gate.py
+-# LANE_DEFAULT_THRESHOLDS); равенство закреплено тестом. claude=90 — абсолютный
+-# worker-стоп принятой политики #227 (pipelines/default/pipeline.yaml:17
+-# absolute_block_pct, app/manager.py:646).
++# LANE_DEFAULT_THRESHOLDS); равенство закреплено тестом. Обоснование каждого числа —
++# там же, у констант: в манифесте пайплайна их больше нет (#329).
+ QUOTA_POLICY_DEFAULTS = {"sol": 95.0, "luna": 98.0, "spark": 95.0, "claude": 90.0}
+ QUOTA_POLICY_SOURCE = "temporary_static_override"
+ QUOTA_POLICY_LABEL = "TEMPORARY STATIC OVERRIDE"
+diff --git a/app/manager.py b/app/manager.py
+index 89f7da03c8affb4e9ffb4a38557d0c8301cea1cb..a8ee316ba44ea6395b634fa9e171616e48d3e93a 100644
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -4,7 +4,6 @@ import asyncio
+ import itertools
+ import json
+ import logging
+-import math
+ import os
+ import re
+ import sqlite3
+@@ -88,76 +87,6 @@ class OrphanProcessIdentity:
+ # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
+ # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
+ LOCK_WAIT_LIMIT_SECONDS = 25.0
+-# Keep policy telemetry inside the 30s MCP request budget. Slow/missing telemetry is
+-# advisory failure: the model gate logs it and admits the worker.
+-WORKER_MODEL_POLICY_TIMEOUT_SECONDS = 12.0
+-WEEKLY_WINDOW_SECONDS = 7 * 24 * 60 * 60
+-
+-
+-async def _worker_model_policy_usage() -> dict:
+-    """Read only the live Anthropic payload behind GET /api/usage."""
+-    from app.quota_gate import QUOTA_OBSERVATION_MAX_AGE
+-    from app.routes.system import current_quota_observation
+-
+-    observation = await current_quota_observation(required_provider="anthropic")
+-    providers = observation.get("providers") if isinstance(observation, dict) else None
+-    timestamps = (
+-        observation.get("observed_at_by_provider")
+-        if isinstance(observation, dict)
+-        else None
+-    )
+-    observed_at = timestamps.get("anthropic") if isinstance(timestamps, dict) else None
+-    age = time.time() - observed_at if isinstance(observed_at, (int, float)) else math.inf
+-    if isinstance(observed_at, bool) or not 0 <= age < QUOTA_OBSERVATION_MAX_AGE:
+-        raise RuntimeError("fresh Anthropic worker quota telemetry is unavailable")
+-
+-    anthropic = providers.get("anthropic") if isinstance(providers, dict) else None
+-    windows = anthropic.get("windows") if isinstance(anthropic, dict) else None
+-    seven_day = next(
+-        (
+-            window for window in windows
+-            if isinstance(window, dict) and window.get("id") == "seven_day"
+-        ),
+-        None,
+-    ) if isinstance(windows, list) else None
+-    if seven_day is None:
+-        raise RuntimeError("Anthropic seven-day worker quota telemetry is unavailable")
+-    return {"anthropic": {"seven_day": seven_day}}
+-
+-
+-def _policy_utilization(usage: dict, provider: str, window: str) -> float:
+-    data = usage.get(provider)
+-    value = data.get(window, {}).get("utilization") if isinstance(data, dict) else None
+-    if (
+-        isinstance(value, bool)
+-        or not isinstance(value, (int, float))
+-        or not math.isfinite(float(value))
+-        or not 0 <= float(value) <= 100
+-    ):
+-        raise ValueError(f"{provider}.{window}.utilization is missing or malformed")
+-    return float(value)
+-
+-
+-def _policy_window_elapsed(usage: dict) -> tuple[float | None, str]:
+-    anthropic = usage.get("anthropic")
+-    seven_day = anthropic.get("seven_day") if isinstance(anthropic, dict) else None
+-    raw = seven_day.get("resets_at") if isinstance(seven_day, dict) else None
+-    if not isinstance(raw, str) or not raw.strip():
+-        return None, "anthropic.seven_day.resets_at is missing"
+-    try:
+-        reset_at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+-    except ValueError:
+-        return None, "anthropic.seven_day.resets_at is malformed"
+-    if reset_at.tzinfo is None:
+-        return None, "anthropic.seven_day.resets_at has no timezone"
+-    remaining = (reset_at.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()
+-    if remaining <= 0:
+-        return None, "anthropic.seven_day.resets_at is in the past"
+-    if remaining > WEEKLY_WINDOW_SECONDS:
+-        return None, "anthropic.seven_day.resets_at is beyond the weekly window"
+-    return 100.0 * (1.0 - remaining / WEEKLY_WINDOW_SECONDS), ""
+-
+-
+ class LockBusy(RuntimeError):
+     """Лок сессии занят дольше отведённого: у вызова есть кто уступить и кому повторить."""
+ 
+@@ -530,9 +459,6 @@ class SessionManager:
+         self.sessions: dict[str, AgentSession] = {}
+         self._session_locks: dict[str, asyncio.Lock] = {}
+         self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
+-        self._worker_model_policy_latches: dict[
+-            tuple[str, str, float, float, float, float], tuple[bool, bool]
+-        ] = {}
+         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
+         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
+         # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
+@@ -601,8 +527,12 @@ class SessionManager:
+         override_reason: str,
+     ) -> None:
+         cfg = load_pipeline(pipeline)
+-        role_spec = cfg.roles.get(role)
+-        if role_spec is None or role_spec.kind == "orchestrator":
++        # Исключение оркестраторов живёт ОДНИМ владельцем — в вызывающем коде
++        # (`if planned_initial_turn and not is_orch`), тем же условием пропускающем
++        # и quota-гейт. Копии здесь нет намеренно: она была недостижима через
++        # единственный call site и давала иллюзию покрытия — мутация «снять
++        # исключение» оставляла тест зелёным (#329).
++        if role not in cfg.roles:
+             return
+         policy = cfg.worker_model_policy
+         if policy is None:
+@@ -617,71 +547,16 @@ class SessionManager:
+             return
+         if model in policy.always_allowed:
+             return
+-
+-        alternatives = ", ".join(policy.alternatives)
+-        guarded = policy.quota_guarded
+-        if model != guarded.model:
+-            raise ValueError(
+-                f"worker model '{model}' is not allowed by pipeline '{pipeline}'. "
+-                f"Use {alternatives}, or pass model_policy_override_reason with a non-empty reason."
+-            )
+-
+-        try:
+-            async with asyncio.timeout(WORKER_MODEL_POLICY_TIMEOUT_SECONDS):
+-                usage = await _worker_model_policy_usage()
+-            claude = _policy_utilization(usage, "anthropic", "seven_day")
+-        except Exception as error:
+-            logger.error(
+-                "worker model policy telemetry unavailable; allowing model=%s: %s: %s",
+-                model, type(error).__name__, err_text(error),
+-            )
+-            return
+-
+-        key = (
+-            pipeline, model,
+-            guarded.pace_block_lead_pp, guarded.pace_unblock_lead_pp,
+-            guarded.absolute_block_pct, guarded.absolute_unblock_pct,
+-        )
+-        pace_blocked, absolute_blocked = self._worker_model_policy_latches.get(
+-            key, (False, False),
++        # Расход здесь не читается вовсе: потолок пула принуждает quota-гейт
++        # (полоса в `quota_controller_policy`), он зовётся строкой ниже по тому же
++        # спавну. Здесь остаётся только допуск, не зависящий от расхода.
++        raise ValueError(
++            f"worker model '{model}' is not admitted for workers by pipeline '{pipeline}' "
++            f"(models outside the admitted set are refused by default). "
++            f"Use {', '.join(policy.alternatives)}, or pass model_policy_override_reason "
++            "with a non-empty reason."
+         )
+ 
+-        if claude >= guarded.absolute_block_pct:
+-            absolute_blocked = True
+-        elif claude <= guarded.absolute_unblock_pct:
+-            absolute_blocked = False
+-
+-        elapsed, pace_error = _policy_window_elapsed(usage)
+-        lead = None
+-        if elapsed is None:
+-            logger.warning("worker model policy pace check skipped: %s", pace_error)
+-        else:
+-            lead = claude - elapsed
+-            if lead >= guarded.pace_block_lead_pp:
+-                pace_blocked = True
+-            elif lead <= guarded.pace_unblock_lead_pp:
+-                pace_blocked = False
+-
+-        self._worker_model_policy_latches[key] = pace_blocked, absolute_blocked
+-        active: list[str] = []
+-        if elapsed is not None and pace_blocked:
+-            active.append(
+-                f"window elapsed {round(elapsed, 1):g}%, pace lead {round(lead, 1):g} pp "
+-                f"(blocks at >= {guarded.pace_block_lead_pp:g} pp, unlocks at "
+-                f"<= {guarded.pace_unblock_lead_pp:g} pp)"
+-            )
+-        if absolute_blocked:
+-            active.append(
+-                f"absolute worker stop {guarded.absolute_block_pct:g}% remains latched until "
+-                f"<= {guarded.absolute_unblock_pct:g}%"
+-            )
+-        if active:
+-            raise ValueError(
+-                f"worker model '{model}' is blocked by Claude weekly policy: "
+-                f"Claude 7d {claude:g}%; {'; '.join(active)}. Use {alternatives}, or pass "
+-                "model_policy_override_reason with a non-empty reason."
+-            )
+-
+     async def create_session(self, name: str, scope: str, cwd: str, model: str,
+                              system_prompt: str = "", use_worktree: bool = False,
+                              repo_path: str | None = None, is_orchestrator: bool = False,
+diff --git a/app/pipeline.py b/app/pipeline.py
+index 5db7f974099bbe40482a6f29bce407a067ebcafe..3c3356133d3b465295fc6de3cb72fb86d6995bf5 100644
+--- a/app/pipeline.py
++++ b/app/pipeline.py
+@@ -178,48 +178,24 @@ class PromptLayers(BaseModel):
+         return v
+ 
+ 
+-class QuotaGuardedModelPolicy(BaseModel):
+-    """One worker model guarded by Claude weekly pace and an absolute ceiling."""
+-
+-    model_config = ConfigDict(extra="forbid")
+-    model: str
+-    pace_block_lead_pp: float
+-    pace_unblock_lead_pp: float
+-    absolute_block_pct: float
+-    absolute_unblock_pct: float
+-
+-    @field_validator("model")
+-    @classmethod
+-    def _canonical_model(cls, v: str) -> str:
+-        if not _model_is_known(v):
+-            logger.warning("worker model policy: unknown quota-balanced model '%s'", v)
+-        return _canon_model(v)
+-
+-    @model_validator(mode="after")
+-    def _valid_hysteresis(self) -> "QuotaGuardedModelPolicy":
+-        if not -100 <= self.pace_unblock_lead_pp < self.pace_block_lead_pp <= 100:
+-            raise ValueError(
+-                "worker model policy requires -100 <= pace_unblock_lead_pp "
+-                "< pace_block_lead_pp <= 100"
+-            )
+-        if not 0 <= self.absolute_unblock_pct < self.absolute_block_pct <= 100:
+-            raise ValueError(
+-                "worker model policy requires 0 <= absolute_unblock_pct "
+-                "< absolute_block_pct <= 100"
+-            )
+-        return self
++class WorkerModelPolicy(BaseModel):
++    """Static, spend-independent model admission for roles whose kind is worker.
+ 
++    One mechanism, fail-closed: a model absent from `always_allowed` is refused,
++    so a model newly added to the registry is denied to workers until someone
++    admits it deliberately. There is deliberately no second deny list — two gates
++    over one thought diverge (#329).
+ 
+-class WorkerModelPolicy(BaseModel):
+-    """Server-enforced model admission for roles whose manifest kind is worker."""
++    Everything about pools — utilization, pace, reserve — belongs to the quota
++    controller (hot policy in `quota_controller_policy` + `app/quota_gate.py`) and
++    does not exist here at all.
++    """
+ 
+     model_config = ConfigDict(extra="forbid")
+     always_allowed: list[str]
+-    denied: list[str]
+-    quota_guarded: QuotaGuardedModelPolicy
+     alternatives: list[str]
+ 
+-    @field_validator("always_allowed", "denied", "alternatives")
++    @field_validator("always_allowed", "alternatives")
+     @classmethod
+     def _canonical_models(cls, values: list[str]) -> list[str]:
+         result: list[str] = []
+@@ -234,15 +210,6 @@ class WorkerModelPolicy(BaseModel):
+ 
+     @model_validator(mode="after")
+     def _valid_sets(self) -> "WorkerModelPolicy":
+-        if self.quota_guarded.model in self.always_allowed:
+-            raise ValueError("quota-guarded model cannot also be always allowed")
+-        overlap = set(self.always_allowed) & set(self.denied)
+-        if self.quota_guarded.model in self.denied:
+-            overlap.add(self.quota_guarded.model)
+-        if overlap:
+-            raise ValueError(
+-                f"worker model policy allows and denies the same model: {sorted(overlap)}"
+-            )
+         missing = set(self.alternatives) - set(self.always_allowed)
+         if missing:
+             raise ValueError(
+diff --git a/app/quota_gate.py b/app/quota_gate.py
+index 33de0fd5b7271ef4af2c6f2c94288e25e2c4f118..1416f42e83b44c1e74163615afabe5aea693617c 100644
+--- a/app/quota_gate.py
++++ b/app/quota_gate.py
+@@ -15,10 +15,16 @@ from app.runtime_registry import get_runtime
+ WEEKLY_WINDOW_MINUTES = 10080
+ WORKER_WEEKLY_LIMIT_PCT = 95.0
+ LUNA_WORKER_WEEKLY_LIMIT_PCT = 98.0
+-# Абсолютный worker-стоп пула Claude из принятой политики #227
+-# (pipelines/default/pipeline.yaml:17 absolute_block_pct, app/manager.py:646):
+-# последние 10 п.п. недели резервируются под оркестраторов и кеш. Оркестраторы
+-# гейт не проходят вовсе (app/session.py:1207, :2032, :2248).
++# Абсолютный worker-стоп недельного пула Claude. ЗДЕСЬ живёт обоснование числа —
++# в манифесте его больше нет (#329 вырезал оттуда всё про расход, чтобы у логики
++# пулов остался один владелец):
++#   последние 10 п.п. недели резервируются под ОРКЕСТРАТОРОВ и кеш. Упереться в
++#   недельный лимит Claude больно — работать становится нечем, поэтому воркеры
++#   останавливаются раньше, чем пул кончится. Оркестраторы этот гейт не проходят
++#   вовсе (app/session.py:1207, :2032, :2248), то есть резерв достаётся им.
++# Происхождение: политика #227 (там же был отменённый ныне гистерезис возврата 87%).
++# Значение — только дефолт: действующий порог берётся из полосы `claude` таблицы
++# `quota_controller_policy` и меняется оператором горячо.
+ CLAUDE_WORKER_WEEKLY_LIMIT_PCT = 90.0
+ # Совпадение с сидом БД (app/db.py QUOTA_POLICY_DEFAULTS) закреплено тестом.
+ LANE_DEFAULT_THRESHOLDS = {
+diff --git a/docs/tasks/329/report.md b/docs/tasks/329/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e62921e4adc72e87f48d8681ffae2a340dd62fd
+--- /dev/null
++++ b/docs/tasks/329/report.md
+@@ -0,0 +1,203 @@
++# #329 — логика пулов уезжает из манифеста к своему единственному владельцу
++
++## ⚠️ Перед мержем прочитать: ЖИВОЙ процесс отвергает новый манифест
++
++Замерено, а не предположено. Живой сервис поднят 18.08 08:08 с кодом `5a9ff796`; его схема
++`WorkerModelPolicy` требует полей `denied` и `quota_guarded`. Прогон новой формы манифеста через
++ЭТУ схему:
++
++```
++ЖИВАЯ схема ОТВЕРГЛА блок: ValidationError
++  denied         Field required
++  quota_guarded  Field required
++ЖИВАЯ схема отвергла ВЕСЬ манифест: ValidationError
++```
++
++`load_pipeline` поднимает `ValidationError` наружу (docstring: «:raises pydantic.ValidationError»),
++а манифест читается из ГЛАВНОГО чекаута — то есть эффект наступает в момент мержа, не рестарта.
++Пострадает не только гейт моделей: на `load_pipeline` висят каталог ролей и сборка системного
++промпта (`ROLE_SYSTEM_PROMPT`), то есть спавны живых агентов.
++
++**Выбран вариант 2** (рестарт делает только юзер по явной команде, а он не за пультом): код и
++тесты мержатся сейчас, блок манифеста **выключен** отдельным коммитом и включается в окно
++рестарта. До включения живой процесс видит `worker_model_policy is None` — ровно то, что там и
++было последние сутки, то есть мерж не меняет ничего для работающих агентов.
++
++## 🔧 Окно рестарта: что сделать и чем проверить
++
++**1. Включить блок** — снять `# ` с трёх строк в `pipelines/default/pipeline.yaml`
++(`# worker_model_policy:` и две под ним). Команда прогонялась дословно на этом дереве:
++
++```bash
++sed -i -e 's/^# worker_model_policy:/worker_model_policy:/' \
++       -e 's/^#   \(always_allowed\|alternatives\):/  \1:/' pipelines/default/pipeline.yaml
++```
++
++**2. Новая схема приняла манифест** (до рестарта, в главном чекауте):
++
++```bash
++uv run python -c "from app.pipeline import load_pipeline; p = load_pipeline('default').worker_model_policy; print(p.always_allowed, p.alternatives)"
++```
++Ожидаемый вывод — не пусто и без исключения:
++`['gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-5.3-codex-spark', 'claude-opus-5[1m]'] ['gpt-5.6-sol', 'gpt-5.6-luna']`.
++Тесты зелены в ОБОИХ состояниях блока (проверено: выключен — 101 passed, включён — 117 passed),
++так что `main` не краснеет ни до, ни после включения.
++
++**3. Рестарт** — командой юзера.
++
++**4. Живой процесс принял манифест** (отрицательный признак ловится сразу: битый манифест
++выкидывает пайплайн из списка, `list_pipelines` фильтрует по `valid`):
++
++```bash
++curl -s -H "Authorization: Bearer $INTERNAL_TOKEN" localhost:8888/api/pipelines | grep -c '"name":"default"'
++```
++Ожидание: `1`.
++
++**5. Положительный признак, что допуск ПРИНУЖДАЕТСЯ** (не «должно работать», а проверяемо):
++спавн воркера на невпущенной модели обязан быть отбит, причём НОВЫМ текстом —
++`spawn_worker(name="probe-329", model="gpt-5.6-terra", …)` → `ApiToolError` с подстрокой
++
++```
++not admitted for workers by pipeline 'default'
++```
++
++Текст и есть маркер версии: старый код (5a9ff796) на том же месте отвечал
++`is not allowed by pipeline '<pipeline>'`. Проба безопасна — отказ происходит до любых
++side-effects (ни сессии, ни worktree; в тестах это закреплено `assert mgr.sessions == {}`).
++Если вместо отказа воркер СОЗДАЛСЯ — значит блок не включился или рестарт не состоялся.
++
++## Что действует когда
++
++| что | сейчас (до рестарта) | после рестарта |
++|---|---|---|
++| Полоса `claude` = 90% для воркеров (гейт) | **уже действует** — вошло с #318, `quota_controller_policy` читается на каждый спавн и ход | без изменений |
++| Ползунки порогов, карта квот на фронте | уже действуют (JS/CSS отдаются из чекаута) | без изменений |
++| Статический допуск моделей воркерам (`always_allowed`) | **не действует**: блок выключен, `worker_model_policy is None` — как и последние сутки | начинает действовать (включение блока + рестарт) |
++| Вырезанные из манифеста проценты/темп/резерв | в живом процессе их и так нет (блок был закомментирован) | нет и в коде |
++
++## 1. Что вырезано
++
++Из манифеста и из кода ушло ВСЁ, что читает расход:
++- `quota_guarded` целиком (`model`, `pace_block_lead_pp`, `pace_unblock_lead_pp`,
++  `absolute_block_pct`, `absolute_unblock_pct`) и класс `QuotaGuardedModelPolicy`;
++- из `app/manager.py` — `_worker_model_policy_usage()`, `_policy_utilization()`,
++  `_policy_window_elapsed()`, константы `WORKER_MODEL_POLICY_TIMEOUT_SECONDS`,
++  `WEEKLY_WINDOW_SECONDS`, словарь латчей `_worker_model_policy_latches` и весь блок
++  pace/ceiling-решения (≈80 строк);
++- из `scripts/check_pipeline_manifest.py` — сбор id моделей из `denied`/`quota_guarded`.
++
++Осталось: `always_allowed` + `alternatives`. Принуждение — в коде
++(`SessionManager._enforce_worker_model_policy`, вызов из `create_session` до любых side-effects),
++не в промпте: замер #227 (промптовый запрет модели не сработал 1 из 1) продолжает действовать как
++основание.
++
++## 2. Аллоулист, а не денилист — и почему
++
++Развилку закрыл оркестратор: остаётся **fail-closed** допуск. Модель, отсутствующая в
++`always_allowed`, отклоняется, поэтому новая модель в реестре по умолчанию недоступна воркерам.
++Второго механизма (явного deny-списка Fable/Terra) намеренно нет — это был бы второй гейт на ту же
++мысль. Намерение «эти две не хотим» живёт в комментарии манифеста и в тексте отказа, а не в
++отдельной проверке.
++
++Схемное следствие: `denied` из `WorkerModelPolicy` удалён совсем, `alternatives` обязано быть
++подмножеством `always_allowed` (иначе отказ предлагал бы то, чего сам не впускает).
++
++## 3. Где теперь живёт обоснование `claude = 90`
++
++У самой константы — `CLAUDE_WORKER_WEEKLY_LIMIT_PCT` в `app/quota_gate.py`. Туда перенесён весь
++текст: последние 10 п.п. недели резервируются под оркестраторов и кеш, оркестраторы гейт не
++проходят вовсе (`app/session.py:1207`, `:2032`, `:2248`), происхождение — политика #227.
++`app/db.py` (сид полос) теперь ссылается на константы гейта, а не на строку манифеста, которой
++больше нет. Само значение — только дефолт: действующий порог живёт в полосе `claude` таблицы
++`quota_controller_policy` и меняется оператором горячо.
++
++## 4. Гистерезис 87% — потеря разобрана данными, дребезг невозможен
++
++Вопрос оркестратора: что будет на дребезге у границы 90%, раз гейт решает на каждый ход.
++
++Ответ из живой истории (`usage_snapshots`, копия через `Connection.backup`, 9 950 снимков,
++05.07–18.08, интервал ~5 мин, медиана 300.7 с):
++
++```
++переходов всего: 10025
++уменьшений процента: 11 | из них <= 20 п.п.: 0 | > 20 п.п. (сбросы окна): 11
++макс. маленькое уменьшение: 0
++пересечений порога 90 вниз: 3 | вверх: 3
++колебаний вокруг 90 (>=90 → <90 → >=90): 0
++различных значений: 101, нецелых: 0 (проценты приходят целыми)
++```
++
++Внутри окна ряд не убывает НИ РАЗУ: единственные падения — сбросы, и все они ≥20 п.п. Значит,
++перейдя 90%, утилизация остаётся выше порога до сброса, а после сброса оказывается далеко ниже
++него. Дребезг у границы невозможен по форме данных, и гистерезису здесь нечего защищать —
++отдельный тикет не нужен.
++
++Замечание о методе: первая версия этой проверки резала «окна» по смене `seven_day_resets_at` и
++дала «0 падений, 0 пересечений» — но `resets_at` у Anthropic скользящий и меняется почти в каждом
++снимке (9 949 смен из 9 949), то есть проверка была ВАКУУМНОЙ и не могла покраснеть. Настоящий
++ответ получен по самому ряду процентов.
++
++## 5. Найденный по дороге дефект: исключение оркестраторов имело двух владельцев
++
++Мутация «снять исключение оркестраторов внутри `_enforce_worker_model_policy`» оставила тест
++ЗЕЛЁНЫМ (16 passed). Причина: до функции орк вообще не доходит — call site гейтит сам
++(`if planned_initial_turn and not is_orch`), и `is_orch` выводится из того же факта манифеста
++(`kind == "orchestrator"`, `_role_is_orchestrator`). То есть внутренняя проверка была недостижима
++через единственный call site и создавала иллюзию покрытия.
++
++Убрал дубль, оставив одного владельца — call site (он же пропускает орков мимо quota-гейта).
++После этого мутация на реальном шве (`not is_orch` снято) краснит ровно тест исключения.
++Побочный эффект, названный вслух: если `_enforce_worker_model_policy` когда-нибудь позовут в
++обход `create_session`, орк-роль там больше не будет освобождена — в текущем коде такого
++вызывающего нет (`grep`: один call site).
++
++## 6. Мутации (протокол: `cp` → мутация → `mv` → `grep -c` до/после → `touch` → зелёный повтор)
++
++| # | мутация | что покраснело | после отката |
++|---|---|---|---|
++| N1 | `if model in policy.always_allowed` → `not in` (принуждение снято) | 14 из 16 | 16 passed |
++| N2 | снято исключение орков ВНУТРИ функции | **ничего** — так и нашёлся дубль (см. §5) | 16 passed |
++| N2b | снято исключение орков на реальном шве (`not is_orch`) | `test_orchestrators_are_exempt_even_on_a_model_workers_may_not_use` | 16 passed |
++| N3 | удалён вызов `_enforce_worker_model_policy` (проводка) | 6: все четыре запрещённые модели + override + независимость от расхода | 16 passed |
++| N4b | блок манифеста снова закомментирован (валидный YAML) | тест активности блока — та версия, что требовала включённого блока | 101 passed |
++| N5 | блок исчез совсем: ни активного, ни закомментированного | `test_worker_model_policy_is_active_or_explicitly_staged_and_free_of_spend` | 101 passed |
++| N6 | выключенный блок протащил `quota_guarded` | тот же тест | 101 passed |
++
++N4 (первая попытка) закомментировал только две строки из трёх и сломал YAML — покраснели 88
++тестов, то есть мутант проверял не то, что задумано; переделан как N4b.
++
++## 7. Тесты (правки авторизованы оркестратором)
++
++Удалены тесты вырезанного поведения: pace/гистерезис/абсолютный потолок/латчи/чтение телеметрии
++policy (`test_policy_loader_requests_only_anthropic`, `test_opus_*_hysteresis`,
++`test_fast_claude_pace_*`, `test_balance_telemetry_*`, `test_slow_anthropic_telemetry_*` —
++последний опирался на удалённую константу таймаута; ограничение времени телеметрии осталось внутри
++`current_quota_observation(timeout=12)`).
++
++Сохранены и усилены:
++- `test_model_outside_the_admitted_set_never_reaches_a_session` — 4 параметра: Fable, Terra
++  (намеренно не впущены) и `claude-sonnet-5[1m]`, `grok-4.5` (зарегистрированы, но не открыты) —
++  это и есть проверка fail-closed; каждый случай ещё и доказывает, что телеметрия расхода НЕ
++  читается (`current_quota_observation` подменён на падающий двойник);
++- `test_orchestrators_are_exempt_even_on_a_model_workers_may_not_use` — орк спавнится на Fable;
++- `test_admission_is_independent_of_how_much_quota_is_left` — пул на 1% и на 99% дают одинаковые
++  ответы допуска;
++- `test_quota_gate_blocks_opus_worker_above_the_claude_lane` — новый: потолок пула принуждает
++  ГЕЙТ (91% > полосы 90%), а не манифест;
++- fail-open/громкость quota-гейта на том же спавне (4 теста) — без изменений по смыслу.
++
++Схемные тесты переписаны под новую форму: `tests/test_pipeline.py` теперь проверяет, что манифест
++со `quota_guarded` ОТВЕРГАЕТСЯ, а `alternatives` вне `always_allowed` — тоже.
++
++`tests/test_default_pipeline.py` пришлось привести в соответствие с выключенным блоком, не делая
++тест вакуумным. Он допускает ОБА состояния и в каждом требует одного и того же: блок либо активен,
++либо лежит закомментированным ЯВНО (исчезнуть не может — N5); в любом состоянии его форма —
++ровно `{always_allowed, alternatives}`, без единого поля про расход (N6); схема принимает его
++через `WorkerModelPolicy.model_validate`; Fable и Terra в допуск не входят; и отдельной строкой
++фиксируется, что выключенный блок означает именно «не принуждается»
++(`load_pipeline(...).worker_model_policy is None` ровно тогда, когда блок закомментирован).
++
++Прогоны: `test_worker_model_policy` 16 passed, `test_pipeline` 97 passed,
++`test_default_pipeline` 101 passed, вместе с `test_check_pipeline_manifest`, `test_quota_gate`,
++`test_quota_map_api`, `test_quota_policy` — 272 passed.
++`scripts/check_pipeline_manifest.py --check` — OK.
+diff --git a/docs/workers/feat-quota-front.md b/docs/workers/feat-quota-front.md
+index e5efc92f8a2d9f0e6c479ef22dae987748a5606b..b81e497b9eee92ce2eecd9ba6ed6cd39c71799e8 100644
+--- a/docs/workers/feat-quota-front.md
++++ b/docs/workers/feat-quota-front.md
+@@ -37,6 +37,23 @@ called from a running event loop`. Починено в `tests/conftest.py`: це
+ числах без рестарта: `curl /api/usage` с `INTERNAL_TOKEN` → `system._provider_usage_snapshot(...)`
+ → `build_quota_map()` офлайн на временной БД → отдать payload в браузерный harness.
+ 
++## Правку СХЕМЫ манифеста проверять живой схемой, а не своей
++Манифест читается из ГЛАВНОГО чекаута, значит новая форма `pipeline.yaml` начинает действовать в
++момент МЕРЖА, а код-валидатор — только после рестарта. Если из схемы убраны обязательные поля,
++живой процесс отвергнет ВЕСЬ манифест (`load_pipeline` поднимает `ValidationError` наружу, на нём
++висят каталог ролей и `ROLE_SYSTEM_PROMPT`, то есть спавны). Проба на 10 строк, делать ДО мержа:
++взять код живого процесса (`git log main --before='<время старта сервиса>' -1` → `git show
++<sha>:app/pipeline.py`), загрузить его через `importlib.util.spec_from_file_location` и прогнать
++новый манифест его схемой. Замер #329: `ЖИВАЯ схема ОТВЕРГЛА блок: denied Field required,
++quota_guarded Field required`. Отсюда правило: мерж манифеста и рестарт — одно окно, либо манифест
++уходит отдельным коммитом в окно рестарта.
++
++## Мутируй ту проверку, которая РЕАЛЬНО работает, а не одноимённую
++#329: мутация «снять исключение оркестраторов» внутри `_enforce_worker_model_policy` оставила тест
++зелёным — до функции орк не доходит, его гейтит call site (`if planned_initial_turn and not
++is_orch`). Два владельца одной мысли, из них работает только внешний. Зелёный мутант здесь — не
++«тест дырявый», а находка: ищи, кто на самом деле принимает решение, и мутируй его.
++
+ ## Harness модалки аналитики
+ `tests/test_usage_analytics_frontend.py::_page` строит DOM-скелет и подключает мои
+ `app/static/js/*` и `style.css` из worktree; `window.api` там — одна заглушка на все URL.
+diff --git a/pipelines/default/pipeline.yaml b/pipelines/default/pipeline.yaml
+index 1f92f4e1e89b49fdc47becdbdbc05c109f34f876..4711191a291f515f140e19803878fa99bd1f6ceb 100644
+--- a/pipelines/default/pipeline.yaml
++++ b/pipelines/default/pipeline.yaml
+@@ -1,21 +1,27 @@
+ name: default
+ description: Upstream-derived v2.18 pipeline with local models and runtime modules.
+ validation: fail-open
+-# ВРЕМЕННО ВЫКЛЮЧЕНО: живой процесс загружен со старой Pydantic-схемой extra='forbid',
+-# поэтому новое поле роняет загрузку ВСЕГО манифеста. Снять '# ' со следующего блока
+-# вместе с рестартом Orchestra; после этого значения и пороги меняются горячо.
+-# Норма — utilization не более чем на 5–10 п.п. впереди прошедшего окна: 11 п.п. —
+-# первый целый пункт снаружи, возврат на 7 п.п. даёт гистерезис. Потолок 90% резервирует
+-# последние 10% под оркестраторов/кеш; возврат на 87% даёт отдельный гистерезис.
++# Статический, НЕ зависящий от расхода допуск моделей для воркеров. Всё про пулы —
++# проценты, темп, резерв — живёт у quota-контроллера (полосы в таблице
++# `quota_controller_policy`, принуждение в `app/quota_gate.py`) и здесь намеренно
++# отсутствует: два владельца одного числа расходятся (#329).
++# Список работает как fail-closed допуск: чего в нём нет — воркеру запрещено, поэтому
++# новая модель в реестре по умолчанию недоступна, пока её осознанно не впустили.
++# Второго, явного deny-списка нет специально — это был бы второй гейт на ту же мысль.
++# Намеренно не впущены: Fable (вдвое дороже Opus по лимитам, выжигает 5h окно) и Terra.
++# Потолок пула Claude для воркеров (90% недельного окна) задаёт полоса `claude`
++# квота-политики; обоснование числа — у константы CLAUDE_WORKER_WEEKLY_LIMIT_PCT
++# в `app/quota_gate.py`.
++#
++# ВЫКЛЮЧЕН ДО РЕСТАРТА — причина ОБРАТНАЯ прошлому разу (#227). Тогда новое ПОЛЕ
++# роняло старую схему; теперь схема потеряла обязательные `denied` и `quota_guarded`,
++# и живой процесс (код 5a9ff796) отвергает ВЕСЬ манифест: проба его же схемой дала
++# `denied Field required, quota_guarded Field required`. Манифест читается из главного
++# чекаута, то есть эффект наступил бы в момент МЕРЖА, а не рестарта, и снёс бы спавны
++# (на load_pipeline висят каталог ролей и ROLE_SYSTEM_PROMPT).
++# Снять '# ' с трёх строк ниже В ОКНО РЕСТАРТА; порядок и проверки — docs/tasks/329/report.md.
+ # worker_model_policy:
+-#   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark]
+-#   denied: ["claude-fable-5[1m]", gpt-5.6-terra]
+-#   quota_guarded:
+-#     model: claude-opus-5[1m]
+-#     pace_block_lead_pp: 11
+-#     pace_unblock_lead_pp: 7
+-#     absolute_block_pct: 90
+-#     absolute_unblock_pct: 87
++#   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark, "claude-opus-5[1m]"]
+ #   alternatives: [gpt-5.6-sol, gpt-5.6-luna]
+ defaults:
+   model: opus
+diff --git a/scripts/check_pipeline_manifest.py b/scripts/check_pipeline_manifest.py
+index 3499dd695b166014a1cf15916ecf75b91c99cd06..5fa0ac4ba8e236c4c6d23e5e0f846053a6ce0cf9 100755
+--- a/scripts/check_pipeline_manifest.py
++++ b/scripts/check_pipeline_manifest.py
+@@ -187,11 +187,7 @@ def _manifest_model_ids(data: dict) -> set[str]:
+     policy = data.get("worker_model_policy")
+     if isinstance(policy, dict):
+         _take(policy.get("always_allowed"))
+-        _take(policy.get("denied"))
+         _take(policy.get("alternatives"))
+-        guarded = policy.get("quota_guarded")
+-        if isinstance(guarded, dict):
+-            _take(guarded.get("model"))
+     return ids
+ 
+ 
+diff --git a/tests/test_default_pipeline.py b/tests/test_default_pipeline.py
+index edf0ca3f5c0bbfdce97e073edb70144c3945c4a9..99dea0580e50aa8ae8a66e503119b4f48bd50128 100644
+--- a/tests/test_default_pipeline.py
++++ b/tests/test_default_pipeline.py
+@@ -72,34 +72,45 @@ class TestDefaultManifestLoads:
+         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
+         assert d.inherit_claude_md is True  # CLAUDE.md проекта копируется в worktree
+ 
+-    def test_worker_model_policy_is_staged_for_restart(self):
+-        assert P.load_pipeline(PIPELINE).worker_model_policy is None
+-        text = (P.PIPELINES_DIR / PIPELINE / "pipeline.yaml").read_text()
+-        commented = """# worker_model_policy:
+-#   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark]
+-#   denied: [\"claude-fable-5[1m]\", gpt-5.6-terra]
+-#   quota_guarded:
+-#     model: claude-opus-5[1m]
+-#     pace_block_lead_pp: 11
+-#     pace_unblock_lead_pp: 7
+-#     absolute_block_pct: 90
+-#     absolute_unblock_pct: 87
+-#   alternatives: [gpt-5.6-sol, gpt-5.6-luna]"""
+-        assert commented in text
+-        active = "\n".join(line.removeprefix("# ") for line in commented.splitlines())
+-        policy = P.WorkerModelPolicy.model_validate(
+-            yaml.safe_load(active)["worker_model_policy"]
+-        )
++    def test_worker_model_policy_is_active_or_explicitly_staged_and_free_of_spend(self):
++        """Блок может быть ВЫКЛЮЧЕН решением (мерж без рестарта, #329), но не может
++        просто исчезнуть: выключенный обязан лежать закомментированным, проходить
++        схему при включении и не содержать ничего про расход."""
++        path = P.PIPELINES_DIR / PIPELINE / "pipeline.yaml"
++        text = path.read_text()
++        raw = yaml.safe_load(text).get("worker_model_policy")
++        active = raw is not None
++        if not active:
++            block = []
++            for line in text.splitlines():
++                if line.startswith("# worker_model_policy:"):
++                    block = [line]
++                elif block and line.startswith("#   "):
++                    block.append(line)
++                elif block:
++                    break
++            assert block, (
++                "worker_model_policy не активен и не найден закомментированным: "
++                "выключать его можно только явно"
++            )
++            raw = yaml.safe_load(
++                "\n".join(line.removeprefix("# ").removeprefix("#") for line in block)
++            )["worker_model_policy"]
++
++        # Форма одна и та же в обоих состояниях: ничего про расход, схема принимает.
++        assert set(raw) == {"always_allowed", "alternatives"}, raw
++        for spend_field in ("quota_guarded", "denied", "pace_block_lead_pp", "absolute_block_pct"):
++            assert spend_field not in raw
++        policy = P.WorkerModelPolicy.model_validate(raw)
+         assert policy.always_allowed == [
+-            "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark",
++            "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark", "claude-opus-5[1m]",
+         ]
+-        assert policy.denied == ["claude-fable-5[1m]", "gpt-5.6-terra"]
+-        assert policy.quota_guarded.model == "claude-opus-5[1m]"
+-        assert policy.quota_guarded.pace_block_lead_pp == 11
+-        assert policy.quota_guarded.pace_unblock_lead_pp == 7
+-        assert policy.quota_guarded.absolute_block_pct == 90
+-        assert policy.quota_guarded.absolute_unblock_pct == 87
+         assert policy.alternatives == ["gpt-5.6-sol", "gpt-5.6-luna"]
++        for never in ("claude-fable-5[1m]", "gpt-5.6-terra"):
++            assert never not in policy.always_allowed
++
++        # Выключенный блок означает именно «не принуждается», и это видно загрузчику.
++        assert (P.load_pipeline(PIPELINE).worker_model_policy is not None) is active
+ 
+     def test_prompt_layers_have_no_pipeline_layer(self):
+         """У апстрима НЕТ _pipeline.md — только base + роль."""
+diff --git a/tests/test_pipeline.py b/tests/test_pipeline.py
+index 5f06211943a224d377c895e6568640322685e0e8..9069fb0bc76adf6a35066980e7c443b89a973518 100644
+--- a/tests/test_pipeline.py
++++ b/tests/test_pipeline.py
+@@ -109,50 +109,36 @@ class TestLoadPipeline:
+         assert second is not first
+         assert second.roles["hand"].effort == "high"
+ 
+-    @pytest.mark.parametrize("block,unblock", [(7, 7), (6, 7), (101, 7)])
+-    def test_worker_model_policy_rejects_invalid_hysteresis(
+-        self, pipelines_root, block, unblock,
+-    ):
++    def test_worker_model_policy_rejects_spend_fields(self, pipelines_root):
++        """Логику пулов в манифесте не принимаем: у неё один владелец — контроллер (#329)."""
+         manifest = _MINIMAL.format(name="demo").replace(
+             "    defaults:\n",
+             "    worker_model_policy:\n"
+             "      always_allowed: [gpt-5.6-sol]\n"
+-            "      denied: ['claude-fable-5[1m]']\n"
++            "      alternatives: [gpt-5.6-sol]\n"
+             "      quota_guarded:\n"
+             "        model: 'claude-opus-5[1m]'\n"
+-            f"        pace_block_lead_pp: {block}\n"
+-            f"        pace_unblock_lead_pp: {unblock}\n"
+             "        absolute_block_pct: 90\n"
+-            "        absolute_unblock_pct: 87\n"
+-            "      alternatives: [gpt-5.6-sol]\n"
+             "    defaults:\n",
+         )
+         _write_pipeline(pipelines_root, "demo", manifest)
+ 
+-        with pytest.raises(ValueError, match="pace_unblock_lead_pp < pace_block_lead_pp"):
++        with pytest.raises(ValueError, match="quota_guarded"):
+             P.load_pipeline("demo")
+ 
+-    @pytest.mark.parametrize("block,unblock", [(87, 87), (86, 87), (101, 87)])
+-    def test_worker_model_policy_rejects_invalid_absolute_hysteresis(
+-        self, pipelines_root, block, unblock,
++    def test_worker_model_policy_rejects_suggesting_a_model_it_does_not_admit(
++        self, pipelines_root,
+     ):
+         manifest = _MINIMAL.format(name="demo").replace(
+             "    defaults:\n",
+             "    worker_model_policy:\n"
+             "      always_allowed: [gpt-5.6-sol]\n"
+-            "      denied: ['claude-fable-5[1m]']\n"
+-            "      quota_guarded:\n"
+-            "        model: 'claude-opus-5[1m]'\n"
+-            "        pace_block_lead_pp: 11\n"
+-            "        pace_unblock_lead_pp: 7\n"
+-            f"        absolute_block_pct: {block}\n"
+-            f"        absolute_unblock_pct: {unblock}\n"
+-            "      alternatives: [gpt-5.6-sol]\n"
++            "      alternatives: [gpt-5.6-luna]\n"
+             "    defaults:\n",
+         )
+         _write_pipeline(pipelines_root, "demo", manifest)
+ 
+-        with pytest.raises(ValueError, match="absolute_unblock_pct < absolute_block_pct"):
++        with pytest.raises(ValueError, match="alternatives must be always allowed"):
+             P.load_pipeline("demo")
+ 
+     def test_file_changed_during_read_is_not_cached(self, pipelines_root, monkeypatch):
+diff --git a/tests/test_worker_model_policy.py b/tests/test_worker_model_policy.py
+index c9a0fa97950bcfba06d5c1baf9254cbccff2f86e..afe7fc5b9dce7aeb5a2acf492f62d7fa482e39be 100644
+--- a/tests/test_worker_model_policy.py
++++ b/tests/test_worker_model_policy.py
+@@ -1,4 +1,13 @@
+-import asyncio
++"""Статический допуск моделей воркерам — единственное, что осталось в манифесте (#329).
++
++Всё про расход (проценты, темп, резерв, латчи) вырезано: этим владеет quota-контроллер
++(полосы в `quota_controller_policy` + `app/quota_gate.py`). Здесь проверяется, что
++- допуск fail-closed: чего нет в списке — не поедет, включая новые модели реестра;
++- решение НЕ зависит от телеметрии расхода (отказ происходит, не прочитав её вовсе);
++- оркестраторы освобождены;
++- quota-гейт на том же спавне остаётся fail-open и громким.
++"""
++
+ import logging
+ from datetime import datetime, timedelta, timezone
+ from unittest.mock import AsyncMock, patch
+@@ -21,15 +30,9 @@ def mgr(tmp_path, monkeypatch):
+     from app.pipeline import WorkerModelPolicy, load_pipeline
+ 
+     policy = WorkerModelPolicy.model_validate({
+-        "always_allowed": ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark"],
+-        "denied": ["claude-fable-5[1m]", "gpt-5.6-terra"],
+-        "quota_guarded": {
+-            "model": "claude-opus-5[1m]",
+-            "pace_block_lead_pp": 11,
+-            "pace_unblock_lead_pp": 7,
+-            "absolute_block_pct": 90,
+-            "absolute_unblock_pct": 87,
+-        },
++        "always_allowed": [
++            "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark", "claude-opus-5[1m]",
++        ],
+         "alternatives": ["gpt-5.6-sol", "gpt-5.6-luna"],
+     })
+     config = load_pipeline("default").model_copy(update={"worker_model_policy": policy})
+@@ -61,57 +64,115 @@ async def _spawn(mgr, name: str, model: str, **kwargs):
+         )
+ 
+ 
+-@pytest.mark.asyncio
+-async def test_policy_loader_requests_only_anthropic(monkeypatch):
+-    import app.manager as manager
++def _forbid_telemetry(monkeypatch):
++    """Любое чтение расхода на этом спавне — провал: допуск от него не зависит."""
+     import app.routes.system as system
+ 
+-    now = datetime.now(timezone.utc).timestamp()
+-    loader = AsyncMock(return_value={
+-        "providers": {
+-            "anthropic": {
+-                "windows": [{
+-                    "id": "seven_day",
+-                    "utilization": 10,
+-                    "resets_at": datetime.now(timezone.utc).isoformat(),
+-                }],
+-            },
+-        },
+-        "observed_at_by_provider": {"anthropic": now},
+-    })
+-    monkeypatch.setattr(system, "current_quota_observation", loader)
++    probe = AsyncMock(side_effect=AssertionError("static model policy read spend telemetry"))
++    monkeypatch.setattr(system, "current_quota_observation", probe)
++    return probe
+ 
+-    await manager._worker_model_policy_usage()
+ 
+-    loader.assert_awaited_once_with(required_provider="anthropic")
++@pytest.mark.asyncio
++@pytest.mark.parametrize(
++    "model",
++    [
++        "claude-fable-5[1m]",   # намеренно не впущена: вдвое дороже Opus по лимитам
++        "gpt-5.6-terra",        # намеренно не впущена: решение юзера
++        "claude-sonnet-5[1m]",  # зарегистрирована, но воркерам не открыта
++        "grok-4.5",             # другой рантайм, тоже не открыт
++    ],
++)
++async def test_model_outside_the_admitted_set_never_reaches_a_session(
++    mgr, monkeypatch, model,
++):
++    probe = _forbid_telemetry(monkeypatch)
++
++    with pytest.raises(ValueError, match=r"not admitted for workers.*gpt-5\.6-sol"):
++        await _spawn(mgr, "denied", model)
++
++    assert mgr.sessions == {}
++    probe.assert_not_awaited()
+ 
+ 
+ @pytest.mark.asyncio
+-async def test_warm_anthropic_cache_still_blocks_fast_opus_without_other_refresh(
++@pytest.mark.parametrize(
++    "model", ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark", "claude-opus-5[1m]"],
++)
++async def test_admitted_models_spawn(mgr, monkeypatch, model):
++    monkeypatch.setattr(
++        "app.quota_gate.get_worker_admission",
++        AsyncMock(side_effect=RuntimeError("quota telemetry offline")),
++    )
++
++    worker = await _spawn(mgr, model.rsplit("-", 1)[-1], model)
++
++    assert worker.model == model
++
++
++@pytest.mark.asyncio
++async def test_override_reason_admits_a_model_outside_the_set_and_is_logged(
++    mgr, monkeypatch, caplog,
++):
++    monkeypatch.setattr(
++        "app.quota_gate.get_worker_admission",
++        AsyncMock(side_effect=RuntimeError("quota telemetry offline")),
++    )
++
++    with caplog.at_level(logging.WARNING, logger="app.manager"):
++        worker = await _spawn(
++            mgr,
++            "override-terra",
++            "gpt-5.6-terra",
++            model_policy_override_reason="pilot #329 comparison",
++        )
++
++    assert worker.model == "gpt-5.6-terra"
++    assert "pilot #329 comparison" in caplog.text
++
++
++@pytest.mark.asyncio
++async def test_orchestrators_are_exempt_even_on_a_model_workers_may_not_use(
+     mgr, monkeypatch,
+ ):
++    probe = _forbid_telemetry(monkeypatch)
++
++    orchestrator = await _spawn(
++        mgr,
++        "fable-orchestrator",
++        "claude-fable-5[1m]",
++        role="orchestrator",
++        is_orchestrator=True,
++    )
++
++    assert orchestrator.is_orchestrator
++    assert orchestrator.model == "claude-fable-5[1m]"
++    probe.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++async def test_admission_is_independent_of_how_much_quota_is_left(mgr, monkeypatch):
++    """Пул на нуле или почти исчерпан — статический допуск отвечает одинаково."""
+     import app.routes.system as system
+ 
+-    now = datetime.now(timezone.utc).timestamp()
+-    warm = _usage(64, 28)["anthropic"]
+     monkeypatch.setattr(
+-        system,
+-        "_usage_cache",
+-        {"data": warm, "ts": now, "token": None},
++        "app.quota_gate.get_worker_admission",
++        AsyncMock(side_effect=RuntimeError("quota telemetry offline")),
+     )
+-    fetch_anthropic = AsyncMock(side_effect=AssertionError("warm cache was refreshed"))
+-    fetch_codex = AsyncMock(side_effect=AssertionError("Codex telemetry was requested"))
+-    monkeypatch.setattr(system, "_fetch_anthropic_usage", fetch_anthropic)
+-    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+-
+-    with pytest.raises(ValueError, match=r"Claude 7d 64%.*window elapsed 28%"):
+-        await _spawn(mgr, "warm-cache-opus", "claude-opus-5[1m]")
++    for utilization, name in ((1, "empty-pool"), (99, "full-pool")):
++        now = datetime.now(timezone.utc).timestamp()
++        monkeypatch.setattr(
++            system, "_usage_cache",
++            {"data": _usage(utilization, 50)["anthropic"], "ts": now, "token": None},
++        )
++        worker = await _spawn(mgr, f"opus-{name}", "claude-opus-5[1m]")
++        assert worker.model == "claude-opus-5[1m]"
+ 
+-    assert mgr.sessions == {}
+-    fetch_anthropic.assert_not_awaited()
+-    fetch_codex.assert_not_awaited()
++        with pytest.raises(ValueError, match="not admitted for workers"):
++            await _spawn(mgr, f"terra-{name}", "gpt-5.6-terra")
+ 
+ 
++# ── quota-гейт на том же спавне: он и владеет расходом ───────────────────────
+ @pytest.mark.asyncio
+ async def test_warm_anthropic_cache_normal_control_passes_real_spawn_seam(
+     mgr, monkeypatch,
+@@ -134,6 +195,28 @@ async def test_warm_anthropic_cache_normal_control_passes_real_spawn_seam(
+     fetch_codex.assert_not_awaited()
+ 
+ 
++@pytest.mark.asyncio
++async def test_quota_gate_blocks_opus_worker_above_the_claude_lane(mgr, monkeypatch):
++    """Потолок пула теперь принуждает гейт, а не манифест: 91% > полосы claude 90%."""
++    import app.routes.system as system
++
++    now = datetime.now(timezone.utc).timestamp()
++    monkeypatch.setattr(
++        system, "_usage_cache",
++        {"data": _usage(91, 50)["anthropic"], "ts": now, "token": None},
++    )
++    monkeypatch.setattr("app.quota_gate.get_worker_admission", _real_get_worker_admission)
++
++    from app.quota_gate import QuotaGateError
++
++    with pytest.raises(QuotaGateError) as caught:
++        await _spawn(mgr, "opus-over-lane", "claude-opus-5[1m]")
++
++    assert caught.value.code == "weekly_quota_blocked"
++    assert caught.value.decision.threshold == 90.0
++    assert mgr.sessions == {}
++
++
+ @pytest.mark.asyncio
+ async def test_stale_anthropic_cache_refresh_failure_is_fail_open_and_loud(
+     mgr, monkeypatch, caplog,
+@@ -158,9 +241,7 @@ async def test_stale_anthropic_cache_refresh_failure_is_fail_open_and_loud(
+         worker = await _spawn(mgr, "stale-cache-opus", "claude-opus-5[1m]")
+ 
+     assert worker.model == "claude-opus-5[1m]"
+-    assert "fresh Anthropic worker quota telemetry is unavailable" in caplog.text
+     assert "worker quota admission telemetry unavailable; allowing" in caplog.text
+-    assert fetch_anthropic.await_count == 2
+     fetch_codex.assert_not_awaited()
+ 
+ 
+@@ -181,46 +262,10 @@ async def test_unavailable_anthropic_cache_is_fail_open_at_real_spawn_seam(
+     assert "worker quota admission telemetry unavailable; allowing" in caplog.text
+ 
+ 
+-@pytest.mark.asyncio
+-async def test_slow_anthropic_telemetry_is_fail_open_at_real_spawn_seam(
+-    mgr, monkeypatch, caplog,
+-):
+-    import app.routes.system as system
+-
+-    calls = 0
+-
+-    async def slow_then_unavailable(*, required_provider):
+-        nonlocal calls
+-        assert required_provider == "anthropic"
+-        calls += 1
+-        if calls == 1:
+-            await asyncio.Event().wait()
+-        return {
+-            "providers": {},
+-            "observed_at_by_provider": {},
+-        }
+-
+-    monkeypatch.setattr(system, "current_quota_observation", slow_then_unavailable)
+-    monkeypatch.setattr("app.manager.WORKER_MODEL_POLICY_TIMEOUT_SECONDS", 0.01)
+-    monkeypatch.setattr("app.quota_gate.get_worker_admission", _real_get_worker_admission)
+-
+-    with caplog.at_level(logging.ERROR, logger="app.manager"):
+-        worker = await _spawn(mgr, "slow-telemetry-opus", "claude-opus-5[1m]")
+-
+-    assert worker.model == "claude-opus-5[1m]"
+-    assert calls == 2
+-    assert "TimeoutError" in caplog.text
+-    assert "worker quota admission telemetry unavailable; allowing" in caplog.text
+-
+-
+ @pytest.mark.asyncio
+ async def test_quota_admission_exception_is_fail_open_and_loud(
+     mgr, monkeypatch, caplog,
+ ):
+-    monkeypatch.setattr(
+-        "app.manager._worker_model_policy_usage",
+-        AsyncMock(return_value=_usage(39, 30)),
+-    )
+     monkeypatch.setattr(
+         "app.quota_gate.get_worker_admission",
+         AsyncMock(side_effect=RuntimeError("admission unavailable")),
+@@ -232,199 +277,3 @@ async def test_quota_admission_exception_is_fail_open_and_loud(
+     assert worker.model == "claude-opus-5[1m]"
+     assert "worker quota admission check failed; allowing" in caplog.text
+     assert "admission unavailable" in caplog.text
+-
+-
+-@pytest.mark.asyncio
+-async def test_fast_claude_pace_rejects_opus_worker_before_publish(mgr, monkeypatch):
+-    monkeypatch.setattr(
+-        "app.manager._worker_model_policy_usage",
+-        AsyncMock(return_value=_usage(64, 28)),
+-    )
+-
+-    with pytest.raises(
+-        ValueError,
+-        match=r"Claude 7d 64%.*window elapsed 28%.*gpt-5\.6-sol.*gpt-5\.6-luna",
+-    ):
+-        await _spawn(mgr, "blocked-opus", "claude-opus-5[1m]")
+-
+-    assert mgr.sessions == {}
+-
+-
+-@pytest.mark.asyncio
+-async def test_opus_override_requires_reason_and_logs_it(mgr, monkeypatch, caplog):
+-    monkeypatch.setattr(
+-        "app.manager._worker_model_policy_usage",
+-        AsyncMock(return_value=_usage(64, 28)),
+-    )
+-
+-    with caplog.at_level(logging.WARNING, logger="app.manager"):
+-        worker = await _spawn(
+-            mgr,
+-            "override-opus",
+-            "claude-opus-5[1m]",
+-            model_policy_override_reason="pilot #227 comparison",
+-        )
+-
+-    assert worker.model == "claude-opus-5[1m]"
+-    assert "pilot #227 comparison" in caplog.text
+-
+-
+-@pytest.mark.asyncio
+-async def test_orchestrators_are_exempt_from_worker_model_policy(mgr, monkeypatch):
+-    usage = AsyncMock(side_effect=AssertionError("orchestrator read worker policy telemetry"))
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+-
+-    orchestrator = await _spawn(
+-        mgr,
+-        "opus-orchestrator",
+-        "claude-opus-5[1m]",
+-        role="orchestrator",
+-        is_orchestrator=True,
+-    )
+-
+-    assert orchestrator.is_orchestrator
+-    usage.assert_not_awaited()
+-
+-
+-@pytest.mark.asyncio
+-@pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-5.6-luna"])
+-async def test_allowed_codex_worker_models_do_not_read_balance(mgr, monkeypatch, model):
+-    usage = AsyncMock(side_effect=AssertionError("allowed model read balance telemetry"))
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+-
+-    worker = await _spawn(mgr, model.rsplit("-", 1)[-1], model)
+-
+-    assert worker.model == model
+-    usage.assert_not_awaited()
+-
+-
+-@pytest.mark.asyncio
+-async def test_normal_claude_pace_allows_opus_worker(mgr, monkeypatch):
+-    monkeypatch.setattr(
+-        "app.manager._worker_model_policy_usage",
+-        AsyncMock(return_value=_usage(39, 30)),
+-    )
+-
+-    worker = await _spawn(mgr, "normal-pace-opus", "claude-opus-5[1m]")
+-
+-    assert worker.model == "claude-opus-5[1m]"
+-
+-
+-@pytest.mark.asyncio
+-async def test_cold_start_below_absolute_ceiling_allows_opus(mgr, monkeypatch):
+-    monkeypatch.setattr(
+-        "app.manager._worker_model_policy_usage",
+-        AsyncMock(return_value=_usage(88, 85)),
+-    )
+-
+-    worker = await _spawn(mgr, "below-ceiling-opus", "claude-opus-5[1m]")
+-
+-    assert worker.model == "claude-opus-5[1m]"
+-
+-
+-@pytest.mark.asyncio
+-async def test_opus_pace_gate_has_hysteresis(mgr, monkeypatch):
+-    usage = AsyncMock(side_effect=[
+-        _usage(62, 50),  # lead 12: latch blocked
+-        _usage(59, 50),  # lead 9: remain blocked
+-        _usage(57, 50),  # lead 7: unlock
+-        _usage(59, 50),  # lead 9: remain open
+-        _usage(61.1, 50),  # lead 11.1: block again (headroom for clock movement)
+-    ])
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+-
+-    with pytest.raises(ValueError):
+-        await _spawn(mgr, "lead-12", "claude-opus-5[1m]")
+-    with pytest.raises(ValueError):
+-        await _spawn(mgr, "lead-9-blocked", "claude-opus-5[1m]")
+-    assert (await _spawn(mgr, "lead-7", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+-    assert (await _spawn(mgr, "lead-9-open", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+-    with pytest.raises(ValueError):
+-        await _spawn(mgr, "lead-11", "claude-opus-5[1m]")
+-
+-
+-@pytest.mark.asyncio
+-async def test_opus_absolute_ceiling_has_independent_hysteresis(mgr, monkeypatch):
+-    usage = AsyncMock(side_effect=[
+-        _usage(91, 95),  # >=90: latch blocked, pace normal
+-        _usage(88, 95),  # remain blocked
+-        _usage(87, 95),  # unlock
+-        _usage(88, 95),  # remain open
+-        _usage(90, 95),  # block again
+-    ])
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+-
+-    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+-        await _spawn(mgr, "ceiling-91", "claude-opus-5[1m]")
+-    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+-        await _spawn(mgr, "ceiling-88-blocked", "claude-opus-5[1m]")
+-    assert (await _spawn(mgr, "ceiling-87", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+-    assert (await _spawn(mgr, "ceiling-88-open", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+-    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+-        await _spawn(mgr, "ceiling-90", "claude-opus-5[1m]")
+-
+-
+-@pytest.mark.asyncio
+-@pytest.mark.parametrize("resets_at", ["", "2020-01-01T00:00:00+00:00"])
+-async def test_unusable_reset_skips_pace_but_keeps_absolute_ceiling(
+-    mgr, monkeypatch, caplog, resets_at,
+-):
+-    normal = _usage(64)
+-    ceiling = _usage(95)
+-    normal["anthropic"]["seven_day"]["resets_at"] = resets_at
+-    ceiling["anthropic"]["seven_day"]["resets_at"] = resets_at
+-    usage = AsyncMock(side_effect=[normal, ceiling])
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+-
+-    with caplog.at_level(logging.WARNING, logger="app.manager"):
+-        worker = await _spawn(mgr, "no-reset-pace", "claude-opus-5[1m]")
+-    assert worker.model == "claude-opus-5[1m]"
+-    assert "pace check skipped" in caplog.text
+-    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+-        await _spawn(mgr, "no-reset-ceiling", "claude-opus-5[1m]")
+-
+-
+-@pytest.mark.asyncio
+-async def test_fable_is_denied_by_manifest_policy(mgr, monkeypatch):
+-    usage = AsyncMock(side_effect=AssertionError("static deny read balance telemetry"))
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+-
+-    with pytest.raises(ValueError, match=r"claude-fable-5\[1m\].*not allowed.*gpt-5\.6-sol"):
+-        await _spawn(mgr, "fable", "claude-fable-5[1m]")
+-
+-    usage.assert_not_awaited()
+-
+-
+-@pytest.mark.asyncio
+-async def test_balance_telemetry_failure_is_fail_open_and_loud(mgr, monkeypatch, caplog):
+-    monkeypatch.setattr(
+-        "app.manager._worker_model_policy_usage",
+-        AsyncMock(side_effect=RuntimeError("usage unavailable")),
+-    )
+-
+-    with caplog.at_level(logging.ERROR, logger="app.manager"):
+-        worker = await _spawn(mgr, "fail-open-opus", "claude-opus-5[1m]")
+-
+-    assert worker.model == "claude-opus-5[1m]"
+-    assert "usage unavailable" in caplog.text
+-
+-
+-@pytest.mark.asyncio
+-async def test_balance_telemetry_timeout_is_fail_open_and_loud(mgr, monkeypatch, caplog):
+-    import asyncio
+-
+-    entered = asyncio.Event()
+-
+-    async def stuck_usage():
+-        entered.set()
+-        await asyncio.Event().wait()
+-
+-    monkeypatch.setattr("app.manager._worker_model_policy_usage", stuck_usage)
+-    monkeypatch.setattr("app.manager.WORKER_MODEL_POLICY_TIMEOUT_SECONDS", 0.01)
+-
+-    with caplog.at_level(logging.ERROR, logger="app.manager"):
+-        worker = await _spawn(mgr, "timeout-opus", "claude-opus-5[1m]")
+-
+-    assert entered.is_set(), "timeout probe never entered the telemetry loader"
+-    assert worker.model == "claude-opus-5[1m]"
+-    assert "TimeoutError" in caplog.text

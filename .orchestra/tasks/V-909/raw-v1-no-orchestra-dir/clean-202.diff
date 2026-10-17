@@ -1,0 +1,38 @@
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 0baa02cc287e24868e97bc6203481a8843f1b0ae..e2ef50f532a60313c884a6e650dbb3aac32793c6 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -5088,10 +5088,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
+                 const d = JSON.parse(body);
+                 setCodexToolTitle(header, 'Web search', '🌐');
+                 header.style.color = '#38bdf8';
+-                if (rawName === 'WebSearch') {
+-                    div.dataset.isCodexWebSearch = '1';
+-                    updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
+-                }
++                div.dataset.isCodexWebSearch = '1';
++                updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
+                 if (d.model) {
+                     const badge = document.createElement('span');
+                     badge.textContent = d.model;
+@@ -5723,10 +5721,16 @@ function addChatEntry(type, content, ts, anchor, payload) {
+ 
+         if (lastTool) {
+             if (lastTool.dataset.isCodexWebSearch) {
+-                updateCodexWebSearchActivity(lastTool, codexWebSearchSpec(content));
+-                delete lastTool.dataset.lastTool;
+-                addTimestamp(lastTool, ts);
+-                return;
++                // Codex шлёт результатом ту же структуру с action/queries — ею обновляем шапку.
++                // Встроенный WebSearch и MCP-поиск отдают ТЕКСТ: spec=null, и его надо
++                // отрисовать обычным телом результата, а не проглотить ранним return.
++                const resultSpec = codexWebSearchSpec(content);
++                if (resultSpec) {
++                    updateCodexWebSearchActivity(lastTool, resultSpec);
++                    delete lastTool.dataset.lastTool;
++                    addTimestamp(lastTool, ts);
++                    return;
++                }
+             }
+             if (lastTool.dataset.isSpawnWorker) {
+                 const hdr = lastTool.querySelector('.flex.items-center');
