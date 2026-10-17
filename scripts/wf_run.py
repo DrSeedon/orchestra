@@ -531,11 +531,19 @@ def _reset_prepared_worktree(repository: Path, prepared: Any) -> None:
 
 def _prepare_workspace_sync(
     repository: Path, name: str, base_branch: str, base_commit: str = "",
+    task_id: str = "",
 ) -> tuple[Any, set[str]]:
     from app.workspace import create_worktree, discard_prepared_worktree
+    from app.pipeline import get_worktree_config
+
+    try:
+        worktree_cfg = get_worktree_config("default")
+    except FileNotFoundError:
+        worktree_cfg = None
 
     prepared = create_worktree(
-        str(repository), name, "", base_branch, base_commit=base_commit,
+        str(repository), name, "", base_branch, worktree_cfg,
+        base_commit=base_commit, sparse_task_id=task_id,
     )
     try:
         return prepared, _workspace_files(Path(prepared.path))
@@ -1136,6 +1144,7 @@ class WorkflowEngine:
                 name,
                 self.workspace_base_branch,
                 self.workspace_base_commit,
+                self.task_id,
             ))
             try:
                 (prepared, baseline_files), cancellations = (

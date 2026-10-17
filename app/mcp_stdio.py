@@ -3221,7 +3221,7 @@ async def dynamic_workflow(
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna), JSON schema, and billing route (defaults to subscription; set billing='api_credit' only for an explicitly selected Claude task). Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna), JSON schema, and billing route (defaults to subscription; set billing='api_credit' only for an explicitly selected Claude task). Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst

@@ -444,7 +444,7 @@ async def test_prepare_failure_is_recorded_and_resume_retries_it(tmp_path, monke
     monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
     prepare_workspace = wf_run._prepare_workspace_sync
 
-    def fail_prepare(_repo, _name, _base_branch, _base_commit=""):
+    def fail_prepare(_repo, _name, _base_branch, _base_commit="", _task_id=""):
         raise ValueError("controlled worktree collision")
 
     monkeypatch.setattr(wf_run, "_prepare_workspace_sync", fail_prepare)
@@ -596,6 +596,29 @@ def test_workspace_preparation_uses_pinned_commit_from_linked_checkout(tmp_path,
     try:
         assert prepared.initial_head == head
         assert (Path(prepared.path) / "caller-only.txt").read_text() == "visible at pinned HEAD\n"
+    finally:
+        workspace.discard_prepared_worktree(str(repo), prepared)
+
+
+def test_workflow_sparse_workspace_includes_parent_task_directory(tmp_path, monkeypatch):
+    import app.workspace as workspace
+
+    repo = _git_repo(tmp_path / "source")
+    for task_id in ("V-925", "V-924"):
+        report = repo / ".orchestra" / "tasks" / task_id / "report.md"
+        report.parent.mkdir(parents=True)
+        report.write_text(task_id + "\n")
+    subprocess.run(["git", "add", ".orchestra/tasks"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "task reports"], cwd=repo, check=True, capture_output=True)
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "generated")
+
+    prepared, _ = wf_run._prepare_workspace_sync(
+        repo, "wf-parent-task", "main", task_id="V-925",
+    )
+    try:
+        assert prepared.branch.startswith("feat/")
+        assert (Path(prepared.path) / ".orchestra/tasks/V-925/report.md").is_file()
+        assert not (Path(prepared.path) / ".orchestra/tasks/V-924/report.md").exists()
     finally:
         workspace.discard_prepared_worktree(str(repo), prepared)
 
