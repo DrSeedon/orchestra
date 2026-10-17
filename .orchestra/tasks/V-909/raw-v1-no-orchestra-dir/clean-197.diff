@@ -1,0 +1,1466 @@
+diff --git a/app/main.py b/app/main.py
+index b8f89f7c4a6b4f66cc23b6ceb0af957a1b33e87a..eaa57262184c4b40293c710ac62997c43ca74f5d 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
+ from fastapi.responses import JSONResponse, RedirectResponse
+ from fastapi.staticfiles import StaticFiles
+ from starlette.middleware.base import BaseHTTPMiddleware
++from starlette.middleware.gzip import GZipMiddleware
+ 
+ from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
+ from app.db import init_db
+@@ -464,3 +465,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
+ 
+ app.add_middleware(RequestCensusMiddleware)
+ app.add_middleware(AuthMiddleware)
++# Статика первой загрузки — 814 КБ против 68 КБ у всех API вместе (#197). Отдавалась
++# несжатой: `curl --compressed` возвращал те же 434 627 байт для app.js. gzip даёт 3.7×
++# (814 -> 221 КБ), а на канале с ~17% потерь вчетверо меньше байт — это ещё и вчетверо
++# меньше шансов поймать обрыв посреди передачи.
++# Добавлен ПОСЛЕДНИМ, а значит стоит САМЫМ ВНЕШНИМ (add_middleware делает insert(0)).
++# Так и надо: gzip придерживает кадр `http.response.start` до первого куска тела, а
++# RequestCensusMiddleware именно на этом кадре читает `content-type`, чтобы отличить
++# поток от обычного ответа. Стой gzip внутри — счётчик дренажа узнавал бы о потоке с
++# опозданием. Снаружи он сжимает уже посчитанный ответ и ничего не сдвигает.
++# SSE не сжимается: DEFAULT_EXCLUDED_CONTENT_TYPES в Starlette 1.1.0 — ('text/event-stream',).
++app.add_middleware(GZipMiddleware, minimum_size=1024)
+diff --git a/app/routes/system.py b/app/routes/system.py
+index 908a7a1973cd0dc064eb10ba2bf22a022980b6aa..181ea90366d2667e689764ac14d7c924de227590 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -399,8 +399,12 @@ async def stats(scope: Optional[str] = None):
+ _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.json"
+ _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
+ _codex_usage_cache: dict = {"data": None, "ts": 0.0}
+-_grok_usage_cache: dict = {"data": None, "ts": 0.0}
++_grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
+ _USAGE_CACHE_TTL = 300
++# Провал провайдера кешируется отдельно и короче успеха (#197): держать отказ 5 минут
++# значит не заметить починку токена, а ходить за ним каждый раз — платить 0.88 с на
++# каждом `/api/usage`. Минута закрывает опрос дашборда (раз в 2 мин) с запасом.
++_USAGE_FAILURE_TTL = 60
+ _quota_refresh_locks = {
+     "anthropic": asyncio.Lock(),
+     "codex": asyncio.Lock(),
+@@ -881,6 +885,19 @@ async def _get_usage_data(
+         and (now - _grok_usage_cache["ts"]) < _USAGE_CACHE_TTL
+     ):
+         grok_data = _grok_usage_cache["data"]
++    elif (
++        # Провал провайдера тоже кешируется (#197). Без этого протухший токен Grok стоил
++        # 0.88 с ЖИВОГО сетевого вызова на КАЖДЫЙ `/api/usage`: ветка провала обнуляет
++        # `ts`, а обнулённый `ts` не проходит проверку TTL никогда — то есть TTL для
++        # сбойного провайдера не действовал вовсе. Замер: /api/usage 0.88-1.21 с при
++        # /api/models 0.002 с. Окно короче успеха: токен могут починить в любой момент,
++        # и ждать полные 5 минут после починки незачем.
++        not force_refresh
++        # `.get`, а не `[...]`: словарь целиком подменяется извне (session_turns и тесты),
++        # и жёсткий ключ уронил бы `/api/usage` на чужой подмене без этого поля.
++        and (now - _grok_usage_cache.get("failed_at", 0.0)) < _USAGE_FAILURE_TTL
++    ):
++        grok_data = _grok_usage_cache["data"]
+     else:
+         token = _read_grok_token()
+         if token:
+@@ -896,9 +913,14 @@ async def _get_usage_data(
+         if grok_fetched:
+             _grok_usage_cache["data"] = grok_data
+             _grok_usage_cache["ts"] = now
++            _grok_usage_cache["failed_at"] = 0.0
+         elif required_provider == "grok" or not required_provider:
++            # `data=None, ts=0` сохраняем: «данных по Grok нет» должно оставаться видимым,
++            # подставлять вместо этого вчерашние проценты нельзя. Кешируется только САМ
++            # ФАКТ провала — чтобы не ходить в сеть за тем же отказом каждую секунду.
+             _grok_usage_cache["data"] = None
+             _grok_usage_cache["ts"] = 0.0
++            _grok_usage_cache["failed_at"] = now
+     if required_provider == "grok" and not grok_fetched:
+         raise RuntimeError("fresh Grok usage is unavailable")
+ 
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index e1b9b01647060bf83ea14a50db4dc8dbdecf40f2..0baa02cc287e24868e97bc6203481a8843f1b0ae 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -1168,24 +1168,36 @@ async function loadMoreLogs() {
+ 
+ 
+ // === Models ===
++function _renderModels(data) {
++    const models = data.models || [];
++    _MODELS = models.map(m => ({ ...m, label: m.name }));
++    _modelsLoaded = true;
++    const select = $('#orch-model');
++    if (select) {
++        select.innerHTML = '';
++        for (const m of models) {
++            const opt = document.createElement('option');
++            opt.value = m.id;
++            opt.textContent = `${m.name} (${m.id})`;
++            select.appendChild(opt);
++        }
++    }
++    _updateProxyStatus(data.proxy_connected);
++}
++
+ async function _loadModelsNow() {
+     try {
+         const data = await api('/api/models', {pollKey: 'models'});
+-        const models = data.models || [];
+-        _MODELS = models.map(m => ({ ...m, label: m.name }));
+-        _modelsLoaded = true;
+-        const select = $('#orch-model');
+-        if (select) {
+-            select.innerHTML = '';
+-            for (const m of models) {
+-                const opt = document.createElement('option');
+-                opt.value = m.id;
+-                opt.textContent = `${m.name} (${m.id})`;
+-                select.appendChild(opt);
+-            }
+-        }
+-        _updateProxyStatus(data.proxy_connected);
+-    } catch {}
++        _renderModels(data);
++        snapshotSave('models', data);
++    } catch (e) {
++        // Каталог моделей почти статичен — снимок тут не «может пригодиться», а закрывает
++        // дыру целиком: без него пустой селектор не даёт создать оркестратора вовсе.
++        console.warn(`models: ${e.name}: ${e.message}`);
++        if (_modelsLoaded) return;
++        const snapshot = snapshotLoad('models');
++        if (snapshot) _renderModels(snapshot.data);
++    }
+ }
+ 
+ function loadModels() {
+@@ -1615,50 +1627,67 @@ async function deleteOrchestrator() {
+ let orchData = [];
+ const _unreadTabs = new Set();
+ 
++function _renderOrchestrators(allOrchs) {
++    // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
++    orchData = allOrchs.filter(o => !o.parent_name);
++    const picker = $('#orch-picker');
++    picker.innerHTML = '';
++    for (const o of orchData) {
++        const opt = document.createElement('option');
++        opt.value = o.scope;
++        opt.dataset.id = o.id;
++        opt.dataset.name = o.name;
++        opt.textContent = o.name;
++        picker.appendChild(opt);
++    }
++
++    const lastScope = localStorage.getItem('lastOrchScope');
++    const lastName = localStorage.getItem('lastOrchName');
++    const recentRaw = localStorage.getItem('recentOrchs');
++    const recent = recentRaw ? JSON.parse(recentRaw) : [];
++
++    const sorted = [...orchData].sort((a, b) => {
++        const ai = recent.indexOf(a.name);
++        const bi = recent.indexOf(b.name);
++        if (ai >= 0 && bi >= 0) return ai - bi;
++        if (ai >= 0) return -1;
++        if (bi >= 0) return 1;
++        return 0;
++    });
++
++    renderOrchTabs(sorted);
++
++    if (orchData.length > 0 && !currentScope) {
++        const match = orchData.find(o => o.scope === lastScope && o.name === lastName);
++        if (match) {
++            selectOrchestrator(match.name, match.scope);
++        } else {
++            selectOrchestrator(sorted[0].name, sorted[0].scope);
++        }
++    }
++}
++
+ async function _loadOrchestratorsNow() {
+     try {
+         const allOrchs = await api('/api/orchestrators', {pollKey: 'orchestrators'});
+         // Данные только что получены. Без этой отметки дроссель в refreshSessions считает
+         // их протухшими и через полсекунды тянет тот же список второй раз (#71).
+         _orchFreshAt = Date.now();
+-        // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
+-        orchData = allOrchs.filter(o => !o.parent_name);
+-        const picker = $('#orch-picker');
+-        picker.innerHTML = '';
+-        for (const o of orchData) {
+-            const opt = document.createElement('option');
+-            opt.value = o.scope;
+-            opt.dataset.id = o.id;
+-            opt.dataset.name = o.name;
+-            opt.textContent = o.name;
+-            picker.appendChild(opt);
+-        }
+-
+-        const lastScope = localStorage.getItem('lastOrchScope');
+-        const lastName = localStorage.getItem('lastOrchName');
+-        const recentRaw = localStorage.getItem('recentOrchs');
+-        const recent = recentRaw ? JSON.parse(recentRaw) : [];
+-
+-        const sorted = [...orchData].sort((a, b) => {
+-            const ai = recent.indexOf(a.name);
+-            const bi = recent.indexOf(b.name);
+-            if (ai >= 0 && bi >= 0) return ai - bi;
+-            if (ai >= 0) return -1;
+-            if (bi >= 0) return 1;
+-            return 0;
+-        });
+-
+-        renderOrchTabs(sorted);
+-
+-        if (orchData.length > 0 && !currentScope) {
+-            const match = orchData.find(o => o.scope === lastScope && o.name === lastName);
+-            if (match) {
+-                selectOrchestrator(match.name, match.scope);
+-            } else {
+-                selectOrchestrator(sorted[0].name, sorted[0].scope);
+-            }
++        _renderOrchestrators(allOrchs);
++        snapshotSave('orchestrators', allOrchs);
++        _clearStaleNotice('orchestrators');
++    } catch (e) {
++        // Пустые вкладки без причины — это то, на что юзер и жалуется. Молчать нельзя:
++        // без вкладок дашборд не выбирает scope, и не работает ВООБЩЕ ничего.
++        console.warn(`orchestrators: ${e.name}: ${e.message}`);
++        const snapshot = orchData.length ? null : snapshotLoad('orchestrators');
++        if (snapshot) {
++            _renderOrchestrators(snapshot.data);
++            _showStaleNotice('orchestrators', snapshot.ts);
++        } else if (!orchData.length) {
++            _showErrorNotice('orchestrators', 'Список оркестраторов не загрузился', e);
+         }
+-    } catch {}
++    }
+ }
+ 
+ function loadOrchestrators() {
+@@ -2680,7 +2709,13 @@ async function _fetchAgentContextNow(name) {
+         const text = formatContext(ctx);
+         contextCache[`${currentScope}:${name}`] = text;
+         if (name === selectedAgent) setContextDisplay(text);
+-    } catch {}
++    } catch (e) {
++        console.warn(`context ${name}: ${e.name}: ${e.message}`);
++        // Прошлое значение показать честнее, чем прочерк: контекст растёт медленно, и
++        // цифра минутной давности осмысленна, а «-» неотличим от «агент только что создан».
++        const known = contextCache[`${currentScope}:${name}`];
++        if (known && name === selectedAgent) setContextDisplay(`${known} (не обновлено)`);
++    }
+ }
+ 
+ function fetchAgentContext(name) {
+@@ -6881,8 +6916,9 @@ async function refreshSessions() {
+         if (capturedScope !== currentScope) return;
+         _onServerOk();
+ 
+-        $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
+-        renderAgentList(sessions);
++        _renderSessionsAndStats(sessions, stats);
++        snapshotSave(`sessions:${capturedScope}`, {sessions, stats});
++        _clearStaleNotice('sessions');
+ 
+         // Список оркестраторов нужен для меток непрочитанного по ЧУЖИМ вкладкам, но он
+         // весит 55 КБ и раньше тянулся каждые 3 с вместе с сессиями — 1.1 МБ в минуту на
+@@ -6900,7 +6936,11 @@ async function refreshSessions() {
+                 }
+             }
+             updateOrchTabDots();
+-        } catch {}
++        } catch (e) {
++            // Метки непрочитанного — украшение, но их пропажа не должна быть немой:
++            // юзер иначе решит, что чужие вкладки молчат, а они просто не доехали.
++            console.warn(`orchestrator dots: ${e.name}: ${e.message}`);
++        }
+ 
+         if (selectedAgent) {
+             const agentSession = sessions.find(s => s.name === selectedAgent);
+@@ -6913,12 +6953,37 @@ async function refreshSessions() {
+             if (!eventSource) connectSSE();
+         }
+     } catch (e) {
+-        if (e.name !== 'AbortError') { console.warn('refresh error:', e); _onFetchFail(e); }
++        if (e.name !== 'AbortError') {
++            console.warn('refresh error:', e);
++            _onFetchFail(e);
++            _restoreSessionsSnapshot(capturedScope, e);
++        }
+     } finally {
+         refreshInProgress = false;
+     }
+ }
+ 
++function _renderSessionsAndStats(sessions, stats) {
++    $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
++    renderAgentList(sessions);
++}
++
++// Список агентов — то, из чего заполняются Model/Role/Cost/Branch/Scope. Пока он пуст,
++// пуста и панель, и юзер видит прочерки вместо интерфейса. Снимок закрывает окно между
++// загрузкой страницы и первым дошедшим ответом; когда список уже нарисован, не трогаем
++// его вовсе — свежее в памяти всегда лучше снимка с диска.
++function _restoreSessionsSnapshot(scope, error) {
++    if (!scope || scope !== currentScope) return;
++    if ($('#agent-list')?.children.length) return;
++    const snapshot = snapshotLoad(`sessions:${scope}`);
++    if (!snapshot?.data?.sessions || !snapshot.data.stats) {
++        _showErrorNotice('sessions', 'Список агентов не загрузился', error);
++        return;
++    }
++    _renderSessionsAndStats(snapshot.data.sessions, snapshot.data.stats);
++    _showStaleNotice('sessions', snapshot.ts);
++}
++
+ // === API ===
+ // Таймаут и число попыток — из замеров perf через канал юзера. Сломанный ответ не приходит
+ // НИКОГДА: между сервером и юзером сидит посредник, который подтверждает нам 165 КБ, а до
+@@ -6932,6 +6997,17 @@ async function refreshSessions() {
+ // вторая `wire=2009 Б dur=228`. Повтор отработал штатно — дорого стоило ожидание.
+ const _API_TIMEOUT_MS = 2000;
+ const _API_ATTEMPTS = 3;
++// #197: канал юзера рвёт не передачу, а УСТАНОВКУ соединения — `conn=0.000000s`, `code=000`,
++// висит 8-12 с. Замер: 12 попыток, 10 прошли, 2 умерли наглухо (~17%). Отсюда два следствия,
++// оба противоположные тому, что подсказывает слово «медленный канал»:
++// 1) ждать дольше бесполезно. Соединение либо встаёт быстро, либо не встаёт вовсе, поэтому
++//    2 с остаются — растить бюджет значит просто дольше сидеть на заведомо мёртвой попытке;
++// 2) а вот подряд повторять вредно. ТСПУ режет пачками, и три попытки вплотную попадают в
++//    одно окно потерь. Джиттер разносит их: пауза случайна в [0, _API_RETRY_JITTER_MS],
++//    и одна дешёвая пауза меняет три коррелированные попытки на три независимые.
++// Верхняя граница выбрана так, чтобы худший случай (2 попытки × 2 с + 2 паузы) укладывался
++// в ~5.6 с — меньше, чем те 6 с, что юзер и так ждал раньше без всякого джиттера.
++const _API_RETRY_JITTER_MS = 800;
+ // Мутации остаются на прежних 5 с: повтора у них нет (не идемпотентны), и работу на сервере
+ // они делают ДО ответа — оборвать спавн воркера раньше значит соврать юзеру про неудачу.
+ const _API_MUTATION_TIMEOUT_MS = 5000;
+@@ -6984,7 +7060,9 @@ async function api(url, opts = {}) {
+                 if (broken && attempts > 1) _showNetFailBanner(url, attempts);
+                 throw e;
+             }
+-            console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${e.name}`);
++            const pause = Math.round(Math.random() * _API_RETRY_JITTER_MS);
++            console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${e.name}, пауза ${pause} мс`);
++            await new Promise(resolve => setTimeout(resolve, pause));
+         }
+     }
+ }
+@@ -7014,6 +7092,60 @@ function _hideNetFailBanner(url) {
+     banner.classList.remove('flex');
+ }
+ 
++// === Полоса «показано из кеша» / «не загрузилось» (#197) ===
++// Строится в JS, а не в шаблоне: шаблон отдаётся главным чекаутом и доехал бы до юзера
++// только рестартом. Полос две по СМЫСЛУ, а не по вкусу: «данные старые, но они есть» и
++// «данных нет вовсе» лечатся по-разному, и путать их — то же, что молчащий catch.
++function _noticeStrip() {
++    let strip = document.getElementById('stale-notice-strip');
++    if (strip) return strip;
++    strip = document.createElement('div');
++    strip.id = 'stale-notice-strip';
++    strip.className = 'flex flex-col';
++    const usageBar = document.getElementById('usage-bar');
++    if (usageBar?.parentNode) usageBar.parentNode.insertBefore(strip, usageBar);
++    else document.body.prepend(strip);
++    return strip;
++}
++
++function _noticeRow(key) {
++    const strip = _noticeStrip();
++    let row = document.getElementById(`notice-${key}`);
++    if (!row) {
++        row = document.createElement('div');
++        row.id = `notice-${key}`;
++        row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b';
++        strip.appendChild(row);
++    }
++    return row;
++}
++
++// Данные на экране есть, но они из снимка. Жёлтый: работать можно, доверять частично.
++function _showStaleNotice(key, ts) {
++    const row = _noticeRow(key);
++    row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b '
++        + 'bg-amber-500/10 border-amber-500/30 text-amber-200';
++    row.dataset.staleKey = key;
++    row.textContent = `🕒 ${key}: показано из кеша — ${snapshotAgeLabel(ts)}. Обновим, как только ответ дойдёт.`;
++}
++
++// Данных нет и подставить нечего. Красный, и с КЛАССОМ исключения: «не загрузилось»
++// без причины отправляет юзера гадать, а причины у обрыва и у 500 разные.
++function _showErrorNotice(key, what, error) {
++    const row = _noticeRow(key);
++    row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b '
++        + 'bg-red-500/10 border-red-500/30 text-red-200';
++    delete row.dataset.staleKey;
++    const reason = error?.status
++        ? `сервер ответил ${error.status}`
++        : `${error?.name || 'Error'}: ${error?.message || 'без текста'}`;
++    row.textContent = `⚠ ${what} — ${reason}`;
++}
++
++function _clearStaleNotice(key) {
++    document.getElementById(`notice-${key}`)?.remove();
++}
++
+ // === Usage Bar ===
+ 
+ // === Перезапуск Orchestra (#270) ===
+diff --git a/app/static/js/usage.js b/app/static/js/usage.js
+index 86608c2cffdd73b14c9f3cd1d272204f49ef5d77..da30a00ebea8a554a2b331bcc0a84758f11bfc8f 100644
+--- a/app/static/js/usage.js
++++ b/app/static/js/usage.js
+@@ -747,6 +747,17 @@ function _renderSparklines(slot, providerFilter = null) {
+     });
+ }
+ 
++// Снимок с прошлой загрузки страницы. Без него первый недошедший `/api/usage` на дырявом
++// канале давал «⚠ Usage unavailable» — не потому, что данных нет, а потому, что их негде
++// было взять: память пуста, пока не ответит сеть.
++function _restoreUsageSnapshot() {
++    if (_usageData) return;
++    const snapshot = snapshotLoad('usage');
++    if (!snapshot) return;
++    _usageData = snapshot.data;
++    _usageLastSuccessAt = snapshot.ts;
++}
++
+ async function fetchUsage() {
+     if (_usageFetchPromise) return _usageFetchPromise;
+     _usageLastFetchStartedAt = Date.now();
+@@ -770,12 +781,15 @@ async function fetchUsage() {
+                 console.error(`Usage fetch failed: ${detail}`);
+             }
+             _usageLastSuccessAt = Date.now();
++            snapshotSave('usage', _usageData);
+         } catch (error) {
+             _usageError = true;
+             const detail = error instanceof Error
+                 ? `${error.name}: ${error.message || '(no message)'}`
+                 : String(error);
+             console.error(`Usage fetch failed: ${detail}`);
++            // Своих данных ещё нет — показываем прошлые с меткой возраста вместо пустоты.
++            _restoreUsageSnapshot();
+         }
+     })();
+     renderUsageBar();
+@@ -788,6 +802,11 @@ async function fetchUsage() {
+ }
+ 
+ function initUsageBar() {
++    // Сперва снимок, потом сеть: полоса заполнена с первого кадра, а свежий ответ её
++    // молча заменит. Обратный порядок показывал пустоту ровно на время запроса — на
++    // канале юзера это 2-6 с, а при провале навсегда.
++    _restoreUsageSnapshot();
++    renderUsageBar();
+     fetchUsage();
+     const bar = document.getElementById('usage-bar');
+     if (bar) {
+diff --git a/app/static/js/utils.js b/app/static/js/utils.js
+index 35f6739a49d06ae852f8c16a3193506b352b75a3..50c2aa562d9812298ae454f1fa6b36c626f65a0b 100644
+--- a/app/static/js/utils.js
++++ b/app/static/js/utils.js
+@@ -12,6 +12,59 @@ const _PROVIDER_COLORS = {
+     unknown: '#94a3b8',
+ };
+ 
++// === Кеш последнего успешного ответа (#197) ===
++// Канал юзера теряет ~17% TLS-хендшейков. Провал в середине сессии переживают те панели,
++// что держат данные в памяти, а вот ЗАГРУЗКА страницы не переживает ничего: память пуста,
++// и первый же недошедший запрос даёт «нет данных» вместо интерфейса. Поэтому снимок
++// последнего успеха живёт в localStorage — он и есть то, что рисуется, пока сеть молчит.
++// Возраст снимка показывается всегда: тихо подсунуть вчерашние цифры хуже, чем не подсунуть.
++const _SNAPSHOT_PREFIX = 'orchestra_snapshot:';
++// Старше суток не показываем даже с меткой: за сутки меняется всё, включая состав агентов.
++const _SNAPSHOT_MAX_AGE_MS = 86400000;
++
++function snapshotSave(key, data) {
++    try {
++        localStorage.setItem(_SNAPSHOT_PREFIX + key, JSON.stringify({ts: Date.now(), data}));
++    } catch (e) {
++        // Переполнение квоты localStorage — не повод ронять обновление интерфейса,
++        // но и молчать нельзя: кеш просто перестал бы работать без единого слова.
++        console.warn(`snapshot ${key}: не сохранён — ${e.name}: ${e.message}`);
++    }
++}
++
++// null = снимка нет или он протух. Иначе {data, ts, ageMs}.
++function snapshotLoad(key) {
++    let raw;
++    try {
++        raw = localStorage.getItem(_SNAPSHOT_PREFIX + key);
++    } catch (e) {
++        console.warn(`snapshot ${key}: не прочитан — ${e.name}: ${e.message}`);
++        return null;
++    }
++    if (!raw) return null;
++    let parsed;
++    try {
++        parsed = JSON.parse(raw);
++    } catch (e) {
++        console.warn(`snapshot ${key}: битый JSON — ${e.name}`);
++        return null;
++    }
++    const ts = Number(parsed?.ts);
++    if (!ts || parsed?.data === undefined) return null;
++    const ageMs = Date.now() - ts;
++    if (ageMs < 0 || ageMs > _SNAPSHOT_MAX_AGE_MS) return null;
++    return {data: parsed.data, ts, ageMs};
++}
++
++// «данные от 14:32» — метка времени, а не относительный возраст: юзер и так знает,
++// который час, а «5 минут назад» надо держать в голове и пересчитывать.
++function snapshotAgeLabel(ts) {
++    const when = new Date(ts);
++    const hh = String(when.getHours()).padStart(2, '0');
++    const mm = String(when.getMinutes()).padStart(2, '0');
++    return `данные от ${hh}:${mm}`;
++}
++
+ // One table owns provider labels, capacity routing and window shapes for every usage view.
+ const _PROVIDER_META = {
+     claude: {
+diff --git a/docs/tasks/197/codex-review-sol.md b/docs/tasks/197/codex-review-sol.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4b528922f66b39188985a3bf2180cb08e99614f
+--- /dev/null
++++ b/docs/tasks/197/codex-review-sol.md
+@@ -0,0 +1,100 @@
++# #197 — журнал попыток review
++
++## Маршрут по gate
++
++Входы decision gate, зафиксированные ДО выбора маршрута:
++
++- **Изменённые файлы:** `app/main.py`, `app/routes/system.py`,
++  `app/static/js/{utils,usage,app}.js`, `tests/test_frontend.py`,
++  `tests/test_static_compression.py`.
++- **Consumers:** каждая панель дашборда; **каждый HTTP-ответ приложения** (middleware);
++  `app/session_turns.py:144` (подменяет `_grok_usage_cache` целиком).
++- **Author model/runtime:** Opus 5 (`claude-opus-5[1m]`), Claude runtime — из metadata
++  текущей сессии, не из имени агента.
++- **AC:** пункты 1-5 задачи #197 + приёмка «эмулировать потерю ~20% запросов → интерфейс
++  остаётся заполненным», «замер запросов/мин до и после», «мутационная проверка».
++- **Named command + output:** `uv run pytest -q tests/test_frontend.py` → `72 passed`;
++  `uv run pytest -q tests/test_static_compression.py` → `6 passed`.
++
++**Risk floor: HIGH, взведён доказательно, а не объявлен автором.** Сработавшие классы:
++
++1. *shared process / message delivery* — `GZipMiddleware` встаёт на путь ВСЕХ ответов
++   процесса, который одновременно супервизирует живые CLI-сессии агентов. Поломка SSE =
++   потеря живого потока журнала агента.
++2. *lifecycle gate* — `RequestCensusMiddleware` считает in-flight потоки для дренажа при
++   рестарте, классифицируя ответ по `content-type` на кадре `http.response.start`. gzip
++   этот кадр придерживает. Сбой счётчика = рестарт не достигается либо режет ходы.
++
++Правило 4 gate: **Sol обязателен при любом размере** для shared runtime. Малый дифф и
++зелёные тесты этот floor не снижают.
++
++Правило 5: high-risk код, авторства Claude, — Sol и есть кросс-семейный ревьюер
++(автор Claude, ревьюер Codex-family), то есть независимость обеспечивалась бы им.
++
++## Попытка 1 — Sol через `codex_review`, ОТКАЗ ИНСТРУМЕНТА
++
++```
++codex_review(mode="exec", target="/tmp/t197-impl.diff", model="codex",
++             output="docs/tasks/197/codex-review-sol.md", context=<полный, с PROJECT CONTEXT>)
++```
++
++Ответ:
++
++```
++weekly_quota_blocked: New Codex worker turn blocked: Codex weekly quota is 100%
++(threshold 95%). Available provider: Claude. Stop/model change remain available.
++```
++
++Проверено до вызова по `/api/usage`: `codex primary utilization=100`,
++`resets_at=2026-08-23T07:26:39Z`.
++
++**Исход: ПОПЫТКА, раунд НЕ потрачен.** Весь вывод — сообщение об отказе инструмента и
++ничего кроме; ревьюер текста не выдавал. Классификация по таблице исходов скилла, строка
++«весь вывод — отказ инструмента и ничего кроме».
++
++Luna в этот же вызов не пробовалась отдельно: Luna и Sol идут через тот же Codex runtime
++и ту же недельную квоту, поэтому отказ детерминированно тот же. Кроме того, по правилу 4
++Luna для shared-runtime floor gate'ом не является.
++
++## Статус маршрута
++
++**`review route unavailable`** — громко, а не skip и не ложный вердикт.
++
++Оставшийся законный маршрут для этого floor — **targeted Opus cross-family review свежей
++reviewer-сессией**. Terminal worker её не поднимает: `spawn_worker` мне запрещён. Поэтому
++review handoff отправлен оркестратору (`Orchestra-orchestrator`) с точным target, AC и
++запретом реализации.
++
++Независимость на момент написания: **cross-family verdict unavailable** — дословно, как
++предписано скиллом. Ни одно утверждение в `report.md` не называет эту работу
++отревьюированной.
++
++## Adversarial self-review (замена, а не эквивалент)
++
++Скилл требует при исчерпании попыток сделать self-review вместо ревью. Он НЕ засчитывается
++как вердикт и приводится только чтобы находки не потерялись.
++
++Что я атаковал в собственной правке и с каким результатом:
++
++1. **Порядок middleware.** Первоначальный комментарий в `app/main.py` обосновывал
++   «последний = внешний» неверным рассуждением о `user_middleware[-1]`. Тест это вскрыл:
++   Starlette делает `insert(0)`, фактический стек
++   `['GZipMiddleware', 'AuthMiddleware', 'RequestCensusMiddleware']`. Размещение оказалось
++   верным, обоснование — нет; комментарий и ассерт исправлены по факту прогона.
++2. **Оракул SSE на `ASGITransport`.** Первая версия была бы КРАСНОЙ при исправном коде
++   (транспорт собирает тело целиком → один кусок). Переписано на живой сокет uvicorn и
++   добавлено контрольное плечо с принудительным сжатием, которое требует схлопывания, —
++   без него зелёный не отличал бы работающее освобождение SSE от стенда, не умеющего
++   показать буферизацию.
++3. **`failed_at` на подменённом словаре.** `_grok_usage_cache` подменяется целиком в
++   `session_turns.py` и в 4 тестах; жёсткий `["failed_at"]` уронил бы `/api/usage`.
++   Читается через `.get("failed_at", 0.0)`; те 4 теста зелёные.
++4. **Мутация только примитива читалась бы как покрытие.** Мутация `snapshotLoad` падает на
++   ТЁПЛОЙ фазе (положительный контроль), а не на проверяемой. Добавлена вторая мутация — по
++   проводке `_restoreSessionsSnapshot`, — и она падает именно на холодной проверке.
++5. **Замер gzip через `httpx` соврал** «1.0×, сжатия нет»: клиент распаковывает прозрачно.
++   Перемерено сокетом: 829 751 → 227 573 Б.
++
++Не закрыто самопроверкой и требует чужих глаз: пункты (a)-(d) из запроса выше, прежде
++всего взаимодействие gzip с дренажным счётчиком на РЕАЛЬНОМ `app.main` (мои тесты
++проверяют его на стенде с тем же порядком, но не на боевом приложении с живым рестартом).
+diff --git a/docs/tasks/197/report.md b/docs/tasks/197/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e6d2c3feae187e0b6004ccee221efcebc30a427
+--- /dev/null
++++ b/docs/tasks/197/report.md
+@@ -0,0 +1,217 @@
++# #197 — дашборд на канале, где ~17% запросов не доходят
++
++Диагностика — в `research.md`; здесь только сделанное и замеренное.
++Два коммита, снимаются независимо: `92a01411` (кеш и ретраи), `fd9ae9ea` (gzip).
++
++## Главный итог первым
++
++| Что | До | После |
++| --- | --- | --- |
++| Статика первой загрузки, ПО ПРОВОДУ | 829 751 Б | 227 573 Б (**3.6×**) |
++| Она же на 30 КБ/с | 27.0 с | 7.4 с |
++| `/api/usage`, 2-й и далее запрос | 0.90–1.21 с | **0.002 с** |
++| Панели при недошедшем запросе | пустые + «нет данных» | заполнены, помечены `данные от HH:MM` |
++| Запросов/мин, активная вкладка | 54.0 | 54.0 (не трогал, см. ниже) |
++
++## 1. Кеш последнего успешного ответа (главный приоритет)
++
++`snapshotSave` / `snapshotLoad` / `snapshotAgeLabel` в `utils.js` — снимок в
++`localStorage`, потолок возраста сутки. Подключено к `usage`, `sessions`+`stats`,
++`orchestrators`, `models`.
++
++Почему именно `localStorage`, а не память: в памяти данные провал уже переживали
++(`_usageData` при провале не стирался, полоса честно писала «данные от N мин назад»).
++Не переживала **загрузка страницы** — а на канале с 17% потерь это самое частое место
++встречи с обрывом: там разом идут `models`, `orchestrators`, `sessions`, `stats`,
++`usage`. Первый провал давал `⚠ Usage unavailable` и пустой список агентов не потому,
++что данных нет, а потому, что их негде было взять.
++
++Порядок в `initUsageBar` тоже важен: снимок восстанавливается ДО первого запроса, и
++полоса заполнена с первого кадра. Раньше пустота висела всё время запроса — на канале
++юзера это 2–6 с, а при провале навсегда.
++
++## 2. Честная индикация
++
++Полоса «показано из кеша — данные от HH:MM» (жёлтая) и «не загрузилось + класс
++исключения» (красная) — два РАЗНЫХ состояния, и лечатся они по-разному. Строятся в JS
++и вставляются перед `#usage-bar`: шаблон отдаётся главным чекаутом и доехал бы до юзера
++только рестартом.
++
++Три молчащих `catch {}` теперь называют причину:
++`_loadModelsNow`, `_loadOrchestratorsNow`, `_fetchAgentContextNow`.
++Контекст при провале показывает прошлое значение с пометкой `(не обновлено)` —
++прочерк неотличим от «агент только что создан».
++
++## 3. Ретраи
++
++Добавлен джиттер `[0, 800]` мс между попытками. Бюджет попытки НЕ увеличен, и это
++осознанно против первого впечатления: постановка говорит «2 с мало на плохом канале»,
++но её же замер говорит обратное — обрыв происходит на УСТАНОВКЕ соединения
++(`conn=0.000000s`, `code=000`), то есть соединение либо встаёт быстро, либо не встаёт
++вовсе. Растить бюджет = дольше сидеть на заведомо мёртвой попытке. Настоящая дыра была
++в другом: три попытки шли вплотную, а ТСПУ режет пачками — все три попадали в одно окно
++потерь. Джиттер делает их независимыми. Худший случай ≈5.6 с против прежних 6 с.
++
++## 4. Серверный кеш — найдена причина, а не симптом
++
++`/api/usage` держал 0.9–1.2 с при 300-секундном кеше провайдеров и локальном
++`/api/models` за 0.002 с.
++
++Гипотеза «виноват синхронный скан истории в `usage_exchange_rate()`» **опровергнута
++замером** (0.002–0.003 с), а не оставлена вероятной. Разложение по слагаемым:
++
++```
++agents_cost: 0.006s   voice: 0.001s
++grok fetch:  0.877s RAISED PermissionError: token_expired
++grok cache ts: 0.0
++```
++
++Токен Grok протух, поход к провайдеру падает за 0.877 с, и ветка провала **обнуляла**
++`ts = 0.0`. Обнулённый `ts` не проходит проверку TTL никогда → следующий запрос снова
++идёт в сеть → снова падает. **TTL для сбойного провайдера не действовал по построению.**
++
++Фикс: отдельный `failed_at` с окном 60 с. `data=None, ts=0` сохранены намеренно —
++«данных по Grok нет» должно оставаться видимым, подставлять вчерашние проценты нельзя.
++Кешируется только САМ ФАКТ провала. Окно короче успеха, чтобы починка токена подхватилась
++за минуту, а не за пять. Замер после: 1-й вызов 4.86 с (идёт в сеть, как и раньше),
++2–5-й — 0.002 с.
++
++`_grok_usage_cache` читается через `.get("failed_at", 0.0)`: словарь целиком подменяется
++извне (`session_turns.py:144` и четыре теста), жёсткий ключ уронил бы `/api/usage` на
++чужой подмене.
++
++Сам протухший токен НЕ чинил — это #267, и правка не притворяется, что чинит.
++
++### `/api/stats` — кеш не нужен, замерено
++
++Просили добавить его к пункту 4. Не добавил, потому что кешировать нечего:
++`get_stats()` целиком — **0.005 с** при 138 583 строках `logs` и 442 сессиях, тёплый
++роут 0.014–0.021 с (8 подряд). Холодный горб, из-за которого он разово показывал 0.27–4.45 с,
++— это page cache и прогрев процесса; серверный кеш от него не спасает, потому что ПЕРВЫЙ
++запрос всё равно холодный. Класть кеш ради 5 мс — это код, который надо сопровождать,
++без выигрыша.
++
++## 5. Холодный старт: горб в статике, а не в API
++
++Замер первой загрузки: API суммарно **68 КБ** (`sessions` 11 КБ, `orchestrators` 18 КБ,
++`tm/tasks` 39 КБ, все по 0.035–0.044 с), статика — **814 КБ**, из них `app.js` 435 КБ.
++Отдавалась несжатой: `curl --compressed` возвращал те же 434 627 байт, заголовка
++`content-encoding` в ответе не было вовсе.
++
++`app.add_middleware(GZipMiddleware, minimum_size=1024)` — по сокету **829 751 → 227 573 Б,
++3.6×**; на 30 КБ/с 27.0 → 7.4 с. На дырявом канале вчетверо меньше байт — это ещё и
++вчетверо меньше шансов поймать обрыв посреди передачи.
++
++**Мерить пришлось сокетом.** Первая попытка через `httpx` показала «1.0×, сжатия нет»:
++клиент распаковывает прозрачно, и `content-length` в его ответе — это размер РАСПАКОВАННОГО
++тела. Замер врал, код был исправен.
++
++«Рендер частями» не делал: кеширование уже верное (`VersionedStatic` отдаёт
++`max-age=31536000, immutable` на версионных URL), значит цена платится ОДИН раз на версию.
++Переделывать первый рендер ради второго по величине слагаемого, когда первое снимается
++однострочником, — не тот размен.
++
++**Порядок middleware.** gzip добавлен последним и потому стоит самым ВНЕШНИМ
++(`add_middleware` делает `insert(0)`; проверено прогоном:
++`['GZipMiddleware', 'AuthMiddleware', 'RequestCensusMiddleware']`). Так и надо: gzip
++придерживает кадр `http.response.start` до первого куска тела, а `RequestCensusMiddleware`
++именно на этом кадре читает `content-type`, чтобы отличить поток от обычного ответа —
++изнутри gzip сдвигал бы счётчик дренажа.
++
++Оба потоковых маршрута проверены:
++- `/api/sessions/*/stream` (SSE) — не сжимается вовсе,
++  `DEFAULT_EXCLUDED_CONTENT_TYPES = ('text/event-stream',)` в Starlette 1.1.0;
++- `/api/report_bug` (`text/markdown`, конечный генератор) — сжимается, тело доезжает
++  целиком, проверено побайтным сравнением с ожидаемым.
++
++## 6. Частота опроса — намеренно не тронута
++
++54.0 запроса/мин на активной вкладке, 0 на скрытой. **До и после одинаково**, и это
++не упущение: развела их #301, а постановка прямо запрещает рефакторить работающее.
++`git diff main` по `_pollRegister`, `_ORCH_REFRESH_MS`, `setInterval` и
++`_USAGE_REFRESH_INTERVAL_MS` — пусто.
++
++Цифра посчитана по расписанию (базовые интервалы поллеров), а не прогоном, потому что
++прогонный замер #301 недостоверен — см. ниже.
++
++## Мутационные проверки
++
++Каждая: `cp F F.bak` → мутация → прогон → `mv F.bak F` → `touch` → зелёный повтор.
++Маркер печатался ДО и ПОСЛЕ.
++
++| # | Мутация | Результат | Маркер до/после |
++| --- | --- | --- | --- |
++| 1 | `snapshotLoad` всегда возвращает `null` | 🔴 red | 1 → 0 |
++| 2 | `_restoreSessionsSnapshot` выходит сразу (`if (true) return`) | 🔴 red на ХОЛОДНОЙ фазе | 1 → 0 |
++| 3 | строка `add_middleware(GZipMiddleware …)` убрана | 🔴 red | 1 → 0 |
++
++Зелёный повтор после каждого отката: `3 passed`, `1 passed`, `6 passed`.
++
++Мутация 1 упала на положительном контроле (тёплая фаза), мутация 2 — на самой холодной
++проверке, ради которой тест и написан. Обе нужны: первая доказывает, что примитив жив,
++вторая — что жива ПРОВОДКА к прод-пути. Мутация только примитива читалась бы как
++покрытие и им не была.
++
++## Оракулы
++
++- `test_dashboard_survives_lossy_channel_from_snapshot` — два захода в одном browser
++  context (иначе `localStorage` негде проверять). Первый всё получает, второй теряет
++  `sessions`/`stats`/`usage`/`orchestrators` через `route.abort()` — это `TypeError` в
++  fetch, ровно то, что видит браузер при обрыве TLS. Проверяет: агенты на месте, usage
++  не пуст, есть пометка «из кеша» и метка времени. Гард `assert lossy["dropped"]` — без
++  него тест мог бы зеленеть, ничего не уронив.
++- `test_dashboard_shows_error_class_when_nothing_cached` — пустой `localStorage`, нечего
++  показать → красная полоса с КЛАССОМ исключения.
++- `test_api_retry_spaces_attempts_with_jitter`.
++- `test_static_compression.py`, 6 штук. Ключевой — `test_sse_arrives_incrementally…`:
++  проверяет не заголовок, а что события РАЗНЕСЕНЫ во времени.
++
++**Контрольное плечо к SSE-оракулу.** `test_control_arm_forced_compression_does_collapse_the_stream`
++гоняет тот же поток с принудительным сжатием (исключения сняты) и требует, чтобы разброс
++СХЛОПНУЛСЯ. Без него зелёный ничего не значил бы: первая версия теста стояла на
++`ASGITransport`, который собирает тело целиком и отдаёт ОДИН кусок при любом коде —
++такая проверка мерила транспорт вместо сжатия и была бы одинаковой при исправном
++освобождении SSE и при полностью сломанном. Поэтому оракул поднимает настоящий uvicorn
++на живом сокете.
++
++## Прогоны
++
++- `tests/test_frontend.py` — **72 passed** (69 прежних + 3 моих).
++- `tests/test_static_compression.py` — **6 passed**.
++- Usage-семейство (`codex_usage`, `usage_snapshot`, `usage_readiness`, `turn_usage`,
++  `grok_usage_frontend`, `antigravity_usage_frontend`) — **55 passed, 6 skipped**.
++
++### Чужое, не чинил
++
++- `tests/test_api.py` — **18 failed**. Проверено запуском на ЧИСТОМ `main` в отдельном
++  worktree: тот же результат, `diff` списков падений пуст. Все 18 предсуществуют.
++- `test_quota_headroom_frontend.py::test_free_week_looks_exactly_like_today` — падает и
++  на базе ветки, и на `main` (`HEAD == main == ad1697ef`).
++- `test_dashboard_polling_equivalent_twelve_minutes_before_after` (#301) — **флакует, и
++  это не моя правка**. На моей ветке 2 из 3 красных; на чистом `main`, где тест сравнивает
++  main САМ С СОБОЙ, — тоже 2 из 3 красных. Его собственный шум больше измеряемого эффекта:
++  `before_total` гуляет 1456–2242 на одном и том же коде. Поэтому цифру запросов/мин я
++  взял из расписания, а не из него.
++
++### Откат в тестовом слое
++
++`_usageFreshnessHtml` я сперва дополнил меткой возраста в ветке «обновление…». Это
++уронило существующий `test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm`,
++который ждёт дословное `обновление…`. Правку СНЯЛ, тест не трогал: разрешения на
++редактирование тестового слоя у меня нет, а честность и так обеспечивают ветки `stale`
++и `_usageError`.
++
++## Пре-мортем: чем это может сломаться
++
++1. **Снимок переживает смену данных на сервере** (агента убили, а он в списке).
++   Закрыто потолком возраста в сутки и тем, что снимок рисуется ТОЛЬКО когда живых
++   данных нет (`#agent-list` пуст), а любой успешный ответ его затирает.
++2. **Снимок от чужого scope.** Ключ `sessions:<scope>`, плюс проверка
++   `scope !== currentScope` на входе в восстановление.
++3. **Переполнение `localStorage`.** `snapshotSave` ловит и пишет причину в консоль;
++   обновление интерфейса не падает.
++4. **gzip ломает SSE.** Закрыто оракулом на живом сокете + контрольным плечом; плюс
++   отдельный тест на константу Starlette, чтобы обновление библиотеки ломало тест, а не
++   живые потоки.
++5. **`failed_at` роняет `/api/usage` на подменённом словаре.** Закрыто `.get(...)`;
++   4 существующих теста подменяют этот словарь без нового поля и зелены.
+diff --git a/docs/tasks/197/research.md b/docs/tasks/197/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ddf2d87fc0020e95dfeeb7bee54c0dd149749972
+--- /dev/null
++++ b/docs/tasks/197/research.md
+@@ -0,0 +1,107 @@
++# #197 — что на самом деле пустеет и почему
++
++Замеры сделаны 20.08.2026 в этом worktree против живого сервера на :8888 и чтением
++текущего кода ветки. Задача #301 (visibility-aware polling) уже в main и владеет
++координатором опроса — часть пунктов постановки ею закрыта, это выяснено до правок.
++
++## Что УЖЕ есть в main (правку не требует)
++
++| Пункт постановки | Состояние | Где |
++| --- | --- | --- |
++| 1. Ретраи с backoff | Частично. `_pollDelay` даёт экспоненту до 120 с **между циклами опроса**. Внутри `api()` — 3 попытки подряд по 2.0 с, без джиттера и без роста бюджета | `app.js:916-928`, `app.js:6856-6912` |
++| 2. Кеш последнего ответа | Только для usage и только **в памяти** (`_usageData` переживает провал fetch). После перезагрузки страницы — пусто | `usage.js:3-9, 145-166` |
++| 3. Снижение частоты опроса | Сделано в #301: hidden-вкладка останавливает расписание, coalescing по ключу | `app.js:960-1000` |
++| 4. Серверный кеш `/api/usage` | Есть, TTL 300 с, переживает рестарт (пишется на диск) | `system.py:413-444, 805-857` |
++| 5. Честная индикация | Частично: `_showNetFailBanner` отличает обрыв от ответа сервера | `app.js:6920-6940` |
++
++## Дефект 1 — `/api/usage` 0.9 с при живом кеше: провал провайдера ОТКЛЮЧАЕТ TTL
++
++Замер живого сервера, пять подряд:
++
++```
++0.935 0.918 1.208 0.976 0.879  (все 200)
++```
++
++Для сравнения на той же машине: `/api/models` 0.0016 с, `/api/stats` 0.27 с.
++
++Гипотеза «виноват `usage_exchange_rate()` — синхронный скан 72 ч истории на каждом
++запросе» **опровергнута прямым замером**: 0.003/0.002/0.002 с. Отвергнута, а не
++оставлена «вероятной».
++
++Настоящая причина найдена разложением ответа по слагаемым:
++
++```
++agents_cost: 0.006s
++voice:       0.001s
++grok token present: True
++grok fetch:  0.877s RAISED PermissionError: token_expired
++grok cache ts: 0.0
++```
++
++`_read_grok_token()` находит токен (файл на месте), поход к провайдеру падает
++`PermissionError: token_expired` за 0.877 с, и в ветке провала (`system.py:909-914`)
++кеш Grok **обнуляется**: `ts = 0.0`. Обнулённый `ts` не проходит проверку
++`now - ts < _USAGE_CACHE_TTL` никогда, поэтому следующий запрос снова идёт в сеть —
++и снова падает. TTL для сбойного провайдера не действует по построению.
++
++То есть 0.88 с из 0.92 с — это гарантированно-провальный сетевой вызов, повторяемый
++на КАЖДЫЙ запрос дашборда. На дырявом канале юзера этот запрос ещё и держит одно из
++шести HTTP/1.1-соединений почти секунду.
++
++Правка целится сюда: **негативный результат провайдера тоже кешируется** (короче, чем
++успех), а не выбрасывается. Grok-токен при этом остаётся протухшим — чинить его не
++моя задача (#267 про это), и правка не должна притворяться, что чинит.
++
++## Дефект 2 — переживает провал только usage, и только до перезагрузки
++
++`_usageData` живёт в модульной переменной. Провал fetch данные не стирает
++(`usage.js:684-694` пишет `_usageError = true`, но `_usageData` не трогает) — и полоса
++честно рисует «данные от N мин назад». Это работает.
++
++Ломается ровно там, где юзер и жалуется: **на загрузке страницы**. Первый `fetchUsage()`
++провалился → `_usageData === null` → `⚠ Usage unavailable`. Показать нечего, потому что
++предыдущий успешный ответ нигде не сохранён. На канале с 17% потерь загрузка страницы —
++самое частое место встречи с провалом: там разом идут `models`, `orchestrators`,
++`sessions`, `stats`, `usage`.
++
++То же и с панелями `Model/Role/Cost/Branch/Scope` (`#ai-*`, `dashboard.html:278-282`):
++они заполняются из `/api/sessions`. Провал → `renderAgentList` не вызывается → панель
++остаётся с прочерками из `app.js:2526-2530`.
++
++## Дефект 3 — три молчащих `catch {}`
++
++```
++app.js:1187  _loadModelsNow          } catch {}
++app.js:1658  _loadOrchestratorsNow   } catch {}
++app.js:2645  _fetchAgentContextNow   } catch {}
++```
++
++Прямо запрещено в `CLAUDE.md` («каждая ветка ошибки обязана показать класс исключения
++или ответ сервера») и это пункт 5 постановки. Юзер видит пустой селектор моделей и
++пустые вкладки оркестраторов без единого слова о причине.
++
++## Дефект 4 — таймаут 2 с не подходит каналу, где рвётся УСТАНОВКА соединения
++
++Комментарий у `_API_TIMEOUT_MS` (`app.js:6845-6856`) обосновывает 2 с замером
++**скорости передачи**: тяжёлое приезжает за 0.72–1.33 с. Это верно и к делу не
++относится. Замер постановки #197 — про другое: обрыв происходит на TLS-хендшейке
++(`conn=0.000000s`, `code=000`), соединение висит 8–12 с и не встаёт.
++
++Следствие: три попытки по 2 с = 6 с гарантированного провала, после чего баннер
++«Ответ не дошёл». При этом ЖИВОЕ соединение встаёт быстро — значит правильная
++стратегия не «ждать дольше», а «бросать быстро и пробовать снова, разнося попытки
++джиттером». Джиттера сейчас нет вовсе: три попытки идут вплотную, и если ТСПУ режет
++пачкой, все три попадают в одно окно.
++
++## Что из этого делаю
++
++1. Кеш последнего успешного ответа в `localStorage` для того, что рисует интерфейс
++   при загрузке: usage, список оркестраторов, список сессий+stats, models. Возраст
++   показывается явно. Это пункт 2 и главный приоритет.
++2. Джиттер между попытками в `api()` + отдельный, больший бюджет первой попытки.
++3. Кеширование НЕГАТИВНОГО ответа провайдера в `/api/usage` — снимает 0.88 с с
++   каждого запроса.
++4. Три `catch {}` получают текст ошибки на экран.
++
++Частоту опроса (пункт 3) #301 уже развела; трогать её сверх этого — рефакторинг
++работающего, чего постановка прямо запрещает. Цифры до/после всё равно меряю.
+diff --git a/docs/workers/fix-dashboard-resilience.md b/docs/workers/fix-dashboard-resilience.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..35c768862354d7f76a51208fbf70cf42a212b500
+--- /dev/null
++++ b/docs/workers/fix-dashboard-resilience.md
+@@ -0,0 +1,51 @@
++# fix-dashboard-resilience — личная память
++
++## Меряешь СЖАТИЕ — только сырой сокет, никогда не httpx/requests
++
++`httpx` (и `requests`) распаковывают `content-encoding: gzip` прозрачно, а
++`response.headers['content-length']` в их ответе — размер УЖЕ РАСПАКОВАННОГО тела.
++Замер печатает «1.0×, сжатия нет» на полностью исправном коде, причём заголовок
++`content-encoding: gzip` при этом видно — то есть данные выглядят
++самопротиворечиво, и легко решить, что сломан код.
++
++Рабочий способ (#197): `socket.create_connection` + руками
++`GET ... HTTP/1.1 / Accept-Encoding: gzip / Connection: close`, считать `len(data)`
++из `recv`. Дало 829 751 → 227 573 Б (3.6×) там, где httpx показывал 1.0×.
++
++## Оракул на ИНКРЕМЕНТАЛЬНОСТЬ потока не строится на ASGITransport
++
++`httpx.ASGITransport` собирает тело целиком перед отдачей: `aiter_bytes` даёт ОДИН
++кусок независимо от того, буферизует приложение поток или нет. Тест «события
++разнесены во времени» на нём КРАСНЫЙ при исправном коде — мерит транспорт, а не
++предмет. Нужен настоящий сокет: `uvicorn.Server` в треде, `port=0`, ждать
++`server.started and server.servers[0].sockets`, брать порт из `getsockname()[1]`.
++
++И обязательно контрольное плечо, которое требует, чтобы поток СХЛОПНУЛСЯ при
++принудительном сжатии, — иначе зелёный не отличает «освобождение SSE работает» от
++«стенд в принципе не умеет показать буферизацию».
++
++## Порядок middleware в Starlette: `user_middleware` хранится ВНЕШНИМ-ПЕРВЫМ
++
++`add_middleware` делает `insert(0)`. Добавленный последним стоит в списке ПЕРВЫМ и
++обрабатывает запрос раньше всех. Проверено прогоном: при порядке добавления
++Census → Auth → GZip стек читается
++`['GZipMiddleware', 'AuthMiddleware', 'RequestCensusMiddleware']`.
++Я написал ассерт на `stack[-1]` по интуиции и получил красный — интуиция здесь
++ровно обратна реальности.
++
++## В этом репо: провал провайдера, обнуляющий `ts`, ОТКЛЮЧАЕТ TTL
++
++Шаблон `except: cache["ts"] = 0.0` встречался в `app/routes/system.py` и означал,
++что сбойный провайдер ходит в сеть на КАЖДЫЙ запрос: обнулённый `ts` не проходит
++`now - ts < TTL` никогда. Стоило 0.88 с на каждом `/api/usage`. Лечится отдельным
++ключом `failed_at` с более коротким окном; `data=None` при этом сохранять, если
++«данных нет» — осмысленное состояние для UI.
++
++Словари этих кешей подменяются целиком извне (`session_turns.py`, тесты) → новые
++ключи читать только через `.get(key, default)`, иначе `KeyError` на чужой подмене.
++
++## `git diff main HEAD` в отставшей ветке показывает ЧУЖИЕ удаления
++
++Мой дифф «удалял» `docs/tasks/192/` и `docs/workers/cdn-vendors-*`, которых я не
++трогал: ветка отстала от main. Для ревью и для оценки объёма брать
++`git diff $(git merge-base main HEAD) HEAD -- <свои пути>`.
+diff --git a/tests/test_frontend.py b/tests/test_frontend.py
+index 09ccc05be769850700081c27bb639876f8f0c784..3afadeb1f86885a510b4e5e3d82ab99c8a132f3c 100644
+--- a/tests/test_frontend.py
++++ b/tests/test_frontend.py
+@@ -3628,3 +3628,199 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
+     page.locator("#voice-btn").click()
+     expect(page.locator("#voice-error")).to_contain_text("Доступ к микрофону запрещён")
+     context.close()
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# #197 — интерфейс переживает канал, где часть запросов не доходит
++# ─────────────────────────────────────────────────────────────────────────────
++
++_LOSSY_SCOPE = "/tmp/fe-scope"
++_LOSSY_SESSIONS = [
++    {
++        "id": "fe-orch-id", "name": "fe-orch", "scope": _LOSSY_SCOPE, "status": "idle",
++        "model": "claude-opus-5[1m]", "role": "orchestrator", "cost_usd": 1.25,
++        "branch": "main", "is_orchestrator": True,
++    },
++    {
++        "id": "fe-worker-id", "name": "fe-worker", "scope": _LOSSY_SCOPE, "status": "idle",
++        "model": "claude-opus-5[1m]", "role": "worker", "cost_usd": 0.5,
++        "branch": "task-197/fe-worker", "parent_name": "fe-orch",
++    },
++]
++_LOSSY_STATS = {"active": 0, "total_sessions": 2, "total_cost_usd": 1.75}
++_LOSSY_ORCHS = [
++    {"id": "fe-orch-id", "name": "fe-orch", "scope": _LOSSY_SCOPE, "status": "idle"},
++]
++_LOSSY_USAGE = {
++    "anthropic": {
++        "five_hour": {"utilization": 41, "resets_at": None},
++        "seven_day": {"utilization": 62, "resets_at": None},
++    },
++    "codex": {}, "grok": None, "orchestra": {}, "voice_cost_usd": 0.0,
++    "subscription_cost": "",
++}
++
++
++def _lossy_payload(path: str):
++    """Тело ответа для путей первой загрузки. Неизвестный путь — пустой объект."""
++    if path == "/api/sessions":
++        return _LOSSY_SESSIONS
++    if path == "/api/stats":
++        return _LOSSY_STATS
++    if path == "/api/orchestrators":
++        return _LOSSY_ORCHS
++    if path == "/api/usage":
++        return _LOSSY_USAGE
++    if path == "/api/models":
++        return {"models": [{"id": "claude-opus-5[1m]", "name": "Opus 5"}],
++                "proxy_connected": True}
++    if path == "/api/logs/sync":
++        return {"logs": [], "max_log_id": 0, "live_sessions": []}
++    if path.endswith("/context"):
++        return {"percentage": 12, "total_tokens": 1200, "max_tokens": 10000}
++    if path.endswith("/logs"):
++        return []
++    return {}
++
++
++def _install_lossy_api(page: Page, drop: dict):
++    """Маршрут /api/: `drop['on']` — множество путей, которые НЕ доходят.
++
++    Недошедший запрос эмулируется `route.abort()` — это TypeError в fetch, ровно то,
++    что видит браузер при обрыве TLS-хендшейка (ТСПУ роняет ~17% коннектов). Ответ
++    сервера с ошибкой — это ДРУГОЕ состояние, и в этом тесте оно не проверяется.
++    """
++    def api_route(route):
++        path = route.request.url.split("?")[0].split("/api")[-1]
++        path = "/api" + path
++        if path.endswith("/stream"):
++            route.fulfill(status=200, content_type="text/event-stream", body="")
++            return
++        if path in drop["on"]:
++            drop.setdefault("dropped", []).append(path)
++            route.abort()
++            return
++        route.fulfill(
++            status=200,
++            content_type="application/json",
++            body=json.dumps(_lossy_payload(path)),
++        )
++
++    page.route(re.compile(r"/api/"), api_route)
++
++
++def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Browser):
++    """Пункт 2 #197: недошедший запрос показывает прошлые данные, а не пустоту.
++
++    Два захода в ОДНОМ browser context — иначе localStorage не переживает перезагрузку
++    и снимок проверять было бы негде. Первый заход всё получает и сохраняет снимок,
++    второй теряет ровно те запросы, из которых строится интерфейс.
++    """
++    context = dashboard_browser.new_context()
++    try:
++        warm = context.new_page()
++        drop = {"on": set()}
++        _install_lossy_api(warm, drop)
++        _route_frontend_sources(warm)
++        _goto_dashboard(warm)
++        warm.wait_for_function("() => typeof snapshotSave === 'function'")
++        # Положительный контроль: без него «снимок пуст» и «снимок не читается»
++        # выглядели бы одинаково зелёными на сломанном кеше.
++        warm.wait_for_function(
++            "() => document.querySelectorAll('#agent-list .agent-item').length >= 2",
++            timeout=8000,
++        )
++        warm.wait_for_function("() => !!snapshotLoad('usage')", timeout=8000)
++        warm.wait_for_function(
++            f"() => !!snapshotLoad('sessions:{_LOSSY_SCOPE}')", timeout=8000
++        )
++        saved = warm.evaluate(
++            """() => Object.keys(localStorage)
++                .filter(k => k.startsWith('orchestra_snapshot:'))"""
++        )
++        warm.close()
++
++        assert saved, "первый заход обязан сохранить хоть один снимок"
++
++        cold = context.new_page()
++        lossy = {"on": {"/api/sessions", "/api/stats", "/api/usage", "/api/orchestrators"}}
++        _install_lossy_api(cold, lossy)
++        _route_frontend_sources(cold)
++        _goto_dashboard(cold)
++        cold.wait_for_function("() => typeof snapshotLoad === 'function'")
++
++        cold.wait_for_function(
++            "() => document.querySelectorAll('#agent-list .agent-item').length >= 2",
++            timeout=15000,
++        )
++        cold.wait_for_function(
++            "() => (document.querySelector('#usage-bar')?.innerText || '').includes('5h')",
++            timeout=15000,
++        )
++        state = cold.evaluate(
++            """() => ({
++                agents: document.querySelectorAll('#agent-list .agent-item').length,
++                usageText: document.querySelector('#usage-bar')?.innerText || '',
++                statsText: document.querySelector('#stats-line')?.innerText || '',
++                tabs: document.querySelectorAll('#orch-tabs [data-scope]').length,
++                notice: document.querySelector('#stale-notice-strip')?.innerText || '',
++                usageUnavailable:
++                    (document.querySelector('#usage-bar')?.innerText || '')
++                        .includes('Usage unavailable'),
++            })"""
++        )
++        cold.close()
++    finally:
++        context.close()
++
++    assert lossy["dropped"], "тест обязан реально ронять запросы, иначе он ничего не мерит"
++    # Главное утверждение задачи: панели заполнены, хотя ни один из этих запросов не дошёл.
++    assert state["agents"] >= 2, f"список агентов пуст на потерянном канале: {state}"
++    assert not state["usageUnavailable"], f"usage показал пустоту вместо снимка: {state}"
++    assert "5h" in state["usageText"], f"usage не восстановлен из снимка: {state}"
++    assert "total" in state["statsText"], f"stats не восстановлен из снимка: {state}"
++    # Честность: данные показаны, но помечены как несвежие с меткой времени.
++    assert "из кеша" in state["notice"], f"нет пометки о кеше: {state}"
++    assert "данные от" in state["notice"], f"нет метки времени: {state}"
++
++
++def test_dashboard_shows_error_class_when_nothing_cached(dashboard_browser: Browser):
++    """Пункт 5 #197: нечего показать — назови ПРИЧИНУ, а не молчи.
++
++    Отдельный context: пустой localStorage — это и есть проверяемое условие.
++    """
++    context = dashboard_browser.new_context()
++    try:
++        page = context.new_page()
++        lossy = {"on": {"/api/sessions", "/api/stats", "/api/orchestrators"}}
++        _install_lossy_api(page, lossy)
++        _route_frontend_sources(page)
++        _goto_dashboard(page)
++        page.wait_for_function("() => typeof snapshotLoad === 'function'")
++        page.wait_for_function(
++            "() => (document.querySelector('#stale-notice-strip')?.innerText || '')"
++            ".includes('не загрузился')",
++            timeout=15000,
++        )
++        notice = page.evaluate(
++            "() => document.querySelector('#stale-notice-strip').innerText"
++        )
++        page.close()
++    finally:
++        context.close()
++
++    assert "не загрузился" in notice
++    # Класс исключения обязателен: «не загрузилось» без причины отправляет юзера гадать.
++    assert "TypeError" in notice or "Failed to fetch" in notice, notice
++
++
++def test_api_retry_spaces_attempts_with_jitter():
++    """Пункт 1 #197: повторы не идут вплотную — иначе все три попадают в одно окно потерь."""
++    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
++    body = source.split("async function api(url, opts = {})", 1)[1].split(
++        "function _showNetFailBanner", 1,
++    )[0]
++
++    assert "_API_RETRY_JITTER_MS" in body, "между попытками нет джиттера"
++    assert "Math.random()" in body, "пауза обязана быть случайной, иначе она не разносит попытки"
++    assert "await new Promise" in body, "пауза должна реально ждать, а не только считаться"
+diff --git a/tests/test_static_compression.py b/tests/test_static_compression.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a03ab783529c49a72dc0954c2cd1a84da55dc226
+--- /dev/null
++++ b/tests/test_static_compression.py
+@@ -0,0 +1,233 @@
++"""#197 — статика едет сжатой, а потоки не буферизуются.
++
++Горб первой загрузки — это статика: 814 КБ против 68 КБ у всех API вместе. Она
++отдавалась без сжатия, и на канале юзера (~30 КБ/с, ~17% потерянных коннектов) это
++и есть «загрузился в начале долго».
++
++Опасность сжатия ровно одна и она не про размер: gzip копит буфер, и поток, который
++обязан приходить ПО МЕРЕ ПОЯВЛЕНИЯ, приезжает пачкой в конце. Поэтому наличие
++заголовка тут проверяется мимоходом, а настоящий оракул — инкрементальность SSE.
++"""
++
++import asyncio
++import contextlib
++import json
++import time
++from unittest import mock
++
++import httpx
++import pytest
++from starlette.applications import Starlette
++from starlette.middleware.gzip import GZipMiddleware
++from starlette.responses import PlainTextResponse, StreamingResponse
++from starlette.routing import Route
++
++
++def _app_like_production() -> Starlette:
++    """Стенд повторяет ПОРЯДОК и параметры прода, а не воображаемую конфигурацию.
++
++    Проверять сжатие на настоящем `app.main` нельзя дёшево: он поднимает lifespan с
++    воркерами, мостом и туннелями. Здесь важна ровно одна вещь — как ведёт себя
++    GZipMiddleware с теми же аргументами на тех же трёх видах ответа.
++    """
++
++    async def static_like(request):
++        # Крупный сжимаемый ответ — это app.js (434 КБ реального JS).
++        return PlainTextResponse(
++            "function orchestraDashboard() { return 42; }\n" * 4000,
++            media_type="application/javascript",
++        )
++
++    async def sse(request):
++        async def gen():
++            for i in range(3):
++                yield f"data: {json.dumps({'i': i})}\n\n".encode()
++                await asyncio.sleep(0.15)
++
++        return StreamingResponse(
++            gen(),
++            media_type="text/event-stream",
++            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
++        )
++
++    async def markdown_stream(request):
++        # GET /api/report_bug: StreamingResponse, но конечный и НЕ event-stream.
++        async def gen():
++            for i in range(200):
++                yield f"# report {i}\n".encode()
++
++        return StreamingResponse(gen(), media_type="text/markdown")
++
++    app = Starlette(routes=[
++        Route("/static/js/app.js", static_like),
++        Route("/api/sessions/x/stream", sse),
++        Route("/api/report_bug", markdown_stream),
++    ])
++    app.add_middleware(GZipMiddleware, minimum_size=1024)
++    return app
++
++
++@pytest.mark.asyncio
++async def test_static_is_gzipped_and_shrinks_over_the_wire():
++    transport = httpx.ASGITransport(app=_app_like_production())
++    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
++        plain = await client.get(
++            "/static/js/app.js", headers={"accept-encoding": "identity"}
++        )
++        gz = await client.get(
++            "/static/js/app.js", headers={"accept-encoding": "gzip"}
++        )
++
++    assert plain.status_code == 200 and gz.status_code == 200
++    assert gz.headers.get("content-encoding") == "gzip"
++    wire_plain = len(plain.content)
++    # httpx распаковывает прозрачно — вес ПО ПРОВОДУ берём из content-length ответа.
++    wire_gz = int(gz.headers["content-length"])
++    assert wire_gz < wire_plain / 2, f"сжатие не дало выигрыша: {wire_plain} -> {wire_gz}"
++    # Тело обязано совпасть: сжатие меняет вес, а не содержимое.
++    assert gz.text == plain.text
++
++
++@contextlib.contextmanager
++def _live_server(app):
++    """Настоящий сокет, а не ASGITransport.
++
++    ASGITransport собирает тело целиком, прежде чем отдать его клиенту, — на нём
++    `aiter_bytes` даёт ОДИН кусок и при исправном коде тоже. Такая проверка мерила бы
++    транспорт вместо сжатия и краснела бы всегда. Инкрементальность видна только через
++    сокет.
++    """
++    import threading
++
++    import uvicorn
++
++    config = uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error")
++    server = uvicorn.Server(config)
++    thread = threading.Thread(target=server.run, daemon=True)
++    thread.start()
++    try:
++        deadline = time.monotonic() + 15
++        while time.monotonic() < deadline:
++            if server.started and server.servers and server.servers[0].sockets:
++                break
++            time.sleep(0.02)
++        else:
++            raise RuntimeError("uvicorn не поднялся за 15 с")
++        port = server.servers[0].sockets[0].getsockname()[1]
++        yield f"http://127.0.0.1:{port}"
++    finally:
++        server.should_exit = True
++        thread.join(timeout=15)
++
++
++def _stream_arrivals(base_url: str, path: str) -> tuple[list[float], dict]:
++    """Моменты прихода непустых кусков и заголовки ответа."""
++    arrivals: list[float] = []
++    with httpx.Client(base_url=base_url, timeout=30) as client:
++        with client.stream(
++            "GET", path, headers={"accept-encoding": "gzip"}
++        ) as response:
++            assert response.status_code == 200
++            start = time.monotonic()
++            for chunk in response.iter_bytes():
++                if chunk.strip():
++                    arrivals.append(time.monotonic() - start)
++            headers = dict(response.headers)
++    return arrivals, headers
++
++
++def test_sse_arrives_incrementally_and_is_not_compressed():
++    """Настоящий оракул: события разнесены во времени, а не приезжают пачкой в конце.
++
++    Контрольное плечо обязательно и оно РАЗРЕШАЮЩЕЕ наоборот: тот же поток, но с
++    принудительным сжатием (исключения сняты), обязан схлопнуться. Без него «события
++    разнесены» одинаково верно и при работающем освобождении SSE, и при стенде,
++    который в принципе не умеет показать буферизацию.
++    """
++    with _live_server(_app_like_production()) as base_url:
++        arrivals, headers = _stream_arrivals(base_url, "/api/sessions/x/stream")
++
++    assert len(arrivals) >= 3, f"поток отдал меньше событий, чем прислал: {arrivals}"
++    assert "content-encoding" not in headers, (
++        f"SSE не должен сжиматься вовсе: {headers.get('content-encoding')}"
++    )
++    spread = arrivals[-1] - arrivals[0]
++    assert spread > 0.15, (
++        f"события приехали пачкой (разброс {spread:.3f} с) — поток забуферизован: {arrivals}"
++    )
++
++
++def test_control_arm_forced_compression_does_collapse_the_stream():
++    """Контроль стенда: со сжатием того же потока разброс схлопывается.
++
++    Это доказывает, что предыдущий тест ФИЗИЧЕСКИ СПОСОБЕН покраснеть. Без такого
++    плеча зелёный там ничего не значит — он одинаков и при исправном освобождении
++    SSE, и при стенде, который буферизацию не показывает в принципе.
++    """
++    app = _app_like_production()
++    # Сжимаем ВСЁ, включая event-stream: снимаем ровно то освобождение, на котором
++    # держится боевая конфигурация.
++    app.user_middleware.clear()
++    app.middleware_stack = None
++    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=9)
++    with mock.patch(
++        "starlette.middleware.gzip.DEFAULT_EXCLUDED_CONTENT_TYPES", ()
++    ):
++        with _live_server(app) as base_url:
++            arrivals, headers = _stream_arrivals(base_url, "/api/sessions/x/stream")
++
++    assert arrivals, "контрольное плечо не получило ни одного куска — стенд сломан"
++    spread = arrivals[-1] - arrivals[0]
++    assert headers.get("content-encoding") == "gzip", (
++        f"контроль обязан был сжать поток, иначе он ничего не контролирует: {headers}"
++    )
++    assert spread < 0.15, (
++        f"сжатый поток обязан схлопнуться, иначе оракул выше не умеет краснеть: "
++        f"разброс {spread:.3f} с, {arrivals}"
++    )
++
++
++@pytest.mark.asyncio
++async def test_markdown_stream_survives_compression_whole():
++    """GET /api/report_bug сжимать можно, но тело обязано доехать целиком."""
++    transport = httpx.ASGITransport(app=_app_like_production())
++    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
++        response = await client.get(
++            "/api/report_bug", headers={"accept-encoding": "gzip"}
++        )
++
++    assert response.status_code == 200
++    assert response.headers.get("content-encoding") == "gzip"
++    expected = "".join(f"# report {i}\n" for i in range(200))
++    assert response.text == expected, "сжатый поток доехал не целиком"
++
++
++def test_production_app_registers_gzip_middleware():
++    """Стенд выше проверяет ПОВЕДЕНИЕ; эта строка — что прод вообще его включил.
++
++    Читаем зарегистрированный стек, а не текст файла: строка в исходнике может быть
++    закомментирована или стоять в мёртвой ветке, а стек — это то, что исполняется.
++    """
++    from app.main import app
++
++    stack = [m.cls.__name__ for m in app.user_middleware]
++    assert "GZipMiddleware" in stack, f"gzip не подключён: {stack}"
++    # `user_middleware` хранится ВНЕШНИЙ-ПЕРВЫМ: add_middleware делает insert(0), поэтому
++    # последний добавленный стоит в начале списка и обрабатывает запрос раньше всех.
++    # Проверено прогоном: ['GZipMiddleware', 'AuthMiddleware', 'RequestCensusMiddleware']
++    # при порядке добавления Census -> Auth -> GZip.
++    assert stack[0] == "GZipMiddleware", (
++        f"gzip обязан быть самым внешним, иначе он придерживает http.response.start и "
++        f"счётчик потоков в RequestCensusMiddleware узнаёт о потоке с опозданием: {stack}"
++    )
++
++
++def test_gzip_excludes_event_stream_by_default():
++    """Освобождение SSE держится на константе Starlette — зафиксируем её явно.
++
++    Обновление Starlette, где `text/event-stream` пропал бы из списка, сломало бы
++    живые потоки молча. Пусть ломается тест, а не дашборд.
++    """
++    from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES
++
++    assert "text/event-stream" in DEFAULT_EXCLUDED_CONTENT_TYPES

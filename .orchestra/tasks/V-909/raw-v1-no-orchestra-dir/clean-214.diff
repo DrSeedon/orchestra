@@ -1,0 +1,1397 @@
+diff --git a/app/manager.py b/app/manager.py
+index 39f64685a5a5e684590d1fb93d80ec9c2f54f9c8..83b47560c24ade98ed0ad25a5c31601a0a316c2f 100644
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -47,6 +47,7 @@ from app.pipeline import (
+     get_role,
+     get_worktree_config,
+     load_pipeline,
++    resolve_effort,
+     resolve_role,
+     template_path,
+     validate_spawn,
+@@ -659,7 +660,7 @@ class SessionManager:
+         bt = backend_for_model(model)
+         _rr_effort = get_role(pipeline, role)
+         raw_effort = getattr(_rr_effort, "effort", None) if _rr_effort else None
+-        effort = raw_effort if isinstance(raw_effort, str) and raw_effort else None
++        effort = resolve_effort(raw_effort, model, bt)
+         session_id = str(uuid.uuid4())
+         session = AgentSession(
+             id=session_id, name=name, scope=scope, cwd=cwd, model=model,
+diff --git a/app/pipeline.py b/app/pipeline.py
+index 34d01e471bc5cbc6f73d04a8aeb98363c65daeec..538b362ce5ee226d893847634c4bf3860c45ef3b 100644
+--- a/app/pipeline.py
++++ b/app/pipeline.py
+@@ -29,6 +29,11 @@ DEFAULT_PIPELINE = "default"
+ # Спецзначение "all" для skills/mcp_servers (строка) vs явный список.
+ AllOrList = Union[Literal["all"], list[str]]
+ 
++# Эффорт роли: скаляр (одно значение на всех) либо карта «ключ → ступень», где ключ —
++# id модели, имя рантайма или "default". Модель, а не рантайм, потому что Sol и Luna
++# живут в одном рантайме codex и требуют разных ступеней (#213).
++EffortSpec = Union[str, dict[str, str]]
++
+ Kind = Literal["orchestrator", "worker"]
+ ValidationMode = Literal["fail-closed", "fail-open"]
+ BranchStrategy = Literal["parent", "main"]
+@@ -40,6 +45,22 @@ def _model_is_known(model: str) -> bool:
+     return normalized in ALIASES or normalized in MODELS
+ 
+ 
++def _canon_model(model: str) -> str:
++    """Alias → canonical id. Незнакомое возвращаем как есть (валидация — отдельно)."""
++    key = model.lower().strip()
++    return ALIASES.get(key, key)
++
++
++def _is_runtime(name: str) -> bool:
++    """True, если ``name`` — зарегистрированный рантайм (claude/codex/grok/...)."""
++    from app.runtime_registry import get_runtime  # локально: тяжёлый импорт бэкендов
++    try:
++        get_runtime(name)
++        return True
++    except ValueError:
++        return False
++
++
+ def _is_safe_rel(p: str) -> bool:
+     """True если ``p`` — безопасный относительный путь (без абсолютного и '..').
+ 
+@@ -198,7 +219,7 @@ class RoleSpec(BaseModel):
+     modules: list[str] = Field(default_factory=list)
+     # Переопределения defaults (None → наследуем):
+     model: str | None = None
+-    effort: str | None = None
++    effort: EffortSpec | None = None
+     skills: AllOrList | None = None
+     mcp_servers: AllOrList | None = None
+     base_branch_strategy: BranchStrategy | None = None
+@@ -218,6 +239,56 @@ class RoleSpec(BaseModel):
+             raise ValueError(f"unknown model '{v}'")
+         return v
+ 
++    @field_validator("effort")
++    @classmethod
++    def _effort_keys(cls, v: EffortSpec | None) -> EffortSpec | None:
++        """Карта эффорта: нормализовать ключи-модели; неизвестная СТУПЕНЬ — отказ.
++
++        Два разных исхода у двух разных ошибок, и разница не косметическая:
++
++        * **Неизвестная ступень → `ValueError`** (манифест не грузится). Пропуск такой
++          строки не «оставляет как было», а ТИХО МЕНЯЕТ МАРШРУТ: опечатка в ключе Sol
++          роняет его на `default`, то есть с `xhigh` на `high`, — и с перечитыванием на
++          границе хода это уезжает живым агентам само. Список ступеней замкнут и известен
++          на момент загрузки, гонки инициализации здесь нет, поэтому опечатка однозначна.
++          Цена принята осознанно: спавн новых агентов падает, пока не починят; живые при
++          этом работают — `AgentSession._apply_manifest_effort` на сбой резолва оставляет
++          текущее значение и НЕ пересобирает бэкенды.
++        * **Неизвестный ключ модели → warning, ключ сохраняем.** Реестр моделей
++          досоздаётся на старте (`models.fetch_models_from_proxy`), манифест мог быть
++          разобран раньше него — отказ или выброс потеряли бы валидную строку из-за
++          порядка инициализации.
++
++        Скаляр не трогаем вовсе — обратная совместимость.
++        """
++        if not isinstance(v, dict):
++            return v
++        from app.backend_codex import CODEX_REASONING_EFFORTS  # владелец набора ступеней
++        out: dict[str, str] = {}
++        for key, val in v.items():
++            if val not in CODEX_REASONING_EFFORTS:
++                raise ValueError(
++                    f"effort['{key}']: unknown level '{val}'; "
++                    f"known={sorted(CODEX_REASONING_EFFORTS)}")
++            # Порядок проверок: рантайм раньше модели, иначе ключи "codex"/"grok" (они же
++            # алиасы моделей gpt-5.6-sol и grok-4.5) читались бы как модель — и ключ
++            # "codex" не покрывал бы Luna. Имена рантаймов здесь ЗАРЕЗЕРВИРОВАНЫ: выбрать
++            # ими конкретную модель нельзя, для этого есть полный id.
++            if key == "default" or _is_runtime(key):
++                out[key] = val
++            elif _model_is_known(key):
++                out[_canon_model(key)] = val
++            else:
++                # Незнакомый ключ НЕ выбрасываем: реестр моделей досоздаётся на старте
++                # (`fetch_models_from_proxy`), и манифест мог быть разобран раньше него —
++                # выброс сделал бы валидную строку невосстановимо потерянной. Ключ просто
++                # не совпадёт ни с одной моделью, пока она не появится.
++                logger.warning(
++                    f"effort: key '{key}' — не известная модель и не рантайм; "
++                    f"сработает только если такая модель появится в реестре")
++                out[key] = val
++        return out
++
+     @field_validator("modules")
+     @classmethod
+     def _safe_modules(cls, v: list[str]) -> list[str]:
+@@ -271,7 +342,7 @@ class ResolvedRole(BaseModel):
+     allow_unrouted_workers: bool
+     modules: list[str]
+     model: str
+-    effort: str | None
++    effort: EffortSpec | None
+     skills: AllOrList
+     mcp_servers: AllOrList
+     base_branch_strategy: BranchStrategy
+@@ -291,14 +362,48 @@ class ResolvedRole(BaseModel):
+ 
+ # ── Загрузка манифеста ─────────────────────────────────────────────────────
+ 
+-@lru_cache(maxsize=None)
++class _ManifestUnstable(OSError):
++    """Файл сменился между stat и чтением — прочитанное невалидно, нужен повтор."""
++
++
++@lru_cache(maxsize=64)
++def _load_pipeline_cached(name: str, path: Path, stamp: tuple[int, int]) -> PipelineConfig:
++    """Разбор манифеста. Ключ кэша включает (mtime_ns, размер) — правка даёт промах.
++
++    Размер в ключе не избыточен: пара «та же секунда + тот же размер» уже давала
++    ложное попадание в кеше байткода CPython, и стоила полутора часов отладки (#214).
++    """
++    text = path.read_text()
++    after = path.stat()
++    if (after.st_mtime_ns, after.st_size) != stamp:
++        # Файл писали, пока мы читали. Проверки схемы тут не защищают: НЕДОПИСАННЫЙ YAML
++        # бывает синтаксически валидным, и роль молча получила бы неполную карту эффорта —
++        # а с #214 такая карта уезжает живым агентам на их следующем ходе.
++        # lru_cache исключения не кеширует, поэтому отравленной записи не остаётся.
++        raise _ManifestUnstable(f"pipeline '{name}' changed while being read")
++    data = yaml.safe_load(text) or {}
++    cfg = PipelineConfig(**data)  # pydantic: схема + граф can_spawn
++    if cfg.name != name:
++        raise ValueError(f"pipeline name '{cfg.name}' != dir '{name}'")
++    return cfg
++
++
+ def load_pipeline(name: str) -> PipelineConfig:
+     """Прочитать ``pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+ 
++    Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
++    сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
++    Один ``stat`` на вызов, разбор — только на изменившемся файле.
++
++    Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
++    попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
++    деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
++
+     :raises FileNotFoundError: если папки/файла нет.
+     :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+     :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+         граф can_spawn.
++    :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+     """
+     # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+     # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+@@ -309,11 +414,20 @@ def load_pipeline(name: str) -> PipelineConfig:
+     path = PIPELINES_DIR / name / "pipeline.yaml"
+     if not path.is_file():
+         raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+-    data = yaml.safe_load(path.read_text()) or {}
+-    cfg = PipelineConfig(**data)  # pydantic: схема + граф can_spawn
+-    if cfg.name != name:
+-        raise ValueError(f"pipeline name '{cfg.name}' != dir '{name}'")
+-    return cfg
++    unstable: _ManifestUnstable | None = None
++    for _ in range(3):
++        st = path.stat()
++        try:
++            return _load_pipeline_cached(name, path, (st.st_mtime_ns, st.st_size))
++        except _ManifestUnstable as e:
++            unstable = e
++    raise unstable
++
++
++# Вызывающие (и ~23 теста) чистят кэш через load_pipeline.cache_clear() — адрес
++# сохраняем, чтобы разбиение на «stat + разбор» не расползлось по коду.
++load_pipeline.cache_clear = _load_pipeline_cached.cache_clear
++load_pipeline.cache_info = _load_pipeline_cached.cache_info
+ 
+ 
+ def get_worktree_config(pipeline_name: str) -> Worktree:
+@@ -397,6 +511,23 @@ def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
+     )
+ 
+ 
++def resolve_effort(effort: EffortSpec | None, model: str, runtime: str) -> str | None:
++    """Ступень эффорта под конкретную модель спавна.
++
++    Скаляр — как раньше. Карта — точный id модели → рантайм → ``default`` → None.
++    ``model`` ожидается уже канонизованным (``resolve_model``), но alias тоже переживёт.
++    """
++    if isinstance(effort, str):
++        return effort or None
++    if not isinstance(effort, dict):
++        return None
++    for key in (_canon_model(model), runtime, "default"):
++        val = effort.get(key)
++        if val:
++            return val
++    return None
++
++
+ def get_role(pipeline_name: str, role: str) -> ResolvedRole | None:
+     """Загрузить пайплайн и резолвнуть роль. None, если роли нет в манифесте."""
+     cfg = load_pipeline(pipeline_name)
+diff --git a/app/session.py b/app/session.py
+index 562c8cc2ec3c1c8e650f9aeca02d0ace390b0dd1..7ac155b389e0c1eb627d2f637edc0741348d18e3 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -942,6 +942,7 @@ class AgentSession:
+                 did_inject = True
+ 
+             await self._apply_pending_identity_restart()
++            await self._apply_manifest_effort()
+ 
+             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
+                 self._manually_interrupted = False
+@@ -1133,6 +1134,41 @@ class AgentSession:
+         await self._disconnect_backend()
+         return True
+ 
++    async def _apply_manifest_effort(self) -> bool:
++        """Перечитать эффорт роли из манифеста — на ГРАНИЦЕ хода, как и рестарт identity.
++
++        Эффорт попадает в бэкенд один раз, при сборке (`BackendBuildContext.effort`), и
++        `_ensure_backend` готовый бэкенд не пересобирает. Поэтому новое значение вступает
++        в силу только через дисконнект: текущий ход не трогаем, следующий соберёт бэкенд
++        с новым значением (сессия/контекст сохраняются — `resume` по `session_id`).
++
++        Расхождения нет → ноль действий и ноль дисконнектов. Любой сбой резолва (битый
++        `pipeline.yaml`, нет роли, нет значения для этой модели) → остаёмся на текущем
++        значении: сломанный манифест не должен веером пересобирать бэкенды всем живым
++        агентам. Legacy-сессии без роли/пайплайна живут на значении из БД.
++        """
++        if self.status == AgentStatus.RUNNING or not self.pipeline or not self.role:
++            return False
++        try:
++            from app.pipeline import get_role, resolve_effort
++            rr = get_role(self.pipeline, self.role)
++            desired = resolve_effort(rr.effort, self.model, self.backend_type) if rr else None
++        except Exception as e:
++            logger.warning(f"[{self.name}] manifest effort re-read failed: {err_text(e)}")
++            return False
++        if desired is None or desired == self.effort:
++            return False
++        old = self.effort
++        # Сперва дисконнект, только потом фиксация значения. Обратный порядок делает сбой
++        # дисконнекта НЕВОССТАНОВИМЫМ: значение уже равно манифестному, расхождения на
++        # следующем ходе нет, повтора не будет — и агент навсегда остаётся на бэкенде со
++        # старой ступенью. Здесь падение оставляет расхождение, и следующий ход повторит.
++        await self._disconnect_backend()
++        self.effort = desired
++        self._persist()
++        self._log("status", f"effort {old or '(none)'} → {desired} (pipeline manifest)")
++        return True
++
+     async def _build_claude_history_import(
+         self,
+         target_session_id: str,
+diff --git a/docs/tasks/214/codex-review-impl-r3.md b/docs/tasks/214/codex-review-impl-r3.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..70d97a0e0359f914820834ac659451d4b873562d
+--- /dev/null
++++ b/docs/tasks/214/codex-review-impl-r3.md
+@@ -0,0 +1,28 @@
++# #214 — Codex review, раунд 3 (свежая сессия)
++
++> ⚠️ **Восстановлено из транскрипта джоба `bg-60d79b6cfb`, а не записано штатно** — тот же сбой
++> `codex_review_artifact.py` (#217). Ревью отработало: 180 976 input / 1 793 output токенов.
++> Ниже — полный `agent_message` из
++> `/tmp/codex_review_impl-effort-model_codex-review-impl-r3.jsonl`, дословно.
++>
++> Раунд пущен СВЕЖЕЙ сессией, не `resume`: на тот момент я считал сломанным именно resume-путь.
++> Контекст раундов 1-2 пересказан ревьюеру в запросе. Это 3-й и последний раунд по потолку
++> `codex-debate` для исполняемого артефакта.
++
++## Summary
++
++The disconnect-order fix is complete for the reviewed lifecycle cases, and all four default roles resolve the same effort map. The focused suite passes: 37 tests.
++
++## Findings (suggestion)
++
++- `app/session.py:1166` — **FIXED (item 1).** Disconnect now precedes the in-memory and persisted effort update. A failed or partially completed disconnect leaves the manifest change pending, so the next turn retries it. A process crash between disconnect and persistence also self-recovers: the backend is rebuilt from the persisted old value, then the manifest is reapplied at the next boundary. Hibernate does not create a permanent disagreement because rebuilding ultimately uses `self.effort`.
++
++- `app/pipeline.py:334` — **STILL BROKEN (item 2).** The reader still performs `stat()` and `read_text()` without checking that the file stayed stable. The absence of an in-process writer does not eliminate non-atomic writes by an administrator, deployment command, or editor. More importantly, partially written YAML can be syntactically valid, so `_apply_manifest_effort()` may accept an intermediate map and rebuild a live backend at the wrong effort. A post-read `stat()` comparison with a bounded retry would close this race.
++
++- `app/pipeline.py:267` — **STILL BROKEN (item 3).** Dropping only an invalid level is inconsistent with the stated last-good policy. For example, a typo in Sol’s exact entry leaves `default: high`, actively changing Sol from `xhigh` to `high`; it does not merely retain stale configuration. Rejecting the manifest makes `_apply_manifest_effort()` keep the already active value, matching its documented handling of other invalid YAML. The warning helps diagnosis but does not prevent the unintended fallback.
++
++- The new YAML is well-formed. `orchestrator`, `sub-orchestrator`, `worker`, and `full-cycle` resolve identically for all tested model/default cases. Scalar compatibility remains directly covered by `TestEffortByModel::test_scalar_applies_to_every_model`.
++
++## Verdict
++
++Changes requested: item 1 is fixed, but items 2 and 3 remain real configuration-safety issues on a hot path. No new blocking bug found.
+diff --git a/docs/tasks/214/codex-review-impl.md b/docs/tasks/214/codex-review-impl.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..b05cd114147f0a1399749919dd8bb3d0fe7e13a1
+--- /dev/null
++++ b/docs/tasks/214/codex-review-impl.md
+@@ -0,0 +1,64 @@
++## Summary
++
++Core resolution order and scalar backward compatibility work, and the focused tests pass: 24/24. Existing sessions remain unaffected because only the new-session spawn path resolves the manifest map; persisted `sessions.effort` behavior is unchanged.
++
++Pydantic rejects integer and boolean effort values rather than coercing them to strings.
++
++## Findings
++
++- suggestion — `app/pipeline.py:263` — `grok` has the same ambiguity as `codex`: both are runtime IDs and aliases (`grok → grok-4.5`). Runtime-first validation therefore makes `{grok: high}` apply to every future Grok-runtime model, not specifically `grok-4.5`. `claude` and `opencode` are not currently aliases. → Treat runtime names as explicitly reserved keys and document that aliases colliding with them cannot select a model; add a `grok` regression test. Exact `grok-4.5` remains available for model-specific selection.
++
++- suggestion — `app/pipeline.py:265` — Unknown model keys are destructively removed during cached manifest validation. If `load_pipeline()` runs before `fetch_models_from_proxy()` registers a proxy model, that model’s effort entry is permanently absent from the cached `RoleSpec`, even after the registry gains the model. → Preserve unknown string keys for spawn-time exact matching, or clear/reload the pipeline cache after every model-registry refresh. Preserving keys also avoids coupling manifest correctness to startup ordering.
++
++- suggestion — `app/pipeline.py:256` — Dropping misspelled keys or levels and falling through to `default`/`None` hides configuration errors in a shared runtime; warnings may never be noticed, while every subsequent worker silently receives the wrong effort. → Reject invalid entries when loading the manifest, or at minimum mark the pipeline invalid instead of mutating the configured map. If fail-open availability is mandatory, surface the degradation through the pipeline validation result rather than logs alone.
++
++## Verdict
++
++Changes requested before approval. Spawn-time selection and scalar compatibility are correct, but dynamic registry timing can silently discard valid per-model configuration, and ambiguous/runtime or invalid keys need a clearer, observable contract.
++
++
++> ⚠️ **Раунд 2 восстановлен из транскрипта джоба, а не записан штатно.** Обёртка
++> `codex_review_artifact.py` упала с `exit 2` (`the following arguments are required:
++> --usage-event-id, --usage-session-id, --usage-model`) — причина в #217: `d9d770e4`
++> добавил обязательные аргументы, а живой MCP-процесс воркера поднят до мержа и зовёт
++> скрипт по-старому. Само ревью отработало: 572 858 input / 3 700 output токенов.
++> Текст ниже — полный `agent_message` из `/tmp/codex_review_impl-effort-model_codex-review-impl.jsonl`,
++> дословно. Первая ручная реконструкция (по хвосту в 3000 символов) была неполной и заменена этой.
++
++## Round 2
++
++## Summary
++
++Round 1 status:
++
++- Unknown model keys / dynamic registry timing: FIXED.
++- `grok` runtime/alias ambiguity: FIXED and tested.
++- Silent dropping of invalid effort levels: STILL BROKEN.
++- Cache-contract regression: FIXED by deliberately changing and testing the contract.
++
++Focused tests pass.
++
++The running-turn claim is correct: every `RUNNING` branch returns before `_apply_manifest_effort()`. The lifecycle lock serializes session operations, but it does not make concurrent filesystem edits deterministic because manifest writers do not share that lock.
++
++## Findings
++
++- suggestion — `app/session.py:1158` — NEW BUG: `desired is None` is treated as “keep the DB value,” so removing an effort mapping cannot clear an existing effort. This contradicts the stated comparison contract and prevents a bulk manifest edit from changing agents back to backend-default effort. → Distinguish “manifest/role could not be read” from a successfully resolved `None`; after a successful read, apply and persist `None` when it differs. If inheritance of legacy DB values is intentional, restrict it explicitly to legacy sessions rather than all roles without a match.
++
++- suggestion — `app/session.py:1161` — NEW BUG: state is committed before backend disconnection succeeds. If `backend.disconnect()` raises, `self.effort` and potentially the DB contain the new value while `_backend` still references a backend built with the old effort. On later turns `desired == self.effort`, so the disconnect is never retried and the agent can continue indefinitely at the wrong effort. → Disconnect first and commit the new effort only after success, or roll back `self.effort` on failure so the next turn retries.
++
++- suggestion — `app/pipeline.py:386` — NEW BUG: `stat()` and `read_text()` are separate operations with no stable-snapshot check. An in-place bulk edit can therefore expose partial YAML, and the lifecycle lock provides no protection against it. `_apply_manifest_effort()` catches this, but `get_role_icons()` and worktree preparation do not generally catch parse/validation failures, widening a brief edit into unrelated request or spawn failures. → Require atomic replacement for manifest updates, or re-stat after reading and retry when `(mtime_ns, size)` changed during the read.
++
++- suggestion — `app/pipeline.py:256` — STILL BROKEN: an invalid level is deleted, potentially causing fallback to a valid but unintended `default`. The availability argument explains why one bad edit should not replace the last working configuration, but silent mutation is not the only alternative. → Retain the last successfully parsed manifest when a changed file is invalid and expose the validation error; this preserves availability without accepting a typo as different routing.
++
++## Verdict
++
++Changes requested. Running turns are protected and the cache shim is compatible with existing `cache_clear()`/`cache_info()` callers, but clearing effort and disconnect failure currently leave persistent live/backend disagreement. The manifest read also needs an atomic-update contract or stable-read protection.
++
++### Разбор
++
++| находка | решение | что сделано |
++|---|---|---|
++| `NEW BUG`: значение фиксируется до успешного дисконнекта | **ACK, настоящий баг** | Порядок инвертирован: `_disconnect_backend()` ПЕРВЫМ, фиксация после. Сбой оставляет расхождение живым, следующий ход повторит. Тест `test_failed_disconnect_leaves_change_pending`; мутация «вернуть старый порядок» — красная |
++| `NEW BUG`: `stat()`+`read_text()` не атомарны, возможен торн-рид | **ACK по сути, другое лекарство** | Проверено: `pipeline.yaml` в `app/` никем не пишется программно, писателя нет вообще. Требование «писать через `os.replace()`» записано в отчёт §8 и уходит в `CLAUDE.md`. Re-stat с ретраем не делаю: при атомарной записи торн-рида не существует, ретрай — код ради случая, закрываемого дисциплиной писателя |
++| `desired is None` → наследуем значение из БД вместо очистки | **DISAGREE, обосновано** | Это явное требование постановки: «нет значения для этой модели → остаёмся на текущем». Очистка в `None` означала бы, что роль без эффорта СБРАСЫВАЕТ живым агентам ступень на дефолт рантайма — то есть битая/неполная карта тихо понижает всех. Ограничение «только для legacy» не помогает: отличить «роль намеренно без эффорта» от «ключ для этой модели забыли» в манифесте нельзя |
++| `STILL BROKEN`: неизвестный УРОВЕНЬ отбрасывается | **DISAGREE, позиция прежняя** | Предложенное лекарство — «держать последний удачно разобранный манифест» — это второй владелец значения конфига и тихая работа на устаревшей конфигурации; ровно то, от чего отказались, отвергнув отдельный тул. Идея «показывать деградацию в результате валидации» принята как верная и отложена сознательно (отчёт §9) |
+diff --git a/docs/tasks/214/report.md b/docs/tasks/214/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f33ed52e260a04e44852afa062f9f9f3069135fc
+--- /dev/null
++++ b/docs/tasks/214/report.md
+@@ -0,0 +1,356 @@
++# #214 — эффорт задаётся по МОДЕЛИ
++
++Коммиты: `af2bccd7` (часть 1 — эффорт по модели), `8b58533a` (часть 2 — живая смена на границе
++хода), `6545350a` (оркестраторы medium→high + порядок дисконнект/фиксация по ревью).
++Файлы: `app/pipeline.py`, `app/manager.py`, `app/session.py`, `pipelines/default/pipeline.yaml`,
++`tests/test_pipeline.py`, `tests/test_default_pipeline.py`, `tests/test_manager.py`,
++`tests/test_session.py`.
++
++Задача выросла по ходу дела дважды: сперва «менять эффорт живым агентам, не прерывая ход» (§4),
++затем «поднять и оркестраторов» (§7). Разделы идут в порядке появления, не переписаны задним
++числом.
++
++## 1. Что сделано
++
++`RoleSpec.effort` / `ResolvedRole.effort` принимают `str | dict[str, str]` (`EffortSpec`).
++Ключ карты — id модели, имя рантайма или `default`. Разрешение — `pipeline.resolve_effort(effort,
++model, runtime)`: точный id модели → рантайм → `default` → `None`. В `manager.create_session`
++(`app/manager.py:663`) данные уже под рукой: `model` канонизован на `:526` (`resolve_model`),
++`bt = backend_for_model(model)` посчитан на `:661`.
++
++**Порядок проверки ключа в валидаторе имеет значение и проверен тестом.** Сперва рантайм, потом
++модель: `codex` — это ОДНОВРЕМЕННО имя рантайма и alias модели `gpt-5.6-sol` (`app/models.py`,
++`ALIASES["codex"]`). При обратном порядке ключ `codex` схлопывался бы в `gpt-5.6-sol` и не покрывал
++бы Luna — то есть ровно ту модель, ради различения которой ключом выбрана модель, а не рантайм.
++Мутация «поменять порядок ветвей» валит `test_runtime_key_covers_whole_runtime` и
++`test_exact_model_beats_runtime_and_default`.
++
++**Две ошибки — два разных исхода, и разница не косметическая** (итоговое поведение, см. §10):
++неизвестная СТУПЕНЬ роняет манифест (`ValueError`, fail-closed), незнакомый КЛЮЧ МОДЕЛИ
++сохраняется с warning и совпадёт, когда такая модель появится в реестре. Причина асимметрии:
++список ступеней замкнут и известен на момент загрузки — опечатка в нём однозначна; реестр моделей
++досоздаётся на старте (`models.fetch_models_from_proxy`), поэтому отказ по ключу зависел бы от
++порядка инициализации и терял бы валидную строку. Скаляр остаётся полностью валидным.
++
++Значения и основания — в комментарии над `roles:` в манифесте: Opus `high` (#208, перегиб на high),
++Sol `xhigh` (#208, перегиба в лестнице нет), Luna `high` (#204, колено на high), `default` `high`.
++Изначально карту получили только `worker` и `full-cycle`; оркестраторские роли подняты с `medium`
++до той же карты позже, отдельным решением — §7.
++
++## 2. Живые сессии: где лежит эффорт и что там сейчас
++
++Поле — `sessions.effort TEXT DEFAULT ''` (`app/db.py:915-916`). Снято с ЖИВОЙ БД через
++`sqlite3.Connection.backup` (не `cp`: при WAL копия файла отдаёт устаревший срез), запрос
++read-only, 12.08.2026:
++
++| модель | роль | effort в БД | статус | n |
++|---|---|---|---|---|
++| `claude-opus-5[1m]` | full-cycle | `xhigh` | idle | 5 |
++| `claude-opus-5[1m]` | full-cycle | `xhigh` | running | 3 |
++| `claude-opus-5[1m]` | worker | `high` | idle / running | 2 / 2 |
++| `claude-opus-5[1m]` | orchestrator | `''` | idle / waiting | 2 / 2 |
++| `claude-opus-5[1m]` | orchestrator / sub-orchestrator | `medium` | idle | 1 / 1 |
++| `gpt-5.6-sol` | worker | `high` | idle / running | 8 / 1 |
++| `gpt-5.6-sol` | full-cycle | `xhigh` | idle / running | 7 / 1 |
++| `gpt-5.6-luna` | worker | `high` | idle | 1 |
++
++Это срез на утро; пересчёт в §4 сделан позже в тот же день и даёт другие числа (сессии рождаются и
++архивируются) — сравнивать надо внутри одного среза, а не между ними.
++
++Читается так: **8 Opus-агентов на роли full-cycle до сих пор держат `xhigh`** — они заспавнены до
++#207, который сменил значение роли на `high`; манифест они не перечитывали. Зеркально **9 Sol-ов на
++роли worker сидят на `high`**, потому что роль была скаляром, — это ровно тот недобор ступени, ради
++которого делалась правка. Четыре оркестратора с `effort=''` заспавнены ещё до появления поля.
++
++## 3. Переживёт ли `UPDATE` работающий сервер — НЕТ
++
++Не переживёт, и это тот же механизм, что уже наблюдался с `sessions.model`.
++`AgentSession._to_db_dict()` кладёт в снимок `"effort": self.effort or ""` (`app/session.py:2835`),
++`save_session` пишет его апсертом с `effort=excluded.effort` (`app/db.py:1118`). Снимок
++отправляется при каждом `_persist()` (`_persist_loop`, `app/session.py:2715-2721`) — то есть на
++любом изменении состояния сессии, включая начало и конец хода. Ручной `UPDATE` живёт до первого
++такого persist'а и затем затирается значением из памяти.
++
++Второй барьер, независимый от первого: даже корректное значение в памяти не долетит до модели без
++пересоздания бэкенда. Эффорт уходит в бэкенд один раз, при сборке
++(`app/session.py:716`, `effort=self.effort` в `BackendBuildContext`) — дальше он живёт внутри
++`ClaudeBackend._effort` / `CodexBackend.reasoning_effort`. `_ensure_backend` возвращает уже
++существующий бэкенд без пересборки (`app/session.py:1191-1193`).
++
++Отсюда безопасный порядок для ручной правки (**выполнение и рестарт — решение юзера, я не
++выполнял**):
++
++```sql
++-- при ОСТАНОВЛЕННОМ сервисе orchestra, иначе значение вернётся из памяти
++UPDATE sessions
++   SET effort = 'high'
++ WHERE finished_at IS NULL
++   AND model = 'claude-opus-5[1m]'
++   AND effort <> 'high';
++```
++
++Проверка до и после (тем же `backup()`-снимком):
++`SELECT model, role, effort, status, COUNT(*) FROM sessions WHERE finished_at IS NULL GROUP BY 1,2,3,4;`
++
++Зеркальный запрос для Sol, если решим доводить и его до манифестного значения:
++`UPDATE sessions SET effort='xhigh' WHERE finished_at IS NULL AND model='gpt-5.6-sol' AND role IN ('worker','full-cycle') AND effort<>'xhigh';`
++
++Оба запроса нарочно с `effort <> ...` в `WHERE`: холостой апдейт не должен трогать строки.
++
++## 4. Часть 2 — живая смена эффорта без прерывания хода
++
++Запрос юзера: «менять эфорты уже текущих айдл и ранинг, не прерывая, а на новом ходу».
++Реализовано **без нового тула, поля и роута**: источником истины остаётся манифест, он
++перечитывается на границе каждого хода.
++
++**Механика.** `AgentSession._apply_manifest_effort()` (`app/session.py:1136`) вызывается в `send()`
++сразу после `_apply_pending_identity_restart()` (`:945`) — на том же семафоре «граница хода»,
++который в проекте уже был для смены identity. Резолв: `get_role(pipeline, role)` →
++`resolve_effort(rr.effort, self.model, self.backend_type)`. Расходится с `self.effort` → пишем
++новое значение, `_persist()`, `_disconnect_backend()`; следующий `_ensure_backend` соберёт бэкенд
++с новым эффортом, `session_id` сохраняется, контекст не теряется.
++
++**Почему именно дисконнект, а не присваивание поля.** Это второй барьер из §3 и он важнее первого:
++эффорт уходит в рантайм ОДИН раз, при сборке бэкенда (`BackendBuildContext.effort`,
++`app/session.py:716` → `ClaudeBackend._effort` / `CodexBackend.reasoning_effort`), а
++`_ensure_backend` готовый бэкенд не пересобирает (`:1191`). Поэтому правка значения в БД не
++сработала бы, даже если бы её никто не перезаписывал: живой процесс модели про неё не узнал бы.
++
++**Ход не прерывается.** `send()` на RUNNING-сессии уходит в ветку mid-turn inject и возвращается
++ДО строки `:945` — до кода смены эффорта живой ход не доходит вовсе. Новое значение вступает в
++силу на следующем ходе. Проверено тестом `test_running_turn_is_not_interrupted`, а не рассуждением.
++
++**Гонка «поменяли ровно в момент старта хода» имеет определённый исход — но не по той причине,
++которую я написал сначала.** Весь `send()` идёт под `self._lifecycle_lock` (взятие — `:840`,
++release — `finally` на `:1046`), и манифест читается ОДИН раз за ход. Отсюда то, что важно на
++практике: внутри хода значение не меняется, состояния «ход стартовал на старом значении, а бэкенд
++собран на новом» не существует, а правка, не попавшая в это чтение, применяется на следующем ходе.
++
++**Чего лок НЕ делает — я это переоценил, поправил ревьюер.** Дословно (раунд 2): «The lifecycle
++lock serializes session operations, but it does not make concurrent filesystem edits deterministic
++because manifest writers do not share that lock». Верно: лок упорядочивает операции СЕССИИ, а не
++запись в файл, и какую из двух версий увидит чтение — решает планировщик, а не лок. Настоящая
++гарантия здесь даётся не локом, а стабильным чтением: увиденная версия всегда ЦЕЛАЯ, и ход целиком
++идёт по ней.
++
++**Стабильное чтение манифеста** (`app/pipeline.py`, `_load_pipeline_cached`): после `read_text()`
++повторно снимается `stat`, и если `(mtime_ns, размер)` изменились — разбор отбрасывается, попытка
++повторяется (до трёх). Защита не от битого YAML (его отвергнет схема), а от **недописанного, но
++синтаксически валидного**: такой прошёл бы валидацию, и роль получила бы неполную карту эффорта,
++которая с частью 2 сразу уехала бы живым агентам. `lru_cache` исключения не кеширует — отравленной
++записи в кеше не остаётся. Тест `test_file_changed_during_read_is_not_cached` дописывает файл ровно
++между чтением и `stat` и проверяет, что наружу ушла дописанная версия, а не обрывок.
++
++**Массовая установка — одна операция.** «Всем Opus поставить `high`» = одна правка
++`pipelines/default/pipeline.yaml`. Чтобы она была видна без рестарта, `load_pipeline` кэшируется по
++`(имя, путь, mtime_ns, размер)` вместо `(имя)` — один `stat` на вызов, разбор только на
++изменившемся файле. Размер в ключе не для красоты: пара «та же секунда + тот же размер» уже давала
++ложное попадание в кеше байткода CPython в этой же задаче (см. §5).
++
++**Отказ тихий и безопасный.** Битый `pipeline.yaml`, отсутствующая роль, нет значения для этой
++модели → остаёмся на текущем значении и НЕ дёргаем `_disconnect_backend()`. Сломанный манифест не
++пересобирает бэкенды веером всем живым агентам. Совпадающее значение → ноль действий и ноль
++дисконнектов (тест `test_unchanged_manifest_rebuilds_nothing` считает пересборки бэкенда: две
++подряд ходки на одном бэкенде).
++
++### Что произойдёт с живыми агентами на их следующем ходе
++
++Посчитано по живой БД (снимок `Connection.backup`) прогоном настоящего `resolve_effort` против
++настоящего манифеста — не по памяти:
++
++```
++живых сессий: 34 | без изменений: 15 | пропущено (нет роли/значения/манифеста): 0
++  gpt-5.6-sol        worker        high  -> xhigh   n=9
++  claude-opus-5[1m]  full-cycle    xhigh -> high    n=6
++  claude-opus-5[1m]  orchestrator  ''    -> medium  n=4
++  итого сменят эффорт: 19
++```
++
++**Залипшие значения чинятся сами, без единого `UPDATE`** — это и есть ответ на запрос «перевести
++всех». 9 Sol-воркеров добирают ступень, 6 Opus full-cycle слезают с унаследованного `xhigh` (#207),
++4 оркестратора с пустым полем получают свой `medium`. `UPDATE` из §3 остаётся невыполненным и
++теперь не нужен.
++
++**Оговорка про legacy.** Сессия без `role` или без `pipeline` (ad-hoc спавн, доманифестные записи)
++манифеста не имеет — живёт на значении из БД, её никто не трогает. В текущем срезе таких нет, но
++ветка есть и закрыта тестом `test_legacy_session_without_role_is_untouched`.
++
++**Известный размен, называю явно.** Инвалидация по mtime сделала манифест ЖИВЫМ для всех своих
++полей, не только для эффорта, и убрала кеш как укрытие от битого файла. Пока `pipeline.yaml`
++недописан, `get_worktree_config` (`app/manager.py:693` ловит только `FileNotFoundError`) и
++`get_role_icons` (`app/prompting.py:165`) упадут — спавн и роут отдадут ошибку вместо тихой работы
++на устаревшем кеше. Это окно длиной в запись файла. Фолбэк «держать последний хороший конфиг» я
++сознательно НЕ делал: он заводит второго владельца значения конфига — ровно то, от чего мы ушли,
++отказавшись от отдельного тула.
++
++## 5. Проверки
++
++Итоговый узкий прогон (без фулл-сьюта, лок не брался):
++`test_pipeline.py + test_session.py + test_default_pipeline.py + test_manager.py` — **536 passed**.
++
++Мутации, каждая с откатом в той же команде:
++
++| мутация | ожидание | факт |
++|---|---|---|
++| в `resolve_effort` убрать ключ модели из порядка поиска | красное | 8 failed |
++| в валидаторе проверять модель раньше рантайма | красное | 2 failed (`codex` схлопнулся в Sol) |
++| составная: ключ Sol удалён у `worker`, но оставлен у `full-cycle` | красное только по `worker` | 3 failed, все по `worker` |
++| убрать вызов `_apply_manifest_effort` с границы хода | красное | 3 failed |
++| снять ранний выход «значение не изменилось» (пересборка всегда) | красное | 2 failed |
++| выкинуть mtime из ключа кэша манифеста | красное | 2 failed |
++| пробрасывать сбой резолва вместо fail-safe | красное | 1 failed (битый манифест) |
++| вернуть старый порядок «фиксация → дисконнект» | красное | 1 failed (сбой дисконнекта съедал смену) |
++| вернуть fail-open на неизвестной СТУПЕНИ | красное | 3 failed, включая живого агента, молча сползшего на `default: high` |
++
++**Грабля, которая едва не испортила вывод (стоила ~20 минут).** После отката мутации №2 тесты
++остались красными на ЧЕСТНОМ коде: откат вернул файл того же РАЗМЕРА в ту же СЕКУНДУ, что и
++мутация (`cp` + `mv` не двигают mtime вперёд), а CPython инвалидирует `__pycache__` по паре
++(mtime, size) — обе совпали, и интерпретатор продолжал исполнять байткод МУТАНТА. Симптом
++выглядел как «мой код не работает», хотя исходник был правильный; выдал себя тем, что вставка
++отладочного `print` (то есть смена размера) «чинила» поведение. Лечение — `touch <файл>` сразу
++после отката, до прогона.
++
++## 6. Codex-ревью
++
++Артефакт: `docs/tasks/214/codex-review-impl.md`.
++
++**Раунд 1 — вердикт дословно:**
++
++> Changes requested before approval. Spawn-time selection and scalar compatibility are correct, but
++> dynamic registry timing can silently discard valid per-model configuration, and ambiguous/runtime
++> or invalid keys need a clearer, observable contract.
++
++Вердикт состоявшийся: ревьюер прогнал тесты и привёл строку результата
++(`FAILED tests/test_pipeline.py::TestLoadPipeline::test_is_cached`), которую я воспроизвёл у себя
++той же командой.
++
++**Главная польза раунда 1 — не находка, а прогон.** Ревью шло по рабочему дереву, в котором уже
++лежала НЕзакоммиченная часть 2, и поймало настоящую регрессию: `test_is_cached` требовал, чтобы
++перезапись файла НЕ была видна («кеш должен вернуть прежний объект») — ровно то поведение, которое
++часть 2 обязана сломать. Тест переписан под новый контракт двумя честными: файл не тронут → тот же
++объект; файл изменён → новый объект с новым значением. Плюс третий, `test_broken_manifest_after_
++edit_fails_loud`, фиксирует обратную сторону размена из §4.
++
++**Разбор находок (все три — `suggestion`, блокеров нет):**
++
++| находка | решение | что сделано |
++|---|---|---|
++| `grok` — тоже и рантайм, и alias модели (`grok-4.5`), как `codex` | ACK | Имена рантаймов задокументированы как ЗАРЕЗЕРВИРОВАННЫЕ ключи (комментарий у валидатора), добавлен `test_grok_key_is_a_runtime_key_not_a_model`: точный `grok-4.5` сильнее ключа `grok` |
++| незнакомые ключи выбрасывались деструктивно; манифест мог быть разобран раньше `fetch_models_from_proxy` → валидная строка терялась навсегда | ACK | Незнакомый ключ больше НЕ выбрасывается: warning + ключ сохраняется, совпадёт когда модель появится в реестре (`test_key_matches_once_model_appears_in_registry`) |
++| fail-open прячет опечатку: воркеры молча получают не тот эффорт | PARTIAL | Ключи теперь сохраняются (см. выше). Неизвестный УРОВЕНЬ (`hgih`) по-прежнему отбрасывается с warning, а не роняет манифест: `load_pipeline` лежит на пути спавна ЛЮБОГО агента и теперь ещё и на границе каждого хода — одна опечатка сделала бы неспавнимыми все роли разом. Это осознанный выбор постановки (#213 §1: «неизвестный ключ — пропуск с warning, validation: fail-open»). Предложение «показывать деградацию через результат валидации, а не только в логах» разумно, но это UI/`list_pipelines` — вне границ #214, отдаю оркестратору отдельной строкой |
++
++## 7. Оркестраторы подняты medium→high: цена вопроса
++
++Указание юзера («опус в бд всех на хайт») распространено и на `orchestrator`/`sub-orchestrator` —
++теперь все четыре роли несут одну и ту же карту. Основание ступени: #208, `medium→high` у Opus
++даёт **+2.9 пункта индекса — самый крупный шаг во всей его лестнице** (дальше `high→xhigh` уже
+++1.0 за +47% цены).
++
++**Сколько это стоит.** Считано по `turn_usage` за последние 7 дней, формула цены — единственный
++владелец (`app/backend_claude.py:684`: `cache_read` ×0.1, `cache_create` ×1.25 от input):
++
++| группа | ходов | наш $ за 7 дней | доля Claude | доля ВЫХОДА в их $ |
++|---|---|---|---|---|
++| воркеры | 439 | $1269.83 | 65.6% | 15.5% |
++| оркестраторы | 632 | $666.87 | 34.4% | 7.2% |
++
++Проверка суммы: пересчёт по формуле даёт $1937 против $1868 суммой сохранённых `cost_usd` —
++расхождение 3.7%, то есть считаю тем же, чем считает система.
++
++Эффорт удорожает **выход** (reasoning-токены), а не перечитывание контекста. У оркестраторов выход
++= 7.2% их доллара, поэтому внешние «+69% цены за шаг medium→high» (#208) ложатся только на эту
++седьмую часть:
++
++**≈ +$33 в неделю = +1.7% недельного расхода Claude.** Для сравнения: поднять так же всех воркеров
++стоило бы +8.7%.
++
++**Оговорка, без которой цифра врёт в большую сторону.** #208 прямо показал, что недельный пул
++Claude, возможно, списывается по ТОКЕНАМ, а не по нашему доллару (`cache_create` объясняет расход
++пула лучше: R² 0.912 против 0.867 у `cost_usd`). Выходные токены оркестраторов — **0.20% от всех их
++токенов**, значит на пуле, который считает токены, тот же шаг даёт **+0.14%**, то есть практически
++ноль. Диапазон честного ответа: **от +0.14% до +1.7% недельного потребления**, и узкая граница
++вероятнее.
++
++**Откат — одна строка:** заменить `high` на `medium` в ключе `"claude-opus-5[1m]"` у ролей
++`orchestrator` и `sub-orchestrator`; живые агенты подхватят на следующем ходе, рестарт не нужен.
++
++**Ошибка, которую поймала сверка с известным числом.** Первый прогон дал «оркестраторы = 6.8%
++расхода», что противоречило известным 28.4% из #208. Причина: группировал по флагу
++`sessions.is_orchestrator`, который проставлен всего у 4 записей из 133, — правильный признак
++здесь `sessions.role IN ('orchestrator','sub-orchestrator')`, он даёт 34.4%. Ровно тот случай,
++когда агрегат надо сверять с внешним якорем, а не принимать первый.
++
++## 8. Атомарная запись манифеста
++
++Проверил кодом, а не рассуждением: `pipeline.yaml` в `app/` **нигде не пишется программно** —
++только читается (`app/pipeline.py:385`; ни одного `write_text`/`open(...,'w')` по этому пути).
++Переводить на `os.replace()` нечего.
++
++Требование на будущее (в `CLAUDE.md` его заберёт оркестратор): **любой код, который начнёт писать
++`pipelines/*/pipeline.yaml`, обязан писать во временный файл рядом и делать `os.replace()`.**
++На одной ФС rename атомарен, читатель видит либо старый файл целиком, либо новый целиком.
++Без этого `load_pipeline` может прочитать недописанный YAML: `stat()` и `read_text()` — две
++отдельные операции, между ними файл может смениться. Codex предлагал вместо этого re-stat
++после чтения с ретраем; не делал — при атомарной записи торн-рида не существует вовсе, а ретрай
++добавляет код ради случая, который закрывается дисциплиной писателя.
++
++## 9. Предложено и сознательно отложено
++
++Codex (раунд 2): показывать деградацию манифеста не только в логах, но и в результате валидации —
++`list_pipelines()` уже возвращает `valid`/`error` для дашборда, туда же просится «манифест
++разобран, но N записей эффорта отброшено». Не делаю: `list_pipelines`/UI сейчас никто не смотрит,
++а расход на Claude идёт с темпом ×2.3. Всплывёт, когда будем трогать UI — файл `app/pipeline.py`,
++функция `list_pipelines`.
++
++## 10. Codex, раунд 3 — что закрыто и что осталось открытым
++
++Артефакт: `docs/tasks/214/codex-review-impl-r3.md` (восстановлен из транскрипта джоба, штатная
++запись упала по #217). **Вердикт дословно:**
++
++> Changes requested: item 1 is fixed, but items 2 and 3 remain real configuration-safety issues on
++> a hot path. No new blocking bug found.
++
++Вердикт состоявшийся: ревьюер привёл прогон («The focused suite passes: 37 tests») и разобрал
++конкретные строки изменённых файлов.
++
++**Item 1 — FIXED, подтверждено ревьюером дословно:** «Disconnect now precedes the in-memory and
++persisted effort update. A failed or partially completed disconnect leaves the manifest change
++pending, so the next turn retries it. A process crash between disconnect and persistence also
++self-recovers... Hibernate does not create a permanent disagreement».
++
++**Item 2 — был STILL BROKEN, теперь исправлен (ПОСЛЕ раунда 3, то есть без ревью).** Мой довод
++«писателя в коде нет» ревьюер разбил конкретным механизмом: «The absence of an in-process writer
++does not eliminate non-atomic writes by an administrator, deployment command, or editor. More
++importantly, partially written YAML can be syntactically valid, so `_apply_manifest_effort()` may
++accept an intermediate map and rebuild a live backend at the wrong effort». Второе предложение —
++именно то, чего мой fail-safe не покрывал: недописанный, но валидный YAML не отвергается, он
++ПРИНИМАЕТСЯ. Довод принят, стабильное чтение добавлено (см. §4). Атомарная запись со стороны
++писателя (§8) остаётся в силе как второй эшелон, а не как замена.
++
++**Item 3 — ЗАКРЫТ: fail-closed, по решению оркестратора.** Ревьюер снял посылку, на которой
++держался fail-open. Дословно: «a typo in Sol's exact entry leaves `default: high`, actively
++changing Sol from `xhigh` to `high`; it does not merely retain stale configuration». То есть
++пропуск строки — это не «остались как были», а **тихая смена маршрута**, и с частью 2 она уезжает
++живым агентам сама, без всякого спавна.
++
++Разворот спеки #213 §1 записан явно, чтобы не читался как самоуправство: тот аргумент опирался на
++посылку «худшее при опечатке — остались как были». Посылка ложна → вывод из неё не действует. Это
++пересчёт решения на новых данных, а не его отмена.
++
++Итоговое поведение:
++
++| что не так в манифесте | исход | почему так |
++|---|---|---|
++| неизвестная СТУПЕНЬ (`hgih`) | `ValueError`, манифест не грузится | список замкнут, известен при загрузке, опечатка однозначна; пропуск = тихая смена маршрута |
++| незнакомый КЛЮЧ МОДЕЛИ | warning, ключ сохраняется | реестр досоздаётся на старте — отказ зависел бы от порядка инициализации и терял валидную строку |
++
++**Цена принята осознанно: спавн новых агентов падает, пока опечатку не исправят.** Живые агенты за
++это не платят, и это проверено отдельным тестом именно на ветке `raise`, а не только на warning:
++`test_typo_in_level_keeps_live_agent_on_current_effort` — эффорт остаётся текущим, дисконнектов
++ноль. Мутация «вернуть fail-open» валит три теста, и среди них этот: под fail-open агент молча
++сползает на `default: high` — ровно тот вред, который описал ревьюер.
++
++**Потолок раундов исчерпан (3 из 3 для исполняемого артефакта).** Раунд 3 не перезапускался: он
++состоялся, его текст восстановлен дословно из
++`/tmp/codex_review_impl-effort-model_codex-review-impl-r3.jsonl`. Повторный прогон ради красивого
++артефакта потратил бы четвёртый раунд, что скилл запрещает.
+diff --git a/docs/workers/impl-effort-model.md b/docs/workers/impl-effort-model.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f21b11b32e79cd45e0742cd3de281867a2deba0d
+--- /dev/null
++++ b/docs/workers/impl-effort-model.md
+@@ -0,0 +1,27 @@
++# impl-effort-model — личная память
++
++## Мутационная проверка: после отката ОБЯЗАТЕЛЬНО `touch` файла
++`cp F F.bak` → мутация → `mv F.bak F` возвращает файл с mtime бэкапа. CPython инвалидирует
++`__pycache__` по паре **(mtime, size)** — если мутация не изменила размер (частый случай:
++переставил две ветки `if`/`elif`) и уложилась в ту же секунду, интерпретатор продолжит
++исполнять байткод МУТАНТА. Симптом: честный код «не работает», тесты красные, а вставка
++отладочного `print` (смена размера) «чинит» его. Стоило ~1.5 часа на #214.
++**Всегда:** `cp F.bak F && touch F` перед прогоном.
++
++## Codex-ревью: текст живёт в `/tmp/codex_review_<агент>_<output>.jsonl`
++Если джоб упал на записи артефакта (`codex_review_artifact.py`, exit 2) — НЕ переспрашивать
++ревьюера и не тратить раунд. Полный `agent_message` лежит в этом jsonl; вытащить
++`json.loads` по строкам, взять последний `item.type == "agent_message"`. Уведомление джоба
++даёт только хвост в 3000 символов, jsonl — всё.
++
++## Проверка «кто оркестратор» в БД: по `role`, НЕ по `is_orchestrator`
++Флаг `sessions.is_orchestrator` проставлен у единиц записей (4 из 133 на 12.08.2026) и
++занижает долю оркестраторов в разы. Правильный признак —
++`role IN ('orchestrator','sub-orchestrator')`. Даёт 34.4% расхода Claude против 6.8% по флагу.
++
++## Цена эффорта считается от доли ВЫХОДА, а не от всего доллара
++Эффорт удорожает выходные (reasoning) токены. У нас выход = 7-15% доллара, остальное
++`cache_read`/`cache_write` (перечитывание контекста). Поэтому «+69% за ступень» из внешнего
++бенча превращается в +1.7% недельного расхода, а не в +69%. Формула цены — единственный
++владелец: `app/backend_claude.py:684` (`cache_read` ×0.1, `cache_write` ×1.25 от input).
++Пересчёт сверять с суммой сохранённых `cost_usd`: сошлось в пределах 3.7% — значит считаю тем же.
+diff --git a/pipelines/default/pipeline.yaml b/pipelines/default/pipeline.yaml
+index 28fbf8537f13b4d823bd49072df3e7b65fcb297e..cb4472c66c81ea0b177001a3841189799c2f9257 100644
+--- a/pipelines/default/pipeline.yaml
++++ b/pipelines/default/pipeline.yaml
+@@ -14,21 +14,31 @@ defaults:
+     copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]
+   base_branch_strategy: main
+   docs_scaffold: false
+-# Про `effort` у РАБОЧИХ ролей (`worker`, `full-cycle`), #213. Оркестраторских `medium` ниже это
+-# не касается: их эффорт этой правкой не рассматривался (#208 Q2 — отдельной аномалии у них нет).
+-# Поле скалярное, одно на роль, а модель роли переопределяется при спавне — поэтому `high` у
+-# рабочих ролей верен для их дефолтного Opus и НЕ подходит остальным. Замер #208: перегиб отдачи
+-# у Opus на `high` (дальше +1.0 пункта за +47% цены), у Sol перегиба в пределах лестницы нет
+-# (+1.7/+1.7/+1.9) — ему нужен `xhigh`, у Luna хватает `high`. Развести нельзя ни здесь, ни по
+-# рантайму: Sol и Luna — оба `codex` (`backend_for_model`), ключом должна быть МОДЕЛЬ.
+-# Ждёт правки в коде; до неё Sol-воркеры недополучают ступень. Это запись ограничения, не задание.
++# `effort` у ВСЕХ четырёх ролей задан одной и той же КАРТОЙ модель→ступень (#214): роль одна, а
++# модель выбирается при спавне, и оптимум у моделей разный. Ключом обязана быть МОДЕЛЬ, а не
++# рантайм: Sol и Luna оба `codex` (`backend_for_model`) и требуют разных ступеней.
++# Разрешение (`pipeline.resolve_effort`): точный id модели → рантайм → `default` → нет эффорта.
++# Скаляр остаётся валидным — просто здесь он больше не используется.
++# Оркестраторы подняты с `medium` до `high` по прямому указанию юзера (#214): #208 меряло только
++# рабочие роли, но medium→high — САМЫЙ крупный шаг лестницы Opus (+2.9 пункта), и переносить его
++# на оркестраторов дешевле, чем оставлять их на ступени, выбранной до этого замера. Откат — правка
++# одного ключа `claude-opus-5[1m]` в двух ролях ниже; живые агенты подхватят её на следующем ходе.
++# Основания значений:
++#   claude-opus-5[1m] → high  — #208: перегиб отдачи на `high` (medium→high +2.9, дальше high→xhigh
++#                               всего +1.0 пункта при +47% цены)
++#   gpt-5.6-sol       → xhigh — #208: перегиба в пределах лестницы НЕТ, +1.7/+1.7/+1.9 на каждый шаг;
++#                               дешёвого оптимума у Sol не существует, ступень честно окупается
++#   gpt-5.6-luna      → high  — #204, AA-LCR low 0.653 / medium 0.720 / high 0.740 / xhigh 0.733 /
++#                               max 0.783: `high` и `xhigh` неразличимы, `max` даёт +2 пункта за
++#                               +45% цены. Колено на `high`
++#   default           → high  — остальные модели (Spark, Terra, Grok) не мерились
+ roles:
+   orchestrator:
+     kind: orchestrator
+     label: Orchestrator
+     order: 0
+     model: claude-opus-5[1m]
+-    effort: medium
++    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+     skills: [html-artifacts, vps-deploy, codex-debate, grill-me, orchestra-agents]
+     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
+     can_spawn: ["*"]
+@@ -44,7 +54,7 @@ roles:
+     label: Sub-Orchestrator
+     order: 1
+     model: claude-opus-5[1m]
+-    effort: medium
++    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+     skills: [orchestra-agents]
+     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
+     can_spawn: ["*"]
+@@ -60,7 +70,7 @@ roles:
+     label: Worker
+     order: 2
+     model: claude-opus-5[1m]
+-    effort: high
++    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+     skills: [html-artifacts, codex-debate]
+     modules: [git-workflow, report-format, self-improvement, memory-search]
+     can_spawn: []
+@@ -81,8 +91,9 @@ roles:
+     # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
+     # НЕ ЗАКРЫТО: вендор оправдывает xhigh длиной горизонта задачи, а все опубликованные замеры
+     # короче наших сессий. Правка обратимая и наблюдаемая: пошли разваливающиеся длинные ходы →
+-    # вернуть xhigh, и это будет данными, а не спором.
+-    effort: high
++    # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol ступень
++    # своя (#214, основания — в комментарии над `roles:`).
++    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+     skills: [html-artifacts, codex-debate]
+     modules: [model-routing, research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
+     can_spawn: ["*"]
+diff --git a/tests/test_default_pipeline.py b/tests/test_default_pipeline.py
+index 60ab94a37ac0aaa9df3274f563e768af97a7a0f2..5d452247d1b92e682da069c12e03e1af8870936b 100644
+--- a/tests/test_default_pipeline.py
++++ b/tests/test_default_pipeline.py
+@@ -119,6 +119,25 @@ class TestDefaultRolesResolve:
+         assert rr.can_spawn == ["*"]
+         assert rr.allow_unrouted_workers is True
+ 
++    @pytest.mark.parametrize(
++        "role", ["worker", "full-cycle", "orchestrator", "sub-orchestrator"])
++    @pytest.mark.parametrize("model,runtime,expected", [
++        ("claude-opus-5[1m]", "claude", "high"),    # #208: перегиб отдачи на high
++        ("gpt-5.6-sol", "codex", "xhigh"),          # #208: перегиба в лестнице нет
++        ("gpt-5.6-luna", "codex", "high"),          # #204: колено на high
++        ("gpt-5.3-codex-spark", "codex", "high"),   # не мерился → default
++    ])
++    def test_every_role_resolves_effort_by_model(self, role, model, runtime, expected):
++        """Все четыре роли — одна карта. Оркестраторы подняты medium→high (#214)."""
++        rr = P.get_role(PIPELINE, role)
++        assert P.resolve_effort(rr.effort, model, runtime) == expected
++
++    def test_no_role_is_left_on_a_scalar_effort(self):
++        """Скаляр остаётся ВАЛИДНЫМ (тесты в test_pipeline.py), но в дефолтном
++        манифесте его больше нет — иначе роль снова обслуживала бы одну модель."""
++        for role in P.known_roles(PIPELINE):
++            assert isinstance(P.get_role(PIPELINE, role).effort, dict), role
++
+     def test_modules_resolve_from_manifest(self):
+         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
+         assert P.get_role(PIPELINE, "orchestrator").modules == [
+diff --git a/tests/test_manager.py b/tests/test_manager.py
+index 5dd5aecc0b684909cd082caf9595e69305875001..61e16c8174c69b8eb8b89f01b9f44440636a7fac 100644
+--- a/tests/test_manager.py
++++ b/tests/test_manager.py
+@@ -185,6 +185,28 @@ class TestCreateSession:
+             s2 = await mgr.create_session(name="w2", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+         assert s1.id != s2.id
+ 
++    @pytest.mark.asyncio
++    @pytest.mark.parametrize("role,model,expected", [
++        # Карта модель→ступень реального манифеста (#214): роль одна, ступень разная.
++        ("worker", "claude-opus-5[1m]", "high"),
++        ("worker", "gpt-5.6-sol", "xhigh"),
++        ("worker", "gpt-5.6-luna", "high"),
++        ("full-cycle", "gpt-5.6-sol", "xhigh"),
++        # alias на входе — модель канонизуется до резолва эффорта
++        ("worker", "gpt5.6sol", "xhigh"),
++        # оркестраторы несут ту же карту (#214: подняты с medium до high на Opus)
++        ("orchestrator", "claude-opus-5[1m]", "high"),
++        ("orchestrator", "gpt-5.6-sol", "xhigh"),
++    ])
++    async def test_spawn_effort_picked_by_model(self, mgr, role, model, expected):
++        from tests.conftest import make_backend_mock
++        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
++            session = await mgr.create_session(
++                name="w-eff", scope="/s", cwd="/tmp", model=model, role=role,
++                is_orchestrator=(role == "orchestrator"), planned_initial_turn=False,
++            )
++        assert session.effort == expected
++
+     @pytest.mark.asyncio
+     async def test_validates_cwd(self, mgr):
+         with pytest.raises(ValueError, match="does not exist"):
+diff --git a/tests/test_pipeline.py b/tests/test_pipeline.py
+index 2275dfe36bfe56742aca3471d01e879b453a1d8e..302b17c49eb19d770b5f708ee9c40b6ef6e381db 100644
+--- a/tests/test_pipeline.py
++++ b/tests/test_pipeline.py
+@@ -85,13 +85,64 @@ class TestLoadPipeline:
+         with pytest.raises(ValueError, match="name"):
+             P.load_pipeline("demo")
+ 
+-    def test_is_cached(self, pipelines_root):
++    def test_is_cached_while_file_unchanged(self, pipelines_root):
++        _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
++        first = P.load_pipeline("demo")
++        assert P.load_pipeline("demo") is first  # нетронутый файл не перечитывается
++
++    def test_cache_invalidated_when_file_changes(self, pipelines_root):
++        """#214: правка манифеста при живом сервере видна БЕЗ рестарта.
++
++        Контракт сменился намеренно: раньше кеш держал первый разбор до
++        ``cache_clear()``, теперь ключ включает mtime+размер файла. Это цена за то,
++        чтобы «всем Opus поставить high» делалось одной правкой yaml, а живые агенты
++        подхватывали её на своём следующем ходе (`AgentSession._apply_manifest_effort`).
++        """
+         d = _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
+         first = P.load_pipeline("demo")
+-        # перезаписываем файл — кеш должен вернуть прежний объект
+-        (d / "pipeline.yaml").write_text("garbage: [")
++        assert first.roles["hand"].effort is None
++
++        (d / "pipeline.yaml").write_text(
++            _MINIMAL.format(name="demo").replace(
++                "        can_spawn: []\n", "        can_spawn: []\n        effort: high\n", 1))
+         second = P.load_pipeline("demo")
+-        assert first is second
++        assert second is not first
++        assert second.roles["hand"].effort == "high"
++
++    def test_file_changed_during_read_is_not_cached(self, pipelines_root, monkeypatch):
++        """Неатомарная запись извне: содержимое не должно попасть в кеш и наружу.
++
++        Опасен не битый YAML (его отвергнет схема), а НЕДОПИСАННЫЙ, но синтаксически
++        валидный: роль получила бы неполную карту эффорта, и та уехала бы живым агентам.
++        """
++        d = _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
++        target = d / "pipeline.yaml"
++        full = _MINIMAL.format(name="demo").replace(
++            "        can_spawn: []\n", "        can_spawn: []\n        effort: high\n", 1)
++        real_read = P.Path.read_text
++        torn = {"n": 0}
++
++        def read_then_grow(self, *a, **kw):
++            text = real_read(self, *a, **kw)
++            if self == target and torn["n"] == 0:
++                torn["n"] += 1
++                target.write_text(full)  # «дописали» файл ровно между read и stat
++            return text
++
++        monkeypatch.setattr(P.Path, "read_text", read_then_grow)
++        cfg = P.load_pipeline("demo")
++
++        assert torn["n"] == 1                       # торн-рид действительно случился
++        assert cfg.roles["hand"].effort == "high"   # отдана дописанная версия, не обрывок
++        assert P.load_pipeline("demo") is cfg       # в кеше лежит она же
++
++    def test_broken_manifest_after_edit_fails_loud(self, pipelines_root):
++        """Обратная сторона инвалидации: битый файл больше не прячется за кешем."""
++        d = _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
++        P.load_pipeline("demo")
++        (d / "pipeline.yaml").write_text("garbage: [")
++        with pytest.raises(Exception):
++            P.load_pipeline("demo")
+ 
+ 
+ # ── Валидация схемы (extra=forbid, kind, model, can_spawn-граф) ─────────────
+@@ -525,6 +576,117 @@ class TestResolveRole:
+         assert P.resolve_role(cfg, "r").skills == "all"
+ 
+ 
++# ── effort: скаляр или карта модель→ступень (#214) ─────────────────────────
++
++class TestEffortByModel:
++    def _role(self, root, effort_yaml: str):
++        _write_pipeline(root, "eff", f"""\
++            name: eff
++            roles:
++              hand: {{kind: worker, label: Hand, effort: {effort_yaml}}}
++        """)
++        return P.resolve_role(P.load_pipeline("eff"), "hand").effort
++
++    def test_scalar_applies_to_every_model(self, pipelines_root):
++        eff = self._role(pipelines_root, "medium")
++        assert eff == "medium"
++        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "medium"
++        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "medium"
++
++    def test_map_resolves_by_exact_model_id(self, pipelines_root):
++        eff = self._role(
++            pipelines_root,
++            '{"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: low}')
++        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "high"
++        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "xhigh"
++        # Sol и Luna — один рантайм codex, но ступени разные: ключ именно модель
++        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
++
++    def test_unknown_model_falls_back_to_default(self, pipelines_root):
++        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh, default: medium}")
++        assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") == "medium"
++
++    def test_no_default_and_no_match_gives_none(self, pipelines_root):
++        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh}")
++        assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") is None
++
++    def test_runtime_key_covers_whole_runtime(self, pipelines_root):
++        eff = self._role(pipelines_root, "{codex: max, default: low}")
++        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "max"
++        assert P.resolve_effort(eff, "gpt-5.4-mini", "codex") == "max"
++        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
++
++    def test_exact_model_beats_runtime_and_default(self, pipelines_root):
++        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh, codex: low, default: medium}")
++        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "xhigh"
++        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
++
++    def test_alias_key_normalized_to_model_id(self, pipelines_root):
++        eff = self._role(pipelines_root, "{opus: low}")
++        assert eff == {"claude-opus-5[1m]": "low"}
++        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
++
++    def test_unknown_key_kept_but_never_matches(self, pipelines_root, caplog):
++        """Незнакомый ключ переживает валидацию, но ни с чем не совпадает.
++
++        Выбрасывать нельзя: реестр моделей досоздаётся на старте
++        (`models.fetch_models_from_proxy`), и манифест мог быть разобран раньше —
++        выброс терял бы валидную строку навсегда из-за порядка инициализации.
++        """
++        with caplog.at_level("WARNING"):
++            eff = self._role(pipelines_root, "{gpt-9-nope: high, default: medium}")
++        assert eff == {"gpt-9-nope": "high", "default": "medium"}
++        assert "gpt-9-nope" in caplog.text
++        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "medium"
++
++    def test_key_matches_once_model_appears_in_registry(self, pipelines_root, monkeypatch):
++        """Тот же ключ начинает работать, как только модель появилась в реестре."""
++        from app.models import MODELS
++        eff = self._role(pipelines_root, "{gpt-9-nope: high, default: medium}")
++        monkeypatch.setitem(MODELS, "gpt-9-nope", "GPT-9 Nope")
++        assert P.resolve_effort(eff, "gpt-9-nope", "codex") == "high"
++
++    def test_grok_key_is_a_runtime_key_not_a_model(self, pipelines_root):
++        """`grok` — и id рантайма, и alias модели `grok-4.5`; рантайм выигрывает.
++
++        Следствие, которое надо знать при правке манифеста: выбрать ключом `grok`
++        конкретную модель нельзя — для этого есть полный id `grok-4.5`.
++        """
++        eff = self._role(pipelines_root, "{grok: high, grok-4.5: low, default: medium}")
++        assert eff == {"grok": "high", "grok-4.5": "low", "default": "medium"}
++        # точный id модели сильнее рантайма
++        assert P.resolve_effort(eff, "grok-4.5", "grok") == "low"
++        eff2 = self._role(pipelines_root, "{grok: high, default: medium}")
++        assert P.resolve_effort(eff2, "grok-4.5", "grok") == "high"
++
++    def test_unknown_level_rejects_the_manifest(self, pipelines_root):
++        """Опечатка в СТУПЕНИ роняет манифест, а не «пропускается».
++
++        Пропуск не сохранял бы статус-кво: `{gpt-5.6-sol: hgih, default: high}` тихо
++        перевёл бы Sol с `xhigh` на `high` — то есть сменил маршрут, а не оставил как
++        было. Список ступеней замкнут и известен при загрузке, гонки с досозданием
++        реестра здесь нет (в отличие от ключей-моделей), поэтому опечатка однозначна.
++        """
++        with pytest.raises(Exception) as e:
++            self._role(pipelines_root, "{gpt-5.6-sol: hgih, default: medium}")
++        assert "hgih" in str(e.value)
++
++    def test_unknown_level_rejects_even_when_default_would_cover_it(self, pipelines_root):
++        """Именно этот случай и опасен: `default` рядом маскирует опечатку молчанием."""
++        with pytest.raises(Exception):
++            self._role(pipelines_root, "{gpt-5.6-sol: xhihg, default: high}")
++
++    def test_absent_effort_stays_none(self, pipelines_root):
++        _write_pipeline(pipelines_root, "noeff", """\
++            name: noeff
++            roles:
++              hand: {kind: worker, label: Hand}
++        """)
++        rr = P.resolve_role(P.load_pipeline("noeff"), "hand")
++        assert rr.effort is None
++        assert P.resolve_effort(rr.effort, "claude-opus-5[1m]", "claude") is None
++
++
+ # ── build_system_prompt: композиция слоёв + ИЗОЛЯЦИЯ ───────────────────────
+ 
+ class TestBuildSystemPrompt:
+diff --git a/tests/test_session.py b/tests/test_session.py
+index cae446bf75368c33a11204fe1571dd3f104ffb5d..9223ed92fc38d9c0dac7eb3e89c632e583a0e875 100644
+--- a/tests/test_session.py
++++ b/tests/test_session.py
+@@ -2995,6 +2995,275 @@ class TestFlushPendingDefersDuringCompact:
+         assert session._pending_messages == ["m1"]
+ 
+ 
++class TestManifestEffortAtTurnBoundary:
++    """#214: эффорт перечитывается из манифеста на границе КАЖДОГО хода.
++
++    Правка `pipeline.yaml` при живом сервере доезжает до уже работающих агентов на их
++    следующем ходе — без рестарта, без `UPDATE` в БД и без обрыва текущего хода.
++    Файл манифеста в тестах правится НА ДИСКЕ: кэш инвалидируется по mtime, поэтому
++    подмена кеша изнутри доказывала бы не тот механизм.
++    """
++
++    @pytest.fixture
++    def manifest(self, tmp_path, monkeypatch):
++        """Реальный манифест на диске + writer, меняющий значение эффорта."""
++        import app.pipeline as P
++        root = tmp_path / "pipelines"
++        (root / "eff").mkdir(parents=True)
++        monkeypatch.setattr(P, "PIPELINES_DIR", root)
++        P.load_pipeline.cache_clear()
++        path = root / "eff" / "pipeline.yaml"
++
++        def write(body: str):
++            path.write_text(body)
++            # mtime_ns различает правки внутри одной секунды, но одинаковое содержимое
++            # с тем же mtime кэш обязан переиспользовать — поэтому пишем как есть.
++            return path
++
++        write(
++            "name: eff\n"
++            "roles:\n"
++            "  hand: {kind: worker, label: Hand, "
++            "effort: {\"claude-sonnet-5[1m]\": medium, gpt-5.6-sol: xhigh, default: low}}\n"
++        )
++        yield write
++        P.load_pipeline.cache_clear()
++
++    def _session(self, effort="medium", role="hand", model="claude-sonnet-5[1m]"):
++        from app.session import AgentSession
++        s = AgentSession(
++            id="eff-001", name="w-eff", scope="/test", cwd="/tmp",
++            model=model, system_prompt="test", pipeline="eff", role=role,
++            effort=effort, created_at=datetime.now(timezone.utc),
++        )
++        s._admission_service = AsyncMock(return_value=_quota_decision())
++        return s
++
++    async def _turn(self, session, backend, message):
++        send_task = asyncio.create_task(session.send(message))
++        for _ in range(200):
++            await asyncio.sleep(0.01)
++            if backend.sent and message in backend.sent[-1]:
++                break
++        backend.finish()
++        await send_task
++        await asyncio.sleep(0.05)
++
++    @pytest.mark.asyncio
++    async def test_unchanged_manifest_rebuilds_nothing(self, mock_db, manifest):
++        """Требование: одинаковое значение → ноль дисконнектов, ноль пересборок."""
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        builds = 0
++
++        def build(*a, **kw):
++            nonlocal builds
++            builds += 1
++            return backend
++
++        disconnects = 0
++        orig_disconnect = session._disconnect_backend
++
++        async def counting_disconnect():
++            nonlocal disconnects
++            disconnects += 1
++            await orig_disconnect()
++
++        session._disconnect_backend = counting_disconnect
++        with patch.object(session, "_make_backend", side_effect=build):
++            await self._turn(session, backend, "first")
++            await self._turn(session, backend, "second")
++
++        assert session.effort == "medium"
++        assert disconnects == 0
++        assert builds == 1  # бэкенд собран один раз на два хода
++
++    @pytest.mark.asyncio
++    async def test_manifest_edit_applies_on_next_turn(self, mock_db, manifest):
++        """Правка файла между ходами → следующий ход идёт на новом эффорте."""
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        builds = 0
++
++        def build(*a, **kw):
++            nonlocal builds
++            builds += 1
++            return backend
++
++        with patch.object(session, "_make_backend", side_effect=build):
++            await self._turn(session, backend, "first")
++            assert session.effort == "medium" and builds == 1
++
++            manifest(
++                "name: eff\n"
++                "roles:\n"
++                "  hand: {kind: worker, label: Hand, "
++                "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
++            )
++
++            await self._turn(session, backend, "second")
++
++        assert session.effort == "high"
++        assert builds == 2  # бэкенд пересобран → новое значение уехало в рантайм
++
++    @pytest.mark.asyncio
++    async def test_running_turn_is_not_interrupted(self, mock_db, manifest):
++        """Требование юзера: значение принимается, но живой ход не прерывается."""
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        disconnects = 0
++        orig_disconnect = session._disconnect_backend
++
++        async def counting_disconnect():
++            nonlocal disconnects
++            disconnects += 1
++            await orig_disconnect()
++
++        session._disconnect_backend = counting_disconnect
++        with patch.object(session, "_make_backend", return_value=backend):
++            from app.session import AgentStatus
++            send_task = asyncio.create_task(session.send("first"))
++            for _ in range(200):
++                await asyncio.sleep(0.01)
++                if session.status == AgentStatus.RUNNING:
++                    break
++            assert session.status == AgentStatus.RUNNING
++
++            manifest(
++                "name: eff\n"
++                "roles:\n"
++                "  hand: {kind: worker, label: Hand, "
++                "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
++            )
++            # сообщение в живой ход: инжект, а не смена эффорта и не дисконнект
++            await session.send("steer")
++            assert session.effort == "medium"
++            assert disconnects == 0
++
++            backend.finish()
++            await send_task
++            await asyncio.sleep(0.05)
++
++            # ход закончился — новое значение вступает в силу со следующего
++            await self._turn(session, backend, "second")
++
++        assert session.effort == "high"
++
++    @pytest.mark.asyncio
++    async def test_broken_manifest_keeps_current_effort(self, mock_db, manifest):
++        """Требование: отказ тихий и безопасный — битый yaml ничего не пересобирает."""
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        disconnects = 0
++        orig_disconnect = session._disconnect_backend
++
++        async def counting_disconnect():
++            nonlocal disconnects
++            disconnects += 1
++            await orig_disconnect()
++
++        session._disconnect_backend = counting_disconnect
++        manifest("name: eff\nroles: {hand: {kind: worker, label: Hand, bogus_field: 1}}\n")
++        with patch.object(session, "_make_backend", return_value=backend):
++            await self._turn(session, backend, "first")
++
++        assert session.effort == "medium"
++        assert disconnects == 0
++
++    @pytest.mark.asyncio
++    async def test_typo_in_level_keeps_live_agent_on_current_effort(self, mock_db, manifest):
++        """Отказ манифеста по опечатке в ступени НЕ трогает живого агента.
++
++        Манифест с неизвестной ступенью теперь отвергается целиком (fail-closed), и цена
++        этого — падающий спавн. Живые агенты платить не должны: сбой резолва оставляет
++        текущее значение и не пересобирает бэкенд. Проверяем именно ветку `raise`, а не
++        только ветку с warning.
++        """
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        disconnects = 0
++        orig_disconnect = session._disconnect_backend
++
++        async def counting_disconnect():
++            nonlocal disconnects
++            disconnects += 1
++            await orig_disconnect()
++
++        session._disconnect_backend = counting_disconnect
++        manifest(
++            "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
++            "effort: {\"claude-sonnet-5[1m]\": hgih, default: high}}\n"
++        )
++        with patch.object(session, "_make_backend", return_value=backend):
++            await self._turn(session, backend, "first")
++
++        assert session.effort == "medium"  # не сползли на default: high
++        assert disconnects == 0
++
++    @pytest.mark.asyncio
++    async def test_role_without_effort_keeps_db_value(self, mock_db, manifest):
++        """Роль без эффорта → остаёмся на значении из БД, а не обнуляем его."""
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        manifest("name: eff\nroles: {hand: {kind: worker, label: Hand}}\n")
++        with patch.object(session, "_make_backend", return_value=backend):
++            await self._turn(session, backend, "first")
++        assert session.effort == "medium"
++
++    @pytest.mark.asyncio
++    async def test_legacy_session_without_role_is_untouched(self, mock_db, manifest):
++        """Legacy-сессия (role='') манифеста не имеет — живёт на значении из БД."""
++        session = self._session(effort="xhigh", role="")
++        backend = _MockBackend()
++        with patch.object(session, "_make_backend", return_value=backend):
++            await self._turn(session, backend, "first")
++        assert session.effort == "xhigh"
++
++    @pytest.mark.asyncio
++    async def test_failed_disconnect_leaves_change_pending(self, mock_db, manifest):
++        """Сбой дисконнекта НЕ должен съедать смену: следующий ход обязан повторить.
++
++        Порядок «зафиксировать значение → дисконнект» делает такой сбой невосстановимым:
++        расхождения с манифестом больше нет, повторять нечего, и агент навсегда остаётся
++        на бэкенде со старой ступенью. Поэтому дисконнект идёт ПЕРВЫМ.
++        """
++        session = self._session(effort="medium")
++        backend = _MockBackend()
++        manifest(
++            "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
++            "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
++        )
++        attempts = 0
++        orig_disconnect = session._disconnect_backend
++
++        async def flaky_disconnect():
++            nonlocal attempts
++            attempts += 1
++            if attempts == 1:
++                raise RuntimeError("disconnect failed")
++            await orig_disconnect()
++
++        session._disconnect_backend = flaky_disconnect
++        with patch.object(session, "_make_backend", return_value=backend):
++            with pytest.raises(RuntimeError):
++                await session._apply_manifest_effort()
++            assert session.effort == "medium"  # не зафиксировано — расхождение живо
++
++            assert await session._apply_manifest_effort() is True
++        assert session.effort == "high"
++        assert attempts == 2
++
++    @pytest.mark.asyncio
++    async def test_effort_follows_model_switch_without_manifest_edit(self, mock_db, manifest):
++        """Тот же манифест, другая модель сессии → другая ступень (ключ — модель)."""
++        session = self._session(effort="medium", model="gpt-5.6-sol")
++        session.backend_type = "codex"
++        backend = _MockBackend()
++        with patch.object(session, "_make_backend", return_value=backend):
++            await self._turn(session, backend, "first")
++        assert session.effort == "xhigh"
++
++
+ class TestEnsureBackendForceFresh:
+     @pytest.mark.asyncio
+     async def test_codex_preflights_finish_before_backend_is_built_and_connected(

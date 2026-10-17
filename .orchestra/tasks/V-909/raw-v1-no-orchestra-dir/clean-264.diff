@@ -1,0 +1,982 @@
+diff --git a/.mcp.json b/.mcp.json
+deleted file mode 100644
+index 66f46a47ce53572b2a964c1790dff6d8e565e698..0000000000000000000000000000000000000000
+--- a/.mcp.json
++++ /dev/null
+@@ -1,16 +0,0 @@
+-{
+-  "mcpServers": {
+-    "orchestra": {
+-      "type": "stdio",
+-      "command": "/mnt/data/Projects/Python/orchestra/.venv/bin/python",
+-      "args": ["-m", "app.mcp_stdio"],
+-      "env": {
+-        "PYTHONPATH": "/mnt/data/Projects/Python/orchestra",
+-        "ORCHESTRA_URL": "http://127.0.0.1:8888",
+-        "ORCHESTRA_SCOPE": "/mnt/data/Projects/Python/test-project",
+-        "ORCHESTRA_ROLE": "claude-code-test"
+-      },
+-      "alwaysLoad": true
+-    }
+-  }
+-}
+diff --git a/app/backend_grok.py b/app/backend_grok.py
+index f4ba638d312d53abe2d4a14ddbef3f6c173f5237..b52b00d533bcadf293c2d25f1e6b8a59b719aa1f 100644
+--- a/app/backend_grok.py
++++ b/app/backend_grok.py
+@@ -262,6 +262,7 @@ class GrokBackend(JsonRpcStdioTransport):
+         self._ready_servers: set[str] = set()
+         self._failed_servers: set[str] = set()
+         self._mcp_tool_count: int | None = None
++        self._mcp_loaded_total: int | None = None
+         self._mcp_ready: asyncio.Event | None = None
+         self._mcp_status_changed: asyncio.Event | None = None
+ 
+@@ -290,6 +291,7 @@ class GrokBackend(JsonRpcStdioTransport):
+         self._ready_servers = set()
+         self._failed_servers = set()
+         self._mcp_tool_count = None
++        self._mcp_loaded_total = None
+         self._mcp_ready = asyncio.Event()
+         self._mcp_status_changed = asyncio.Event()
+ 
+@@ -411,17 +413,26 @@ class GrokBackend(JsonRpcStdioTransport):
+                 break
+         missing = self._expected_servers - self._started_servers
+         unexpected = self._started_servers - self._expected_servers
++        # Only servers whose identity the runtime actually echoed can be compared. Grok
++        # 1.0.3 sends an empty `servers_updated` (measured), so demanding an identity here
++        # failed every launch with "unexpected identity" while the real roster was correct.
+         mismatched = {
+             name
+             for name in self._expected_servers & self._started_servers
+             if self._started_server_identities.get(name)
++            and self._started_server_identities[name]
+             != {self._expected_server_identities[name]}
+         }
++        # With no per-server identity, the count is what keeps a foreign server out.
++        overloaded = (
++            self._mcp_loaded_total is not None
++            and self._mcp_loaded_total != len(self._expected_servers)
++        )
+         unready = self._expected_servers - self._ready_servers
+         no_tools = bool(self._expected_servers) and (
+             self._mcp_tool_count is None or self._mcp_tool_count <= 0
+         )
+-        if missing or unexpected or mismatched or unready or no_tools:
++        if missing or unexpected or mismatched or overloaded or unready or no_tools:
+             failures = []
+             if missing:
+                 failures.append(f"missing required servers {sorted(missing)}")
+@@ -431,6 +442,11 @@ class GrokBackend(JsonRpcStdioTransport):
+                 failures.append(
+                     f"servers with unexpected identity {sorted(mismatched)}"
+                 )
++            if overloaded:
++                failures.append(
++                    f"session loaded {self._mcp_loaded_total} MCP servers, "
++                    f"launch plan has {len(self._expected_servers)}"
++                )
+             if unready:
+                 failures.append(f"required servers not ready {sorted(unready)}")
+             if no_tools:
+@@ -438,9 +454,41 @@ class GrokBackend(JsonRpcStdioTransport):
+             raise GrokMcpIsolationError(
+                 "Grok MCP conformance failed: "
+                 + "; ".join(failures)
++                + self._shadowing_hint(missing | unready)
+                 + ". Refusing to run a worker without the exact Orchestra launch plan."
+             )
+ 
++    def _shadowing_hint(self, absent: set[str]) -> str:
++        """Name the repo-local file that swallowed a server, when that is what happened.
++
++        Grok merges project scope over every other source BY NAME and only then drops the
++        project entry for an untrusted folder — so a repo `.mcp.json` naming `orchestra`
++        annihilates ours and the session starts with zero servers (measured on 1.0.3: the
++        launch plan, `config.toml` and an always-trusted `--plugin-dir` plugin all lost to
++        it). The roster we observe is empty either way, so without this the message is a
++        dead end.
++        """
++        if not absent:
++            return ""
++        shadowed: list[str] = []
++        for rel in (".mcp.json", ".grok/config.toml"):
++            path = Path(self.cwd) / rel
++            try:
++                text = path.read_text(encoding="utf-8")
++            except (OSError, UnicodeDecodeError):
++                # This runs while reporting another failure; never mask it.
++                continue
++            for name in sorted(absent):
++                if f'"{name}"' in text or f"mcp_servers.{name}" in text:
++                    shadowed.append(f"{rel} declares '{name}'")
++        if not shadowed:
++            return ""
++        return (
++            f" — repo-local MCP config shadows the launch plan ({'; '.join(shadowed)}); "
++            "remove that entry or rename it, an untrusted folder makes Grok drop it "
++            "and Orchestra's server with it"
++        )
++
+     async def send(self, message: str) -> None:
+         if not self.is_alive:
+             await self.connect()
+@@ -625,6 +673,14 @@ class GrokBackend(JsonRpcStdioTransport):
+                     self._started_server_identities.setdefault(
+                         normalized_name, set()
+                     ).add(_mcp_server_identity(server))
++        elif method == "_x.ai/mcp/init_progress":
++            # 1.0.3 stopped populating `servers_updated`, so this is the only remaining
++            # count of what the session actually loaded. It is the check that a foreign
++            # server cannot pass: an extra one makes `total` exceed the launch plan.
++            try:
++                self._mcp_loaded_total = int(params.get("total"))
++            except (TypeError, ValueError):
++                pass
+         elif method == "_x.ai/mcp/server_status":
+             name = params.get("name")
+             status = params.get("status")
+diff --git a/docs/tasks/264/live_grok_worker.py b/docs/tasks/264/live_grok_worker.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..525034f1bbf51578277a4b22a244f131c6dc7887
+--- /dev/null
++++ b/docs/tasks/264/live_grok_worker.py
+@@ -0,0 +1,65 @@
++#!/usr/bin/env python3
++"""Live end-to-end run of a Grok worker through Orchestra's real backend.
++
++Not a hand-rolled ACP client: this builds `GrokBackend` exactly the way `_grok_factory`
++does, connects (so `_verify_mcp_isolation` runs for real), and gives the agent a task that
++can only be completed by calling an Orchestra MCP tool. Prints the tool calls it made.
++"""
++import asyncio, os, sys
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[3]
++sys.path.insert(0, str(ROOT))
++os.environ.setdefault("ORCHESTRA_SKIP_DOTENV", "0")
++
++from app.backend_grok import GrokBackend
++from app.manager import _make_mcp_config
++
++PROMPT = (
++    "You are a test worker. Call the Orchestra MCP tool `list_agents` right now and reply "
++    "with the number of agents it returned, in the form COUNT=<n>. Do not do anything else."
++)
++
++
++async def main() -> None:
++    cwd = str(ROOT)
++    assert not (Path(cwd) / ".mcp.json").exists(), (
++        "this run must happen in a checkout without the colliding .mcp.json"
++    )
++    servers = _make_mcp_config("grok-live-264", "/home/kesha/orchestra", "worker")
++    mcp_env = {k: str(v) for cfg in servers.values() for k, v in cfg.get("env", {}).items()}
++    backend = GrokBackend(
++        model="grok-4.5", cwd=cwd,
++        system_prompt="You are an Orchestra worker. Be terse.",
++        mcp_env=mcp_env, mcp_servers=servers, reasoning_effort="low",
++    )
++    await backend.connect()
++    print(f"CONNECTED session={backend.session_id}")
++    print(f"MCP tool count reported by Grok: {backend._mcp_tool_count}")
++    print(f"started servers: {sorted(backend._started_servers)}")
++    print(f"ready servers:   {sorted(backend._ready_servers)}")
++
++    await backend.send(PROMPT)
++    tool_calls, texts = [], []
++    try:
++        async with asyncio.timeout(240):
++            async for ev in backend.events():
++                kind = getattr(ev, "type", None) or getattr(ev, "kind", None)
++                content = getattr(ev, "content", "")
++                if kind == "tool_call":
++                    tool_calls.append(content)
++                    print(f"TOOL_CALL: {str(content)[:200]}")
++                elif kind == "text":
++                    texts.append(content)
++                elif kind == "turn_end":
++                    break
++    except (TimeoutError, asyncio.TimeoutError):
++        print("TIMEOUT waiting for turn_end")
++    finally:
++        print("--- assistant text ---")
++        print("".join(str(t) for t in texts)[:2000])
++        print(f"--- tool calls: {len(tool_calls)} ---")
++        await backend.disconnect()
++
++
++asyncio.run(main())
+diff --git a/docs/tasks/264/mutation_check.py b/docs/tasks/264/mutation_check.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..65cd425d9e84c3a781c525b970f626e7a366b27c
+--- /dev/null
++++ b/docs/tasks/264/mutation_check.py
+@@ -0,0 +1,64 @@
++#!/usr/bin/env python3
++"""Mutation check: does the conformance gate actually catch broken MCP wiring?
++
++Connect-only (no turn), printing the marker before every phase:
++  1. baseline      — clean wiring                     -> must CONNECT
++  2. mutant-shadow — `.mcp.json` declaring `orchestra` -> must REFUSE and name the file
++  3. reverted      — file removed again                -> must CONNECT
++  4. mutant-cmd    — launch plan points at a missing binary -> must REFUSE
++  5. reverted-cmd  — plan restored                     -> must CONNECT
++
++The mutations are data (a JSON file, an in-memory plan), not `.py` source, so there is no
++`__pycache__` staleness to defeat — the reverted phases re-run the same module objects.
++"""
++import asyncio, json, sys
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[3]
++sys.path.insert(0, str(ROOT))
++from app.backend_grok import GrokBackend, GrokMcpIsolationError
++from app.manager import _make_mcp_config
++
++MCP_JSON = ROOT / ".mcp.json"
++SHADOW = json.dumps({"mcpServers": {"orchestra": {
++    "type": "stdio", "command": "/nonexistent/python",
++    "args": ["-m", "app.mcp_stdio"], "env": {"ORCHESTRA_ROLE": "shadow"}}}}, indent=2)
++
++
++async def attempt(label: str, break_command: bool = False) -> str:
++    servers = _make_mcp_config(f"grok-mut-{label}", "/home/kesha/orchestra", "worker")
++    if break_command:
++        servers["orchestra"]["command"] = "/nonexistent/python3"
++    mcp_env = {k: str(v) for cfg in servers.values() for k, v in cfg.get("env", {}).items()}
++    backend = GrokBackend(model="grok-4.5", cwd=str(ROOT), system_prompt="t",
++                          mcp_env=mcp_env, mcp_servers=servers, reasoning_effort="low")
++    try:
++        await backend.connect()
++        return f"CONNECTED tools={backend._mcp_tool_count} ready={sorted(backend._ready_servers)}"
++    except GrokMcpIsolationError as exc:
++        return f"REFUSED {exc}"
++    except Exception as exc:
++        return f"ERROR {type(exc).__name__}: {exc}"
++    finally:
++        await backend.disconnect()
++
++
++async def phase(name: str, *, shadow: bool = False, break_command: bool = False) -> None:
++    print(f"[{name}] .mcp.json present = {MCP_JSON.exists()}", flush=True)
++    print(f"  -> {await attempt(name, break_command=break_command)}\n", flush=True)
++
++
++async def main() -> None:
++    await phase("baseline")
++
++    MCP_JSON.write_text(SHADOW, encoding="utf-8")
++    await phase("mutant-shadow")
++
++    MCP_JSON.unlink()
++    await phase("reverted")
++
++    await phase("mutant-cmd", break_command=True)
++    await phase("reverted-cmd")
++
++
++asyncio.run(main())
+diff --git a/docs/tasks/264/probe_collision.py b/docs/tasks/264/probe_collision.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e238b357b40268155bce4c04e6a4b2fc2645039
+--- /dev/null
++++ b/docs/tasks/264/probe_collision.py
+@@ -0,0 +1,78 @@
++#!/usr/bin/env python3
++"""Which injection route survives a repo-local `.mcp.json` that declares the same name?
++
++cwd is a worktree of this repo, which tracks a `.mcp.json` defining a server called
++`orchestra`. Grok merges project scope over global scope by name, then folder-trust drops
++the project entry — annihilating ours. Reads Grok's own debug log for the verdict.
++"""
++import asyncio, json, os, re, shutil, subprocess, sys, uuid
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[3]
++sys.path.insert(0, str(ROOT))
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from app.backend_grok import GROK_BIN
++from probe_routes import make_home, make_plugin, toml_block, acp_plan
++
++
++def run(label: str, cwd: str, plugin: Path | None, send_plan: bool,
++        config_server: bool) -> dict:
++    home = make_home(toml_block() if config_server else "")
++    log = f"/tmp/grok-collision-{label}-{uuid.uuid4().hex[:6]}.log"
++    argv = [GROK_BIN, "agent", "--model", "grok-4.5", "--always-approve"]
++    if plugin:
++        argv += ["--plugin-dir", str(plugin)]
++    argv += ["--debug", "--debug-file", log, "stdio"]
++
++    params = {"cwd": cwd}
++    if send_plan:
++        params["mcpServers"] = acp_plan()
++    stdin = "\n".join(json.dumps(m) for m in [
++        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
++            "protocolVersion": 1, "clientCapabilities": {
++                "fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False}}},
++        {"jsonrpc": "2.0", "id": 2, "method": "session/new", "params": params},
++    ]) + "\n"
++
++    env = dict(os.environ)
++    for var in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"):
++        env.pop(var, None)
++    env["GROK_HOME"] = str(home)
++    try:
++        subprocess.run(argv, input=stdin, text=True, env=env, cwd=cwd,
++                       capture_output=True, timeout=90)
++    except subprocess.TimeoutExpired:
++        pass
++    text = Path(log).read_text(errors="replace") if Path(log).exists() else ""
++    created = re.search(r"created with (\d+) MCP servers", text)
++    names = re.search(r"config_count=(\d+) config_names=(\[[^\]]*\])", text)
++    shutil.rmtree(home, ignore_errors=True)
++    return {
++        "created": int(created.group(1)) if created else None,
++        "init_count": int(names.group(1)) if names else None,
++        "init_names": names.group(2) if names else None,
++        "untrusted_skip": "folder untrusted" in text,
++        "log": log,
++    }
++
++
++def main() -> None:
++    cwd = str(ROOT)  # a worktree of this repo — tracks .mcp.json with an `orchestra` entry
++    assert (Path(cwd) / ".mcp.json").exists(), "probe needs the colliding .mcp.json present"
++    plugin = make_plugin(".claude-plugin")
++    cases = [
++        ("acp-plan", None, True, False),
++        ("config-toml", None, False, True),
++        ("plugin-dir", plugin, False, False),
++        ("plugin+plan", plugin, True, False),
++    ]
++    results = {}
++    for label, plug, send_plan, config_server in cases:
++        results[label] = run(label, cwd, plug, send_plan, config_server)
++        print(f"{label:14} {json.dumps(results[label])}", flush=True)
++    Path("/tmp/grok-collision-results.json").write_text(json.dumps(results, indent=2))
++    shutil.rmtree(plugin, ignore_errors=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/docs/tasks/264/probe_routes.py b/docs/tasks/264/probe_routes.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..4a57766ec7e32a7c57ccc8277334daad2fb3feba
+--- /dev/null
++++ b/docs/tasks/264/probe_routes.py
+@@ -0,0 +1,165 @@
++#!/usr/bin/env python3
++"""Probe which MCP injection route Grok 1.0.3 actually honours over ACP.
++
++Each variant gets a fresh scratch GROK_HOME so live workers are never touched. Prints the
++observed roster and tool count per route — the two signals `_verify_mcp_isolation` reads.
++"""
++import asyncio, json, os, shutil, sys, uuid
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[3]
++sys.path.insert(0, str(ROOT))
++from app.backend_grok import _GROK_SANDBOX_CONFIG, GROK_BIN, GROK_USER_HOME
++from app.runtime_env import MCP_STDIO_CMD, MCP_BASE_ENV
++
++SERVER_ENV = {
++    **MCP_BASE_ENV, "ORCHESTRA_URL": "http://127.0.0.1:8888",
++    "ORCHESTRA_SCOPE": "/home/kesha/orchestra", "ORCHESTRA_ROLE": "worker",
++    "ORCHESTRA_ACCESS_MODE": "full", "WORKER_NAME": "grok-probe",
++    "PARENT_NAME": "", "ORCHESTRA_SESSION_ID": "",
++}
++
++
++def acp_plan() -> list[dict]:
++    return [{
++        "name": "orchestra", "type": "stdio",
++        "command": MCP_STDIO_CMD[0], "args": [str(a) for a in MCP_STDIO_CMD[1:]],
++        "env": [{"name": k, "value": str(v)} for k, v in SERVER_ENV.items()],
++    }]
++
++
++def toml_block() -> str:
++    args = ", ".join(json.dumps(str(a)) for a in MCP_STDIO_CMD[1:])
++    env = ", ".join(f"{k} = {json.dumps(str(v))}" for k, v in SERVER_ENV.items())
++    return (f'\n[mcp_servers.orchestra]\ncommand = {json.dumps(MCP_STDIO_CMD[0])}\n'
++            f'args = [{args}]\nenv = {{ {env} }}\nenabled = true\n')
++
++
++def make_home(config_extra: str = "", base: str | None = None) -> Path:
++    home = Path(f"/tmp/grok-probe-home-{uuid.uuid4().hex[:8]}")
++    home.mkdir(parents=True)
++    (home / "config.toml").write_text((base or _GROK_SANDBOX_CONFIG) + config_extra, encoding="utf-8")
++    (home / "auth.json").symlink_to(GROK_USER_HOME / "auth.json")
++    return home
++
++
++def make_plugin(manifest_dir: str) -> Path:
++    d = Path(f"/tmp/grok-probe-plugin-{uuid.uuid4().hex[:8]}")
++    (d / manifest_dir).mkdir(parents=True)
++    (d / manifest_dir / "plugin.json").write_text(json.dumps(
++        {"name": "orchestra", "description": "Orchestra managed MCP", "version": "1.0.0"}))
++    (d / ".mcp.json").write_text(json.dumps({"mcpServers": {"orchestra": {
++        "type": "stdio", "command": MCP_STDIO_CMD[0],
++        "args": [str(a) for a in MCP_STDIO_CMD[1:]], "env": SERVER_ENV}}}, indent=2))
++    return d
++
++
++async def probe(label: str, home: Path, plugin_dir: Path | None, send_plan: bool,
++                cwd: str, settle: float = 25.0) -> dict:
++    env = dict(os.environ)
++    for var in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"):
++        env.pop(var, None)
++    env["GROK_HOME"] = str(home)
++    argv = [GROK_BIN, "agent", "--model", "grok-4.5", "--reasoning-effort", "high",
++            "--always-approve"]
++    if plugin_dir:
++        argv += ["--plugin-dir", str(plugin_dir)]
++    argv += ["stdio"]
++
++    proc = await asyncio.create_subprocess_exec(
++        *argv, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
++        stderr=asyncio.subprocess.PIPE, env=env, cwd=cwd, limit=16 * 1024 * 1024)
++    dump = open(f"/tmp/grok-probe-{label}-{uuid.uuid4().hex[:6]}.jsonl", "w")
++    pending: dict[int, asyncio.Future] = {}
++    seen = {"servers": [], "tool_count": None, "status": []}
++
++    async def reader() -> None:
++        while True:
++            line = await proc.stdout.readline()
++            if not line:
++                return
++            dump.write(line.decode(errors="replace")); dump.flush()
++            try:
++                msg = json.loads(line)
++            except ValueError:
++                continue
++            if "id" in msg and ("result" in msg or "error" in msg):
++                fut = pending.pop(msg["id"], None)
++                if fut and not fut.done():
++                    fut.set_result(msg)
++                continue
++            method, params = msg.get("method"), msg.get("params") or {}
++            if method == "_x.ai/mcp/servers_updated":
++                seen["servers"] = [s.get("name") for s in (params.get("mcpServers") or [])]
++            elif method == "_x.ai/mcp/server_status":
++                seen["status"].append((params.get("name"), params.get("status")))
++            elif method == "_x.ai/mcp_initialized":
++                seen["tool_count"] = params.get("mcpToolCount")
++            elif method and "id" in msg:
++                proc.stdin.write((json.dumps({"jsonrpc": "2.0", "id": msg["id"],
++                                              "result": {}}) + "\n").encode())
++
++    async def errdrain() -> None:
++        while True:
++            line = await proc.stderr.readline()
++            if not line:
++                return
++            dump.write("STDERR: " + line.decode(errors="replace")); dump.flush()
++
++    tasks = [asyncio.create_task(reader()), asyncio.create_task(errdrain())]
++    counter = 0
++
++    async def request(method: str, params: dict) -> dict:
++        nonlocal counter
++        counter += 1
++        fut = asyncio.get_running_loop().create_future()
++        pending[counter] = fut
++        proc.stdin.write((json.dumps({"jsonrpc": "2.0", "id": counter, "method": method,
++                                      "params": params}) + "\n").encode())
++        await proc.stdin.drain()
++        return await asyncio.wait_for(fut, timeout=60)
++
++    try:
++        await request("initialize", {"protocolVersion": 1, "clientCapabilities": {
++            "fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False}})
++        await request("session/new", {"cwd": cwd,
++                                      "mcpServers": acp_plan() if send_plan else []})
++        await asyncio.sleep(settle)
++    finally:
++        proc.kill()
++        await proc.wait()
++        for t in tasks:
++            t.cancel()
++        dump.close()
++    return seen
++
++
++async def main() -> None:
++    cwd = str(ROOT)
++    results = {}
++
++    variants = [
++        ("acp-plan-only", make_home(), None, True),
++        ("plugin-claude-manifest", make_home(), make_plugin(".claude-plugin"), False),
++        ("plugin-grok-manifest", make_home(), make_plugin(".grok-plugin"), False),
++        ("plugin-compat-on", make_home(base=_GROK_SANDBOX_CONFIG.replace(
++            "[compat.claude]\nmcps = false", "[compat.claude]\nmcps = true")),
++         make_plugin(".claude-plugin"), False),
++        ("home-config-toml", make_home(toml_block()), None, False),
++    ]
++    for label, home, plugin, send_plan in variants:
++        try:
++            seen = await probe(label, home, plugin, send_plan, cwd)
++        except Exception as exc:
++            seen = {"error": f"{type(exc).__name__}: {exc}"}
++        results[label] = seen
++        print(f"{label:26} {json.dumps(seen)}", flush=True)
++        shutil.rmtree(home, ignore_errors=True)
++        if plugin:
++            shutil.rmtree(plugin, ignore_errors=True)
++
++    Path("/tmp/grok-probe-results.json").write_text(json.dumps(results, indent=2))
++
++
++if __name__ == "__main__":
++    asyncio.run(main())
+diff --git a/docs/tasks/264/probe_session_new.py b/docs/tasks/264/probe_session_new.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..af6014bb08000d87c2c7331bedf82956fa6611a0
+--- /dev/null
++++ b/docs/tasks/264/probe_session_new.py
+@@ -0,0 +1,129 @@
++#!/usr/bin/env python3
++"""Does session/new's `mcpServers` add to, replace, or get ignored against config.toml?
++
++Runs the same ACP handshake three ways against a GROK_HOME whose config.toml already
++declares the orchestra server (proved healthy by `grok mcp doctor`).
++"""
++import asyncio, json, shutil, sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from probe_routes import make_home, toml_block, probe, acp_plan
++
++ROOT = Path(__file__).resolve().parents[3]
++
++
++async def main() -> None:
++    cwd = str(ROOT)
++    cases = {
++        # (send_plan flag understood by probe(), plus an omit-key override below)
++        "config+no-key": "omit",
++        "config+empty-list": "empty",
++        "config+acp-plan": "plan",
++    }
++    results = {}
++    for label, mode in cases.items():
++        home = make_home(toml_block())
++        try:
++            seen = await probe_mode(label, home, cwd, mode)
++        except Exception as exc:
++            seen = {"error": f"{type(exc).__name__}: {exc}"}
++        results[label] = seen
++        print(f"{label:20} {json.dumps(seen)}", flush=True)
++        shutil.rmtree(home, ignore_errors=True)
++    Path("/tmp/grok-session-new-results.json").write_text(json.dumps(results, indent=2))
++
++
++async def probe_mode(label: str, home: Path, cwd: str, mode: str) -> dict:
++    """probe() always sends the key; patch the params for the omit case."""
++    import probe_routes
++    original = probe_routes.acp_plan
++    if mode == "omit":
++        # Monkeypatch a sentinel the patched probe understands.
++        return await _probe_omit(label, home, cwd)
++    probe_routes.acp_plan = (lambda: acp_plan()) if mode == "plan" else (lambda: [])
++    try:
++        return await probe(label, home, None, True, cwd)
++    finally:
++        probe_routes.acp_plan = original
++
++
++async def _probe_omit(label: str, home: Path, cwd: str) -> dict:
++    """session/new without the mcpServers key at all."""
++    import os, uuid
++    from app.backend_grok import GROK_BIN
++    env = dict(os.environ)
++    for var in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"):
++        env.pop(var, None)
++    env["GROK_HOME"] = str(home)
++    proc = await asyncio.create_subprocess_exec(
++        GROK_BIN, "agent", "--model", "grok-4.5", "--reasoning-effort", "high",
++        "--always-approve", "stdio",
++        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
++        stderr=asyncio.subprocess.PIPE, env=env, cwd=cwd, limit=16 * 1024 * 1024)
++    dump = open(f"/tmp/grok-omit-{label}-{uuid.uuid4().hex[:6]}.jsonl", "w")
++    pending: dict[int, asyncio.Future] = {}
++    seen = {"servers": [], "tool_count": None, "status": []}
++
++    async def reader() -> None:
++        while True:
++            line = await proc.stdout.readline()
++            if not line:
++                return
++            dump.write(line.decode(errors="replace")); dump.flush()
++            try:
++                msg = json.loads(line)
++            except ValueError:
++                continue
++            if "id" in msg and ("result" in msg or "error" in msg):
++                fut = pending.pop(msg["id"], None)
++                if fut and not fut.done():
++                    fut.set_result(msg)
++                continue
++            method, params = msg.get("method"), msg.get("params") or {}
++            if method == "_x.ai/mcp/servers_updated":
++                seen["servers"] = [s.get("name") for s in (params.get("mcpServers") or [])]
++            elif method == "_x.ai/mcp/server_status":
++                seen["status"].append((params.get("name"), params.get("status")))
++            elif method == "_x.ai/mcp_initialized":
++                seen["tool_count"] = params.get("mcpToolCount")
++            elif method and "id" in msg:
++                proc.stdin.write((json.dumps({"jsonrpc": "2.0", "id": msg["id"],
++                                              "result": {}}) + "\n").encode())
++
++    async def errdrain() -> None:
++        while True:
++            line = await proc.stderr.readline()
++            if not line:
++                return
++            dump.write("STDERR: " + line.decode(errors="replace")); dump.flush()
++
++    tasks = [asyncio.create_task(reader()), asyncio.create_task(errdrain())]
++    counter = 0
++
++    async def request(method: str, params: dict) -> dict:
++        nonlocal counter
++        counter += 1
++        fut = asyncio.get_running_loop().create_future()
++        pending[counter] = fut
++        proc.stdin.write((json.dumps({"jsonrpc": "2.0", "id": counter, "method": method,
++                                      "params": params}) + "\n").encode())
++        await proc.stdin.drain()
++        return await asyncio.wait_for(fut, timeout=60)
++
++    try:
++        await request("initialize", {"protocolVersion": 1, "clientCapabilities": {
++            "fs": {"readTextFile": False, "writeTextFile": False}, "terminal": False}})
++        await request("session/new", {"cwd": cwd})  # no mcpServers key
++        await asyncio.sleep(25)
++    finally:
++        proc.kill()
++        await proc.wait()
++        for t in tasks:
++            t.cancel()
++        dump.close()
++    return seen
++
++
++asyncio.run(main())
+diff --git a/docs/tasks/264/report.md b/docs/tasks/264/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..32f8cca54b4e713e060ed287a7d08f1c59c812af
+--- /dev/null
++++ b/docs/tasks/264/report.md
+@@ -0,0 +1,151 @@
++# #264 — Grok не поднимался как рантайм воркера: два дефекта подряд
++
++Симптом (репро оркестратора, 13.08 16:47):
++
++```
++Grok MCP conformance failed: missing required servers ['orchestra'];
++required servers not ready ['orchestra']; required MCP launch reported no tools.
++```
++
++Итог: **оба дефекта найдены и починены, Grok-агент живьём вызвал Orchestra-тул и ответил.**
++`grok mcp list` («No MCP servers configured») — ложный след: Orchestra отдаёт сервер через
++ACP `session/new`, а не через конфиг Grok, поэтому в `grok mcp list` его никогда и не было.
++
++## Дефект 1 (несущий) — репозиторный `.mcp.json` съедал сервер по имени
++
++В репозитории лежал **трекнутый** `.mcp.json`, объявляющий сервер с тем же именем
++`orchestra` (коммит `085c4632` «add .mcp.json for local Claude Code testing», пути ноутбука
++`/mnt/data/Projects/Python/orchestra`, которых на VPS не существует).
++
++Механизм — дословно из отладочного лога самого Grok (`/tmp/grok-debug-264.log`):
++
++```
++INFO  managed_mcp: MCP server loaded from source server="orchestra" source=ConfigToml {...}
++INFO  config::mcp: loaded MCP servers source=".../fix-grok-mcp/.mcp.json" count=1
++WARN  folder_trust: folder untrusted: skipping repo-local (project-scoped) MCP server server=orchestra
++INFO  acp_session::spawn: Session '...' created with 0 MCP servers
++```
++
++Grok сливает project-scope **поверх всех остальных источников ПО ИМЕНИ** (README, строка
++2000: «the project version **replaces** it entirely»), и только ПОТОМ выбрасывает
++project-запись из-за недоверенной папки. Наш сервер аннигилируется вместе с ней.
++
++Проверено, что проигрывают **все** способы доставки, а не только наш (одинаковый cwd с
++коллизией, `docs/tasks/264/probe_collision.py`):
++
++| маршрут | `created with N MCP servers` |
++|---|---|
++| ACP `session/new` (как в проде) | 0 |
++| `config.toml` в GROK_HOME | 0 |
++| `--plugin-dir` (документирован как «always trusted», плагин **обнаружен**: `loaded MCP servers source="plugin:orchestra" count=1`) | 0 |
++| `--plugin-dir` + ACP-план | 0 |
++
++Контроль: тот же ACP-план в cwd **без** `.mcp.json` → `created with 1 MCP servers`,
++`config_names=["orchestra"]`. То есть маршрут исправен, ломала именно коллизия имени.
++
++Запись мертва для всех наших потребителей: `app/runtime_registry.py:126,135` явно
++пропускают ключ `orchestra` из `.mcp.json`/`settings.json`, а `_make_mcp_config` его
++игнорирует с предупреждением. Единственный, кто её читал, — Grok, и читал разрушительно.
++
++**Правка:** `.mcp.json` удалён (в нём была ровно одна эта запись).
++
++## Дефект 2 — Grok 1.0.3 перестал заполнять `servers_updated`, проверка личности падала всегда
++
++После снятия коллизии сервер стартовал, но connect падал уже иначе:
++`servers with unexpected identity ['orchestra']`. Сырой поток уведомлений при живом
++connect:
++
++```
++_x.ai/mcp/servers_updated  {"mcpServers": []}          <- пусто
++_x.ai/mcp/init_progress    {"total": 1, "connected": 1}
++_x.ai/mcp_initialized      {"mcpToolCount": 37}
++_x.ai/mcp/server_status    {"name": "orchestra", "status": "ready"}
++итог: started=['orchestra'] ready=['orchestra'] identities={} tools=37
++```
++
++`_started_server_identities` наполняется ТОЛЬКО из `servers_updated`, а `_started_servers` —
++ещё и из `server_status`. В 1.0.3 роспись роли пуста, поэтому «личность не сообщили»
++читалось как «личность неверная» — при полностью корректном роспуске из 37 тулов.
++
++**Правка** (`app/backend_grok.py`): личность сверяется только там, где рантайм её реально
++прислал; вместо потерянного признака добавлен счётный инвариант из `init_progress.total` —
++`overloaded`: число загруженных сессией серверов обязано совпадать с планом запуска.
++
++### Остаточная дыра, названная честно
++
++`servers_updated` был каналом, по которому #98 ловил подмену сервера с тем же именем (и
++через который когда-то утёк чужой `OPENROUTER_API_KEY`). Пустой — он этот контроль больше
++не даёт. Что осталось: точное совпадение множества имён, `total` из `init_progress` (лишний
++сервер поднимает счётчик), ненулевой `mcpToolCount`, плюс GROK_HOME, которым владеет
++Orchestra и который не помечает папки доверенными — а недоверенная папка, как измерено
++выше, вообще не даёт project-scope загрузиться. Не покрыт случай «папка стала доверенной И
++кто-то объявил сервер с именем `orchestra`»: подмену через ACP теперь не увидеть.
++Настоящее лечение — канареечный хендшейк от нашего же `mcp_stdio.py` (кандидат из
++`docs/tasks/98-grok-runtime-audit/research.md`), это отдельная задача.
++Тесты личности из #98 (`tests/test_backend_grok.py`, 82 passed) остались зелёными: где
++рантайм личность присылает, подмена по-прежнему ловится.
++
++## Диагностика на будущее
++
++Сообщение об отказе теперь само называет причину (`_shadowing_hint`): если недостающий
++сервер объявлен в `.mcp.json` или `.grok/config.toml` рядом с cwd, отказ печатает файл и
++средство. Иначе следующий такой случай — снова часы поиска, потому что наблюдаемый роспись
++пуста в обоих случаях.
++
++## Доказательства
++
++**Живой прогон** через настоящий `GrokBackend` (`docs/tasks/264/live_grok_worker.py`,
++собран как `_grok_factory`, поэтому `_verify_mcp_isolation` отрабатывает по-настоящему):
++
++```
++CONNECTED tools=37, started=['orchestra'], ready=['orchestra']
++EV tool_use    search_tool: {"query": "list_agents orchestra"}
++EV tool_result ... "tool_name": "orchestra__list_agents" ...
++EV tool_use    use_tool: {"tool_name": "orchestra__list_agents", "tool_input": {}}
++EV tool_result {"status": "completed"}
++EV stream      COUNT=30
++EV turn_end    stop_reason=end_turn
++```
++
++Агент получил задание, вызвал тул Orchestra и ответил числом из живых данных.
++
++**Мутация** (`docs/tasks/264/mutation_check.py`, маркер печатается перед каждой фазой):
++
++| фаза | `.mcp.json` | результат |
++|---|---|---|
++| baseline | нет | CONNECTED tools=37 |
++| mutant-shadow | есть | REFUSED + подсказка называет файл |
++| reverted | нет | CONNECTED tools=37 |
++| mutant-cmd (битый путь к бинарю) | нет | REFUSED |
++| reverted-cmd | нет | CONNECTED tools=37 |
++
++Мутант воспроизводит **дословно** прод-ошибку оркестратора — то есть чинили именно тот
++дефект, о котором был тикет. Зелёный повтор после отката отличает «мутация откачена» от
++«мутант продолжает исполняться». Мутации — данные (JSON-файл, план в памяти), не `.py`,
++поэтому `__pycache__` тут не при чём и `touch` не требуется.
++
++## Версия про побочный ущерб от #251 — ОТВЕРГНУТА
++
++Правка `~/.grok/config.toml` ради телеметрии к делу не относится: managed GROK_HOME
++(`data/grok-home`) уводит Grok от пользовательского конфига, и **все** пробы выше
++поднимались на свежезаписанном шаблоне `_GROK_SANDBOX_CONFIG` — и всё равно падали. То есть
++дефект воспроизводится на заведомо чистом конфиге.
++
++Побочная находка (не причина, но реальна): managed `data/grok-home/config.toml` **дрейфует**
++— Grok переписывает его сам. На момент начала задачи он потерял блоки `[features]` и
++`[telemetry]` и приобрёл `[cli]`/`[ui]`/`[marketplace]`. Orchestra самолечится: сравнение с
++шаблоном в `_write_sandbox_config` восстановило их при первом же моём connect (сейчас на
++диске шаблон + дописанный Grok'ом `[marketplace]`). Телеметрия при этом всё равно закрыта
++переменными окружения в `_build_env`, так что ущерб ограничен окном между переписыванием и
++следующим коннектом. Отдельного тикета просит, чинить в рамках #264 не стал.
++
++## Что нужно знать перед мержем
++
++- `.mcp.json` **трекнут в main и лежит в 28 существующих worktree**. Новые воркеры
++  ответвляются от main и после мержа коллизии не увидят; воркеры на СТАРЫХ ветках будут
++  ловить её, пока не подтянут main. Grok-воркера спавнить на ветке с этим удалением.
++- `app/workspace.py:29` копирует `.mcp.json` в каждый новый worktree через `PROJECT_FILES`.
++  После мержа копировать нечего. Но в ЛЮБОМ другом репозитории со своим `.mcp.json`,
++  объявляющим `orchestra`, дефект повторится — теперь он хотя бы называет себя сам.
++- Файл трекнутый и общий с контуром ноутбука: там пути `/mnt/data/Projects/Python/...` могли
++  быть живыми. Удаление согласовать.
+diff --git a/docs/tasks/264/repro_acp.py b/docs/tasks/264/repro_acp.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6e2d24ded66527ec0abad6274322b4471a1ade78
+--- /dev/null
++++ b/docs/tasks/264/repro_acp.py
+@@ -0,0 +1,116 @@
++#!/usr/bin/env python3
++"""Minimal ACP handshake against `grok agent stdio`, dumping every notification.
++
++Reproduces the launch plan Orchestra sends (one stdio server named `orchestra`) against a
++SCRATCH GROK_HOME so live workers' config is never touched.
++"""
++import asyncio, json, os, sys, uuid
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
++from app.backend_grok import _GROK_SANDBOX_CONFIG, GROK_BIN, GROK_USER_HOME
++from app.runtime_env import MCP_STDIO_CMD, MCP_BASE_ENV
++
++SCRATCH = Path(os.environ.get("SCRATCH_HOME", "/tmp/grok-repro-home-%s" % uuid.uuid4().hex[:6]))
++
++
++def scratch_home() -> Path:
++    SCRATCH.mkdir(parents=True, exist_ok=True)
++    (SCRATCH / "config.toml").write_text(_GROK_SANDBOX_CONFIG, encoding="utf-8")
++    link = SCRATCH / "auth.json"
++    if not link.is_symlink():
++        link.symlink_to(GROK_USER_HOME / "auth.json")
++    return SCRATCH
++
++
++def server_configs(cwd: str) -> list[dict]:
++    env = {**MCP_BASE_ENV, "ORCHESTRA_URL": "http://127.0.0.1:8888",
++           "ORCHESTRA_SCOPE": "/home/kesha/orchestra", "ORCHESTRA_ROLE": "worker",
++           "ORCHESTRA_ACCESS_MODE": "full", "WORKER_NAME": "grok-repro",
++           "PARENT_NAME": "", "ORCHESTRA_SESSION_ID": ""}
++    return [{
++        "name": "orchestra", "type": "stdio",
++        "command": MCP_STDIO_CMD[0], "args": [str(a) for a in MCP_STDIO_CMD[1:]],
++        "env": [{"name": k, "value": str(v)} for k, v in env.items()],
++    }]
++
++
++async def main() -> None:
++    cwd = str(Path(__file__).resolve().parents[2])
++    home = scratch_home()
++    env = dict(os.environ)
++    for var in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"):
++        env.pop(var, None)
++    env["GROK_HOME"] = str(home)
++
++    argv = [GROK_BIN, "agent", "--model", "grok-4.5", "--reasoning-effort", "high",
++            "--always-approve"]
++    plugin_dir = os.environ.get("PLUGIN_DIR")
++    if plugin_dir:
++        argv += ["--plugin-dir", plugin_dir]
++    argv += ["stdio"]
++    proc = await asyncio.create_subprocess_exec(
++        *argv,
++        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
++        stderr=asyncio.subprocess.PIPE, env=env, cwd=cwd, limit=16 * 1024 * 1024,
++    )
++    out = open(os.environ.get("DUMP", "/tmp/grok-repro.jsonl"), "w")
++    pending: dict[int, asyncio.Future] = {}
++
++    async def reader() -> None:
++        while True:
++            line = await proc.stdout.readline()
++            if not line:
++                break
++            out.write(line.decode(errors="replace"))
++            out.flush()
++            try:
++                msg = json.loads(line)
++            except ValueError:
++                continue
++            if "id" in msg and ("result" in msg or "error" in msg):
++                fut = pending.pop(msg["id"], None)
++                if fut and not fut.done():
++                    fut.set_result(msg)
++            elif msg.get("method") and "id" in msg:
++                # agent->client request; approve everything
++                proc.stdin.write((json.dumps({"jsonrpc": "2.0", "id": msg["id"],
++                                              "result": {}}) + "\n").encode())
++
++    async def stderr_drain() -> None:
++        while True:
++            line = await proc.stderr.readline()
++            if not line:
++                break
++            out.write("STDERR: " + line.decode(errors="replace"))
++            out.flush()
++
++    asyncio.create_task(reader())
++    asyncio.create_task(stderr_drain())
++    counter = 0
++
++    async def request(method: str, params: dict) -> dict:
++        nonlocal counter
++        counter += 1
++        fut = asyncio.get_running_loop().create_future()
++        pending[counter] = fut
++        proc.stdin.write((json.dumps({"jsonrpc": "2.0", "id": counter,
++                                      "method": method, "params": params}) + "\n").encode())
++        await proc.stdin.drain()
++        return await asyncio.wait_for(fut, timeout=60)
++
++    await request("initialize", {"protocolVersion": 1,
++                                 "clientCapabilities": {"fs": {"readTextFile": False,
++                                                               "writeTextFile": False},
++                                                        "terminal": False}})
++    plan = [] if os.environ.get("PLUGIN_DIR") and os.environ.get("NO_PLAN") else server_configs(cwd)
++    res = await request("session/new", {"cwd": cwd, "mcpServers": plan})
++    print("session/new ->", json.dumps(res)[:400])
++    await asyncio.sleep(25)  # let MCP init notifications land
++    proc.kill()
++    out.close()
++    print("dump:", os.environ.get("DUMP", "/tmp/grok-repro.jsonl"))
++    print("scratch home:", home)
++
++
++asyncio.run(main())
+diff --git a/docs/workers/fix-grok-mcp.md b/docs/workers/fix-grok-mcp.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..98de05306134cb856e13b420d99287484a746748
+--- /dev/null
++++ b/docs/workers/fix-grok-mcp.md
+@@ -0,0 +1,27 @@
++# fix-grok-mcp — личная память
++
++## Grok как рантайм (1.0.3)
++
++- **`grok mcp list` пустой — это НЕ диагноз.** Orchestra отдаёт MCP через ACP `session/new`,
++  а не через конфиг Grok. В `grok mcp list` наш сервер не появится никогда.
++- **Единственный быстрый источник правды — отладочный лог самого Grok:**
++  `grok agent --debug --debug-file /tmp/x.log stdio`. Строки, которые отвечают на всё:
++  `created with N MCP servers`, `folder untrusted: skipping repo-local`,
++  `ensure_mcp_tools_initialized: config_count=`. Полдня ACP-проб заменяются одним прогоном —
++  сначала лог, потом гипотезы.
++- `grok mcp doctor` проверяет ПАРСИНГ конфига и здоровье сервера, но НЕ то, что сессия его
++  загрузит. У меня doctor показывал «37 tools, healthy», а сессия поднималась с нулём.
++- Grok сливает project-scope `.mcp.json` поверх всех источников ПО ИМЕНИ, и только потом
++  выбрасывает его по folder-trust. Совпало имя — наш сервер исчезает вместе с чужим.
++  Проигрывают все маршруты, включая `--plugin-dir`, который в `--help` обещает «always trusted».
++- Grok сам переписывает `config.toml` в GROK_HOME, теряя наши блоки. Orchestra чинит это
++  сравнением с шаблоном на следующем коннекте.
++
++## Метод
++
++- Прогон, где ВСЕ варианты дали одинаковый отрицательный ответ, — сигнал, что сломан общий
++  первый шаг, а не что все варианты плохи. У меня 5 маршрутов из 5 дали «0 серверов»;
++  настоящей причиной был confound (коллизия имени), общий для всех пяти. Прежде чем писать
++  «ни один способ не работает», нужен положительный контроль на заведомо рабочем объекте.
++- Модуль-пробник с `asyncio.run(main())` на верхнем уровне перезапускает весь прогон при
++  импорте. Сразу писать `if __name__ == "__main__":` — иначе чужой импорт стоит минут.

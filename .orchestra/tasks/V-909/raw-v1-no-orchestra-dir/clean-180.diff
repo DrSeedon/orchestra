@@ -1,0 +1,176 @@
+diff --git a/app/bg_jobs.py b/app/bg_jobs.py
+index c7cd9c228b999e2f174e0dbd8e0ecaae8107463f..72002babe443ba76e3325f5ffa13bdacde83e6dc 100644
+--- a/app/bg_jobs.py
++++ b/app/bg_jobs.py
+@@ -38,6 +38,23 @@ OUTPUT_PROGRESS_INTERVAL = 30
+ _CRON_COMMAND_TIMEOUT_SECONDS = 30
+ _NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
+ _PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
++# #180: rc=0 + nonempty file is not a review. Same markers as mcp_stdio's
++# first-line detector, plus the #174 opening that has no ## Verdict at all.
++_BLIND_REVIEW = re.compile(
++    r"Unable to perform an evidence-backed review|"
++    r"bwrap:|failed rtm_newaddr|setting up uid map: permission denied",
++    re.IGNORECASE,
++)
++_REVIEW_VERDICT = re.compile(r"(?im)^##\s+Verdict\b")
++
++
++def _blind_review_error(artifact: str, output: str = "") -> str:
++    """Empty string if the artifact looks like a real review; else why it does not."""
++    if _BLIND_REVIEW.search(artifact) or _BLIND_REVIEW.search(output):
++        return "review artifact is blind: execution never happened"
++    if _REVIEW_VERDICT.search(artifact) is None:
++        return "review artifact has no '## Verdict' section"
++    return ""
+ _PIDFD_HANDSHAKE_TIMEOUT = 5
+ _PIDFD_TERM_GRACE = 3
+ _PIDFD_KILL_GRACE = 2
+@@ -915,14 +932,16 @@ class BgJobManager:
+                 try:
+                     if not os.path.isfile(success_file) or os.path.getsize(success_file) == 0:
+                         validation_error = f"Required output artifact is missing or empty: {success_file}"
+-                    elif success_pattern:
++                    else:
+                         with open(success_file, encoding="utf-8", errors="replace") as fh:
+                             artifact = fh.read()
+-                        if re.search(success_pattern, artifact) is None:
++                        if success_pattern and re.search(success_pattern, artifact) is None:
+                             validation_error = (
+                                 f"Required output artifact does not match success pattern: "
+                                 f"{success_file}"
+                             )
++                        else:
++                            validation_error = _blind_review_error(artifact, full_output)
+                 except OSError as e:
+                     validation_error = f"Cannot validate output artifact {success_file}: {e}"
+             if validation_error:
+diff --git a/docs/workers/grok-36.md b/docs/workers/grok-36.md
+index c23b3dab4ef7344363a36ff912e8d4d607c736f1..76a6a976609fc70b2fbf4b0f3a47a2d5194a4c4a 100644
+--- a/docs/workers/grok-36.md
++++ b/docs/workers/grok-36.md
+@@ -3,3 +3,4 @@
+ - `#36`: `validate_spawn` fail-open существовал только чтобы пропустить неизвестную роль. После фикса режимы на этом шве совпадают; `can_spawn: ['*']` = любая *известная* роль.
+ - Контракт дыры жил в `tests/test_pipeline.py` и `tests/test_default_pipeline.py` (`test_fail_open_unknown_*_passes`). Меняешь семантику — эти имена больше не истина, читай текущий `validate_spawn`.
+ - `#271`: пустой вывод сканера ≠ «процессов нет». `check` на пустом файле делал 0 итераций и выходил 0 — тот же ответ, что у слепого матчера. Fail-closed в обе стороны: живой CLI при пустом снимке, и канарейка, которой `live()` не видит. Не проверять через `ps|grep` — видит сам себя.
++- `#180`: `_run_exec` доверял rc=0 + непустому файлу. Вердикта нет / «Unable to perform an evidence-backed review» / `bwrap:` — это слепое ревью, не успех. Не копировать широкий `sandbox.*fail` из mcp_stdio на весь артефакт: честный finding про sandbox ловится ложно. Правка в app/ живёт до рестарта orchestra.
+diff --git a/tests/test_bg_jobs.py b/tests/test_bg_jobs.py
+index 73fd562de4a288bc6cb52f2cce8c7db7c8a013a2..2e88ae31c12c09431eaf43ddcad1ab346cc2448c 100644
+--- a/tests/test_bg_jobs.py
++++ b/tests/test_bg_jobs.py
+@@ -679,6 +679,115 @@ class TestRunExecOutcome:
+         assert "artifact" in row["error"].lower()
+         assert "FAILED" in session.send.await_args.args[0]
+ 
++    @pytest.mark.asyncio
++    async def test_exit_zero_blind_artifact_without_verdict_is_failed(
++        self, db, mgr_mock, tmp_path,
++    ):
++        """#180 oracle: rc=0 + existing file is not a completed review.
++
++        Fixture is the #174 opening: no ## Verdict, starts with the admission
++        that the review never happened. Today's _run_exec treats this as success.
++        """
++        artifact = tmp_path / "codex-review-plan.md"
++        artifact.write_text(
++            "Unable to perform an evidence-backed review: "
++            "the filesystem sandbox failed before every read-only command.\n",
++            encoding="utf-8",
++        )
++        from app.bg_jobs import BgJobManager
++        from app.db import bg_get_jobs, bg_save_job
++        mgr = BgJobManager()
++        manager, session = mgr_mock
++        mgr.set_session_manager(manager)
++        bg_save_job(self._job("run-blind", datetime.now(timezone.utc)))
++
++        await mgr._run_exec(
++            "run-blind", "true",
++            "Codex review → docs/tasks/174/codex-review-plan.md",
++            "w1", "/s", 10,
++            success_file=str(artifact),
++        )
++
++        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-blind")
++        assert row["status"] == "failed", row
++        sent = session.send.await_args.args[0]
++        assert "FAILED" in sent
++        assert "completed" not in sent.lower()
++        err = (row.get("error") or "").lower()
++        assert "verdict" in err or "blind" in err or "unable" in err
++
++    @pytest.mark.asyncio
++    async def test_exit_zero_real_verdict_still_completes(self, db, mgr_mock, tmp_path):
++        artifact = tmp_path / "CODEX_REVIEW.md"
++        artifact.write_text("## Summary\nlooks good\n\n## Verdict\nAPPROVED\n")
++        from app.bg_jobs import BgJobManager
++        from app.db import bg_get_jobs, bg_save_job
++        mgr = BgJobManager()
++        manager, session = mgr_mock
++        mgr.set_session_manager(manager)
++        bg_save_job(self._job("run-ok", datetime.now(timezone.utc)))
++
++        await mgr._run_exec(
++            "run-ok", "true", "Codex review → CODEX_REVIEW.md",
++            "w1", "/s", 10,
++            success_file=str(artifact),
++        )
++
++        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-ok")
++        assert row["status"] == "triggered"
++        assert "FAILED" not in session.send.await_args.args[0]
++
++    @pytest.mark.asyncio
++    async def test_exit_zero_verdict_with_bwrap_is_still_blind(
++        self, db, mgr_mock, tmp_path,
++    ):
++        artifact = tmp_path / "codex-review-impl.md"
++        artifact.write_text(
++            "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n\n"
++            "## Verdict\nAPPROVED\n"
++        )
++        from app.bg_jobs import BgJobManager
++        from app.db import bg_get_jobs, bg_save_job
++        mgr = BgJobManager()
++        manager, session = mgr_mock
++        mgr.set_session_manager(manager)
++        bg_save_job(self._job("run-bwrap", datetime.now(timezone.utc)))
++
++        await mgr._run_exec(
++            "run-bwrap", "true", "Codex review → docs/tasks/179/codex-review-impl.md",
++            "w1", "/s", 10,
++            success_file=str(artifact),
++        )
++
++        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-bwrap")
++        assert row["status"] == "failed"
++        assert "blind" in (row.get("error") or "").lower()
++
++    @pytest.mark.asyncio
++    async def test_exit_zero_verdict_mentioning_sandbox_is_not_blind(
++        self, db, mgr_mock, tmp_path,
++    ):
++        artifact = tmp_path / "CODEX_REVIEW.md"
++        artifact.write_text(
++            "## Findings\nThe sandbox fails closed on unknown roles.\n\n"
++            "## Verdict\nAPPROVED\n"
++        )
++        from app.bg_jobs import BgJobManager
++        from app.db import bg_get_jobs, bg_save_job
++        mgr = BgJobManager()
++        manager, session = mgr_mock
++        mgr.set_session_manager(manager)
++        bg_save_job(self._job("run-sandbox-talk", datetime.now(timezone.utc)))
++
++        await mgr._run_exec(
++            "run-sandbox-talk", "true", "Codex review → CODEX_REVIEW.md",
++            "w1", "/s", 10,
++            success_file=str(artifact),
++        )
++
++        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-sandbox-talk")
++        assert row["status"] == "triggered"
++
+ 
+ class TestPidfdProcessLifecycle:
+     @pytest.mark.asyncio

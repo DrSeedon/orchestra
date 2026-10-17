@@ -1,0 +1,1 @@
+{"id": "bad-88", "sha": "ccc55e9cf76b50c54fa6ed2d2c3c991a2efe8641", "rc": 0, "seconds": 25.6, "usage": {"input_tokens": 106474, "cached_input_tokens": 92800, "cache_write_input_tokens": 0, "output_tokens": 1303, "reasoning_output_tokens": 538}, "diff_bytes": 3712, "dirty_after": "", "stderr": ""}

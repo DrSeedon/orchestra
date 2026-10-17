@@ -1,0 +1,16 @@
+clean diffs 40 findings 28
+real of findings 13/28=46% (95% Wilson 30-64%)
+noise 14 preexisting 1
+real high-importance 1/28=4% (95% Wilson 1-18%)
+real AND spot fixed later (by evidence) 6/28=21% (95% Wilson 10-40%)
+blocking-severity findings 6/28=21% (95% Wilson 10-40%) of which real 3
+diffs with >=1 real 12/40=30% (95% Wilson 18-45%) diffs with any finding 24/40=60% (95% Wilson 45-74%) diffs with fix-confirmed real 6/40=15% (95% Wilson 7-29%)
+sensitivity: drop 2 research-note findings of clean-345 -> 11/28=39% (95% Wilson 24-58%)
+BAD S recall (91,V-621): 1/2=50% (95% Wilson 9-91%)  S+51: 1/3=33% (95% Wilson 6-79%)
+bad diffs with >=1 real finding (any topic) 5/9=56% (95% Wilson 27-81%)
+bad diffs with any finding 6
+retro all findings real 15/26=58% (95% Wilson 39-74%)
+retro code-impl only real 2/7=29% (95% Wilson 8-64%)
+bad paid tok median 23485 out median 1584 sec median 29.5 max 47.3
+clean paid tok median 22275.5 out median 1460.5 sec median 28.6 max 43.1
+all paid mean 26942 cache_write total 0 cached share 0.84

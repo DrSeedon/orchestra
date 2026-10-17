@@ -1,0 +1,723 @@
+diff --git a/app/ia/merge_receipts.py b/app/ia/merge_receipts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..400bd2587d191eddbd652ce89b1bfe31a4dd1fe4
+--- /dev/null
++++ b/app/ia/merge_receipts.py
+@@ -0,0 +1,428 @@
++"""Content-bound, durable receipts for task-aware merge operations."""
++
++from __future__ import annotations
++
++import copy
++import json
++import re
++import uuid
++from collections.abc import Callable, Iterator, Mapping
++from contextlib import contextmanager
++from contextvars import ContextVar
++from dataclasses import dataclass
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any
++
++
++class MergeReceiptError(RuntimeError):
++    """Raised when a merge receipt is absent, forged, or cannot be made durable."""
++
++
++_SHA40 = re.compile(r"[0-9a-f]{40}")
++_SHA256 = re.compile(r"sha256:[0-9a-f]{64}")
++_HEX256 = re.compile(r"[0-9a-f]{64}")
++_EVIDENCE_URI = re.compile(
++    r"orch://project/(?P<project>[a-z0-9][a-z0-9._-]*)/tasks/"
++    r"(?P<task>[0-9a-f-]{36})/evidence/(?P<evidence>[0-9a-f-]{36})"
++)
++
++
++@dataclass(frozen=True)
++class _ReceiptContext:
++    canonical_root: Path
++    task_resolver: Callable[[Mapping[str, Any]], Mapping[str, Any]]
++    evidence_resolver: Callable[[Mapping[str, Any]], Mapping[str, Any]]
++    head_resolver: Callable[[], Mapping[str, Any]]
++    receipt_writer: Callable[[Path, Mapping[str, Any]], Any] | None
++
++
++_ACTIVE_RECEIPTS: ContextVar[_ReceiptContext | None] = ContextVar(
++    "ia_merge_receipts", default=None,
++)
++
++
++def _canonical_bytes(value: Any) -> bytes:
++    try:
++        return json.dumps(
++            value,
++            ensure_ascii=False,
++            separators=(",", ":"),
++            sort_keys=True,
++            allow_nan=False,
++        ).encode("utf-8")
++    except (TypeError, ValueError) as exc:
++        raise MergeReceiptError("merge receipt is not canonical JSON") from exc
++
++
++def _detached(value: Any) -> Any:
++    return json.loads(_canonical_bytes(value))
++
++
++def _read_json(path: Path) -> dict[str, Any]:
++    try:
++        value = json.loads(path.read_text(encoding="utf-8"))
++    except (OSError, json.JSONDecodeError) as exc:
++        raise MergeReceiptError(f"cannot read durable merge receipt: {path}") from exc
++    if not isinstance(value, dict):
++        raise MergeReceiptError("durable merge receipt is not an object")
++    return value
++
++
++def _write_json(path: Path, value: Mapping[str, Any]) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
++    try:
++        temporary.write_bytes(_canonical_bytes(value) + b"\n")
++        temporary.replace(path)
++    finally:
++        temporary.unlink(missing_ok=True)
++
++
++def _context() -> _ReceiptContext:
++    context = _ACTIVE_RECEIPTS.get()
++    if context is None:
++        raise MergeReceiptError("merge receipt owner is not configured")
++    return context
++
++
++@contextmanager
++def merge_receipt_mode(
++    *,
++    canonical_root: Path,
++    task_resolver: Callable[[Mapping[str, Any]], Mapping[str, Any]],
++    evidence_resolver: Callable[[Mapping[str, Any]], Mapping[str, Any]],
++    head_resolver: Callable[[], Mapping[str, Any]],
++    receipt_writer: Callable[[Path, Mapping[str, Any]], Any] | None = None,
++) -> Iterator[None]:
++    """Temporarily configure the canonical receipt owner and its resolvers."""
++
++    context = _ReceiptContext(
++        canonical_root=Path(canonical_root),
++        task_resolver=task_resolver,
++        evidence_resolver=evidence_resolver,
++        head_resolver=head_resolver,
++        receipt_writer=receipt_writer,
++    )
++    token = _ACTIVE_RECEIPTS.set(context)
++    try:
++        yield
++    finally:
++        _ACTIVE_RECEIPTS.reset(token)
++
++
++def merge_receipt_configured() -> bool:
++    """Return whether this execution context requires durable merge receipts."""
++
++    return _ACTIVE_RECEIPTS.get() is not None
++
++
++def _receipt_paths(operation_id: str) -> list[Path]:
++    context = _ACTIVE_RECEIPTS.get()
++    if context is None:
++        return []
++    return sorted(context.canonical_root.rglob(f"merge-receipts/{operation_id}.json"))
++
++
++def get_merge_receipt(operation_id: str) -> dict[str, Any] | None:
++    """Load the one durable receipt for an operation, if it exists."""
++
++    paths = _receipt_paths(str(operation_id))
++    if not paths:
++        return None
++    if len(paths) != 1:
++        raise MergeReceiptError(
++            f"operation '{operation_id}' has {len(paths)} durable merge receipts"
++        )
++    return verify_merge_receipt(_read_json(paths[0]), operation_id=str(operation_id))
++
++
++def _mapping(value: Any, name: str) -> dict[str, Any]:
++    if not isinstance(value, Mapping):
++        raise MergeReceiptError(f"receipt {name} must be an object")
++    return _detached(dict(value))
++
++
++def _equal(actual: Any, expected: Any, name: str) -> None:
++    if expected is not None and actual != expected:
++        raise MergeReceiptError(f"receipt {name} does not match its pinned source")
++
++
++def verify_merge_receipt(
++    receipt: Mapping[str, Any],
++    *,
++    operation_id: str = "",
++    target: Mapping[str, Any] | None = None,
++    worker: Mapping[str, Any] | None = None,
++    task: Mapping[str, Any] | None = None,
++    evidence: Mapping[str, Any] | None = None,
++    heads: Mapping[str, Any] | None = None,
++    acceptance: Mapping[str, Any] | None = None,
++) -> dict[str, Any]:
++    """Validate a receipt and optional independently pinned bindings."""
++
++    value = _mapping(receipt, "root")
++    required = {
++        "schema_version", "receipt_id", "receipt_status", "operation_id",
++        "target", "worker", "task", "evidence", "heads", "acceptance",
++        "created_at",
++    }
++    missing = sorted(required - value.keys())
++    if missing:
++        raise MergeReceiptError(f"merge receipt is incomplete: {', '.join(missing)}")
++    if value["schema_version"] != 1 or value["receipt_status"] != "verified":
++        raise MergeReceiptError("merge receipt is not a verified schema-v1 receipt")
++    try:
++        canonical_operation = str(uuid.UUID(str(value["operation_id"])))
++        canonical_receipt = str(uuid.UUID(str(value["receipt_id"])))
++    except (ValueError, AttributeError) as exc:
++        raise MergeReceiptError("merge receipt identities must be canonical UUIDs") from exc
++    if canonical_operation != value["operation_id"] or canonical_receipt != value["receipt_id"]:
++        raise MergeReceiptError("merge receipt identities must be canonical UUIDs")
++    if operation_id and canonical_operation != str(operation_id):
++        raise MergeReceiptError("merge receipt belongs to another operation")
++
++    target_value = _mapping(value["target"], "target")
++    worker_value = _mapping(value["worker"], "worker")
++    task_value = _mapping(value["task"], "task")
++    evidence_value = _mapping(value["evidence"], "evidence")
++    heads_value = _mapping(value["heads"], "heads")
++    acceptance_value = _mapping(value["acceptance"], "acceptance")
++    for name in ("before", "commit"):
++        if _SHA40.fullmatch(str(target_value.get(name) or "")) is None:
++            raise MergeReceiptError(f"receipt target.{name} is not a commit")
++    if target_value["before"] == target_value["commit"]:
++        raise MergeReceiptError("merge receipt does not describe a target commit")
++    if _SHA40.fullmatch(str(worker_value.get("head") or "")) is None:
++        raise MergeReceiptError("receipt worker.head is not a commit")
++
++    try:
++        stable_id = str(uuid.UUID(str(task_value["stable_id"])))
++        display_number = int(task_value["display_number"])
++        task_id = int(task_value["task_id"])
++    except (KeyError, TypeError, ValueError, AttributeError) as exc:
++        raise MergeReceiptError("receipt task identity is invalid") from exc
++    if (
++        stable_id != task_value["stable_id"]
++        or task_value.get("display_ref") != f"#{display_number}"
++    ):
++        raise MergeReceiptError("receipt task stable/display identity is inconsistent")
++    if task_id < 1 or display_number < 1 or not str(task_value.get("project_id") or ""):
++        raise MergeReceiptError("receipt task identity is incomplete")
++
++    uri = str(evidence_value.get("manifest_uri") or "")
++    uri_match = _EVIDENCE_URI.fullmatch(uri)
++    if (
++        uri_match is None
++        or uri_match.group("project") != task_value["project_id"]
++        or uri_match.group("task") != stable_id
++    ):
++        raise MergeReceiptError("receipt evidence URI is not bound to the task")
++    for name in ("manifest_head", "manifest_sha256"):
++        if _SHA256.fullmatch(str(evidence_value.get(name) or "")) is None:
++            raise MergeReceiptError(f"receipt evidence.{name} is invalid")
++    if int(evidence_value.get("count") or 0) < 1:
++        raise MergeReceiptError("receipt evidence manifest is empty")
++
++    for name in ("canonical_head", "projection_head", "indexed_head"):
++        if _SHA256.fullmatch(str(heads_value.get(name) or "")) is None:
++            raise MergeReceiptError(f"receipt heads.{name} is invalid")
++    if heads_value["projection_head"] != heads_value["canonical_head"]:
++        raise MergeReceiptError("current projection is not bound to the canonical head")
++
++    try:
++        revision = int(acceptance_value["revision"])
++        manifest_count = int(acceptance_value["manifest_count"])
++    except (KeyError, TypeError, ValueError) as exc:
++        raise MergeReceiptError("receipt acceptance identity is invalid") from exc
++    if revision < 1 or manifest_count < 1:
++        raise MergeReceiptError("receipt acceptance manifest is empty")
++    if _HEX256.fullmatch(str(acceptance_value.get("oracle_hash") or "")) is None:
++        raise MergeReceiptError("receipt acceptance oracle hash is invalid")
++    if manifest_count != int(evidence_value["count"]):
++        raise MergeReceiptError("receipt acceptance/evidence counts disagree")
++
++    _equal(target_value, _detached(target) if target is not None else None, "target")
++    _equal(worker_value, _detached(worker) if worker is not None else None, "worker")
++    _equal(task_value, _detached(task) if task is not None else None, "task")
++    _equal(evidence_value, _detached(evidence) if evidence is not None else None, "evidence")
++    _equal(heads_value, _detached(heads) if heads is not None else None, "heads")
++    _equal(
++        acceptance_value,
++        _detached(acceptance) if acceptance is not None else None,
++        "acceptance",
++    )
++    return copy.deepcopy(value)
++
++
++def _task_binding(finalization: Mapping[str, Any]) -> dict[str, Any]:
++    task = _mapping(finalization.get("task"), "finalization task")
++    try:
++        return {
++            "project_id": str(finalization.get("project_id") or task["project_id"]),
++            "stable_id": str(task["stable_id"]),
++            "task_id": int(task["task_id"]),
++            "display_number": int(task["par_number"]),
++            "display_ref": f"#{int(task['par_number'])}",
++        }
++    except (KeyError, TypeError, ValueError) as exc:
++        raise MergeReceiptError("merge finalization lacks a stable task binding") from exc
++
++
++def _canonical_evidence(evidence: Mapping[str, Any]) -> None:
++    context = _context()
++    expected = _detached(evidence)
++    matches: list[dict[str, Any]] = []
++    for path in sorted(context.canonical_root.rglob("*.json")):
++        if "merge-receipts" in path.parts:
++            continue
++        try:
++            candidate = json.loads(path.read_text(encoding="utf-8"))
++        except (OSError, json.JSONDecodeError):
++            continue
++        if (
++            isinstance(candidate, dict)
++            and candidate.get("manifest_uri") == expected["manifest_uri"]
++        ):
++            matches.append(candidate)
++    if len(matches) != 1:
++        raise MergeReceiptError(
++            f"evidence manifest URI resolves to {len(matches)} canonical records"
++        )
++    for name, expected_value in expected.items():
++        if matches[0].get(name) != expected_value:
++            raise MergeReceiptError(f"canonical evidence {name} does not match resolver")
++
++
++def _bindings(
++    operation_id: str,
++    merge_result: Mapping[str, Any],
++    finalization: Mapping[str, Any],
++) -> dict[str, dict[str, Any]]:
++    from app.merge_operations import get_operation_record
++
++    record = get_operation_record(operation_id)
++    if record is None:
++        raise MergeReceiptError(f"merge operation '{operation_id}' is not durable")
++    admission = _mapping(record.get("accepted_admission"), "accepted admission")
++    admitted_target = _mapping(admission.get("target"), "admitted target")
++    oracle = _mapping(admission.get("oracle"), "accepted oracle")
++    if str(oracle.get("source") or "") != "task" or not oracle.get("required"):
++        raise MergeReceiptError("verified receipts require an authoritative task oracle")
++
++    task = _mapping(_context().task_resolver(finalization), "resolved task")
++    expected_task = _task_binding(finalization)
++    if task != expected_task:
++        raise MergeReceiptError("resolved task does not match prepared merge finalization")
++    if str(oracle.get("task_id") or "") != str(task["display_number"]):
++        raise MergeReceiptError("accepted oracle is bound to another task")
++    evidence = _mapping(_context().evidence_resolver(task), "resolved evidence")
++    heads = _mapping(_context().head_resolver(), "resolved heads")
++    _canonical_evidence(evidence)
++
++    target_recheck = _mapping(merge_result.get("target_recheck"), "target recheck")
++    target = {
++        "branch": str(merge_result.get("target_branch") or ""),
++        "before": str(merge_result.get("target_before") or ""),
++        "commit": str(merge_result.get("target_after") or ""),
++    }
++    worker = {
++        "branch": str(record.get("accepted_worker_branch") or ""),
++        "head": str(record.get("accepted_worker_head") or ""),
++    }
++    acceptance = {
++        "revision": int(oracle.get("revision") or 0),
++        "oracle_hash": str(oracle.get("hash") or ""),
++        "manifest_count": len(oracle.get("manifest") or []),
++    }
++    if not merge_result.get("ok") or merge_result.get("commit_point") != "target_committed":
++        raise MergeReceiptError("target commit is not proven successful")
++    if (
++        target["branch"] != admitted_target.get("branch")
++        or target["before"] != admitted_target.get("sha")
++    ):
++        raise MergeReceiptError("merge target differs from accepted target")
++    if (
++        target_recheck.get("matched") is not True
++        or target_recheck.get("expected") != admitted_target.get("sha")
++        or target_recheck.get("actual") != admitted_target.get("sha")
++    ):
++        raise MergeReceiptError("target admission was not reverified under the repository lock")
++    if (
++        str(merge_result.get("worker_branch") or "") != worker["branch"]
++        or str(merge_result.get("worker_head") or "") != worker["head"]
++        or str(finalization.get("worker_head") or "") != worker["head"]
++    ):
++        raise MergeReceiptError("merged worker head differs from the accepted head")
++    if str(merge_result.get("head_drift") or "SAME") != "SAME":
++        raise MergeReceiptError("accepted worker head drifted before the merge boundary")
++    return {
++        "target": target,
++        "worker": worker,
++        "task": task,
++        "evidence": evidence,
++        "heads": heads,
++        "acceptance": acceptance,
++    }
++
++
++def record_merge_receipt(
++    operation_id: str,
++    merge_result: Mapping[str, Any],
++    finalization: Mapping[str, Any],
++) -> dict[str, Any]:
++    """Create-or-read the verified receipt before any finalization or cleanup."""
++
++    context = _context()
++    bindings = _bindings(operation_id, merge_result, finalization)
++    task = bindings["task"]
++    path = (
++        context.canonical_root
++        / "projects" / task["project_id"]
++        / "tasks" / task["stable_id"]
++        / "merge-receipts" / f"{operation_id}.json"
++    )
++    if path.exists():
++        return verify_merge_receipt(
++            _read_json(path), operation_id=operation_id, **bindings,
++        )
++    receipt = {
++        "schema_version": 1,
++        "receipt_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"orch:merge-receipt:{operation_id}")),
++        "receipt_status": "verified",
++        "operation_id": operation_id,
++        **bindings,
++        "created_at": datetime.now(timezone.utc).isoformat(),
++    }
++    verified = verify_merge_receipt(receipt, operation_id=operation_id, **bindings)
++    try:
++        if context.receipt_writer is None:
++            _write_json(path, verified)
++        else:
++            path.parent.mkdir(parents=True, exist_ok=True)
++            context.receipt_writer(path, copy.deepcopy(verified))
++    except Exception as exc:
++        raise MergeReceiptError(
++            f"cannot persist merge receipt: {type(exc).__name__}: {exc}"
++        ) from exc
++    if not path.is_file():
++        raise MergeReceiptError("receipt writer returned without a durable receipt")
++    return verify_merge_receipt(
++        _read_json(path), operation_id=operation_id, **bindings,
++    )
++
++
++def require_merge_receipt(
++    operation_id: str,
++    *,
++    finalization: Mapping[str, Any] | None = None,
++) -> dict[str, Any]:
++    """Require the durable receipt before replaying task or lifecycle finalization."""
++
++    receipt = get_merge_receipt(operation_id)
++    if receipt is None:
++        raise MergeReceiptError(f"merge operation '{operation_id}' has no durable receipt")
++    if finalization is not None:
++        expected_task = _task_binding(finalization)
++        verify_merge_receipt(receipt, operation_id=operation_id, task=expected_task)
++    return receipt
+diff --git a/app/merge_operations.py b/app/merge_operations.py
+index e42efa14b947bc200119491b697ff74b4983a405..37c8a882ef38fbc628706dce71a7723a0a67109b 100644
+--- a/app/merge_operations.py
++++ b/app/merge_operations.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import asyncio
++import copy
+ import hashlib
+ import json
+ import logging
+@@ -178,7 +179,39 @@ def get_operation_record(operation_id: str) -> dict[str, Any] | None:
+         row = connection.execute(
+             "SELECT * FROM merge_operations WHERE operation_id=?", (operation_id,),
+         ).fetchone()
+-    return _decode_record(row) if row else None
++    if not row:
++        return None
++    record = _decode_record(row)
++    from app.ia import merge_receipts
++
++    result = record["result"]
++    if (
++        merge_receipts.merge_receipt_configured()
++        and result.get("operation_state") == "SUCCEEDED"
++    ):
++        try:
++            durable = merge_receipts.get_merge_receipt(operation_id)
++            if durable is None or durable != result.get("receipt"):
++                raise merge_receipts.MergeReceiptError(
++                    "stored success is not bound to its durable receipt"
++                )
++        except merge_receipts.MergeReceiptError as exc:
++            result = copy.deepcopy(result)
++            result["operation_state"] = "PARTIAL"
++            result["retryable"] = False
++            result["error"] = _error(
++                "MERGE_RECEIPT_INVALID",
++                str(exc),
++                operation_id=operation_id,
++                details={"exception_type": type(exc).__name__},
++            )
++            result["next_action"] = _blocking_action(
++                "RECONCILE_SAME_OPERATION",
++                "The target may be committed, but its durable receipt is missing or invalid.",
++                operation_id,
++            )
++            record["result"] = result
++    return record
+ 
+ 
+ def get_operation_result(operation_id: str) -> dict[str, Any] | None:
+@@ -1145,6 +1178,8 @@ def normalize_merge_result(
+             result["warnings"].append(warning)
+     if isinstance(finalization, dict):
+         result["finalization"] = finalization
++    if isinstance(raw.get("receipt"), dict):
++        result["receipt"] = copy.deepcopy(raw["receipt"])
+     return result
+ 
+ 
+@@ -1668,6 +1703,34 @@ async def _run_operation(operation_id: str) -> None:
+                         raw = await asyncio.to_thread(
+                             _recover_lost_checkpoint, operation_id, raw,
+                         )
++                    from app.ia import merge_receipts
++
++                    if (
++                        merge_receipts.merge_receipt_configured()
++                        and isinstance(raw, dict)
++                        and raw.get("ok")
++                    ):
++                        try:
++                            durable_receipt = merge_receipts.get_merge_receipt(operation_id)
++                            if (
++                                durable_receipt is None
++                                or durable_receipt != raw.get("receipt")
++                            ):
++                                raise merge_receipts.MergeReceiptError(
++                                    "successful merge has no matching durable receipt"
++                                )
++                        except merge_receipts.MergeReceiptError as exc:
++                            raw = {
++                                **raw,
++                                "ok": False,
++                                "state": (
++                                    "partial"
++                                    if raw.get("commit_point") == "target_committed"
++                                    else "failed"
++                                ),
++                                "error": f"verified merge receipt missing: {exc}",
++                            }
++                            raw.pop("receipt", None)
+                     from app import rag_service
+ 
+                     result = normalize_merge_result(
+diff --git a/app/routes/sessions.py b/app/routes/sessions.py
+index c926b2c7d29097a875ad6a7b9a72793899c6dce4..cf7987b17cc316356605e3ebcc2202884d06b957 100644
+--- a/app/routes/sessions.py
++++ b/app/routes/sessions.py
+@@ -1574,9 +1574,15 @@ async def apply_merge_finalization(finalization: dict) -> dict:
+     """
+     from app import tm as _tm
+     from app.db import get_session
++    from app.ia import merge_receipts
+     from app.workspace import switch_worktree_branch
+ 
+     session_id = finalization["session_id"]
++    operation_id = str(finalization.get("operation_id") or "")
++    if operation_id and merge_receipts.merge_receipt_configured():
++        merge_receipts.require_merge_receipt(
++            operation_id, finalization=finalization,
++        )
+     applied = await asyncio.to_thread(_tm.finalize_merge_outcome, finalization)
+     out: dict = {"linked_tasks": applied["links"]}
+ 
+@@ -1640,6 +1646,7 @@ async def _finalize_committed_merge(
+ ) -> dict:
+     """Run the durable checkpoint and the DB stage of a merge that already committed."""
+     from app import merge_operations as _ops
++    from app.ia import merge_receipts
+     from app import rag_service
+ 
+     finalization["commits"] = merged_commits
+@@ -1667,6 +1674,27 @@ async def _finalize_committed_merge(
+                 finalization_checkpoint_lost=detail,
+             )
+             return result
++    if operation_id and merge_receipts.merge_receipt_configured():
++        try:
++            result["receipt"] = await asyncio.to_thread(
++                merge_receipts.record_merge_receipt,
++                operation_id,
++                result,
++                finalization,
++            )
++        except Exception as error:
++            detail = err_text(error)
++            logger.error(
++                "merge receipt failed operation_id=%s: %s", operation_id, detail,
++            )
++            result.update(
++                ok=False,
++                state="partial",
++                commit_point="target_committed",
++                error=f"verified merge receipt failed: {detail}",
++                finalization=finalization,
++            )
++            return result
+     try:
+         applied = await apply_merge_finalization(finalization)
+     except Exception as error:
+@@ -1772,6 +1800,11 @@ async def execute_merge_session(
+         primary_task_ref = ""
+         project_id = ""
+         strict_task_merge = str(req.get("merge_schema_version") or "") == "2"
++        from app.ia import merge_receipts
++
++        receipt_required = (
++            strict_task_merge and merge_receipts.merge_receipt_configured()
++        )
+         task_outcome = str(req.get("task_outcome") or "").strip().lower()
+         if strict_task_merge:
+             if task_outcome not in {"continue", "complete"}:
+@@ -1854,16 +1887,21 @@ async def execute_merge_session(
+                 )
+             pinned_branch = actual_branch
+ 
+-        try:
+-            target = await asyncio.to_thread(
+-                _session_base_branch, found, requested_target,
+-            )
+-        except ValueError as e:
+-            return _merge_not_reached(
+-                str(e), target_branch=requested_target,
+-                worker_branch=pinned_branch, worker_head=pinned_head,
+-                http_status=400,
+-            )
++        if expected_target_head:
++            # Target-aware operations already resolved and persisted this branch/ref at
++            # admission. The repository lock rechecks the same pair before mutation.
++            target = requested_target or getattr(found, "base_branch", "")
++        else:
++            try:
++                target = await asyncio.to_thread(
++                    _session_base_branch, found, requested_target,
++                )
++            except ValueError as e:
++                return _merge_not_reached(
++                    str(e), target_branch=requested_target,
++                    worker_branch=pinned_branch, worker_head=pinned_head,
++                    http_status=400,
++                )
+ 
+         if not await _wait_for_merge_idle(found):
+             status = found.status.value
+@@ -1910,7 +1948,7 @@ async def execute_merge_session(
+                     worker_head=drift["actual_head"] or pinned_head,
+                     http_status=409,
+                 )
+-            merge_head = drift["actual_head"] or pinned_head
++            merge_head = pinned_head if receipt_required else drift["actual_head"] or pinned_head
+ 
+             finalization: dict | None = None
+             if strict_task_merge:
+@@ -1936,6 +1974,13 @@ async def execute_merge_session(
+                 finalization["target_branch"] = target
+                 finalization["worker_head"] = merge_head
+ 
++            commit_receipt = None
++            if finalization is not None and receipt_required:
++                def commit_receipt(merge_result: dict) -> dict:
++                    return merge_receipts.record_merge_receipt(
++                        operation_id, merge_result, finalization,
++                    )
++
+             def _resolve_candidate_refs(actual_refs: list[str]) -> list[str]:
+                 """Turn the refs found on the pinned HEAD into canonical scoped ones.
+ 
+@@ -1972,6 +2017,7 @@ async def execute_merge_session(
+                     resolve_refs=(
+                         _resolve_candidate_refs if finalization is not None else None
+                     ),
++                    commit_receipt=commit_receipt,
+                 )
+             except Exception as e:
+                 # Реmержа не было видно ни одной стороной: исход Git неизвестен, поэтому
+diff --git a/app/workspace.py b/app/workspace.py
+index 1a0a9993ae998ed463ab08c61632e77d338c24fc..d59de0b65b316f64338cea3b27cc62d08d8293d6 100644
+--- a/app/workspace.py
++++ b/app/workspace.py
+@@ -1242,6 +1242,7 @@ def merge_worktree_to_main(
+     operation_id: str = "",
+     prepare: Callable[[str, str], None] | None = None,
+     resolve_refs: Callable[[list[str]], list[str]] | None = None,
++    commit_receipt: Callable[[dict], dict] | None = None,
+ ) -> MergeOutcome:
+     wt = Path(worktree_path).resolve()
+     repo = _resolve_repo(str(wt), repo_path)
+@@ -1258,6 +1259,7 @@ def merge_worktree_to_main(
+     merge_cwd = ""
+     target_recheck = None
+     prepared_squash_message = ""
++    reset_worker_pending = False
+ 
+     with repo_mutation_lock(repo):
+         target_branch = resolve_base_branch(str(repo), target_branch)
+@@ -1661,9 +1663,7 @@ def merge_worktree_to_main(
+ 
+                                             if result and result.get("ok"):
+                                                 target_commit_succeeded = True
+-                                                _reset_worktree_to_ref(
+-                                                    str(wt), target_branch, str(repo),
+-                                                )
++                                                reset_worker_pending = True
+         finally:
+             if original_branch and original_branch != target_branch:
+                 restore = _git_cmd(
+@@ -1746,6 +1746,29 @@ def merge_worktree_to_main(
+                 "actual": target_before,
+                 "matched": target_before == expected_target_head,
+             }
++        if (
++            result.get("ok")
++            and commit_point == "target_committed"
++            and commit_receipt is not None
++        ):
++            try:
++                result["receipt"] = commit_receipt(dict(result))
++            except Exception as error:
++                result.update(
++                    ok=False,
++                    state="partial",
++                    error=(
++                        "verified merge receipt could not be persisted before "
++                        f"worktree reset: {type(error).__name__}: {error}"
++                    ),
++                    receipt_error=f"{type(error).__name__}: {error}",
++                )
++        if reset_worker_pending and (
++            commit_point != "target_committed"
++            or commit_receipt is None
++            or isinstance(result.get("receipt"), dict)
++        ):
++            _reset_worktree_to_ref(str(wt), target_branch, str(repo))
+         return result
+ 
+ 

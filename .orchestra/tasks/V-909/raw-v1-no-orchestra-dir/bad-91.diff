@@ -1,0 +1,343 @@
+diff --git a/app/main.py b/app/main.py
+index 82ac11f610025932f76bce971a5ad978263d308c..b7de25ff40fac71dc8c1171708ae3c557491bdb2 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -21,6 +21,8 @@ async def lifespan(app: FastAPI):
+     from dotenv import load_dotenv
+     load_dotenv()
+     init_db()
++    from app.models import refresh_models
++    await refresh_models()
+     # YouGile sync fired from to_thread workers needs the app loop captured
+     from app import tm as _tm_mod
+     _tm_mod.set_main_loop(asyncio.get_running_loop())
+diff --git a/app/models.py b/app/models.py
+index 0e4b38c0d024a18c4a97455a2f9c89fa637ead3a..a4801b9afb93969ec17fd933c7703f27f880124f 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -1,4 +1,18 @@
+-"""Available models — single source of truth."""
++"""Available models — single source of truth.
++
++Hardcoded dicts are the fallback for dev mode. In enterprise (is_auth_enabled),
++fetch_models_from_proxy() replaces them with proxy-only models.
++"""
++
++import logging
++import os
++import re
++
++import httpx
++
++logger = logging.getLogger(__name__)
++
++_proxy_connected: bool = False
+ 
+ MODELS = {
+     "claude-fable-5[1m]": "Fable 5 (1M)",
+@@ -70,6 +84,134 @@ TOKEN_PRICES = {
+ 
+ DEFAULT_MODEL = "claude-sonnet-4-6"
+ 
++_VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
++
++
++def _generate_aliases(model_id: str) -> list[str]:
++    """Auto-generate short alias candidates for a model ID."""
++    aliases = []
++    if "/" in model_id:
++        tail = model_id.rsplit("/", 1)[1]
++        aliases.append(tail)
++        stripped = _VERSION_RE.sub("", tail)
++        if stripped and stripped != tail:
++            aliases.append(stripped)
++    return aliases
++
++
++def _infer_backend(model_id: str) -> str:
++    if model_id.startswith("gpt-"):
++        return "codex"
++    return "claude"
++
++
++def is_proxy_connected() -> bool:
++    return _proxy_connected
++
++
++async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
++    """Fetch model list from upstream proxy and populate module-level dicts.
++
++    enterprise_mode=True: CLEAR hardcoded models first, keep only proxy results.
++    enterprise_mode=False: MERGE with existing hardcoded models (dev fallback).
++    """
++    global _proxy_connected
++    base_url = os.environ.get("UPSTREAM_API", "https://api.anthropic.com")
++    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
++    url = f"{base_url.rstrip('/')}/v1/models"
++
++    proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
++
++    try:
++        async with httpx.AsyncClient(timeout=10, proxy=proxy_url) as client:
++            resp = await client.get(
++                url,
++                headers={"Authorization": f"Bearer {api_key}"},
++            )
++            resp.raise_for_status()
++            data = resp.json()
++    except Exception as e:
++        logger.warning(f"fetch_models_from_proxy failed: {e}")
++        _proxy_connected = False
++        if enterprise_mode:
++            MODELS.clear()
++            CONTEXT_LIMITS.clear()
++            TOKEN_PRICES.clear()
++            BACKENDS.clear()
++            ALIASES.clear()
++        return False
++
++    models_list = data.get("data", [])
++    if not models_list:
++        logger.warning("fetch_models_from_proxy: empty model list")
++        _proxy_connected = False
++        if enterprise_mode:
++            MODELS.clear()
++            CONTEXT_LIMITS.clear()
++            TOKEN_PRICES.clear()
++            BACKENDS.clear()
++            ALIASES.clear()
++        return False
++
++    if enterprise_mode:
++        MODELS.clear()
++        CONTEXT_LIMITS.clear()
++        TOKEN_PRICES.clear()
++        BACKENDS.clear()
++        ALIASES.clear()
++
++    added = 0
++    for m in models_list:
++        mid = m.get("id", "")
++        if not mid:
++            continue
++
++        if "/" in mid:
++            label = mid.rsplit("/", 1)[1].replace("-", " ").title()
++        else:
++            label = mid.replace("-", " ").title()
++
++        ctx = m.get("context_length") or 200000
++
++        pricing = m.get("pricing", {})
++        prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
++        completion_price = float(pricing.get("completion", "0")) * 1_000_000
++
++        backend = _infer_backend(mid)
++
++        if mid not in MODELS:
++            MODELS[mid] = label
++            added += 1
++        if mid not in CONTEXT_LIMITS:
++            CONTEXT_LIMITS[mid] = ctx
++        if mid not in TOKEN_PRICES and (prompt_price or completion_price):
++            TOKEN_PRICES[mid] = {"input": round(prompt_price, 4), "output": round(completion_price, 4)}
++        if mid not in BACKENDS:
++            BACKENDS[mid] = backend
++
++        for alias in _generate_aliases(mid):
++            if alias not in ALIASES and alias != mid:
++                ALIASES[alias] = mid
++
++    _proxy_connected = True
++    mode_label = "enterprise (proxy-only)" if enterprise_mode else "dev (merged)"
++    logger.info(f"Loaded {len(models_list)} models from proxy ({added} new, {mode_label})")
++    return True
++
++
++async def refresh_models() -> None:
++    """Startup helper — fetch models, enterprise-aware."""
++    from app.auth import is_auth_enabled
++    enterprise = is_auth_enabled()
++    ok = await fetch_models_from_proxy(enterprise_mode=enterprise)
++    if ok:
++        logger.info(f"Models ready: {len(MODELS)} total (proxy_connected=True)")
++    else:
++        if enterprise:
++            logger.warning(f"Proxy unreachable in enterprise mode — 0 models available")
++        else:
++            logger.warning(f"Proxy unreachable, using {len(MODELS)} hardcoded models")
++
+ 
+ def resolve_model(model: str) -> str:
+     m = model.lower().strip()
+diff --git a/app/routes/system.py b/app/routes/system.py
+index 0ae9db0e26f6bb634682fd383ae7e7bec5161a34..c7e195e5339bf7ba4cfceb2647de05be0fe9b650 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -19,7 +19,7 @@ from pydantic import BaseModel
+ from app.auth import is_auth_enabled
+ from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
+ from app.deps import manager, templates
+-from app.models import MODELS
++from app.models import MODELS, CONTEXT_LIMITS, TOKEN_PRICES, is_proxy_connected
+ from app.pipeline import list_pipelines
+ 
+ logger = logging.getLogger("orchestra.system")
+@@ -336,7 +336,18 @@ async def remove_profile(name: str):
+ 
+ @router.get("/api/models")
+ async def list_models():
+-    return [{"id": k, "name": v} for k, v in MODELS.items()]
++    models = []
++    for mid, name in MODELS.items():
++        entry = {"id": mid, "name": name}
++        ctx = CONTEXT_LIMITS.get(mid)
++        if ctx:
++            entry["context_length"] = ctx
++        prices = TOKEN_PRICES.get(mid)
++        if prices:
++            entry["price_input"] = prices["input"]
++            entry["price_output"] = prices["output"]
++        models.append(entry)
++    return {"models": models, "proxy_connected": is_proxy_connected()}
+ 
+ 
+ @router.get("/api/stats")
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index dce523d6245051357274300afcfb8f968fd00ea7..a4595330ca0efbb13faefaac10ba2afe53052fe5 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -247,15 +247,19 @@ async function loadMoreLogs() {
+ // === Models ===
+ async function loadModels() {
+     try {
+-        const models = await api('/api/models');
++        const data = await api('/api/models');
++        const models = data.models || [];
+         const select = $('#orch-model');
+-        select.innerHTML = '';
+-        for (const m of models) {
+-            const opt = document.createElement('option');
+-            opt.value = m.id;
+-            opt.textContent = `${m.name} (${m.id})`;
+-            select.appendChild(opt);
++        if (select) {
++            select.innerHTML = '';
++            for (const m of models) {
++                const opt = document.createElement('option');
++                opt.value = m.id;
++                opt.textContent = `${m.name} (${m.id})`;
++                select.appendChild(opt);
++            }
+         }
++        _updateProxyStatus(data.proxy_connected);
+     } catch {}
+ }
+ 
+@@ -1130,11 +1134,23 @@ let _modelsLoaded = false;
+ async function _ensureModels() {
+     if (_modelsLoaded) return;
+     try {
+-        const models = await api('/api/models');
++        const data = await api('/api/models');
++        const models = data.models || [];
+         _MODELS = models.map(m => ({ id: m.id, label: m.name }));
+         _modelsLoaded = true;
+     } catch {}
+ }
++function _updateProxyStatus(connected) {
++    const el = document.getElementById('proxy-status');
++    if (!el) return;
++    if (connected) {
++        el.textContent = '🟢';
++        el.title = 'Proxy connected';
++    } else {
++        el.textContent = '🔴';
++        el.title = 'Proxy offline — no models available';
++    }
++}
+ async function _showModelPicker(agentName, currentModel, anchor) {
+     const existing = document.getElementById('model-picker-dd');
+     if (existing) { existing.remove(); return; }
+@@ -4157,15 +4173,55 @@ function switchLeftTab(tab) {
+         btn.classList.toggle('text-slate-500', !isActive);
+         btn.classList.toggle('border-transparent', !isActive);
+     });
++    const clientPanel = document.getElementById('client-panel');
+     if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
+     if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
+     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
++    if (clientPanel) clientPanel.classList.toggle('hidden', tab !== 'client');
+     _tasksTabActive = tab === 'tasks';
+     _jobsTabActive = tab === 'jobs';
+     if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 5000); }
+     else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
+     if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
+     else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
++    if (tab === 'client') loadClientInfo();
++}
++
++async function loadClientInfo() {
++    const panel = document.getElementById('client-panel');
++    if (!panel) return;
++    panel.innerHTML = '<span class="text-slate-500">Loading...</span>';
++    try {
++        const data = await api('/api/models');
++        const models = data.models || [];
++        const connected = data.proxy_connected;
++        const currency = document.body.dataset.currency || '$';
++        let html = `<div class="space-y-3">`;
++        html += `<div class="flex items-center gap-2 mb-2">
++            <span class="text-sm font-bold text-white">Client Info</span>
++            <span class="text-xs ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Proxy connected' : '🔴 Proxy offline'}</span>
++        </div>`;
++        if (!models.length) {
++            html += `<div class="text-slate-500 italic">No models available</div>`;
++        } else {
++            html += `<div class="text-xs text-slate-500 mb-1">${models.length} models available</div>`;
++            for (const m of models) {
++                const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k ctx` : '';
++                const price = (m.price_input != null && m.price_output != null)
++                    ? `${currency}${m.price_input}/M in · ${currency}${m.price_output}/M out`
++                    : '';
++                html += `<div class="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
++                    <div class="font-medium text-slate-200 text-xs">${escHtml(m.name)}</div>
++                    <div class="text-[10px] text-slate-500 font-mono">${escHtml(m.id)}</div>
++                    <div class="text-[10px] text-slate-400 mt-0.5">${[ctx, price].filter(Boolean).join(' · ')}</div>
++                </div>`;
++            }
++        }
++        html += `</div>`;
++        panel.innerHTML = html;
++    } catch (e) {
++        panel.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
++    }
+ }
+ 
+ const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];
+diff --git a/app/templates/dashboard.html b/app/templates/dashboard.html
+index c7dc8b35c61eac82ac24698e3abe0f24974724d1..5d30665d3eee3f3c4fc99d236d70f5b9a4392627 100644
+--- a/app/templates/dashboard.html
++++ b/app/templates/dashboard.html
+@@ -24,6 +24,7 @@
+         </div>
+         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
+             <span id="stats-line"></span>
++            {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status">⏳</span>{% endif %}
+             <div class="relative">
+                 <button id="proxy-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400 flex items-center gap-1" title="Proxy settings">
+                     <span id="proxy-flag">🌐</span>
+@@ -157,11 +158,13 @@
+                 <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('files')">FILES</button>
+                 <button data-left-tab="tasks" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('tasks')">TASKS</button>
+                 <button data-left-tab="jobs" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('jobs')">JOBS</button>
++                {% if is_auth_enabled %}<button data-left-tab="client" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('client')">CLIENT</button>{% endif %}
+                 <button id="open-folder-btn" title="Open in file manager" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;transition:opacity 0.15s" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='0.5'">📂</button>
+             </div>
+             <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
+             <div id="tasks-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
+             <div id="jobs-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
++            {% if is_auth_enabled %}<div id="client-panel" class="flex-1 overflow-y-auto text-xs p-2 hidden"></div>{% endif %}
+         </div>
+ 
+         <!-- Chat -->

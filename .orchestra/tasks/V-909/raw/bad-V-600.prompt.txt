@@ -1,0 +1,17 @@
+PROJECT CONTEXT (tool-owned; calibrate review severity):
+- Scale: distributed platform team, production
+- Users: high-load multi-project orchestration
+- Stack: Python 3.12+, FastAPI, Jinja2, SSE, SQLite, Codex and Claude runtimes
+- Philosophy: simple shared runtime with explicit contracts and deterministic agent workflows
+- What matters: correctness, isolation, data integrity, durable delivery, and truthful operator state
+- What does NOT matter: enterprise ceremony, speculative abstractions, or maximizing test coverage as an end in itself
+
+CALLER-SUPPLIED TASK CALIBRATION:
+Task: #V-600: корневые правила — один AGENTS.md, дубль CLAUDE.md запрещён
+END CALLER-SUPPLIED TASK CALIBRATION
+
+Review calibration: blocking = crash/corrupt/security; suggestion = real improvement; nit = skip.
+Review the exact committed implementation snapshot pinned by the server.
+Run `git diff --binary --full-index 252b3cd8ff4f695d472a8af9d2d9a813afbb0304...0e381f32dbb51dbce04628e98be502244ea2ea84` and review that complete diff; do not substitute HEAD or a task file.
+Return the complete review in your final response. Do not edit files.
+Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish the requested review; preserve partial findings.

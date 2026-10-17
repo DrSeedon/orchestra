@@ -1,0 +1,89 @@
+diff --git a/app/model_catalog.py b/app/model_catalog.py
+index cb2320cf04c9333465a9c3eb1c290a80eaee35fd..1f9b55e49925a64c07d56fde4d9b77fd508fe570 100644
+--- a/app/model_catalog.py
++++ b/app/model_catalog.py
+@@ -133,10 +133,14 @@ def apply_model_catalog() -> int:
+     """
+     from app.models import MODEL_SPECS, ModelSpec, SELECTABLE_MODEL_SPECS, register_model
+ 
++    from app.models import BLOCKED_HARNESS_ROUTES
++
+     manifest = {spec.id: spec for spec in SELECTABLE_MODEL_SPECS}
++    # Отказавший в пробе маршрут не доходит и до выбора: иначе его видно в списке моделей,
++    # и отказ наступает только на спавне, уже потратив ход.
+     eligible = {
+         norm["id"]: norm for norm in cached_catalog()
+-        if harness_capable(norm)
++        if harness_capable(norm) and norm.get("id") not in BLOCKED_HARNESS_ROUTES
+     }
+     registered = dropped = 0
+     for norm in eligible.values():
+diff --git a/app/models.py b/app/models.py
+index 001805e8854838dd3b2cf0792584c2836d2e4251..b82e7604ddde28a34c186c4228327e319dc0760d 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -344,6 +344,21 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
+     _apply_derived_views(spec)
+ 
+ 
++# Маршруты, отказавшие в НАШЕЙ пробе (#V-581, повторный прогон 17.09.2026): каталог
++# провайдера продолжает обещать инструменты, но воркер на них не работает. Каждая строка —
++# наблюдение, а не мнение; появится противоположный замер — снимать по одной, не списком.
++BLOCKED_HARNESS_ROUTES: dict[str, str] = {
++    "thinkingmachines/inkling:free": "HTTP 403: маршрут открыт только в харнесах провайдера",
++    "thinkingmachines/inkling-small:free": "HTTP 403: маршрут открыт только в харнесах провайдера",
++    "poolside/laguna-s-2.1:free": "HTTP 429 в обоих прогонах пробы",
++    "poolside/laguna-xs-2.1:free": "HTTP 429 в обоих прогонах пробы",
++    "google/gemma-4-31b-it:free": "HTTP 429 в обоих прогонах пробы",
++    "nex-agi/nex-n2.5-mini:free": "таймаут чтения 90 с в обоих прогонах",
++    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": "инструмент не вызывается вовсе",
++    "inclusionai/ling-3.0-flash-vl:free": "вызывает инструмент и игнорирует его результат",
++}
++
++
+ def validate_harness_model_spec(spec: ModelSpec) -> None:
+     """Production admission for Orchestra's OpenRouter runtime.
+ 
+@@ -356,6 +371,11 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
+     """
+     if spec.runtime != "harness":
+         raise ValueError(f"model '{spec.id}' is not a harness model")
++    if spec.id in BLOCKED_HARNESS_ROUTES:
++        raise ValueError(
++            f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
++            f"{BLOCKED_HARNESS_ROUTES[spec.id]}"
++        )
+     if not spec.id.endswith(":free"):
+         raise ValueError(
+             f"harness model '{spec.id}' is not an exact :free route; "
+diff --git a/tests/test_model_catalog.py b/tests/test_model_catalog.py
+index 9235a2f22583101b1ef6f467746ef467d9aaada7..f2226a791d94b3db0a69c72157572acfb69b196f 100644
+--- a/tests/test_model_catalog.py
++++ b/tests/test_model_catalog.py
+@@ -288,3 +288,26 @@ def test_t2_admission_passes_route_the_live_catalog_still_backs():
+     assert _catalog_module().apply_model_catalog() == 1
+ 
+     registry.validate_harness_model_spec(registry.MODEL_SPECS["vendor/model-x:free"])
++
++
++def test_blocked_route_is_refused_and_never_registered():
++    """#V-593: маршрут, отказавший в нашей пробе, каталог провайдера по-прежнему
++    рекламирует как рабочий. Он не должен ни попадать в выбор, ни проходить спавн."""
++    import app.models as registry
++    from app.model_catalog import apply_model_catalog
++
++    blocked_id = next(iter(registry.BLOCKED_HARNESS_ROUTES))
++    blocked_row = {**NORMALIZED, "id": blocked_id, "name": "Blocked Route"}
++    db.kv_set(CATALOG_KV_KEY, json.dumps(
++        {"fetched_at": 1726500000.0, "models": [blocked_row, NORMALIZED]}))
++
++    apply_model_catalog()
++    assert blocked_id not in registry.MODEL_SPECS, "заблокированный маршрут попал в выбор"
++    assert NORMALIZED["id"] in registry.MODEL_SPECS, "здоровый маршрут потерян вместе с ним"
++
++    spec = registry.ModelSpec(
++        id=blocked_id, name="Blocked Route", runtime="harness", provider="openrouter",
++        context_length=128000, price_input=0.0, price_output=0.0,
++        supported_parameters=("tool_choice", "tools"))
++    with pytest.raises(ValueError, match="заблокирован"):
++        registry.validate_harness_model_spec(spec)

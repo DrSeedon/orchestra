@@ -1,0 +1,1 @@
+{"id": "bad-35", "sha": "270db54eb4377073a43191b6232eec9894e11d68", "rc": 0, "seconds": 30.9, "usage": {"input_tokens": 268683, "cached_input_tokens": 224384, "cache_write_input_tokens": 0, "output_tokens": 2322, "reasoning_output_tokens": 945}, "diff_bytes": 59939, "dirty_after": "", "stderr": ""}

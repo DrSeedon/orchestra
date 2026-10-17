@@ -1,0 +1,286 @@
+diff --git a/docs/tasks/203/codex-review-move.md b/docs/tasks/203/codex-review-move.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f556a8fe75995f9686f1b91076335f52d007a95b
+--- /dev/null
++++ b/docs/tasks/203/codex-review-move.md
+@@ -0,0 +1,44 @@
++The single shared module is preferable to two copies and reaches exactly the currently declared spawn-capable roles without changing the moved text's ordering relative to `orchestration`. However, the escalation criterion is not fully machine-decidable, and the regression test can miss routing leakage that omits the XML wrapper.
++
++Full review comments:
++
++- [P2] Require acceptance criteria to have machine-verifiable outcomes — /home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-engineer/pipelines/default/prompts/modules/model-routing.md:7-7
++  The escalation trigger is not decidable from machine evidence alone: CLOSED only requires that acceptance criteria can be named, so a criterion such as “the wording is clear” can be judged unmet without any objective signal. The red-test branch is deterministic, and the wording clearly forbids a second Luna attempt, but the AC branch needs to require an explicit machine-checkable verification command or result.
++
++- [P2] Test routing content rather than only its wrapper tag — /home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-engineer/tests/test_default_pipeline.py:147-147
++  This test stays green if routing silently reaches `worker` without the exact `<model-routing>` wrapper—for example, copying the Luna bullet or the whole block minus its tags into `base.md` makes the worker receive the rule while this negative assertion still passes. Since the test claims routing reaches only spawn-capable roles, assert a stable routing-content anchor is absent from `worker` (and ideally that its source is the dedicated module), not only the opening tag.
++
++## Round (2026-08-12T03:21:23Z)
++
++Re-review status:
++
++1. **AC finding: FIXED, but NEW BUG in another escalation branch.** Luna now requires command evidence: “**the named test command stays red, or an acceptance criterion is not shown met by the output of a command**” and rejects unverifiable ACs: “**A criterion nobody can check by running something is not an AC**”.
++
++   However, Spark still says: “**Escalate to Sol if a test fails or scope grows.**” An agent can assert that “scope grows” without machine-checkable evidence. So yes, one escalation branch remains non-decidable.
++
++2. **Routing-test finding: STILL BROKEN.** Mutation: copy only this Opus routing instruction into `base.md`:
++
++   > “**Opus 5 (`claude-opus-5[1m]`) — DEFAULT for OPEN work: implementation with unknowns, fixes, review, general multi-step work; strongest for ambiguity/dialogue, reading between the lines, creative prose, images, and 1M-context synthesis. A closed task goes to Luna instead.**”
++
++   Worker then receives real model-routing content, while none of the tested anchors—“`<model-routing>`”, “`gpt-5.6-luna`”, or “`ahead of the Opus default`”—is present. `out.count(module) == 1` also remains true for spawn-capable roles.
++
++Verdict: **STILL BROKEN**—both requested properties retain a counterexample.
++
++## Round (2026-08-12T03:23:07Z)
++
++Re-review status: both prior findings **FIXED**.
++
++The test requires each spawn-capable prompt to contain the complete module exactly once:
++
++> `assert out.count(module) == 1, f"{role}: маршрутизация должна прийти ровно из модуля"`
++
++It also rejects every verbatim routing bullet in `worker`:
++
++> `for anchor in ["<model-routing>", *bullets]:`  
++> `    assert anchor not in worker_out, f"маршрутизация протекла воркеру: {anchor[:40]}"`
++
++I cannot construct a mutation that stays green while a listed spawn-capable role loses routing or `worker` receives a verbatim bullet. The remaining counterexample requires manually rewording routing content; the docstring explicitly records that accepted limitation.
++
++New findings: none.
++
++Verdict: **APPROVED**.
+diff --git a/docs/tasks/203/report.md b/docs/tasks/203/report.md
+index 81a61484c4e4142f14020021df8023242cbea81c..5326424f7a8f5e6e19a3bca10a7c539314f7d4de 100644
+--- a/docs/tasks/203/report.md
++++ b/docs/tasks/203/report.md
+@@ -77,3 +77,93 @@ full-cycle        True    False False     True         True        True
+ этой ролью 75 из 121 (62%, свежий счёт по `sessions`, read-only). Эти 75 платят +877 Б за блок,
+ которым не могут воспользоваться, и платили за него и раньше — 2126 Б. Кандидат на переезд блока
+ из `base.md` в модуль `orchestration` + роль `full-cycle`; это решение оркестратора, не моё.
++
++---
++
++# Продолжение #203: эскалация Luna + переезд блока к исполнителям
++
++Коммит второй. Файлы: `pipelines/default/prompts/modules/model-routing.md` (новый),
++`pipelines/default/prompts/base.md` (−12 строк), `pipelines/default/pipeline.yaml` (3 роли),
++`tests/test_default_pipeline.py` (+1 тест, обновлены списки модулей).
++
++## Правка A — путь эскалации у Luna
++
++Было: у Spark путь провала прописан, у Luna нет — агент мог законно переспросить Luna на той же
++задаче и потратить экономию 20× на круги. Стало (в пункте Luna):
++
++> **On failure escalate, never retry: the named test command stays red, or an acceptance criterion
++> is not shown met by the output of a command → hand that ticket to Sol, do not send it back to
++> Luna.** A criterion nobody can check by running something is not an AC, and its task was never
++> closed. A second Luna pass on the same failure is what turns a 20× saving into three rounds at
++> Sol's price.
++
++Вторая фраза появилась после ревью: Codex показал дыру — «критерий приёмки не выполнен» решается
++на глаз, если сам критерий вида «формулировка ясная». Теперь такой критерий выводит задачу из
++класса закрытых, то есть до Luna не доходит вовсе.
++
++**Сверх мандата, называю явно:** у Spark триггер `scope grows` страдал тем же — заменён на
++`the ticket needs a file outside the ones you named → Sol`. Одна фраза, тот же дефект, тот же
++блок; если считаешь это лишним — откатывается одной строкой.
++
++## Правка B — блок переехал к тем, кто может его исполнить
++
++Новый модуль `modules/model-routing.md`, подключён в `pipeline.yaml` первым в списке `modules`
++у `orchestrator`, `sub-orchestrator`, `full-cycle` (все `can_spawn: ["*"]`), из `base.md` удалён.
++
++**Отступление от буквы поручения, обоснование.** Было сказано «`orchestration` + роль
++`full-cycle`». Это две копии одного правила: `orchestration` не грузится ролью `full-cycle`
++(`pipeline.yaml:73`), поэтому пришлось бы дублировать текст в `roles/full-cycle.md` — ровно тот
++дрейф, который мы вычищаем. Отдельный модуль отдаёт блок тем же трём ролям одной копией.
++Первым в списке — потому что `modules/orchestration.md:175` говорит «Use the single
++`<model-routing>` block above»; порядок проверен на собранном промпте.
++
++`pipeline.yaml` правится руками: генератор `scripts/extract-manifest.py` мёртв — его источник
++`app/prompts/` удалён, `--check` не гоняет ни один тест и ни один workflow.
++
++## Приёмка
++
++```
++role              routing escalate above_ok bytes
++orchestrator      yes     True     True     42739 → +258 к #203
++sub-orchestrator  yes     True     True     43090
++full-cycle        yes     True     True     41751
++worker            NO      False    True     23083  (−2128 Б, блок ушёл)
++```
++
++Тесты: `tests/test_default_pipeline.py tests/test_pipeline.py tests/test_manager.py` — **288
++passed** (`/tmp/pytest-203c.log`).
++
++Новый тест `test_model_routing_reaches_only_spawn_capable_roles` держит обе стороны: блок ровно
++один раз у каждой спавн-способной роли (`out.count(module) == 1`) и ни одного дословного пункта
++у `worker`. Якоря берутся ИЗ модуля (`ln.startswith("- **")`), а не выписаны руками.
++
++Мутации — 6, все красные:
++1. `model-routing` добавлен воркеру;
++2. убран у `full-cycle`;
++3. **составная**: убран у `full-cycle` И блок возвращён в `base.md`;
++4. модуль указан дважды у оркестратора (проверяет `count == 1`);
++5. пункт **Luna** скопирован в `base.md` без тегов;
++6. пункт **Opus** скопирован в `base.md` без тегов (это контрпример Codex к первой версии теста —
++   она была на нём зелёной).
++
++Предел теста записан в докстринге честно: дословную копию пункта он ловит, переписанную своими
++словами — нет.
++
++## Codex — 3 раунда (исполняемый артефакт), `docs/tasks/203/codex-review-move.md`
++
++- Р1: два P2 — (а) ветка «AC не выполнен» не машинная; (б) тест зелен на копии без тегов. Приняты.
++- Р2: обе исправленными не признаны до конца — нашёл, что немашинный триггер остался у Spark, и
++  привёл рабочий контрпример к тесту (копия пункта Opus). Обе приняты и закрыты.
++- Р3: **APPROVED**, дословные цитаты текущего файла в вердикте, новых находок нет.
++
++## Что ещё в `base.md` воркер исполнить не может (перечислил, не трогал)
++
++- `:10` `**Auto-report.**` — половина абзаца про то, что у оркестраторов авто-репорта нет.
++- `:16` `**Cross-project.**` — «если ты оркестратор, можешь писать чужим оркестраторам».
++- `:23` `list_orchestrators()` в списке тулов — с оговоркой «workers should NOT use this».
++- `:39` критическое правило про `Agent tool` — ветка «Spawn-capable roles use `spawn_worker`».
++- `:53` context economy — ветка «spawn-capable roles may delegate a bounded slice».
++
++Общая форма у всех одна: правило с развилкой «ты оркестратор → …; ты воркер → …». В отличие от
++`<model-routing>`, у каждого есть и вторая половина, адресованная воркеру, поэтому механический
++перенос их сломает — нужно резать надвое. Не трогаю без твоего слова.
+diff --git a/docs/workers/prompt-engineer.md b/docs/workers/prompt-engineer.md
+index ad598192213b8a4bc9af1ecbc6f82665acd02145..29afc4803e0d71a4b07114e0f83a28b5fb265c32 100644
+--- a/docs/workers/prompt-engineer.md
++++ b/docs/workers/prompt-engineer.md
+@@ -193,6 +193,14 @@ DONE WHEN: наблюдаемое условие завершения.
+ - **`base.md` платят ВСЕ роли, а спавнить умеют не все.** `<model-routing>` живёт в `base.md`, но
+   `worker` (`can_spawn: []`) действовать по нему не может, а это 75 сессий из 121 (62%, #203).
+   Прежде чем расширять общий слой, спроси: этот текст кому-то из читателей вообще исполним?
++- **`pipeline.yaml` правится РУКАМИ: `scripts/extract-manifest.py` мёртв** — его источник
++  `app/prompts/` удалён, `--check` не гоняют ни тесты, ни CI (#203). Но `tests/test_default_pipeline.py`
++  прибит к спискам `modules` дословно — меняешь манифест, правь и его в том же коммите.
++- **Тест «текст НЕ протёк в чужой промпт»: якоря брать ИЗ файла-источника, а не выписывать руками.**
++  Мои три ручных якоря (тег + две фразы про Luna) остались зелёными, когда Codex скопировал в общий
++  слой СОСЕДНИЙ пункт того же блока — про Opus. Рабочая форма: вытащить все пункты модуля
++  (`ln.startswith("- **")`), потребовать их отсутствия у чужой роли и `out.count(module) == 1`
++  у своих. Плюс гард на непустоту списка якорей: пустой список красит тест зелёным (#203).
+ - **Приёмка правки модуля — `build_system_prompt(DEFAULT_PIPELINE, role)` по всем ролям сразу**
+   (`app/pipeline.py:427`): печатает, у кого новый текст есть и у кого исчез старый, за один прогон.
+   `role_prompt_file()` (`app/prompting.py:132`) для этого НЕ годится — роли теперь frontmatter-free,
+diff --git a/pipelines/default/pipeline.yaml b/pipelines/default/pipeline.yaml
+index 77918b055914aa8e63c41e6eb581d013104b1b0d..c44b17da144ca7f6d7b81603c6b63989b6ca7e14 100644
+--- a/pipelines/default/pipeline.yaml
++++ b/pipelines/default/pipeline.yaml
+@@ -22,7 +22,7 @@ roles:
+     model: claude-opus-5[1m]
+     effort: medium
+     skills: [html-artifacts, vps-deploy, codex-debate, grill-me, orchestra-agents]
+-    modules: [git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
++    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
+     can_spawn: ["*"]
+     allow_unrouted_workers: true
+     tg: {emoji: "👑"}
+@@ -38,7 +38,7 @@ roles:
+     model: claude-opus-5[1m]
+     effort: medium
+     skills: [orchestra-agents]
+-    modules: [git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
++    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
+     can_spawn: ["*"]
+     allow_unrouted_workers: true
+     tg: {emoji: "🎯"}
+@@ -70,7 +70,7 @@ roles:
+     model: claude-opus-5[1m]
+     effort: xhigh
+     skills: [html-artifacts, codex-debate]
+-    modules: [research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
++    modules: [model-routing, research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
+     can_spawn: ["*"]
+     allow_unrouted_workers: false
+     tg: {emoji: "🔄"}
+diff --git a/pipelines/default/prompts/base.md b/pipelines/default/prompts/base.md
+index a0bad8ae9ec1996e72f18dbef25256ebe0c82c4d..5473782a82fd61ea160bf8a87cc40f6a4c33ba8e 100644
+--- a/pipelines/default/prompts/base.md
++++ b/pipelines/default/prompts/base.md
+@@ -73,15 +73,3 @@ restates an earlier one, a summary of the summary, boilerplate framing, and a ta
+ the paragraph above it. If a section contains no fact absent from the rest of the document, it is
+ padding whether the file is 5 KB or 50 KB.
+ </communication-style>
+-
+-<model-routing>
+-## Model routing — which model to pass to `spawn_worker`
+-Pick deterministically by task class and current quota runway. Quota is a first-order routing
+-factor: protect whichever weekly pool will exhaust first; route tasks suitable for either model
+-to the healthier pool. If current telemetry is unavailable, use the manifest default.
+-- **Opus 5** (`claude-opus-5[1m]`) — DEFAULT for OPEN work: implementation with unknowns, fixes, review, general multi-step work; strongest for ambiguity/dialogue, reading between the lines, creative prose, images, and 1M-context synthesis. A closed task goes to Luna instead.
+-- **Luna** (`gpt-5.6-luna`) — CLOSED task, ahead of the Opus default: before spawning you can name the file and line to change, the acceptance criteria, and the test command. Cannot name all three → the task is open, route it above. Measured on 3 closed single-turn tasks (N=1 per cell): same work as Sol, 20.5× cheaper. Long context ONLY for EXTRACTION — finding explicitly marked places in a big input (9/9 at 164K); never for resolving references between similar fragments (vendor MRCR: Luna 41.3% vs Sol 91.5%, untested here).
+-- **Sol medium** (`gpt-5.6-sol`) — OPEN task on the Codex pool: research, arguing with a review, architecture; also empirical measurements/benchmarks and long mechanical protocols or bulk edits where exact tool execution matters — these two take Sol even when the task is closed. Measured: Sol falsified bad hypotheses from live data and had 0 printed-tool-call failures versus 9 on Opus. Closed work goes to the `worker` role (manifest effort `high`), never to `full-cycle` (`xhigh`): on the two closed tasks measured, xhigh cost ×2.04 and ×1.13 without changing the verdict.
+-- **Spark** (`gpt-5.3-codex-spark`) — closed task on its OWN pool: take it over Luna when the Codex pool is the binding constraint AND all hold: text-only + ≤2 files + clear AC + explicit test command + context <128k. Escalate to Sol if a test fails or scope grows. NOT for research, architecture, vision, security.
+-- **Orchestrators** — always Opus 5.
+-</model-routing>
+diff --git a/pipelines/default/prompts/modules/model-routing.md b/pipelines/default/prompts/modules/model-routing.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9b8eb03a9e0140d774ef5fd302d75d8ada4305d
+--- /dev/null
++++ b/pipelines/default/prompts/modules/model-routing.md
+@@ -0,0 +1,11 @@
++<model-routing>
++## Model routing — which model to pass to `spawn_worker`
++Pick deterministically by task class and current quota runway. Quota is a first-order routing
++factor: protect whichever weekly pool will exhaust first; route tasks suitable for either model
++to the healthier pool. If current telemetry is unavailable, use the manifest default.
++- **Opus 5** (`claude-opus-5[1m]`) — DEFAULT for OPEN work: implementation with unknowns, fixes, review, general multi-step work; strongest for ambiguity/dialogue, reading between the lines, creative prose, images, and 1M-context synthesis. A closed task goes to Luna instead.
++- **Luna** (`gpt-5.6-luna`) — CLOSED task, ahead of the Opus default: before spawning you can name the file and line to change, the acceptance criteria, and the test command. Cannot name all three → the task is open, route it above. Measured on 3 closed single-turn tasks (N=1 per cell): same work as Sol, 20.5× cheaper. **On failure escalate, never retry: the named test command stays red, or an acceptance criterion is not shown met by the output of a command → hand that ticket to Sol, do not send it back to Luna.** A criterion nobody can check by running something is not an AC, and its task was never closed. A second Luna pass on the same failure is what turns a 20× saving into three rounds at Sol's price. Long context ONLY for EXTRACTION — finding explicitly marked places in a big input (9/9 at 164K); never for resolving references between similar fragments (vendor MRCR: Luna 41.3% vs Sol 91.5%, untested here).
++- **Sol medium** (`gpt-5.6-sol`) — OPEN task on the Codex pool: research, arguing with a review, architecture; also empirical measurements/benchmarks and long mechanical protocols or bulk edits where exact tool execution matters — these two take Sol even when the task is closed. Measured: Sol falsified bad hypotheses from live data and had 0 printed-tool-call failures versus 9 on Opus. Closed work goes to the `worker` role (manifest effort `high`), never to `full-cycle` (`xhigh`): on the two closed tasks measured, xhigh cost ×2.04 and ×1.13 without changing the verdict.
++- **Spark** (`gpt-5.3-codex-spark`) — closed task on its OWN pool: take it over Luna when the Codex pool is the binding constraint AND all hold: text-only + ≤2 files + clear AC + explicit test command + context <128k. Same escalation as Luna, plus: the ticket needs a file outside the ones you named → Sol. NOT for research, architecture, vision, security.
++- **Orchestrators** — always Opus 5.
++</model-routing>
+diff --git a/tests/test_default_pipeline.py b/tests/test_default_pipeline.py
+index 31be4f816e66a58b6aa4d16febeda9535b9e3a63..8138379ee943d957655d1b36398e2013a3b053ad 100644
+--- a/tests/test_default_pipeline.py
++++ b/tests/test_default_pipeline.py
+@@ -122,21 +122,41 @@ class TestDefaultRolesResolve:
+     def test_modules_resolve_from_manifest(self):
+         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
+         assert P.get_role(PIPELINE, "orchestrator").modules == [
+-            "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
+-            "task-management", "self-improvement", "memory-search",
++            "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
++            "background-jobs", "task-management", "self-improvement", "memory-search",
+         ]
+         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
+-            "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
+-            "task-management", "self-improvement", "memory-search",
++            "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
++            "background-jobs", "task-management", "self-improvement", "memory-search",
+         ]
+         assert P.get_role(PIPELINE, "worker").modules == [
+             "git-workflow", "report-format", "self-improvement", "memory-search",
+         ]
+         assert P.get_role(PIPELINE, "full-cycle").modules == [
+-            "research-method", "git-workflow", "worker-lifecycle",
++            "model-routing", "research-method", "git-workflow", "worker-lifecycle",
+             "report-format", "self-improvement", "memory-search",
+         ]
+ 
++    def test_model_routing_reaches_only_spawn_capable_roles(self):
++        """Маршрутизация инлайнится ровно тем, кто умеет спавнить, и ровно из модуля (#203).
++
++        Якоря берутся ИЗ САМОГО модуля, а не выписаны руками: проверка по тегу-обёртке
++        и по паре фраз про Luna оставалась зелёной, когда в `base.md` копировали пункт
++        про Opus без тегов (Codex, раунд 2). Предел честно: дословную копию любого
++        пункта тест ловит, переписанную своими словами — нет.
++        """
++        module = P.prompt_path(PIPELINE, "modules/model-routing.md").read_text().strip()
++        bullets = [ln.strip() for ln in module.splitlines() if ln.startswith("- **")]
++        assert len(bullets) >= 5, "модуль потерял пункты — якоря стали слабее"
++        for role in ("orchestrator", "sub-orchestrator", "full-cycle"):
++            out = P.build_system_prompt(PIPELINE, role)
++            assert P.get_role(PIPELINE, role).can_spawn == ["*"]
++            assert out.count(module) == 1, f"{role}: маршрутизация должна прийти ровно из модуля"
++        worker_out = P.build_system_prompt(PIPELINE, "worker")
++        assert P.get_role(PIPELINE, "worker").can_spawn == []
++        for anchor in ["<model-routing>", *bullets]:
++            assert anchor not in worker_out, f"маршрутизация протекла воркеру: {anchor[:40]}"
++
+     def test_tg_emoji_for_v216_roles(self):
+         assert P.get_role(PIPELINE, "sub-orchestrator").tg.emoji == "🎯"
+ 

@@ -1,0 +1,260 @@
+diff --git a/docs/tasks/145/report.md b/docs/tasks/145/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..58cb6ff9c52d397a2e6f32907cd7e82421d0da87
+--- /dev/null
++++ b/docs/tasks/145/report.md
+@@ -0,0 +1,104 @@
++# #145 — 16 браузерных проверок не исполнялись при живом auth
++
++## Цифра, подтверждённая своей командой
++
++`pytest tests/test_frontend.py -q -p no:randomly -rs` на этой машине ДО правки:
++
++```
++....sssss..s...sss..s.ssssss                                             [100%]
++SKIPPED [1] tests/test_frontend.py:124: на http://localhost:8888 нет #agent-list — вероятно включён auth …
++SKIPPED [1] tests/test_frontend.py:128: …
++SKIPPED [1] tests/test_frontend.py:133: …
++SKIPPED [1] tests/test_frontend.py:139: …
++SKIPPED [1] tests/test_frontend.py:145: …
++SKIPPED [1] tests/test_frontend.py:361: …
++SKIPPED [1] tests/test_frontend.py:626: …
++SKIPPED [1] tests/test_frontend.py:635: …
++SKIPPED [7] tests/test_frontend.py:83: на http://localhost:8888 нет #agent-list — вероятно включён auth …
++SKIPPED [1] tests/test_frontend.py:801: http://localhost:8888/api/tm/tasks/112 ответил HTTP 401 (нужен стенд без auth с этой задачей)
++13 passed, 16 skipped in 13.34s
++```
++
++**16 из 29** — то есть 55% файла, а не 32%: цифра аудита (16 из 50) считала долю от всех
++браузерных тестов проекта, здесь же знаменатель — сам файл. Пропускались (все 16 поимённо):
++
++`test_dashboard_loads`, `test_sidebar_agents_visible`, `test_chat_input_exists`,
++`test_send_button_exists`, `test_usage_bar_visible`, `test_header_has_orch_tabs`,
++`test_left_panel_has_tabs`, `test_agent_info_panel_exists`, `test_no_js_errors`,
++`test_task_card_uses_real_long_description_and_shared_expandable_body`,
++`test_codex_successful_mcp_startup_status_is_hidden`,
++`test_native_codex_compact_renders_one_result_badge`,
++`test_codex_web_search_renders_queries_without_transport_json`,
++`test_codex_spawn_worker_renders_task_model_and_completion`,
++`test_codex_file_change_renders_structured_kind`, `test_codex_view_image_loads_eagerly`.
++
++## Решение: логиниться, а не поднимать стенд
++
++Выбран логин кредами из окружения. Второй вариант — свой сервер без auth — тянет за собой
++БД: `app.db.DB_PATH` вычисляется на импорте модуля, поэтому поднятый в общем прогоне
++инстанс работал бы по БОЕВОЙ базе (это уже записано в докстринге фикстуры). Пришлось бы
++городить отдельную базу, свой порт и lifespan — ради того, чтобы обойти форму из двух полей.
++Логин же добавляет 6 строк и заодно проверяет реальный путь юзера.
++
++Пароля в коде нет: `_ENV_DASHBOARD_AUTH` — снимок `os.environ` на импорте модуля,
++`dotenv_values()` (не `load_dotenv`, чтобы не мутировать окружение) — запасной источник для
++ручного прогона без systemd.
++
++**Грабля, стоившая отдельного прогона.** Первая версия читала `os.environ` внутри теста и
++всё равно скипалась: автоюзная фикстура `_hermetic_dashboard_env` (`tests/conftest.py:44`)
++НАМЕРЕННО стирает `DASHBOARD_*` и глушит `load_dotenv`, чтобы внутрипроцессные тесты не
++подцепили auth хозяина машины. Снимок на импорте снимается ДО фикстур, поэтому обе цели
++уживаются: in-process тесты по-прежнему герметичны, браузерные логинятся на внешний сервер.
++
++Тест задачи-карточки чинился отдельно: он тянул задачу `112` в scope `/mnt/data/Projects/…`
++— путь ноутбука, на этой машине такой задачи нет ни в одном scope (проверено запросом с
++cookie: 404 и для `/mnt/data/…`, и для `/home/kesha/orchestra`). Теперь берётся любая живая
++задача с описанием длиннее 180 символов из scope этого репозитория (`_repo_scope()` считает
++его от `git --git-common-dir`, потому что из worktree путь рабочей копии не равен scope).
++Приоритет и исполнитель тест задаёт сам — у случайной задачи они любые.
++
++## Стало
++
++```
++.............................                                            [100%]
++29 passed in 20.24s
++```
++
++**16 скипов → 0; исполняются все 29.**
++
++## Мутации: тесты действительно исполняются и различают исход
++
++**A. Ломаем логин** (`_dashboard_credentials` возвращает неверный пароль) — красными
++становятся ровно те 16:
++
++```
++8 failed, 13 passed, 8 errors in 197.19s
++FAILED test_no_js_errors                                    ERROR test_dashboard_loads
++FAILED test_task_card_uses_real_long_description_…          ERROR test_sidebar_agents_visible
++FAILED test_codex_successful_mcp_startup_status_is_hidden   ERROR test_chat_input_exists
++FAILED test_native_codex_compact_renders_one_result_badge   ERROR test_send_button_exists
++FAILED test_codex_web_search_renders_queries_…              ERROR test_usage_bar_visible
++FAILED test_codex_spawn_worker_renders_task_model_…         ERROR test_header_has_orch_tabs
++FAILED test_codex_file_change_renders_structured_kind       ERROR test_left_panel_has_tabs
++FAILED test_codex_view_image_loads_eagerly                  ERROR test_agent_info_panel_exists
++```
++
++Это доказывает, что скипы не превратились в пассы «мимо тела»: без успешного логина ни один
++из 16 пройти не может.
++
++**B. Ломаем продуктовый код**, который читает тест карточки (`_TASK_PRIORITY_META[1]`,
++иконка `🟠` → `🟣` в `app/static/js/app.js`):
++`AssertionError: Locator expected to contain text '🟠 High' … unexpected value "… Priority: 🟣 High …"`.
++
++**C. Ломаем вход живой страницы** (второй `compact done` в
++`test_native_codex_compact_renders_one_result_badge`):
++`AssertionError: Locator expected to have count '1' - unexpected value "2"` — тест реально
++считает то, что нарисовал ЖИВОЙ `app.js` сервера, а не заглушку.
++
++Все три мутации откачены обратной точечной заменой, `grep -c MUTANT` = 0 в обоих файлах.
++
++## Что попутно видно, но не чинил (вне объёма)
++
++`expect(chat).to_contain_text("🟠 High")` — подстрочное сравнение: мутация `High` → `Highest`
++его НЕ роняет (прогон был зелёным), поймала только замена иконки. Ассерт стоит сделать
++точным, но это правка чужой проверки, не моей задачи.
+diff --git a/docs/workers/frontend.md b/docs/workers/frontend.md
+index b62d8295dc39f158c9b1de9d4030283283a9ffd8..de8f458f7054037ead518b076f444b2555463958 100644
+--- a/docs/workers/frontend.md
++++ b/docs/workers/frontend.md
+@@ -62,3 +62,5 @@
+ - Обрезанный `tool_result` рисуется СВОИМ узлом-плашкой (`🖼 [Image result]` + маркер), а загруженный целиком вливается в карточку инструмента и своего узла с `data-chat-log-id` НЕ создаёт. Зонд, который ищет узел по id после «загрузить целиком», вернёт `None` и это выглядит как провал — картинки считать по всему `#chat` (`img`, `naturalWidth`), а не по узлу.
+ - `light-dark(<светлое>, <тёмное>)` — ПЕРВЫЙ аргумент для СВЕТЛОЙ схемы (MDN: «used when color-scheme is light or if no preference is set»). Проверяется за один прогон: `browser.new_page(color_scheme="light"|"dark")` + `getComputedStyle(...).backgroundColor`. Перепутанный порядок не падает и не подсвечивается — артефакт просто рисуется наоборот (#124).
+ - Любой круг `JSON.parse` → `JSON.stringify` теряет целые больше 2^53 (`…147` → `…200`) и нормализует литералы (`1.0` → `1`, `A` → `A`). Если задача — ПОКАЗАТЬ файл, форматируй ТЕКСТ (`_prettyJsonText` в `utils.js`: сканер с учётом строк и экранирования), а `JSON.parse` оставляй только проверкой валидности. Замер #136: на 171 json репозитория раскладка не изменилась ни в одном, разошлись 46 — и все ровно на литерале числа.
++- Браузерные тесты в `tests/test_frontend.py` бьют по ЖИВОМУ :8888 и логинятся сами: креды снимаются в `_ENV_DASHBOARD_AUTH` НА ИМПОРТЕ модуля, потому что автоюзная `_hermetic_dashboard_env` (`tests/conftest.py:44`) стирает `DASHBOARD_*` из `os.environ` и глушит `load_dotenv` ради герметичности внутрипроцессных тестов. Читать креды внутри теста бесполезно — увидишь пустоту и решишь, что их нет в окружении (#145, потерянный прогон). Запасной источник — `dotenv_values()`, он не мутирует окружение.
++- Тест «не исполняется ли он вхолостую» проверяется мутацией НЕ его ассерта, а его предусловия: сломал логин → 16 тестов из скипов стали 8 failed + 8 errors. Мутация ассерта доказывает только, что строка сравнения жива.
+diff --git a/tests/test_frontend.py b/tests/test_frontend.py
+index 7b3ec6401114d65ce39395a00768503a3e971ffd..e49b6103c583d631dd865905a9b57ca3ec5a0983 100644
+--- a/tests/test_frontend.py
++++ b/tests/test_frontend.py
+@@ -6,6 +6,7 @@ Run: pytest tests/test_frontend.py -v
+ 
+ import os
+ import re
++import subprocess
+ from pathlib import Path
+ 
+ import pytest
+@@ -59,13 +60,33 @@ async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
+     assert "content-security-policy" not in response.headers
+ 
+ 
++# Снимок ДО автоюзной `_hermetic_dashboard_env` (tests/conftest.py:44): она стирает
++# DASHBOARD_* из os.environ, чтобы ВНУТРИПРОЦЕССНЫЕ тесты не подцепили auth хозяина
++# машины. Здесь задача обратная — залогиниться на ВНЕШНЕМ сервере, поэтому креды
++# читаем на импорте модуля, до фикстур. В коде их нет, только имена переменных.
++_ENV_DASHBOARD_AUTH = (os.environ.get("DASHBOARD_USER"),
++                       os.environ.get("DASHBOARD_PASSWORD"))
++
++
++def _dashboard_credentials():
++    """Логин/пароль из окружения; ручной прогон без юнита — из `.env` рядом."""
++    user, password = _ENV_DASHBOARD_AUTH
++    if password:
++        return user, password
++    try:
++        from dotenv import dotenv_values   # не трогает os.environ, в отличие от load_dotenv
++    except ImportError:
++        return None, None
++    values = dotenv_values()
++    return values.get("DASHBOARD_USER"), values.get("DASHBOARD_PASSWORD")
++
++
+ def _goto_dashboard_or_skip(page: Page):
+-    """Открыть развёрнутый дашборд или пропустить тест, назвав причину.
++    """Открыть развёрнутый дашборд, при живом auth — залогиниться.
+ 
+-    Эти проверки требуют РАЗВЁРНУТОГО дашборда без auth (см. докстринг модуля),
+-    и до сих пор они об этом молчали: на CI по ``BASE`` нет никого → ERROR на
+-    setup, у владельца там живой сервис с включённым auth → отдаётся страница
+-    логина. Отсюда красный CI с 9 июня — со дня появления этих тестов.
++    Раньше включённый auth означал скип: на боевой машине он включён всегда,
++    и 16 браузерных проверок печатались зелёными, ничего не проверив (#145).
++    Логинимся кредами из окружения; их нет — скип с этой причиной, а не с общей.
+ 
+     Поднять инстанс прямо здесь нельзя: ``app.db.DB_PATH`` вычисляется на
+     импорте модуля, поэтому в общем прогоне такой сервер работал бы по БОЕВОЙ
+@@ -75,13 +96,22 @@ def _goto_dashboard_or_skip(page: Page):
+         resp = page.goto(BASE, wait_until="domcontentloaded")
+     except Exception as exc:
+         pytest.skip(f"дашборд на {BASE} недоступен ({type(exc).__name__}); "
+-                    "укажи ORCHESTRA_TEST_BASE на развёрнутый стенд без auth")
++                    "укажи ORCHESTRA_TEST_BASE на развёрнутый стенд")
+     if resp is None or resp.status != 200:
+         status = "нет ответа" if resp is None else f"HTTP {resp.status}"
+         pytest.skip(f"дашборд на {BASE} ответил {status}")
+     if page.locator("#agent-list").count() == 0:
+-        pytest.skip(f"на {BASE} нет #agent-list — вероятно включён auth и отдаётся "
+-                    "страница логина; этим тестам нужен стенд без auth")
++        if page.locator('input[name="password"]').count() == 0:
++            pytest.skip(f"на {BASE} нет ни #agent-list, ни формы логина — "
++                        "по этому адресу отвечает не дашборд")
++        user, password = _dashboard_credentials()
++        if not user or not password:
++            pytest.skip(f"на {BASE} включён auth, а DASHBOARD_USER/DASHBOARD_PASSWORD "
++                        "нет в окружении — экспортируй их или положи рядом .env")
++        page.fill('input[name="username"]', user)
++        page.fill('input[name="password"]', password)
++        page.click('button[type="submit"]')
++        page.wait_for_selector("#agent-list", timeout=20000)
+     return resp
+ 
+ 
+@@ -121,6 +151,15 @@ def dashboard_page(dashboard_browser: Browser):
+     page.close()
+ 
+ 
++def _repo_scope():
++    """Scope сервера — путь РЕПОЗИТОРИЯ, а не рабочей копии: из worktree они разные."""
++    common = subprocess.run(
++        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
++        cwd=Path(__file__).parent, capture_output=True, text=True, check=True,
++    ).stdout.strip()
++    return str(Path(common).parent)
++
++
+ def test_dashboard_loads(dashboard_page: Page):
+     expect(dashboard_page).to_have_title("🎼 Orchestra")
+ 
+@@ -785,25 +824,30 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
+         )[0]
+     )
+     api_page = dashboard_browser.new_page()
+-    # Тянет РЕАЛЬНУЮ задачу с развёрнутого сервера, да ещё по пути ноутбука.
+-    # Держится на трёх внешних условиях сразу: сервис поднят, auth выключен,
+-    # задача 112 существует именно в этом scope. Нет их — это не провал кода.
+-    try:
+-        response = api_page.request.get(
+-            f"{BASE}/api/tm/tasks/112",
+-            params={"scope": "/mnt/data/Projects/Python/orchestra"},
+-        )
+-    except Exception as exc:
+-        api_page.close()
+-        pytest.skip(f"API на {BASE} недоступен ({type(exc).__name__})")
+-    if response.status != 200:
++    # Нужен РЕАЛЬНЫЙ длинный текст, а не выдуманный. Раньше тест держался на
++    # задаче 112 в scope ноутбука — на другой машине её нет никогда. Берём любую
++    # длинную из scope этого репозитория, залогинившись как обычный юзер.
++    _goto_dashboard_or_skip(api_page)   # заодно кладёт cookie сессии в контекст
++    scope = _repo_scope()
++    listing = api_page.request.get(f"{BASE}/api/tm/tasks", params={"scope": scope})
++    if listing.status != 200:
+         api_page.close()
+-        pytest.skip(f"{BASE}/api/tm/tasks/112 ответил HTTP {response.status} "
+-                    "(нужен стенд без auth с этой задачей)")
+-    task = response.json()
++        pytest.skip(f"{BASE}/api/tm/tasks?scope={scope} ответил HTTP {listing.status}")
++    task = None
++    for item in listing.json()["tasks"][:25]:
++        detail = api_page.request.get(f"{BASE}/api/tm/tasks/{item['par']}",
++                                      params={"scope": scope})
++        if detail.status == 200 and len(detail.json().get("description") or "") > 180:
++            task = detail.json()
++            break
+     api_page.close()
++    if task is None:
++        pytest.skip(f"в scope {scope} нет задачи с описанием длиннее 180 символов — "
++                    "тесту нужен реальный длинный текст")
+     assert len(task["description"]) > 180
+-    task.update({"assignee": "frontend", "task_id": 987})
++    # Из сервера берём только длинное описание; остальные поля задаём сами —
++    # приоритет и исполнитель у случайной живой задачи любые
++    task.update({"assignee": "frontend", "task_id": 987, "priority": 1})
+ 
+     page = dashboard_browser.new_page(viewport={"width": 1440, "height": 900})
+     page.set_content(

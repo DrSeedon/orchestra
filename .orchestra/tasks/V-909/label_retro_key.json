@@ -1,0 +1,44 @@
+{
+ "retro-07": {
+  "receipt": "review-receipt:70dda4c9-f39d-462b-b48c-8a7f86f99f2a",
+  "task": "513",
+  "mode": "exec",
+  "verdict": "APPROVED \u2014 with the non-blocking corrections above."
+ },
+ "retro-06": {
+  "receipt": "review-receipt:7d991b8c-588b-4054-9580-99437db3d7b6",
+  "task": "513",
+  "mode": "exec",
+  "verdict": "Round 2: NEEDS CHANGES due to the stale excluded-oracle refe"
+ },
+ "retro-05": {
+  "receipt": "review-receipt:3a728e9e-f095-4932-bd35-12b1b18593bf",
+  "task": "514",
+  "mode": "exec",
+  "verdict": "NEEDS_REVISION \u2014 \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u0432\u0435 \u0438\u0441\u043f\u0440\u0430\u0432\u0438\u043c\u044b\u0435 \u043e\u0448\u0438\u0431\u043a\u0438 \u0432 \u0447\u0438\u0441\u043b\u0430\u0445; \u043e\u0441\u0442\u0430"
+ },
+ "retro-04": {
+  "receipt": "review-receipt:36d01ac6-8a79-4770-a3dc-c08a7198231e",
+  "task": "515",
+  "mode": "exec",
+  "verdict": "**CHANGES REQUESTED.** \u0410\u0440\u0438\u0444\u043c\u0435\u0442\u0438\u043a\u0443 F1 \u043d\u0443\u0436\u043d\u043e \u0438\u0441\u043f\u0440\u0430\u0432\u0438\u0442\u044c/\u043d\u043e\u0440\u043c\u0430\u043b\u0438"
+ },
+ "retro-01": {
+  "receipt": "review-receipt:82381f94-3461-4d09-a6ea-66818ce5a11e",
+  "task": "515",
+  "mode": "implementation",
+  "verdict": "NEEDS CHANGES."
+ },
+ "retro-03": {
+  "receipt": "review-receipt:a16d02cb-cdf2-4da6-8127-9456fbf031f5",
+  "task": "533",
+  "mode": "implementation",
+  "verdict": "Approve with suggestions. No blocking findings."
+ },
+ "retro-02": {
+  "receipt": "review-receipt:78fc7880-f3ed-4364-b085-465bfbeb1c13",
+  "task": "537",
+  "mode": "implementation",
+  "verdict": "NEEDS WORK \u2014 the post-proof resume race can create concurren"
+ }
+}
