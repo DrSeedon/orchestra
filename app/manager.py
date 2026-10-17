@@ -503,6 +503,8 @@ class SessionManager:
             return
         if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
             self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
+        if not getattr(self, '_rules_link_task', None) or self._rules_link_task.done():
+            self._rules_link_task = asyncio.create_task(self._periodic_rules_link())
 
     @staticmethod
     def _ownership_prompt(owned_dirs: list[str]) -> str:
@@ -2413,6 +2415,17 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"Periodic worktree cleanup failed: {e}")
 
+
+    async def _periodic_rules_link(self) -> None:
+        from app import rules_link
+        while True:
+            try:
+                await rules_link.sweep(self)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"rules_link sweep failed: {e}")
+            await asyncio.sleep(rules_link.SWEEP_SECONDS)
 
     async def drain_restart_persistence(self) -> dict:
         """Flush every current session's queued persistence before restart signalling."""
