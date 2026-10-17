@@ -1,0 +1,15 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P11/app/routes/sessions.py /home/kesha/bench914/runs/P11/app/routes/sessions.py
+--- /home/kesha/bench914/fx/P11/app/routes/sessions.py	2026-10-14 10:28:27.000000000 +0200
++++ /home/kesha/bench914/runs/P11/app/routes/sessions.py	2026-10-17 11:26:47.751145444 +0200
+@@ -3319,7 +3319,10 @@
+                                 if binding["task_run_reopened"] else "already_current"
+                             ),
+                             "branch": previous_branch,
+-                            "task_status": {"ok": True, "result": binding["task"]},
++                            **(
++                                {"task_status": {"ok": True, "result": binding["task"]}}
++                                if binding["task_run_reopened"] else {}
++                            ),
+                             "waited_seconds": round(waited_seconds, 2),
+                             "message": (
+                                 "task run reopened for the existing task/branch binding"

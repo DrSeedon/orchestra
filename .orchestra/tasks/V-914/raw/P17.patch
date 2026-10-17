@@ -1,0 +1,44 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P17/app/pipeline.py /home/kesha/bench914/runs/P17/app/pipeline.py
+--- /home/kesha/bench914/fx/P17/app/pipeline.py	2026-08-14 11:50:59.000000000 +0200
++++ /home/kesha/bench914/runs/P17/app/pipeline.py	2026-10-17 11:27:12.695066818 +0200
+@@ -694,8 +694,8 @@
+     Режим из ``PipelineConfig.validation``:
+ 
+     * **fail-closed** (наш дефолт) — неизвестный parent/child → ValueError.
+-    * **fail-open** (дух апстрима) — неизвестные роли пропускаются; но явный
+-      ``can_spawn``-whitelist при ИЗВЕСТНЫХ ролях действует в обоих режимах.
++    * В обоих режимах неизвестные роли запрещены; fail-open влияет только на
++      прочие проверки. ``can_spawn``-whitelist действует для известных ролей.
+ 
+     Корень (parent пуст/None) — спавн от юзера/UI, всегда разрешён. Пустой
+     ``child_role`` (генерик-воркер) разрешён только если ``allow_unrouted_workers``.
+@@ -710,11 +710,9 @@
+         return
+     parent = cfg.roles.get(parent_role)
+     if parent is None:
+-        if fail_closed:
+-            raise ValueError(
+-                f"unknown parent role '{parent_role}' in pipeline '{pipeline_name}'. "
+-                f"known={known_roles(pipeline_name)}")
+-        return  # fail-open: неизвестный parent → пропуск
++        raise ValueError(
++            f"unknown parent role '{parent_role}' in pipeline '{pipeline_name}'. "
++            f"known={known_roles(pipeline_name)}")
+     if not child_role:  # генерик-воркер (роль не указана)
+         if not parent.allow_unrouted_workers:
+             raise ValueError(
+@@ -722,11 +720,9 @@
+                 f"allowed: {parent.can_spawn or '(none)'}")
+         return
+     if child_role not in cfg.roles:
+-        if fail_closed:
+-            raise ValueError(
+-                f"unknown role '{child_role}' in pipeline '{pipeline_name}'. "
+-                f"known={known_roles(pipeline_name)}")
+-        return  # fail-open: неизвестный child → пропуск
++        raise ValueError(
++            f"unknown role '{child_role}' in pipeline '{pipeline_name}'. "
++            f"known={known_roles(pipeline_name)}")
+     if "*" in parent.can_spawn:
+         return
+     if child_role not in parent.can_spawn:

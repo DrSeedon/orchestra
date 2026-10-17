@@ -1,0 +1,21 @@
+{
+ "task": "P05",
+ "commit": "baaa4858",
+ "name_req": false,
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "test_tail": "................................................                         [100%]\n48 passed in 102.80s (0:01:42)\n",
+ "paid_tokens": 14906,
+ "output_tokens": 472,
+ "input_tokens": 98018,
+ "cache_read_tokens": 83584,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "patch_lines": 16,
+ "seconds": 12.1,
+ "contamination_flag": true,
+ "cost_usd_api_equiv": 0.00251524,
+ "final_text": "Updated `run_pytest` so it reports `pytest_unavailable` only when stdout is empty and stderr exactly matches the missing-pytest message using either the full executable path or its basename. All other output follows the existing pass/fail classification."
+}

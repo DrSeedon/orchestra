@@ -1,0 +1,21 @@
+{
+ "task": "P20",
+ "commit": "8b6c8b50",
+ "name_req": true,
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "test_tail": "..............................                                           [100%]\n30 passed in 10.96s\n",
+ "paid_tokens": 12392,
+ "output_tokens": 1126,
+ "input_tokens": 125186,
+ "cache_read_tokens": 113920,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "patch_lines": 38,
+ "seconds": 17.5,
+ "contamination_flag": false,
+ "cost_usd_api_equiv": 0.0028288000000000002,
+ "final_text": "Added a `regex_blowup` classification for `grep`, `egrep`, `ugrep`, and `rg` patterns with bounded repetition upper limits of 20 or more, plus an explanatory block message. Narrow repetitions and ordinary patterns remain allowed; the existing exception handler still fails open."
+}

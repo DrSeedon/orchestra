@@ -1,0 +1,15 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P16/app/routes/sessions.py /home/kesha/bench914/runs/P16/app/routes/sessions.py
+--- /home/kesha/bench914/fx/P16/app/routes/sessions.py	2026-09-03 08:34:08.000000000 +0200
++++ /home/kesha/bench914/runs/P16/app/routes/sessions.py	2026-10-17 11:27:04.202093592 +0200
+@@ -905,9 +905,9 @@
+                 origin="agent", senders=(req.sender,), subtype="http_send",
+             )
+         else:
+-            from app.auth import validate_session
++            from app.auth import is_auth_enabled, validate_session
+ 
+-            operator = bool(
++            operator = not is_auth_enabled() or bool(
+                 request is not None
+                 and validate_session(request.cookies.get("session", ""))
+             )

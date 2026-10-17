@@ -1,0 +1,485 @@
+00abfceeb34b87213a0458b173938bec87460d5b V-902: platform reconciles AGENTS.md/CLAUDE.md per project (symlink, heal, alert on divergence)
+ef901c24afcc32e909c5ca1421e1e4441c652415 V-897: #V-897: cap swap use in agent cgroup
+8ef185174d5b6e86a81cbfb42240bd574d8599c8 V-889: role catalog states who can spawn, derived from can_spawn
+ecfd16cbc4087b5521d098443450b9e72b804740 V-887: #V-887: mandatory positive estimate for new or changed checklist steps
+89d7c8090461293cfc3450870c476fdada744634 V-886: #V-886: wake or idle a waiting target when its last watcher ends silently
+6f46b5f4a5f55fb3eb524b2372b11a69c7486f0f V-883: #V-883: Info lists only working workers; no reminder for fully completed checklist
+10698051c6f7f9358c27f90ff9a08a419142f165 V-882: #V-882: ignore finished listener superseded by a continuation turn
+344cc886677e5ffff861ee362cd67e74ca71445a V-875: #V-875: step estimates, persistent per-step timing, estimate-based reminders
+edfac4356acef985722568927c078cd58327ca24 V-876: WIP #V-876: design tokens, theme.js, model/status badges from one source
+b45042823d76ff5b116cbef866d98e6747594ed3 V-873: remove proposal cards and child work summary
+f04e662d5760a438c44fb16a258f55fb17b4dc43 V-872: #V-872: union append-only gitignore merge conflicts
+f8bdbeee326e2c72f7f8199e7fe630c719178b44 V-871: show full proposal details and deliver owner decisions
+e1b2ee6bbd3be0399dd103745c52ac18458845bc V-870: #V-870: reproduce duration failure on Chromium chunked WebM
+66121be42cfb12018604435bc0414408f78e2989 V-858: implement dashboard info panel and task approvals
+94c38aba7c11f94bb3537eff56ef5c1b3b0cb5c1 V-866: #V-866: clarify quota timing in delivery receipts
+0cdc5d5635e0ae34acc7e02e87eb1e772c2ed2ac V-862: #V-862: persist quota gate expiry override
+eeaf5b2e753733def8a00be9dd7e126451400433 V-861: #V-861: cover changed-test mutation gate outcomes
+642990877e3bd9c9b6326ead6070012272e5eea5 V-856: #V-856: distinguish interruptions and stale listeners
+1383b04ce4fdad68727d263258414f120f699401 V-855: #V-855: cover pytest config isolation for foreign worktrees
+aa7a76100c97db8b3bf215a0c79ac8720773d4bb V-847: #V-847: parallelize full pytest and isolate fixtures
+69a88105ca780de1f1bdc336b3e752ddda140f24 V-853: #V-846: keep recursive search usable without rg
+57f85fcd1cb3e54f003991467a37ca5da49258c1 V-846: #V-846: enforce shell wait and search policy
+b52b2aa0132e846377be6e26a586ae6fbf93ac34 V-851: #V-851: перенос V-831: live tool streaming
+25403c01836d813496d59534c7301f0520b515ba V-850: #V-848: restore bounded identity-safe merge wait
+57156329da75ea16f9bb10c88ba3c6a7910f1f14 V-848: #V-848: profile merge phases and reject busy workers
+d5e33acfdc0268b487fa3aff20b5291f5d4043aa V-841: #V-841: bound worker log snapshots on server
+8dd5befc393658a2f9bb6f55c185b13fa060f40a V-845: #V-843: preserve same-task switch no-op contract
+4a73b690fbd88ac4e50271e53c9b932a370a9dcc V-843: #V-843: reopen task run after binding release
+4bd9c2eaf54226099c55f455fcca3c08d0e3016f V-821: #V-821: sparse worker worktrees for all projects: manifest rule, task-switch retarget, merge refusal with fix, converter, prompt, tests
+cebb03d02bb6158a80d4172b8a9c2a1921aff099 V-839: #V-839: accept scoped file delivery keys
+ed26698731cef7326f9a092bd3f1271a2ebc04d2 V-837: #V-837: clean retired managed skill copies
+e13658c20ed76bbd0df6872d72ea22d9a0bd5cf9 V-833: #V-833: guard catalog migration against worktrees
+0059e6757edf3badf7267c23def512d03a4aef06 V-621: разбить общий каталог проектов на файлы по scope
+5efbf0ceca8116c5bc9c1f4d071172e5227fbe5b V-828: #V-828: surface artifact publication failures
+577a8393046f0705f6113f6004e3a2fd5dd5f89d V-819: rebuild shared skills and deployment guidance
+095aef66a8a6a78f1015fdc9bfb2a48e6d27c9ee V-817: #V-817: preserve raw file links after worktree removal
+0275191874c42f8268a8b4b43ac0abb3b7f4842c V-815: #V-815: classify structured tool outcomes
+cff4e025b4267af4a2575cded50170fd13892e00 V-810: #V-810: release and cancel quota-held initial tasks
+fe66b637d838e09d7b7bd1d43392283977b9f4e9 V-809: #V-809: scope pytest error series by project
+ea016820b6dff65dc7473cf7d27a4dd214c63ea3 V-808: #V-808: validate spawn delivery IDs before creation
+85840339e12c51b7e7109dd6b0431433772d3307 V-805: #V-805: show Telegram waiting topic icon
+293205a50dc34563bb9760abdf8006555770ebc1 V-804: #V-804: show waiting state in Telegram topics
+62174b96ba37750d33966e32a7319a601e58f8dd V-800: #V-800: route Claude API credits only to chosen workflows
+674af2daca8b64888d49f90b78a485c7b4f21c9d V-798: #V-798: disable workflow balancer without cgroup delegation
+bfecd10bffde5e05fd2fbfc0d12249833a1283ec V-797: #V-797: report quota-held initial task transitions
+df6d00c6ae368f0d5409d2d66b6f041231a812a2 V-791: #V-791: attribute mutation failures to source changes
+53006298ec4deb041e0cc4d265d76d68ad64c811 V-788: #V-788: load persisted session for initial delivery
+62e76da504520541efbcfe235cc295d38b59abfb V-782: shared workflow admission scheduler and agent cgroup isolation
+7a4e3b2d8c0edfdd7028e7edcc502e6a6d9258b2 V-785: #V-785: add Telegram topic status regressions
+8511e80185e15ae7e7b38289c3e50209b329fbd1 V-774: WIP #V-774: record live credit probe and billing verification blocker
+8dc3d098b76994b07ca1faa9942f7acf342b675b V-779: #V-779: speed dashboard analytics and bootstrap
+baaa4858e2c52c2e48ec57feece45e6bc264ab8d V-784: #V-784: classify pytest startup errors precisely
+d3a428cfb391a78a0a176fccde19128750d65d5e V-783: #V-783: use uv test environment and track error growth
+e7c88c96919778c5cb84e16c285f3ae666fd51b0 V-781: #V-781: refresh taskless worker branches from main
+e47c6686662e23a366557deca7d4e5278447a639 V-780: #V-780: support dynamic workflows from linked worktrees
+023861fce80a8cbb9fb515619bb8019b9d1f152a V-776: #V-776: add readable dynamic workflow cards
+bce0fe64a2c3bad7c48eefccc21baff181d9eeec V-778: #V-778: expose delivery keys on ambiguous transport errors
+57bd7e744b8357f5c5d0beaa27ce0217da1f386d V-773: #V-773: harden managed Claude Bash classification
+064f7829560ed067180bafed38b88cebc6d1083a V-768: #V-768: keep Claude quota threshold monotone within weekly window
+89919bb503b295b3c10999b1fa73b53bf0ddd61f V-765: #V-765: add topic toggle regression test
+b53fd65a2d05504e62c72a4382931bea5efbb4f4 V-763: #V-761: keep timing schema migration and related tests safe
+93e4b35e7bd6b32e51d72798be466c37793f57a4 V-762: #V-760: mark uncertain price estimates structurally
+e53ba344f79b8982286bdb2cb175da5b5d093dad V-760: #V-760: correct Claude cached cost pricing
+0cfd0e438249d594c6d72b272e8727654320f9f9 V-761: #V-761: add per-model generation speed analytics
+b02e52f2305d13ce2039956044b3a15d01e11ca1 V-757: #V-757: add Claude Haiku 5.5
+17a7d398b97ac538f4ac23bd34beb80015ded307 V-756: #V-756: fix repeated workflow prompts and wakes
+f5084420613604a1d41d96dc8c8767d043e9e388 V-755: #V-755: overlay changed test data in mutation gate
+86bb4e238ac6a37a9945d4d1878324e217bb7e83 V-753: #V-753: fix dashboard TG topic toggle persistence
+63760bf687b03087b384f3ed1ec35faefca08842 V-750: #V-750: remove receipt-only MCP status tools
+5a5f21b6a324e4bf045e12098e0240ad4e17ba12 V-748: #V-748: notify senders about failed file deliveries
+af47aff79026c67aa04b108106bf878d40a50f45 V-745: #V-745: isolate quota history writes from probes
+cd2e62e7238b8b64608bcfa244efd70f09399dd1 V-744: #V-744: shape Claude quota line by local day and night
+75788329b449f7e6e17d20a0375e69e240a3eb2e V-743: #V-743: preserve historical quota line rules
+a3d7866537ac5e31eb8ef60c133e99c5774d27db V-741: #V-741: notify senders when message delivery fails
+1bfcb256b1e1c6373c22e438ac9de4fced7e1916 V-740: #V-740: suppress owner turn auto-reports
+25eb55af940213b3974d03c312c4deadd29417c7 V-739: #V-739: curate model catalog and preserve session compatibility
+382660ab41b6fd6af8f3cfbadd304facda149d21 V-738: #V-738: add staged dynamic workflow execution
+b1be3a1e5a8123b3078fe5b0ae05b9bd512406a4 V-737: #V-737: honor force task switch contract
+6ba1141c917b59244f59e9820152862571a11c5f V-736: #V-736: restore CI on main
+b4b9c4ca84a1f0e52629f22fc45ecb709d95c44e V-735: #V-735: align quota chart with Claude weekly shift
+a3508f7afb25053c631209f1ceb69e1863ba7c6e V-732: #V-732: shift Claude weekly quota line by eight hours
+607d566ee332de6ee84c737643f61d9d3db0e301 V-726: #V-726: document blocked Codex CLI upgrade
+3582eea6706703f4d5c466d75e77edf970bbee83 V-699: WIP #V-699: measure worktree bottleneck and clarify retries
+4bc0a84b5acd22fe4885a8f5db31ccf3bb5e9ece V-703: #V-703: fix Codex runtime recovery and quota errors
+2ee5279f04632d0f76afc6ed74cf8d5e8c3ee318 V-722: #V-701: stop replying in unmapped Telegram topics
+038f06b7b20ff1c4153a287f146b67482c76fb10 V-720: #V-720: add one-call dynamic workflows
+ea58b7dbe01892f1f7e5a21a9cf982efc2ef5b9c V-702: #V-702: fix merge gate outcomes and recovery routes
+5365e1ab413ee5d6af7e3a72ce556111f8e94e26 V-701: #V-701: fix Telegram media routing
+6057d1e11d6ff7e040f8a929b9b94b9b6db17328 V-706: #V-706: fix session API and delivery lifecycle
+98238cb42cf1564bb5b14a831b6021214a00629d V-718: #V-718: remove project memory search
+f163b3fa56e5b8c74d8b663a2e54f1ace344fc1c V-704: #V-704: fix layout migration and run cwd defects
+7e49195e6f3c3a50c91d3ffa4cb5e5f60c3d6c69 V-705: #V-705: bind orchestrator tasks and supersede stale runs
+43455e2b7f8adb352370fcfa14ee7abfdb6b425c V-707: #V-707: preserve exact provider rate limits
+8dd91d5e11731793faacdc6ba1dd5f6b8711b3c1 V-700: #V-700: fix dashboard CI and i18n issues
+af2446b672fdad5f0a44d467f7f039122f388453 V-647: error_watch — чтение агентом несуществующего файла считается шумом
+2db735dda46e5eaeac4ceb979e806d85885351c7 V-695: spawn_worker resumes a cut-off spawn and delivers the initial task exactly once
+c6cc8a5dd71209b01d6b18e2ee728677ff93ced5 V-692: keep live limits message updated
+8155e9d1f58927d8dd0a057ed1cb71b524793aa3 V-688: add dashboard video playback and GIF previews
+01eeb113a6b11f1219f76139c8ad01771129d496 V-683: компакт по простою у katya-work-orchestrator только с 80% контекста
+b09a8450edae2eecbfb54d41a4ef606fcc74f757 V-681: #V-681: MP4 в Telegram уходит видео с превью и откатом в документ
+102fd30f23005ba5ad79f5ddda650895f6d21be2 V-682: удалить тип bg-задания idle; старые idle-строки гасятся при старте
+951d0d470408f6248993eb2915efe29db67367cc V-680: durable сигнал конца хода воркера родителю вместо idle-сторожа
+5222d6ef4199de48af8042fbbe4e2012dc7f4f7d V-678: durable-очередь доставок за гейтом квот (WAITING_QUOTA), релизер, отмена, без таймеров повтора
+4321ff7a8e2ca184f20b7da2ee00ba9bbd23783a V-621, V-679: разбить общий каталог проектов на файлы по scope
+dc993debec5e2393a991e17f51d7be97ee6c1717 V-614: убрать тень-гейт DONE без проверки — за неделю 0 совпадений с провалами мержа
+87f4ffd1e875fb3517dee3c6234e248e3b9f5dcd V-672: #V-672: group compaction activity in chat
+c4d36776de63428704fdaddfbefefe1b01961b4e V-658: WIP #V-658: switch default Sonnet to 5.5 pending full tests
+402715d76122879322fbe2f688d2267c749cea39 V-653: #V-653: fix timer, cron timeout, and migration
+8aa733f5a3051568b2ac4103a3a94ad520d772b9 V-652: #V-652: add quota time timeline
+3daabaacaa83f4b12e650ee4ce526f1472f562af V-650: #V-650: run compact audit in session
+9ceca3f46c753a20fb50a2d8a7e1df9c1e88d860 V-647: #V-647: add scheduled recurring error detector
+3f20c72f8600b76a56b7db6633f5f33ac01a34cd V-645: #V-643: агентный аудит сводки при компакте Claude-сессий (AUDIT+FINAL, фолбэк, выключатель)
+c3367cad976ede14db87a81c556968d95fe8c199 V-644: #V-644: send_message агента — отдельное раскрываемое сообщение в TG, счётчик ⚙️ по пачке
+baa28b79302a4de397fe9951226b43c42c8fb49a V-637: сценарии и драйвер стенда
+8c3e5603805bfcd10788324f452882bccc7af298 V-640: #V-640: квотный гейт не блокирует сжатие и платформенные ходы
+4cc2e45c1045b327cadcd7541b8bee7bc458feb0 V-642: #V-642: сигнал тишины воркера родителю и метка stalled для доставки без старта хода
+35ad7cbb6b8926bd1628aeba286b6c3b1c96d8d0 V-636: все чат-модели GigaChat из API в харнесе; свежая установка стартует на GigaChat-3-Ultra
+d1bcb059686c4a9b35196ed9860ae773dfefc1ca V-636: GigaChat-3-Ultra в харнесе, запросы GigaChat на единый адрес api.giga.chat
+9035836a013f793751ef29f05ea77ba2339baacb V-636: схемы функций для GigaChat без nullable/пустых object, панель допуска скрыта вне owner mode, текст про OpenRouter у харнеса нейтральный
+9fa965ca9d67671af379470f27b528b34b9a072a V-635: worktree воркера в старой раскладке мигрирует при подъёме воркера (только чистое дерево)
+3cf265e4c29b7828847ec51ccbed38912e8b4757 V-634: #V-634: миграция каталога без продвижения не коммитит; scope другой машины не ошибка раскладки
+7ae410f8db7c82ac46c805bcc508476ee7646a8a V-621: разбить общий каталог проектов на файлы по scope
+63fd7ac225e51d60c91fe4998f8bfd49c1b2bfa6 V-631: #V-631: merge taskless adhoc work against explicit task
+4950d8ccb97f79968dfaa17cf0a746d45f2ac571 V-629: #V-629: preserve project layout data
+6d7b57934650155fc9e8fe80c674ba71a076298f V-624: #V-624: полный pytest доходит до сводки — страж рестарта больше не убивает pytest, shutdown рендерера не ждёт чужой цикл
+759b3be64104d66656dff445b5eef0d9f4582c8a V-628: collapse incoming Telegram topic messages
+b3aae161bb9e16ab12bb1f9bcd9ee26039968f9b V-627: allow scheduled precompact with background jobs
+7556cfa7c9726d232f22e2b4a01e95562649488e V-626: #V-626: implement owner activity telemetry
+9c5e64087fd4ceafd85197dd557befcb2e4e7aff V-621: WIP #V-621: каталог проектов — файл на каждый scope вместо одного общего
+0f973de21a6db043356f4c97c3f3e1471cdcb1ea V-620: switch_worker_branch releases a worker left bound after merge(continue)
+de5d62a523ca678e666c5bd03f97519bdf73b338 V-576: #V-576: каталог проектов файлом и теги задач вместо второй сущности проекта
+a6fe16bfc572721531aa40fd64a45634236afb82 V-614: тень-гейт «DONE без прошедшей проверки после последней правки»
+bbfd3641c1e70890f84725707d0a34e08d152dfa V-585: WIP V-585: GigaChat харнес-маршрут, незавершённая работа до смены модели
+425b83eebf0bf5812af62c58f55a20cdc4c0141b V-611: repair-подсказка LAYOUT_MISSING указывает на базовый чекаут, а не на worktree
+2dcbfba99541c231d8c8c6d4031c5aebdc6bf56a V-609: #V-609: persist provider cost baseline across restart
+d607f5fc7e0a4bcdeb583027356ec52523d7ba7b V-607: #V-607: add mutation test gate for worker merges
+7f291ae992754563cab40ef055dc11c49c47a116 V-606: #V-606: compact idle sessions before cache expiry
+4bd1a53659566e76784cfb8a033b64fc2d94733f V-603: clarify worker refusals and background receipts
+f6d969c1c1ae1889a44227202870dfbb593e7d6c V-602: update MCP descriptions and parallelize agent listing
+a8d2e20ad49d3f107717055567afe824970f457d V-582: #V-582: харнес-маршруты из живого каталога, допуск по данным провайдера
+0c3c0fcb0c2824b59e540afd98c725a6910c80e6 V-575: про ветку воркера при мерже спрашивают git, а не вторую запись платформы
+61b99180756209f2ddaa05f0864af3d41371bf5d V-567: scope agent colors and repair live sessions
+6a6c9e9bd0a06bf4817a84cc3bb9681daac2cb5d V-564: render send_chart results in dashboard
+b15940ba5a9c9be64905e5b247512d9e4bab1c31 V-562: preserve steered messages after failed turns
+156683d4a55c8d492cd34f8b8ac6a4cf369d3f0c V-556: add dashboard after-turn queue
+360c846b729a66f8be322af7bde7421cb7bec71e V-555: #V-555: replace retired fan launcher with dynamic workflows
+4444697fd45e00bb0bfca513b0b516696cef1096 V-547: состояние квотного гейта видно на панели — состав полос в rule и индикатор
+7069c42a6538aa074cca1c9c26c735ecc6b25fc4 V-540: #V-540: capture live Claude usage baseline and reproducible query
+084a989edad3164192311669080d9aba6af9e6da V-546: жёсткий стоп квотного гейта стал свойством полосы (sol 95%, luna 99%)
+3e068562ffc7d1aa7ebe95dd4b5a5c367ce0ced0 V-544: #V-544: тяжёлое фото уходит документом, отказ провайдера терминален, лимиты названы
+180a5a4f1c9372ebf557ee72d859fb2308bd4966 V-543: #V-543: close pidfd ownership gaps in watchers and cancelled spawns
+e6da7e30a80620ec13fe3fefa9dba448c50a9477 #537: stop runtime trees with Orchestra and remove live adoption
+38ace1f581af0bda88a214b6bc4bc60629a801d7 V-539: #V-539: derive MCP proofs across server restarts
+fa1b13558558f0ed48266569aa79c08d65e96271 V-538: #V-538: preserve MCP proof across live config rebuilds
+0eaae5904f0ad7e413c434e0ba6a3335f8427502 #537: persist CLI identity when publishing surviving pipes
+4f87cecca6a1b5b518a33da07db742894dfb2bf7 #536: WIP #536: preserve writer conflict detection and regression coverage
+036026b11bedd928d6c4381f76350c8dca6f04f0 #535: apply quota policy changes without restart
+5f8894ec9e4700cf68030277c18ca683fd63dc1d #532: enforce role and persistent worker tool exclusions at MCP dispatch
+067679f36e23f2496335beed07374a700b51d0f0 #515, #432, #523, #520, #526: CI шардируется на 6 процессов — полный сьют в один процесс убивает OOM
+4b4ac8626651171b987a33194fd246dc42d6a5e8 #526, #529: research formal prompts, decoding costs and Orchestra control seams
+789e96a9cc22480f4d5108e270e56eb61ec6257b #523, #520: уборка диска 92%→57%, факты в KB про codex-home и чистку временных каталогов
+6e4311fbd48601b9b33ae8b095f49f2c0a3e0c6f #528: clean the exact CLI home after session removal
+ebbff3f53f2c97d19f3b24683434c6d91bf5d9ae #520: свежий Codex-воркер не сканирует все managed homes перед стартом CLI
+861ae8368f1ba9c3623a699b457a30409b480d39 #522: платформа вставляет оглавление KB в системный промпт из README проекта
+42882844a17f3661e377a708b60ef6d5ab68359d #509: plan for explicit review subject and requester/subject split
+a85d78e314a8c67e18abfc98b50ededfaee2ef3a #507: bound the handoff packet and stop delivering constraint bodies twice
+b71e63103940965fea6b31e609732caf89e3f0f6 #507: bound the handoff packet and stop delivering constraint bodies twice
+36326164d3e16e9237e2ee6005d72b5010ff3ba5 #502: WIP #502: map merge subjects before emergency slice
+e3d29ad1f8cb0a81e7c7cfb97be6d411afd23995 #499: surface and repair derived lifecycle quarantine
+d6155f9d4b4f01427c708e0ade542ab2fba7015b #503: freeze Astra registry regression oracle
+14ad6756620348ee142997f5325b5b249968b9b6 #497: add real artifact parser oracle
+45e3bbcd9faa676c386ea2f4dab5e6d15876a0f3 #494: freeze capability and isolation oracles
+bb2f98bb8dafec5de6651d920f310f53d1adfa02 #493: author signs the review outcome, verdict comes from the artifact, post-review delta needs a machine-checked attestation
+cda2094078d8b5eebd4289933011d611ffb84188 #491: freeze self-service context refusal oracle
+ba5e382335cac7ba5b215bfb10e3142b9a855fe9 #487: freeze wf_run acceptance oracles
+7054731010f215e3ae75f5f01aa1da93de3752df #488: load review context from repository file
+b3a6205df2e5d61dd5a6525cf4ea46145e430c9a #482: существование владения проверяется в дереве, где оно действует
+73f21324a32ae42d9e60e01d2b86270c274f8874 #480: freeze fan report selection regressions
+cb052ede731d0a0846a340b02b1992da549cf095 #474: пер-тестовый потолок в merge-гейте и снятие хеша цели с идентичности ревью
+e477191042f9627a83bd8f6ed180fd52a0ea19c2 #473: миграция раскладки чинит владение воркеров в обоих владельцах
+7d1fc95d22d80bfe96488a57fca2d3a951f3bfb6 #472: доска PROJECTS показывает проекты выбранного оркестратора
+9754766223f822af347852cb4eeeb7c382d7ec5b #466: research and freeze run receipt acceptance
+2a048e6161bc57591b27852874b2aa6038c600ec #465: research taskless adhoc merge deadlock
+9e74bfba74b91750983de312ce28951a067e4655 #467: freeze pending compact ack regression oracle
+1a86f403b3996137f216c14e3d3407b58c35a2d4 #462: backtest review coverage gate
+ed30d73cb591bc6d765edab3e00af471e58cc123 #464: метка времени срезается по признаку происхождения, а не по совпадению минуты
+afdf03ea0d63fc34c7bd51a119fc535cfd8e3913 #450: hide user timestamps in human-facing channels
+71240bd4f2d629ad259fbb1949fd3819827c0e1f #446: suppress raw telemetry from user channels
+f8e00522e8597fcabb63675976bace4cbd1dee9c #430: research .orchestra path migration
+e2f7920400f7ab7d401f186204d5c4dd11f3a9b0 #447: show worker quota headroom in usage bar
+12ed3d3d6611826bd47408d4c4c623d314370f5a #445: classify senderless dashboard sends by auth state
+222602cfe78b59608114d25dece51aad7d56c583 #426: freeze durable task projection outbox oracles
+0afee6db598adcdfde2f6d41a72fa3557a12b850 #509: freeze Telegram service-event regression oracle
+4eac349d7ff019f9b7f0be423e29c94baed44017 #508: freeze Telegram ingress regression tests
+4e5940ef6a282b1f1c0cf4da1a0998bd131414ed #433: research message provenance
+18fa3a834f4734ffd476f8756e6c8f14de89a8dd #441: capture Claude rate-limit raw telemetry
+6461ec9afa65d2d3b50afa1eff3700cce272e736 #436: research review receipt pipeline
+3dfa39bc0d2f9ee7c2ce38c710926121770e06a6 #438: compact before Claude CLI threshold
+5c0b0880f93d78aa04b3b04b6988fc25d7c2e27e #431: attach UTF-8 text files to messages
+748e81e37724a11028cc68911f527d1dd63a6d3a #395: eliminate task projection stalls and duplicate creates
+81a6e27e84a726b7b2f490549d0621079c37c6fb #428: freeze finalization mismatch oracles
+7768b10d84e3f406da0e49c1ce4de61c1047bed5 #425: document project roadmap research
+0aa2d595335523681ff6bc710eb9fe4677b2199a #424: freeze live merge progress oracle
+feff52e3bd5ed966ce6e08fadad659111a50f4c8 #423: freeze resolved-operation success oracle
+8a7332690361575f74e15f96e086a1dd96a92326 #422: freeze missing completion repair oracle
+31726eebacfd88b94345436d7b40cf61972dc9c6 #422: freeze canonical identity repair oracle
+af6ae1b74e4c5e5cd6280f900d78837825ae3e84 #422: freeze bulk repair performance oracle
+65c794754298a5c20f2657d7ee2bbc3be61301a7 #422: repair only status completion drift
+7100b0766120e9d9e4913836f58b7fdb3ad5a697 #422: freeze shadow repair oracle
+80588a71c29fa4b91695e4c34b7971d19b865db4 #421: freeze dual-store completion oracle
+e5e0db836e0e73d77c191549992019bf6a25c91d #420: линкованный worktree и симлинк venv — гейт берёт интерпретатор проекта
+d7b559f5bd3e307a590208707b6fd6cff405bc60 #419: freeze interpreter selection oracle
+1ef306e2a567c53f8c3c77bfc6bda250bdf9d7ec #418: freeze canonical identity oracle
+7b5b2659fe6ece7ffe44592865dca3024ce48388 #417: freeze binding oracle
+d47e327a3f933e481879e3dea353d612fca7bf40 #422: freeze free-lane activation and replay oracles
+82d2d403e1d57139ea2c9c65cbf525b55beca996 #418: refreeze dashboard portfolio panel RED
+cc15369dec2034f0c46f60a8f643ac161c07e360 #423: report merge conflict paths
+57038767bcceaf5cc4960361c3c418353e87668a #417: switch memory prompt to file-first retrieval
+8239760c7c4394512de6526c1f4e71fc5e4d9535 #416: research misleading zero-commit merge failure
+444115851c9b857eadaaae43dcc568661b60e3ce #414: cover restart-safe background jobs
+43a96ed31200c3f61455fda8cdb4968dfd3792a9 #413: freeze merge delivery visibility oracle
+9d552660b2fab1b04d5e480368365789f743f89b #412: cover silent turn anchor suppression
+f1eafe04ac85ddfcc63b0de2a681eacf409fc051 #298: add authenticated docs endpoint oracle
+8d2b1fe7dc3e1782968cb8c230a50eaf27d2cfab #370: freeze unknown delivery response oracle
+c9d36e21d43a6ff028827a595e77ef08a4f17039 #412: thaw T3 owner-switch oracle
+9664a9b009df5eb8a68d40c37d1810db7ac15bb1 #412: audit project-local knowledge distribution
+99fa70980f2fe639099aa41e539f9f6b03b6d661 #405: add upload size and progress oracles
+6cbd918dedd289db86afcc61791939f51c20dd8d #413: freeze immediate restart oracles
+ad76ba42e3183240e7efe9dc64df4dc868d171ae #411: freeze reliable restart oracles
+e3f95f982c2d3f5b6f246f2fceba74de8dfa7786 #409: freeze imported evidence promotion oracle
+692e053e6cfc96b73e0dc5333c932113fc4331b8 #405: freeze task projection recovery regressions
+8e2b564cdf47ba08dc7d7efcc76b3040c155242e #407: freeze durable fan interception oracle
+aaa98a8fd9323abed92c6c9a01a7f88527058a84 #402: freeze red batch delivery oracles
+1b28729ec3cfd2ffa003c783201c8cc418cd2086 #406: #399-fix: freeze par collision regression oracle
+507b63d81c8d4e608617c18678eec6bfc28a5f3d #401: expose quota delivery refusals
+e15a5f443be9a014ced7d1b0eba0325fe045b301 #400: freeze merge loss regression oracles
+bc1a388f0656060b08fa47ecd110ded36136fdaa #398: обрезать summary и на живом runtime-пути
+915f3526a819a934208b5de94d354a0a970f83ee #398: freeze summary detail regression oracle
+5a3912e3b63a79c72febde8caebdd8f713994f60 #361: freeze task parity reconciliation oracle
+05f6287e8e143a50af12571a9b03353f792b38b3 #361: freeze debt classification oracle
+41d7182d84fe5bf0ee6ec0f7c59ef5a5e0d8471a #398: preserve post-commit merge fields
+4c1dfe9c713f34230661e47e3ebaa9c01e168f9a #396: close limits renderer and unify window count
+a2c45a484fb1d8bc41059f19046f810e4b4f786f #396: restore weekly limits card and reuse renderer
+a1917ce22fbeb09c93011c6cfc46cd4b701cb457 #248: drop merge finalization calls to helpers removed with billing/YouGile
+236b385fd65a8db40659351c2d1f20016d739fe4 #363: add text tail Codex to Opus handoff
+c885f10e53b369d0e9846a23c9801618ef0e6bb9 #360: reload MCP tools after Codex resume
+08b75e8517c4b93baf261c44ae66e28e7ce1d4af #359: reserve MCP slots for canonical tools
+e22368b06d698b97261cb6dcf359cbbe62ebaf15 #348: #348: handle send_file version skew
+ebb38764a7d0fa3c8a531d6ae03c8b75b60ef262 #365: harden free OpenRouter harness
+6f874ace52bb6afa357e34b5622c60e424d975b6 #248: make task state platform-owned and restart-safe
+9f946a60170db7aef8a547a40b7b239cd52ebc8d #309: #309: freeze phase2 deletion oracles
+db8708aaa274d10048a6b573d12e3845af8c53c0 #319: #319: port bounded Codex cleanup onto current main
+47ff8da4af17f858d2491dbf269954a2a0164256 #327: #327: make pidfd capability import-safe
+b11ba9be1a7c54e936be00ebecbc69ca50fcff4f #307: harden Codex oversized resume recovery
+f8295d11e6e85692ae1c3ba7eb6c5c5479bdae49 #386: #386: research regression-aware merge gate
+81a1c60f8998fc049583814e1f7d1d1f49f9c81a #380: #380: research durable send acceptance
+71374ea56bcc06a298165552d6419a7c54bb07ba #385: #385: research deferred turn control and provenance
+bdbe7b5ca0aa79cdd026479ac2d96be9ed8ccf31 #384: #384: validate acceptance command argv contract
+b460149d42852fbc90368f8517a07100d2a67a51 #379: #379: research socket restart failure
+0a9ad8130a5983b1667e2c6019c738957aa672f1 #383: #383: expose acceptance command recovery via task update
+4b8b97d51c87e6b1ef5f7df6169ff7a9887e7056 #381: #381: research initial delivery boundary
+e2ecc033da7faf482f476037c10acf9fe75c6b79 #293: #293: freeze ownership lifecycle red tests
+150e696e0347ec720bf3bd144d6a12fe90671f75 #284: #284: make Codex JSONL reader fail-soft and clear lost turns
+3e4d87982f66ee513b4db76af8dcc00f4a674a70 #279: #279: fix acceptance command contract
+aa33578e225431f5c89a1029571a53d845c8ffac #234: #234: add red acceptance tests
+9c4c5dc00bd0eaed1afa5119d3e64602fd355325 #218: refresh Codex context config before idle turns
+c3e66f162ce324877e245d4c75b298a229a68672 #209: maximize managed Codex context
+75d5ebd1da80fe16626d20172e3e351c731937be #367: #367: phase 1 research — audit of harness built-in tools (10 lying defects D1-D10, 5 friction C1-C5, all two-call proven)
+470206e1c99e06b161732fe5aeb8a8dcc425c94d #368: #368: T5 — потолок ожидания (Retry-After сверх потолка = внятный RuntimeError) + различение platform/upstream 429 (X-RateLimit-*), мутации красят оракулы
+c74d0d75b945f2a5cbf27a5e8987f3387b662787 #368: #368: Phase 1 — исследование источников счётчика запросов OpenRouter (гибрид: локальный счёт + /activity)
+396af3bdd9ddd795a377ca7a985164bf4a7af9c8 #365: харнес умеет steering — сообщение доезжает до идущего хода, а не ждёт его конца
+9248be4cd590acba0227960841326a35e5d980e0 #365: харнес на OpenRouter из приватного форка — рантайм harness, шесть бесплатных моделей
+595c0ce44670ac759d5b4ffb5f6367875ee3790b #362: баг-репорты уходят владельцу платформы, а не оркестратору scope
+f590cdd11ae8da38c2217444e4cf461c914ec761 #360: решающее окно квоты выбирается по длине, а не по имени поля
+24d6308d4fabe61cbbe497d8e9e750e304e500db #197: #197: кеш последнего успешного ответа, джиттер ретраев, негативный кеш провайдера
+a44feb4bbdbd64fb3a725712d0e61d4d30b020b7 #356: #356: route usage bars to quota release status
+b1b77132a95600ed779ca8397a24f40d2246c190 #355: #355: make quota gate thresholds configurable via env
+e91247c9cea8265cc21a8f01a16b65e1ee461380 #353: #353: unify quota panel and add traces
+8b6c8b50fe9659f762af27f34aba089a0d022113 #352: #352: block bounded regex blowup in Bash hook
+87fd467907d746eb8980d3d60d30b156c5a5f8dd #349, #290: #349: мерж веток без общего предка снова доходит до cherry-pick — потолок диффа мерит от пустого дерева
+0707d92571cab19fa2102bd11034f7001e56c973 #343: одно правило допуска по квоте, прежние квотные системы вырезаны
+9379504842e82a3f2854377c3bf6757a1718647e #340: #340: перенос истории запрещать только тому вызову, который может исполняться сейчас
+fabb50edb6f1ec830024c01045100f3e4c0d039d #314: #314: Фаза 1 — что должно решать допуск: дефицит рабочих часов против процента
+b643c67e3d1bd9b6b47c03ea48aab1fe251b153a #230: горячее применение правок и живучесть ходов при рестарте
+b6782ca8a78e1511e10191f6b04f33f1ca41bb07 #336: #336: замер merge-gate до правки — где потолок, почему 180с не хватает, где теряется различие красного и незавершённого
+6e1cc6f73d41994ba50a5b9a2ca7619be016551f #328: живые пробы провайдера сняты с merge-gate маркером live_probe
+1fe3cf1d7592f59b78de3728d0b5e4a5a0e54180 #329: один владелец логики пулов — квотная арифметика вырезана из манифеста, блок выключен до рестарта
+3c037bdb829e8b90d1d2937ca3d43a0670093fd3 #290: cross-runtime handoff + канареечный скип по продовому предикату (scratch/290, вердикт #328)
+9b72fd58358be5843e5951e1edf49a14f2c44ed3 #318: #318: hot Claude lane in quota policy + live quota map in analytics
+67c6a9dc005c6763525725cffbcd72f0731a05f3 #324: #324: refuse to start the TG bridge outside the systemd-activated instance
+bf70e3ad87266df58955fdd0a0570daa3517ce6a #322: #322: balance merge gate batches
+40e55a40de7c231ea4b9aae6ee4087964e42dd70 #320: #320: add hot static quota policy
+5a9ff79604d3869a39649e7dba0dbb538ab0de0f #320: temporarily allow Luna below 98 percent
+41af4d856913a80f4893b4aa479d85332fc7bb11 #317: #317: fix merge gate batching budget and diagnostics
+7f283eeed28d457e0a67497d8a005351052d0aac #316: #316: batch large mapped test subsets
+b604ef4491c79300f4421ca3b1a4c1d8084672ff #305: #305: serialize managed Codex cold starts
+9a1e2d108f93e84f997efa762ea23e382b434a85 #314: #314: freeze enforcement and analytics RED oracles
+1e020d60e0534e7d9ad52f3acae9d1c9e67b0c41 #311: #311: freeze durable delivery RED oracles
+4b185fdc56f260929bba4a8e5354fdffaa1c00a7 #309: #309: normalize pytest timeout output decoding
+9e92823b2d41f0b9c647ac4d093f005e07babff4 #306: #306: support sol and luna model aliases
+9947ae37cdc3d2e26b053d653f230aaa38f59ddf #300: #300: throttle background RAG embedding CPU
+bd4f6e61a4872bd251b7cf78cdcad8d3c37d9d43 #304: #304: select codex review model explicitly
+03025cbef57940cf1dc93854a30b1c9249d0491e #302: #302: freeze transcription environment regressions
+b0b72d65587aeb9ef3ccef628d3187bd66ae45d8 #294: #294: plan secure artifact links
+827c8db11c121fb62927bf1284945be8aa0c2b67 #181: expose canonical limits card endpoint
+3cfeb617a64d7306b43e52e1b78115bc40652875 #297: #297: suppress silent marker auto-report
+b92be6ec2e7a5f6904cf04d835b78811bac780f7 #180: restore Codex project trust and context
+077a795c7394c33f1863d4288c6c10ebbe6c978e #281: #281: bind orchestrator HTTP privilege to a per-MCP proof
+4137d26af358734d1847efbc43765dbc3c9be910 #255: #255: run a file-mapped test subset before squash; drop CI -x
+e439707ce205318adc7fbc0e794e1f5c275a1bd8 #250: #250: refuse unreviewable diffs at merge
+4b0611cfb65e5a0fdd554f87a99d0bbe7324f025 #240: #240: drop worker-set acceptance_command in task_create
+4b3ebde4d78681dc48db7482a008e56043be53ee #240: #240: platform runs the ticket acceptance command before squash
+9268255cf199a0b95e9001e803c3f13544256896 #277: #277: drop quota percents from the turn-ended TG line
+3ed249ecf88a2c40f5d0f93d4dcdd34c250ef854 #276: #276: fan terminal only on explicit kind or turn end
+208c7fcae99b53232394a1bf7382f3db90284937 #180: #180: _run_exec rejects blind review artifacts
+b703d5857b4f4c12cb9610346f93d03243bf6ca7 #192: #192: load idle unloaded sessions in change_model via ensure_loaded
+8b8d73c3776f6b59264a13d9b23d21e0ce42396c #275: #275: persist child fan reports to a path the parent can see
+01f4794e2f8b18c5bd8580b512bd8cc05f4c3066 #200: #200: one CLI path encoder in app.manager.enc_cli_dir
+96192b4009b1ccc977022429159885d503e87e74 #36: #36: unknown roles fail closed in validate_spawn
+e9c34833e20b5dc8f666daff24fe6713eaa886a0 #265: #265: canary handshake so a same-name Grok MCP server cannot impersonate ours
+ad6f5d69fcf55df0659fb410e9afb9650a5e2d03 #274: #274: три макета картинки /limits в HTML (фаза 1)
+5792e36324b71faf4e453368fb7a8f76d3e3e6bb #273: #273: make /limits photo path explicit and enrich caption text
+cfdb1d0e04d79cf628032c2c6426cebe4b1443c4 #272: #272: fix silence announcement state replay on missing row
+d0023db6c5137abcd167026475221827b39f56af #236: #236: send /limits as chart image in TG
+7c7c0de4bb1ffa1e8aefd96eabec0ddba4aeb2f2 #269: drain the restart queue on every reopen, cap attempts, report undeliverable
+e55fb5bff5be0c1e9ae3c75d05558e37f659f86c #269: human refusal text and a durable inbox for messages that arrive during a restart
+3b84786d9912b358c610279e4f63f74c6b1d2ef4 #269: state the restart pause on every response via X-Orchestra-Restarting
+80eefd5b4294eb5e7495372113760166b637936c #1: #1: единая точка истины для моделей + Opus 4.6 в список выбора
+017ca19c0cbb980979bce5059233add44a010f63 #237: #237: research seamless active-turn restart
+83eda0e05777da73e8c98983ffa1d192e3916edb #241: #241: tag the owner only when the turn calls notify_user
+d485e1c529d2b4eeb27873c0703c12dccc1ff48e #258: #258: research safe orphan process identity
+6ed76f56b27cddb5f09e412a444949e290a1bb1d #232, #251: #232: установлен grok CLI 1.0.3, ресёрч Grok 4.6 по первоисточникам, черновик правила допуска под третий пул
+588c7817b084d9e8c47109668b50a8769e4d7a8b #257: #257: suppress exact silent-turn marker in Telegram
+21ead017aa52fac005731c59e77bcb74111d8c34 #245: #245: add dashboard voice input
+85b6174ee62d2fa20e3adb58bebef98d77198ef2 #246: #246: validate task creation project scopes
+59ee1b11c76763077ceb47bc52c6854468e0d936 #227: #227: gate Opus by Claude weekly pace
+42d221b2318e0a843204ef443c63ae69bd8df41c #244: #244: derive Codex tools from FastMCP registry
+0b380893636f30e35bd805058aeea07bceaf136c #244: #244: expose open_fan to Codex workers
+9538e066cd4d56b8370cac80a75332097c512e56 #243: #243: preserve Codex threads across model switches
+a41edae8262c32676668a7f9046ccc5eb490617f #239: #239: preserve unknown costs in analytics
+5c346ffd58228eef4a0231b066169d058a621e21 #227: #227: enforce worker model policy at spawn
+7cb9b324ed320cd3acf8648b936deff6a4311f10 #230: #230: три находки независимой проверки — гейт на futures, оракул по leftover, start_time до сброса
+21b46c82f3ed8b2ca819692b4fcc595a446fe2b0 #226: #226: freeze unpriced Codex turn oracle
+a01a4b2aa51ace9669dc91a948872c3872b03eaf #230: #230: план фазы 2 + красные оракулы T1-T5 (заглушки, 8 failed)
+9fc4534e564ffa27b6960d1a2320ef2f44e4e3d8 #231: #231: предрегистрация эксперимента (стенд, критерий, все четыре исхода) — ДО спавна плеч
+d986be3c1c20d5db3df71fbc54ffa763c7910b43 #193: #193: add red subrepo memory regression test
+f5910ff9cef58ef7a14fc0c6b8712aea5f8207c3 #224: #224: plan + acceptance tests committed RED (T1-T7)
+9b1b48b5448072b42b0ed273d7e66f3a10245cf8 #219: #219 T1b: красные тесты проводки — два гейта, killed-токен, девять неприкосновенных путей
+6712fdcf413d529d70bbe01ddfa9cbecca3f745d #219, #223: #219 T2: контракт делегирования «таблица, а не область» в worker-lifecycle + тесты на происхождение якорей (первая редакция теста была ложно-зелёной на составной мутации)
+6dac7dcbff16adb8a13e9c823df56c0a35667287 #220: #220: план фазы 2 — T1 пересборка промпта, T2/T3 дренаж, красные тесты тикетов
+8bd9bd60ad22302d1821c676916a409d24ab1910 #225: #225: add branch WIP diff regression test
+ecfcba9812a598efa1f80301414c95bbc56c315a #216: #216: Spark выбирается по opt-in оператора; Sol-first порядок полос
+548351021f49e20aa34b6804b5372bc0b8e7a665 #216: #216: research — где seam автопересадки по квоте и что ломает Sol→Luna
+6b2249c59e177e55507e5a20b0214f3ee1fd944d #214: #214: эффорт по модели — карта модель→ступень в манифесте
+88682bef2465de84ea0bc9030fa29992313b7011 #217: #217: preserve reviews when usage metadata is unavailable
+503e71ec98d9648666c97b4d46c04f524cf282ba #215: #215: account standalone Codex review usage
+a085d8581788319687933e27f464104d109aa1bb #201: #201: account for Codex cache writes
+103bf0364f95b4f0d78fd718ea5569dec4c5209a #199: #199: прайс Codex по действующему листу OpenAI — Luna и Terra были завышены
+d987193b70e03ca5ed6fe50162c6b640b87bc446 #189: #189: стенд ждёт, что поток дочитал журнал, а не только опустошения очереди
+b6444aeeb36312645ad2e344494b3544b2970018 #186: #186: T4 — доставка текста в TG и цикл предупреждения (без проводки в маршрут)
+e18ea6b437997fb560e09fe3d3d1bb76068381d5 #187: #187: add atomic quota-aware runtime router state
+2815c16835cb1eb3fdc87db200d464efa46653d1 #174: #174: import DB history into Codex
+470783705e583ca63fb69be266a3e3a4e6fe0cb2 #187: WIP #187: integrate shared runway baseline contract
+c7adc65bc5952fcd429edeb18837600ec4aabf55 #189, #16: #189 T1,T2,T4: свёртка хода — строка на действие, живое ⚙️, якорь конца хода
+66ad6a69f7a23836efb0a2f01085ee17d7beeca6 #186: #186: T3 — храповик предупреждения на схеме и латч молчания
+e4a24024eb4515e566887e53e16ecff682effd7a #187: WIP #187: build inert runtime router pending DB contract
+3fbd7054f6e6b22f9a120c43d0796eda6efe17ee #186: #186: T2 — база недельного окна: последний монотонный отрезок, честный ноль сохранён
+d77f96d4e1591e20618b1684a06861c838376bc2 #186: #186: план Фазы 2 — метрика D, храповик, доставка; 2 раунда Codex
+05e9a80623583e2c946957e5a90f7ed8d37a71af #174: #174: import DB history into Claude
+2cb314128b80a4775fe98cdceff29c9575c7077f #183: #183: restore default Codex review mode
+106961b53d7d3ea10c94dd5d17f87e336091b436 #182: #182: preserve Codex review artifacts on guard failure
+ce2ddc45721460c57e18a56ecc11abe8e69e42a0 #179: #179: restore executable Codex reviews
+afc99e2deb91aae7535fd2dd497b257edb5da56e #173: #173: fix prompt P0 defects
+8cbfce6eedf277fede98715ae8e3526749e2fb6f #170: #170: audit feat-groom-demo latency
+c1a6355334975fa26d835ac7bffeeca767f30a01 #169: WIP #169: research awaiting Codex quota
+647452c1cd29fc948839c9c108da746cae14c262 #168: #168: research centralized weekly quota gate
+bff96d9412281b3ece147026ff00290283ac4552 #162: #162: research — курс 5h→7d измерен, в недельный лимит влезает ~7 пятичасовых окон
+639dc61d42fb4dc496a5b86a05dd6902ce050af4 #161: #161: отказ фильтра опознаётся по телу события и упавшему ходу; забракованный текст наружу не едет
+8683e76b096ed682bd39bf7e8708ad59f6daa381 #155: #155: отказ кибербез-фильтра — отдельный класс, подсказка по трём признакам, автооткат отравленной истории
+c4a7b4c68a658060f6bbd5648cb9a919471717fa #154: #154: research — источник истины по квоте Codex уже есть, гейт fail-open снимается часами
+8ebed917ea48af4fe13286ffe7e5891141e95d67 #150: #150: молчащий источник usage пишет NULL и строку в журнал вместо нуля
+36de7dd94af61ec49fbec99bde2ba0852ceeb2cd #167: #167: ошибка обязана назвать себя — один владелец вместо четырёх копий
+98c6022cf7a22aed552505ad1de9234210ccd995 #158: #158: тег юзера на границе хода оркестратора, а не на каждой строке text
+991b246c7660d375be771a57a481873cce2288eb #137: #137: разбор Prime Agent — заявка 30.2→95.5 разложена по первоисточникам, механика по коду, что применимо к Orchestra
+a376b2d758973273ba8a91dd7ba01139207b0184 #130: #130: детектор целых > 2^53 в аргументах tool-вызова (имя тула, путь поля, значение)
+59d32c050f61eba474dcf77bb701fa94fdf9c7b8 #122: #122: AUTO_COMPACT_ENABLED=0 полностью выключает автокомпакт оркестратора
+99275851cda90d776b5942b2cb58e292822ef248 #156: #156: исследование — механизм пробуждения исправен, отсутствует автотриггер
+419fed706fce6d4612d51151d157f5eb6da0e1a0 #82, #78: #82: перенаправил два чужих мока на id-путь пробуждения
+6f97d535a1657d154f8f251facd51c340c932ae9 #78, #80: #78: исследование — оценка подтверждена своим замером, но retention логов не существует, а копировать надо не файл
+8967bf9711de2ab854fb3d09d0901fa775d0a2c9 #73: #73: фаза 1 — цена элемента измерена, найден третий вариант дешевле обоих
+b941a9558218806ad21fb5f95545e987dff10242 #74: #74: потолок на строку, видимый маркер обрезки и загрузка строки целиком
+cae113f5bf08d63ca8bb43b15e7443cfee755d06 #63: #63: бюджет прогона рвёт слой изнутри + посрезный прогресс в журнале
+6d9c60c56de714dfb6c235449b15a09e6e91a3bc #153: #153: split background Bash from real subagents in analytics and TG
+d4a64f211e484f6d02d82911e67ba58b0b7ff283 #151: #151: research — Codex 0.145.0 читает проектный .codex/skills, gate пройден
+6c95039bcf352184d92bcd47df940e0b8da8f5bb #149: #149: research — скиллы не доезжают до живых агентов (22 протухших копии, 16 оркестраторов без доставки)
+d1109cefca3670fd32dc0daabe424fe61f1a735c #72: #72: холодная синхронизация без предзагрузки, история порциями по байтам
+262b38b5ba3dca24e12cb70431dcda1dc94e972e #71: #71: исследование — 92.8% провода даёт одно поле, второй вызов от нулевого дросселя
+6c279201daf4fd881e32b9afae679c41d3e1715e #65: #65: system_prompt и last_summary убраны из списка сессий — 54.3 → 4.5 КБ по проводу
+7a6f0ab759f7035806158527b484577cd0779c60 #69: #69: репозиторий воркера от git, слаг от repo root; strategy=parent через границу репо
+750d0d0b29c9b8e0c68d6389b35d8873f07304ed #50: #50: исследование — точка врезки в send() измерена, очередь обязана быть durable
+ef9c8057bf33f8edbf4dc52979f3d2ef0d346090 #62: #62: фаза 1 — рабочие копии сносит pytest в главном чекауте, воспроизведено
+10d1a858b971439ce7cf54362c324e6be1b1f322 #61: #61: исследование — конфликт только когда база доработала те же строки; критерий из git недоступен
+0d3975b02531a51547cede63747644e12c2a7ea7 #56: #56: исследование — репорт пишется в стор и на этом всё; адресат вычислим, семь старых разобраны
+180f78bd491e2f7bb605ca9df6778ee84182f1e8 #54: #54: sessions.id не может быть пустым — схема, триггер, гард в коде, громкий ноль строк, 400 в bg_create
+f1220edf7e68e54cd6059bb4a288e6a719c4fcdf #53: #53: осиротевший GET /api/report_bug/status удалён
+ade096c2d3367677f7cde49ac9cdbb5f94b4114b #47: #47: исследование — предложенный минимум уходит по тому же сломанному каналу
+2a6ed638db7a7e392fc71b09cc2fdc75ab6ca088 #141: #141: tool-сообщения в TG доходят все
+8d80c0525160e7bd1aa9287bb1ec21e43a934baf #28, #37: #28: заглушки backfill в test_api приведены к сигнатуре с session_name
+f2ce77ebab27346a4b6ef6c24d4c2ec9794867bd #30: #30: исследование — сообщение юзера из TG теряется молча, остальные четыре пути отвечают
+427d92712edb90fd681f1e38291966045de2f2b3 #34: #34: фаза 1 — права на спавн решает манифест, фронтматтер-фолбэк мёртв
+c65fe53e0a231a8a8645e99a5a23ada4a9ebed2a #21: #21: /api/sessions не сканирует таблицу логов на каждый запрос
+e46039d227fc0ce5b24ffcff7f24f9bba6641184 #27: #27: исследование — спорная ветка достижима, T2 тишины не создал, найдено тихое переселение на чужую ветку
+fa2ed9d95ccc995bf455b45dd49948fdad3793a2 #31: #31: путь к codex разрешается на месте (CODEX_BIN -> which), внятный отказ вместо exit 127
+f3cdb14284de7cfa88ffba7bfdc94e659f7d3b8f #3, #18: #3: исправление F12 — oom.conf уже 8G/12G на диске, действий не требуется; решение по OOMScoreAdjust зафиксировано
+3b2e4c9e618bd07081e69f311ee5aef1042eab71 #28: #28: reindex ставит задачу в очередь и отвечает сразу; сессионный прогон режется срезами
+630b4e84739c4bceab8c87102eaf565a02e33e48 #20: #20: фаза 1 — сравнение matplotlib / Pillow / chromium на реальных данных
+094c99f482b960ab08d080b3f8716a2b98fab25f #8, #17: #8: две метрики времени с гардом по нагрузке, правки таблицы отчёта
+1ade3ca25ef695d9dc45326e0086da1a00184e8f #16: #16: исследование RAG-узла — замер по живой БД, гипотеза о синхронном бэкфилле опровергнута
+b41f617ceb2f3701bfa4ddba7ed373688b3ceff1 #13, #9, #19: #13: CHANGELOG v2.31.0 и Known tradeoff отдельной секцией в отчёте
+ede489b3994bde81b964fa7a744301fd648d0655 #13: #13: разрешение истории usage по диапазону + разрывы вместо выдуманных линий
+c6fe33c2057ccc5c911c92cd5ed5f9625cc9403d #15 T3: TG-мост уходит с критического пути старта
+100929fc9c2d0e49e994f9b40a3206192272cbc9 #15 T2: сервер называет версию фронта, страница показывает баннер вместо молчания
+0b03b4b751eaa6cc6044ebba7fae5cc33a73ac58 #11: #11: merge_worker дожидается исхода, а RUNNING больше не читается как отказ
+8a5ea9ec286b718a564edd3e373c27f4ed0e8b0e #4, #5, #6, #7, #10, #12, #14: #4: WIP #4: снимок квот перестал врать при молчащем провайдере
+6625ef0f0eb1d66d2e961e41b7697582d8020e63 #8: #8: разбор мгновенного переключения агентов — замеры и варианты
+20acdab55b7e9a30d6c7baba67978504eac520c3 #12: #12: спавн не пишет поверх отслеживаемых файлов и не оставляет untracked мусор
+5e079a6c7b382f714de5a515a34b46cb99184916 #10: #10: usage-панель перестала врать ценой и молчать заглушкой
+1f9a888503bbf703de3bfb32eb7d4b9279b8650e #7: WIP #7: git-ошибки больше не маскируются под «ветки нет» (workspace.py)
+42677030e4d09cdcdc083628c99ca6f20962c843 #4: WIP #4: снимок квот перестал врать при молчащем провайдере
+1dda36492211164f8b84c4da313c6b3393df4963 #1: #1: OWNER_MODE — развязать «наши данные в дашборде» и «требуй логин»
+273e13db7c8da03f26eb3a45ea081677a81013d3 #130: WIP: спасено оркестратором при исчерпании квоты Codex
+52ec73f31761436d0136c581bbb886ebe969a8c1 #126: #126: re-arm prompt injection after compact so the role survives
+f85f68181d5b6ab637a8b26687a8c4a3a9aceffa #106: #106: swap COMPACT_PROMPT to hot_state_ledger bundle (Q6: 7/8 gates PASS)
+a0bec5f5b93417d7bfcad1c1438f6b827811d8a9 #120: safe process signaling — pidfd exec shim, remove broad pkill
+d5ae14f452d46d97d99109216825e6ed55ba535d #120: remove broad SSH process matching
+d7428966fdbf9d02b8c86ff96781ede8321aa31b #114: move bug reports outside Git worktrees
+16d44d9007e742f036addbc9e401feef2f04178d #116 T7: retain and coalesce RAG backfills
+e90cfb94ada2c1d2a36940e6f9d917714decd536 #116 T5: add typed MCP error contract
+022ff3b93a5fa068134b392e217582dfa8f74bad #93: T4 serialize fresh deliveries
+836bacdcd1b598687430c3a6417ae89a3414186d #93: T3 publish spawn only after preparation
+8cf865f20606216e67e2b68ff7e50870b6c157fe #93: T2 pin merge identity and task assignment
+3ed37c01b2e3f025e75df0d67ad4d8fc346252ef #93: T1 serialize repo mutations and rollback switches
+3925fee7ea6ec6b2b4d0a19515d7a0899c7175e6 #113: #113: report orphaned background process trees
+c0c691fe482736e4911e9d85a2ea3623c888ed8e #111: #111: own Codex processes with verified scopes
+2a8925ff8158a056af5003433dfb88f71edd5c2b #113: #113: show complete task details consistently
+90e8496f202eb3b0fd557265d22d859bb688c896 #109: #109: add private Telegram limits command
+0e15dcd31f6048716848fc34041ac681053f8f18 #108: #108: план правок по результатам аудита (фаза 2)
+8368d8aceb02afed3804f72ecfe88bc41d9ecaaf #103: #103: research squash-aware branch lifecycle
+0ae2a48f30d3a092214b8688673d9c18643764dc #107: #107: помечать напечатанный tool-call в дашборде и TG
+53ab8d35711c40e015d320ebcf5cd2a7614bfab3 #104: #104: suppress duplicate Telegram tool results
+84292d1e6da180f40e95beeb97706e1d7982978a #102: #102: research Telegram delivery pacing
+a662387d4c3d47cc951c0ff89bddf0b4d2d724ee #99: #99: add Telegram topic status hysteresis
+42ddbad46b1aaa835ad6284d5c9465022fddc570 #100: #100: research ordered Telegram image delivery
+2346bd703e66b182c383d1152ad8539bf071a011 #101: #101: record quota state on each turn
+94b786f59e1c777cf8d14ba86303aa24431a9a65 #99: #99: add conditional recurring cron commands
+ec1b180f744930c22a1be2408be07ae0882807ee #98: #98 T3: explicit model routing, opencode inventory, no catch-all
+c4ff89c99007e51f59f120ca33133ead43d94be3 #98: #98: separate aggregate usage from current context
+998bfdc7f0b0ec7cbd819563881db13f2f76a341 #98: #98: audit Grok runtime and backend architecture
+d3a547c82df7c0ad6cd9db601429709805aa2ea4 #98: #98: investigate monthly limit wake behavior
+23ea33d85691c41b171e19d2f260fbea10adbe5c #98: #98: skip task numbers whose docs/tasks/<id>/ already exists
+9764b8503d66a8fac5a89d3901253b4e2c321cd4 #97: #97: prove idle inbox race mechanism
+9a69dff9be6575f6a60656ee43023f3dbceea284 #96: #96: add Grok weekly quota to usage panels
+89c39ea9aab05d6c7d798ebe0fc1625e35b3ba6d #92: #92: fail loud on worktree removal errors
+1750acf36d4d6dcd61c822853f41886bb2c9026c #91: #91: synchronize lifecycle operations with turn completion
+66604dcd126dd93d7b2c130ae7574f83cfaf9531 #95: WIP #95: T6 — grok provider bucketing, cache policy, orchestrator subagents flag
+3b5a148afb0bbf3f24cf0e3586172aa48b06a75d #90: #90 T3: атомарный squash-откат и стабильный контракт линковки коммитов
+944a78c393019e2d4a411079d043cfa1d41be740 #90: #90: merge into checked-out target worktree
+191cb85052439c0ca08f778fc226242b4ce585cd #90: #90: audit worktree and merge lifecycle
+8c3274e55ef8fa374a8391ebeb2dc1b7d26023bb #89: #89: measure Sol skill index routing
+cdaeef1435e6590ce4efb1fee34afad4bd36e949 #88: #88: research repo_path spawn behavior
+b4401bed3d48001a17a6e6292987039b4a09df26 #87: #87: add wake-after-limit behavior tests
+18d8061390dcdf2fce8b777d94079ab2438a35c0 #4: #proxy-fix: force stable id='direct' for direct proxy
+9dc240151815c25fcba9d919b786922ba5f85502 #83: feat(#83): real-time token streaming in dashboard
+521b3ac8a3d0aa0adffdd66f760f7f140f45de5e #97: replace SSE turn-boundary with poll-based detection — fixes 11h stuck-running bug
+3651919d7d070214b90cfa26018c6a5732d0a363 #96 phase 2: route non-Claude/non-GPT models to opencode backend
+6e2cb319dc2c20701b1c5a0cf0780b2a37b77d96 #96: OpenCodeBackend — third BackendLike over opencode serve daemon
+12937db3cfe1838e21c5417d5dc67092e1db172f #2: feat(pipeline): stage 1 — pipeline column + stored is_orchestrator field
+bc3a51e59708aba26fad7705dc55a35f59d9bb65 #47: refactor — prompting.py, BackendLike, extract-methods, main.py split
+cc0b4739e206f43387e9ff18754c2c0151c104e9 #42: #42: fix P2 bugs — reconnect backoff, hibernate guard, GC task refs, log retention, rawMaxTokens, dead code cleanup
+31493e773911717450b4dfdb785dd967eff87322 #39, #35: fix(#39): 7 P0 bugs from review #35 — compact, persist, worktree locks, CLI cleanup
+0bb118cac79d746a5c1fee5a03353947c615c2f3 #29: scope-change: research + implementation plan for changing orchestrator scope/repo_path
+ddc6137f1449a5c95e45fc177724c8f8a651e79e #28: #28: fix system_prompt append instead of replace for orchestrator role
+8594ed4b968948db8496ef8d0a5776ed90e5666e #26: cron agents — periodic agent wake via bg_create type=cron
+b10520de22886773b8cf8f28a6760607d1929ef2 #24: MCP per agent — custom mcp_servers param, persisted & re-merged on restart
+4de2c574ba065cc12dcb42920b6b35b3d96f02ff #25: validate_spawn — can_spawn role frontmatter whitelist

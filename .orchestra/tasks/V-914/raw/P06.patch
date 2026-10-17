@@ -1,0 +1,14 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P06/app/auth.py /home/kesha/bench914/runs/P06/app/auth.py
+--- /home/kesha/bench914/fx/P06/app/auth.py	2026-08-28 08:55:06.000000000 +0200
++++ /home/kesha/bench914/runs/P06/app/auth.py	2026-10-17 11:26:23.620221483 +0200
+@@ -105,4 +105,9 @@
+         return False
+     # Malformed slash-prefixed API paths are protected too; only the exact artifact shapes above
+     # may bypass auth, and a proxy must not turn a doubled slash into an anonymous API request.
+-    return path == "/" or path.startswith("/api/") or path.startswith("//api/")
++    return (
++        path == "/"
++        or path in ("/docs", "/redoc", "/openapi.json")
++        or path.startswith("/api/")
++        or path.startswith("//api/")
++    )

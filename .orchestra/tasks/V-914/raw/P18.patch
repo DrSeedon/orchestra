@@ -1,0 +1,46 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P18/app/quota_gate.py /home/kesha/bench914/runs/P18/app/quota_gate.py
+--- /home/kesha/bench914/fx/P18/app/quota_gate.py	2026-08-20 12:19:17.000000000 +0200
++++ /home/kesha/bench914/runs/P18/app/quota_gate.py	2026-10-17 11:27:18.105049763 +0200
+@@ -312,23 +312,34 @@
+ def deciding_window(provider: object, bucket: str) -> Mapping | None:
+     """Окно, по которому принимается решение для бакета.
+ 
+-    Claude — недельное (пятичасовое остаётся справочным). Codex и Spark — `primary`,
+-    каждый по СВОЕМУ счётчику: общим числом их мерить нельзя, они расходятся вдвое.
++    Claude — недельное (пятичасовое остаётся справочным). Codex и Spark — самое
++    длинное окно: каждый бакет использует свой счётчик.
+     """
+     if not isinstance(provider, Mapping):
+         return None
+     windows = provider.get("windows")
+     if not isinstance(windows, list):
+         return None
++    if bucket in {"anthropic", "anthropic_fable"}:
++        for item in windows:
++            if isinstance(item, Mapping) and item.get("window_minutes") == WEEKLY_WINDOW_MINUTES:
++                return item
++        return None
++
++    longest: Mapping | None = None
++    longest_minutes = 0.0
+     for item in windows:
+         if not isinstance(item, Mapping):
+             continue
+-        if bucket in {"anthropic", "anthropic_fable"}:
+-            if item.get("window_minutes") == WEEKLY_WINDOW_MINUTES:
+-                return item
+-        elif item.get("id") == "primary":
+-            return item
+-    return None
++        minutes = item.get("window_minutes")
++        if isinstance(minutes, bool) or not isinstance(minutes, (int, float)):
++            minutes = 0.0
++        if not math.isfinite(minutes):
++            minutes = 0.0
++        if longest is None or minutes > longest_minutes:
++            longest = item
++            longest_minutes = minutes
++    return longest
+ 
+ 
+ def window_progress(window: Mapping, now: float) -> tuple[float | None, str | None]:

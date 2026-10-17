@@ -1,0 +1,16 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P03/app/backend_codex.py /home/kesha/bench914/runs/P03/app/backend_codex.py
+--- /home/kesha/bench914/fx/P03/app/backend_codex.py	2026-08-23 10:10:08.000000000 +0200
++++ /home/kesha/bench914/runs/P03/app/backend_codex.py	2026-10-17 11:26:12.033257989 +0200
+@@ -344,7 +344,11 @@
+ }
+ # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
+ # здесь — копия, которая начинает расходиться с оригиналом.
+-_CARRIED_BASE_KEYS = ("project_doc_max_bytes",)
++_CARRIED_BASE_KEYS = (
++    "project_doc_max_bytes",
++    "model_context_window",
++    "model_auto_compact_token_limit",
++)
+ 
+ 
+ def _write_private(path: Path, text: str) -> None:

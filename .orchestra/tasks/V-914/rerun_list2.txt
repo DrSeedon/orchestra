@@ -1,0 +1,26 @@
+62174b96ba37750d33966e32a7319a601e58f8dd V-800: #V-800: route Claude API credits only to chosen workflows
+62e76da504520541efbcfe235cc295d38b59abfb V-782: shared workflow admission scheduler and agent cgroup isolation
+e47c6686662e23a366557deca7d4e5278447a639 V-780: #V-780: support dynamic workflows from linked worktrees
+023861fce80a8cbb9fb515619bb8019b9d1f152a V-776: #V-776: add readable dynamic workflow cards
+17a7d398b97ac538f4ac23bd34beb80015ded307 V-756: #V-756: fix repeated workflow prompts and wakes
+a3d7866537ac5e31eb8ef60c133e99c5774d27db V-741: #V-741: notify senders when message delivery fails
+038f06b7b20ff1c4153a287f146b67482c76fb10 V-720: #V-720: add one-call dynamic workflows
+f163b3fa56e5b8c74d8b663a2e54f1ace344fc1c V-704: #V-704: fix layout migration and run cwd defects
+b09a8450edae2eecbfb54d41a4ef606fcc74f757 V-681: #V-681: MP4 в Telegram уходит видео с превью и откатом в документ
+a8d2e20ad49d3f107717055567afe824970f457d V-582: #V-582: харнес-маршруты из живого каталога, допуск по данным провайдера
+360c846b729a66f8be322af7bde7421cb7bec71e V-555: #V-555: replace retired fan launcher with dynamic workflows
+5f8894ec9e4700cf68030277c18ca683fd63dc1d #532: enforce role and persistent worker tool exclusions at MCP dispatch
+45e3bbcd9faa676c386ea2f4dab5e6d15876a0f3 #494: freeze capability and isolation oracles
+7d1fc95d22d80bfe96488a57fca2d3a951f3bfb6 #472: доска PROJECTS показывает проекты выбранного оркестратора
+afdf03ea0d63fc34c7bd51a119fc535cfd8e3913 #450: hide user timestamps in human-facing channels
+71240bd4f2d629ad259fbb1949fd3819827c0e1f #446: suppress raw telemetry from user channels
+f8e00522e8597fcabb63675976bace4cbd1dee9c #430: research .orchestra path migration
+57038767bcceaf5cc4960361c3c418353e87668a #417: switch memory prompt to file-first retrieval
+99fa70980f2fe639099aa41e539f9f6b03b6d661 #405: add upload size and progress oracles
+ad76ba42e3183240e7efe9dc64df4dc868d171ae #411: freeze reliable restart oracles
+6f874ace52bb6afa357e34b5622c60e424d975b6 #248: make task state platform-owned and restart-safe
+24d6308d4fabe61cbbe497d8e9e750e304e500db #197: #197: кеш последнего успешного ответа, джиттер ретраев, негативный кеш провайдера
+0707d92571cab19fa2102bd11034f7001e56c973 #343: одно правило допуска по квоте, прежние квотные системы вырезаны
+1fe3cf1d7592f59b78de3728d0b5e4a5a0e54180 #329: один владелец логики пулов — квотная арифметика вырезана из манифеста, блок выключен до рестарта
+3c037bdb829e8b90d1d2937ca3d43a0670093fd3 #290: cross-runtime handoff + канареечный скип по продовому предикату (scratch/290, вердикт #328)
+bd4f6e61a4872bd251b7cf78cdcad8d3c37d9d43 #304: #304: select codex review model explicitly
