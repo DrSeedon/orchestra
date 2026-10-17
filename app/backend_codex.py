@@ -105,6 +105,7 @@ async def _run_process(
     *cmd: str,
     env: dict[str, str] | None = None,
     timeout: float = CODEX_PROCESS_TIMEOUT_SECONDS,
+    orchestrator: bool = False,
 ) -> tuple[int, str, str]:
     from app.agent_cgroups import agent_process_options
 
@@ -113,7 +114,7 @@ async def _run_process(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         env=env,
-        **agent_process_options(),
+        **agent_process_options(orchestrator),
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -616,6 +617,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 CODEX_BIN,
                 "--version",
                 timeout=10,
+                orchestrator=self._is_orchestrator,
             )
         except (OSError, asyncio.TimeoutError) as error:
             raise NativeHistoryUnsupported(

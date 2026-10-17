@@ -17,7 +17,9 @@ AGENTS_MEMORY_MAX_SHARE = 0.875
 # Agents may use at most a quarter of available host/service swap, with a 1 GiB ceiling.
 AGENTS_SWAP_MAX_SHARE = 0.25
 AGENTS_SWAP_MAX_CAP_BYTES = 1024 ** 3
+AGENT_OOM_SCORE_ADJ = 1000
 HOST_MEMINFO_PATH = Path("/proc/meminfo")
+OOM_SCORE_ADJ_PATH = Path("/proc/self/oom_score_adj")
 logger = logging.getLogger(__name__)
 
 
@@ -208,7 +210,12 @@ def move_current_process(cgroup: str | None = None) -> None:
         (Path(target) / "cgroup.procs").write_text(str(os.getpid()))
 
 
+def set_agent_oom_score_adj() -> None:
+    OOM_SCORE_ADJ_PATH.write_text(str(AGENT_OOM_SCORE_ADJ))
+
+
 def _move_subprocess_before_exec() -> None:
+    set_agent_oom_score_adj()
     target = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
     if not target:
         return
@@ -246,8 +253,7 @@ def agent_process_options(orchestrator: bool = False) -> dict:
     # Orchestrators stay beside the API: they are part of the service the agent limits protect.
     if orchestrator:
         return {}
-    if os.environ.get("ORCHESTRA_AGENT_CGROUP"):
-        return {"preexec_fn": _move_subprocess_before_exec}
-    if os.environ.get("ORCHESTRA_AGENT_CGROUP_REQUIRED") == "1":
+    cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
+    if not cgroup and os.environ.get("ORCHESTRA_AGENT_CGROUP_REQUIRED") == "1":
         raise RuntimeError("delegated agent cgroup is unavailable; refusing to launch provider process")
-    return {}
+    return {"preexec_fn": _move_subprocess_before_exec}

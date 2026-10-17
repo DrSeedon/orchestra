@@ -223,7 +223,7 @@ def test_workflow_balancer_can_be_disabled_without_blocking_workers(monkeypatch)
     assert agents is None
     assert reason == "disabled by ORCHESTRA_WORKFLOW_BALANCER_ENABLED"
     assert required is False
-    assert cgroups.agent_process_options() == {}
+    assert "preexec_fn" in cgroups.agent_process_options()
     assert "ORCHESTRA_AGENT_CGROUP" not in os.environ
     assert "ORCHESTRA_AGENT_ROOT" not in os.environ
     assert "ORCHESTRA_AGENT_CGROUP_REQUIRED" not in os.environ
@@ -245,7 +245,7 @@ def test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_requi
     assert agents is None
     assert reason == "systemd Delegate=no"
     assert required is False
-    assert cgroups.agent_process_options() == {}
+    assert "preexec_fn" in cgroups.agent_process_options()
 
     from app.bg_jobs import BgJobManager
     import app.bg_jobs as bg_jobs
@@ -264,7 +264,8 @@ def test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_requi
     asyncio.run(BgJobManager()._spawn_managed_process(
         "job", ["provider"], shell=False, agent_workload=True,
     ))
-    assert "env" not in spawn_kwargs
+    assert spawn_kwargs["env"]["ORCHESTRA_AGENT_WORKLOAD"] == "1"
+    assert "ORCHESTRA_AGENT_CGROUP" not in spawn_kwargs["env"]
 
     from app.routes.bg import WorkflowSlotRequest, bg_workflow_slot_acquire
     request = type("Request", (), {"app": type("App", (), {"state": type("State", (), {
@@ -306,10 +307,25 @@ def test_provider_cli_preexec_moves_process_before_exec(tmp_path, monkeypatch):
     membership.write_text("")
     monkeypatch.setenv("ORCHESTRA_AGENT_CGROUP", str(cgroup))
     result = subprocess.run(
-        [sys.executable, "-c", "import os; print(os.getpid())"],
+        [sys.executable, "-c", "import os; print(os.getpid(), open('/proc/self/oom_score_adj').read().strip())"],
         check=True, capture_output=True, text=True, **agent_process_options(),
     )
-    assert membership.read_text() == result.stdout.strip()
+    pid, oom_score_adj = result.stdout.split()
+    assert membership.read_text() == pid
+    assert oom_score_adj == "1000"
+
+
+def test_agent_cli_oom_priority_is_set_without_cgroup(monkeypatch):
+    from app.agent_cgroups import agent_process_options
+
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP", raising=False)
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", raising=False)
+    result = subprocess.run(
+        [sys.executable, "-c", "print(open('/proc/self/oom_score_adj').read().strip())"],
+        check=True, capture_output=True, text=True, **agent_process_options(),
+    )
+    assert result.stdout.strip() == "1000"
+    assert agent_process_options(orchestrator=True) == {}
 
 
 def test_claude_cli_wrapper_moves_then_execs_original_cli(tmp_path):
@@ -320,7 +336,11 @@ def test_claude_cli_wrapper_moves_then_execs_original_cli(tmp_path):
     membership = cgroup / "cgroup.procs"
     membership.write_text("")
     target = tmp_path / "cli"
-    target.write_text("#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n")
+    target.write_text(
+        "#!/usr/bin/env python3\n"
+        "import os\n"
+        "print(os.getpid(), open('/proc/self/oom_score_adj').read().strip())\n"
+    )
     target.chmod(0o755)
     env = {
         **os.environ,
@@ -328,7 +348,64 @@ def test_claude_cli_wrapper_moves_then_execs_original_cli(tmp_path):
         "ORCHESTRA_AGENT_CLI": str(target),
     }
     result = subprocess.run([wrapper], check=True, capture_output=True, text=True, env=env)
-    assert membership.read_text() == result.stdout.strip()
+    pid, oom_score_adj = result.stdout.split()
+    assert membership.read_text() == pid
+    assert oom_score_adj == "1000"
+
+
+@pytest.mark.asyncio
+async def test_pidfd_agent_run_joins_cgroup_and_gets_oom_priority(tmp_path):
+    from app.bg_jobs import _spawn_bg_process
+
+    cgroup = tmp_path / "agents" / "workers"
+    cgroup.mkdir(parents=True)
+    membership = cgroup / "cgroup.procs"
+    membership.write_text("")
+    env = {
+        **os.environ,
+        "ORCHESTRA_AGENT_CGROUP": str(cgroup),
+        "ORCHESTRA_AGENT_WORKLOAD": "1",
+    }
+    proc = await _spawn_bg_process(
+        [sys.executable, "-c", "print(open('/proc/self/oom_score_adj').read().strip())"],
+        shell=False,
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+
+    assert proc.returncode == 0, stderr.decode(errors="replace")
+    assert stdout.decode().strip() == "1000"
+    assert membership.read_text() == str(proc.pid)
+
+
+@pytest.mark.asyncio
+async def test_pidfd_ordinary_job_does_not_inherit_agent_cgroup(tmp_path, monkeypatch):
+    from app.bg_jobs import BgJobManager
+
+    cgroup = tmp_path / "agents" / "workers"
+    cgroup.mkdir(parents=True)
+    membership = cgroup / "cgroup.procs"
+    membership.write_text("")
+    monkeypatch.setenv("ORCHESTRA_AGENT_CGROUP", str(cgroup))
+    parent_oom_score_adj = Path("/proc/self/oom_score_adj").read_text().strip()
+    manager = BgJobManager()
+    proc = await manager._spawn_managed_process(
+        "ordinary", [
+            sys.executable, "-c",
+            "import os; print(os.environ.get('ORCHESTRA_AGENT_CGROUP', ''), "
+            "open('/proc/self/oom_score_adj').read().strip())",
+        ], shell=False,
+        agent_workload=False,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+
+    assert proc.returncode == 0, stderr.decode(errors="replace")
+    assert stdout.decode().strip() == parent_oom_score_adj
+    assert membership.read_text() == ""
 
 
 def test_codex_runtime_group_is_nested_under_agent_cgroup(tmp_path, monkeypatch):

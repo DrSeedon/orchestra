@@ -515,7 +515,7 @@ async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
             from app.shell_policy import classify_shell_command, violation_message
             rule = classify_shell_command(command)
             if rule:
-                return violation_message(rule), False
+                return violation_message(rule, command), False
             # V-637: on the client stand GigaChat followed a "recommendation" from its own audit
             # and tried sudo/fstab/swap on the host. An installation may forbid such commands.
             deny = os.environ.get("HARNESS_BASH_DENY", "").strip()

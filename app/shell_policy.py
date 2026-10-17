@@ -30,6 +30,10 @@ _RULES = {
         "The shell command could not be checked safely. Submit it again after the "
         "session shell policy is available."
     ),
+    "ssh_agent_oom_priority": (
+        "Commands run as kesha@localhost must begin with `choom -n 1000 --` so the "
+        "agent workload is selected before Orchestra during a global OOM."
+    ),
 }
 
 # Keep find operations whose meaning cannot be reproduced by an rg path/content search.
@@ -42,13 +46,103 @@ _FIND_SEMANTIC_OPTIONS = {
 }
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 _TRANSPARENT = {"time", "nohup", "exec", "do", "then", "else"}
+_SSH_OPTIONS_WITH_ARGUMENT = {
+    "-b", "-c", "-D", "-E", "-e", "-F", "-I", "-i", "-J", "-L", "-l",
+    "-m", "-O", "-o", "-p", "-Q", "-R", "-S", "-W", "-w",
+}
 CODEX_POLICY_WRAPPED_COMMANDS = (
     "sleep", "find", "grep", "egrep", "fgrep", "timeout", "env", "nice",
 )
 
 
-def violation_message(rule: str) -> str:
-    return f"POLICY VIOLATION [{rule}]: {_RULES[rule]}"
+def violation_message(rule: str, command: str | None = None) -> str:
+    message = f"POLICY VIOLATION [{rule}]: {_RULES[rule]}"
+    if rule == "ssh_agent_oom_priority":
+        suggestion = _corrected_localhost_ssh_command(command or "")
+        if suggestion:
+            message += f" Corrected command: `{suggestion}`"
+        else:
+            message += (
+                " Corrected form: `ssh -o BatchMode=yes kesha@localhost "
+                "'choom -n 1000 -- <command>'`."
+            )
+    return message
+
+
+def _ssh_destination_index(args: list[str]) -> int | None:
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token == "--":
+            return index + 1 if index + 1 < len(args) else None
+        if not token.startswith("-"):
+            return index
+        option = token[:2]
+        if option in _SSH_OPTIONS_WITH_ARGUMENT:
+            index += 2 if token == option else 1
+        else:
+            index += 1
+    return None
+
+
+def _remote_command_has_oom_priority(remote_command: str) -> bool:
+    try:
+        lexer = shlex.shlex(remote_command, posix=True, punctuation_chars=";&|()\n")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return False
+    shell_separators = {";", "&&", "||", "|", "&", "(", ")", "\n"}
+    return (
+        len(tokens) > 4
+        and Path(tokens[0]).name == "choom"
+        and tokens[1:4] == ["-n", "1000", "--"]
+        and not any(token in shell_separators for token in tokens[4:])
+    )
+
+
+def _corrected_localhost_ssh_command(command: str) -> str | None:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return None
+    if not tokens or Path(tokens[0]).name != "ssh":
+        return None
+    args = tokens[1:]
+    destination_index = _ssh_destination_index(args)
+    if destination_index is None or args[destination_index] != "kesha@localhost":
+        return None
+    remote_command = " ".join(args[destination_index + 1:]).strip()
+    if not remote_command or _remote_command_has_oom_priority(remote_command):
+        return None
+    command_prefix = tokens[:destination_index + 2]
+    has_batch_mode = any(
+        token == "-oBatchMode=yes"
+        or token == "-o" and index + 1 < destination_index + 1
+        and tokens[index + 1] == "BatchMode=yes"
+        for index, token in enumerate(tokens[:destination_index + 1])
+    )
+    if not has_batch_mode:
+        command_prefix[1:1] = ["-o", "BatchMode=yes"]
+    try:
+        remote_tokens = shlex.split(remote_command)
+    except ValueError:
+        remote_tokens = []
+    shell_builtins = {
+        ".", "alias", "cd", "command", "eval", "exec", "export", "read",
+        "set", "shift", "source", "trap", "type", "ulimit", "umask", "unset",
+    }
+    needs_shell = (
+        not remote_tokens
+        or remote_tokens[0] in shell_builtins
+        or "=" in remote_tokens[0] and not remote_tokens[0].startswith("/")
+        or any(token in {";", "&&", "||", "|", "&", "(", ")", "\n"}
+               for token in remote_tokens)
+    )
+    protected_argv = ["choom", "-n", "1000", "--"]
+    protected_argv.extend(["bash", "-lc", remote_command] if needs_shell else remote_tokens)
+    protected_remote_command = shlex.join(protected_argv)
+    return f"{shlex.join(command_prefix)} {shlex.quote(protected_remote_command)}"
 
 
 def _rg_available() -> bool:
@@ -85,6 +179,8 @@ def classify_shell_command(command: str) -> str | None:
             r"\bgrep\b[^\n;&|]*\s-(?:[^\s]*[rR]|[rR])(?:\s|$)", command,
         ):
             return "recursive_grep"
+        if _unparsed_ssh_needs_oom_priority(command):
+            return "ssh_agent_oom_priority"
         return None
 
     segments: list[list[str]] = []
@@ -129,12 +225,30 @@ def _without_heredoc_bodies(command: str) -> str:
     return "".join(output)
 
 
+def _unparsed_ssh_needs_oom_priority(command: str) -> bool:
+    match = re.search(
+        r"(?:^|[;&|()\n])\s*(?:[^\s;&|()]+/)?ssh\b(?P<args>[^;&|\n]*)",
+        command,
+    )
+    if not match:
+        return False
+    args = match.group("args")
+    destination = re.search(r"(?:^|\s)kesha@localhost(?:\s|$)", args)
+    if not destination:
+        return False
+    remote_command = args[destination.end():].strip().lstrip("'\"")
+    return not _remote_command_has_oom_priority(remote_command)
+
+
 def _classify_segment(tokens: list[str], depth: int) -> str | None:
     if not tokens or depth > 5:
         return None
     command_index = 0
     while command_index < len(tokens):
         token = tokens[command_index]
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", token):
+            command_index += 1
+            continue
         if token == "env":
             command_index += 1
             while command_index < len(tokens) and (
@@ -157,6 +271,13 @@ def _classify_segment(tokens: list[str], depth: int) -> str | None:
         return None
     name = tokens[command_index].rsplit("/", 1)[-1]
     args = tokens[command_index + 1:]
+
+    if name == "ssh":
+        destination_index = _ssh_destination_index(args)
+        if destination_index is not None and args[destination_index] == "kesha@localhost":
+            remote_command = " ".join(args[destination_index + 1:]).strip()
+            if not _remote_command_has_oom_priority(remote_command):
+                return "ssh_agent_oom_priority"
 
     if name in _SHELLS:
         for index, token in enumerate(args[:-1]):
@@ -306,7 +427,7 @@ def codex_policy_wrapper_main() -> int:
     command = shlex.join([Path(executable).name, *args])
     rule = _codex_wrapper_rule(command)
     if rule:
-        print(violation_message(rule), file=sys.stderr)
+        print(violation_message(rule, command), file=sys.stderr)
         return 126
     os.execv(executable, [executable, *args])
     return 126

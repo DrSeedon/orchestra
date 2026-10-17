@@ -451,16 +451,20 @@ class BgJobManager:
     async def _spawn_managed_process(self, job_id, command, *, shell, **kwargs):
         """Register a process or kill it if the owner is cancelled during spawn."""
         agent_workload = kwargs.pop("agent_workload", False)
+        env = dict(kwargs.pop("env", os.environ))
         if agent_workload:
+            env["ORCHESTRA_AGENT_WORKLOAD"] = "1"
             cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
             if not cgroup and os.environ.get("ORCHESTRA_AGENT_CGROUP_REQUIRED") != "1":
                 logger.warning("starting workflow task without agent cgroup isolation")
             elif not cgroup or not (Path(cgroup) / "cgroup.procs").exists():
                 raise RuntimeError("delegated agent cgroup is unavailable; workflow task remains queued")
             else:
-                env = dict(kwargs.pop("env", os.environ))
                 env["ORCHESTRA_AGENT_CGROUP"] = cgroup
-                kwargs["env"] = env
+        else:
+            env.pop("ORCHESTRA_AGENT_WORKLOAD", None)
+            env.pop("ORCHESTRA_AGENT_CGROUP", None)
+        kwargs["env"] = env
         spawn_task = asyncio.create_task(
             _spawn_bg_process(command, shell=shell, **kwargs)
         )
