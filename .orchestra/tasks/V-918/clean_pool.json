@@ -1,0 +1,3152 @@
+[
+ {
+  "sha": "6883d3787391f6daad286977cd0b8b0d88ba77a2",
+  "date": "2026-10-03T09:30:53+02:00",
+  "subj": "V-684: #V-684: \u0440\u043e\u043b\u0438\u043a\u0438 \u00d71.5 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e, Manim \u0432\u0442\u043e\u0440\u044b\u043c \u0434\u0432\u0438\u0436\u043a\u043e\u043c explainer-video, \u0440\u043e\u043b\u0438\u043a \u00ab\u041e\u0440\u043a\u0435\u0441\u0442\u0440\u0430 \u043d\u0435 \u0441\u043f\u0438\u0442\u00bb",
+  "size": 215
+ },
+ {
+  "sha": "01eeb113a6b11f1219f76139c8ad01771129d496",
+  "date": "2026-10-03T09:02:32+02:00",
+  "subj": "V-683: \u043a\u043e\u043c\u043f\u0430\u043a\u0442 \u043f\u043e \u043f\u0440\u043e\u0441\u0442\u043e\u044e \u0443 katya-work-orchestrator \u0442\u043e\u043b\u044c\u043a\u043e \u0441 80% \u043a\u043e\u043d\u0442\u0435\u043a\u0441\u0442\u0430",
+  "size": 35
+ },
+ {
+  "sha": "102fd30f23005ba5ad79f5ddda650895f6d21be2",
+  "date": "2026-10-02T10:00:53+02:00",
+  "subj": "V-682: \u0443\u0434\u0430\u043b\u0438\u0442\u044c \u0442\u0438\u043f bg-\u0437\u0430\u0434\u0430\u043d\u0438\u044f idle; \u0441\u0442\u0430\u0440\u044b\u0435 idle-\u0441\u0442\u0440\u043e\u043a\u0438 \u0433\u0430\u0441\u044f\u0442\u0441\u044f \u043f\u0440\u0438 \u0441\u0442\u0430\u0440\u0442\u0435",
+  "size": 344
+ },
+ {
+  "sha": "951d0d470408f6248993eb2915efe29db67367cc",
+  "date": "2026-10-02T09:56:52+02:00",
+  "subj": "V-680: durable \u0441\u0438\u0433\u043d\u0430\u043b \u043a\u043e\u043d\u0446\u0430 \u0445\u043e\u0434\u0430 \u0432\u043e\u0440\u043a\u0435\u0440\u0430 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044e \u0432\u043c\u0435\u0441\u0442\u043e idle-\u0441\u0442\u043e\u0440\u043e\u0436\u0430",
+  "size": 897
+ },
+ {
+  "sha": "5222d6ef4199de48af8042fbbe4e2012dc7f4f7d",
+  "date": "2026-10-02T09:55:10+02:00",
+  "subj": "V-678: durable-\u043e\u0447\u0435\u0440\u0435\u0434\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043e\u043a \u0437\u0430 \u0433\u0435\u0439\u0442\u043e\u043c \u043a\u0432\u043e\u0442 (WAITING_QUOTA), \u0440\u0435\u043b\u0438\u0437\u0435\u0440, \u043e\u0442\u043c\u0435\u043d\u0430, \u0431\u0435\u0437 \u0442\u0430\u0439\u043c\u0435\u0440\u043e\u0432 \u043f\u043e\u0432\u0442\u043e\u0440\u0430",
+  "size": 1035
+ },
+ {
+  "sha": "4321ff7a8e2ca184f20b7da2ee00ba9bbd23783a",
+  "date": "2026-10-02T09:41:30+02:00",
+  "subj": "V-621, V-679: \u0440\u0430\u0437\u0431\u0438\u0442\u044c \u043e\u0431\u0449\u0438\u0439 \u043a\u0430\u0442\u0430\u043b\u043e\u0433 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432 \u043d\u0430 \u0444\u0430\u0439\u043b\u044b \u043f\u043e scope",
+  "size": 529
+ },
+ {
+  "sha": "50a35f36dcec1e64d6ed4132000b5838df2b28ea",
+  "date": "2026-10-01T10:47:54+02:00",
+  "subj": "\u041a\u043e\u043c\u043f\u0430\u043a\u0442 Harness: \u043f\u043e\u0434\u043d\u044f\u0442\u044c \u0442\u0430\u0439\u043c\u0430\u0443\u0442 ack-\u0445\u043e\u0434\u0430 \u0441 60 \u0434\u043e 240 \u0441 (DeepSeek \u043d\u0435 \u0443\u0441\u043f\u0435\u0432\u0430\u043b)",
+  "size": 42
+ },
+ {
+  "sha": "53ebdaa91c5a652565b3145feb00bd562672303a",
+  "date": "2026-10-01T08:25:49+02:00",
+  "subj": "OpenRouter: \u0437\u0430\u043a\u0440\u0435\u043f\u0438\u0442\u044c \u0434\u0435\u0448\u0451\u0432\u044b\u0445 \u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440\u043e\u0432 \u043f\u043e \u0446\u0435\u043d\u0435 \u043a\u0435\u0448\u0430 \u0441 \u043e\u0442\u043a\u0430\u0442\u043e\u043c",
+  "size": 34
+ },
+ {
+  "sha": "810af66a97ea32b990611ea42ad4a3c6dfc1d4aa",
+  "date": "2026-10-01T08:09:46+02:00",
+  "subj": "\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 \u043a\u0435\u0448 OpenRouter \u0443 Harness-\u0430\u0433\u0435\u043d\u0442\u043e\u0432 \u0432\u043c\u0435\u0441\u0442\u043e \u043d\u0443\u043b\u044f",
+  "size": 80
+ },
+ {
+  "sha": "358fd675905df27cb06d998f17d8300aedd68d7e",
+  "date": "2026-10-01T07:49:06+02:00",
+  "subj": "Harness \u0447\u0438\u0442\u0430\u0435\u0442 AGENTS.md/CLAUDE.md \u043f\u0440\u043e\u0435\u043a\u0442\u0430 \u043a\u0430\u043a \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c\u044b\u0439 Codex, \u043f\u0435\u0440\u0435\u0447\u0438\u0442\u044b\u0432\u0430\u0435\u0442 \u043d\u0430 \u043a\u0430\u0436\u0434\u043e\u043c \u0445\u043e\u0434\u0443",
+  "size": 92
+ },
+ {
+  "sha": "bd958c8b491ec0149dd25cd5ed108f8c1b474825",
+  "date": "2026-10-01T07:06:50+02:00",
+  "subj": "\u041f\u043b\u0430\u0442\u043d\u044b\u0439 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 OpenRouter DeepSeek V4.1 Flash \u043f\u043e \u0431\u0435\u043b\u043e\u043c\u0443 \u0441\u043f\u0438\u0441\u043a\u0443; \u043f\u0435\u0441\u043e\u0447\u043d\u0438\u0446\u0430 openrouter-lab \u0432 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0435 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432",
+  "size": 64
+ },
+ {
+  "sha": "dc993debec5e2393a991e17f51d7be97ee6c1717",
+  "date": "2026-09-30T09:17:04+02:00",
+  "subj": "V-614: \u0443\u0431\u0440\u0430\u0442\u044c \u0442\u0435\u043d\u044c-\u0433\u0435\u0439\u0442 DONE \u0431\u0435\u0437 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u2014 \u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044e 0 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u0441 \u043f\u0440\u043e\u0432\u0430\u043b\u0430\u043c\u0438 \u043c\u0435\u0440\u0436\u0430",
+  "size": 692
+ },
+ {
+  "sha": "a43f26866b2d00b4ec6edb980aa603352a354036",
+  "date": "2026-09-29T17:02:40+02:00",
+  "subj": "bg_create timer: \u0431\u0435\u0437 \u043f\u043e\u0442\u043e\u043b\u043a\u0430 8 \u0441\u0443\u0442\u043e\u043a \u2014 \u0441\u0440\u043e\u043a \u0436\u0438\u0437\u043d\u0438 \u0432\u0441\u0435\u0433\u0434\u0430 \u043f\u043e\u0437\u0436\u0435 \u0441\u0440\u0430\u0431\u0430\u0442\u044b\u0432\u0430\u043d\u0438\u044f (\u0431\u0430\u0433 seedon 29.09)",
+  "size": 28
+ },
+ {
+  "sha": "87f4ffd1e875fb3517dee3c6234e248e3b9f5dcd",
+  "date": "2026-09-29T16:51:43+02:00",
+  "subj": "V-672: #V-672: group compaction activity in chat",
+  "size": 702
+ },
+ {
+  "sha": "621e4b0dcd7ee805f3b3e48f601c53002b1faab5",
+  "date": "2026-09-29T11:14:37+02:00",
+  "subj": "V-665: #V-665: \u0441\u043a\u0438\u043b\u043b html-motion \u2014 \u0430\u043d\u0438\u043c\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0435 \u043e\u0431\u044a\u044f\u0441\u043d\u0435\u043d\u0438\u044f \u0441 \u043f\u043b\u0435\u0435\u0440\u043e\u043c",
+  "size": 20
+ },
+ {
+  "sha": "c4d36776de63428704fdaddfbefefe1b01961b4e",
+  "date": "2026-09-29T10:15:59+02:00",
+  "subj": "V-658: WIP #V-658: switch default Sonnet to 5.5 pending full tests",
+  "size": 498
+ },
+ {
+  "sha": "44362f25e51c4917ffe9e7ec7d74ab87e9dfb6f7",
+  "date": "2026-09-28T13:13:51+02:00",
+  "subj": "#V-650: \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435 \u043e \u043b\u0438\u043c\u0438\u0442\u0435 \u043d\u0435 \u043e\u0431\u0440\u044b\u0432\u0430\u0435\u0442 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443 \u0441\u0432\u043e\u0434\u043a\u0438 \u0441\u0436\u0430\u0442\u0438\u044f",
+  "size": 20
+ },
+ {
+  "sha": "4d36d5d68b060a2d1e1149a89ba1d8f8ef71e04b",
+  "date": "2026-09-28T16:38:24+07:00",
+  "subj": "\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f \u043d\u043e\u0443\u0442\u0431\u0443\u043a\u0430 \u0441 origin/main (cf8485c2)",
+  "size": 245
+ },
+ {
+  "sha": "131ae2de0c2bfab7b179ffd991686a2c07306680",
+  "date": "2026-09-24T19:25:40+07:00",
+  "subj": "\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f \u043d\u043e\u0443\u0442\u0431\u0443\u043a\u0430 \u0441 main VPS (9fa965c)",
+  "size": 242
+ },
+ {
+  "sha": "417610bb6e14491c8ffc3b33c3c1af527abacbd7",
+  "date": "2026-09-24T12:36:22+02:00",
+  "subj": "#V-634: \u043c\u0438\u0433\u0440\u0430\u0446\u0438\u044f \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0430 \u0431\u0435\u0437 \u043f\u0440\u043e\u0434\u0432\u0438\u0436\u0435\u043d\u0438\u044f \u043d\u0435 \u043a\u043e\u043c\u043c\u0438\u0442\u0438\u0442; scope \u0434\u0440\u0443\u0433\u043e\u0439 \u043c\u0430\u0448\u0438\u043d\u044b \u043d\u0435 \u043e\u0448\u0438\u0431\u043a\u0430 \u0440\u0430\u0441\u043a\u043b\u0430\u0434\u043a\u0438",
+  "size": 78
+ },
+ {
+  "sha": "9c5e64087fd4ceafd85197dd557befcb2e4e7aff",
+  "date": "2026-09-23T07:34:43+02:00",
+  "subj": "V-621: WIP #V-621: \u043a\u0430\u0442\u0430\u043b\u043e\u0433 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432 \u2014 \u0444\u0430\u0439\u043b \u043d\u0430 \u043a\u0430\u0436\u0434\u044b\u0439 scope \u0432\u043c\u0435\u0441\u0442\u043e \u043e\u0434\u043d\u043e\u0433\u043e \u043e\u0431\u0449\u0435\u0433\u043e",
+  "size": 1059
+ },
+ {
+  "sha": "628ac20589d7fbb29efb1bf8c677f180009a8b8a",
+  "date": "2026-09-23T07:11:13+02:00",
+  "subj": "\u041c\u0430\u0440\u0448\u0440\u0443\u0442 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e: luna \u2192 GPT-6 Luna, sol \u2192 GPT-6 Sol (Sol \u0437\u0430\u043a\u0440\u044b\u0442 \u0434\u043b\u044f \u0430\u0433\u0435\u043d\u0442\u043e\u0432)",
+  "size": 30
+ },
+ {
+  "sha": "f20796d3efbdceb45a1f74aad251228cce7d2825",
+  "date": "2026-09-23T05:14:44+02:00",
+  "subj": "\u041a\u0430\u0442\u0430\u043b\u043e\u0433 \u043c\u043e\u0434\u0435\u043b\u0435\u0439: Opus 5.5, GPT-6 Luna \u0438 Sol; opus \u2192 5.5",
+  "size": 33
+ },
+ {
+  "sha": "8941811c9d6ee364b1e8439234b60988b7fbe5db",
+  "date": "2026-09-22T13:24:21+02:00",
+  "subj": "V-610: rewrite third-party code in app/ with own implementation",
+  "size": 815
+ },
+ {
+  "sha": "a6fe16bfc572721531aa40fd64a45634236afb82",
+  "date": "2026-09-22T12:48:08+02:00",
+  "subj": "V-614: \u0442\u0435\u043d\u044c-\u0433\u0435\u0439\u0442 \u00abDONE \u0431\u0435\u0437 \u043f\u0440\u043e\u0448\u0435\u0434\u0448\u0435\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u043f\u0440\u0430\u0432\u043a\u0438\u00bb",
+  "size": 709
+ },
+ {
+  "sha": "bbfd3641c1e70890f84725707d0a34e08d152dfa",
+  "date": "2026-09-22T11:57:32+02:00",
+  "subj": "V-585: WIP V-585: GigaChat \u0445\u0430\u0440\u043d\u0435\u0441-\u043c\u0430\u0440\u0448\u0440\u0443\u0442, \u043d\u0435\u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u0430\u044f \u0440\u0430\u0431\u043e\u0442\u0430 \u0434\u043e \u0441\u043c\u0435\u043d\u044b \u043c\u043e\u0434\u0435\u043b\u0438",
+  "size": 526
+ },
+ {
+  "sha": "2dcbfba99541c231d8c8c6d4031c5aebdc6bf56a",
+  "date": "2026-09-22T09:02:10+02:00",
+  "subj": "V-609: #V-609: persist provider cost baseline across restart",
+  "size": 203
+ },
+ {
+  "sha": "2bdb6742f57db6cb0262dd700fd4a824af88fdfe",
+  "date": "2026-09-21T09:07:43+02:00",
+  "subj": "#V-607: \u043f\u043e\u0440\u044f\u0434\u043e\u043a \u0432\u043a\u043b\u0430\u0434\u043e\u043a \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u043e\u0432 \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u043f\u043b\u044f\u0448\u0435\u0442 \u043e\u0442 \u0442\u043e\u0433\u043e, \u043a\u043e\u0433\u043e \u043e\u0442\u043a\u0440\u044b\u0432\u0430\u043b\u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u043c",
+  "size": 29
+ },
+ {
+  "sha": "743cb7ab6179d32ac5ef35b8834ed55881800ce7",
+  "date": "2026-09-21T08:02:28+02:00",
+  "subj": "#V-607: \u0441\u043e\u043a\u0440\u0430\u0449\u0451\u043d\u043d\u044b\u0439 \u0445\u0435\u0448 \u2014 \u0442\u043e\u0442 \u0436\u0435 \u043a\u043e\u043c\u043c\u0438\u0442, \u0430 \u043e\u0442\u043a\u0430\u0437 \u043f\u043e \u0434\u0440\u0435\u0439\u0444\u0443 \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u043e\u0431\u0430 \u0445\u0435\u0448\u0430",
+  "size": 43
+ },
+ {
+  "sha": "7f291ae992754563cab40ef055dc11c49c47a116",
+  "date": "2026-09-21T07:59:15+02:00",
+  "subj": "V-606: #V-606: compact idle sessions before cache expiry",
+  "size": 94
+ },
+ {
+  "sha": "4bd1a53659566e76784cfb8a033b64fc2d94733f",
+  "date": "2026-09-21T04:17:20+02:00",
+  "subj": "V-603: clarify worker refusals and background receipts",
+  "size": 167
+ },
+ {
+  "sha": "f6d969c1c1ae1889a44227202870dfbb593e7d6c",
+  "date": "2026-09-20T14:58:25+02:00",
+  "subj": "V-602: update MCP descriptions and parallelize agent listing",
+  "size": 320
+ },
+ {
+  "sha": "b310e52eb0995df0de8ade171a88f6ba4b4c634c",
+  "date": "2026-09-20T14:47:57+02:00",
+  "subj": "#V-599: \u0431\u0430\u043d Astra \u0438 Sol \u0434\u043b\u044f \u0430\u0433\u0435\u043d\u0442\u043e\u0432 \u2014 \u043f\u0440\u0430\u0432\u0438\u043b\u043e \u0432 model-routing, \u0441\u0442\u0443\u0445\u0448\u0438\u0435 \u0442\u0435\u0441\u0442\u044b \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438 \u0440\u0435\u0432\u044c\u044e \u0437\u0430\u043c\u0435\u043d\u0435\u043d\u044b \u043c\u0435\u0445\u0430\u043d\u0438\u043a\u043e\u0439",
+  "size": 67
+ },
+ {
+  "sha": "88c25b2a1efc3fb59a5abd923c5c9266cbdf1c32",
+  "date": "2026-09-20T11:35:23+02:00",
+  "subj": "#V-599: merge_worker \u0441\u043d\u043e\u0432\u0430 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u043d\u044b\u0439 \u2014 \u0436\u0434\u0451\u0442 \u0438\u0441\u0445\u043e\u0434 \u0434\u043e 10 \u0441 \u0438 \u0441\u043d\u0438\u043c\u0430\u0435\u0442 \u043b\u0438\u0448\u043d\u0435\u0435 \u043f\u0440\u043e\u0431\u0443\u0436\u0434\u0435\u043d\u0438\u0435",
+  "size": 120
+ },
+ {
+  "sha": "2bd067d76ace05445b5bdfbb9867814f3c19d4d1",
+  "date": "2026-09-20T07:55:29+02:00",
+  "subj": "#V-597: \u0432\u0435\u0440\u043d\u0443\u0442\u044c CLAUDE.md \u0441\u0438\u043c\u043b\u0438\u043d\u043a\u043e\u043c \u2014 \u043c\u043e\u0434 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0432 CLI, \u043d\u0430\u0448\u0438 \u0432\u043e\u0440\u043a\u0435\u0440\u044b \u0438 \u0431\u043e\u0442 \u041a\u0435\u0448\u0438 \u0445\u043e\u0434\u044f\u0442 \u0447\u0435\u0440\u0435\u0437 SDK",
+  "size": 86
+ },
+ {
+  "sha": "643d47211983c9f71e45c23ae5347b9c3bd53e36",
+  "date": "2026-09-20T07:36:26+02:00",
+  "subj": "#V-597: \u043c\u043e\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u0440\u0435\u0432\u044c\u044e \u0437\u0430\u043c\u043e\u0440\u043e\u0436\u0435\u043d\u043e \u2014 \u0442\u0443\u043b codex_review \u0441\u043d\u044f\u0442 \u0441 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438, \u0441\u043a\u0438\u043b\u043b \u0438 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u0437\u0430\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u044b",
+  "size": 28
+ },
+ {
+  "sha": "008c51eff659de6b70fedfd2597015d4da5f101d",
+  "date": "2026-09-20T07:20:28+02:00",
+  "subj": "#V-604: \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u043f\u0440\u043e\u0435\u043a\u0442\u0430 \u0447\u0438\u0442\u0430\u044e\u0442\u0441\u044f \u0438\u0437 AGENTS.md \u043c\u043e\u0434\u043e\u043c agents-md, CLAUDE.md \u0440\u044f\u0434\u043e\u043c \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d",
+  "size": 80
+ },
+ {
+  "sha": "902e8659729ec3a12b86bac50f8a6bcd3b3efebd",
+  "date": "2026-09-19T11:57:22+02:00",
+  "subj": "#V-603: \u043e\u0442\u043a\u0430\u0437 \u043f\u0440\u0438\u0432\u044f\u0437\u043a\u0438 \u0437\u0430\u0434\u0430\u0447\u0438 \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442 \u043f\u0440\u0438\u0447\u0438\u043d\u0443, \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 spawn_worker \u2014 \u043f\u0440\u0430\u0432\u0438\u043b\u0430",
+  "size": 94
+ },
+ {
+  "sha": "74331413a203e044424398bcca3bd9d7ac7e2013",
+  "date": "2026-09-19T10:48:26+02:00",
+  "subj": "#V-602: \u0445\u0430\u0440\u043d\u0435\u0441 \u0431\u0435\u0440\u0451\u0442 \u0441\u0442\u0443\u043f\u0435\u043d\u044c \u0440\u0430\u0441\u0441\u0443\u0436\u0434\u0435\u043d\u0438\u044f \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430, \u0440\u0435\u0433\u0443\u043b\u044f\u0440\u043a\u0430 \u0443\u0434\u0430\u043b\u0435\u043d\u0430",
+  "size": 136
+ },
+ {
+  "sha": "19ded26ad888118cf8b36e0720e02e4512d24e82",
+  "date": "2026-09-19T10:28:15+02:00",
+  "subj": "#V-601: CLAUDE.md \u2014 \u0441\u0438\u043c\u043b\u0438\u043d\u043a \u043d\u0430 AGENTS.md \u0432\u043c\u0435\u0441\u0442\u043e \u043a\u043e\u043f\u0438\u0438",
+  "size": 333
+ },
+ {
+  "sha": "4dd81e7e3a18b4527c3875a9772d5afdcc23237a",
+  "date": "2026-09-19T09:40:58+02:00",
+  "subj": "#V-600: \u043a\u043e\u0440\u043d\u0435\u0432\u044b\u0435 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u2014 \u043e\u0434\u0438\u043d AGENTS.md, \u0434\u0443\u0431\u043b\u044c CLAUDE.md \u0437\u0430\u043f\u0440\u0435\u0449\u0451\u043d",
+  "size": 339
+ },
+ {
+  "sha": "5c977a96493a233180a700fceae32d9b7de64f5f",
+  "date": "2026-09-18T11:08:12+02:00",
+  "subj": "#V-598: \u0440\u043e\u043b\u044c sub-orchestrator \u0437\u0430\u043c\u043e\u0440\u043e\u0436\u0435\u043d\u0430 \u2014 \u0437\u0430\u0441\u043f\u0430\u0432\u043d\u0438\u0442\u044c \u0435\u0451 \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435\u043b\u044c\u0437\u044f",
+  "size": 32
+ },
+ {
+  "sha": "323b5e6ff804c2ed2a73a4a3c644f64806014b4f",
+  "date": "2026-09-18T07:35:46+02:00",
+  "subj": "#V-597: \u043d\u0435\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u043e\u043a\u043d\u043e Codex \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u0440\u044f\u0434\u043e\u043c \u0441 \u043f\u044f\u0442\u0438\u0447\u0430\u0441\u043e\u0432\u044b\u043c",
+  "size": 71
+ },
+ {
+  "sha": "828e1154a0aa5977b3b36e7f59cb242c61f2dc8b",
+  "date": "2026-09-17T17:48:15+02:00",
+  "subj": "#V-596: \u043a\u0440\u0438\u0432\u044b\u0435 \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u044b \u0432\u044b\u0437\u043e\u0432\u0430 \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442\u0430 \u043d\u0435 \u043e\u0442\u0440\u0430\u0432\u043b\u044f\u044e\u0442 \u043e\u0441\u0442\u0430\u0442\u043e\u043a \u0441\u0435\u0441\u0441\u0438\u0438",
+  "size": 73
+ },
+ {
+  "sha": "0e6b568fef2bbcfc845aece8a9bdd9efc7876f99",
+  "date": "2026-09-17T17:41:25+02:00",
+  "subj": "V-590: #V-590: analytics.js \u0438 utils.js \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c, \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u044c",
+  "size": 357
+ },
+ {
+  "sha": "780f7197c50abaa60e1fc19b5a72573c96355892",
+  "date": "2026-09-17T17:40:45+02:00",
+  "subj": "V-588: #V-588: app.js \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c, \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u044c",
+  "size": 329
+ },
+ {
+  "sha": "67ee5df0385b4dfec19052c8658447c76d6e4a4c",
+  "date": "2026-09-17T17:37:55+02:00",
+  "subj": "#V-593: \u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0445 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u0432, \u043e\u0442\u043a\u0430\u0437\u0430\u0432\u0448\u0438\u0445 \u0432 \u043d\u0430\u0448\u0435\u0439 \u043f\u0440\u043e\u0431\u0435",
+  "size": 49
+ },
+ {
+  "sha": "74ca393e0409cab881154c4aaf993d51ee8a105a",
+  "date": "2026-09-17T17:23:15+02:00",
+  "subj": "V-587: WIP #V-587: chat.js voice input and queued messages (lines 80-397)",
+  "size": 1334
+ },
+ {
+  "sha": "af4272affe7bb59d5d5daeeb5567201512666ef5",
+  "date": "2026-09-17T16:31:48+02:00",
+  "subj": "#V-592: \u043f\u043e\u0432\u0442\u043e\u0440 \u0442\u0440\u0430\u043d\u0437\u0438\u0435\u043d\u0442\u043d\u043e\u0439 \u043e\u0448\u0438\u0431\u043a\u0438 \u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440\u0430, \u043f\u0440\u0438\u0448\u0435\u0434\u0448\u0435\u0439 \u0447\u0430\u043d\u043a\u043e\u043c \u0432\u043d\u0443\u0442\u0440\u0438 \u043f\u043e\u0442\u043e\u043a\u0430",
+  "size": 161
+ },
+ {
+  "sha": "213af9ce3bd7307026c568ffc4520ebd1fa5bd89",
+  "date": "2026-09-17T16:03:46+02:00",
+  "subj": "V-591: #V-591: \u0448\u0430\u0431\u043b\u043e\u043d\u044b \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0430 \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c, \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u044c",
+  "size": 74
+ },
+ {
+  "sha": "d7d1badabf87a3dd2fc939195d858e73e2fff913",
+  "date": "2026-09-17T15:21:10+02:00",
+  "subj": "V-587: #V-587: connection.js \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c, \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u044c",
+  "size": 54
+ },
+ {
+  "sha": "a8d2e20ad49d3f107717055567afe824970f457d",
+  "date": "2026-09-17T09:20:21+02:00",
+  "subj": "V-582: #V-582: \u0445\u0430\u0440\u043d\u0435\u0441-\u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u0438\u0437 \u0436\u0438\u0432\u043e\u0433\u043e \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0430, \u0434\u043e\u043f\u0443\u0441\u043a \u043f\u043e \u0434\u0430\u043d\u043d\u044b\u043c \u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440\u0430",
+  "size": 566
+ },
+ {
+  "sha": "b112d9b326e94b7c7e52ae14d8f17e250c1e8e2c",
+  "date": "2026-09-17T07:42:26+02:00",
+  "subj": "#V-584: \u043f\u043e\u0434\u043f\u0438\u0441\u0438 \u043e\u043a\u043e\u043d Codex \u043f\u043e \u0434\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u0438, \u043a\u0430\u043a \u0443 Claude",
+  "size": 43
+ },
+ {
+  "sha": "d86cef6a1d7b604611ba2964edca67c9d46067d3",
+  "date": "2026-09-16T08:24:55+02:00",
+  "subj": "#V-578: \u043a\u043d\u043e\u043f\u043a\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0433\u043e \u0441\u043d\u044f\u0442\u0438\u044f \u043a\u0432\u043e\u0442\u043d\u043e\u0433\u043e \u0433\u0435\u0439\u0442\u0430 \u0441 \u0430\u0432\u0442\u043e\u0438\u0441\u0442\u0435\u0447\u0435\u043d\u0438\u0435\u043c",
+  "size": 263
+ },
+ {
+  "sha": "0c3c0fcb0c2824b59e540afd98c725a6910c80e6",
+  "date": "2026-09-15T13:36:48+02:00",
+  "subj": "V-575: \u043f\u0440\u043e \u0432\u0435\u0442\u043a\u0443 \u0432\u043e\u0440\u043a\u0435\u0440\u0430 \u043f\u0440\u0438 \u043c\u0435\u0440\u0436\u0435 \u0441\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u044e\u0442 git, \u0430 \u043d\u0435 \u0432\u0442\u043e\u0440\u0443\u044e \u0437\u0430\u043f\u0438\u0441\u044c \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u044b",
+  "size": 230
+ },
+ {
+  "sha": "13648c8fa3924c489c8729780527b63564e62229",
+  "date": "2026-09-15T13:36:21+02:00",
+  "subj": "V-545: \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u044b\u0439 \u0441\u043a\u0440\u0438\u043f\u0442 \u0440\u0435\u0441\u0442\u0430\u0440\u0442\u0430 \u0441 \u043f\u0435\u0440\u0435\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435\u043c \u0411\u0414",
+  "size": 67
+ },
+ {
+  "sha": "3bd3ee63f69728142959a517e71a949792fed73c",
+  "date": "2026-09-15T10:50:52+02:00",
+  "subj": "gitignore: \u0437\u0430\u043a\u0440\u044b\u0442\u044c \u0432\u0435\u0441\u044c \u043a\u043b\u0430\u0441\u0441 .env.* \u043e\u0442 \u043f\u043e\u043f\u0430\u0434\u0430\u043d\u0438\u044f \u0432 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u0439",
+  "size": 36
+ },
+ {
+  "sha": "fbc9e40dff69ea17cbba5983723bbe9ef571ebdc",
+  "date": "2026-09-15T10:22:58+02:00",
+  "subj": "\u043a\u0432\u043e\u0442\u043d\u044b\u0439 \u0433\u0435\u0439\u0442: \u043f\u0440\u0430\u0432\u043a\u0430 .env \u043f\u0440\u0438\u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u0431\u0435\u0437 \u0440\u0435\u0441\u0442\u0430\u0440\u0442\u0430, \u0435\u0441\u043b\u0438 \u043a\u043b\u044e\u0447 \u043f\u0440\u0438\u0448\u0451\u043b \u0438\u0437 \u0442\u043e\u0433\u043e \u0436\u0435 \u0444\u0430\u0439\u043b\u0430",
+  "size": 92
+ },
+ {
+  "sha": "5bb162d53ad0c494b015fdae9a78e6ee83649860",
+  "date": "2026-09-13T16:16:51+02:00",
+  "subj": "V-572: document verified laptop SSH route and stage personal pointers",
+  "size": 43
+ },
+ {
+  "sha": "9f2916a5327a5f297fabcd96dea9cdeebc11585e",
+  "date": "2026-09-13T15:15:51+02:00",
+  "subj": "V-570: consolidate shared rules and stage personal global migration",
+  "size": 83
+ },
+ {
+  "sha": "6a6c9e9bd0a06bf4817a84cc3bb9681daac2cb5d",
+  "date": "2026-09-13T06:49:47+02:00",
+  "subj": "V-564: render send_chart results in dashboard",
+  "size": 195
+ },
+ {
+  "sha": "b15940ba5a9c9be64905e5b247512d9e4bab1c31",
+  "date": "2026-09-12T19:31:43+02:00",
+  "subj": "V-562: preserve steered messages after failed turns",
+  "size": 310
+ },
+ {
+  "sha": "4c8cb1d7049e39ea28d5d9e51df6aca3e01819c5",
+  "date": "2026-09-12T18:32:17+02:00",
+  "subj": "\u043a\u0430\u0442\u0430\u043b\u043e\u0433: \u0443\u0431\u0440\u0430\u0442\u044c \u043d\u0435\u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u043c\u044b\u0435 GPT-5.4 \u0438 5.4 Mini \u0432\u043c\u0435\u0441\u0442\u0435 \u0441 \u0438\u0445 \u0443\u0441\u0442\u0430\u0440\u0435\u0432\u0448\u0438\u043c\u0438 \u0442\u0430\u0440\u0438\u0444\u0430\u043c\u0438",
+  "size": 21
+ },
+ {
+  "sha": "07053357fa8257e1d7b334fe708c7f68b4dd9e41",
+  "date": "2026-09-10T08:03:17+02:00",
+  "subj": "docs/repo: \u0443\u0431\u0440\u0430\u0442\u044c \u0438\u0437 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u043e\u0439 \u0440\u0435\u043f\u044b IP \u043a\u043e\u043d\u0442\u0443\u0440\u043e\u0432, \u0438\u043c\u044f \u0441\u0438\u0441\u0442\u0435\u043c\u043d\u043e\u0433\u043e \u044e\u0437\u0435\u0440\u0430 \u0438 \u0447\u0443\u0436\u043e\u0439 e-mail",
+  "size": 21
+ },
+ {
+  "sha": "84cfa1ae6fdfc0a7a09f6a83a8ba0a5fbe8bbf5a",
+  "date": "2026-09-08T22:10:15+07:00",
+  "subj": "Finalize prepared task migration from a fresh runtime snapshot",
+  "size": 105
+ },
+ {
+  "sha": "a27f10e2bf356f4bc977703aff8a99e63b93e300",
+  "date": "2026-09-08T18:59:56+07:00",
+  "subj": "Preserve active worker assignments during legacy task conversion",
+  "size": 28
+ },
+ {
+  "sha": "26c0ca7db39683c72861e0bf3c40aef8c6ac14a5",
+  "date": "2026-09-08T16:22:59+07:00",
+  "subj": "Reject task symlinks and retire failed migration copies",
+  "size": 35
+ },
+ {
+  "sha": "d02aa1298b8fd617e2dcef2458c9f859223eeac3",
+  "date": "2026-09-08T16:01:11+07:00",
+  "subj": "Keep typed creation conflicts and record cross-node sync verification",
+  "size": 28
+ },
+ {
+  "sha": "9f4a94d4cfdde5ee31f7465d9155bcc87ebd4165",
+  "date": "2026-09-08T11:20:17+07:00",
+  "subj": "Checkpoint single SQLite task projection before workflow integration",
+  "size": 298
+ },
+ {
+  "sha": "b1c7583ed0dca2973c94adeb12bb2a4d77542ba7",
+  "date": "2026-09-08T09:33:55+07:00",
+  "subj": "#530: preserve historical text-control research and main-compatible regressions",
+  "size": 72
+ },
+ {
+  "sha": "73a05dee2ef342deb1556748304f4d5fbc621433",
+  "date": "2026-09-07T22:30:19+07:00",
+  "subj": "Exercise advisory acceptance through real Git merges and head races",
+  "size": 78
+ },
+ {
+  "sha": "25a7e6ed711dd8e002c2f0d1c4375d491d4fcf2a",
+  "date": "2026-09-07T22:10:14+07:00",
+  "subj": "Introduce advisory review and one pinned acceptance for new task assignments",
+  "size": 875
+ },
+ {
+  "sha": "55b4b737f43abd8e9ac20e7db0829baa77acb9b1",
+  "date": "2026-09-07T20:07:39+07:00",
+  "subj": "Restrict model review to executors and preserve approved design experiments",
+  "size": 199
+ },
+ {
+  "sha": "ac6a0a309c4c693872a1ad64aed522ca2315aad3",
+  "date": "2026-09-07T13:39:34+07:00",
+  "subj": "Unify HTML artifact design across Orchestra roles and native CLIs",
+  "size": 54
+ },
+ {
+  "sha": "789e96a9cc22480f4d5108e270e56eb61ec6257b",
+  "date": "2026-09-07T07:45:14+02:00",
+  "subj": "#523, #520: \u0443\u0431\u043e\u0440\u043a\u0430 \u0434\u0438\u0441\u043a\u0430 92%\u219257%, \u0444\u0430\u043a\u0442\u044b \u0432 KB \u043f\u0440\u043e codex-home \u0438 \u0447\u0438\u0441\u0442\u043a\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0445 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u043e\u0432",
+  "size": 1011
+ },
+ {
+  "sha": "6e4311fbd48601b9b33ae8b095f49f2c0a3e0c6f",
+  "date": "2026-09-07T12:44:33+07:00",
+  "subj": "#528: clean the exact CLI home after session removal",
+  "size": 135
+ },
+ {
+  "sha": "20b1804dd455ed6d7f9804bb3aaa212e4100f0d8",
+  "date": "2026-09-07T11:31:44+07:00",
+  "subj": "#523, #525: \u0431\u0430\u0437\u0430 \u0437\u043d\u0430\u043d\u0438\u0439 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u0430\u043d\u0430 \u043f\u043e\u0434 \u0447\u0435\u043b\u043e\u0432\u0435\u043a\u0430 \u2014 40 \u0442\u0435\u043c \u0432 16, \u043c\u0430\u0448\u0438\u043d\u043d\u044b\u0435 \u043a\u043b\u044e\u0447\u0438 \u0443\u0431\u0440\u0430\u043d\u044b",
+  "size": 552
+ },
+ {
+  "sha": "ebbff3f53f2c97d19f3b24683434c6d91bf5d9ae",
+  "date": "2026-09-06T17:43:52+02:00",
+  "subj": "#520: \u0441\u0432\u0435\u0436\u0438\u0439 Codex-\u0432\u043e\u0440\u043a\u0435\u0440 \u043d\u0435 \u0441\u043a\u0430\u043d\u0438\u0440\u0443\u0435\u0442 \u0432\u0441\u0435 managed homes \u043f\u0435\u0440\u0435\u0434 \u0441\u0442\u0430\u0440\u0442\u043e\u043c CLI",
+  "size": 95
+ },
+ {
+  "sha": "fed532b24c541e5308bd3fe719b9165b1b24e5d9",
+  "date": "2026-09-06T17:56:57+02:00",
+  "subj": "\u0443\u0431\u043e\u0440\u043a\u0430: \u0443\u0434\u0430\u043b\u0435\u043d\u043e \u0445\u0440\u0430\u043d\u0438\u043b\u0438\u0449\u0435 \u0443\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u0435\u0439 kb/records (12 759 \u0444\u0430\u0439\u043b\u043e\u0432, 99.5% \u0431\u0438\u0442\u044b\u0445), \u0435\u0433\u043e \u043e\u043f\u0438\u0441\u044c, tg-media \u0438 \u0437\u0430\u043c\u043e\u0440\u043e\u0436\u0435\u043d\u043d\u0430\u044f \u0441\u0432\u0435\u0440\u043a\u0430",
+  "size": 169
+ },
+ {
+  "sha": "fa3657e78ba1dc7e1645436a3bc8a60d5ce79eb5",
+  "date": "2026-09-06T17:34:16+02:00",
+  "subj": "\u043f\u0440\u043e\u043c\u043f\u0442\u044b: memory-search \u0438 knowledge-and-context \u0441\u043b\u0438\u0442\u044b \u0432 \u043c\u043e\u0434\u0443\u043b\u044c knowledge, \u043c\u0451\u0440\u0442\u0432\u044b\u0439 \u0441\u0435\u043c\u0430\u043d\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043f\u043e\u0438\u0441\u043a \u0432\u044b\u043a\u0438\u043d\u0443\u0442",
+  "size": 51
+ },
+ {
+  "sha": "0f5888a580206b77eb1aa00a2b7bfc80d6ba83d3",
+  "date": "2026-09-06T16:57:13+02:00",
+  "subj": "\u0442\u0435\u0441\u0442\u044b: \u0443\u0431\u0440\u0430\u043d\u044b \u0435\u0449\u0451 17 \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u043d\u0430 \u0434\u043e\u0441\u043b\u043e\u0432\u043d\u044b\u0439 \u0442\u0435\u043a\u0441\u0442 \u043f\u0440\u043e\u043c\u043f\u0442\u043e\u0432 \u0438 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u043e\u0432",
+  "size": 271
+ },
+ {
+  "sha": "613c06fca4db61d7546bdde2074440bd3f2dca30",
+  "date": "2026-09-06T16:53:51+02:00",
+  "subj": "\u0442\u0435\u0441\u0442\u044b: \u0443\u0431\u0440\u0430\u043d\u044b \u0448\u0435\u0441\u0442\u044c \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u043d\u0430 \u0414\u041e\u0421\u041b\u041e\u0412\u041d\u042b\u0419 \u0442\u0435\u043a\u0441\u0442 \u043f\u0440\u043e\u043c\u043f\u0442\u043e\u0432 \u2014 \u043b\u043e\u043c\u0430\u043b\u0438\u0441\u044c \u043d\u0430 \u043a\u0430\u0436\u0434\u043e\u0439 \u043f\u0440\u0430\u0432\u043a\u0435 \u043f\u0440\u0430\u0432\u0438\u043b\u0430, \u0434\u0435\u0444\u0435\u043a\u0442\u043e\u0432 \u043d\u0435 \u043b\u043e\u0432\u0438\u043b\u0438",
+  "size": 131
+ },
+ {
+  "sha": "979c46315049f7fb59200cbed4d04992962e4c09",
+  "date": "2026-09-06T08:16:00+02:00",
+  "subj": "\u043c\u0435\u0440\u0436: \u0447\u0443\u0436\u043e\u0439 \u043d\u043e\u043c\u0435\u0440 \u0437\u0430\u0434\u0430\u0447\u0438 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0438 \u043a\u043e\u043c\u043c\u0438\u0442\u0430 \u2014 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435, \u0430 \u043d\u0435 \u043e\u0442\u043a\u0430\u0437 \u0432\u0441\u0435\u0439 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438",
+  "size": 77
+ },
+ {
+  "sha": "861ae8368f1ba9c3623a699b457a30409b480d39",
+  "date": "2026-09-06T14:38:05+07:00",
+  "subj": "#522: \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u0432\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u0442 \u043e\u0433\u043b\u0430\u0432\u043b\u0435\u043d\u0438\u0435 KB \u0432 \u0441\u0438\u0441\u0442\u0435\u043c\u043d\u044b\u0439 \u043f\u0440\u043e\u043c\u043f\u0442 \u0438\u0437 README \u043f\u0440\u043e\u0435\u043a\u0442\u0430",
+  "size": 511
+ },
+ {
+  "sha": "45a0948a70431d77e7f25d965b406bc695d6c468",
+  "date": "2026-09-05T23:53:37+07:00",
+  "subj": "#515: salvage knowledge pipeline module and three KB topics from idle worker branches",
+  "size": 352
+ },
+ {
+  "sha": "42882844a17f3661e377a708b60ef6d5ab68359d",
+  "date": "2026-09-05T21:30:55+07:00",
+  "subj": "#509: plan for explicit review subject and requester/subject split",
+  "size": 822
+ },
+ {
+  "sha": "a85d78e314a8c67e18abfc98b50ededfaee2ef3a",
+  "date": "2026-09-05T19:47:41+07:00",
+  "subj": "#507: bound the handoff packet and stop delivering constraint bodies twice",
+  "size": 64
+ },
+ {
+  "sha": "14b7df5bc4755801006797b57a9046080da038c2",
+  "date": "2026-09-06T05:45:42+02:00",
+  "subj": "\u043c\u0430\u0441\u043a\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435: \u0441\u043d\u044f\u0442\u043e \u0441 \u043f\u0443\u0442\u0438 \u043e\u0442\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u044f, \u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043e \u043d\u0430 \u0433\u0440\u0430\u043d\u0438\u0446\u0435 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438; \u0441\u0441\u044b\u043b\u043a\u0430 MTProto-\u043f\u0440\u043e\u043a\u0441\u0438 \u043d\u0435 \u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f",
+  "size": 91
+ },
+ {
+  "sha": "495eb220a81f8a00a112dce2ecaf2561f6074be4",
+  "date": "2026-09-05T18:29:19+07:00",
+  "subj": "Bound Bash output capture when inherited pipes survive timeout",
+  "size": 56
+ },
+ {
+  "sha": "62b8bebb07f4f60169c2e5f5fa850236a269cffe",
+  "date": "2026-09-05T18:23:38+07:00",
+  "subj": "Preserve detached children after a completed Bash command",
+  "size": 21
+ },
+ {
+  "sha": "b1c393ce3d387aeaef9e4d8af820cf6c238f0843",
+  "date": "2026-09-05T16:17:30+07:00",
+  "subj": "test: verify bounded knowledge packets and native instruction loading",
+  "size": 58
+ },
+ {
+  "sha": "4dba9489693df901f0036eb5ffd3b240a5280414",
+  "date": "2026-09-05T15:59:05+07:00",
+  "subj": "refactor: bound startup context and route memory reads to specific facts",
+  "size": 573
+ },
+ {
+  "sha": "36326164d3e16e9237e2ee6005d72b5010ff3ba5",
+  "date": "2026-09-05T13:21:20+07:00",
+  "subj": "#502: WIP #502: map merge subjects before emergency slice",
+  "size": 211
+ },
+ {
+  "sha": "14ad6756620348ee142997f5325b5b249968b9b6",
+  "date": "2026-09-05T12:06:10+07:00",
+  "subj": "#497: add real artifact parser oracle",
+  "size": 155
+ },
+ {
+  "sha": "5485582c3df48445d866f7deb66ecc479f74a9d9",
+  "date": "2026-09-05T07:04:16+02:00",
+  "subj": "cleanup: repoint CLAUDE.md at moved guides, classify historical legacy-path mentions",
+  "size": 20
+ },
+ {
+  "sha": "6e3dd34a98b2c6dbfcbb567f871a1d9179c15c9c",
+  "date": "2026-09-05T10:22:46+07:00",
+  "subj": "#496: rename KB schema literals to English",
+  "size": 112
+ },
+ {
+  "sha": "bb2f98bb8dafec5de6651d920f310f53d1adfa02",
+  "date": "2026-09-05T10:20:47+07:00",
+  "subj": "#493: author signs the review outcome, verdict comes from the artifact, post-review delta needs a machine-checked attestation",
+  "size": 1127
+ },
+ {
+  "sha": "cda2094078d8b5eebd4289933011d611ffb84188",
+  "date": "2026-09-04T23:03:20+07:00",
+  "subj": "#491: freeze self-service context refusal oracle",
+  "size": 484
+ },
+ {
+  "sha": "480ca55c2e8cec3a05d3d17180ca2c1b01a540a4",
+  "date": "2026-09-04T18:03:06+02:00",
+  "subj": "refactor: extract privacy and error helpers, trim duplicated validation",
+  "size": 322
+ },
+ {
+  "sha": "eb75808ccc68934625da1e944f1d006a2ae66f51",
+  "date": "2026-09-04T22:53:02+07:00",
+  "subj": "refactor: consolidate lifecycle and validation paths",
+  "size": 373
+ },
+ {
+  "sha": "7054731010f215e3ae75f5f01aa1da93de3752df",
+  "date": "2026-09-04T22:34:11+07:00",
+  "subj": "#488: load review context from repository file",
+  "size": 401
+ },
+ {
+  "sha": "c8a6fd7e0af88842fe04517731ba7c46df9992b9",
+  "date": "2026-09-04T21:55:09+07:00",
+  "subj": "pipeline: deduplicate effort policy checks",
+  "size": 54
+ },
+ {
+  "sha": "474b8549301d3f04151e87856262705f25e1386d",
+  "date": "2026-09-03T19:45:45+07:00",
+  "subj": "#468: add context panel completion oracle",
+  "size": 67
+ },
+ {
+  "sha": "9e74bfba74b91750983de312ce28951a067e4655",
+  "date": "2026-09-03T19:43:27+07:00",
+  "subj": "#467: freeze pending compact ack regression oracle",
+  "size": 258
+ },
+ {
+  "sha": "ed30d73cb591bc6d765edab3e00af471e58cc123",
+  "date": "2026-09-03T13:23:19+02:00",
+  "subj": "#464: \u043c\u0435\u0442\u043a\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u0438 \u0441\u0440\u0435\u0437\u0430\u0435\u0442\u0441\u044f \u043f\u043e \u043f\u0440\u0438\u0437\u043d\u0430\u043a\u0443 \u043f\u0440\u043e\u0438\u0441\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u044f, \u0430 \u043d\u0435 \u043f\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u044e \u043c\u0438\u043d\u0443\u0442\u044b",
+  "size": 23
+ },
+ {
+  "sha": "afdf03ea0d63fc34c7bd51a119fc535cfd8e3913",
+  "date": "2026-09-03T18:09:02+07:00",
+  "subj": "#450: hide user timestamps in human-facing channels",
+  "size": 190
+ },
+ {
+  "sha": "dcfb3538214760fe2ceee43e2cd42611c54cd407",
+  "date": "2026-09-03T11:05:12+02:00",
+  "subj": "v2.42.0: \u043a\u043e\u043c\u043f\u0430\u043a\u0442 \u2014 \u0447\u0435\u0441\u0442\u043d\u0430\u044f \u043a\u0432\u0438\u0442\u0430\u043d\u0446\u0438\u044f, \u0434\u043e\u0441\u043b\u043e\u0432\u043d\u044b\u0439 \u0445\u0432\u043e\u0441\u0442, \u0442\u0435\u0440\u043c\u0438\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u043e\u0442\u043a\u0430\u0437",
+  "size": 308
+ },
+ {
+  "sha": "18fdb7b83f1edeb969ede8f702c8c686db4ab7b9",
+  "date": "2026-09-03T15:44:43+07:00",
+  "subj": "#453: \u0433\u0435\u0439\u0442 \u0441\u0435\u043a\u0440\u0435\u0442\u043e\u0432 \u0432 git \u2014 pre-commit \u0438 pre-push \u043f\u043e \u0444\u043e\u0440\u043c\u0430\u043c \u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440\u043e\u0432",
+  "size": 583
+ },
+ {
+  "sha": "0f415e840b09a35968c022f55dd37863fa2242a9",
+  "date": "2026-09-03T14:48:11+07:00",
+  "subj": "#452: compact quota headroom labels",
+  "size": 64
+ },
+ {
+  "sha": "71240bd4f2d629ad259fbb1949fd3819827c0e1f",
+  "date": "2026-09-03T14:26:30+07:00",
+  "subj": "#446: suppress raw telemetry from user channels",
+  "size": 103
+ },
+ {
+  "sha": "e2f7920400f7ab7d401f186204d5c4dd11f3a9b0",
+  "date": "2026-09-03T13:57:42+07:00",
+  "subj": "#447: show worker quota headroom in usage bar",
+  "size": 224
+ },
+ {
+  "sha": "12ed3d3d6611826bd47408d4c4c623d314370f5a",
+  "date": "2026-09-03T13:38:09+07:00",
+  "subj": "#445: classify senderless dashboard sends by auth state",
+  "size": 68
+ },
+ {
+  "sha": "cb96eb6fc4c7a6530f6b8028e6840d3065a83783",
+  "date": "2026-09-02T13:50:06+02:00",
+  "subj": "v2.41.1: \u0447\u0430\u0442 \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0430 \u0447\u0438\u043d\u0451\u043d \u2014 \u0433\u0435\u0439\u0442 \u043f\u0440\u043e\u0438\u0441\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u044f #433 \u043e\u0442\u0432\u0435\u0440\u0433\u0430\u043b \u043a\u0430\u0436\u0434\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043d\u0430 \u043a\u043e\u043d\u0442\u0443\u0440\u0435 \u0431\u0435\u0437 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u0438",
+  "size": 169
+ },
+ {
+  "sha": "18fa3a834f4734ffd476f8756e6c8f14de89a8dd",
+  "date": "2026-09-02T11:29:19+07:00",
+  "subj": "#441: capture Claude rate-limit raw telemetry",
+  "size": 142
+ },
+ {
+  "sha": "3dfa39bc0d2f9ee7c2ce38c710926121770e06a6",
+  "date": "2026-09-02T09:36:59+07:00",
+  "subj": "#438: compact before Claude CLI threshold",
+  "size": 460
+ },
+ {
+  "sha": "00cf7b6a0ed112101b125684d51bd7fdb4023892",
+  "date": "2026-09-02T01:44:20+07:00",
+  "subj": "#434: research Fable 5.1 subscription economics",
+  "size": 488
+ },
+ {
+  "sha": "40135cecc73d9feb3eccb76583d1ea2604c93a39",
+  "date": "2026-09-01T19:27:46+02:00",
+  "subj": "\u0410\u0443\u0434\u0438\u0442 01.09: \u0430\u0432\u0442\u043e\u043d\u043e\u043c\u043d\u044b\u0435 HTML-\u043e\u0442\u0447\u0451\u0442\u044b \u0434\u043b\u044f \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044f",
+  "size": 643
+ },
+ {
+  "sha": "598ac9d50be54b614b1237b57a64ad8ba2c13299",
+  "date": "2026-09-02T00:25:25+07:00",
+  "subj": "#427: research dynamic workflow mechanics",
+  "size": 898
+ },
+ {
+  "sha": "5c0b0880f93d78aa04b3b04b6988fc25d7c2e27e",
+  "date": "2026-09-02T00:21:32+07:00",
+  "subj": "#431: attach UTF-8 text files to messages",
+  "size": 226
+ },
+ {
+  "sha": "0e95e45177269bd3c49275c622735defe9b15868",
+  "date": "2026-09-01T16:31:41+07:00",
+  "subj": "#426: reproduce canonical gap in merge finalization",
+  "size": 752
+ },
+ {
+  "sha": "0aa2d595335523681ff6bc710eb9fe4677b2199a",
+  "date": "2026-08-31T08:02:33+02:00",
+  "subj": "#424: freeze live merge progress oracle",
+  "size": 146
+ },
+ {
+  "sha": "feff52e3bd5ed966ce6e08fadad659111a50f4c8",
+  "date": "2026-08-31T06:05:16+02:00",
+  "subj": "#423: freeze resolved-operation success oracle",
+  "size": 106
+ },
+ {
+  "sha": "80588a71c29fa4b91695e4c34b7971d19b865db4",
+  "date": "2026-08-30T18:22:26+02:00",
+  "subj": "#421: freeze dual-store completion oracle",
+  "size": 253
+ },
+ {
+  "sha": "e5e0db836e0e73d77c191549992019bf6a25c91d",
+  "date": "2026-08-30T17:45:00+02:00",
+  "subj": "#420: \u043b\u0438\u043d\u043a\u043e\u0432\u0430\u043d\u043d\u044b\u0439 worktree \u0438 \u0441\u0438\u043c\u043b\u0438\u043d\u043a venv \u2014 \u0433\u0435\u0439\u0442 \u0431\u0435\u0440\u0451\u0442 \u0438\u043d\u0442\u0435\u0440\u043f\u0440\u0435\u0442\u0430\u0442\u043e\u0440 \u043f\u0440\u043e\u0435\u043a\u0442\u0430",
+  "size": 122
+ },
+ {
+  "sha": "d7b559f5bd3e307a590208707b6fd6cff405bc60",
+  "date": "2026-08-30T17:02:19+02:00",
+  "subj": "#419: freeze interpreter selection oracle",
+  "size": 169
+ },
+ {
+  "sha": "1ef306e2a567c53f8c3c77bfc6bda250bdf9d7ec",
+  "date": "2026-08-30T11:28:15+02:00",
+  "subj": "#418: freeze canonical identity oracle",
+  "size": 225
+ },
+ {
+  "sha": "7b5b2659fe6ece7ffe44592865dca3024ce48388",
+  "date": "2026-08-30T11:01:39+02:00",
+  "subj": "#417: freeze binding oracle",
+  "size": 377
+ },
+ {
+  "sha": "35bbbd6dd79077893109adf15f37d7471bac4073",
+  "date": "2026-08-28T13:37:35+02:00",
+  "subj": "#416: serialize shadow task creation",
+  "size": 86
+ },
+ {
+  "sha": "cc15369dec2034f0c46f60a8f643ac161c07e360",
+  "date": "2026-08-31T12:27:56+07:00",
+  "subj": "#423: report merge conflict paths",
+  "size": 269
+ },
+ {
+  "sha": "57038767bcceaf5cc4960361c3c418353e87668a",
+  "date": "2026-08-30T18:07:44+07:00",
+  "subj": "#417: switch memory prompt to file-first retrieval",
+  "size": 1076
+ },
+ {
+  "sha": "965535cfcad6da870e1f2b2a5c70516972da0a79",
+  "date": "2026-08-30T15:47:03+07:00",
+  "subj": "#418: isolate project portfolio RED database",
+  "size": 102
+ },
+ {
+  "sha": "e8e6d0964a7e642bdeccf5f7562e459b748b9572",
+  "date": "2026-08-30T15:13:50+07:00",
+  "subj": "#418: freeze project portfolio RED oracles",
+  "size": 1115
+ },
+ {
+  "sha": "1bff80797d63e8a4c4706be764fe92fed3eff827",
+  "date": "2026-08-30T15:11:30+07:00",
+  "subj": "#417: freeze lexical memory acceptance checks",
+  "size": 1032
+ },
+ {
+  "sha": "b35a6f866599fd5cd6b0a8c6c5707225b2ef3ad4",
+  "date": "2026-08-30T13:42:12+07:00",
+  "subj": "#418: research project portfolio and stall watchdog",
+  "size": 986
+ },
+ {
+  "sha": "8239760c7c4394512de6526c1f4e71fc5e4d9535",
+  "date": "2026-08-29T23:05:34+07:00",
+  "subj": "#416: research misleading zero-commit merge failure",
+  "size": 739
+ },
+ {
+  "sha": "152300b56bcc04255db8a6b95bf8e3968ef06660",
+  "date": "2026-08-29T16:28:41+02:00",
+  "subj": "\u043a\u043d\u043e\u043f\u043a\u0430 \u00ab\u041e\u0442\u043a\u0440\u044b\u0442\u044c\u00bb \u0443 \u043f\u0440\u043e\u0441\u043c\u0430\u0442\u0440\u0438\u0432\u0430\u0435\u043c\u044b\u0445 \u0444\u0430\u0439\u043b\u043e\u0432 \u0432 \u0441\u043f\u0438\u0441\u043a\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0438",
+  "size": 72
+ },
+ {
+  "sha": "e65a8d21dd9ce5b20349215ae6052711ca4ae7bb",
+  "date": "2026-08-29T12:37:39+07:00",
+  "subj": "Give subscription usage refresh its real timeout budget",
+  "size": 95
+ },
+ {
+  "sha": "8a696cb9183b1501627aba984b4d431b01fb5fbf",
+  "date": "2026-08-28T15:44:28+02:00",
+  "subj": "\u0447\u0430\u0441\u044b \u043d\u0430 \u0436\u0438\u0432\u043e\u0439 \u0444\u043e\u043d\u043e\u0432\u043e\u0439 \u0437\u0430\u0434\u0430\u0447\u0435",
+  "size": 119
+ },
+ {
+  "sha": "007031af594c49b7c582981c70f5b96103310ac9",
+  "date": "2026-08-28T20:35:42+07:00",
+  "subj": "Serve bounded thumbnails for chat photo galleries",
+  "size": 142
+ },
+ {
+  "sha": "99d661a57d28f57535bf151a49e9fed7dd1dff3a",
+  "date": "2026-08-28T15:13:00+02:00",
+  "subj": "\u043f\u0443\u0441\u0442\u043e\u0439 \u044f\u043a\u043e\u0440\u044c \u043a\u043e\u043d\u0446\u0430 \u0445\u043e\u0434\u0430 \u043d\u0435 \u0443\u0445\u043e\u0434\u0438\u0442 \u044e\u0437\u0435\u0440\u0443",
+  "size": 32
+ },
+ {
+  "sha": "8dad10afe8f5c0487128d2345c24f78ada41e508",
+  "date": "2026-08-28T19:38:38+07:00",
+  "subj": "Load the latest 100 rows when opening a worker",
+  "size": 58
+ },
+ {
+  "sha": "475d56eb6772a64d35594dff90a4a616560b903f",
+  "date": "2026-08-28T14:36:13+02:00",
+  "subj": "\u0431\u043e\u043b\u044c\u0448\u0438\u0435 \u0444\u0430\u0439\u043b\u044b \u0438\u0437 TG \u043d\u0435 \u0442\u0435\u0440\u044f\u044e\u0442\u0441\u044f \u043f\u043e \u0442\u0430\u0439\u043c\u0430\u0443\u0442\u0443 \u0441\u0435\u0441\u0441\u0438\u0438",
+  "size": 46
+ },
+ {
+  "sha": "697e24c21f93ff7b26c325195e17ef9be38ab041",
+  "date": "2026-08-28T13:23:25+02:00",
+  "subj": "\u043e\u0442\u0447\u0451\u0442 \u043f\u043e \u0440\u0435\u0444\u0430\u043a\u0442\u043e\u0440\u0438\u043d\u0433\u0443 \u0444\u0440\u043e\u043d\u0442\u0430",
+  "size": 423
+ },
+ {
+  "sha": "8b1fec87de7003439714beea7e50a21bfb1056e8",
+  "date": "2026-08-28T17:52:39+07:00",
+  "subj": "Extract full tool call renderer",
+  "size": 1380
+ },
+ {
+  "sha": "6b03ab15c1daac7a7158f0a74b23f881c6570d5c",
+  "date": "2026-08-28T17:39:17+07:00",
+  "subj": "Extract status and subagent chat renderers",
+  "size": 406
+ },
+ {
+  "sha": "e2c81c9015440346e9365b41ab471564b245bd7d",
+  "date": "2026-08-28T17:33:06+07:00",
+  "subj": "Extract compact tool result renderer",
+  "size": 277
+ },
+ {
+  "sha": "e896a4bedf5c312999c0ecd0826e647c10d27e5e",
+  "date": "2026-08-28T11:25:40+02:00",
+  "subj": "#415: align API tests with durable session checks",
+  "size": 23
+ },
+ {
+  "sha": "43a96ed31200c3f61455fda8cdb4968dfd3792a9",
+  "date": "2026-08-28T09:31:35+02:00",
+  "subj": "#413: freeze merge delivery visibility oracle",
+  "size": 171
+ },
+ {
+  "sha": "9d552660b2fab1b04d5e480368365789f743f89b",
+  "date": "2026-08-28T09:10:36+02:00",
+  "subj": "#412: cover silent turn anchor suppression",
+  "size": 29
+ },
+ {
+  "sha": "f1eafe04ac85ddfcc63b0de2a681eacf409fc051",
+  "date": "2026-08-28T04:49:08+02:00",
+  "subj": "#298: add authenticated docs endpoint oracle",
+  "size": 29
+ },
+ {
+  "sha": "c9d36e21d43a6ff028827a595e77ef08a4f17039",
+  "date": "2026-08-28T13:42:59+07:00",
+  "subj": "#412: thaw T3 owner-switch oracle",
+  "size": 1252
+ },
+ {
+  "sha": "99fa70980f2fe639099aa41e539f9f6b03b6d661",
+  "date": "2026-08-27T15:03:16+02:00",
+  "subj": "#405: add upload size and progress oracles",
+  "size": 392
+ },
+ {
+  "sha": "a06fcc500c2b7d1dbc33f664e956f9864dacd22d",
+  "date": "2026-08-27T11:51:09+02:00",
+  "subj": "#404: add mirror freshness regression oracles",
+  "size": 413
+ },
+ {
+  "sha": "f77e06ceea1855337459f22bae69be783ffbaa04",
+  "date": "2026-08-27T10:29:59+02:00",
+  "subj": "#403: render send_files batches in dashboard",
+  "size": 575
+ },
+ {
+  "sha": "e15a5f443be9a014ced7d1b0eba0325fe045b301",
+  "date": "2026-08-26T09:29:41+02:00",
+  "subj": "#400: freeze merge loss regression oracles",
+  "size": 264
+ },
+ {
+  "sha": "2979e00989e91dd5f450e09174301b78cb6721d5",
+  "date": "2026-08-26T14:24:38+07:00",
+  "subj": "Cache immutable evidence descriptors",
+  "size": 29
+ },
+ {
+  "sha": "aabe1a336eaac9ecae2e70dc01f80705c61512c4",
+  "date": "2026-08-26T14:21:57+07:00",
+  "subj": "Seal retained projection resources with receipts",
+  "size": 143
+ },
+ {
+  "sha": "589528d1a157c5e142da654cdd5a9a43a8f12276",
+  "date": "2026-08-26T14:17:19+07:00",
+  "subj": "Improve Orchestra runtime stability and live status",
+  "size": 446
+ },
+ {
+  "sha": "bc1a388f0656060b08fa47ecd110ded36136fdaa",
+  "date": "2026-08-26T09:06:24+02:00",
+  "subj": "#398: \u043e\u0431\u0440\u0435\u0437\u0430\u0442\u044c summary \u0438 \u043d\u0430 \u0436\u0438\u0432\u043e\u043c runtime-\u043f\u0443\u0442\u0438",
+  "size": 155
+ },
+ {
+  "sha": "382bd22e8c318ba24faf9baa7fa8601d167556ae",
+  "date": "2026-08-25T20:45:48+02:00",
+  "subj": "#364: freeze red oracle",
+  "size": 575
+ },
+ {
+  "sha": "41d7182d84fe5bf0ee6ec0f7c59ef5a5e0d8471a",
+  "date": "2026-08-25T19:22:04+02:00",
+  "subj": "#398: preserve post-commit merge fields",
+  "size": 110
+ },
+ {
+  "sha": "33660cfd5faa2e56d09c34ba3e204a2c1b62f202",
+  "date": "2026-08-25T17:23:09+02:00",
+  "subj": "#397: add final answer timeline navigation",
+  "size": 204
+ },
+ {
+  "sha": "4c1dfe9c713f34230661e47e3ebaa9c01e168f9a",
+  "date": "2026-08-25T16:13:12+02:00",
+  "subj": "#396: close limits renderer and unify window count",
+  "size": 284
+ },
+ {
+  "sha": "236b385fd65a8db40659351c2d1f20016d739fe4",
+  "date": "2026-08-25T16:09:26+07:00",
+  "subj": "#363: add text tail Codex to Opus handoff",
+  "size": 247
+ },
+ {
+  "sha": "c885f10e53b369d0e9846a23c9801618ef0e6bb9",
+  "date": "2026-08-25T11:00:31+07:00",
+  "subj": "#360: reload MCP tools after Codex resume",
+  "size": 46
+ },
+ {
+  "sha": "08b75e8517c4b93baf261c44ae66e28e7ce1d4af",
+  "date": "2026-08-25T10:52:13+07:00",
+  "subj": "#359: reserve MCP slots for canonical tools",
+  "size": 33
+ },
+ {
+  "sha": "c2ea45fa0c8fce41c942a37f78204ebd1def3699",
+  "date": "2026-08-25T05:03:19+07:00",
+  "subj": "#358: #358: complete typed document cutover",
+  "size": 888
+ },
+ {
+  "sha": "34fb2350a8224f2991dbe722afc29070daf02bee",
+  "date": "2026-08-25T04:12:31+07:00",
+  "subj": "#355: #355: add verified merge receipts",
+  "size": 590
+ },
+ {
+  "sha": "56ee0a744e7e87474d558fcfc20c58d4965f53a5",
+  "date": "2026-08-25T03:34:00+07:00",
+  "subj": "#315: #315: freeze T6 merge receipt oracle",
+  "size": 1127
+ },
+ {
+  "sha": "e493f2082532eade21e2426b778257181f8071e7",
+  "date": "2026-08-25T03:16:18+07:00",
+  "subj": "#352: #352: add recovery and private pack replay",
+  "size": 1046
+ },
+ {
+  "sha": "c16fe6f4682cf82ae2fe1ff45efab15195ec2001",
+  "date": "2026-08-25T02:52:47+07:00",
+  "subj": "#315: #315: freeze T5 recovery and privacy oracle",
+  "size": 1111
+ },
+ {
+  "sha": "568b61e48c2e441349d42be2572d274030bdc607",
+  "date": "2026-08-25T02:37:28+07:00",
+  "subj": "#351: WIP #351: implement projections pending oracle setup correction",
+  "size": 806
+ },
+ {
+  "sha": "020f32f11baafdc1a12fafe73196170d47df4a69",
+  "date": "2026-08-25T02:12:24+07:00",
+  "subj": "#315: #315: freeze T4 projection-head oracle",
+  "size": 990
+ },
+ {
+  "sha": "7717ef880d7f83096f61dcb7493dd5a6ccb4bc7c",
+  "date": "2026-08-25T01:51:57+07:00",
+  "subj": "#349: WIP #349: implement agent-only knowledge pending oracle decision",
+  "size": 398
+ },
+ {
+  "sha": "b02ad621b92a0b826a6a7b307290f8823297905b",
+  "date": "2026-08-25T00:54:04+07:00",
+  "subj": "#315: #315: refreeze invariant T3b correction oracle",
+  "size": 806
+ },
+ {
+  "sha": "e22368b06d698b97261cb6dcf359cbbe62ebaf15",
+  "date": "2026-08-25T00:24:07+07:00",
+  "subj": "#348: #348: handle send_file version skew",
+  "size": 100
+ },
+ {
+  "sha": "b693f302465bd304506621de9c3342e9db612baa",
+  "date": "2026-08-24T23:19:46+07:00",
+  "subj": "#315: #315: freeze agent-only T3b correction oracle",
+  "size": 691
+ },
+ {
+  "sha": "6e5aa86089cc54ee2a1e4a32f55955f102cb9a5f",
+  "date": "2026-08-24T23:01:01+07:00",
+  "subj": "#342: #342: implement evidence-backed fact promotion",
+  "size": 980
+ },
+ {
+  "sha": "80e4711b14a0e4e713f832cf067307f93bcd9d6f",
+  "date": "2026-08-24T22:31:26+07:00",
+  "subj": "#315: #315: freeze T3 promotion behavior oracle",
+  "size": 982
+ },
+ {
+  "sha": "499176cc2b456cecc8a0af4fc25909ce9862027c",
+  "date": "2026-08-24T22:04:13+07:00",
+  "subj": "chore: remove second dead-code batch",
+  "size": 242
+ },
+ {
+  "sha": "909b17ab696964d27b1a4bb3679a1089261dc787",
+  "date": "2026-08-24T21:41:25+07:00",
+  "subj": "chore: remove obsolete proxy switch scripts",
+  "size": 159
+ },
+ {
+  "sha": "4f633d04bae2c59f9a0806fd28ad4708a3f93898",
+  "date": "2026-08-24T21:32:33+07:00",
+  "subj": "#315: #315: scope T2 exclusion audit correctly",
+  "size": 115
+ },
+ {
+  "sha": "223b072a2c17aabca74296b3f3cebe27d89f1cc0",
+  "date": "2026-08-24T16:15:17+07:00",
+  "subj": "#332: #332: research current dead-code reachability",
+  "size": 847
+ },
+ {
+  "sha": "db8708aaa274d10048a6b573d12e3845af8c53c0",
+  "date": "2026-08-24T14:19:17+07:00",
+  "subj": "#319: #319: port bounded Codex cleanup onto current main",
+  "size": 56
+ },
+ {
+  "sha": "30ac8c87fb5b655d05610581250a60dfe272e8e4",
+  "date": "2026-08-24T14:08:58+07:00",
+  "subj": "#315: #315: synthesize typed information architecture and plan",
+  "size": 1023
+ },
+ {
+  "sha": "47ff8da4af17f858d2491dbf269954a2a0164256",
+  "date": "2026-08-24T14:06:37+07:00",
+  "subj": "#327: #327: make pidfd capability import-safe",
+  "size": 92
+ },
+ {
+  "sha": "dbc103ab45a90a8d4d0532c9e26a0746e1c80ec8",
+  "date": "2026-08-24T13:35:16+07:00",
+  "subj": "#295: #295: add teachable knowledge architecture explainer",
+  "size": 408
+ },
+ {
+  "sha": "b11ba9be1a7c54e936be00ebecbc69ca50fcff4f",
+  "date": "2026-08-24T12:57:50+07:00",
+  "subj": "#307: harden Codex oversized resume recovery",
+  "size": 425
+ },
+ {
+  "sha": "bdbe7b5ca0aa79cdd026479ac2d96be9ed8ccf31",
+  "date": "2026-08-23T20:49:09+02:00",
+  "subj": "#384: #384: validate acceptance command argv contract",
+  "size": 611
+ },
+ {
+  "sha": "b4527a997e8b3760474c8418607e318003016e1b",
+  "date": "2026-08-23T20:41:23+02:00",
+  "subj": "#373: #373: freeze research benchmark protocol",
+  "size": 1100
+ },
+ {
+  "sha": "0a9ad8130a5983b1667e2c6019c738957aa672f1",
+  "date": "2026-08-23T19:34:18+02:00",
+  "subj": "#383: #383: expose acceptance command recovery via task update",
+  "size": 531
+ },
+ {
+  "sha": "1f0a526d3a74c7c5f7faa269689021789b892f8e",
+  "date": "2026-08-23T16:28:46+07:00",
+  "subj": "#225: group chat photo batches into compact galleries",
+  "size": 152
+ },
+ {
+  "sha": "c3e66f162ce324877e245d4c75b298a229a68672",
+  "date": "2026-08-23T15:25:01+07:00",
+  "subj": "#209: maximize managed Codex context",
+  "size": 88
+ },
+ {
+  "sha": "1b8130f1e8446918f3e1d3e1d9feee30da28c008",
+  "date": "2026-08-22T12:14:47+02:00",
+  "subj": "\u0444\u0438\u043a\u0441: \u0445\u0430\u0440\u043d\u0435\u0441 \u043d\u0435 \u0443\u043c\u0435\u043b \u0441\u0442\u0440\u043e\u0438\u0442\u044c \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0430 \u2014 \u0441\u043c\u0435\u043d\u0430 \u043c\u043e\u0434\u0435\u043b\u0438 \u043f\u0430\u0434\u0430\u043b\u0430 AttributeError",
+  "size": 20
+ },
+ {
+  "sha": "75d5ebd1da80fe16626d20172e3e351c731937be",
+  "date": "2026-08-22T11:34:08+02:00",
+  "subj": "#367: #367: phase 1 research \u2014 audit of harness built-in tools (10 lying defects D1-D10, 5 friction C1-C5, all two-call proven)",
+  "size": 1344
+ },
+ {
+  "sha": "470206e1c99e06b161732fe5aeb8a8dcc425c94d",
+  "date": "2026-08-22T10:31:00+02:00",
+  "subj": "#368: #368: T5 \u2014 \u043f\u043e\u0442\u043e\u043b\u043e\u043a \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u044f (Retry-After \u0441\u0432\u0435\u0440\u0445 \u043f\u043e\u0442\u043e\u043b\u043a\u0430 = \u0432\u043d\u044f\u0442\u043d\u044b\u0439 RuntimeError) + \u0440\u0430\u0437\u043b\u0438\u0447\u0435\u043d\u0438\u0435 platform/upstream 429 (X-RateLimit-*), \u043c\u0443\u0442\u0430\u0446\u0438\u0438 \u043a\u0440\u0430\u0441\u044f\u0442 \u043e\u0440\u0430\u043a\u0443\u043b\u044b",
+  "size": 164
+ },
+ {
+  "sha": "c74d0d75b945f2a5cbf27a5e8987f3387b662787",
+  "date": "2026-08-22T10:24:00+02:00",
+  "subj": "#368: #368: Phase 1 \u2014 \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u043e\u0432 \u0441\u0447\u0451\u0442\u0447\u0438\u043a\u0430 \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432 OpenRouter (\u0433\u0438\u0431\u0440\u0438\u0434: \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0447\u0451\u0442 + /activity)",
+  "size": 968
+ },
+ {
+  "sha": "0a00e9d2b731467be44169ec2342f34eec792187",
+  "date": "2026-08-22T10:16:47+02:00",
+  "subj": "\u0441\u043a\u0438\u043b\u043b eli5 \u2014 \u0442\u043e\u043b\u044c\u043a\u043e \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430\u043c",
+  "size": 50
+ },
+ {
+  "sha": "d9dc81df639e5550eec2e5ecda53159c646ca3e0",
+  "date": "2026-08-22T10:13:46+02:00",
+  "subj": "#369: #369: retake bubble screenshots \u2014 positive visibility check + frozen DOM clone + pixel self-check",
+  "size": 86
+ },
+ {
+  "sha": "a7c1c369d593d29206683f0b15a5810f300e9d62",
+  "date": "2026-08-22T10:02:09+02:00",
+  "subj": "#369: #369: render harness tool calls as proper chat bubbles",
+  "size": 346
+ },
+ {
+  "sha": "396af3bdd9ddd795a377ca7a985164bf4a7af9c8",
+  "date": "2026-08-22T09:01:00+02:00",
+  "subj": "#365: \u0445\u0430\u0440\u043d\u0435\u0441 \u0443\u043c\u0435\u0435\u0442 steering \u2014 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0434\u043e\u0435\u0437\u0436\u0430\u0435\u0442 \u0434\u043e \u0438\u0434\u0443\u0449\u0435\u0433\u043e \u0445\u043e\u0434\u0430, \u0430 \u043d\u0435 \u0436\u0434\u0451\u0442 \u0435\u0433\u043e \u043a\u043e\u043d\u0446\u0430",
+  "size": 131
+ },
+ {
+  "sha": "37e186ddd74d9d5b43df1b6684629c2cc1e71cef",
+  "date": "2026-08-22T08:30:31+02:00",
+  "subj": "#365: #365: \u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0442\u0440\u0438 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0435 \u043c\u043e\u0434\u0435\u043b\u0438 OpenRouter",
+  "size": 20
+ },
+ {
+  "sha": "70497a2f3705caadcb1fa0ba24947bb3f8b7d3d3",
+  "date": "2026-08-23T15:04:56+07:00",
+  "subj": "Validate Codex 0.147 managed state",
+  "size": 115
+ },
+ {
+  "sha": "aa9bfb524bfa02f452476d55e6a6ccba25dc2a54",
+  "date": "2026-08-21T12:53:47+02:00",
+  "subj": "\u0442\u043e\u0447\u0435\u0447\u043d\u044b\u0435 sudo-\u043f\u0440\u0430\u0432\u0430 \u0430\u0433\u0435\u043d\u0442\u0443 \u043d\u0430 \u0441\u0432\u043e\u0438 \u0441\u0435\u0440\u0432\u0438\u0441\u044b: \u044e\u043d\u0438\u0442\u044b orchestra/telegram-bot-api + \u0447\u0442\u0435\u043d\u0438\u0435 \u0438\u0445 \u0436\u0443\u0440\u043d\u0430\u043b\u043e\u0432",
+  "size": 43
+ },
+ {
+  "sha": "1ecd007179a8e03c12ef3e46e59f78c6c706c0bc",
+  "date": "2026-08-21T12:12:31+02:00",
+  "subj": "bg_list \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0440\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435, \u0432\u0440\u0435\u043c\u044f \u0441\u0440\u0430\u0431\u0430\u0442\u044b\u0432\u0430\u043d\u0438\u044f \u0438 \u043a\u043e\u043c\u0430\u043d\u0434\u0443",
+  "size": 51
+ },
+ {
+  "sha": "ac08becdd71ef87a9ab472e39cb70af112b6bdd2",
+  "date": "2026-08-21T09:33:25+02:00",
+  "subj": "\u0447\u0430\u0442: \u043e\u0434\u043d\u0430 \u043e\u0442\u0440\u0438\u0441\u043e\u0432\u043a\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0434\u043e\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u044d\u043a\u0440\u0430\u043d\u0430 \u043a\u0443\u0441\u043a\u0430\u043c\u0438, \u043c\u0438\u043d\u0443\u0441 4 \u043c\u0435\u0445\u0430\u043d\u0438\u0437\u043c\u0430",
+  "size": 120
+ },
+ {
+  "sha": "3985ef548c45f60f47465db19abacb86fc9e81ab",
+  "date": "2026-08-21T09:14:03+02:00",
+  "subj": "\u043e\u0442\u043a\u0440\u044b\u0442\u0438\u0435 \u0447\u0430\u0442\u0430: 11 \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432 -> 0-2, \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u0431\u0435\u0440\u0451\u0442\u0441\u044f \u043e\u0434\u043d\u0438\u043c \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u043c",
+  "size": 46
+ },
+ {
+  "sha": "5e716319112441818986d2a31ba08d295b8106d6",
+  "date": "2026-08-21T07:35:55+02:00",
+  "subj": "\u0447\u0430\u0442 \u0434\u0435\u0440\u0436\u0438\u0442\u0441\u044f \u043d\u0438\u0437\u0430 \u0432\u0441\u044e \u043d\u0430\u0447\u0430\u043b\u044c\u043d\u0443\u044e \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0443",
+  "size": 21
+ },
+ {
+  "sha": "5165bcc021e8cdec1e5590e9bc97c9a9d01216b0",
+  "date": "2026-08-21T07:29:59+02:00",
+  "subj": "\u0447\u0430\u0442 \u043e\u0442\u043a\u0440\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u043d\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0445 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f\u0445 \u0438 \u043d\u0435 \u0436\u0434\u0451\u0442 \u0437\u0435\u0440\u043a\u0430\u043b\u043e",
+  "size": 34
+ },
+ {
+  "sha": "595c0ce44670ac759d5b4ffb5f6367875ee3790b",
+  "date": "2026-08-20T18:52:49+02:00",
+  "subj": "#362: \u0431\u0430\u0433-\u0440\u0435\u043f\u043e\u0440\u0442\u044b \u0443\u0445\u043e\u0434\u044f\u0442 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0443 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u044b, \u0430 \u043d\u0435 \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0443 scope",
+  "size": 116
+ },
+ {
+  "sha": "f590cdd11ae8da38c2217444e4cf461c914ec761",
+  "date": "2026-08-20T09:24:31+02:00",
+  "subj": "#360: \u0440\u0435\u0448\u0430\u044e\u0449\u0435\u0435 \u043e\u043a\u043d\u043e \u043a\u0432\u043e\u0442\u044b \u0432\u044b\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043f\u043e \u0434\u043b\u0438\u043d\u0435, \u0430 \u043d\u0435 \u043f\u043e \u0438\u043c\u0435\u043d\u0438 \u043f\u043e\u043b\u044f",
+  "size": 61
+ },
+ {
+  "sha": "b68ace2194ece85d754b1ad578e85651c92b9dd9",
+  "date": "2026-08-20T12:19:17+02:00",
+  "subj": "#202: \u0431\u0430\u0431\u043b \u0432\u0435\u0431-\u043f\u043e\u0438\u0441\u043a\u0430 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0437\u0430\u043f\u0440\u043e\u0441 \u0438 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442",
+  "size": 20
+ },
+ {
+  "sha": "e8f82646fac5c47ca3c033440ff619e29e2566c0",
+  "date": "2026-08-20T12:08:36+02:00",
+  "subj": "#197: \u043f\u0440\u043e\u0431\u044b \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0433\u043e \u0440\u0435\u0432\u044c\u044e \u2014 \u0437\u0430\u0431\u0440\u0430\u043d\u044b \u0438\u0437 /tmp \u0432 \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u0439",
+  "size": 1106
+ },
+ {
+  "sha": "24d6308d4fabe61cbbe497d8e9e750e304e500db",
+  "date": "2026-08-20T17:06:11+07:00",
+  "subj": "#197: #197: \u043a\u0435\u0448 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0433\u043e \u0443\u0441\u043f\u0435\u0448\u043d\u043e\u0433\u043e \u043e\u0442\u0432\u0435\u0442\u0430, \u0434\u0436\u0438\u0442\u0442\u0435\u0440 \u0440\u0435\u0442\u0440\u0430\u0435\u0432, \u043d\u0435\u0433\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u043a\u0435\u0448 \u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440\u0430",
+  "size": 1260
+ },
+ {
+  "sha": "df05c825efcd76c29dfe22f685da257b3860e1a8",
+  "date": "2026-08-20T16:23:15+07:00",
+  "subj": "#192: #192: research \u2014 144 probes refute TSPU premise, SSE acceptance test, Timeweb facts",
+  "size": 517
+ },
+ {
+  "sha": "7484fe0bcf167bb3915437a5a4fa5c7fe50382a5",
+  "date": "2026-08-19T17:34:17+02:00",
+  "subj": "#356: layout usage bar in two provider columns",
+  "size": 111
+ },
+ {
+  "sha": "7da073458c47fe64d915895716856657e3504c2c",
+  "date": "2026-08-19T17:27:19+02:00",
+  "subj": "#356: split quota usage usage bar into provider rows",
+  "size": 187
+ },
+ {
+  "sha": "a73e8ed669926e1caf94f97983c33c577db8dae2",
+  "date": "2026-08-19T17:14:35+02:00",
+  "subj": "#356: usage-bar \u2014 5h \u0431\u0435\u0437 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \u0440\u0430\u0437\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0438, Spark \u0441\u043e \u0441\u0432\u043e\u0435\u0439 \u043f\u043e\u0434\u043f\u0438\u0441\u044c\u044e",
+  "size": 82
+ },
+ {
+  "sha": "b1b77132a95600ed779ca8397a24f40d2246c190",
+  "date": "2026-08-19T15:20:17+02:00",
+  "subj": "#355: #355: make quota gate thresholds configurable via env",
+  "size": 167
+ },
+ {
+  "sha": "e91247c9cea8265cc21a8f01a16b65e1ee461380",
+  "date": "2026-08-19T15:00:27+02:00",
+  "subj": "#353: #353: unify quota panel and add traces",
+  "size": 695
+ },
+ {
+  "sha": "8b6c8b50fe9659f762af27f34aba089a0d022113",
+  "date": "2026-08-19T14:05:56+02:00",
+  "subj": "#352: #352: block bounded regex blowup in Bash hook",
+  "size": 60
+ },
+ {
+  "sha": "87fd467907d746eb8980d3d60d30b156c5a5f8dd",
+  "date": "2026-08-19T12:56:44+02:00",
+  "subj": "#349, #290: #349: \u043c\u0435\u0440\u0436 \u0432\u0435\u0442\u043e\u043a \u0431\u0435\u0437 \u043e\u0431\u0449\u0435\u0433\u043e \u043f\u0440\u0435\u0434\u043a\u0430 \u0441\u043d\u043e\u0432\u0430 \u0434\u043e\u0445\u043e\u0434\u0438\u0442 \u0434\u043e cherry-pick \u2014 \u043f\u043e\u0442\u043e\u043b\u043e\u043a \u0434\u0438\u0444\u0444\u0430 \u043c\u0435\u0440\u0438\u0442 \u043e\u0442 \u043f\u0443\u0441\u0442\u043e\u0433\u043e \u0434\u0435\u0440\u0435\u0432\u0430",
+  "size": 53
+ },
+ {
+  "sha": "eb9d6ce286c027739163968d7d06b764018c5e5e",
+  "date": "2026-08-19T12:24:14+02:00",
+  "subj": "#349: #349: check_pipeline_manifest \u2014 \u044f\u043a\u043e\u0440\u044f \u043d\u043e\u0432\u043e\u0433\u043e \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u0430 \u0440\u0435\u0432\u044c\u044e + \u0447\u0438\u0441\u043b\u0430 \u0432\u043d\u0443\u0442\u0440\u0438 \u043f\u0440\u0438\u043c\u0435\u0440\u0430",
+  "size": 169
+ },
+ {
+  "sha": "eac83b8aa80ffbc855dc6cfb0351ca29213c97db",
+  "date": "2026-08-19T12:16:08+02:00",
+  "subj": "#348: #348: \u0448\u0435\u0441\u0442\u044c \u043f\u0440\u0430\u0432\u0438\u043b \u043f\u0440\u043e \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435 \u0430\u0433\u0435\u043d\u0442\u043e\u0432 \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0435\u043d\u044b \u0438\u0437 CLAUDE.md \u043a \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430\u043c \u0432 pipelines/",
+  "size": 111
+ },
+ {
+  "sha": "af58227ee777be5e9897cb99eb9af4f7c4a5dff6",
+  "date": "2026-08-19T11:43:56+02:00",
+  "subj": "#346: #346: \u043f\u0440\u0430\u0432\u0438\u043b\u043e \u0444\u043e\u0440\u043c\u0430\u0442\u0430 \u043e\u0442\u0432\u0435\u0442\u0430 \u044e\u0437\u0435\u0440\u0443 \u2014 \u0431\u043b\u043e\u043a <user-answer-format> \u0432 \u0440\u043e\u043b\u0438 \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430",
+  "size": 123
+ },
+ {
+  "sha": "0f48974bdfc5a6da55b193d50151e276f41ee306",
+  "date": "2026-08-19T11:20:32+02:00",
+  "subj": "#345: #345: \u0441\u0432\u044f\u0437\u044c \u0432\u044b\u0437\u043e\u0432->\u0434\u043e\u043b\u043b\u0430\u0440 \u0438\u0437\u043c\u0435\u0440\u0435\u043d\u0430 \u0437\u0430\u043d\u043e\u0432\u043e \u2014 $0.135/$0.106 \u0437\u0430 \u0432\u044b\u0437\u043e\u0432, \u0434\u0432\u0430 \u043d\u0435\u0433\u0430\u0442\u0438\u0432\u043d\u044b\u0445 \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044f, \u0440\u0430\u0437\u0432\u0435\u0434\u043a\u0430 = 26.8% \u0440\u0430\u0441\u0445\u043e\u0434\u0430",
+  "size": 455
+ },
+ {
+  "sha": "bc8b53539bf7fd7f3083357ba53e13d203c522f3",
+  "date": "2026-08-19T11:12:13+02:00",
+  "subj": "#345: #345: \u043f\u0435\u0440\u0435\u0447\u0438\u0442\u044b\u0432\u0430\u043d\u0438\u0435 CLAUDE.md \u2014 \u043f\u0440\u0438\u0447\u0438\u043d\u0430 \u043d\u0430\u0439\u0434\u0435\u043d\u0430, \u043f\u0440\u043e\u0448\u043b\u0430\u044f \u043d\u0430\u0445\u043e\u0434\u043a\u0430 \u043e\u0442\u043e\u0437\u0432\u0430\u043d\u0430; \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0430\u044f \u0441\u0442\u0430\u0442\u044c\u044f \u0440\u0430\u0441\u0445\u043e\u0434\u0430 \u2014 \u0440\u0430\u0437\u043c\u0435\u0440 \u0444\u0430\u0439\u043b\u0430",
+  "size": 255
+ },
+ {
+  "sha": "970ad5f362c9bc7afa59c07016b4157db6237f9c",
+  "date": "2026-08-19T11:05:22+02:00",
+  "subj": "#345: #345: \u0440\u0435\u0441\u0451\u0440\u0447 benjamin-plus \u2014 \u0440\u0430\u0437\u0431\u043e\u0440 \u0441\u043a\u0438\u043b\u043b\u0430, \u043c\u0435\u0442\u043e\u0434\u0430 \u0430\u0432\u0442\u043e\u0440\u0435\u0441\u0451\u0440\u0447\u0430, \u043f\u0440\u0438\u043c\u0435\u043d\u0438\u043c\u043e\u0441\u0442\u044c; \u0442\u0435\u043c\u0430 token-efficiency \u0432 KB",
+  "size": 884
+ },
+ {
+  "sha": "3d6d4121e31c040482f29532e3234de26561640b",
+  "date": "2026-08-19T10:47:42+02:00",
+  "subj": "#344: #344: \u0432\u0435\u0440\u0434\u0438\u043a\u0442 \u043f\u0430\u043d\u0435\u043b\u0438 \u043a\u0432\u043e\u0442 \u0441\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u043e\u0434\u043d\u0438\u043c \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0435\u043c \u2014 \u0441\u0432\u043e\u0434\u043a\u0430 \u043d\u0435 \u0440\u0430\u0441\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0441 \u0442\u0435\u043b\u043e\u043c",
+  "size": 103
+ },
+ {
+  "sha": "98ae5885bc43e37d8c2d029355cd8248fd481435",
+  "date": "2026-08-19T09:18:13+02:00",
+  "subj": "\u0440\u0435\u0432\u044c\u044e \u043d\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e \u0438 \u0431\u0435\u0437 \u0437\u0430\u043c\u0435\u043d\u044b \u0440\u0435\u0432\u044c\u044e\u0435\u0440\u0430; code-quality \u0432\u044b\u043d\u0435\u0441\u0435\u043d \u0432 \u043c\u043e\u0434\u0443\u043b\u044c; \u043e\u0431\u0430 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u0430 \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u0442\u0435\u0441\u0442\u0430\u043c\u0438",
+  "size": 228
+ },
+ {
+  "sha": "e383aa573a0dc9ff9bb132a485447bb08daca892",
+  "date": "2026-08-19T07:51:26+02:00",
+  "subj": "#314: #314: \u0438\u043d\u0442\u0435\u0440\u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0439 \u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u043b\u0438\u043d\u0438\u0438 \u2014 \u0434\u0432\u0430 \u043f\u0443\u043b\u0430, Luna/Spark \u0431\u0435\u0437 \u0434\u0438\u0430\u0433\u043e\u043d\u0430\u043b\u0438, \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440 \u0431\u0435\u0437 \u043f\u0440\u0435\u0434\u0435\u043b\u0430",
+  "size": 299
+ },
+ {
+  "sha": "9379504842e82a3f2854377c3bf6757a1718647e",
+  "date": "2026-08-19T07:25:00+02:00",
+  "subj": "#340: #340: \u043f\u0435\u0440\u0435\u043d\u043e\u0441 \u0438\u0441\u0442\u043e\u0440\u0438\u0438 \u0437\u0430\u043f\u0440\u0435\u0449\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0442\u043e\u043c\u0443 \u0432\u044b\u0437\u043e\u0432\u0443, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u043c\u043e\u0436\u0435\u0442 \u0438\u0441\u043f\u043e\u043b\u043d\u044f\u0442\u044c\u0441\u044f \u0441\u0435\u0439\u0447\u0430\u0441",
+  "size": 601
+ },
+ {
+  "sha": "6e1cc6f73d41994ba50a5b9a2ca7619be016551f",
+  "date": "2026-08-18T14:38:12+02:00",
+  "subj": "#328: \u0436\u0438\u0432\u044b\u0435 \u043f\u0440\u043e\u0431\u044b \u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440\u0430 \u0441\u043d\u044f\u0442\u044b \u0441 merge-gate \u043c\u0430\u0440\u043a\u0435\u0440\u043e\u043c live_probe",
+  "size": 195
+ },
+ {
+  "sha": "1fe3cf1d7592f59b78de3728d0b5e4a5a0e54180",
+  "date": "2026-08-18T14:35:18+02:00",
+  "subj": "#329: \u043e\u0434\u0438\u043d \u0432\u043b\u0430\u0434\u0435\u043b\u0435\u0446 \u043b\u043e\u0433\u0438\u043a\u0438 \u043f\u0443\u043b\u043e\u0432 \u2014 \u043a\u0432\u043e\u0442\u043d\u0430\u044f \u0430\u0440\u0438\u0444\u043c\u0435\u0442\u0438\u043a\u0430 \u0432\u044b\u0440\u0435\u0437\u0430\u043d\u0430 \u0438\u0437 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0430, \u0431\u043b\u043e\u043a \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d \u0434\u043e \u0440\u0435\u0441\u0442\u0430\u0440\u0442\u0430",
+  "size": 983
+ },
+ {
+  "sha": "15e4ca7e0cdae33b35bf98353b05e7affb9f17d2",
+  "date": "2026-08-18T14:24:39+02:00",
+  "subj": "#330: #330: \u0434\u043e\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u043f\u0440\u043e Luna \u2014 \u0440\u0435\u0435\u0441\u0442\u0440, \u043a\u0440\u0435\u0434\u0438\u0442\u043d\u044b\u0439 rate card (25x), \u0442\u043e\u0447\u043a\u0430 \u0431\u0435\u0437\u0443\u0431\u044b\u0442\u043e\u0447\u043d\u043e\u0441\u0442\u0438 2.1-8.2%, \u043f\u043e\u043f\u0440\u0430\u0432\u043a\u0430 \u043f\u043e\u0440\u043e\u0433\u0430 22%",
+  "size": 264
+ },
+ {
+  "sha": "9b72fd58358be5843e5951e1edf49a14f2c44ed3",
+  "date": "2026-08-18T11:31:42+02:00",
+  "subj": "#318: #318: hot Claude lane in quota policy + live quota map in analytics",
+  "size": 1428
+ },
+ {
+  "sha": "c87ad448a40091987853a78953deceb0c8a746e0",
+  "date": "2026-08-18T11:00:41+02:00",
+  "subj": "#332, #304: #332: rewrite codex_review model tests against the post-#304 contract",
+  "size": 193
+ },
+ {
+  "sha": "67c6a9dc005c6763525725cffbcd72f0731a05f3",
+  "date": "2026-08-18T10:41:13+02:00",
+  "subj": "#324: #324: refuse to start the TG bridge outside the systemd-activated instance",
+  "size": 514
+ },
+ {
+  "sha": "bf70e3ad87266df58955fdd0a0570daa3517ce6a",
+  "date": "2026-08-18T09:26:47+02:00",
+  "subj": "#322: #322: balance merge gate batches",
+  "size": 168
+ },
+ {
+  "sha": "b25221f5a5d21907523f5cf28b1468fa92648054",
+  "date": "2026-08-18T09:08:30+02:00",
+  "subj": "#321: #321: replace static quota map with weekly trajectory",
+  "size": 553
+ },
+ {
+  "sha": "40e55a40de7c231ea4b9aae6ee4087964e42dd70",
+  "date": "2026-08-18T08:54:07+02:00",
+  "subj": "#320: #320: add hot static quota policy",
+  "size": 682
+ },
+ {
+  "sha": "10b371de19f55b0c8bb57f5d4515fd9486751a22",
+  "date": "2026-08-18T08:32:57+02:00",
+  "subj": "#321: make quota map interactive with percentage and hour sliders",
+  "size": 764
+ },
+ {
+  "sha": "e4e3e6b7dd6f8f88035b3cab53bdd403edc34563",
+  "date": "2026-08-18T08:22:06+02:00",
+  "subj": "#321: redesign quota runway as graphical explainer",
+  "size": 1350
+ },
+ {
+  "sha": "5a9ff79604d3869a39649e7dba0dbb538ab0de0f",
+  "date": "2026-08-18T07:55:01+02:00",
+  "subj": "#320: temporarily allow Luna below 98 percent",
+  "size": 57
+ },
+ {
+  "sha": "df14b85107dec8ea2b5da25f260b4d07d85cad71",
+  "date": "2026-08-18T07:43:51+02:00",
+  "subj": "#319: #319: add quota runway controller interactive artifact",
+  "size": 885
+ },
+ {
+  "sha": "b604ef4491c79300f4421ca3b1a4c1d8084672ff",
+  "date": "2026-08-17T17:11:29+02:00",
+  "subj": "#305: #305: serialize managed Codex cold starts",
+  "size": 1247
+ },
+ {
+  "sha": "9a1e2d108f93e84f997efa762ea23e382b434a85",
+  "date": "2026-08-17T16:29:35+02:00",
+  "subj": "#314: #314: freeze enforcement and analytics RED oracles",
+  "size": 1276
+ },
+ {
+  "sha": "b739cec2af0eed3aa682293b1806a5d75c03d0e9",
+  "date": "2026-08-17T11:42:06+02:00",
+  "subj": "#307: WIP #307: add russian task tool labels and focused frontend tests",
+  "size": 509
+ },
+ {
+  "sha": "4b185fdc56f260929bba4a8e5354fdffaa1c00a7",
+  "date": "2026-08-17T10:35:54+02:00",
+  "subj": "#309: #309: normalize pytest timeout output decoding",
+  "size": 92
+ },
+ {
+  "sha": "27a83859dcc10292ae5d287a6e8da73f01b928a3",
+  "date": "2026-08-17T08:58:13+02:00",
+  "subj": "#303: #303: supersede authority plan with incident boundary",
+  "size": 498
+ },
+ {
+  "sha": "9e92823b2d41f0b9c647ac4d093f005e07babff4",
+  "date": "2026-08-17T08:51:42+02:00",
+  "subj": "#306: #306: support sol and luna model aliases",
+  "size": 29
+ },
+ {
+  "sha": "e25a6b178d507df5a1f4bb88a05389e21d70e232",
+  "date": "2026-08-16T21:49:11+02:00",
+  "subj": "#301: #301: visibility-aware dashboard polling",
+  "size": 808
+ },
+ {
+  "sha": "9947ae37cdc3d2e26b053d653f230aaa38f59ddf",
+  "date": "2026-08-16T20:46:04+02:00",
+  "subj": "#300: #300: throttle background RAG embedding CPU",
+  "size": 307
+ },
+ {
+  "sha": "bd4f6e61a4872bd251b7cf78cdcad8d3c37d9d43",
+  "date": "2026-08-16T20:43:57+02:00",
+  "subj": "#304: #304: select codex review model explicitly",
+  "size": 412
+ },
+ {
+  "sha": "03025cbef57940cf1dc93854a30b1c9249d0491e",
+  "date": "2026-08-16T20:22:25+02:00",
+  "subj": "#302: #302: freeze transcription environment regressions",
+  "size": 253
+ },
+ {
+  "sha": "0015743d7c3b0cf3160fa5dd275a66ffc4e5708c",
+  "date": "2026-08-16T13:51:36+02:00",
+  "subj": "#296: #296: implement risk-based review routing",
+  "size": 606
+ },
+ {
+  "sha": "3cfeb617a64d7306b43e52e1b78115bc40652875",
+  "date": "2026-08-16T13:35:22+02:00",
+  "subj": "#297: #297: suppress silent marker auto-report",
+  "size": 357
+ },
+ {
+  "sha": "e114aadcf7a1af9c5918c37affd03cc23e029af7",
+  "date": "2026-08-16T13:23:59+02:00",
+  "subj": "#293: #293: freeze VPN project registration oracle",
+  "size": 126
+ },
+ {
+  "sha": "b35b26ebf2233e3c5e4094adec07f3eeba5b407e",
+  "date": "2026-08-16T13:18:30+02:00",
+  "subj": "#293: #293: register exact session scope for task creation",
+  "size": 28
+ },
+ {
+  "sha": "fc191b4fedfef922e418dd734ed8f7a15d807a4e",
+  "date": "2026-08-16T13:08:01+02:00",
+  "subj": "#295: #295: hide silent turn marker in dashboard",
+  "size": 93
+ },
+ {
+  "sha": "31d6b3bfbeb137281692133de00ff56a59689549",
+  "date": "2026-08-16T12:49:34+02:00",
+  "subj": "#292: #292: record procedural pilot rejection",
+  "size": 1041
+ },
+ {
+  "sha": "8e52a0c3213047b3cca53a848536ac79db3c8918",
+  "date": "2026-08-16T12:09:45+02:00",
+  "subj": "#288: #288: preregister OpenSpec reconstruction metrics",
+  "size": 1058
+ },
+ {
+  "sha": "d38f8785a73df506ef13fdfe8c8bf9911c050c8e",
+  "date": "2026-08-16T11:01:11+02:00",
+  "subj": "#283: #283: attribute measured prompt claims",
+  "size": 91
+ },
+ {
+  "sha": "5a11c5a14cdf1f308f3f606525425bdd9889655f",
+  "date": "2026-08-14T13:11:03+02:00",
+  "subj": "#280: #280: drop vacuum fail-open spawn test; deny unknown parent role",
+  "size": 93
+ },
+ {
+  "sha": "077a795c7394c33f1863d4288c6c10ebbe6c978e",
+  "date": "2026-08-14T13:06:36+02:00",
+  "subj": "#281: #281: bind orchestrator HTTP privilege to a per-MCP proof",
+  "size": 282
+ },
+ {
+  "sha": "4f0c87aa3802c99575710da95a59d9f9f3496e01",
+  "date": "2026-08-14T13:02:09+02:00",
+  "subj": "#282: #282: wait for notify card and reconnect, not a 5s sleep",
+  "size": 37
+ },
+ {
+  "sha": "4137d26af358734d1847efbc43765dbc3c9be910",
+  "date": "2026-08-14T12:57:42+02:00",
+  "subj": "#255: #255: run a file-mapped test subset before squash; drop CI -x",
+  "size": 407
+ },
+ {
+  "sha": "580c425d3324b6593c70dc3d58dc51ffee35f45a",
+  "date": "2026-08-14T12:56:26+02:00",
+  "subj": "#209: #209: stop quoting manifest model ids in prompts; check catches copies",
+  "size": 99
+ },
+ {
+  "sha": "740d749a2af9932c306cedd962909e56a2541734",
+  "date": "2026-08-14T12:54:09+02:00",
+  "subj": "#242, #278: #242: recount live-state tests \u2014 70 DB_PATH sites in 56 files",
+  "size": 326
+ },
+ {
+  "sha": "e439707ce205318adc7fbc0e794e1f5c275a1bd8",
+  "date": "2026-08-14T12:49:26+02:00",
+  "subj": "#250: #250: refuse unreviewable diffs at merge",
+  "size": 313
+ },
+ {
+  "sha": "4b0611cfb65e5a0fdd554f87a99d0bbe7324f025",
+  "date": "2026-08-14T12:46:59+02:00",
+  "subj": "#240: #240: drop worker-set acceptance_command in task_create",
+  "size": 90
+ },
+ {
+  "sha": "0220d2a2d14e88b2c616b1d4eddb640b242625da",
+  "date": "2026-08-14T12:44:33+02:00",
+  "subj": "#278: #278: skip unfinished Antigravity RED tests; drop dead can_spawn leftover",
+  "size": 64
+ },
+ {
+  "sha": "4b3ebde4d78681dc48db7482a008e56043be53ee",
+  "date": "2026-08-14T12:39:35+02:00",
+  "subj": "#240: #240: platform runs the ticket acceptance command before squash",
+  "size": 416
+ },
+ {
+  "sha": "9268255cf199a0b95e9001e803c3f13544256896",
+  "date": "2026-08-14T12:33:28+02:00",
+  "subj": "#277: #277: drop quota percents from the turn-ended TG line",
+  "size": 175
+ },
+ {
+  "sha": "029d7573d8998ed818c0a8da5cad46cf1407c684",
+  "date": "2026-08-14T12:28:17+02:00",
+  "subj": "#276: #276: record rejected fan-terminal forks; pin one wake after tool+idle",
+  "size": 98
+ },
+ {
+  "sha": "9ffd72eebaab123dc9f19383c06a8feb98874013",
+  "date": "2026-08-14T12:22:12+02:00",
+  "subj": "#206: #206: replace dead extract-manifest with a real --check",
+  "size": 356
+ },
+ {
+  "sha": "3ed249ecf88a2c40f5d0f93d4dcdd34c250ef854",
+  "date": "2026-08-14T12:21:10+02:00",
+  "subj": "#276: #276: fan terminal only on explicit kind or turn end",
+  "size": 215
+ },
+ {
+  "sha": "208c7fcae99b53232394a1bf7382f3db90284937",
+  "date": "2026-08-14T12:18:51+02:00",
+  "subj": "#180: #180: _run_exec rejects blind review artifacts",
+  "size": 133
+ },
+ {
+  "sha": "083c8342644b522bac7b380ffa03782b1f489fdd",
+  "date": "2026-08-14T12:20:56+02:00",
+  "subj": "feat: \u043a\u043d\u043e\u043f\u043a\u0430 \u043e\u0447\u0438\u0441\u0442\u043a\u0438 \u0441\u0435\u0441\u0441\u0438\u0438 \u0430\u0433\u0435\u043d\u0442\u0430 (\u043e\u0431\u043d\u0443\u043b\u044f\u0435\u0442 session_id, worktree \u043d\u0435 \u0442\u0440\u043e\u0433\u0430\u0435\u0442)",
+  "size": 52
+ },
+ {
+  "sha": "74f2b6b6d8f4798d3aaff7ca7ec30717a5d95fbe",
+  "date": "2026-08-13T12:46:33+02:00",
+  "subj": "#241: #241: highlight notify_user calls and make them navigable",
+  "size": 323
+ },
+ {
+  "sha": "3c5fa59a247ced5a94851f398af7b301fb89bfb1",
+  "date": "2026-08-13T12:29:35+02:00",
+  "subj": "#260: #260: pair tool results without exact id and adopt late calls",
+  "size": 455
+ },
+ {
+  "sha": "26f281a065c8dd8f1a4bc0485a53d64a9740759b",
+  "date": "2026-08-13T11:05:06+02:00",
+  "subj": "#262: #262: compare subscription economics",
+  "size": 872
+ },
+ {
+  "sha": "173f2d8638428039236f8433f16cba59a9a5eda0",
+  "date": "2026-08-13T11:04:14+02:00",
+  "subj": "#260: #260: correlate parallel tool results by id",
+  "size": 715
+ },
+ {
+  "sha": "d485e1c529d2b4eeb27873c0703c12dccc1ff48e",
+  "date": "2026-08-13T11:02:45+02:00",
+  "subj": "#258: #258: research safe orphan process identity",
+  "size": 1382
+ },
+ {
+  "sha": "d894fc6e45d62bce6ddc5920d93c66b4d92c6195",
+  "date": "2026-08-13T10:17:11+02:00",
+  "subj": "#259: #259: audit dashboard clarity and propose UX",
+  "size": 767
+ },
+ {
+  "sha": "588c7817b084d9e8c47109668b50a8769e4d7a8b",
+  "date": "2026-08-13T10:09:39+02:00",
+  "subj": "#257: #257: suppress exact silent-turn marker in Telegram",
+  "size": 133
+ },
+ {
+  "sha": "ba10d0dcbf42847ce22a2f3254a022df4f210503",
+  "date": "2026-08-13T09:44:12+02:00",
+  "subj": "#163: #163: keep usage controls visible on narrow desktops",
+  "size": 250
+ },
+ {
+  "sha": "21ead017aa52fac005731c59e77bcb74111d8c34",
+  "date": "2026-08-13T09:11:59+02:00",
+  "subj": "#245: #245: add dashboard voice input",
+  "size": 1098
+ },
+ {
+  "sha": "85b6174ee62d2fa20e3adb58bebef98d77198ef2",
+  "date": "2026-08-13T08:54:04+02:00",
+  "subj": "#246: #246: validate task creation project scopes",
+  "size": 295
+ },
+ {
+  "sha": "59ee1b11c76763077ceb47bc52c6854468e0d936",
+  "date": "2026-08-13T08:40:03+02:00",
+  "subj": "#227: #227: gate Opus by Claude weekly pace",
+  "size": 650
+ },
+ {
+  "sha": "42d221b2318e0a843204ef443c63ae69bd8df41c",
+  "date": "2026-08-13T08:25:34+02:00",
+  "subj": "#244: #244: derive Codex tools from FastMCP registry",
+  "size": 78
+ },
+ {
+  "sha": "0b380893636f30e35bd805058aeea07bceaf136c",
+  "date": "2026-08-13T08:11:48+02:00",
+  "subj": "#244: #244: expose open_fan to Codex workers",
+  "size": 27
+ },
+ {
+  "sha": "9538e066cd4d56b8370cac80a75332097c512e56",
+  "date": "2026-08-13T08:09:26+02:00",
+  "subj": "#243: #243: preserve Codex threads across model switches",
+  "size": 589
+ },
+ {
+  "sha": "a41edae8262c32676668a7f9046ccc5eb490617f",
+  "date": "2026-08-13T07:53:37+02:00",
+  "subj": "#239: #239: preserve unknown costs in analytics",
+  "size": 611
+ },
+ {
+  "sha": "5c346ffd58228eef4a0231b066169d058a621e21",
+  "date": "2026-08-13T07:53:05+02:00",
+  "subj": "#227: #227: enforce worker model policy at spawn",
+  "size": 540
+ },
+ {
+  "sha": "823de42a9dea6bbe4dd75b42473e505302eeafcd",
+  "date": "2026-08-13T07:44:10+02:00",
+  "subj": "#235: #235: guard tests from production database",
+  "size": 186
+ },
+ {
+  "sha": "99dc5e1c471071aa7245ccc14d153b04a7a5eeab",
+  "date": "2026-08-13T07:10:11+02:00",
+  "subj": "#231: #231: MCP-\u0442\u0443\u043b open_fan + \u043f\u0440\u043e\u0432\u043e\u0434\u043a\u0430 \u0432\u0435\u0435\u0440\u0430 \u0432 \u043f\u0440\u043e\u043c\u043f\u0442\u044b \u0441\u043f\u0430\u0432\u043d\u044f\u0449\u0438\u0445 \u0440\u043e\u043b\u0435\u0439",
+  "size": 47
+ },
+ {
+  "sha": "83b33df117d1e6a9249d80bfabd1ebdff5cf6905",
+  "date": "2026-08-13T06:53:53+02:00",
+  "subj": "#238: #238: \u043f\u043b\u0430\u043d + \u0437\u0430\u043c\u043e\u0440\u043e\u0436\u0435\u043d\u043d\u044b\u0439 \u043a\u0440\u0430\u0441\u043d\u044b\u0439 \u043e\u0440\u0430\u043a\u0443\u043b \u0434\u043b\u044f owned_dirs \u0432 PreToolUse",
+  "size": 510
+ },
+ {
+  "sha": "7cb9b324ed320cd3acf8648b936deff6a4311f10",
+  "date": "2026-08-13T06:48:21+02:00",
+  "subj": "#230: #230: \u0442\u0440\u0438 \u043d\u0430\u0445\u043e\u0434\u043a\u0438 \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u2014 \u0433\u0435\u0439\u0442 \u043d\u0430 futures, \u043e\u0440\u0430\u043a\u0443\u043b \u043f\u043e leftover, start_time \u0434\u043e \u0441\u0431\u0440\u043e\u0441\u0430",
+  "size": 279
+ },
+ {
+  "sha": "000927f30a23186501dff874f619676f6bd8fbc7",
+  "date": "2026-08-13T06:37:03+02:00",
+  "subj": "#223: #223: research explicit test-layer authorization",
+  "size": 476
+ },
+ {
+  "sha": "21b46c82f3ed8b2ca819692b4fcc595a446fe2b0",
+  "date": "2026-08-13T06:29:19+02:00",
+  "subj": "#226: #226: freeze unpriced Codex turn oracle",
+  "size": 515
+ },
+ {
+  "sha": "8b30e1c946f6268e1d90a80d11a9ab5b0aa4fae9",
+  "date": "2026-08-13T06:13:20+02:00",
+  "subj": "#235: WIP #235: document production DB test escape",
+  "size": 213
+ },
+ {
+  "sha": "d9733d591a1eeb4a270c393be4269ceefc3fc3a7",
+  "date": "2026-08-12T17:16:27+02:00",
+  "subj": "#224: #224: point TestClaudeBackendProfile F2 tests at the config file (contract moved out of argv)",
+  "size": 45
+ },
+ {
+  "sha": "aa509e26d51fd9aea7936be69c9ab9fffe808a82",
+  "date": "2026-08-12T16:30:05+02:00",
+  "subj": "#233: #233: freeze Bash hook flag oracle",
+  "size": 183
+ },
+ {
+  "sha": "ff5db150973f2fd09784a15cfd2b661fb75408a9",
+  "date": "2026-08-12T16:11:15+02:00",
+  "subj": "#228: #228: freeze payload hook acceptance oracle",
+  "size": 1459
+ },
+ {
+  "sha": "d986be3c1c20d5db3df71fbc54ffa763c7910b43",
+  "date": "2026-08-12T15:49:44+02:00",
+  "subj": "#193: #193: add red subrepo memory regression test",
+  "size": 186
+ },
+ {
+  "sha": "9b1b48b5448072b42b0ed273d7e66f3a10245cf8",
+  "date": "2026-08-12T13:14:45+02:00",
+  "subj": "#219: #219 T1b: \u043a\u0440\u0430\u0441\u043d\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u043f\u0440\u043e\u0432\u043e\u0434\u043a\u0438 \u2014 \u0434\u0432\u0430 \u0433\u0435\u0439\u0442\u0430, killed-\u0442\u043e\u043a\u0435\u043d, \u0434\u0435\u0432\u044f\u0442\u044c \u043d\u0435\u043f\u0440\u0438\u043a\u043e\u0441\u043d\u043e\u0432\u0435\u043d\u043d\u044b\u0445 \u043f\u0443\u0442\u0435\u0439",
+  "size": 268
+ },
+ {
+  "sha": "6712fdcf413d529d70bbe01ddfa9cbecca3f745d",
+  "date": "2026-08-12T13:01:27+02:00",
+  "subj": "#219, #223: #219 T2: \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442 \u0434\u0435\u043b\u0435\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f \u00ab\u0442\u0430\u0431\u043b\u0438\u0446\u0430, \u0430 \u043d\u0435 \u043e\u0431\u043b\u0430\u0441\u0442\u044c\u00bb \u0432 worker-lifecycle + \u0442\u0435\u0441\u0442\u044b \u043d\u0430 \u043f\u0440\u043e\u0438\u0441\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u0435 \u044f\u043a\u043e\u0440\u0435\u0439 (\u043f\u0435\u0440\u0432\u0430\u044f \u0440\u0435\u0434\u0430\u043a\u0446\u0438\u044f \u0442\u0435\u0441\u0442\u0430 \u0431\u044b\u043b\u0430 \u043b\u043e\u0436\u043d\u043e-\u0437\u0435\u043b\u0451\u043d\u043e\u0439 \u043d\u0430 \u0441\u043e\u0441\u0442\u0430\u0432\u043d\u043e\u0439 \u043c\u0443\u0442\u0430\u0446\u0438\u0438)",
+  "size": 485
+ },
+ {
+  "sha": "4492f17c8b11abeda0be2323adef444424014a7a",
+  "date": "2026-08-12T12:40:25+02:00",
+  "subj": "#224: #224: research \u2014 argv leak, measured; file-path route for Claude, wrapper for Codex",
+  "size": 741
+ },
+ {
+  "sha": "bf5de05e20cb9c5cba29d203b3849dd442f7777f",
+  "date": "2026-08-12T12:24:16+02:00",
+  "subj": "#222: #222: add Spark admission delivery oracle",
+  "size": 392
+ },
+ {
+  "sha": "45d761005581de5844573e1c10a47de64399325f",
+  "date": "2026-08-12T12:04:54+02:00",
+  "subj": "#223: #223: correct barrier conclusion",
+  "size": 559
+ },
+ {
+  "sha": "8bd9bd60ad22302d1821c676916a409d24ab1910",
+  "date": "2026-08-12T11:47:51+02:00",
+  "subj": "#225: #225: add branch WIP diff regression test",
+  "size": 33
+ },
+ {
+  "sha": "ee74e389e63061d3037fc92b546ea8bf09374771",
+  "date": "2026-08-12T11:29:24+02:00",
+  "subj": "#211: WIP #211: prepare reversible Claude env hook",
+  "size": 1403
+ },
+ {
+  "sha": "16ec99cbf7f0b18015196a591b040753f36d2d8a",
+  "date": "2026-08-12T10:51:11+02:00",
+  "subj": "#220: #220: research \u2014 \u0433\u0440\u0430\u043d\u0438\u0446\u0430 \u0433\u043e\u0440\u044f\u0447\u0435\u0435/\u0445\u043e\u043b\u043e\u0434\u043d\u043e\u0435 \u0438\u0437\u043c\u0435\u0440\u0435\u043d\u0430, importlib.reload \u043e\u043f\u0440\u043e\u0432\u0435\u0440\u0433\u043d\u0443\u0442, \u0434\u0440\u0435\u043d\u0430\u0436 \u0434\u0435\u0448\u0435\u0432\u043b\u0435 \u0432\u044b\u043d\u043e\u0441\u0430 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0432",
+  "size": 785
+ },
+ {
+  "sha": "9442bc38b4d76c4c047c7127663c58682b2796d2",
+  "date": "2026-08-12T10:50:55+02:00",
+  "subj": "#221: #221: add model routing priority oracle",
+  "size": 56
+ },
+ {
+  "sha": "100cc871b6a067030d9b58c23ef6d9b37ea9c0c0",
+  "date": "2026-08-12T10:48:01+02:00",
+  "subj": "#221: #221: add Telegram formatting rules to orchestrator prompt",
+  "size": 102
+ },
+ {
+  "sha": "2389b2a61aac4aa826fb6bfb3e63ede80fb91d38",
+  "date": "2026-08-12T10:45:56+02:00",
+  "subj": "#218: #218: isolate Codex binary resolution tests from live server",
+  "size": 39
+ },
+ {
+  "sha": "7128e133df40a2ba068bc0059f41f3c4c26160ab",
+  "date": "2026-08-12T10:45:37+02:00",
+  "subj": "#217: #217: cover Codex review resume usage arguments",
+  "size": 43
+ },
+ {
+  "sha": "ecfcba9812a598efa1f80301414c95bbc56c315a",
+  "date": "2026-08-12T09:16:47+02:00",
+  "subj": "#216: #216: Spark \u0432\u044b\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043f\u043e opt-in \u043e\u043f\u0435\u0440\u0430\u0442\u043e\u0440\u0430; Sol-first \u043f\u043e\u0440\u044f\u0434\u043e\u043a \u043f\u043e\u043b\u043e\u0441",
+  "size": 523
+ },
+ {
+  "sha": "6b2249c59e177e55507e5a20b0214f3ee1fd944d",
+  "date": "2026-08-12T08:48:18+02:00",
+  "subj": "#214: #214: \u044d\u0444\u0444\u043e\u0440\u0442 \u043f\u043e \u043c\u043e\u0434\u0435\u043b\u0438 \u2014 \u043a\u0430\u0440\u0442\u0430 \u043c\u043e\u0434\u0435\u043b\u044c\u2192\u0441\u0442\u0443\u043f\u0435\u043d\u044c \u0432 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442\u0435",
+  "size": 1178
+ },
+ {
+  "sha": "88682bef2465de84ea0bc9030fa29992313b7011",
+  "date": "2026-08-12T08:38:18+02:00",
+  "subj": "#217: #217: preserve reviews when usage metadata is unavailable",
+  "size": 97
+ },
+ {
+  "sha": "503e71ec98d9648666c97b4d46c04f524cf282ba",
+  "date": "2026-08-12T08:21:48+02:00",
+  "subj": "#215: #215: account standalone Codex review usage",
+  "size": 324
+ },
+ {
+  "sha": "0a665a832a2f1ae44fc1de5d4a40eb4894590b82",
+  "date": "2026-08-12T08:06:56+02:00",
+  "subj": "#210: #210: \u043f\u043b\u0430\u043d \u0424\u0430\u0437\u044b 2 \u2014 \u043f\u043b\u0430\u043d \u0437\u0430\u043a\u0430\u043d\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043a\u0440\u0430\u0441\u043d\u044b\u043c \u0442\u0435\u0441\u0442\u043e\u043c; \u043e\u0440\u0430\u043a\u0443\u043b \u0441\u0445\u0435\u043c\u044b \u0437\u0430\u043a\u043e\u043c\u043c\u0438\u0447\u0435\u043d \u041a\u0420\u0410\u0421\u041d\u042b\u041c",
+  "size": 809
+ },
+ {
+  "sha": "7ba8728be6f45cacffd7d3281a2dbcd1d7ba279e",
+  "date": "2026-08-12T07:28:04+02:00",
+  "subj": "#213: #213: record per-model effort constraint, no discount route through Sol",
+  "size": 162
+ },
+ {
+  "sha": "a8b0866ca1c0bdc0cadcd4ca7629423bee1d6da0",
+  "date": "2026-08-12T07:17:57+02:00",
+  "subj": "#208, #201: #208: \u043f\u0440\u0435\u0434\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f \u2014 \u0431\u044e\u0434\u0436\u0435\u0442 \u043e\u0442 \u0437\u0430\u043c\u0435\u0440\u0435\u043d\u043d\u043e\u0433\u043e \u043e\u0441\u0442\u0430\u0442\u043a\u0430, \u043a\u0440\u0438\u0442\u0435\u0440\u0438\u0438 \u043f\u0440\u0438\u0451\u043c\u043a\u0438 \u043e\u0447\u043d\u043e\u0439 \u0441\u0442\u0430\u0432\u043a\u0438 Luna/Sol, \u0441\u0442\u0435\u043d\u0434 L1 red/green",
+  "size": 805
+ },
+ {
+  "sha": "a085d8581788319687933e27f464104d109aa1bb",
+  "date": "2026-08-12T07:17:51+02:00",
+  "subj": "#201: #201: account for Codex cache writes",
+  "size": 190
+ },
+ {
+  "sha": "8b7860a81647facc2b86f9e421671e8ae1d8c9be",
+  "date": "2026-08-12T05:44:49+02:00",
+  "subj": "#207: #207: drop unattributed MRCR number, full-cycle effort xhigh->high",
+  "size": 105
+ },
+ {
+  "sha": "2a5ae8b335a99d87bb2733aa9fa8bc06662ca6ef",
+  "date": "2026-08-12T05:25:56+02:00",
+  "subj": "#203: #203: Luna escalation path; move model-routing to a module for spawn-capable roles",
+  "size": 201
+ },
+ {
+  "sha": "5e9ae87c42931de8bd8fa34d0966fac70bc6e18d",
+  "date": "2026-08-11T20:42:04+02:00",
+  "subj": "#198: #198 \u0424\u0430\u0437\u0430 2: \u043f\u0440\u043e\u0433\u043e\u043d\u044b \u043e\u043f\u0440\u043e\u0432\u0435\u0440\u0433\u043b\u0438 \u043e\u0431\u0435 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u0438 \u0424\u0430\u0437\u044b 1 \u2014 \u043f\u043b\u0430\u043d + \u043f\u043e\u043f\u0440\u0430\u0432\u043a\u0430 \u0432 research.md",
+  "size": 741
+ },
+ {
+  "sha": "103bf0364f95b4f0d78fd718ea5569dec4c5209a",
+  "date": "2026-08-11T19:57:30+02:00",
+  "subj": "#199: #199: \u043f\u0440\u0430\u0439\u0441 Codex \u043f\u043e \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u044e\u0449\u0435\u043c\u0443 \u043b\u0438\u0441\u0442\u0443 OpenAI \u2014 Luna \u0438 Terra \u0431\u044b\u043b\u0438 \u0437\u0430\u0432\u044b\u0448\u0435\u043d\u044b",
+  "size": 115
+ },
+ {
+  "sha": "23dde2a2ac0db74314469b0b761afd4f1854a946",
+  "date": "2026-08-11T19:44:09+02:00",
+  "subj": "#195: #195: encode dots in Claude project directories",
+  "size": 25
+ },
+ {
+  "sha": "d987193b70e03ca5ed6fe50162c6b640b87bc446",
+  "date": "2026-08-11T16:47:01+02:00",
+  "subj": "#189: #189: \u0441\u0442\u0435\u043d\u0434 \u0436\u0434\u0451\u0442, \u0447\u0442\u043e \u043f\u043e\u0442\u043e\u043a \u0434\u043e\u0447\u0438\u0442\u0430\u043b \u0436\u0443\u0440\u043d\u0430\u043b, \u0430 \u043d\u0435 \u0442\u043e\u043b\u044c\u043a\u043e \u043e\u043f\u0443\u0441\u0442\u043e\u0448\u0435\u043d\u0438\u044f \u043e\u0447\u0435\u0440\u0435\u0434\u0438",
+  "size": 103
+ },
+ {
+  "sha": "b6444aeeb36312645ad2e344494b3544b2970018",
+  "date": "2026-08-11T15:32:53+02:00",
+  "subj": "#186: #186: T4 \u2014 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430 \u0442\u0435\u043a\u0441\u0442\u0430 \u0432 TG \u0438 \u0446\u0438\u043a\u043b \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f (\u0431\u0435\u0437 \u043f\u0440\u043e\u0432\u043e\u0434\u043a\u0438 \u0432 \u043c\u0430\u0440\u0448\u0440\u0443\u0442)",
+  "size": 1249
+ },
+ {
+  "sha": "e18ea6b437997fb560e09fe3d3d1bb76068381d5",
+  "date": "2026-08-11T15:19:51+02:00",
+  "subj": "#187: #187: add atomic quota-aware runtime router state",
+  "size": 979
+ },
+ {
+  "sha": "470783705e583ca63fb69be266a3e3a4e6fe0cb2",
+  "date": "2026-08-11T14:43:11+02:00",
+  "subj": "#187: WIP #187: integrate shared runway baseline contract",
+  "size": 67
+ },
+ {
+  "sha": "66ad6a69f7a23836efb0a2f01085ee17d7beeca6",
+  "date": "2026-08-11T13:41:22+02:00",
+  "subj": "#186: #186: T3 \u2014 \u0445\u0440\u0430\u043f\u043e\u0432\u0438\u043a \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f \u043d\u0430 \u0441\u0445\u0435\u043c\u0435 \u0438 \u043b\u0430\u0442\u0447 \u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044f",
+  "size": 831
+ },
+ {
+  "sha": "62839233bc0751a92d0ae01374b4701ba5b18a14",
+  "date": "2026-08-11T13:16:17+02:00",
+  "subj": "#194, #188, #177: #194: \u0441\u043a\u0440\u0438\u043f\u0442 \u0440\u0430\u0437\u043c\u0435\u0442\u043a\u0438 \u0444\u0430\u0437 \u043f\u043e \u043b\u043e\u0433\u0430\u043c (\u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f, \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c, \u0432\u0435\u0431-\u0432\u044b\u0437\u043e\u0432\u044b \u043d\u0430 \u0445\u043e\u0434)",
+  "size": 1361
+ },
+ {
+  "sha": "3fbd7054f6e6b22f9a120c43d0796eda6efe17ee",
+  "date": "2026-08-11T13:13:41+02:00",
+  "subj": "#186: #186: T2 \u2014 \u0431\u0430\u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044c\u043d\u043e\u0433\u043e \u043e\u043a\u043d\u0430: \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u043c\u043e\u043d\u043e\u0442\u043e\u043d\u043d\u044b\u0439 \u043e\u0442\u0440\u0435\u0437\u043e\u043a, \u0447\u0435\u0441\u0442\u043d\u044b\u0439 \u043d\u043e\u043b\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d",
+  "size": 498
+ },
+ {
+  "sha": "9a8afc9464f2020b1547bba0e5dc21eaabfa0824",
+  "date": "2026-08-11T12:56:09+02:00",
+  "subj": "#189: #189: \u0441\u0442\u0435\u043d\u0434 \u0434\u043b\u044f \u0437\u0430\u043c\u0435\u0440\u0430 \u0444\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438 \u0432 TG (replay \u0447\u0435\u0440\u0435\u0437 \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0439 stream_logs)",
+  "size": 772
+ },
+ {
+  "sha": "d77f96d4e1591e20618b1684a06861c838376bc2",
+  "date": "2026-08-11T12:55:31+02:00",
+  "subj": "#186: #186: \u043f\u043b\u0430\u043d \u0424\u0430\u0437\u044b 2 \u2014 \u043c\u0435\u0442\u0440\u0438\u043a\u0430 D, \u0445\u0440\u0430\u043f\u043e\u0432\u0438\u043a, \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430; 2 \u0440\u0430\u0443\u043d\u0434\u0430 Codex",
+  "size": 1140
+ },
+ {
+  "sha": "8652a32c0bc42dbf07b3b7ec03aea8af84f41a36",
+  "date": "2026-08-11T12:30:35+02:00",
+  "subj": "#190: #190: research \u2014 5% \u0440\u0430\u0441\u0445\u043e\u0434\u0430 Codex \u044d\u0442\u043e \u0440\u0435\u0432\u044c\u044e, 76% \u0440\u0430\u0431\u043e\u0442\u044b Sol \u043f\u0440\u0438\u0448\u043b\u043e\u0441\u044c \u043d\u0430 \u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0443 Claude",
+  "size": 1448
+ },
+ {
+  "sha": "4c8c64e9e96107955a4bb5d04613a230bad0b927",
+  "date": "2026-08-11T12:21:42+02:00",
+  "subj": "#189: #189: \u0437\u0430\u043c\u0435\u0440 \u0442\u0440\u0430\u0444\u0438\u043a\u0430 \u0432 TG \u0438 \u0442\u0440\u0438 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u0430 \u043b\u0430\u043a\u043e\u043d\u0438\u0447\u043d\u043e\u0441\u0442\u0438",
+  "size": 884
+ },
+ {
+  "sha": "ad423c58fe7b81762eac7c7f6523437ee9e39570",
+  "date": "2026-08-11T12:01:59+02:00",
+  "subj": "#185: #185: add chat event timeline navigation",
+  "size": 480
+ },
+ {
+  "sha": "106961b53d7d3ea10c94dd5d17f87e336091b436",
+  "date": "2026-08-11T11:23:59+02:00",
+  "subj": "#182: #182: preserve Codex review artifacts on guard failure",
+  "size": 272
+ },
+ {
+  "sha": "4b4b969b0bda9a6886da6e0e93a83bb8b22bdaf1",
+  "date": "2026-08-11T10:36:33+02:00",
+  "subj": "#177: #177: research \u2014 \u0446\u0435\u043d\u0430 \u0444\u0430\u0437 full-cycle, \u0437\u0430\u043c\u0435\u0440 \u043f\u043e 7 \u043f\u043e\u043b\u043d\u044b\u043c \u043f\u0440\u043e\u0433\u043e\u043d\u0430\u043c",
+  "size": 988
+ },
+ {
+  "sha": "4b8830e67acabbf1291b864ac349485d5875f690",
+  "date": "2026-08-11T10:35:30+02:00",
+  "subj": "#176: #176: research \u2014 \u0440\u0430\u0437\u0431\u043e\u0440 \u0441\u0430\u0433\u0438 GROOM, \u0432\u0438\u043d\u0430 \u0444\u043e\u0440\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u043a\u0438 \u043f\u0440\u043e\u0442\u0438\u0432 \u043c\u043e\u0434\u0435\u043b\u0438",
+  "size": 995
+ },
+ {
+  "sha": "92c272d658dadb670c61e9a898086e9b7d1771d1",
+  "date": "2026-08-10T09:38:20+02:00",
+  "subj": "#172, #5: #172: audit active prompts for GPT-5.6 Sol",
+  "size": 838
+ },
+ {
+  "sha": "bff96d9412281b3ece147026ff00290283ac4552",
+  "date": "2026-08-07T12:26:04+02:00",
+  "subj": "#162: #162: research \u2014 \u043a\u0443\u0440\u0441 5h\u21927d \u0438\u0437\u043c\u0435\u0440\u0435\u043d, \u0432 \u043d\u0435\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043b\u0438\u043c\u0438\u0442 \u0432\u043b\u0435\u0437\u0430\u0435\u0442 ~7 \u043f\u044f\u0442\u0438\u0447\u0430\u0441\u043e\u0432\u044b\u0445 \u043e\u043a\u043e\u043d",
+  "size": 1175
+ },
+ {
+  "sha": "639dc61d42fb4dc496a5b86a05dd6902ce050af4",
+  "date": "2026-08-07T11:36:39+02:00",
+  "subj": "#161: #161: \u043e\u0442\u043a\u0430\u0437 \u0444\u0438\u043b\u044c\u0442\u0440\u0430 \u043e\u043f\u043e\u0437\u043d\u0430\u0451\u0442\u0441\u044f \u043f\u043e \u0442\u0435\u043b\u0443 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u0438 \u0443\u043f\u0430\u0432\u0448\u0435\u043c\u0443 \u0445\u043e\u0434\u0443; \u0437\u0430\u0431\u0440\u0430\u043a\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043a\u0441\u0442 \u043d\u0430\u0440\u0443\u0436\u0443 \u043d\u0435 \u0435\u0434\u0435\u0442",
+  "size": 285
+ },
+ {
+  "sha": "8683e76b096ed682bd39bf7e8708ad59f6daa381",
+  "date": "2026-08-07T09:58:24+02:00",
+  "subj": "#155: #155: \u043e\u0442\u043a\u0430\u0437 \u043a\u0438\u0431\u0435\u0440\u0431\u0435\u0437-\u0444\u0438\u043b\u044c\u0442\u0440\u0430 \u2014 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043a\u043b\u0430\u0441\u0441, \u043f\u043e\u0434\u0441\u043a\u0430\u0437\u043a\u0430 \u043f\u043e \u0442\u0440\u0451\u043c \u043f\u0440\u0438\u0437\u043d\u0430\u043a\u0430\u043c, \u0430\u0432\u0442\u043e\u043e\u0442\u043a\u0430\u0442 \u043e\u0442\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u043e\u0439 \u0438\u0441\u0442\u043e\u0440\u0438\u0438",
+  "size": 372
+ },
+ {
+  "sha": "86e9542b9b7516246e52f91208fa3ba60d331804",
+  "date": "2026-08-07T05:41:15+02:00",
+  "subj": "#150: #150: \u043c\u0438\u0433\u0440\u0430\u0446\u0438\u044f 78 \u0434\u043e\u043a\u0430\u0437\u0430\u043d\u043d\u044b\u0445 \u043f\u043e\u0434\u0434\u0435\u043b\u043e\u043a \u0432 NULL \u2014 \u0441\u043a\u0440\u0438\u043f\u0442, \u0440\u0435\u043f\u0435\u0442\u0438\u0446\u0438\u044f \u043d\u0430 \u043a\u043e\u043f\u0438\u0438, \u0441\u0432\u0435\u0440\u043a\u0430 \u0434\u043e/\u043f\u043e\u0441\u043b\u0435",
+  "size": 183
+ },
+ {
+  "sha": "ce54d49a65bce648cece8d18fc053679e41251d3",
+  "date": "2026-08-07T05:20:12+02:00",
+  "subj": "#145: #145: \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u043d\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u043b\u043e\u0433\u0438\u043d\u044f\u0442\u0441\u044f \u043a\u0440\u0435\u0434\u0430\u043c\u0438 \u0438\u0437 \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u044f \u0432\u043c\u0435\u0441\u0442\u043e \u0441\u043a\u0438\u043f\u0430 \u043f\u043e auth",
+  "size": 198
+ },
+ {
+  "sha": "15dd0e284b4b1d6a9def9a7de92c3f2978249e9c",
+  "date": "2026-08-07T05:07:36+02:00",
+  "subj": "#144: #144: TestPrecompactTimer \u043f\u0438\u043d\u0438\u0442 AUTO_COMPACT_ENABLED=1 \u2014 \u043f\u0440\u043e\u0433\u043e\u043d \u043d\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u0442 \u043e\u0442 .env \u043c\u0430\u0448\u0438\u043d\u044b",
+  "size": 21
+ },
+ {
+  "sha": "1d3e31366526def9a8863261cc6ebcd534311998",
+  "date": "2026-08-06T10:15:11+02:00",
+  "subj": "#136: #136: \u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440 .json \u0444\u043e\u0440\u043c\u0430\u0442\u0438\u0440\u0443\u0435\u0442 \u0442\u0435\u043a\u0441\u0442 \u0444\u0430\u0439\u043b\u0430, \u043d\u0435 \u043f\u0435\u0440\u0435\u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442 \u0440\u0430\u0437\u043e\u0431\u0440\u0430\u043d\u043d\u044b\u0439 \u043e\u0431\u044a\u0435\u043a\u0442",
+  "size": 243
+ },
+ {
+  "sha": "a376b2d758973273ba8a91dd7ba01139207b0184",
+  "date": "2026-08-06T10:08:26+02:00",
+  "subj": "#130: #130: \u0434\u0435\u0442\u0435\u043a\u0442\u043e\u0440 \u0446\u0435\u043b\u044b\u0445 > 2^53 \u0432 \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u0430\u0445 tool-\u0432\u044b\u0437\u043e\u0432\u0430 (\u0438\u043c\u044f \u0442\u0443\u043b\u0430, \u043f\u0443\u0442\u044c \u043f\u043e\u043b\u044f, \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435)",
+  "size": 250
+ },
+ {
+  "sha": "07ddbf6ce224e7a0109fe5a5ec82839e6e6dff11",
+  "date": "2026-08-06T06:59:45+02:00",
+  "subj": "#124: #124: \u043f\u043e\u0440\u044f\u0434\u043e\u043a \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u043e\u0432 light-dark \u0432 \u0441\u043a\u0438\u043b\u043b\u0435 html-artifacts \u2014 \u0441\u0432\u0435\u0442\u043b\u043e\u0435 \u043f\u0435\u0440\u0432\u044b\u043c",
+  "size": 24
+ },
+ {
+  "sha": "59d32c050f61eba474dcf77bb701fa94fdf9c7b8",
+  "date": "2026-08-06T06:58:59+02:00",
+  "subj": "#122: #122: AUTO_COMPACT_ENABLED=0 \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u0432\u044b\u043a\u043b\u044e\u0447\u0430\u0435\u0442 \u0430\u0432\u0442\u043e\u043a\u043e\u043c\u043f\u0430\u043a\u0442 \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430",
+  "size": 122
+ },
+ {
+  "sha": "640e730cef0e4c9dba6caaa773b10973228d8a45",
+  "date": "2026-08-06T06:55:58+02:00",
+  "subj": "#123, #119: #123: \u0434\u0435\u043c\u043e-\u0430\u0440\u0442\u0435\u0444\u0430\u043a\u0442 \u043f\u043e \u0438\u0442\u043e\u0433\u0430\u043c \u0437\u0430\u043c\u0435\u0440\u0430 \u0441\u043a\u0438\u043b\u043b\u0430 html-artifacts (#119)",
+  "size": 509
+ },
+ {
+  "sha": "564c98b872ea9870b78889600be25d637c029016",
+  "date": "2026-08-05T13:53:13+02:00",
+  "subj": "#98: #98: \u043a\u0430\u0440\u0442\u0430 \u043a\u043e\u0434\u0430 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u0431\u0435\u0437 \u043a\u043b\u0438\u043a\u0430 \u2014 \u043b\u0435\u043d\u0442\u044b \u0433\u0440\u0443\u043f\u043f, \u043a\u043e\u0441\u0442\u044f\u043a \u0441\u0432\u044f\u0437\u0435\u0439, \u043a\u043e\u043d\u0442\u0440\u0430\u0441\u0442, \u0441\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430",
+  "size": 661
+ },
+ {
+  "sha": "b42fcfd52fefc979197964a6521db47114661649",
+  "date": "2026-08-05T13:49:47+02:00",
+  "subj": "Squashed commits: - #107: \u0442\u0435\u0441\u0442 \u0434\u0440\u043e\u043f\u0430 \u0436\u0434\u0451\u0442 \u0443\u0441\u043b\u043e\u0432\u0438\u0435 (\u043f\u0443\u0442\u0438/\u043e\u0448\u0438\u0431\u043a\u0438 \u043f\u043e \u043a\u0430\u0436\u0434\u043e\u043c\u0443 \u0444\u0430\u0439\u043b\u0443), \u0430 \u043d\u0435 \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0435 100 \u043c\u0441 - #107: \u043e\u0442\u0447\u0451\u0442 \u2014 \u043f\u0440\u0438\u0451\u043c\u043a\u0430 10/10 \u0437\u0435\u043b\u0451\u043d\u044b\u0445 \u0438 \u0434\u0432\u0435 \u043c\u0443\u0442\u0430\u0446\u0438\u0438 - #107: \u043b\u0438\u0447\u043d\u0430\u044f \u043f\u0430\u043c\u044f\u0442\u044c \u2014 \u0444\u043b\u0430\u043a \u0432\u044b\u0447\u0435\u0440\u043a\u043d\u0443\u0442, \u043f\u0440\u0438\u0451\u043c \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u044f \u043f\u043e \u0443\u0441\u043b\u043e\u0432\u0438\u044e",
+  "size": 33
+ },
+ {
+  "sha": "8491f441e5f617091268808295538890a26cd144",
+  "date": "2026-08-05T13:39:14+02:00",
+  "subj": "#94: #94: \u043f\u0443\u0442\u044c \u043a\u0430\u0440\u0442\u0438\u043d\u043a\u0438 \u0432\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0432 \u043f\u043e\u0437\u0438\u0446\u0438\u044e \u043a\u0430\u0440\u0435\u0442\u043a\u0438, \u0430 \u043d\u0435 \u0432 \u043a\u043e\u043d\u0435\u0446 \u043f\u043e\u043b\u044f",
+  "size": 278
+ },
+ {
+  "sha": "419fed706fce6d4612d51151d157f5eb6da0e1a0",
+  "date": "2026-08-04T20:48:59+02:00",
+  "subj": "#82, #78: #82: \u043f\u0435\u0440\u0435\u043d\u0430\u043f\u0440\u0430\u0432\u0438\u043b \u0434\u0432\u0430 \u0447\u0443\u0436\u0438\u0445 \u043c\u043e\u043a\u0430 \u043d\u0430 id-\u043f\u0443\u0442\u044c \u043f\u0440\u043e\u0431\u0443\u0436\u0434\u0435\u043d\u0438\u044f",
+  "size": 96
+ },
+ {
+  "sha": "fc54ea76e7656b8a3a5eb4523f172474c8794edd",
+  "date": "2026-08-04T16:00:59+02:00",
+  "subj": "#74, #66: #74/#66: \u0436\u0438\u0432\u0430\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043f\u043e\u0441\u043b\u0435 \u0440\u0435\u0441\u0442\u0430\u0440\u0442\u0430 + \u0447\u0438\u043d\u0435\u043d\u043d\u044b\u0439 \u0443\u0441\u0442\u0430\u0440\u0435\u0432\u0448\u0438\u0439 \u0442\u0435\u0441\u0442 \u0442\u0430\u0439\u043c\u0430\u0443\u0442\u0430 \u0438\u0441\u0442\u043e\u0440\u0438\u0438",
+  "size": 145
+ },
+ {
+  "sha": "37cfa2accf8a85051106315797d94f9a739f0508",
+  "date": "2026-08-04T12:19:02+02:00",
+  "subj": "#77: #77: \u0444\u0430\u0437\u0430 1 \u2014 \u0444\u043e\u0440\u043c\u0430 \u0442\u0440\u0438\u0433\u0433\u0435\u0440\u0430 \u043d\u0435 \u0440\u0435\u0448\u0430\u0435\u0442; \u0437\u0430\u043c\u0435\u0440 \u043f\u043e \u043a\u043b\u0430\u0441\u0441\u0430\u043c \u043f\u0440\u0430\u0432\u0438\u043b \u0438 \u044d\u043a\u0441\u043f\u0435\u0440\u0438\u043c\u0435\u043d\u0442 \u0441 \u043e\u0442\u043a\u0430\u0442\u0430\u043c\u0438",
+  "size": 842
+ },
+ {
+  "sha": "8967bf9711de2ab854fb3d09d0901fa775d0a2c9",
+  "date": "2026-08-04T11:35:54+02:00",
+  "subj": "#73: #73: \u0444\u0430\u0437\u0430 1 \u2014 \u0446\u0435\u043d\u0430 \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u0430 \u0438\u0437\u043c\u0435\u0440\u0435\u043d\u0430, \u043d\u0430\u0439\u0434\u0435\u043d \u0442\u0440\u0435\u0442\u0438\u0439 \u0432\u0430\u0440\u0438\u0430\u043d\u0442 \u0434\u0435\u0448\u0435\u0432\u043b\u0435 \u043e\u0431\u043e\u0438\u0445",
+  "size": 323
+ },
+ {
+  "sha": "3b0e16a01e39096d2df7f9bf06395a745640e81e",
+  "date": "2026-08-04T11:25:08+02:00",
+  "subj": "#75: #75: \u0442\u0430\u0439\u043c\u0430\u0443\u0442 api() 3.5 \u2192 2 \u0441 \u2014 \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u0435 \u043f\u0435\u0440\u0435\u0434 \u043f\u043e\u0432\u0442\u043e\u0440\u043e\u043c \u0434\u0435\u0448\u0435\u0432\u043b\u0435",
+  "size": 207
+ },
+ {
+  "sha": "b941a9558218806ad21fb5f95545e987dff10242",
+  "date": "2026-08-04T11:14:47+02:00",
+  "subj": "#74: #74: \u043f\u043e\u0442\u043e\u043b\u043e\u043a \u043d\u0430 \u0441\u0442\u0440\u043e\u043a\u0443, \u0432\u0438\u0434\u0438\u043c\u044b\u0439 \u043c\u0430\u0440\u043a\u0435\u0440 \u043e\u0431\u0440\u0435\u0437\u043a\u0438 \u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0441\u0442\u0440\u043e\u043a\u0438 \u0446\u0435\u043b\u0438\u043a\u043e\u043c",
+  "size": 454
+ },
+ {
+  "sha": "cae113f5bf08d63ca8bb43b15e7443cfee755d06",
+  "date": "2026-08-04T10:42:03+02:00",
+  "subj": "#63: #63: \u0431\u044e\u0434\u0436\u0435\u0442 \u043f\u0440\u043e\u0433\u043e\u043d\u0430 \u0440\u0432\u0451\u0442 \u0441\u043b\u043e\u0439 \u0438\u0437\u043d\u0443\u0442\u0440\u0438 + \u043f\u043e\u0441\u0440\u0435\u0437\u043d\u044b\u0439 \u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0441 \u0432 \u0436\u0443\u0440\u043d\u0430\u043b\u0435",
+  "size": 418
+ },
+ {
+  "sha": "d5b234b805b05e980edf608d0a4d4f8d93429384",
+  "date": "2026-08-04T10:40:46+02:00",
+  "subj": "Squashed commits: - #71: loadOrchestrators \u043f\u043e\u043c\u0435\u0447\u0430\u0435\u0442 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u044c \u2014 \u0434\u0443\u0431\u043b\u044c \u0437\u0430\u043f\u0440\u043e\u0441\u0430 \u043d\u0430 \u0441\u0442\u0430\u0440\u0442\u0435 \u0443\u0431\u0440\u0430\u043d - #71: \u0437\u0430\u043c\u0435\u0442\u043a\u0430 \u043f\u0440\u043e \u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0439 \u0444\u043b\u0430\u043a test_chat_drop \u0432 \u043b\u0438\u0447\u043d\u043e\u0439 \u043f\u0430\u043c\u044f\u0442\u0438",
+  "size": 70
+ },
+ {
+  "sha": "f54b2a3e0ceec5291bf741395c76657b175f32ab",
+  "date": "2026-08-05T20:19:15+07:00",
+  "subj": "#154: #154: \u0442\u0435\u0441\u0442 \u0442\u0430\u0439\u043c\u0430\u0443\u0442\u0430 \u0438\u0441\u0442\u043e\u0440\u0438\u0438 \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435, \u0430 \u043d\u0435 \u0442\u0435\u043a\u0441\u0442 \u0432\u044b\u0437\u043e\u0432\u0430",
+  "size": 91
+ },
+ {
+  "sha": "6d9c60c56de714dfb6c235449b15a09e6e91a3bc",
+  "date": "2026-08-05T20:10:11+07:00",
+  "subj": "#153: #153: split background Bash from real subagents in analytics and TG",
+  "size": 275
+ },
+ {
+  "sha": "d4a64f211e484f6d02d82911e67ba58b0b7ff283",
+  "date": "2026-08-05T19:05:06+07:00",
+  "subj": "#151: #151: research \u2014 Codex 0.145.0 \u0447\u0438\u0442\u0430\u0435\u0442 \u043f\u0440\u043e\u0435\u043a\u0442\u043d\u044b\u0439 .codex/skills, gate \u043f\u0440\u043e\u0439\u0434\u0435\u043d",
+  "size": 727
+ },
+ {
+  "sha": "6c95039bcf352184d92bcd47df940e0b8da8f5bb",
+  "date": "2026-08-05T18:27:47+07:00",
+  "subj": "#149: #149: research \u2014 \u0441\u043a\u0438\u043b\u043b\u044b \u043d\u0435 \u0434\u043e\u0435\u0437\u0436\u0430\u044e\u0442 \u0434\u043e \u0436\u0438\u0432\u044b\u0445 \u0430\u0433\u0435\u043d\u0442\u043e\u0432 (22 \u043f\u0440\u043e\u0442\u0443\u0445\u0448\u0438\u0445 \u043a\u043e\u043f\u0438\u0438, 16 \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u043e\u0432 \u0431\u0435\u0437 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438)",
+  "size": 715
+ },
+ {
+  "sha": "d1109cefca3670fd32dc0daabe424fe61f1a735c",
+  "date": "2026-08-04T10:35:01+02:00",
+  "subj": "#72: #72: \u0445\u043e\u043b\u043e\u0434\u043d\u0430\u044f \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f \u0431\u0435\u0437 \u043f\u0440\u0435\u0434\u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438, \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u043e\u0440\u0446\u0438\u044f\u043c\u0438 \u043f\u043e \u0431\u0430\u0439\u0442\u0430\u043c",
+  "size": 662
+ },
+ {
+  "sha": "262b38b5ba3dca24e12cb70431dcda1dc94e972e",
+  "date": "2026-08-04T10:25:18+02:00",
+  "subj": "#71: #71: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 92.8% \u043f\u0440\u043e\u0432\u043e\u0434\u0430 \u0434\u0430\u0451\u0442 \u043e\u0434\u043d\u043e \u043f\u043e\u043b\u0435, \u0432\u0442\u043e\u0440\u043e\u0439 \u0432\u044b\u0437\u043e\u0432 \u043e\u0442 \u043d\u0443\u043b\u0435\u0432\u043e\u0433\u043e \u0434\u0440\u043e\u0441\u0441\u0435\u043b\u044f",
+  "size": 324
+ },
+ {
+  "sha": "5265212d2cc68bac4a5c5bc0c07934046850808f",
+  "date": "2026-08-04T10:15:35+02:00",
+  "subj": "#70: #70: \u043f\u043e\u0432\u0442\u043e\u0440 GET \u043f\u0440\u0438 \u043e\u0431\u0440\u044b\u0432\u0435 \u2014 \u0442\u0440\u0438 \u043f\u043e\u043f\u044b\u0442\u043a\u0438 \u043f\u043e 3.5 \u0441, \u043e\u0442\u043a\u0430\u0437 \u0432\u0438\u0434\u0435\u043d \u044e\u0437\u0435\u0440\u0443",
+  "size": 288
+ },
+ {
+  "sha": "6c279201daf4fd881e32b9afae679c41d3e1715e",
+  "date": "2026-08-04T10:13:15+02:00",
+  "subj": "#65: #65: system_prompt \u0438 last_summary \u0443\u0431\u0440\u0430\u043d\u044b \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430 \u0441\u0435\u0441\u0441\u0438\u0439 \u2014 54.3 \u2192 4.5 \u041a\u0411 \u043f\u043e \u043f\u0440\u043e\u0432\u043e\u0434\u0443",
+  "size": 247
+ },
+ {
+  "sha": "84d58f6a0941a2a249edfdf8769a81e5fb607d34",
+  "date": "2026-08-04T09:18:56+02:00",
+  "subj": "#52: #52: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 N-1 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442 \u043f\u043e \u043f\u043e\u0441\u0442\u0440\u043e\u0435\u043d\u0438\u044e, \u043f\u0440\u0430\u0432\u0438\u043b\u043e \u043d\u0435 \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442\u0441\u044f 0 \u0438\u0437 8, \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b \u0443\u0436\u0435 \u0435\u0441\u0442\u044c \u0432 \u043e\u0442\u0447\u0451\u0442\u0430\u0445",
+  "size": 456
+ },
+ {
+  "sha": "7a6f0ab759f7035806158527b484577cd0779c60",
+  "date": "2026-08-04T09:10:28+02:00",
+  "subj": "#69: #69: \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u0439 \u0432\u043e\u0440\u043a\u0435\u0440\u0430 \u043e\u0442 git, \u0441\u043b\u0430\u0433 \u043e\u0442 repo root; strategy=parent \u0447\u0435\u0440\u0435\u0437 \u0433\u0440\u0430\u043d\u0438\u0446\u0443 \u0440\u0435\u043f\u043e",
+  "size": 459
+ },
+ {
+  "sha": "750d0d0b29c9b8e0c68d6389b35d8873f07304ed",
+  "date": "2026-08-04T09:06:13+02:00",
+  "subj": "#50: #50: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0442\u043e\u0447\u043a\u0430 \u0432\u0440\u0435\u0437\u043a\u0438 \u0432 send() \u0438\u0437\u043c\u0435\u0440\u0435\u043d\u0430, \u043e\u0447\u0435\u0440\u0435\u0434\u044c \u043e\u0431\u044f\u0437\u0430\u043d\u0430 \u0431\u044b\u0442\u044c durable",
+  "size": 722
+ },
+ {
+  "sha": "92057a8d02e4a640663ca468d8c8310c7c1c8d27",
+  "date": "2026-08-04T09:04:05+02:00",
+  "subj": "#68: #68: \u0446\u0432\u0435\u0442 \u043f\u043e\u0434\u043f\u0438\u0441\u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u0435\u043b\u044f \u0434\u043e\u0435\u0437\u0436\u0430\u0435\u0442 \u043f\u0440\u0438 \u043f\u043e\u0437\u0434\u043d\u0435\u043c \u0441\u043f\u0438\u0441\u043a\u0435 \u0430\u0433\u0435\u043d\u0442\u043e\u0432",
+  "size": 192
+ },
+ {
+  "sha": "347196cbb7d794977ffeea16d9ac15c8af02bac6",
+  "date": "2026-08-04T08:52:46+02:00",
+  "subj": "#66: #66: \u0441\u0442\u0430\u0442\u0443\u0441 broken \u0432\u0438\u0434\u0435\u043d \u0432 \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0435",
+  "size": 80
+ },
+ {
+  "sha": "ef9c8057bf33f8edbf4dc52979f3d2ef0d346090",
+  "date": "2026-08-04T08:46:19+02:00",
+  "subj": "#62: #62: \u0444\u0430\u0437\u0430 1 \u2014 \u0440\u0430\u0431\u043e\u0447\u0438\u0435 \u043a\u043e\u043f\u0438\u0438 \u0441\u043d\u043e\u0441\u0438\u0442 pytest \u0432 \u0433\u043b\u0430\u0432\u043d\u043e\u043c \u0447\u0435\u043a\u0430\u0443\u0442\u0435, \u0432\u043e\u0441\u043f\u0440\u043e\u0438\u0437\u0432\u0435\u0434\u0435\u043d\u043e",
+  "size": 552
+ },
+ {
+  "sha": "14d3f9d04857b43e3d2bd4496fe3b68ff060aa7f",
+  "date": "2026-08-04T08:39:06+02:00",
+  "subj": "#58: #58 (1/3): api() \u0441\u0442\u0430\u0432\u0438\u0442 \u0442\u0430\u0439\u043c\u0430\u0443\u0442 \u0412\u0421\u0415\u0413\u0414\u0410 \u2014 \u0432\u0435\u0447\u043d\u044b\u0439 \u043b\u043e\u0430\u0434\u0438\u043d\u0433 \u0432\u044b\u043b\u0435\u0447\u0435\u043d",
+  "size": 140
+ },
+ {
+  "sha": "10d1a858b971439ce7cf54362c324e6be1b1f322",
+  "date": "2026-08-04T08:27:56+02:00",
+  "subj": "#61: #61: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u043a\u043e\u0433\u0434\u0430 \u0431\u0430\u0437\u0430 \u0434\u043e\u0440\u0430\u0431\u043e\u0442\u0430\u043b\u0430 \u0442\u0435 \u0436\u0435 \u0441\u0442\u0440\u043e\u043a\u0438; \u043a\u0440\u0438\u0442\u0435\u0440\u0438\u0439 \u0438\u0437 git \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d",
+  "size": 547
+ },
+ {
+  "sha": "c9c53bafc476131dd16475bbd24d6d2373a94de1",
+  "date": "2026-08-04T08:26:37+02:00",
+  "subj": "#59: #59: \u0447\u0430\u0442 \u0441\u043b\u0435\u0434\u0443\u0435\u0442 \u0437\u0430 \u043d\u043e\u0432\u044b\u043c\u0438 \u0442\u043e\u043b\u044c\u043a\u043e \u043a\u043e\u0433\u0434\u0430 \u044e\u0437\u0435\u0440 \u0432\u043d\u0438\u0437\u0443",
+  "size": 248
+ },
+ {
+  "sha": "19b2f1425105b0bee4ac784f327e765483cdf288",
+  "date": "2026-08-04T08:03:18+02:00",
+  "subj": "#55: #55: \u043f\u0440\u043e\u043f\u0443\u0441\u043a \u0442\u0435\u0441\u0442\u043e\u0432 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u044f \u0442\u0435\u043f\u0435\u0440\u044c \u0433\u0440\u043e\u043c\u043a\u0438\u0439 \u2014 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043c\u0430\u0440\u043a\u0435\u0440 needs_two_users",
+  "size": 48
+ },
+ {
+  "sha": "00fd272a299a442d34a3c8147f56ba5a1231fc6d",
+  "date": "2026-08-04T07:58:09+02:00",
+  "subj": "#55: #55: \u0444\u0430\u0437\u0430 1 \u2014 \u043c\u0430\u0441\u043a\u0430 \u043e\u0448\u0438\u0431\u043e\u043a git \u0443\u0436\u0435 \u0437\u0430\u043a\u0440\u044b\u0442\u0430 \u0432 main; root-\u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 \u0436\u0438\u0432\u043e \u0438 \u0448\u0438\u0440\u0435, \u0447\u0435\u043c \u0432 \u0440\u0435\u043f\u043e\u0440\u0442\u0435",
+  "size": 723
+ },
+ {
+  "sha": "0d3975b02531a51547cede63747644e12c2a7ea7",
+  "date": "2026-08-04T07:57:28+02:00",
+  "subj": "#56: #56: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0440\u0435\u043f\u043e\u0440\u0442 \u043f\u0438\u0448\u0435\u0442\u0441\u044f \u0432 \u0441\u0442\u043e\u0440 \u0438 \u043d\u0430 \u044d\u0442\u043e\u043c \u0432\u0441\u0451; \u0430\u0434\u0440\u0435\u0441\u0430\u0442 \u0432\u044b\u0447\u0438\u0441\u043b\u0438\u043c, \u0441\u0435\u043c\u044c \u0441\u0442\u0430\u0440\u044b\u0445 \u0440\u0430\u0437\u043e\u0431\u0440\u0430\u043d\u044b",
+  "size": 450
+ },
+ {
+  "sha": "180f78bd491e2f7bb605ca9df6778ee84182f1e8",
+  "date": "2026-08-04T07:47:21+02:00",
+  "subj": "#54: #54: sessions.id \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c \u2014 \u0441\u0445\u0435\u043c\u0430, \u0442\u0440\u0438\u0433\u0433\u0435\u0440, \u0433\u0430\u0440\u0434 \u0432 \u043a\u043e\u0434\u0435, \u0433\u0440\u043e\u043c\u043a\u0438\u0439 \u043d\u043e\u043b\u044c \u0441\u0442\u0440\u043e\u043a, 400 \u0432 bg_create",
+  "size": 334
+ },
+ {
+  "sha": "f1220edf7e68e54cd6059bb4a288e6a719c4fcdf",
+  "date": "2026-08-04T07:38:31+02:00",
+  "subj": "#53: #53: \u043e\u0441\u0438\u0440\u043e\u0442\u0435\u0432\u0448\u0438\u0439 GET /api/report_bug/status \u0443\u0434\u0430\u043b\u0451\u043d",
+  "size": 66
+ },
+ {
+  "sha": "b49c1acc1382c6eee55274656366501e1a72b2d6",
+  "date": "2026-08-04T07:31:30+02:00",
+  "subj": "#53: #53: \u043f\u043b\u0430\u0448\u043a\u0430 \u00ab\u041d\u043e\u0432\u044b\u0435 bug reports\u00bb \u0443\u0434\u0430\u043b\u0435\u043d\u0430 \u0446\u0435\u043b\u0438\u043a\u043e\u043c",
+  "size": 301
+ },
+ {
+  "sha": "96d60a261b3c42a7a634196763df23cc29587c44",
+  "date": "2026-08-04T07:01:05+02:00",
+  "subj": "#49: #49: chart.js \u0441\u043e \u0441\u0432\u043e\u0435\u0433\u043e \u0434\u043e\u043c\u0435\u043d\u0430, defer, \u043d\u043e\u043b\u044c \u0432\u043d\u0435\u0448\u043d\u0438\u0445 \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0435\u0439",
+  "size": 110
+ },
+ {
+  "sha": "ade096c2d3367677f7cde49ac9cdbb5f94b4114b",
+  "date": "2026-08-04T06:48:29+02:00",
+  "subj": "#47: #47: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u043d\u044b\u0439 \u043c\u0438\u043d\u0438\u043c\u0443\u043c \u0443\u0445\u043e\u0434\u0438\u0442 \u043f\u043e \u0442\u043e\u043c\u0443 \u0436\u0435 \u0441\u043b\u043e\u043c\u0430\u043d\u043d\u043e\u043c\u0443 \u043a\u0430\u043d\u0430\u043b\u0443",
+  "size": 485
+ },
+ {
+  "sha": "8d80c0525160e7bd1aa9287bb1ec21e43a934baf",
+  "date": "2026-08-04T06:43:58+02:00",
+  "subj": "#28, #37: #28: \u0437\u0430\u0433\u043b\u0443\u0448\u043a\u0438 backfill \u0432 test_api \u043f\u0440\u0438\u0432\u0435\u0434\u0435\u043d\u044b \u043a \u0441\u0438\u0433\u043d\u0430\u0442\u0443\u0440\u0435 \u0441 session_name",
+  "size": 168
+ },
+ {
+  "sha": "7c2e3154d0aee076dc8583a750b351163cfe4d6a",
+  "date": "2026-08-04T06:43:33+02:00",
+  "subj": "#33, #38: #33: \u043e\u043a\u043d\u043e \u0437\u0430\u043c\u0435\u0440\u0430 \u0432 \u043e\u0442\u0447\u0451\u0442\u0435 \u0438 \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0430 \u043f\u0440\u043e page.route (\u043a\u0435\u0448 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430 \u0432\u044b\u043a\u043b\u044e\u0447\u0430\u0435\u0442\u0441\u044f) + \u043b\u0438\u0447\u043d\u0430\u044f \u043f\u0430\u043c\u044f\u0442\u044c",
+  "size": 186
+ },
+ {
+  "sha": "f2ce77ebab27346a4b6ef6c24d4c2ec9794867bd",
+  "date": "2026-08-04T06:36:19+02:00",
+  "subj": "#30: #30: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u044e\u0437\u0435\u0440\u0430 \u0438\u0437 TG \u0442\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u043c\u043e\u043b\u0447\u0430, \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0435 \u0447\u0435\u0442\u044b\u0440\u0435 \u043f\u0443\u0442\u0438 \u043e\u0442\u0432\u0435\u0447\u0430\u044e\u0442",
+  "size": 811
+ },
+ {
+  "sha": "427d92712edb90fd681f1e38291966045de2f2b3",
+  "date": "2026-08-04T06:34:11+02:00",
+  "subj": "#34: #34: \u0444\u0430\u0437\u0430 1 \u2014 \u043f\u0440\u0430\u0432\u0430 \u043d\u0430 \u0441\u043f\u0430\u0432\u043d \u0440\u0435\u0448\u0430\u0435\u0442 \u043c\u0430\u043d\u0438\u0444\u0435\u0441\u0442, \u0444\u0440\u043e\u043d\u0442\u043c\u0430\u0442\u0442\u0435\u0440-\u0444\u043e\u043b\u0431\u044d\u043a \u043c\u0451\u0440\u0442\u0432",
+  "size": 470
+ },
+ {
+  "sha": "d7870ec0a5507b7cb224e54ab3ac3448d0690be8",
+  "date": "2026-08-04T06:24:06+02:00",
+  "subj": "#33, #32: #33: \u0434\u0443\u0431\u043b\u0438 \u043f\u0440\u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0435 \u2014 41 \u0437\u0430\u043f\u0440\u043e\u0441 \u2192 23, \u0442\u0440\u0438 \u0440\u0430\u0437\u043d\u044b\u0435 \u043f\u0440\u0438\u0447\u0438\u043d\u044b",
+  "size": 227
+ },
+ {
+  "sha": "c65fe53e0a231a8a8645e99a5a23ada4a9ebed2a",
+  "date": "2026-08-04T06:13:10+02:00",
+  "subj": "#21: #21: /api/sessions \u043d\u0435 \u0441\u043a\u0430\u043d\u0438\u0440\u0443\u0435\u0442 \u0442\u0430\u0431\u043b\u0438\u0446\u0443 \u043b\u043e\u0433\u043e\u0432 \u043d\u0430 \u043a\u0430\u0436\u0434\u044b\u0439 \u0437\u0430\u043f\u0440\u043e\u0441",
+  "size": 244
+ },
+ {
+  "sha": "e46039d227fc0ce5b24ffcff7f24f9bba6641184",
+  "date": "2026-08-04T05:57:48+02:00",
+  "subj": "#27: #27: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0441\u043f\u043e\u0440\u043d\u0430\u044f \u0432\u0435\u0442\u043a\u0430 \u0434\u043e\u0441\u0442\u0438\u0436\u0438\u043c\u0430, T2 \u0442\u0438\u0448\u0438\u043d\u044b \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u043b, \u043d\u0430\u0439\u0434\u0435\u043d\u043e \u0442\u0438\u0445\u043e\u0435 \u043f\u0435\u0440\u0435\u0441\u0435\u043b\u0435\u043d\u0438\u0435 \u043d\u0430 \u0447\u0443\u0436\u0443\u044e \u0432\u0435\u0442\u043a\u0443",
+  "size": 1195
+ },
+ {
+  "sha": "3b2e4c9e618bd07081e69f311ee5aef1042eab71",
+  "date": "2026-08-03T19:09:14+02:00",
+  "subj": "#28: #28: reindex \u0441\u0442\u0430\u0432\u0438\u0442 \u0437\u0430\u0434\u0430\u0447\u0443 \u0432 \u043e\u0447\u0435\u0440\u0435\u0434\u044c \u0438 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442 \u0441\u0440\u0430\u0437\u0443; \u0441\u0435\u0441\u0441\u0438\u043e\u043d\u043d\u044b\u0439 \u043f\u0440\u043e\u0433\u043e\u043d \u0440\u0435\u0436\u0435\u0442\u0441\u044f \u0441\u0440\u0435\u0437\u0430\u043c\u0438",
+  "size": 264
+ },
+ {
+  "sha": "3fa87d0ee0b6e901d7469ac4a92c621d1e4642f5",
+  "date": "2026-08-03T19:05:03+02:00",
+  "subj": "#29: #29: \u043d\u0435\u0437\u0430\u0449\u0438\u0449\u0451\u043d\u043d\u044b\u0439 Jinja-\u0433\u043b\u043e\u0431\u0430\u043b \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435\u043b\u044c\u0437\u044f \u0441\u043c\u0435\u0440\u0436\u0438\u0442\u044c",
+  "size": 291
+ },
+ {
+  "sha": "d6a700f0b3cb2069db37d616d6dc023a2d5711cf",
+  "date": "2026-08-03T18:54:43+02:00",
+  "subj": "#22: #22: usage.js \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u043f\u0435\u0440\u0435\u043a\u0440\u044b\u0432\u0430\u0435\u0442\u0441\u044f app.js \u2014 \u043f\u0430\u043d\u0435\u043b\u044c \u0438\u0441\u0442\u043e\u0440\u0438\u0438 \u0431\u044b\u043b\u0430 \u043c\u0435\u0440\u0442\u0432\u0430 \u0432 \u043f\u0440\u043e\u0434\u0435",
+  "size": 269
+ },
+ {
+  "sha": "094c99f482b960ab08d080b3f8716a2b98fab25f",
+  "date": "2026-08-03T18:42:37+02:00",
+  "subj": "#8, #17: #8: \u0434\u0432\u0435 \u043c\u0435\u0442\u0440\u0438\u043a\u0438 \u0432\u0440\u0435\u043c\u0435\u043d\u0438 \u0441 \u0433\u0430\u0440\u0434\u043e\u043c \u043f\u043e \u043d\u0430\u0433\u0440\u0443\u0437\u043a\u0435, \u043f\u0440\u0430\u0432\u043a\u0438 \u0442\u0430\u0431\u043b\u0438\u0446\u044b \u043e\u0442\u0447\u0451\u0442\u0430",
+  "size": 1025
+ },
+ {
+  "sha": "b41f617ceb2f3701bfa4ddba7ed373688b3ceff1",
+  "date": "2026-08-03T18:32:21+02:00",
+  "subj": "#13, #9, #19: #13: CHANGELOG v2.31.0 \u0438 Known tradeoff \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u0439 \u0441\u0435\u043a\u0446\u0438\u0435\u0439 \u0432 \u043e\u0442\u0447\u0451\u0442\u0435",
+  "size": 563
+ },
+ {
+  "sha": "ede489b3994bde81b964fa7a744301fd648d0655",
+  "date": "2026-08-03T18:01:30+02:00",
+  "subj": "#13: #13: \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043d\u0438\u0435 \u0438\u0441\u0442\u043e\u0440\u0438\u0438 usage \u043f\u043e \u0434\u0438\u0430\u043f\u0430\u0437\u043e\u043d\u0443 + \u0440\u0430\u0437\u0440\u044b\u0432\u044b \u0432\u043c\u0435\u0441\u0442\u043e \u0432\u044b\u0434\u0443\u043c\u0430\u043d\u043d\u044b\u0445 \u043b\u0438\u043d\u0438\u0439",
+  "size": 459
+ },
+ {
+  "sha": "9b63427e762fd3d8adbadf32799b3fb9ea416ea4",
+  "date": "2026-08-03T17:52:46+02:00",
+  "subj": "#8: #8: \u043f\u0435\u0440\u0435\u043f\u0440\u0438\u0451\u043c\u043a\u0430 \u2014 \u0434\u043e\u043a\u0430\u0437\u0430\u043d\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0445\u0432\u0430\u0442 \u0441\u0442\u0430\u0442\u0438\u043a\u0438, \u0442\u0440\u0438 \u043f\u0440\u043e\u0433\u043e\u043d\u0430 \u043a\u0430\u0436\u0434\u043e\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438, \u0442\u0440\u0438 \u0444\u0438\u043a\u0441\u0430 \u043f\u0440\u0438\u0451\u043c\u043a\u0438",
+  "size": 427
+ },
+ {
+  "sha": "c6fe33c2057ccc5c911c92cd5ed5f9625cc9403d",
+  "date": "2026-08-03T16:14:43+02:00",
+  "subj": "#15 T3: TG-\u043c\u043e\u0441\u0442 \u0443\u0445\u043e\u0434\u0438\u0442 \u0441 \u043a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0433\u043e \u043f\u0443\u0442\u0438 \u0441\u0442\u0430\u0440\u0442\u0430",
+  "size": 117
+ },
+ {
+  "sha": "100929fc9c2d0e49e994f9b40a3206192272cbc9",
+  "date": "2026-08-03T16:09:44+02:00",
+  "subj": "#15 T2: \u0441\u0435\u0440\u0432\u0435\u0440 \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0432\u0435\u0440\u0441\u0438\u044e \u0444\u0440\u043e\u043d\u0442\u0430, \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0431\u0430\u043d\u043d\u0435\u0440 \u0432\u043c\u0435\u0441\u0442\u043e \u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044f",
+  "size": 275
+ },
+ {
+  "sha": "b4514da2e6bca03314b7deab5a8dde4b7d56f17c",
+  "date": "2026-08-03T16:00:25+02:00",
+  "subj": "#15 T1: \u0432\u043e\u0437\u0432\u0440\u0430\u0442 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043d\u0430 \u043c\u0435\u0441\u0442\u0435, \u0431\u0435\u0437 \u043f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b",
+  "size": 229
+ },
+ {
+  "sha": "43db922958e27eca7b6f54cb24bdb2c8e04650b0",
+  "date": "2026-08-03T13:58:09+02:00",
+  "subj": "#15: \u043e\u0431\u044a\u0435\u0434\u0438\u043d\u0451\u043d\u043d\u044b\u0439 \u043a\u043b\u0438\u0435\u043d\u0442\u0441\u043a\u0438\u0439 \u0437\u043e\u043d\u0434 \u2014 \u0440\u0435\u043d\u0434\u0435\u0440 \u0438\u0437 #8 \u0438 \u0442\u0440\u043e\u0442\u0442\u043b\u0438\u043d\u0433 \u0438\u0437 #15 \u0437\u0430 \u043e\u0434\u0438\u043d \u043f\u0440\u043e\u0433\u043e\u043d",
+  "size": 152
+ },
+ {
+  "sha": "0b03b4b751eaa6cc6044ebba7fae5cc33a73ac58",
+  "date": "2026-08-03T16:05:17+02:00",
+  "subj": "#11: #11: merge_worker \u0434\u043e\u0436\u0438\u0434\u0430\u0435\u0442\u0441\u044f \u0438\u0441\u0445\u043e\u0434\u0430, \u0430 RUNNING \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u043a\u0430\u043a \u043e\u0442\u043a\u0430\u0437",
+  "size": 272
+ },
+ {
+  "sha": "2739e0b8de4a329fb4ff8a3cd9137295eef4459d",
+  "date": "2026-08-03T11:35:10+02:00",
+  "subj": "#9: \u0432\u0435\u0440\u0441\u0438\u044f \u0432 URL \u0441\u0442\u0430\u0442\u0438\u043a\u0438 + \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u043a\u0435\u0448\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f",
+  "size": 185
+ },
+ {
+  "sha": "52ec73f31761436d0136c581bbb886ebe969a8c1",
+  "date": "2026-08-03T11:12:29+07:00",
+  "subj": "#126: #126: re-arm prompt injection after compact so the role survives",
+  "size": 445
+ },
+ {
+  "sha": "4e88f0cb8b7105700d2a5d0329f39e1a31a37cb4",
+  "date": "2026-08-03T00:45:39+07:00",
+  "subj": "docs(106): teaching artifact \u2014 why the new compact prompt is better",
+  "size": 625
+ },
+ {
+  "sha": "c0fb419237c51867067fa69bdc981f6f15fc9272",
+  "date": "2026-08-03T00:03:56+07:00",
+  "subj": "docs(106): full-research HTML artifact covering all four rounds",
+  "size": 699
+ },
+ {
+  "sha": "f85f68181d5b6ab637a8b26687a8c4a3a9aceffa",
+  "date": "2026-08-02T15:33:47+07:00",
+  "subj": "#106: #106: swap COMPACT_PROMPT to hot_state_ledger bundle (Q6: 7/8 gates PASS)",
+  "size": 459
+ },
+ {
+  "sha": "d5ae14f452d46d97d99109216825e6ed55ba535d",
+  "date": "2026-08-01T18:26:47+07:00",
+  "subj": "#120: remove broad SSH process matching",
+  "size": 89
+ },
+ {
+  "sha": "6d5cee21580de44396cdc0ffad4185ecd13deb24",
+  "date": "2026-08-01T18:37:13+07:00",
+  "subj": "#114: surface unseen bug reports in dashboard",
+  "size": 227
+ },
+ {
+  "sha": "d7428966fdbf9d02b8c86ff96781ede8321aa31b",
+  "date": "2026-08-01T18:33:20+07:00",
+  "subj": "#114: move bug reports outside Git worktrees",
+  "size": 704
+ },
+ {
+  "sha": "16d44d9007e742f036addbc9e401feef2f04178d",
+  "date": "2026-08-01T18:09:31+07:00",
+  "subj": "#116 T7: retain and coalesce RAG backfills",
+  "size": 486
+ },
+ {
+  "sha": "e90cfb94ada2c1d2a36940e6f9d917714decd536",
+  "date": "2026-08-01T17:34:25+07:00",
+  "subj": "#116 T5: add typed MCP error contract",
+  "size": 1237
+ },
+ {
+  "sha": "022ff3b93a5fa068134b392e217582dfa8f74bad",
+  "date": "2026-08-01T18:00:55+07:00",
+  "subj": "#93: T4 serialize fresh deliveries",
+  "size": 663
+ },
+ {
+  "sha": "836bacdcd1b598687430c3a6417ae89a3414186d",
+  "date": "2026-08-01T17:24:46+07:00",
+  "subj": "#93: T3 publish spawn only after preparation",
+  "size": 1051
+ },
+ {
+  "sha": "a9049e591dc6d97b1bf8a4fd2549a1e512a6cbe8",
+  "date": "2026-08-01T17:29:02+07:00",
+  "subj": "#118: #118: reconcile default prompt contracts",
+  "size": 174
+ },
+ {
+  "sha": "3925fee7ea6ec6b2b4d0a19515d7a0899c7175e6",
+  "date": "2026-08-01T16:32:33+07:00",
+  "subj": "#113: #113: report orphaned background process trees",
+  "size": 430
+ },
+ {
+  "sha": "e7a918d088644dac95b8fb567e0b01e029b2da81",
+  "date": "2026-08-01T16:11:18+07:00",
+  "subj": "#106: #106: add external compaction and memory landscape",
+  "size": 1071
+ },
+ {
+  "sha": "c0c691fe482736e4911e9d85a2ea3623c888ed8e",
+  "date": "2026-08-01T16:07:30+07:00",
+  "subj": "#111: #111: own Codex processes with verified scopes",
+  "size": 1348
+ },
+ {
+  "sha": "aca235c12122216fe3e506eec46ccefdbd240be4",
+  "date": "2026-08-01T15:31:38+07:00",
+  "subj": "#routing: default workers to Opus by quota runway",
+  "size": 43
+ },
+ {
+  "sha": "19d136159bd97938ae56a90abd967f95cf7506c2",
+  "date": "2026-08-01T10:18:17+02:00",
+  "subj": "#118: \u0443\u0434\u0430\u043b\u0451\u043d \u043f\u0440\u0438\u0432\u0430\u0442\u043d\u044b\u0439 \u043f\u0430\u0439\u043f\u043b\u0430\u0439\u043d tasks-pm (0 \u0441\u0435\u0441\u0441\u0438\u0439, 8 \u043d\u0430\u0445\u043e\u0434\u043e\u043a \u0430\u0443\u0434\u0438\u0442\u0430 \u0437\u0430\u043a\u0440\u044b\u0442\u043e)",
+  "size": 679
+ },
+ {
+  "sha": "555d3f39fcdf5bfbdee498b1c05787d40e22750b",
+  "date": "2026-08-01T09:47:18+02:00",
+  "subj": "#113: \u0442\u0435\u0441\u0442 \u0432\u0430\u043b\u044e\u0442 \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u0438\u043d\u0432\u0430\u0440\u0438\u0430\u043d\u0442, \u0430 \u043d\u0435 \u0442\u0435\u043a\u0441\u0442 \u043a\u043e\u0434\u0430",
+  "size": 28
+ },
+ {
+  "sha": "ce102b980bdf1bb8d4fef138bd440e6c35b3cd4b",
+  "date": "2026-08-01T14:45:47+07:00",
+  "subj": "#orchestration: make worker lifecycle explicit before kill",
+  "size": 38
+ },
+ {
+  "sha": "dae830ee5715a763221e2da916acb91363120160",
+  "date": "2026-08-01T14:35:58+07:00",
+  "subj": "#prompt-policy: separate rule triage from bug reporting",
+  "size": 39
+ },
+ {
+  "sha": "2a8925ff8158a056af5003433dfb88f71edd5c2b",
+  "date": "2026-08-01T14:14:43+07:00",
+  "subj": "#113: #113: show complete task details consistently",
+  "size": 245
+ },
+ {
+  "sha": "58155da638ebdd1c4f87f2f331ecdd7b6166aad6",
+  "date": "2026-08-01T13:56:26+07:00",
+  "subj": "#112: #112: refresh stale usage on demand",
+  "size": 177
+ },
+ {
+  "sha": "90e8496f202eb3b0fd557265d22d859bb688c896",
+  "date": "2026-08-01T13:48:48+07:00",
+  "subj": "#109: #109: add private Telegram limits command",
+  "size": 325
+ },
+ {
+  "sha": "0e15dcd31f6048716848fc34041ac681053f8f18",
+  "date": "2026-07-31T11:53:30+07:00",
+  "subj": "#108: #108: \u043f\u043b\u0430\u043d \u043f\u0440\u0430\u0432\u043e\u043a \u043f\u043e \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430\u043c \u0430\u0443\u0434\u0438\u0442\u0430 (\u0444\u0430\u0437\u0430 2)",
+  "size": 1497
+ },
+ {
+  "sha": "8368d8aceb02afed3804f72ecfe88bc41d9ecaaf",
+  "date": "2026-07-30T16:54:52+07:00",
+  "subj": "#103: #103: research squash-aware branch lifecycle",
+  "size": 1315
+ },
+ {
+  "sha": "0ae2a48f30d3a092214b8688673d9c18643764dc",
+  "date": "2026-07-30T16:54:45+07:00",
+  "subj": "#107: #107: \u043f\u043e\u043c\u0435\u0447\u0430\u0442\u044c \u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u043d\u043d\u044b\u0439 tool-call \u0432 \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0435 \u0438 TG",
+  "size": 263
+ },
+ {
+  "sha": "ef8c26d7cd02c4ebdbef08c2a29033159a4775e1",
+  "date": "2026-07-30T16:29:51+07:00",
+  "subj": "#105: #105: preserve chat selection and surface usage errors",
+  "size": 199
+ },
+ {
+  "sha": "53ab8d35711c40e015d320ebcf5cd2a7614bfab3",
+  "date": "2026-07-30T11:19:35+07:00",
+  "subj": "#104: #104: suppress duplicate Telegram tool results",
+  "size": 185
+ },
+ {
+  "sha": "a662387d4c3d47cc951c0ff89bddf0b4d2d724ee",
+  "date": "2026-07-29T16:30:53+07:00",
+  "subj": "#99: #99: add Telegram topic status hysteresis",
+  "size": 558
+ },
+ {
+  "sha": "ec1b180f744930c22a1be2408be07ae0882807ee",
+  "date": "2026-07-28T22:37:35+07:00",
+  "subj": "#98: #98 T3: explicit model routing, opencode inventory, no catch-all",
+  "size": 1162
+ },
+ {
+  "sha": "23ea33d85691c41b171e19d2f260fbea10adbe5c",
+  "date": "2026-07-28T19:11:55+07:00",
+  "subj": "#98: #98: skip task numbers whose docs/tasks/<id>/ already exists",
+  "size": 91
+ },
+ {
+  "sha": "9a69dff9be6575f6a60656ee43023f3dbceea284",
+  "date": "2026-07-28T17:45:44+07:00",
+  "subj": "#96: #96: add Grok weekly quota to usage panels",
+  "size": 581
+ },
+ {
+  "sha": "b6cabfdc58c2d74c8dea1435765aa42e276e9eb6",
+  "date": "2026-07-28T16:57:14+07:00",
+  "subj": "#adhoc-231036: gate orchestrator auto-compact by local window",
+  "size": 497
+ },
+ {
+  "sha": "89c39ea9aab05d6c7d798ebe0fc1625e35b3ba6d",
+  "date": "2026-07-28T16:28:37+07:00",
+  "subj": "#92: #92: fail loud on worktree removal errors",
+  "size": 402
+ },
+ {
+  "sha": "3330038d71e705bf563ea1dc7e20f90e4025f031",
+  "date": "2026-07-28T08:10:50+02:00",
+  "subj": "test: \u0443\u0431\u0440\u0430\u0442\u044c wall-clock \u0444\u043b\u0435\u0439\u043a \u0432 \u0442\u0435\u0441\u0442\u0430\u0445 TG-\u043c\u043e\u0441\u0442\u0430 + \u043f\u0435\u0440\u0435\u043d\u0443\u043c\u0435\u0440\u043e\u0432\u0430\u0442\u044c CHANGELOG",
+  "size": 65
+ },
+ {
+  "sha": "66604dcd126dd93d7b2c130ae7574f83cfaf9531",
+  "date": "2026-07-28T12:40:01+07:00",
+  "subj": "#95: WIP #95: T6 \u2014 grok provider bucketing, cache policy, orchestrator subagents flag",
+  "size": 201
+ },
+ {
+  "sha": "8eaa02fd015d6f03df16412532067143691d314b",
+  "date": "2026-07-28T07:37:57+02:00",
+  "subj": "feat: grill-me \u043a\u0430\u043a \u0444\u0430\u0439\u043b \u0441\u043a\u0438\u043b\u043b\u0430 \u043f\u0430\u0439\u043f\u043b\u0430\u0439\u043d\u0430 (\u0431\u044b\u043b \u0432 yaml \u0431\u0435\u0437 \u0444\u0430\u0439\u043b\u0430 \u0441 27 \u0438\u044e\u043d\u044f)",
+  "size": 120
+ },
+ {
+  "sha": "61d688d1ba0762df10641ccd5123b309eb96e5fd",
+  "date": "2026-07-27T22:35:59+07:00",
+  "subj": "test(95): T4 \u2014 lock down usage, cost and the context denominator",
+  "size": 146
+ },
+ {
+  "sha": "789b8d9e5cc063b4a08e2b47b3637d957b0c7d43",
+  "date": "2026-07-27T16:26:13+02:00",
+  "subj": "models: \u0432\u044b\u043f\u0438\u043b\u0438\u0442\u044c Opus 4.6/4.8, \u0441\u0442\u0430\u0440\u044b\u0435 id \u0440\u0435\u043c\u0430\u043f\u0438\u0442\u044c \u043d\u0430 Opus 5",
+  "size": 77
+ },
+ {
+  "sha": "c866e5463f115d4174fd2125dacd5c52b427de11",
+  "date": "2026-07-27T10:41:23+02:00",
+  "subj": "compact summary: \u043d\u0435 \u0444\u043e\u0440\u0432\u0430\u0440\u0434\u0438\u0442\u044c \u0432 TG, \u0444\u043b\u0430\u0433 LOG_COMPACT_SUMMARY",
+  "size": 24
+ },
+ {
+  "sha": "944a78c393019e2d4a411079d043cfa1d41be740",
+  "date": "2026-07-27T00:24:10+07:00",
+  "subj": "#90: #90: merge into checked-out target worktree",
+  "size": 623
+ },
+ {
+  "sha": "3e08384bdf8d0e63be938410d060284b18a29846",
+  "date": "2026-07-25T15:40:56+02:00",
+  "subj": "research(sol-efficiency): raw forensics data \u2014 5608 tool calls, 580 turns, 07-18..07-25",
+  "size": 1476
+ },
+ {
+  "sha": "868675ffc824afb3af0762eaa5abf3bc747f839a",
+  "date": "2026-07-26T14:07:31+07:00",
+  "subj": "\u0441\u0442\u0430\u0442\u0443\u0441-\u0442\u043e\u0447\u043a\u0438 \u0442\u0430\u0431\u043e\u0432: \u044d\u043c\u043e\u0434\u0437\u0438 \u0432 \u043a\u0440\u0443\u0436\u043a\u0435, \u0435\u0434\u0438\u043d\u0430\u044f \u0430\u0437\u0431\u0443\u043a\u0430 \u0441 \u043b\u0435\u0439\u0431\u043b\u0430\u043c\u0438 \u0441\u0430\u0439\u0434\u0431\u0430\u0440\u0430",
+  "size": 38
+ },
+ {
+  "sha": "a79db0cb4f7164383a9d1ffce685b37efe134a93",
+  "date": "2026-07-26T14:01:56+07:00",
+  "subj": "\u0441\u0442\u0430\u0442\u0443\u0441-\u0442\u043e\u0447\u043a\u0438 \u0442\u0430\u0431\u043e\u0432: \u0433\u043b\u0438\u0444 \u0432\u043d\u0443\u0442\u0440\u0438 \u043a\u0440\u0443\u0436\u043a\u0430 \u2014 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u043f\u043e \u0444\u043e\u0440\u043c\u0435, \u043d\u0435 \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e \u0446\u0432\u0435\u0442\u0443",
+  "size": 28
+ },
+ {
+  "sha": "0e06df51cb5b06c4404524bc5e60aa2a7d526ca9",
+  "date": "2026-07-26T13:43:44+07:00",
+  "subj": "#usage-analytics: separate model USD from task currency",
+  "size": 117
+ },
+ {
+  "sha": "c30be740e8b4aaddd347bff1d0e9f28d83f0e526",
+  "date": "2026-07-25T22:33:30+07:00",
+  "subj": "#fullcycle-audit: trim role prompt to what the data supports (C1-C5), scope codex_review calls (A1-A3,A5), drop hardcoded web tool names (A4)",
+  "size": 181
+ },
+ {
+  "sha": "18d408f1083ff55ac7ff12b4ecc9bf58a422a1ad",
+  "date": "2026-07-25T18:19:18+07:00",
+  "subj": "#opus5-routing: refresh DeepSWE routing evidence",
+  "size": 429
+ },
+ {
+  "sha": "d817f47967e9bda702329d2f6677bf01130b2a06",
+  "date": "2026-07-25T10:43:40+07:00",
+  "subj": "Add Opus 5 as Claude default",
+  "size": 52
+ },
+ {
+  "sha": "c094ed8684b47a1e279f7479444f859178e9f805",
+  "date": "2026-07-25T00:39:52+07:00",
+  "subj": "#opus5-routing: evaluate Claude Opus 5 routing",
+  "size": 633
+ },
+ {
+  "sha": "14f50bb244e0ab8ea598f3438a6e9b7bdab18f58",
+  "date": "2026-07-24T21:24:13+07:00",
+  "subj": "#codex-cost: measure Codex worker and review quota",
+  "size": 975
+ },
+ {
+  "sha": "755ba663fd22826d9ade8104af4eba6b629bdca9",
+  "date": "2026-07-24T11:14:32+07:00",
+  "subj": "docs: analyze LMArena fleet leaderboard",
+  "size": 1034
+ },
+ {
+  "sha": "28a55f7ff105593f03b6977d351cc2358321d336",
+  "date": "2026-07-20T12:52:17+07:00",
+  "subj": "feat: render native codex compact result",
+  "size": 29
+ },
+ {
+  "sha": "1a0a7aeb120468f2b02f8b19ca1e4fe20da9b043",
+  "date": "2026-07-19T14:28:40+07:00",
+  "subj": "feat: add native codex idle precompact",
+  "size": 435
+ },
+ {
+  "sha": "7f38cb94845d05febed735dc646098b4d3eaa430",
+  "date": "2026-07-18T18:18:12+07:00",
+  "subj": "ui: polish Codex tool activity cards",
+  "size": 441
+ },
+ {
+  "sha": "e51ab8403cfe34e4183d7935617bb147a5f2e31f",
+  "date": "2026-07-18T17:42:55+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-18 17:42)",
+  "size": 46
+ },
+ {
+  "sha": "fd2efe2e0aa3ee0b225f6d6e098fd83ff90b1b2f",
+  "date": "2026-07-18T17:39:34+07:00",
+  "subj": "ui: split usage details by provider",
+  "size": 92
+ },
+ {
+  "sha": "f86ba0b84d3739dfbedae95f9cf2741ea2dc1774",
+  "date": "2026-07-18T17:38:13+07:00",
+  "subj": "Add self-improvement data layer",
+  "size": 217
+ },
+ {
+  "sha": "77c0f8198ca025781f766b21c3a1b2ab8a840eb7",
+  "date": "2026-07-18T16:43:26+07:00",
+  "subj": "feat: expose Codex Spark usage and workers",
+  "size": 282
+ },
+ {
+  "sha": "819526962f7fa7818d84d9a8d7ae98707f17826f",
+  "date": "2026-07-18T16:19:54+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-18 16:19)",
+  "size": 203
+ },
+ {
+  "sha": "5beb83ca196092c2c5c0fdaa20a2f3b6755ef0ca",
+  "date": "2026-07-18T16:17:54+07:00",
+  "subj": "Track voice transcription costs",
+  "size": 138
+ },
+ {
+  "sha": "023e10f37579fa567db616ee84bef9a5d621c917",
+  "date": "2026-07-18T16:15:10+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-18 16:15)",
+  "size": 316
+ },
+ {
+  "sha": "ea9fa60e365200dce0e011055b55cfcd9c70e861",
+  "date": "2026-07-18T16:05:43+07:00",
+  "subj": "#codex-cache-research: research Codex cache economics",
+  "size": 586
+ },
+ {
+  "sha": "2443760d170000f696c8a0163b78af7e06c57a0b",
+  "date": "2026-07-18T13:46:48+07:00",
+  "subj": "#precompact-timer: analyze preventive compact timing",
+  "size": 951
+ },
+ {
+  "sha": "ef4acc24a3fd98a8699059e703bbef8f66eaebbb",
+  "date": "2026-07-18T13:00:38+07:00",
+  "subj": "test: isolate frontend event loop and copy rollback",
+  "size": 30
+ },
+ {
+  "sha": "54ff0230c8edb8de57d7d73d18e7580036a33c89",
+  "date": "2026-07-18T12:56:38+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-18 12:56)",
+  "size": 123
+ },
+ {
+  "sha": "e424eee14631ea6098081018f1bce75600d19516",
+  "date": "2026-07-15T14:03:44+07:00",
+  "subj": "#worker-spawning: Phase 1 research \u2014 how workers spawn workers (code + DB + experiment + Codex review)",
+  "size": 505
+ },
+ {
+  "sha": "e075f0351c83859d763d8e55dc00cbe14d994cde",
+  "date": "2026-07-15T13:18:09+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-15 13:18)",
+  "size": 965
+ },
+ {
+  "sha": "4f5d27ab2728bb9a7e094e83509d1f34e3d860d9",
+  "date": "2026-07-15T12:10:54+07:00",
+  "subj": "#rag-orchestra: session_name reindex filter + CPU throttle for background backfill",
+  "size": 90
+ },
+ {
+  "sha": "b7eec9ab13f355c309ea5b9372d69430ae62de2e",
+  "date": "2026-07-12T13:06:04+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-12 13:06)",
+  "size": 34
+ },
+ {
+  "sha": "22a6a78c6cfd5bb40f7d173df5c1389cad7a34e7",
+  "date": "2026-07-11T13:14:45+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-11 13:14)",
+  "size": 25
+ },
+ {
+  "sha": "6f4b244ca413a376b02ae0b7d8a60f1f4923e5ac",
+  "date": "2026-07-11T06:50:24+02:00",
+  "subj": "Codex \u2192 GPT-5.6 Sol + compact: accept all summary content (no garbage/length filter)",
+  "size": 31
+ },
+ {
+  "sha": "55633e21d5b2ff6fadd0405468e2ff65a3ffa57b",
+  "date": "2026-07-10T20:09:29+07:00",
+  "subj": "style: implement frontend design audit \u2014 tokens, hybrid font, contrast, radii",
+  "size": 105
+ },
+ {
+  "sha": "eb142623d3fc416d775e070dadfd2a057b891ce7",
+  "date": "2026-07-10T16:31:25+07:00",
+  "subj": "feat: cache hit/miss stats in usage analytics modal",
+  "size": 54
+ },
+ {
+  "sha": "dfa28d5d5cbaffb8d868604b4300539810ae50a1",
+  "date": "2026-07-10T11:08:45+02:00",
+  "subj": "Model color badges in agent list + cache indicator on orchestrator tabs",
+  "size": 23
+ },
+ {
+  "sha": "a42803ec232b84339d03a876b0a55f3349b630e9",
+  "date": "2026-07-10T10:46:28+02:00",
+  "subj": "Compact cache pill: inline with model, shorter labels, 10px font",
+  "size": 23
+ },
+ {
+  "sha": "89593aaee167bd49ac713305ed645f6ac2ae4dc5",
+  "date": "2026-07-09T20:18:46+07:00",
+  "subj": "#meta-research: add research-method prompt module for full-cycle Phase 1",
+  "size": 452
+ },
+ {
+  "sha": "01e76200e212fd14ea36b0bda4b6982ee9265868",
+  "date": "2026-07-07T18:56:45+07:00",
+  "subj": "feat: proxy panel \u2014 ping (colored latency) + IP + flag",
+  "size": 21
+ },
+ {
+  "sha": "51ccd702a434d465121e771607651e47796fc3bc",
+  "date": "2026-07-03T19:41:46+02:00",
+  "subj": "Add SOCKS5 dynamic tunnel mode for proxychains (TG without Hiddify)",
+  "size": 20
+ },
+ {
+  "sha": "e3e8c655c63d4e35f0e05cb58efa37097cc5ecd2",
+  "date": "2026-07-03T18:04:14+07:00",
+  "subj": "#cost-tokens: store raw cache tokens, recompute cost_cached on-the-fly",
+  "size": 594
+ },
+ {
+  "sha": "7f91d6d775d1b4961bd380c74853a5d1be1d9265",
+  "date": "2026-07-01T13:38:43+07:00",
+  "subj": "test: update model names sonnet-4-6\u2192sonnet-5, opus-4-6\u2192opus-4-8",
+  "size": 88
+ },
+ {
+  "sha": "6ce9c9c5c46cd915db786d04d112c6c19402beaa",
+  "date": "2026-07-01T13:28:39+07:00",
+  "subj": "proxy: replace hot-switch with .env write + restart flow",
+  "size": 64
+ },
+ {
+  "sha": "e55587e5cd82af5351d31598f3e58da6164c1a05",
+  "date": "2026-06-29T11:38:29+02:00",
+  "subj": "feat: ETA to rate limit \u2014 predicts when you'll hit 100% based on current burn rate",
+  "size": 22
+ },
+ {
+  "sha": "bd2a60a997980fa381e21c7541772df756b6b62e",
+  "date": "2026-06-29T10:58:55+07:00",
+  "subj": "#86: #86: usage analytics modal with cost charts and rate limits",
+  "size": 215
+ },
+ {
+  "sha": "23a33d7dd013b93772bb2f5ba20e50b7b869a203",
+  "date": "2026-06-27T18:10:00+07:00",
+  "subj": "refactor: extract self-improvement into standalone prompt module",
+  "size": 40
+ },
+ {
+  "sha": "dd9667ef3ac45283a073bd038d1b05ff53774f7e",
+  "date": "2026-06-17T09:56:40+02:00",
+  "subj": "#81: worker persistent memory \u2014 docs/workers/{name}.md auto-injects into prompt on spawn/resume",
+  "size": 36
+ },
+ {
+  "sha": "fc25e1a453925066fbc1fa2437a725c28f2ed818",
+  "date": "2026-06-17T13:23:59+07:00",
+  "subj": "feat: beautiful Glob rendering on dashboard \u2014 matching Read/Grep style",
+  "size": 106
+ },
+ {
+  "sha": "6b9a8a6fbbef8c104795b63e91de5b852c9a9682",
+  "date": "2026-06-15T17:05:54+02:00",
+  "subj": "feat: researcher role \u2014 deep research with cross-checking, counter-evidence, structured reports",
+  "size": 73
+ },
+ {
+  "sha": "6fc5e681f8503792b98bba771076bf7c4adc5267",
+  "date": "2026-06-15T07:56:20+02:00",
+  "subj": "cleanup: remove junk from git (bfg-report, .codex, test_branching, workers), update gitignore",
+  "size": 265
+ },
+ {
+  "sha": "ef292e6a07f910032b9b19d0eb54e588e51811d9",
+  "date": "2026-06-15T06:59:32+02:00",
+  "subj": "show role badge in spawn_worker tool (dashboard + TG)",
+  "size": 22
+ },
+ {
+  "sha": "3bbb6660bf6f40732806ad11067f248c5772c5e7",
+  "date": "2026-06-14T05:57:25+02:00",
+  "subj": "feat: 4-level cost (turn/ctx/session/total), persist ctx cost, new experimenter role",
+  "size": 87
+ },
+ {
+  "sha": "f38cd69c796eb208c9ec75fee97c171d58f75aa9",
+  "date": "2026-06-13T10:18:27+02:00",
+  "subj": "#94: auto-retry proxy + client modal improvements + refresh button",
+  "size": 47
+ },
+ {
+  "sha": "cde3ca0cd2ac1a4826f2b12b51c613a226a7be9a",
+  "date": "2026-06-13T07:45:11+02:00",
+  "subj": "#92: backend 403 block on proxy/profiles/tunnel API for enterprise",
+  "size": 31
+ },
+ {
+  "sha": "9d7ba03ed8787b93c2ba3cc766bc1659dfa7ebb3",
+  "date": "2026-06-13T07:26:54+02:00",
+  "subj": "prompt modal: all blocks open by default, tag-specific colors (role=green, rules=red, module=blue, dynamic=yellow)",
+  "size": 33
+ },
+ {
+  "sha": "a755646c6afdb940f7a1d2e1f71d4768c5ac5d35",
+  "date": "2026-06-13T07:17:33+02:00",
+  "subj": "#91: client info page + proxy-only models + connection indicator",
+  "size": 236
+ },
+ {
+  "sha": "f1a5ba6e46c758ab4740138e3854b5355d89d700",
+  "date": "2026-06-13T07:12:15+02:00",
+  "subj": "remove proxy model fetching \u2014 enterprise-only feature, open source uses hardcoded MODELS dict",
+  "size": 120
+ },
+ {
+  "sha": "e3e180c113a78b6195151017abae2f605372031b",
+  "date": "2026-06-13T06:55:02+02:00",
+  "subj": "#90: dashboard UX \u2014 expand all sections, show role/model/prompt upfront",
+  "size": 42
+ },
+ {
+  "sha": "d4b430666ae3520130efac617129f52cbc8b7e34",
+  "date": "2026-06-12T10:06:35+02:00",
+  "subj": "#89: dynamic model dropdown + block orchestrator creation for clients",
+  "size": 29
+ },
+ {
+  "sha": "ccc55e9cf76b50c54fa6ed2d2c3c991a2efe8641",
+  "date": "2026-06-12T09:59:10+02:00",
+  "subj": "#88: auto-bootstrap \u2014 ensure workspace + default orchestrator on startup",
+  "size": 99
+ },
+ {
+  "sha": "6ad9065084e68c7e75b5303bbc83787a1b673276",
+  "date": "2026-06-12T08:08:42+02:00",
+  "subj": "#86: dynamic model list from proxy /v1/models",
+  "size": 116
+ },
+ {
+  "sha": "a2009b42a93c27584281caef1fa3a61597047407",
+  "date": "2026-06-12T12:44:09+07:00",
+  "subj": "#77: #77: interactive prompt visualization in dashboard",
+  "size": 174
+ },
+ {
+  "sha": "5c220a95076c055f549b6ea5f4120d33f973c196",
+  "date": "2026-06-10T21:08:25+07:00",
+  "subj": "TG: pretty format get_worker_info results",
+  "size": 68
+ },
+ {
+  "sha": "9ff0c5254238866494301280b5ca6efeb2592af6",
+  "date": "2026-06-10T15:10:29+02:00",
+  "subj": "TG: skip text expandable when diff/result image sent \u2014 no duplicates",
+  "size": 60
+ },
+ {
+  "sha": "f094bb9e2aa435f656aaa529f2e5591cf5bc93b0",
+  "date": "2026-06-10T19:57:36+07:00",
+  "subj": "#tg-bridge: send_file routes to caller's own topic, fallback to scope",
+  "size": 490
+ },
+ {
+  "sha": "04a4b4e0ffda05e3755c1340024a2a5a049ec52f",
+  "date": "2026-06-09T19:16:49+07:00",
+  "subj": "tests: P0/P1 coverage \u2014 tg_bridge, mcp_stdio, compact",
+  "size": 437
+ },
+ {
+  "sha": "e4d5a14f2ac25cff9ea1b1f2644130cc91a61488",
+  "date": "2026-06-09T16:54:00+07:00",
+  "subj": "tests: weaken characterization tests to structural + rewrite lifecycle tests",
+  "size": 532
+ },
+ {
+  "sha": "cc3978a23a19df0aae5dc30c2615bab4b04087df",
+  "date": "2026-06-09T16:29:44+07:00",
+  "subj": "#74: #74: Dockerfile + docker-compose.yml for one-command setup",
+  "size": 68
+ },
+ {
+  "sha": "d55377bc3f5faff5c0067aa15eb6d93c821842a9",
+  "date": "2026-06-08T09:56:24+07:00",
+  "subj": "#50: #50: feat: fullscreen image lightbox for Read tool and chat images",
+  "size": 21
+ },
+ {
+  "sha": "12bd00bb11b9b961d12c2eabedda7cb1b7e2cd0e",
+  "date": "2026-06-04T16:45:36+02:00",
+  "subj": "feat: auto-restart telegram-bot-api on health check failure (3 consecutive timeouts)",
+  "size": 25
+ },
+ {
+  "sha": "c45ec24fb4f1010865a47948b3bfe3817c242b24",
+  "date": "2026-06-04T17:25:40+07:00",
+  "subj": "#49: #49: currency symbol from .env, _fmt_k\u2192_fmt_amount",
+  "size": 35
+ },
+ {
+  "sha": "51c6ffbf3d8cbde1246ea0a17f83fd1a5b84cfb8",
+  "date": "2026-06-03T18:35:03+07:00",
+  "subj": "#visibility: limit worker visibility between orchestrators",
+  "size": 267
+ },
+ {
+  "sha": "bbe6d4d1edc2a11fcbf901d62c85695ab1f83402",
+  "date": "2026-06-03T17:56:30+07:00",
+  "subj": "#wt-cleanup: auto-cleanup stale worktrees on startup + every 24h",
+  "size": 268
+ }
+]

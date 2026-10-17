@@ -1,0 +1,79 @@
+diff --git a/app/routes/sessions.py b/app/routes/sessions.py
+index 4b135861273b1137f21bf2eb4296383eadbd8526..e4c7a41fa14e93cd2235cea8644e4f7fb87ebcb2 100644
+--- a/app/routes/sessions.py
++++ b/app/routes/sessions.py
+@@ -696,6 +696,17 @@ async def update_progress(name: str, req: dict):
+     return {"ok": True}
+ 
+ 
++@router.patch("/api/sessions/{name}/tg-topic")
++async def toggle_tg_topic(name: str, scope: str, enabled: bool):
++    from app.db import save_session
++    found = manager.get_by_name(name, scope)
++    if not found:
++        return JSONResponse({"error": "not found"}, status_code=404)
++    found.tg_topic = enabled
++    save_session(found.to_dict())
++    return {"ok": True, "name": name, "tg_topic": enabled}
++
++
+ @router.get("/api/sessions/{name}/inbox")
+ async def get_session_inbox(name: str, scope: str):
+     from app.db import get_inbox, ack_inbox
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 80fdf232b3397a1ef9ee81e9f20d36d3d032b2f5..03b9150fb2f494acca38b68b080d352a48221f78 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -1429,10 +1429,52 @@ function createAgentItem(s) {
+     }
+     item.append(icon, info);
+ 
++    item.addEventListener('contextmenu', (e) => {
++        e.preventDefault();
++        _showAgentContextMenu(e, s);
++    });
++
+     if (isSelected) updateAgentInfo(s);
+     return item;
+ }
+ 
++let _agentCtxMenu = null;
++function _showAgentContextMenu(e, s) {
++    if (_agentCtxMenu) _agentCtxMenu.remove();
++    const menu = document.createElement('div');
++    _agentCtxMenu = menu;
++    menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
++    const close = () => { if (_agentCtxMenu) { _agentCtxMenu.remove(); _agentCtxMenu = null; } };
++    document.addEventListener('click', close, { once: true });
++
++    const mkItem = (label, color, fn) => {
++        const item = document.createElement('div');
++        item.style.cssText = `padding:6px 14px;font-size:12px;color:${color};cursor:pointer;white-space:nowrap`;
++        item.textContent = label;
++        item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
++        item.addEventListener('mouseleave', () => item.style.background = '');
++        item.addEventListener('click', (ev) => { ev.stopPropagation(); close(); fn(); });
++        return item;
++    };
++
++    const tgEnabled = s.tg_topic;
++    menu.appendChild(mkItem(
++        tgEnabled ? '📌 TG Topic: ON → OFF' : '📌 TG Topic: OFF → ON',
++        tgEnabled ? '#f59e0b' : '#94a3b8',
++        async () => {
++            try {
++                await api(`/api/sessions/${s.name}/tg-topic?scope=${encodeURIComponent(currentScope)}&enabled=${!tgEnabled}`, { method: 'PATCH' });
++                await refreshSessions();
++            } catch (e) { console.error('TG topic toggle failed:', e); }
++        }
++    ));
++
++    document.body.appendChild(menu);
++    const rect = menu.getBoundingClientRect();
++    if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
++    if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
++}
++
+ // === Chat ===
+ // Optimistic UI: show message immediately, debounce actual send so rapid
+ // follow-up messages get batched. The server echoes back via SSE which

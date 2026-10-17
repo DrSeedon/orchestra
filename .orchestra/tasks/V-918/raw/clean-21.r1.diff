@@ -1,0 +1,1197 @@
+diff --git a/docs/tasks/315/acceptance/README.md b/docs/tasks/315/acceptance/README.md
+index 85ffabaf1c34510a4484f7fff67e92a85f365f3a..759976fa7ded13aac0f01a6e503c0577e06f2204 100644
+--- a/docs/tasks/315/acceptance/README.md
++++ b/docs/tasks/315/acceptance/README.md
+@@ -2,8 +2,8 @@
+ 
+ PLAN READY here means architecture/discussion ready only. The three user decisions in discussion.md
+ were resolved on 2026-08-24. Each ticket still requires a separately designed, behavior-specific RED
+-acceptance test committed against the current base. T1, T2, T3, corrective T3b, T4 and T5 are
+-materialized by their behavior tests plus frozen JSON fixtures under `fixtures/`; T6–T7 remain at
++acceptance test committed against the current base. T1, T2, T3, corrective T3b, T4, T5 and T6 are
++materialized by their behavior tests plus frozen JSON fixtures under `fixtures/`; T7 remains at
+ design only.
+ No implementation is implied by this directory.
+ 
+@@ -71,8 +71,8 @@ are behavior nodes, so they are RED before implementation and green after it.
+ 
+ ## Required behavioral oracle design before Phase 3
+ 
+-The following table is the design freeze target. T1–T5 commands are committed behavioral RED gates;
+-T6–T7 commands are still future commands. Each remaining ticket must turn its row into a real behavior
++The following table is the design freeze target. T1–T6 commands are committed behavioral RED gates;
++T7 is still a future command. Each remaining ticket must turn its row into a real behavior
+ test, run it RED, commit that oracle, and only then implement. The smoke probe cannot satisfy any row.
+ 
+ | Ticket | Fixture/data source | Production path | Red regression | Positive control | Valid future alternate | Compound/fallback mutation | Deterministic command | Remains unmeasured |
+@@ -83,7 +83,7 @@ test, run it RED, commit that oracle, and only then implement. The smoke probe c
+ | T3b agent-only correction v2 | immutable fixture/count contract, synthetic historical docs/tasks/docs/kb/TODO/session corpus, all original T3 nodes except mixed S11, and direct-file/SQLite/vector/wiring sentinels; old SHA and 3→4 measurement live only in excluded pre-change evidence | single MCP `knowledge` tool → POST `/api/knowledge` → `knowledge_api` → KnowledgeService structured JSON/event/evidence owners | generated Markdown/human metadata, missing agent API, rewritten historical source, missing progressive level, production wiring bypass or fallback storage winning over absent canonical truth must fail | fixture/count and mutant detector execute; reference import preserves exact paths/bytes; real T1–T3 fact/event/evidence behavior stays green; corrected agent API/import/new-topic behavior becomes green | extra JSON fields/index backend and different compact agent payload shapes are allowed if summary < record < evidence and ownership/heads stay identical | hide `.markdown` plus `human_projection`; delete canonical then offer direct path, SQLite payload and vector hit together; bypass MCP→HTTP or HTTP→owner — all must fail | `uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior_v2.py --deselect 'docs/tasks/315/acceptance/test_t3_promotion_behavior.py::test_t3_exact_promotion_scenario[S11]' -q` | agent task success, corpus import duration and payload/tool-call effect until separately measured |
+ | T4 heads/projections v2 | frozen T1–T3b contract/record hashes; real TaskStore/fact changes; nonempty one-file/one-log legacy corpus; five mutation bundles; self-contained alternate fixture root | MCP `knowledge(query)` → POST `/api/knowledge` → `knowledge_api` → shared projection owner → SQLite current/FTS; `/api/memory/search|reindex` are compatibility consumers of the same owner | stale/forged SQLite or vector content winning, absent heads/debt, projection/index failure erasing current canonical results, direct source fallback or route bypass must fail | five invariant controls keep T1–T3b agent query and real task/fact/corpus fixtures green and execute alternate-mode setup before any projection import; synchronous current/FTS returns two current records with separate heads and visible vector/log debt | injected backend implementing `replace_current`/`search_current` may reorder items and add safe metadata without changing normalized records/heads | forge equal head with stale payload; delete canonical while leaving SQLite/vector/file inputs; vector failure plus fallback hit; projection write failure after commit; bypass shared owner through legacy route — all must fail | `uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior_v2.py -q` | real embedder latency, index size growth, production restart timing |
+ | T5 session/pack/privacy | real AgentSession/SessionManager fixture with 3 messages; 5 valid canonical task/evidence/fact/session objects; 3 secret sentinels; OVPack input manifest; 7 compound mutants | SessionManager → AgentSession → sync JSON archive/event → background extraction; scripts.ia_pack validate/build/restore → scripts.ia_replay replay/rollback → SQLite/FTS/vector rebuild | extraction deleting archive, target mutation before full validation, auto/source-less promotion, state loss, secret leak, wrong-head rollback or duplicate retry must fail | four invariant controls pin T1–T4, reach real manager/session, validate statuses/privacy and perform nonempty order-independent reference pack/restore; valid production restore/replay reproduces exact head | OVPack object order and additive safe manifest metadata may vary while normalized objects/checksums/head remain identical; `atomicity_claim` stays false | extraction failure; checksum corruption with target sentinel; source-less post-restore promotion; one nested secret across canonical/payload/prompt/SQLite/FTS/vector/log; dropped tombstone; wrong rollback head; duplicate archive/event retry | `uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_privacy_behavior.py -q` | legal purge semantics, key-management operations, real backup duration/size |
+-| T6 merge/cleanup | merge-operation fixtures covering target commit success + task-link/RAG/next-task partials; #309 route/duplicate inventories | pinned session merge → Git target commit → task/evidence receipt → projection queue → cleanup gates | treating secondary failure as no merge, losing link receipt, or deleting compatibility path before oracle must fail | target commit and partial states are distinct; existing v1 recovery path remains callable | alternate merge runner preserving same operation-state/receipt contract | remove partial-state branch while retaining success branch; route cleanup with stale legacy caller; both must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_behavior.py -q | live route/click telemetry, user-visible progress behavior, proxy-manager deployment behavior |
++| T6 merge receipt/cleanup | pinned operation/session/worker/target; one task stable ID/#315; one evidence manifest; T1–T5 and deferred #298 hashes; #309 route/UI inventory; four raw terminal outcomes; seven compound mutants | POST/GET merge-operation-v1 → stored admission → sessions.execute_merge_session → workspace merge → durable verified JSON receipt → task/lifecycle finalization → secondary RAG debt | success without receipt, pre-receipt cleanup/finalization, forged task/evidence/head, late worker/target drift, collapsed PARTIAL, RAG masking or #309 surface reintroduction must fail | five invariant controls keep terminal states/capability, the real operation DB/session/workspace setup, 426 recovery, #309 surfaces, update_progress fields, #298 hashes and nonempty receipt detector green; successful production path returns one idempotent verified receipt before finalization | receipt field order and additive safe metadata may vary while normalized target/task/evidence/heads/acceptance bindings remain identical | receipt writer failure; archive/worktree/evidence cleanup before receipt; forged resolver fields; late HEAD; PARTIAL-as-success; RAG-without-receipt; duplicate refresh/legacy route | `uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py -q` | live route/click telemetry, user-visible progress behavior, proxy-manager deployment behavior |
+ | T7 prompt/document migration/cutover | frozen tracked inventory of every `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive plus legacy reference corpus and assembled-prompt matrix for every runtime | inventory classifier → byte-preserving structured evidence/archive index → single typed `knowledge` tool + typed task IDs → project prompt/skill assembly → legacy/shadow/canonical cutover gate | arbitrary Markdown becoming canonical/regenerated, rewritten historical evidence, multiple/direct storage tools, projection-as-truth or destructive SQLite removal before gates must fail | every path classified exactly once; historical hashes unchanged; all legacy refs resolve; zero generated human files/summaries; every assembled runtime prompt contains the single tool/typed-ID anchors; rollback restores legacy-compatible reads | additional archive classes/JSON metadata and runtime prompt layouts are allowed when they preserve normalized ownership and delivery | retain editable Markdown co-master beside JSON; patch only source prompt while one assembled runtime stays stale; forge parity then delete SQLite; rewrite evidence while updating alias; let file/vector fallback hide canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q | real authoring ergonomics, total corpus migration duration, live rollback duration and task success until separately measured |
+ 
+ ## Quantitative gate (future implementation evidence)
+diff --git a/docs/tasks/315/acceptance/fixtures/t6_merge_receipt_contract.json b/docs/tasks/315/acceptance/fixtures/t6_merge_receipt_contract.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..2ba426e214fecada4ed90465f3d02d82c70fa7d4
+--- /dev/null
++++ b/docs/tasks/315/acceptance/fixtures/t6_merge_receipt_contract.json
+@@ -0,0 +1,80 @@
++{
++  "contract_version": 1,
++  "fixture_sha256": "79a0111839ee4eb70f8903e748b5f69881ec673b863b7e88a826c4c7f254638d",
++  "compatibility_sha256": {
++    "docs/tasks/315/acceptance/fixtures/t1_namespace_contract.json": "02e26e0cd0c77ece0825a804a2834295ea958ad6458d6760c35c3ea02fd5544b",
++    "docs/tasks/315/acceptance/fixtures/t1_namespace_records.json": "83fde2bcbb1d2d85e745f63cd4819a10d328d677bdc61ac81dc30c69f58b4462",
++    "docs/tasks/315/acceptance/fixtures/t2_task_store_contract.json": "ddcd72ec0a2d0b30639e25697e3d623e72ffb8c6349c9a3a76a50437137cb608",
++    "docs/tasks/315/acceptance/fixtures/t2_task_store_records.json": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
++    "docs/tasks/315/acceptance/fixtures/t3_promotion_contract.json": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
++    "docs/tasks/315/acceptance/fixtures/t3_promotion_records.json": "655027ac8ed170a193a5e58b9b82a60749ad8e8208e435f85a54fc98715f4707",
++    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract_v2.json": "ca666ca4bf16acf3207d57ddb71784a3aa86791f698573ba625e6fad7221f359",
++    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_records_v2.json": "e529b731271477abc1899f8c290c6d9d39b4fb580fc1930a3fe675a8343c6746",
++    "docs/tasks/315/acceptance/fixtures/t4_projection_contract_v2.json": "a31380c64543aececc8a079553341ebdd5956ebe620a5359f60de4c3eab919ce",
++    "docs/tasks/315/acceptance/fixtures/t4_projection_records.json": "d5ab3845b4490715d3fb481e6bb28c1b1ac000a047bbe409e1b2fb93573cca8c",
++    "docs/tasks/315/acceptance/fixtures/t5_recovery_contract.json": "a614f49fed845a507201ab62368b086b80c36b38c1c0b418bef5f130c1fe4d6c",
++    "docs/tasks/315/acceptance/fixtures/t5_recovery_records.json": "c3dd9ddebcd6b6b49aa8db82f3672df05179ec14d3274d1d052f23ac439af1a9"
++  },
++  "deferred_298_sha256": {
++    "docs/tasks/298/plan.md": "86bbb4257a967b03b7d5a8e51517791c30b7718710b3b3de7f779fa0178070ff",
++    "docs/tasks/298/acceptance/test_model_routing_tree.py": "7726bc20adfca8d6df13817fc8a397ce0790f1d3a9a4522f3efef31bd511c411",
++    "docs/tasks/298/acceptance/test_model_routing_execution.py": "79ca9e7e7be685474b991aa30f2c0dfc47c574f141011d93e3457dabf55e51af",
++    "docs/tasks/298/acceptance/test_model_routing_migration.py": "5977cb34e0a307e6122d5ffbd34bad1be08e8c13f6633ff3e2fb94b2e58b0e5c"
++  },
++  "public_api": {
++    "app.ia.merge_receipts": {
++      "callables": ["merge_receipt_mode", "get_merge_receipt", "verify_merge_receipt"],
++      "exceptions": ["MergeReceiptError"]
++    },
++    "app.merge_operations": {
++      "callables": ["accept_merge_operation", "get_operation_record"]
++    },
++    "app.routes.merge_operations": {
++      "attributes": ["router"]
++    },
++    "app.routes.sessions": {
++      "callables": ["execute_merge_session", "apply_merge_finalization"]
++    },
++    "app.workspace": {
++      "callables": ["merge_worktree_to_main"]
++    }
++  },
++  "mode_kwargs": [
++    "canonical_root",
++    "task_resolver",
++    "evidence_resolver",
++    "head_resolver",
++    "receipt_writer"
++  ],
++  "receipt_required": [
++    "schema_version",
++    "receipt_id",
++    "receipt_status",
++    "operation_id",
++    "target",
++    "worker",
++    "task",
++    "evidence",
++    "heads",
++    "acceptance",
++    "created_at"
++  ],
++  "receipt_status": "verified",
++  "operation_result_receipt_field": "receipt",
++  "operation_states": ["SUCCEEDED", "PARTIAL", "UNKNOWN", "FAILED"],
++  "success_preconditions": [
++    "target_after_matches_verified_target",
++    "durable_receipt_verified",
++    "task_and_evidence_bound",
++    "canonical_projection_heads_bound"
++  ],
++  "secondary_only": ["rag_backfill", "indexed_head_debt"],
++  "forbidden_pre_receipt_actions": [
++    "worker_archive",
++    "worktree_cleanup",
++    "evidence_delete",
++    "task_finalization"
++  ],
++  "expected_controls": 5,
++  "expected_behavior_nodes": 6
++}
+diff --git a/docs/tasks/315/acceptance/fixtures/t6_merge_receipt_records.json b/docs/tasks/315/acceptance/fixtures/t6_merge_receipt_records.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa55e74bf43899979ac931ec202539800123c107
+--- /dev/null
++++ b/docs/tasks/315/acceptance/fixtures/t6_merge_receipt_records.json
+@@ -0,0 +1,140 @@
++{
++  "fixture_version": 1,
++  "operation": {
++    "operation_id": "86000000-0000-4000-8000-000000000001",
++    "schema_version": 2,
++    "name": "t6-worker",
++    "session_id": "86100000-0000-4000-8000-000000000001",
++    "scope": "/srv/orchestra",
++    "target_branch": "main",
++    "worker_branch": "task-315/t6-worker",
++    "worker_head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++    "target_before": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++    "target_after": "cccccccccccccccccccccccccccccccccccccccc",
++    "task_outcome": "continue"
++  },
++  "task": {
++    "project_id": "orchestra",
++    "stable_id": "11111111-1111-4111-8111-111111111111",
++    "task_id": 101,
++    "display_number": 315,
++    "display_ref": "#315"
++  },
++  "evidence": {
++    "manifest_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
++    "manifest_head": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
++    "manifest_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
++    "count": 1
++  },
++  "heads": {
++    "canonical_head": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
++    "projection_head": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
++    "indexed_head": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
++  },
++  "acceptance": {
++    "revision": 7,
++    "oracle_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
++    "manifest_count": 1
++  },
++  "receipt": {
++    "receipt_id": "86200000-0000-4000-8000-000000000001",
++    "path": "projects/orchestra/tasks/11111111-1111-4111-8111-111111111111/merge-receipts/86000000-0000-4000-8000-000000000001.json"
++  },
++  "raw_outcomes": {
++    "succeeded": {
++      "ok": true,
++      "state": "merged",
++      "commit_point": "target_committed",
++      "lifecycle_status": {"ok": true},
++      "rag_backfill_status": "accepted"
++    },
++    "partial": {
++      "ok": false,
++      "state": "partial",
++      "commit_point": "target_committed",
++      "error": "task evidence link pending",
++      "lifecycle_status": {"ok": false},
++      "rag_backfill_status": "accepted"
++    },
++    "unknown": {
++      "ok": false,
++      "state": "partial",
++      "commit_point": "unknown",
++      "error": "target outcome unknown",
++      "rag_backfill_status": "accepted"
++    },
++    "failed": {
++      "ok": false,
++      "state": "failed",
++      "commit_point": "not_reached",
++      "error": "target rejected before mutation",
++      "rag_backfill_status": "accepted"
++    }
++  },
++  "surface_contract": {
++    "removed_routes": [
++      "/api/sessions/{name}/merge",
++      "/api/proxy/list",
++      "/api/proxy/check/{proxy_id}",
++      "/api/proxy/set-env",
++      "/api/tunnel/status"
++    ],
++    "retained_routes": [
++      "/api/merge-operations",
++      "/api/merge-operations/capabilities",
++      "/api/sessions/{name}/progress",
++      "/api/models/refresh"
++    ],
++    "absent_files": [
++      "app/routes/proxy.py",
++      "app/proxy_manager.py",
++      "app/ssh_tunnel.py",
++      "app/model_router.py"
++    ],
++    "progress_ui_markers": [
++      "ai-progress-label",
++      "ai-progress",
++      "session.progress_pct",
++      "s.progress_pct",
++      "mcp__orchestra__update_progress"
++    ]
++  },
++  "valid_alternate": {
++    "field_order": [
++      "receipt_status",
++      "operation_id",
++      "target",
++      "task",
++      "evidence",
++      "heads",
++      "acceptance",
++      "receipt_id",
++      "schema_version"
++    ],
++    "metadata": {"backend_revision": 2, "safe_extra": true}
++  },
++  "compound_mutants": {
++    "success_before_receipt": {"marker": "T6_SUCCESS_WITHOUT_RECEIPT_MUST_FAIL"},
++    "cleanup_before_receipt": {"marker": "T6_CLEANUP_BEFORE_RECEIPT_MUST_FAIL"},
++    "forged_task_evidence_head": {
++      "stable_id": "99999999-9999-4999-8999-999999999999",
++      "evidence_head": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
++      "projection_head": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
++    },
++    "late_worker_head_injection": {"head": "dddddddddddddddddddddddddddddddddddddddd"},
++    "partial_collapsed_to_success": {"marker": "T6_PARTIAL_AS_SUCCESS_MUST_FAIL"},
++    "rag_masks_missing_receipt": {"marker": "T6_RAG_SUCCESS_MUST_NOT_CREATE_RECEIPT"},
++    "cleanup_surface_reintroduced": {
++      "legacy_route": "/api/sessions/{name}/merge",
++      "duplicate_refresh_count": 2
++    }
++  },
++  "expected_denominators": {
++    "controls": 5,
++    "behavior_nodes": 6,
++    "compound_mutants": 7,
++    "receipt_task_count": 1,
++    "receipt_evidence_count": 1,
++    "terminal_states": 4
++  }
++}
+diff --git a/docs/tasks/315/acceptance/t6-oracle-evidence.md b/docs/tasks/315/acceptance/t6-oracle-evidence.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3437fbfae4f88be8e4205e4a1b0b8a534b2aad9c
+--- /dev/null
++++ b/docs/tasks/315/acceptance/t6-oracle-evidence.md
+@@ -0,0 +1,73 @@
++# T6 merge-receipt/cleanup oracle evidence
++
++Date: 2026-08-25. No production, application-test, live database, service, provider, model, eval or
++review call was made while freezing this oracle.
++
++## Current production trace
++
++- Merge-operation-v1 persists the accepted worker branch/head, target admission and acceptance oracle
++  before running (`app/merge_operations.py:384-496`, `app/merge_operations.py:682-761`).
++- `workspace.merge_worktree_to_main` accepts pinned worker and target heads and rejects target movement
++  under the repo lock (`app/workspace.py:1229-1244`, `app/workspace.py:1344-1367`).
++- The first SQLite mutation after Git is `checkpoint_merge_commit`; its own docstring explicitly says
++  task links and lifecycle depend on it, but it does not create a canonical task/evidence/head receipt
++  (`app/merge_operations.py:538-565`).
++- Session finalization applies task links and lifecycle, marks the DB finalization applied, and only
++  then schedules RAG (`app/routes/sessions.py:1568-1691`). Current result normalization already keeps
++  SUCCEEDED/PARTIAL/UNKNOWN/FAILED distinct and treats RAG as secondary
++  (`app/merge_operations.py:957-1148`).
++- The HTTP adapter exposes operation-v1 POST/GET/resolve/capabilities and preserves FAILED/UNKNOWN as
++  typed top-level errors (`app/routes/merge_operations.py:19-98`).
++- `app/ia/merge_receipts.py` is absent from the current tree; therefore no durable canonical receipt
++  binds target commit, task stable ID/#N, evidence manifest/head, projection heads and acceptance
++  revision in one object.
++
++## Frozen selection and controls
++
++The oracle contains five invariant controls and six behavior nodes. Controls pin twelve T1–T5
++contract/record hashes plus four deferred #298 files; prove the four current terminal states and
++operation-v1 capability; materialize the exact temp DB/session/workspace/accepted-operation harness;
++execute the #309 progress/legacy-route/single-refresh/proxy/route-snapshot oracles plus a real local
++middleware 426 request; and accept an order-varied/additive-metadata receipt while rejecting a forged
++task binding.
++
++Control command:
++
++```text
++uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py::test_t6_control_fixture_hash_denominators_t1_t5_and_298_are_frozen docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py::test_t6_control_current_operation_states_and_capability_are_distinct docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py::test_t6_control_operation_harness_session_db_and_workspace_boundary_execute docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py::test_t6_control_309_surfaces_and_426_recovery_remain_exact docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py::test_t6_control_receipt_shape_valid_alternate_and_forgery_detector_are_material -q
++```
++
++Exact output:
++
++```text
++.....                                                                    [100%]
++5 passed in 4.31s
++```
++
++## Pre-implementation RED
++
++Command:
++
++```text
++uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py -q
++```
++
++Exact summary and exit:
++
++```text
++.....FFFFFF                                                              [100%]
++6 failed, 5 passed in 2.82s
++exit 1
++```
++
++Every behavior node fails inside `_load_t6_api` with
++`#315 T6 missing behavior: cannot import app.ia.merge_receipts: No module named 'app.ia.merge_receipts'`.
++Collection and all controls succeed; this is the missing durable receipt owner, not a route/path smoke.
++
++## Frozen hashes
++
++| Artifact | SHA-256 | Git blob before commit |
++|---|---|---|
++| `test_t6_merge_receipt_cleanup_behavior.py` | `684826daec4952e861dda29ac84721ee398cdfa591dbb2d8a850121682f6dce1` | `6d3829b91f1d865bbb685f8df02ce0782cc2cf22` |
++| `fixtures/t6_merge_receipt_contract.json` | `68e7bfba0331080d3c9c0fb1e6f352bccd9e66f9d597166fa7cabf738d59e476` | `2ba426e214fecada4ed90465f3d02d82c70fa7d4` |
++| `fixtures/t6_merge_receipt_records.json` | `79a0111839ee4eb70f8903e748b5f69881ec673b863b7e88a826c4c7f254638d` | `aa55e74bf43899979ac931ec202539800123c107` |
+diff --git a/docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py b/docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d3829b91f1d865bbb685f8df02ce0782cc2cf22
+--- /dev/null
++++ b/docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py
+@@ -0,0 +1,795 @@
++"""Frozen behavior-level RED oracle for #315 T6 merge receipts and cleanup gates."""
++
++from __future__ import annotations
++
++import copy
++import hashlib
++import importlib
++import importlib.util
++import json
++from datetime import datetime, timezone
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++
++HERE = Path(__file__).resolve().parent
++FIXTURE_PATH = HERE / "fixtures" / "t6_merge_receipt_records.json"
++CONTRACT_PATH = HERE / "fixtures" / "t6_merge_receipt_contract.json"
++
++
++def _json(path: Path):
++    return json.loads(path.read_text(encoding="utf-8"))
++
++
++def _fixture() -> dict:
++    return _json(FIXTURE_PATH)
++
++
++def _contract() -> dict:
++    return _json(CONTRACT_PATH)
++
++
++def _canonical_bytes(value) -> bytes:
++    return json.dumps(
++        value,
++        ensure_ascii=False,
++        separators=(",", ":"),
++        sort_keys=True,
++    ).encode("utf-8")
++
++
++def _write_json(path: Path, value) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_bytes(_canonical_bytes(value) + b"\n")
++
++
++def _load_module(path: Path, name: str):
++    spec = importlib.util.spec_from_file_location(name, path)
++    assert spec is not None and spec.loader is not None
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++def _load_t6_api() -> SimpleNamespace:
++    modules = {}
++    for module_name, surface in _contract()["public_api"].items():
++        try:
++            module = importlib.import_module(module_name)
++        except ImportError as exc:
++            pytest.fail(f"#315 T6 missing behavior: cannot import {module_name}: {exc}")
++        for name in surface.get("callables", []):
++            assert callable(getattr(module, name, None)), (
++                f"#315 T6 missing behavior: {module_name}.{name} is not callable"
++            )
++        for name in surface.get("exceptions", []):
++            error = getattr(module, name, None)
++            assert isinstance(error, type) and issubclass(error, Exception), (
++                f"#315 T6 missing behavior: {module_name}.{name} is not an exception"
++            )
++        for name in surface.get("attributes", []):
++            assert getattr(module, name, None) is not None, (
++                f"#315 T6 missing behavior: {module_name}.{name} is absent"
++            )
++        modules[module_name.replace(".", "_")] = module
++    return SimpleNamespace(**modules)
++
++
++def _assert_receipt(receipt: dict, *, operation_id: str | None = None) -> None:
++    fixture = _fixture()
++    assert set(_contract()["receipt_required"]) <= set(receipt)
++    assert receipt["receipt_status"] == "verified"
++    assert receipt["operation_id"] == (operation_id or fixture["operation"]["operation_id"])
++    assert receipt["target"]["branch"] == fixture["operation"]["target_branch"]
++    assert receipt["target"]["before"] == fixture["operation"]["target_before"]
++    assert receipt["target"]["commit"] == fixture["operation"]["target_after"]
++    assert receipt["worker"]["branch"] == fixture["operation"]["worker_branch"]
++    assert receipt["worker"]["head"] == fixture["operation"]["worker_head"]
++    assert receipt["task"] == fixture["task"]
++    assert receipt["evidence"] == fixture["evidence"]
++    assert receipt["heads"] == fixture["heads"]
++    assert receipt["acceptance"]["revision"] == fixture["acceptance"]["revision"]
++    assert receipt["acceptance"]["oracle_hash"] == fixture["acceptance"]["oracle_hash"]
++
++
++def _raw(kind: str) -> dict:
++    fixture = _fixture()
++    raw = copy.deepcopy(fixture["raw_outcomes"][kind])
++    raw.update({
++        "target_branch": fixture["operation"]["target_branch"],
++        "target_before": fixture["operation"]["target_before"],
++        "target_after": (
++            fixture["operation"]["target_after"]
++            if raw["commit_point"] == "target_committed"
++            else fixture["operation"]["target_before"]
++        ),
++        "worker_branch": fixture["operation"]["worker_branch"],
++        "worker_head": fixture["operation"]["worker_head"],
++        "conflicts": [],
++        "commits_merged": 1 if raw["commit_point"] == "target_committed" else 0,
++        "linked_tasks": (
++            {"#315": {"ok": True, "added": 1}}
++            if kind == "succeeded" else {}
++        ),
++    })
++    return raw
++
++
++def _op_id(index: int) -> str:
++    return f"86000000-0000-4000-8000-{index:012d}"
++
++
++def _admission() -> dict:
++    fixture = _fixture()
++    return {
++        "target": {
++            "branch": fixture["operation"]["target_branch"],
++            "sha": fixture["operation"]["target_before"],
++        },
++        "oracle": {
++            "source": "task",
++            "task_id": "315",
++            "revision": fixture["acceptance"]["revision"],
++            "ref": fixture["operation"]["target_before"],
++            "hash": fixture["acceptance"]["oracle_hash"],
++            "command": "uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py -q",
++            "required": True,
++            "manifest": [{
++                "path": "docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py",
++                "mode": "100644",
++                "blob": "f" * 40,
++            }],
++        },
++    }
++
++
++def _session_row(worktree_path: Path) -> dict:
++    op = _fixture()["operation"]
++    return {
++        "id": op["session_id"],
++        "name": op["name"],
++        "scope": op["scope"],
++        "cwd": str(worktree_path),
++        "model": "gpt-5.6-sol",
++        "system_prompt": "",
++        "status": "idle",
++        "session_id": None,
++        "cost_usd": 0.0,
++        "worktree_path": str(worktree_path),
++        "branch": op["worker_branch"],
++        "base_branch": op["target_branch"],
++        "is_orchestrator": False,
++        "color": "",
++        "created_at": datetime.now(timezone.utc).isoformat(),
++        "finished_at": None,
++        "task_id": "315",
++        "needs_switch": 0,
++    }
++
++
++def _finalization(operation_id: str) -> dict:
++    fixture = _fixture()
++    return {
++        "stage": "PREPARED",
++        "outcome": "continue",
++        "operation_id": operation_id,
++        "reservation_id": operation_id,
++        "session_id": fixture["operation"]["session_id"],
++        "scope": fixture["operation"]["scope"],
++        "project_id": fixture["task"]["project_id"],
++        "task": {
++            "project_id": fixture["task"]["project_id"],
++            "task_id": fixture["task"]["task_id"],
++            "par_number": fixture["task"]["display_number"],
++            "stable_id": fixture["task"]["stable_id"],
++        },
++        "next_task": None,
++        "candidate_refs": [],
++        "terminal_session": {"task_id": "315", "needs_switch": False},
++        "target_branch": fixture["operation"]["target_branch"],
++        "target_before": "",
++        "target_after": "",
++        "expected_tree": "",
++        "worker_head": fixture["operation"]["worker_head"],
++        "commits": {},
++    }
++
++
++def _asgi_transport(router):
++    import httpx
++    from fastapi import FastAPI
++
++    app = FastAPI()
++    app.include_router(router)
++
++    async def call(method: str, path: str, payload: dict | None = None):
++        transport = httpx.ASGITransport(app=app)
++        async with httpx.AsyncClient(transport=transport, base_url="http://t6.test") as client:
++            response = await client.request(method, path, json=payload)
++        return response.status_code, response.json()
++
++    return call
++
++
++async def _run_harness(
++    api,
++    tmp_path: Path,
++    monkeypatch,
++    *,
++    operation_id: str,
++    execute_override=None,
++    late_worker_head: str = "",
++    target_drift: bool = False,
++    receipt_writer=None,
++    task_override: dict | None = None,
++    evidence_override: dict | None = None,
++    heads_override: dict | None = None,
++    replay_same: bool = False,
++):
++    import app.acceptance as acceptance
++    import app.db as dbmod
++    import app.merge_test_gate as merge_test_gate
++    import app.rag_service as rag_service
++    import app.tm as tm
++    import app.workspace as workspace
++    from app.manager import SessionManager
++    from app.session import AgentSession
++
++    operations = api.app_merge_operations
++    sessions = api.app_routes_sessions
++    worktree = tmp_path / "worker"
++    worktree.mkdir(parents=True)
++    db_path = tmp_path / "merge.sqlite3"
++    monkeypatch.setattr(dbmod, "DB_PATH", db_path)
++    dbmod.init_db()
++    dbmod.save_session(_session_row(worktree))
++    operations._runner_tasks.clear()
++
++    local_manager = SessionManager()
++    row = _session_row(worktree)
++    live = AgentSession(
++        id=row["id"],
++        name=row["name"],
++        scope=row["scope"],
++        cwd=row["cwd"],
++        model=row["model"],
++        status=sessions.AgentStatus.IDLE,
++        worktree_path=row["worktree_path"],
++        branch=row["branch"],
++        base_branch=row["base_branch"],
++        task_id=row["task_id"],
++    )
++    live._persist = lambda: None
++    local_manager.sessions[live.id] = live
++    monkeypatch.setattr(sessions, "manager", local_manager)
++
++    current_head = {"value": _fixture()["operation"]["worker_head"]}
++    workspace_calls = []
++    lifecycle_calls = []
++    cleanup_calls = []
++    ordering = []
++
++    monkeypatch.setattr(
++        workspace,
++        "inspect_worktree_identity",
++        lambda _path: (_fixture()["operation"]["worker_branch"], current_head["value"]),
++    )
++    monkeypatch.setattr(
++        workspace,
++        "classify_head_drift",
++        lambda *_args, **_kwargs: {
++            "class": "BENIGN_ADVANCE" if late_worker_head else "SAME",
++            "actual_branch": _fixture()["operation"]["worker_branch"],
++            "actual_head": late_worker_head or current_head["value"],
++            "reason": "late advance" if late_worker_head else "",
++        },
++    )
++
++    def merge_workspace(*args, **kwargs):
++        workspace_calls.append(copy.deepcopy(kwargs))
++        if target_drift:
++            return {
++                **_raw("failed"),
++                "code": "TARGET_HEAD_CHANGED",
++                "target_recheck": {
++                    "expected": _fixture()["operation"]["target_before"],
++                    "actual": "9" * 40,
++                    "matched": False,
++                },
++            }
++        if kwargs.get("resolve_refs"):
++            kwargs["resolve_refs"](["315"])
++        if kwargs.get("prepare"):
++            kwargs["prepare"](_fixture()["operation"]["target_before"], "e" * 40)
++        ordering.append("workspace")
++        raw = _raw("succeeded")
++        raw["merged_commits"] = {
++            "#315": [{"hash": _fixture()["operation"]["target_after"], "subject": "#315: t6"}]
++        }
++        raw["target_recheck"] = {
++            "expected": _fixture()["operation"]["target_before"],
++            "actual": _fixture()["operation"]["target_before"],
++            "matched": True,
++        }
++        return raw
++
++    monkeypatch.setattr(workspace, "merge_worktree_to_main", merge_workspace)
++    monkeypatch.setattr(
++        workspace,
++        "switch_worktree_branch",
++        lambda *_args, **_kwargs: {
++            "ok": True,
++            "state": "switched",
++            "branch": _fixture()["operation"]["worker_branch"],
++        },
++    )
++    monkeypatch.setattr(workspace, "remove_worktree", lambda *_a, **_k: cleanup_calls.append("worktree"))
++
++    async def persist_lifecycle(*_args, **_kwargs):
++        receipt = api.app_ia_merge_receipts.get_merge_receipt(operation_id)
++        _assert_receipt(receipt, operation_id=operation_id)
++        lifecycle_calls.append("persist")
++        ordering.append("lifecycle")
++
++    async def remove_worker(*_args, **_kwargs):
++        cleanup_calls.append("archive")
++
++    monkeypatch.setattr(local_manager, "persist_lifecycle", persist_lifecycle)
++    monkeypatch.setattr(local_manager, "remove", remove_worker)
++
++    monkeypatch.setattr(
++        tm,
++        "resolve_scoped_task_identities",
++        lambda *_args, **_kwargs: {
++            "project_id": _fixture()["task"]["project_id"],
++            "canonical_refs": ["#315"],
++            "tasks": [{
++                "project_id": _fixture()["task"]["project_id"],
++                "id": _fixture()["task"]["task_id"],
++                "par_number": _fixture()["task"]["display_number"],
++                "stable_id": _fixture()["task"]["stable_id"],
++            }],
++        },
++    )
++    monkeypatch.setattr(tm, "prepare_merge_finalization", lambda **_kwargs: _finalization(operation_id))
++    monkeypatch.setattr(tm, "release_merge_finalization", lambda *_a, **_k: None)
++
++    def finalize_merge_outcome(_payload):
++        receipt = api.app_ia_merge_receipts.get_merge_receipt(operation_id)
++        _assert_receipt(receipt, operation_id=operation_id)
++        ordering.append("receipt-before-task-finalization")
++        return {
++            "ok": True,
++            "links": {
++                "#315": {
++                    "ok": True,
++                    "added": 1,
++                    "stable_id": _fixture()["task"]["stable_id"],
++                    "canonical_head": _fixture()["heads"]["canonical_head"],
++                    "projection_head": _fixture()["heads"]["projection_head"],
++                    "evidence_refs": [_fixture()["evidence"]["manifest_uri"]],
++                }
++            },
++        }
++
++    monkeypatch.setattr(tm, "finalize_merge_outcome", finalize_merge_outcome)
++    monkeypatch.setattr(acceptance, "evaluate_pinned_oracle", lambda *_a, **_k: {
++        "status": "passed", "reason": "", "exit_code": 0, "output": "", "command": "oracle",
++    })
++    monkeypatch.setattr(merge_test_gate, "evaluate_test_gate", lambda *_a, **_k: {
++        "status": "passed", "reason": "", "exit_code": 0, "output": "",
++        "tests": ["t6"], "mapped_files": ["t6"], "target_ref": "main",
++        "target_sha": _fixture()["operation"]["target_before"],
++    })
++    monkeypatch.setattr(merge_test_gate, "describe_progress", lambda _value: "")
++
++    def schedule_backfill(_scope):
++        ordering.append("rag")
++        return "accepted"
++
++    monkeypatch.setattr(rag_service, "schedule_backfill", schedule_backfill)
++    monkeypatch.setattr(rag_service, "is_enabled", lambda: True)
++    monkeypatch.setattr(operations, "ensure_operation_runner", lambda _operation_id: None)
++    monkeypatch.setattr(operations, "_prepare_admission_snapshot", lambda *_a, **_k: _admission())
++
++    if execute_override is not None:
++        monkeypatch.setattr(sessions, "execute_merge_session", execute_override)
++
++    task_value = copy.deepcopy(task_override or _fixture()["task"])
++    evidence_value = copy.deepcopy(evidence_override or _fixture()["evidence"])
++    heads_value = copy.deepcopy(heads_override or _fixture()["heads"])
++    receipt_root = tmp_path / "receipts"
++    sentinel = receipt_root / "evidence-sentinel.json"
++    _write_json(sentinel, _fixture()["evidence"])
++    sentinel_before = hashlib.sha256(sentinel.read_bytes()).hexdigest()
++    transport = _asgi_transport(api.app_routes_merge_operations.router)
++    payload = {
++        "operation_id": operation_id,
++        "name": _fixture()["operation"]["name"],
++        "scope": _fixture()["operation"]["scope"],
++        "target": _fixture()["operation"]["target_branch"],
++        "task_outcome": _fixture()["operation"]["task_outcome"],
++        "merge_schema_version": 2,
++    }
++    with api.app_ia_merge_receipts.merge_receipt_mode(
++        canonical_root=receipt_root,
++        task_resolver=lambda _payload: copy.deepcopy(task_value),
++        evidence_resolver=lambda _task: copy.deepcopy(evidence_value),
++        head_resolver=lambda: copy.deepcopy(heads_value),
++        receipt_writer=receipt_writer,
++    ):
++        accepted_status, accepted_payload = await transport(
++            "POST", "/api/merge-operations", payload,
++        )
++        assert accepted_status == 202
++        assert accepted_payload["result"]["operation_state"] == "PENDING"
++        await operations._run_operation(operation_id)
++        status, result_payload = await transport(
++            "GET", f"/api/merge-operations/{operation_id}", None,
++        )
++        assert status == 200
++        receipt = api.app_ia_merge_receipts.get_merge_receipt(operation_id)
++        replay_payload = None
++        if replay_same:
++            replay_status, replay_payload = await transport(
++                "POST", "/api/merge-operations", payload,
++            )
++            assert replay_status == 200
++    return {
++        "result": result_payload["result"],
++        "receipt": receipt,
++        "receipt_root": receipt_root,
++        "sentinel_before": sentinel_before,
++        "sentinel_after": (
++            hashlib.sha256(sentinel.read_bytes()).hexdigest()
++            if sentinel.is_file() else None
++        ),
++        "workspace_calls": workspace_calls,
++        "lifecycle_calls": lifecycle_calls,
++        "cleanup_calls": cleanup_calls,
++        "ordering": ordering,
++        "transport": transport,
++        "payload": payload,
++        "replay": replay_payload,
++    }
++
++
++def test_t6_control_fixture_hash_denominators_t1_t5_and_298_are_frozen():
++    contract = _contract()
++    fixture = _fixture()
++    assert hashlib.sha256(FIXTURE_PATH.read_bytes()).hexdigest() == contract["fixture_sha256"]
++    for mapping in (contract["compatibility_sha256"], contract["deferred_298_sha256"]):
++        for relative, expected in mapping.items():
++            assert hashlib.sha256(Path(relative).read_bytes()).hexdigest() == expected
++    assert not Path("app/model_router.py").exists()
++    assert fixture["expected_denominators"] == {
++        "controls": 5,
++        "behavior_nodes": 6,
++        "compound_mutants": 7,
++        "receipt_task_count": 1,
++        "receipt_evidence_count": 1,
++        "terminal_states": 4,
++    }
++
++
++@pytest.mark.asyncio
++async def test_t6_control_current_operation_states_and_capability_are_distinct():
++    import app.merge_operations as operations
++    from app.routes.merge_operations import merge_operation_capabilities
++
++    states = {
++        name: operations.normalize_merge_result(
++            _fixture()["operation"]["operation_id"],
++            _raw(name),
++            {"target": "main", "next_task_id": ""},
++            rag_enabled=True,
++        )["operation_state"]
++        for name in ("succeeded", "partial", "unknown", "failed")
++    }
++    assert states == {
++        "succeeded": "SUCCEEDED",
++        "partial": "PARTIAL",
++        "unknown": "UNKNOWN",
++        "failed": "FAILED",
++    }
++    capability = await merge_operation_capabilities()
++    assert capability["capability"] == "operation-v1"
++    assert capability["merge_schema_version"] == 2
++
++
++def test_t6_control_operation_harness_session_db_and_workspace_boundary_execute(
++    tmp_path,
++    monkeypatch,
++):
++    import app.db as dbmod
++    import app.merge_operations as operations
++    import app.workspace as workspace
++    from app.manager import SessionManager
++    from app.session import AgentSession
++
++    worktree = tmp_path / "worker"
++    worktree.mkdir()
++    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "merge-control.sqlite3")
++    dbmod.init_db()
++    dbmod.save_session(_session_row(worktree))
++    operations._runner_tasks.clear()
++    monkeypatch.setattr(
++        workspace,
++        "inspect_worktree_identity",
++        lambda _path: (
++            _fixture()["operation"]["worker_branch"],
++            _fixture()["operation"]["worker_head"],
++        ),
++    )
++    snapshot = operations._session_snapshot(_fixture()["operation"]["session_id"])
++    assert snapshot["worker_head"] == _fixture()["operation"]["worker_head"]
++    manager = SessionManager()
++    session = AgentSession(
++        id=snapshot["session_id"],
++        name=snapshot["name"],
++        scope=snapshot["scope"],
++        cwd=str(worktree),
++        worktree_path=str(worktree),
++        branch=snapshot["worker_branch"],
++        base_branch=snapshot["base_branch"],
++        task_id=snapshot["task_id"],
++    )
++    manager.sessions[session.id] = session
++    assert manager.get(session.id) is session
++    request = operations.normalize_request(
++        name=snapshot["name"],
++        scope=snapshot["scope"],
++        target=snapshot["base_branch"],
++        task_outcome="continue",
++        merge_schema_version=2,
++    )
++    snapshot["admission"] = _admission()
++    operation_id = _op_id(99)
++    result, created, status = operations.accept_operation_snapshot(
++        operation_id=operation_id,
++        request=request,
++        accepted=snapshot,
++    )
++    assert created is True and status == 202
++    assert result["operation_state"] == "PENDING"
++    assert operations.claim_operation(operation_id, "t6-control-owner") is True
++    assert operations.get_operation_record(operation_id)["state"] == "RUNNING"
++
++
++@pytest.mark.asyncio
++async def test_t6_control_309_surfaces_and_426_recovery_remain_exact(monkeypatch):
++    root = Path.cwd()
++    for index, relative in enumerate((
++        "docs/tasks/309/acceptance/test_t1_progress_ui_removed.py",
++        "docs/tasks/309/acceptance/test_t2_legacy_merge_handler_removed.py",
++        "docs/tasks/309/acceptance/test_t3_single_model_refresh_route.py",
++        "docs/tasks/309/acceptance/test_t4_proxy_tunnel_owner_removed.py",
++        "docs/tasks/309/acceptance/test_t7_route_snapshot_removed_surfaces.py",
++    )):
++        _load_module(root / relative, f"t6_surface_{index}").main()
++
++    from fastapi.testclient import TestClient
++    from app.main import app
++
++    monkeypatch.delenv("DASHBOARD_USER", raising=False)
++    monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
++    with TestClient(app, raise_server_exceptions=False) as client:
++        legacy = client.post(
++            "/api/sessions/t6-worker/merge",
++            json={"scope": _fixture()["operation"]["scope"]},
++        )
++        capability = client.get("/api/merge-operations/capabilities")
++    assert legacy.status_code == 426
++    assert legacy.json()["error"]["code"] == "MERGE_OPERATION_REQUIRED"
++    assert capability.status_code == 200
++    assert capability.json()["capability"] == "operation-v1"
++    session_source = Path("app/session.py").read_text(encoding="utf-8")
++    assert "progress_pct" in session_source and "progress_status" in session_source
++
++
++def test_t6_control_receipt_shape_valid_alternate_and_forgery_detector_are_material():
++    fixture = _fixture()
++    receipt = {
++        "schema_version": 1,
++        "receipt_id": fixture["receipt"]["receipt_id"],
++        "receipt_status": "verified",
++        "operation_id": fixture["operation"]["operation_id"],
++        "target": {
++            "branch": fixture["operation"]["target_branch"],
++            "before": fixture["operation"]["target_before"],
++            "commit": fixture["operation"]["target_after"],
++        },
++        "worker": {
++            "branch": fixture["operation"]["worker_branch"],
++            "head": fixture["operation"]["worker_head"],
++        },
++        "task": fixture["task"],
++        "evidence": fixture["evidence"],
++        "heads": fixture["heads"],
++        "acceptance": {
++            "revision": fixture["acceptance"]["revision"],
++            "oracle_hash": fixture["acceptance"]["oracle_hash"],
++            "manifest_count": fixture["acceptance"]["manifest_count"],
++        },
++        "created_at": "2026-08-25T04:00:00Z",
++        "metadata": fixture["valid_alternate"]["metadata"],
++    }
++    receipt = {key: receipt[key] for key in fixture["valid_alternate"]["field_order"]} | {
++        "worker": receipt["worker"],
++        "created_at": receipt["created_at"],
++        "metadata": receipt["metadata"],
++    }
++    _assert_receipt(receipt)
++    forged = copy.deepcopy(receipt)
++    forged["task"]["stable_id"] = fixture["compound_mutants"]["forged_task_evidence_head"][
++        "stable_id"
++    ]
++    with pytest.raises(AssertionError):
++        _assert_receipt(forged)
++
++
++@pytest.mark.asyncio
++async def test_t6_success_receipt_precedes_finalization_and_retry_is_idempotent(
++    tmp_path,
++    monkeypatch,
++):
++    api = _load_t6_api()
++    result = await _run_harness(
++        api,
++        tmp_path,
++        monkeypatch,
++        operation_id=_fixture()["operation"]["operation_id"],
++        replay_same=True,
++    )
++    assert result["result"]["operation_state"] == "SUCCEEDED"
++    _assert_receipt(result["receipt"])
++    assert result["result"][_contract()["operation_result_receipt_field"]][
++        "receipt_id"
++    ] == result["receipt"]["receipt_id"]
++    assert result["ordering"] == [
++        "workspace",
++        "receipt-before-task-finalization",
++        "lifecycle",
++        "rag",
++    ]
++    assert result["cleanup_calls"] == []
++    assert result["sentinel_after"] == result["sentinel_before"]
++    assert result["lifecycle_calls"] == ["persist"]
++    assert result["workspace_calls"][0]["expected_worker_head"] == _fixture()["operation"][
++        "worker_head"
++    ]
++    receipt_files = list(result["receipt_root"].rglob("merge-receipts/*.json"))
++    assert len(receipt_files) == 1
++    before = receipt_files[0].read_bytes()
++    assert result["replay"]["result"]["operation_state"] == "SUCCEEDED"
++    assert receipt_files[0].read_bytes() == before
++    assert len(list(result["receipt_root"].rglob("merge-receipts/*.json"))) == 1
++
++
++@pytest.mark.asyncio
++async def test_t6_partial_unknown_failed_remain_distinct_through_operation_route(
++    tmp_path,
++    monkeypatch,
++):
++    api = _load_t6_api()
++    observed = {}
++    for index, kind in enumerate(("partial", "unknown", "failed"), start=2):
++        raw = _raw(kind)
++
++        async def execute(**_kwargs):
++            return copy.deepcopy(raw)
++
++        run = await _run_harness(
++            api,
++            tmp_path / kind,
++            monkeypatch,
++            operation_id=_op_id(index),
++            execute_override=execute,
++        )
++        observed[kind] = run["result"]["operation_state"]
++        assert run["cleanup_calls"] == []
++    assert observed == {"partial": "PARTIAL", "unknown": "UNKNOWN", "failed": "FAILED"}
++
++
++@pytest.mark.asyncio
++async def test_t6_receipt_write_failure_blocks_success_task_finalization_and_cleanup(
++    tmp_path,
++    monkeypatch,
++):
++    api = _load_t6_api()
++
++    def fail_receipt(*_args, **_kwargs):
++        raise OSError(_fixture()["compound_mutants"]["success_before_receipt"]["marker"])
++
++    run = await _run_harness(
++        api,
++        tmp_path,
++        monkeypatch,
++        operation_id=_op_id(5),
++        receipt_writer=fail_receipt,
++    )
++    assert run["result"]["operation_state"] in {"PARTIAL", "UNKNOWN", "FAILED"}
++    assert run["result"]["operation_state"] != "SUCCEEDED"
++    assert "receipt-before-task-finalization" not in run["ordering"]
++    assert run["lifecycle_calls"] == []
++    assert run["cleanup_calls"] == []
++    assert run["sentinel_after"] == run["sentinel_before"]
++
++
++@pytest.mark.asyncio
++async def test_t6_forged_task_evidence_or_head_never_authorizes_success(tmp_path, monkeypatch):
++    api = _load_t6_api()
++    mutant = _fixture()["compound_mutants"]["forged_task_evidence_head"]
++    variants = [
++        ({**_fixture()["task"], "stable_id": mutant["stable_id"]}, None, None),
++        (None, {**_fixture()["evidence"], "manifest_head": mutant["evidence_head"]}, None),
++        (None, None, {**_fixture()["heads"], "projection_head": mutant["projection_head"]}),
++    ]
++    for index, (task, evidence, heads) in enumerate(variants, start=6):
++        run = await _run_harness(
++            api,
++            tmp_path / str(index),
++            monkeypatch,
++            operation_id=_op_id(index),
++            task_override=task,
++            evidence_override=evidence,
++            heads_override=heads,
++        )
++        assert run["result"]["operation_state"] != "SUCCEEDED"
++        assert run["lifecycle_calls"] == []
++        assert run["cleanup_calls"] == []
++
++
++@pytest.mark.asyncio
++async def test_t6_late_worker_head_and_target_drift_cannot_enter_receipt(tmp_path, monkeypatch):
++    api = _load_t6_api()
++    late = _fixture()["compound_mutants"]["late_worker_head_injection"]["head"]
++    late_run = await _run_harness(
++        api,
++        tmp_path / "late",
++        monkeypatch,
++        operation_id=_op_id(9),
++        late_worker_head=late,
++    )
++    assert late_run["workspace_calls"][0]["expected_worker_head"] == _fixture()["operation"][
++        "worker_head"
++    ]
++    assert late not in json.dumps(late_run["receipt"])
++
++    drift_run = await _run_harness(
++        api,
++        tmp_path / "drift",
++        monkeypatch,
++        operation_id=_op_id(10),
++        target_drift=True,
++    )
++    assert drift_run["result"]["operation_state"] == "FAILED"
++    assert drift_run["receipt"] is None
++    assert drift_run["cleanup_calls"] == []
++
++
++@pytest.mark.asyncio
++async def test_t6_rag_or_partial_fallback_cannot_manufacture_success_or_receipt(
++    tmp_path,
++    monkeypatch,
++):
++    api = _load_t6_api()
++    for index, kind in enumerate(("partial", "succeeded"), start=11):
++        raw = _raw(kind)
++        raw["rag_backfill_status"] = "accepted"
++
++        async def execute(**_kwargs):
++            return copy.deepcopy(raw)
++
++        run = await _run_harness(
++            api,
++            tmp_path / kind,
++            monkeypatch,
++            operation_id=_op_id(index),
++            execute_override=execute,
++        )
++        assert run["result"]["operation_state"] != "SUCCEEDED"
++        assert run["receipt"] is None
++        assert run["cleanup_calls"] == []
+diff --git a/docs/tasks/315/plan.md b/docs/tasks/315/plan.md
+index 8fd7a74392b5d7845e2c4ccd3e8c8831cdcbcdc9..7e5341cf44f9a576bf29231fd8ae17299a2980bb 100644
+--- a/docs/tasks/315/plan.md
++++ b/docs/tasks/315/plan.md
+@@ -215,16 +215,27 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
+ 
+ ### T6 — merge receipt and approved cleanup sequencing
+ 
+-- Files: app/routes/sessions.py, app/merge_operations.py, app/workspace.py, #309 oracle references;
+-  test_smoke_t6_merge_cleanup.py only as a missing-seam diagnostic. Behavioral oracle design:
+-  acceptance/README.md T6 row; no RED test is frozen.
++- Files: new app/ia/merge_receipts.py; app/merge_operations.py, app/routes/merge_operations.py,
++  app/routes/sessions.py and app/workspace.py. The frozen oracle is
++  acceptance/test_t6_merge_receipt_cleanup_behavior.py plus fixtures/t6_merge_receipt_*.json;
++  test_smoke_t6_merge_cleanup.py remains only a missing-seam diagnostic. #309/#298 files are
++  compatibility inputs, not T6 edit targets.
+ - Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t6_merge_cleanup.py -q
+ - Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
++- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py -q`
++- RED result: invariant controls → `5 passed in 4.31s`; full command → exit 1,
++  `6 failed, 5 passed in 2.82s`, first failure
++  `#315 T6 missing behavior: cannot import app.ia.merge_receipts: No module named 'app.ia.merge_receipts'`.
++  Collection succeeds; current operation-v1 DB/session/workspace setup, state semantics, 426 recovery
++  and all #309 surface controls pass.
+ - AC: command is green; merge target commit, task link, evidence manifest, projection receipt and
+-  partial/unknown state are distinguishable; rag_backfill remains secondary/async; legacy merge route
+-  removal is gated by v1 recovery/OpenAPI oracle; duplicate model refresh is not a second write path;
+-  progress UI hide preserves active worker API/session fields; proxy controls remain under external
+-  owner; #298 files/config remain untouched.
++  acceptance revision are bound in one durable verified receipt before task/lifecycle finalization;
++  SUCCEEDED/PARTIAL/UNKNOWN/FAILED remain distinguishable; retry/replay is idempotent and neither a
++  moved worker nor target drift can inject later commits. RAG/indexing remains secondary async debt and
++  cannot manufacture success or a receipt. No worker archive/worktree cleanup/evidence deletion occurs
++  before a verified receipt. Legacy merge route remains absent with middleware 426 recovery; exactly one
++  model refresh route remains; progress UI stays absent while update_progress route/MCP/session fields
++  remain; local proxy controls remain absent/external; #298 hashes/config remain untouched.
+ - blocked-by: T2, T4, T5.
+ 
+ ### T7 — prompt + existing-document migration + final cutover
+@@ -251,8 +262,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
+ Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
+ conflicts and sensitive classes. Each ticket must still receive the exact
+ fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
+-behavioral RED test must be committed and independently verified before implementation. T1–T5
+-have reached that oracle gate; T6–T7 have not. T7 runs only after the
++behavioral RED test must be committed and independently verified before implementation. T1–T6
++have reached that oracle gate; T7 has not. T7 runs only after the
+ corrected T3b plus T4–T6 core and has no existence-smoke
+ shortcut. Smoke probes never satisfy this gate.
+ 

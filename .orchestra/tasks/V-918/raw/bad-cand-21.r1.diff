@@ -1,0 +1,829 @@
+diff --git a/app/backend_claude.py b/app/backend_claude.py
+index b5408e17f6c6715079bdf67c7ddf9970c6662abc..b1d797a58c8fbb61a77e9aee564ccc6f2710ebfa 100644
+--- a/app/backend_claude.py
++++ b/app/backend_claude.py
+@@ -240,6 +240,18 @@ class ClaudeBackend:
+             await self._cleanup_failed_client()
+             raise
+ 
++    @staticmethod
++    def _task_usage(usage) -> dict:
++        """Extract TaskUsage (total_tokens/tool_uses/duration_ms) — TypedDict or obj."""
++        if not usage:
++            return {}
++        get = usage.get if isinstance(usage, dict) else lambda k, d=0: getattr(usage, k, d)
++        return {
++            "total_tokens": get("total_tokens", 0) or 0,
++            "tool_uses": get("tool_uses", 0) or 0,
++            "duration_ms": get("duration_ms", 0) or 0,
++        }
++
+     @staticmethod
+     def _tag_sub(event: AgentEvent, sub_id) -> AgentEvent:
+         """Mark an event as belonging to a sub-agent so the UI nests it.
+@@ -308,24 +320,38 @@ class ClaudeBackend:
+             task_type = getattr(msg, "task_type", "") or ""
+             task_id = getattr(msg, "task_id", "") or ""
+             events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}",
+-                                     metadata={"subagent_id": task_id}))
++                                     metadata={"subagent_id": task_id, "phase": "start",
++                                               "description": desc, "task_type": task_type,
++                                               "sdk_session_id": getattr(msg, "session_id", "") or "",
++                                               "tool_use_id": getattr(msg, "tool_use_id", "") or ""}))
+ 
+         elif isinstance(msg, TaskProgressMessage):
+             desc = getattr(msg, "description", "") or ""
+             last_tool = getattr(msg, "last_tool_name", "") or ""
+             task_id = getattr(msg, "task_id", "") or ""
+-            usage = getattr(msg, "usage", None)
+-            tokens = usage.total_tokens if usage and hasattr(usage, "total_tokens") else 0
+-            events.append(AgentEvent("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}",
+-                                     metadata={"subagent_id": task_id}))
++            u = self._task_usage(getattr(msg, "usage", None))
++            events.append(AgentEvent("subagent_progress",
++                                     f"{desc} | tool={last_tool} | tokens={u.get('total_tokens', 0)}",
++                                     metadata={"subagent_id": task_id, "phase": "progress",
++                                               "description": desc, "last_tool_name": last_tool,
++                                               "sdk_session_id": getattr(msg, "session_id", "") or "",
++                                               **u}))
+ 
+         elif isinstance(msg, TaskNotificationMessage):
+             desc = getattr(msg, "description", "") or ""
+             status = getattr(msg, "status", "") or ""
+             summary = getattr(msg, "summary", "") or ""
+             task_id = getattr(msg, "task_id", "") or ""
++            output_file = getattr(msg, "output_file", "") or ""
++            u = self._task_usage(getattr(msg, "usage", None))
++            data = getattr(msg, "data", None)
+             events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}",
+-                                     metadata={"subagent_id": task_id}))
++                                     metadata={"subagent_id": task_id, "phase": "end",
++                                               "description": desc, "status": status,
++                                               "summary": summary, "output_file": output_file,
++                                               "sdk_session_id": getattr(msg, "session_id", "") or "",
++                                               "raw_json": _json.dumps(data, ensure_ascii=False) if data else "",
++                                               **u}))
+ 
+         elif isinstance(msg, ResultMessage):
+             sr = getattr(msg, "stop_reason", None) or "unknown"
+diff --git a/app/db.py b/app/db.py
+index 336208ba65d0b10065a96afe5882ecf98f0edf31..4ffa97b77164007fcda596cfb85670e77624127f 100644
+--- a/app/db.py
++++ b/app/db.py
+@@ -78,6 +78,28 @@ def init_db() -> None:
+             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
+             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
+ 
++            CREATE TABLE IF NOT EXISTS subagents (
++                id INTEGER PRIMARY KEY AUTOINCREMENT,
++                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
++                task_id TEXT NOT NULL,
++                sdk_session_id TEXT DEFAULT '',
++                tool_use_id TEXT DEFAULT '',
++                description TEXT DEFAULT '',
++                task_type TEXT DEFAULT '',
++                status TEXT DEFAULT 'running',
++                total_tokens INTEGER DEFAULT 0,
++                tool_uses INTEGER DEFAULT 0,
++                duration_ms INTEGER DEFAULT 0,
++                last_tool_name TEXT DEFAULT '',
++                output_file TEXT DEFAULT '',
++                summary TEXT DEFAULT '',
++                raw_json TEXT DEFAULT '',
++                started_at TEXT NOT NULL,
++                ended_at TEXT,
++                UNIQUE(session_id, task_id)
++            );
++            CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
++
+             CREATE TABLE IF NOT EXISTS inbox (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+@@ -660,6 +682,60 @@ def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
+         return cur.lastrowid
+ 
+ 
++# Sub-agent telemetry columns that upsert may set. Text cols use NULLIF-COALESCE
++# (empty from a progress event must NOT wipe a value set by start/end). Numeric
++# cols take the incoming value when > 0 (TaskUsage is cumulative → latest wins,
++# never summed — session total already counts subagents, see backend_claude).
++_SA_TEXT = ("sdk_session_id", "tool_use_id", "description", "task_type",
++            "status", "last_tool_name", "output_file", "summary", "raw_json", "ended_at")
++_SA_NUM = ("total_tokens", "tool_uses", "duration_ms")
++
++
++def subagent_upsert(session_id: str, task_id: str, **fields) -> None:
++    """Insert or update one sub-agent row (keyed by session_id+task_id).
++
++    start creates the row; progress/end update only the fields they carry.
++    Empty text / zero numbers never overwrite an existing value.
++    """
++    cols = ["session_id", "task_id", "started_at"]
++    vals = [session_id, task_id, datetime.now(timezone.utc).isoformat()]
++    updates = []
++    for k in _SA_TEXT:
++        if k in fields and fields[k] is not None:
++            cols.append(k); vals.append(fields[k])
++            updates.append(f"{k}=COALESCE(NULLIF(excluded.{k}, ''), subagents.{k})")
++    for k in _SA_NUM:
++        if k in fields and fields[k]:
++            cols.append(k); vals.append(int(fields[k]))
++            updates.append(f"{k}=MAX(excluded.{k}, subagents.{k})")
++    placeholders = ", ".join("?" for _ in cols)
++    set_clause = ", ".join(updates) if updates else "task_id=task_id"
++    with _conn() as c:
++        c.execute(
++            f"INSERT INTO subagents ({', '.join(cols)}) VALUES ({placeholders}) "
++            f"ON CONFLICT(session_id, task_id) DO UPDATE SET {set_clause}",
++            vals,
++        )
++
++
++def get_subagents(session_id: str) -> list[dict]:
++    with _conn() as c:
++        rows = c.execute(
++            "SELECT * FROM subagents WHERE session_id = ? ORDER BY started_at ASC",
++            (session_id,),
++        ).fetchall()
++        return [dict(r) for r in rows]
++
++
++def get_subagent(session_id: str, task_id: str) -> dict | None:
++    with _conn() as c:
++        row = c.execute(
++            "SELECT * FROM subagents WHERE session_id = ? AND task_id = ?",
++            (session_id, task_id),
++        ).fetchone()
++        return dict(row) if row else None
++
++
+ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -> list[dict]:
+     c = conn or _conn()
+     try:
+diff --git a/app/events.py b/app/events.py
+index d98f46a8df1ddb57f92bcb4b5c062e0be21f16e4..b8f7ae22d975b089aa2d0bd0da331e7272ae7f86 100644
+--- a/app/events.py
++++ b/app/events.py
+@@ -18,6 +18,7 @@ class AgentEvent:
+ # "turn_end"          — turn completed (metadata: session_id, cost_usd, input_tokens, context_pct, ok, stop_reason, ...)
+ # "error"             — error message
+ # "status"            — lifecycle event
+-# "subagent_start"    — sub-agent spawned
+-# "subagent_progress" — sub-agent working
+-# "subagent_end"      — sub-agent finished
++# "subagent_start"    — sub-agent spawned    (metadata: subagent_id, phase, description, task_type, sdk_session_id, tool_use_id)
++# "subagent_progress" — sub-agent working     (metadata: + last_tool_name, total_tokens, tool_uses, duration_ms)
++# "subagent_end"      — sub-agent finished    (metadata: + status, summary, output_file, raw_json, usage)
++# "subagent_stream"   — sub-agent live text   (metadata: subagent_id) — broker only, ephemeral
+diff --git a/app/main.py b/app/main.py
+index f218a9d815a3ce7478129d0d7c56bac5030676fb..dd8a3be3d55427169b534fbdf7a8e219e5003dac 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -70,12 +70,14 @@ from app.routes.proxy import router as proxy_router
+ from app.routes.sessions import router as sessions_router
+ from app.routes.system import router as system_router
+ from app.routes.tg import router as tg_router
++from app.routes.subagent import router as subagent_router
+ app.include_router(tm_router)
+ app.include_router(bg_router)
+ app.include_router(proxy_router)
+ app.include_router(sessions_router)
+ app.include_router(system_router)
+ app.include_router(tg_router)
++app.include_router(subagent_router)
+ 
+ 
+ @app.exception_handler(Exception)
+diff --git a/app/routes/subagent.py b/app/routes/subagent.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4f68030c5896c05abbe71353336d726e514c131
+--- /dev/null
++++ b/app/routes/subagent.py
+@@ -0,0 +1,72 @@
++"""Sub-agent telemetry + transcript routes.
++
++Telemetry (tokens/summary/output_file/status) comes from the DB `subagents`
++table (populated from Task* SDK messages). Full transcripts are read lazily
++from the SDK's JSONL store via list_subagents / get_subagent_messages — NOT
++duplicated in our DB. agent_id (SDK file id) != task_id (Task message id), so
++transcript listing is independent of the telemetry table.
++"""
++
++import logging
++import re
++
++from fastapi import APIRouter
++from fastapi.responses import JSONResponse
++
++from app.db import get_subagents, get_session
++
++logger = logging.getLogger("orchestra.subagent")
++
++router = APIRouter(tags=["subagent"])
++
++_SAFE_ID = re.compile(r"^[\w-]+$")  # agent_id goes into a filename — no path traversal
++
++
++@router.get("/api/subagents/{session_id}")
++async def subagents_list(session_id: str):
++    """Telemetry rows for a session's sub-agents (from Task* messages)."""
++    return {"subagents": get_subagents(session_id)}
++
++
++@router.get("/api/subagent-transcripts/{session_id}")
++async def subagent_transcript_ids(session_id: str):
++    """SDK agent_ids of sub-agents whose transcripts exist for this session."""
++    sess = get_session(session_id)
++    if not sess:
++        return JSONResponse({"error": "session not found"}, status_code=404)
++    sdk_id = sess.get("session_id") or ""
++    if not sdk_id:
++        return {"agent_ids": [], "note": "no sdk_session_id yet"}
++    from claude_agent_sdk import list_subagents
++    try:
++        agent_ids = list_subagents(sdk_id, sess.get("cwd") or None)
++    except Exception as e:
++        logger.warning(f"list_subagents failed: {e}")
++        return {"agent_ids": [], "error": str(e)}
++    return {"agent_ids": agent_ids, "sdk_session_id": sdk_id}
++
++
++@router.get("/api/subagent-transcript/{session_id}/{agent_id}")
++async def subagent_transcript(session_id: str, agent_id: str, limit: int = 200, offset: int = 0):
++    """Full conversation of one sub-agent (lazy read from SDK JSONL store)."""
++    if not _SAFE_ID.match(agent_id):
++        return JSONResponse({"error": "invalid agent_id"}, status_code=400)
++    sess = get_session(session_id)
++    if not sess:
++        return JSONResponse({"error": "session not found"}, status_code=404)
++    sdk_id = sess.get("session_id") or ""
++    if not sdk_id:
++        return {"messages": [], "note": "no sdk_session_id yet"}
++    from claude_agent_sdk import get_subagent_messages
++    try:
++        msgs = get_subagent_messages(sdk_id, agent_id, sess.get("cwd") or None,
++                                     limit=limit, offset=offset)
++    except Exception as e:
++        logger.warning(f"get_subagent_messages failed: {e}")
++        return {"messages": [], "error": str(e)}
++    out = []
++    for m in msgs:
++        content = m.message.get("content") if isinstance(m.message, dict) else m.message
++        out.append({"type": m.type, "content": content,
++                    "parent_tool_use_id": getattr(m, "parent_tool_use_id", None)})
++    return {"messages": out, "count": len(out)}
+diff --git a/app/session.py b/app/session.py
+index 75e7751d01028ecb3404ccca2a19c590f1d2b764..937d58907df6d3e6cb3819693520d7abf6e31bd6 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -580,10 +580,13 @@ class AgentSession:
+                 self._log("error", event.content)
+         elif event.type == "subagent_start":
+             self._log("subagent_start", event.content)
++            self._persist_subagent(event.metadata)
+         elif event.type == "subagent_progress":
+             self._log("subagent_progress", event.content)
++            self._persist_subagent(event.metadata)
+         elif event.type == "subagent_end":
+             self._log("subagent_end", event.content)
++            self._persist_subagent(event.metadata, ended=True)
+         elif event.type == "status":
+             self._log("status", event.content)
+ 
+@@ -969,6 +972,26 @@ class AgentSession:
+         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
+         asyncio.get_event_loop().run_in_executor(_db_executor(), add_log, self.id, datetime.now(timezone.utc), type, content)
+ 
++    def _persist_subagent(self, meta: dict, ended: bool = False) -> None:
++        """Upsert sub-agent telemetry from a Task* event. Fire-and-forget.
++
++        Only the fields the event carries are passed — subagent_upsert's
++        NULLIF-COALESCE keeps prior values, so progress never wipes start's data.
++        """
++        task_id = meta.get("subagent_id")
++        if not task_id:
++            return
++        fields = {k: meta[k] for k in (
++            "sdk_session_id", "tool_use_id", "description", "task_type", "status",
++            "last_tool_name", "output_file", "summary", "raw_json",
++            "total_tokens", "tool_uses", "duration_ms",
++        ) if k in meta}
++        if ended:
++            fields["ended_at"] = datetime.now(timezone.utc).isoformat()
++        from app.db import subagent_upsert
++        asyncio.get_event_loop().run_in_executor(
++            _db_executor(), lambda: subagent_upsert(self.id, task_id, **fields))
++
+     def _to_db_dict(self) -> dict:
+         return {
+             "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
+diff --git a/docs/tasks/subagent-telemetry/codex-review-plan.md b/docs/tasks/subagent-telemetry/codex-review-plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..240e9417cf3d8cad51ae332e43d6215194ced530
+--- /dev/null
++++ b/docs/tasks/subagent-telemetry/codex-review-plan.md
+@@ -0,0 +1,40 @@
++- при кастомных профилях SDK-функции читают `CLAUDE_CONFIG_DIR` из process env, а не из параметра. Значит endpoint должен учитывать `session.profile/config_dir`, иначе будет пусто вне `personal`;
++- если `task_id != agent_id`, нужен fallback через `list_subagents(sdk_session_id, cwd)` и сохранённый mapping. `tool_use_id` тут не мусор, это мост к live `parent_tool_use_id`.
++
++4. **Что собирать из “лишнего”**  
++- `tool_use_id` — собирать обязательно.
++- `session_id` SDK — собирать обязательно как `sdk_session_id`.
++- `uuid` — дешево и полезно для дедупа/debug; хранить хотя бы `start_uuid/end_uuid/last_uuid`.
++- `data: dict` — не колонками. Если требование “ничего не терять” буквально, положить raw JSON в `raw_data_json`/`raw_event_json`. Для аналитики почти наверняка мусор, но без probe выкидывать рано.
++
++Главный blocking не cost, а путаница `sessions.id` vs SDK `session_id` и `task_id` vs `agent_id`. Без этого endpoint транскрипта легко будет возвращать пусто при живых данных.
++tokens used
++147,199
++Вердикт: план правильный по направлению, но перед реализацией надо поправить несколько реальных мест.
++
++1. **Cost**  
++Понимание верное: `ResultMessage.total_cost_usd` уже является total по SDK-сессии, субагенты туда входят. `TaskUsage` хранить только как атрибуцию субагента, не прибавлять к `session.cost_usd`.  
++Дополнить: `TaskProgress.usage` не суммировать по progress-событиям, брать latest/final. Если `TaskNotification.usage is None`, оставить последние progress-значения.
++
++2. **Таблица оправдана, но схема не хватает**  
++Для отдельного чата + токенов таблица `subagents` не оверинжиниринг даже для 1 dev. Это одна маленькая таблица-индекс к SDK JSONL.
++
++Но:
++- `task_id TEXT PRIMARY KEY` рискованно. Лучше `UNIQUE(orchestra_session_id, task_id)` или отдельный `id`, потому что уникальность `task_id` глобально не гарантирована.
++- Нужен отдельный `sdk_session_id` из Task*-message. Сейчас `session_id` в таблице ссылается на `sessions(id)`, а `get_subagent_messages()` требует Claude SDK session id. После compact/current-session смены без `sdk_session_id` старые транскрипты можно потерять.
++- `COALESCE` с пустыми строками не спасает: `''` не `NULL`. Надо либо не передавать пустые поля, либо `COALESCE(NULLIF(excluded.summary,''), summary)`.
++
++3. **Endpoint: runtime-probe нужен, но недостаточен**  
++Плану надо явно зафиксировать:
++- route `{session_id}` должен быть Orchestra DB session id, а в SDK передавать `subagents.sdk_session_id`;
++- `directory` для SDK это `cwd` проекта, не `config_dir`;
++- при кастомных профилях SDK-функции читают `CLAUDE_CONFIG_DIR` из process env, а не из параметра. Значит endpoint должен учитывать `session.profile/config_dir`, иначе будет пусто вне `personal`;
++- если `task_id != agent_id`, нужен fallback через `list_subagents(sdk_session_id, cwd)` и сохранённый mapping. `tool_use_id` тут не мусор, это мост к live `parent_tool_use_id`.
++
++4. **Что собирать из “лишнего”**  
++- `tool_use_id` — собирать обязательно.
++- `session_id` SDK — собирать обязательно как `sdk_session_id`.
++- `uuid` — дешево и полезно для дедупа/debug; хранить хотя бы `start_uuid/end_uuid/last_uuid`.
++- `data: dict` — не колонками. Если требование “ничего не терять” буквально, положить raw JSON в `raw_data_json`/`raw_event_json`. Для аналитики почти наверняка мусор, но без probe выкидывать рано.
++
++Главный blocking не cost, а путаница `sessions.id` vs SDK `session_id` и `task_id` vs `agent_id`. Без этого endpoint транскрипта легко будет возвращать пусто при живых данных.
+diff --git a/docs/tasks/subagent-telemetry/plan.md b/docs/tasks/subagent-telemetry/plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..72dd4c491fc7309c9ad8e4d1a56931e9d24433b2
+--- /dev/null
++++ b/docs/tasks/subagent-telemetry/plan.md
+@@ -0,0 +1,140 @@
++# Plan — полная телеметрия субагентов
++
++**Дата:** 2026-07-01
++**Основа:** research.md. Собрать ВСЁ, ничего не терять, база для «отдельного чата субагента».
++
++---
++
++## Решения по развилкам
++
++### A. Хранилище → **таблица `subagents`** (не JSON в logs)
++Обоснование: юзер хочет «отдельный чат субагента» + cost-аналитику пер-субагент. JSON в logs это не даёт (нельзя query «субагенты сессии X с токенами»). Таблица = одна строка на субагента.
++
++**⚠️ ИСПРАВЛЕНО ПО CODEX (3 blocking):**
++- `task_id` НЕ глобально уникален → PK = автоинкремент `id`, UNIQUE(session_id, task_id).
++- **`sdk_session_id`** обязателен: DB `session_id` = Orchestra id, но `get_subagent_messages()` требует SDK/Claude session_id. Без него транскрипт-endpoint вернёт ПУСТО. Берём из Task*-message.`session_id`.
++- Собрать `tool_use_id` (мост к live parent_tool_use_id), `raw_json` (data-dict, «ничего не терять»).
++
++```sql
++CREATE TABLE IF NOT EXISTS subagents (
++    id INTEGER PRIMARY KEY AUTOINCREMENT,
++    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,  -- Orchestra id
++    task_id TEXT NOT NULL,
++    sdk_session_id TEXT DEFAULT '',       -- Claude SDK session id (для get_subagent_messages)
++    tool_use_id TEXT DEFAULT '',          -- мост к StreamEvent.parent_tool_use_id
++    description TEXT DEFAULT '',
++    task_type TEXT DEFAULT '',
++    status TEXT DEFAULT 'running',        -- running | completed | failed | stopped
++    total_tokens INTEGER DEFAULT 0,
++    tool_uses INTEGER DEFAULT 0,
++    duration_ms INTEGER DEFAULT 0,
++    last_tool_name TEXT DEFAULT '',
++    output_file TEXT DEFAULT '',
++    summary TEXT DEFAULT '',
++    raw_json TEXT DEFAULT '',             -- data-dict финала (ничего не терять)
++    started_at TEXT NOT NULL,
++    ended_at TEXT,
++    UNIQUE(session_id, task_id)
++);
++CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
++```
++Миграция: `CREATE TABLE IF NOT EXISTS` в `init_db`. Без ALTER.
++
++**upsert через `ON CONFLICT(session_id, task_id)`:**
++- COALESCE с `''` НЕ работает (`''` != NULL). Использовать `COALESCE(NULLIF(excluded.x, ''), subagents.x)` — пустое из progress не затирает.
++- Числа (токены): брать latest/final, НЕ суммировать progress-события (`TaskProgress.usage` кумулятивен). `excluded.total_tokens` побеждает если > 0.
++- Если `TaskNotification.usage is None` — оставить последние progress-значения (тот же NULLIF-guard).
++
++### B. Транскрипт → **endpoint пост-фактум** (не стрим в БД)
++`GET /api/subagent/{session_id}/{task_id}/messages?limit=&offset=` → `get_subagent_messages`.
++Обоснование: транскрипт большой, лениво по клику. НЕ дублируем в БД (SDK уже хранит JSONL). База для «чата субагента». Пагинация через SDK limit/offset.
++
++**⚠️ ИСПРАВЛЕНО ПО CODEX:**
++- route `{session_id}` = Orchestra DB id → в БД находим строку subagents → в `get_subagent_messages` передаём **`sdk_session_id`** (не Orchestra id!) и **`agent_id`** (см. probe: task_id или из mapping).
++- `directory` = **cwd проекта** (session.cwd/worktree), НЕ config_dir.
++- Кастомные профили: SDK читает `CLAUDE_CONFIG_DIR` из **process env**, не из параметра. Endpoint должен учитывать `session.profile/config_dir` (выставить env или передать directory). Иначе пусто вне personal-профиля.
++- Path traversal: `task_id`/`session_id` из URL → валидировать (только [\w-], не пускать в fs path напрямую). SDK берёт agent_id для имени файла — санитизировать.
++- fallback: если `task_id != agent_id` (probe покажет) → `list_subagents(sdk_session_id, cwd)` + mapping через tool_use_id.
++
++### C. Cost → **хранить пер-субагент, НЕ прибавлять к session total**
++TaskUsage уже в parent total_cost_usd. `subagents.total_tokens` = только для аналитики/отображения. НЕ трогаем session cost арифметику.
++
++---
++
++## Изменения по файлам
++
++### 1. `app/db.py`
++- `init_db`: `CREATE TABLE subagents` (+ index).
++- `subagent_upsert(task_id, session_id, **fields)` — INSERT OR UPDATE. start создаёт (started_at), progress/end обновляют переданные поля (COALESCE — не затирать пустым).
++- `get_subagents(session_id) -> list[dict]` — для дашборда/аналитики.
++- `get_subagent(task_id) -> dict | None`.
++
++WHY upsert с COALESCE: события приходят start→progress(N раз)→end. Каждое несёт подмножество полей. Не затирать summary пустой строкой из progress.
++
++### 2. `app/backend_claude.py` — доставать ВСЁ
++- `TaskStartedMessage` → event metadata: `{subagent_id, description, task_type, phase:"start"}`.
++- `TaskProgressMessage` → metadata: `{subagent_id, description, last_tool_name, total_tokens, tool_uses, duration_ms, phase:"progress"}` (все 3 из TaskUsage).
++- `TaskNotificationMessage` → metadata: `{subagent_id, status, summary(ПОЛНЫЙ, не [:500]), output_file, total_tokens, tool_uses, duration_ms, phase:"end"}`.
++- Хелпер `_task_usage(usage) -> dict` — вытащить 3 поля из TaskUsage (TypedDict/obj).
++- Content строки для UI оставить (back-compat с subagent visibility рендером), метаданные — в metadata.
++
++### 3. `app/session.py` — persist телеметрию
++- В `_handle_event` для subagent_start/progress/end: помимо `_log` (как сейчас, для TG/чата) → вызвать `subagent_upsert(task_id, session_id, ...)` с полями из metadata.
++- Fire-and-forget через тот же _db_executor (не блокировать loop).
++- subagent_start: upsert(status=running, started_at=now, description, task_type).
++- subagent_progress: upsert(last_tool_name, total_tokens, tool_uses, duration_ms).
++- subagent_end: upsert(status, summary, output_file, ended_at=now, финальные токены).
++
++### 4. `app/routes/sessions.py` (или новый routes/subagent.py)
++- `GET /api/subagents/{session_id}` → get_subagents (список + телеметрия).
++- `GET /api/subagent/{session_id}/{task_id}/messages?limit=100&offset=0` → get_subagent_messages, JSON. Найти `directory` (session store path — из config_dir профиля сессии или CLAUDE_CONFIG_DIR). Обернуть в try — если транскрипта нет, вернуть {messages:[], error}.
++
++### 5. `app/events.py`
++- Дополнить комментарии metadata для subagent_* (subagent_id, phase, токены). Тип не меняем.
++
++---
++
++## Что НЕ трогаем
++- session cost арифметику (двойной счёт!).
++- subagent visibility live-стрим (уже работает, broker-only).
++- Существующий рендер subagent_* на фронте (аккордеон) — metadata добавляется, content-строки сохранены для back-compat.
++
++---
++
++## ✅ PROBE ВЫПОЛНЕН (через SDK source + реальные локальные транскрипты, live не нужен)
++
++Разобрал `claude_agent_sdk/_internal/sessions.py` + проверил на РЕАЛЬНЫХ транскриптах в `~/.claude/projects/`:
++
++1. **Путь**: `~/.claude/projects/<projectDirSlug>/<sdk_session_id>/subagents/**/agent-<agent_id>.jsonl`. Проверено — файлы существуют, `list_subagents` + `get_subagent_messages` РАБОТАЮТ на живых данных (вернули 2 субагента + транскрипт).
++2. **`directory=None` работает** — SDK ищет по всем `~/.claude/projects/`. Безопасный fallback (не нужно вычислять projectDirSlug).
++3. **`session_id` = SDK session UUID** (валидируется как UUID). НЕ Orchestra id. → `sdk_session_id` в таблице ОБЯЗАТЕЛЕН.
++4. **`agent_id` ≠ `task_id`** ⚠️ ПОДТВЕРЖДЕНО: `agent_id` = имя файла `agent-{id}` (напр. `ae795e652a2bbf63a`), в транскрипте только `agentId`, НЕТ task_id/toolUseId. TaskStartedMessage.task_id — ДРУГОЙ идентификатор. Прямой связи task_id↔agent_id в транскрипте НЕТ.
++5. **`data: dict`** — не проверял (нужен live), но по требованию «ничего не терять» → в `raw_json`.
++
++### СЛЕДСТВИЕ для дизайна (ВАЖНО — упрощает):
++**Декуплим таблицу и транскрипт-endpoint:**
++- Таблица `subagents` = телеметрия из Task*-сообщений (task_id, tokens, summary, output_file, sdk_session_id). Ключ — task_id.
++- Транскрипт-endpoint = НЕЗАВИСИМО перечисляет SDK-транскрипты через `list_subagents(sdk_session_id, directory=None)` + `get_subagent_messages`. НЕ требует task_id↔agent_id маппинга.
++- Корреляция таблица↔транскрипт: по `sdk_session_id` + порядок/description (не по общему id). Для MVP достаточно: «вот телеметрия субагентов сессии» + «вот их транскрипты» — фронт покажет оба списка по одной сессии.
++- Endpoints:
++  - `GET /api/subagents/{orchestra_session_id}` → строки из таблицы (телеметрия).
++  - `GET /api/subagent-transcripts/{orchestra_session_id}` → `list_subagents(sdk_session_id)` (список agent_id).
++  - `GET /api/subagent-transcript/{orchestra_session_id}/{agent_id}?limit=&offset=` → `get_subagent_messages(sdk_session_id, agent_id)`. agent_id санитайзить ([\w-]+).
++  - `sdk_session_id` берём из `sessions` таблицы (session.session_id — Claude id) ИЛИ из subagents.sdk_session_id.
++
++---
++
++## Порядок реализации
++1. Runtime-probe (живой субагент) → уточнить task_id/directory/data.
++2. db.py: таблица + upsert + get.
++3. backend_claude.py: доставать все поля в metadata.
++4. session.py: upsert телеметрии.
++5. routes: endpoints (список + транскрипт).
++6. Тесты: upsert (start→progress→end, COALESCE не затирает), get_subagents, endpoint транскрипта (мок get_subagent_messages).
++7. Codex review (Contabo 12343).
++
++## Тесты
++- `subagent_upsert`: start создаёт → progress обновляет токены, НЕ затирает description → end ставит summary/status, COALESCE сохраняет прошлые поля.
++- `get_subagents(session_id)`: возвращает все, сортировка по started_at.
++- endpoint транскрипта: мок get_subagent_messages → JSON; отсутствие файла → graceful {error}.
++- Двойной счёт: убедиться session cost НЕ меняется от subagent usage.
+diff --git a/docs/tasks/subagent-telemetry/report.md b/docs/tasks/subagent-telemetry/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ef7e05da639d8a48c7d26150326fa7765880e5aa
+--- /dev/null
++++ b/docs/tasks/subagent-telemetry/report.md
+@@ -0,0 +1,41 @@
++# Report — полная телеметрия субагентов
++
++**Дата:** 2026-07-01 · **Commit:** 0323651
++
++## Что сделано
++Собираем ВСЁ что SDK 0.2.87 даёт по субагентам. Раньше теряли: output_file, полный summary, tool_uses, duration_ms, транскрипт.
++
++### Файлы (+622/-9)
++- **db.py** (+76): таблица `subagents` + `subagent_upsert` / `get_subagents` / `get_subagent`.
++- **backend_claude.py** (+38): `_task_usage` хелпер, TaskStarted/Progress/Notification → всё в metadata (incl sdk_session_id, tool_use_id, output_file, summary, raw data-dict).
++- **session.py** (+23): `_persist_subagent` — upsert телеметрии (fire-and-forget).
++- **routes/subagent.py** (new, +72): 3 endpoint.
++- **main.py, events.py**: регистрация роутера + доки metadata.
++
++### Endpoints
++- `GET /api/subagents/{session_id}` — телеметрия (tokens/summary/output_file/status).
++- `GET /api/subagent-transcripts/{session_id}` — список agent_id (list_subagents).
++- `GET /api/subagent-transcript/{session_id}/{agent_id}?limit=&offset=` — полный диалог (get_subagent_messages). База для «отдельного чата субагента».
++
++## Ключевые решения
++1. **Двойной счёт cost исключён** — per-subagent tokens хранятся в таблице, НЕ прибавляются к session.cost_usd (ResultMessage.total_cost_usd уже включает субагентов).
++2. **upsert race-safe** — ON CONFLICT DO UPDATE, текст `COALESCE(NULLIF(excluded,''),x)` (progress не затирает start), числа `max()` (TaskUsage кумулятивен → latest, не суммируем).
++3. **Транскрипт декуплен** — agent_id (SDK файл) ≠ task_id (Task message). Транскрипт перечисляется через list_subagents(sdk_session_id), не требует маппинга.
++4. **Path-traversal** — agent_id валидируется `^[\w-]+$` (идёт в имя файла).
++
++## Тесты (18, все зелёные)
++- test_subagents.py (7): upsert start→progress→end, no-wipe, MAX-not-sum, **10-thread concurrent race → no data loss**, distinct, missing→None.
++- test_subagent_routes.py (5): path-traversal 400, missing session 404, no sdk_session, transcript mock read, SDK error graceful.
++- test_backend_stream.py (6): _task_usage + subagent tagging (из subagent-visibility).
++
++## Probe (без live-спавна)
++Разобрал `claude_agent_sdk/_internal/sessions.py` + проверил на РЕАЛЬНЫХ `~/.claude/projects` транскриптах: `list_subagents` + `get_subagent_messages` работают, вернули 2 субагента + диалог. Путь `<proj>/<sdk_session_id>/subagents/agent-<id>.jsonl`. `directory=None` = fallback по всем проектам.
++
++## Codex
++Недоступен: 3 попытки, stdin-hang / timeout (rate-limit + прокси). Вместо — усиленный self-review + **concurrency stress-test** (10 concurrent upserts → MAX tokens=1000 не 5500, description не затёрт). Все 5 flagged-точек оркестратора покрыты.
++
++## Known issues / TODO
++- `test_route_surface_snapshot` fails — ПРЕ-ЭКЗИСТИНГ (enterprise routes) + мои 3 новых route. Snapshot обновить при merge (frozen reference, не моя территория).
++- `data: dict` не проверен рантаймом (нужен live субагент) — сохраняем в raw_json как есть («ничего не терять»).
++- Frontend для endpoints — за frontend-opus (база готова).
++- Codex review impl — переспросить когда прокси/rate-limit стабилизируются.
+diff --git a/docs/tasks/subagent-telemetry/research.md b/docs/tasks/subagent-telemetry/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..060297922a9f83400c6642da5a6ebfdb1f96ead9
+--- /dev/null
++++ b/docs/tasks/subagent-telemetry/research.md
+@@ -0,0 +1,89 @@
++# Research — полная телеметрия субагентов (ничего не терять)
++
++**Дата:** 2026-07-01
++**SDK:** claude-agent-sdk **0.2.87**
++**Задача:** собирать ВСЁ что SDK даёт по субагентам в БД. Сейчас теряем output_file, summary, per-subagent usage, полный транскрипт.
++
++---
++
++## Что SDK реально шлёт (инспект всех полей)
++
++### TaskStartedMessage
++`subtype, data(dict), task_id, description, uuid, session_id, tool_use_id, task_type`
++→ Ловим: description, task_type, task_id. **Теряем: data, uuid, session_id, tool_use_id.**
++
++### TaskProgressMessage
++`subtype, data(dict), task_id, description, usage(TaskUsage), uuid, session_id, tool_use_id, last_tool_name`
++→ Ловим: description, last_tool_name, usage.total_tokens. **Теряем: usage.tool_uses, usage.duration_ms, data, tool_use_id.**
++
++### TaskNotificationMessage (ФИНАЛ субагента — тут больше всего теряем)
++`subtype, data(dict), task_id, status('completed'|'failed'|'stopped'), output_file, summary, uuid, session_id, tool_use_id, usage(TaskUsage|None)`
++→ Ловим: status, summary[:500]. **ТЕРЯЕМ: output_file (файл с результатом субагента!), полный summary, usage (финальные токены!), data.**
++
++### TaskUsage (TypedDict)
++`total_tokens, tool_uses, duration_ms` — полная стоимость/активность субагента.
++
++### StreamEvent (parent_tool_use_id) — уже подключено ✅ (subagent visibility)
++
++### Транскрипт — 2 пути:
++1. **`get_subagent_messages(session_id, agent_id, directory=None, limit=None, offset=0)`** → `list[SessionMessage]`. Читает JSONL-транскрипт субагента. `SessionMessage = {type, uuid, session_id, message, parent_tool_use_id}`.
++2. **`list_subagents(session_id, directory=None)`** → `list[str]` (agent_id всех субагентов сессии).
++3. **SubagentStopHookInput.agent_transcript_path** — путь к JSONL транскрипту (альтернатива).
++
++`agent_id` для get_subagent_messages = **task_id** из Task*-сообщений (проверить рантаймом, но по смыслу совпадает).
++
++---
++
++## Cost субагентов — ВАЖНОЕ УТОЧНЕНИЕ
++
++`ResultMessage.total_cost_usd` (backend_claude.py:340) = **кумулятивная стоимость всей сессии, УЖЕ включает субагентов** (они бегут в той же сессии/биллинге). Значит:
++- **Общий cost НЕ теряется** — субагентские токены уже в parent total_cost_usd.
++- **Теряется ПЕР-СУБАГЕНТ атрибуция**: сколько нажёг КОНКРЕТНЫЙ субагент (только TaskProgress/Notification.usage даёт это).
++→ Не «добавлять к total» (будет двойной счёт!), а **хранить отдельно для аналитики** «этот субагент = N токенов».
++
++⚠️ **РИСК двойного счёта**: если наивно прибавить TaskUsage.total_tokens к session cost — задвоим (они уже в total_cost_usd). Per-subagent usage = ТОЛЬКО для отображения/аналитики, НЕ для арифметики session cost.
++
++---
++
++## Текущее хранилище
++
++`logs` таблица: `(id, session_id, ts, type, content)` — без metadata-колонки. `add_log(session_id, ts, type, content)`.
++Субагентские события сейчас: subagent_start/progress/end логируются как строки `desc | key=val`. Live tool events субагента — broker-only (не в DB, subagent-visibility задача).
++
++Таблицы `subagents` НЕТ.
++
++---
++
++## Что нужно решить (для плана)
++
++### A. Хранилище: JSON в logs vs таблица subagents
++- **JSON в logs.content**: subagent_start/end логируем как JSON со всеми полями. Просто, без миграции. Минус: транскрипт большой, query по субагентам неудобен.
++- **Таблица `subagents`**: `(task_id PK, session_id FK, description, task_type, status, total_tokens, tool_uses, duration_ms, output_file, summary, started_at, ended_at)`. Плюс: query «покажи субагентов сессии», cost-аналитика, база для «отдельного чата субагента» (идея юзера). Минус: миграция + upsert-логика (start→progress→end обновляют одну строку).
++
++### B. Транскрипт: стрим vs endpoint пост-фактум
++- Live-стрим уже частично есть (subagent visibility, эфемерно).
++- **Полный транскрипт**: `GET /api/subagent/{session_id}/{task_id}/messages` → get_subagent_messages. Достаём по клику «раскрыть». Проще стрима, не грузит БД, лениво. **База для «отдельного чата субагента»** (юзер хочет).
++- `directory` param: транскрипты лежат в session store директории. Нужно узнать path (config_dir профиля / CLAUDE_CONFIG_DIR).
++
++### C. Runtime-probe (ещё не сделан — нужен живой субагент)
++- Что реально в `data: dict` каждого Task-типа? (может дублировать явные поля или нести extra).
++- Совпадает ли `task_id` с `agent_id` для get_subagent_messages?
++- Где физически лежат JSONL транскрипты (directory)?
++→ Проверить залогировав сырые msg при живом субагенте (Explore-агенты как юзер гонял).
++
++---
++
++## Файлы под правку
++- `app/backend_claude.py` — TaskProgress/Notification: доставать usage(все 3 поля), output_file, summary(полный), data.
++- `app/session.py` — persist субагентской телеметрии (в logs JSON или в subagents table).
++- `app/db.py` — если таблица subagents: схема + upsert + get.
++- `app/routes/` — endpoint транскрипта (get_subagent_messages).
++- `app/events.py` — возможно новые типы/метаданные.
++
++## Риски
++1. **Двойной счёт cost** — per-subagent usage НЕ прибавлять к session total (уже включён). Только хранить отдельно.
++2. **Транскрипт directory** — нужен правильный path к session store (профиль-зависимый). Если неверный → get_subagent_messages вернёт пусто.
++3. **data dict** — не изучен рантаймом. Может быть пустой/дублирующий. Не блокер, но проверить.
++4. **task_id == agent_id?** — предположение, проверить.
++5. **Объём транскрипта** — большой субагент = много сообщений. Endpoint с limit/offset (SDK поддерживает) — пагинация.
++6. **upsert start→progress→end** — если таблица: start создаёт строку, progress/end обновляют. Race если события вне порядка (маловероятно, но guard).
+diff --git a/tests/test_subagent_routes.py b/tests/test_subagent_routes.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..ecf3bebd76adb176ccd1d1ace84a1427e5a8b80b
+--- /dev/null
++++ b/tests/test_subagent_routes.py
+@@ -0,0 +1,60 @@
++"""Sub-agent transcript endpoints: telemetry list, transcript ids, transcript,
++path-traversal guard."""
++
++import pytest
++
++from app.routes import subagent as sr
++
++
++@pytest.mark.asyncio
++async def test_transcript_rejects_path_traversal():
++    for bad in ("../../etc/passwd", "a/b", "a.b", "..", "x/../y"):
++        r = await sr.subagent_transcript("sess-1", bad)
++        assert r.status_code == 400
++
++
++@pytest.mark.asyncio
++async def test_transcript_ids_missing_session(monkeypatch):
++    monkeypatch.setattr(sr, "get_session", lambda sid: None)
++    r = await sr.subagent_transcript_ids("nope")
++    assert r.status_code == 404
++
++
++@pytest.mark.asyncio
++async def test_transcript_ids_no_sdk_session(monkeypatch):
++    monkeypatch.setattr(sr, "get_session", lambda sid: {"session_id": "", "cwd": "/c"})
++    r = await sr.subagent_transcript_ids("sess-1")
++    assert r["agent_ids"] == []
++
++
++@pytest.mark.asyncio
++async def test_transcript_reads_messages(monkeypatch):
++    monkeypatch.setattr(sr, "get_session",
++                        lambda sid: {"session_id": "550e8400-e29b-41d4-a716-446655440000", "cwd": "/c"})
++
++    class _Msg:
++        type = "user"
++        message = {"content": "hello from subagent"}
++        parent_tool_use_id = None
++
++    import claude_agent_sdk
++    monkeypatch.setattr(claude_agent_sdk, "get_subagent_messages",
++                        lambda *a, **k: [_Msg()])
++    r = await sr.subagent_transcript("sess-1", "ae795e652a2bbf63a")
++    assert r["count"] == 1
++    assert r["messages"][0]["content"] == "hello from subagent"
++
++
++@pytest.mark.asyncio
++async def test_transcript_sdk_error_graceful(monkeypatch):
++    monkeypatch.setattr(sr, "get_session",
++                        lambda sid: {"session_id": "550e8400-e29b-41d4-a716-446655440000", "cwd": "/c"})
++    import claude_agent_sdk
++
++    def boom(*a, **k):
++        raise RuntimeError("store unavailable")
++
++    monkeypatch.setattr(claude_agent_sdk, "get_subagent_messages", boom)
++    r = await sr.subagent_transcript("sess-1", "ae795e652a2bbf63a")
++    assert r["messages"] == []
++    assert "error" in r
+diff --git a/tests/test_subagents.py b/tests/test_subagents.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..48e5e5f0ff4213ea8729743f4e8a1bf23b19f8b7
+--- /dev/null
++++ b/tests/test_subagents.py
+@@ -0,0 +1,104 @@
++"""Sub-agent telemetry: upsert (start→progress→end), no-wipe, latest-tokens."""
++
++from datetime import datetime, timezone
++
++import pytest
++
++
++@pytest.fixture
++def db(tmp_path, monkeypatch):
++    db_path = tmp_path / "test.db"
++    monkeypatch.setattr("app.db.DB_PATH", db_path)
++    from app.db import init_db, save_session
++    init_db()
++    save_session({
++        "id": "sess-1", "name": "w", "scope": "/s", "cwd": "/c",
++        "model": "claude-sonnet-5[1m]", "system_prompt": "",
++        "status": "running", "session_id": "550e8400-e29b-41d4-a716-446655440000",
++        "cost_usd": 0.0, "worktree_path": "/w", "branch": "b",
++        "is_orchestrator": False, "color": "#fff",
++        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
++    })
++    return db_path
++
++
++def test_start_creates_row(db):
++    from app.db import subagent_upsert, get_subagents
++    subagent_upsert("sess-1", "task-a", description="Explore X", task_type="Explore",
++                    status="running", sdk_session_id="550e8400-e29b-41d4-a716-446655440000")
++    rows = get_subagents("sess-1")
++    assert len(rows) == 1
++    assert rows[0]["task_id"] == "task-a"
++    assert rows[0]["description"] == "Explore X"
++    assert rows[0]["status"] == "running"
++    assert rows[0]["sdk_session_id"] == "550e8400-e29b-41d4-a716-446655440000"
++
++
++def test_progress_updates_tokens_without_wiping_desc(db):
++    from app.db import subagent_upsert, get_subagent
++    subagent_upsert("sess-1", "task-a", description="Explore X", task_type="Explore")
++    # progress carries tokens + last_tool but empty description
++    subagent_upsert("sess-1", "task-a", description="", last_tool_name="Bash",
++                    total_tokens=1500, tool_uses=3, duration_ms=4200)
++    sa = get_subagent("sess-1", "task-a")
++    assert sa["description"] == "Explore X"  # NOT wiped by empty progress
++    assert sa["last_tool_name"] == "Bash"
++    assert sa["total_tokens"] == 1500
++    assert sa["tool_uses"] == 3
++
++
++def test_tokens_take_latest_max_not_summed(db):
++    from app.db import subagent_upsert, get_subagent
++    subagent_upsert("sess-1", "task-a", description="X")
++    subagent_upsert("sess-1", "task-a", total_tokens=1000)
++    subagent_upsert("sess-1", "task-a", total_tokens=2500)  # cumulative → latest
++    sa = get_subagent("sess-1", "task-a")
++    assert sa["total_tokens"] == 2500  # max/latest, NOT 3500 (no double-count)
++
++
++def test_end_sets_summary_output_status(db):
++    from app.db import subagent_upsert, get_subagent
++    subagent_upsert("sess-1", "task-a", description="X")
++    subagent_upsert("sess-1", "task-a", total_tokens=900)
++    subagent_upsert("sess-1", "task-a", status="completed", summary="Found 3 files",
++                    output_file="/tmp/out.md", total_tokens=1200,
++                    ended_at=datetime.now(timezone.utc).isoformat())
++    sa = get_subagent("sess-1", "task-a")
++    assert sa["status"] == "completed"
++    assert sa["summary"] == "Found 3 files"
++    assert sa["output_file"] == "/tmp/out.md"
++    assert sa["total_tokens"] == 1200
++    assert sa["ended_at"]
++
++
++def test_two_subagents_same_session_distinct(db):
++    from app.db import subagent_upsert, get_subagents
++    subagent_upsert("sess-1", "task-a", description="A")
++    subagent_upsert("sess-1", "task-b", description="B")
++    rows = get_subagents("sess-1")
++    assert {r["task_id"] for r in rows} == {"task-a", "task-b"}
++
++
++def test_get_subagent_missing_returns_none(db):
++    from app.db import get_subagent
++    assert get_subagent("sess-1", "nope") is None
++
++
++def test_concurrent_upserts_no_data_loss(db):
++    # fire-and-forget upserts run on a thread pool → simulate the race
++    import threading
++    from app.db import subagent_upsert, get_subagent
++    subagent_upsert("sess-1", "task-a", description="X", status="running")
++
++    def worker(n):
++        subagent_upsert("sess-1", "task-a", total_tokens=n * 100, last_tool_name=f"t{n}")
++
++    threads = [threading.Thread(target=worker, args=(i,)) for i in range(1, 11)]
++    for t in threads:
++        t.start()
++    for t in threads:
++        t.join()
++    sa = get_subagent("sess-1", "task-a")
++    assert sa["total_tokens"] == 1000   # MAX wins, not summed (no double-count)
++    assert sa["description"] == "X"     # NULLIF-COALESCE: not wiped by race
++    assert sa["status"] == "running"

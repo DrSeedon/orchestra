@@ -1,0 +1,16 @@
+unparsed labels []
+sonnet bad findings 60 real 49 diffs>=1real 34 / 46 diffs w/ finding 40
+sonnet clean findings 37 real 25 diffs>=1real 19 / 46 diffs w/ finding 26
+luna bad findings 58 real 53 diffs>=1real 38 / 46 diffs w/ finding 40
+luna clean findings 36 real 29 diffs>=1real 24 / 46 diffs w/ finding 26
+bad findings(avg labelers) 59 real min-of-labelers 45 real avg 51.0 precision(min) 76 (64, 85) precision(avg) 86
+clean findings(avg labelers) 37 real min-of-labelers 24 real avg 27.0 precision(min) 65 (49, 78) precision(avg) 73
+both diffs>=1 real (any repeat) bad 18 / 23 (58, 90) clean 13 / 23 (37, 74) fisher p 0.208
+either diffs>=1 real (any repeat) bad 20 / 23 (68, 95) clean 14 / 23 (41, 78) fisher p 0.091
+recall both any-repeat 9 / 23 39 (22, 59) per-run 15 / 46 33
+{'cand-02': [True, True], 'cand-04': [True, False], 'cand-06': [False, False], 'cand-08': [True, True], 'cand-09': [True, True], 'cand-14': [False, False], 'cand-16': [False, False], 'cand-17': [False, False], 'cand-20': [True, True], 'cand-21': [False, False], 'cand-22': [True, True], 'cand-24': [True, False], 'cand-25': [False, False], 'cand-26': [False, False], 'cand-32': [False, False], 'cand-39': [False, False], 'cand-44': [False, False], 'cand-47': [False, True], 'cand-51': [False, False], 'cand-54': [False, False], 'cand-58': [True, True], 'cand-59': [False, False], 'cand-63': [False, False]}
+recall either any-repeat 12 / 23 52 (33, 71) per-run 18 / 46 39
+agree any-real 81 / 92
+repeat agreement of has-finding 42 / 46
+bad paid tok median 21990.0 sec median 19.5
+clean paid tok median 25476.5 sec median 17.45

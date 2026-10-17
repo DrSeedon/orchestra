@@ -1,0 +1,248 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 3314f3d3721cd5b7f855e65e661c7f1f2548a854..4272be1d338e1cb78142e596d46269a4d75bd2bb 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,16 @@
+ # Changelog
+ 
++## v2.34.0 — 2026-08-04 — #37 `HEAD /api/models` для heartbeat
++
++### Added
++- 🪶 **`HEAD /api/models` отвечает 200 с тем же `X-Orchestra-Build` и пустым телом** (`app/routes/system.py`). Отдельный обработчик, а не `methods=["GET","HEAD"]` на существующем: при общем маршруте тело GET'а всё равно вычислялось бы целиком и выбрасывалось транспортом. GET, его ключи и заголовок не тронуты — контракт с живым клиентом цел.
++  - **Triggered case**: `_heartbeatProbe` бьёт в `/api/models` раз в 3 с ради статуса и заголовка версии, а тело выбрасывает. `HEAD` отвечал 405, поэтому выбора у клиента не было.
++  - Тест сравнивает заголовок HEAD и GET **в одном прогоне** и требует пустое тело — проверка именно «заголовок тот же», а не «метод разрешён»: зелёное «405 больше нет» прикрыло бы молча онемевший баннер обновления из #15. Обе мутации красные (нет маршрута → 405; маршрут без заголовка → расхождение с GET).
++  - **Порядок применения**: клиент переводить на HEAD только ПОСЛЕ рестарта. До него живой сервер отвечает 405, и клиентская правка = сломанный баннер версии.
++
++### Reasoning
++- ⚖️ **Экономия по проводу — ≈240 B/с на вкладку, а не 1.5 КБ/с**, как считалось в постановке. 4732 B — это размер несжатого тела, а nginx на боевом пути отдаёт `content-encoding: gzip` и **747 B** (+162 B заголовков). Правку это не отменяет — она в три строки и строго лучше, — но при канале 15–80 КБ/с речь про 0.3–1.6 % полосы. Разбор тела и два источника дублирования (`capabilities` — 3 различных блоба в 12 копиях, 57 % массива; `backend` — побайтовый дубликат `runtime`) — в `docs/tasks/37/report.md`; форму ответа не менял, это ломает живого клиента до рестарта.
++
+ ## v2.33.2 — 2026-08-04 — #34 иконки ролей едут из манифеста, фронтматтер-фолбэк удалён
+ 
+ ### Removed
+diff --git a/app/routes/system.py b/app/routes/system.py
+index cff71c75eee1ccab3ac91026776d57a3e864e015..b2ec2b8754d240ad6ede6b33e62be8959698eec0 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -371,6 +371,13 @@ async def list_models(response: Response):
+     }
+ 
+ 
++@router.head("/api/models")
++async def head_models():
++    """Heartbeat'у нужны только статус и версия сборки — тело GET'а он выбрасывает.
++    Тот же заголовок, что у GET: без него баннер обновления замолчит, не сломавшись."""
++    return Response(status_code=200, headers={"X-Orchestra-Build": build_id()})
++
++
+ @router.post("/api/models/refresh")
+ async def refresh_models_endpoint():
+     from app.models import refresh_models
+diff --git a/docs/tasks/37/report.md b/docs/tasks/37/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..9155978bc1f0eb67dd15eac71f6fa51bcc31d8bf
+--- /dev/null
++++ b/docs/tasks/37/report.md
+@@ -0,0 +1,101 @@
++# #37 — серверная половина: `HEAD /api/models`
++
++## Что сделано
++
++`@router.head("/api/models")` (`app/routes/system.py`) — статус 200, пустое тело, тот же
++заголовок `X-Orchestra-Build`, что у GET. Отдельный обработчик, а не `methods=["GET","HEAD"]`
++на существующем: при общем маршруте тело GET'а всё равно вычислялось бы целиком (`MODELS`,
++`provider_metadata_payload()`, `is_proxy_connected()`) и выбрасывалось транспортом. Здесь не
++вычисляется ничего, кроме `build_id()`.
++
++Тело GET, его набор ключей и заголовок GET не тронуты — контракт с живым клиентом цел.
++
++Проверка — не «метод разрешён», а «заголовок тот же»:
++`test_head_carries_same_build_header_with_empty_body` сравнивает `X-Orchestra-Build` у HEAD
++и GET **в одном прогоне** и требует пустое тело. Обе мутации красные:
++- убрать маршрут HEAD → 405;
++- оставить маршрут, убрать заголовок → падает на сравнении с GET.
++
++Вторая и есть смысл теста: без неё зелёный «метод разрешён» прикрыл бы молча онемевший баннер.
++
++## Замер `/api/models` — цифра в задаче завышена в 6.3 раза
++
++Задача исходит из «4.7 КБ каждые 3 с = 1.57 КБ/с». 4732 B — это размер **несжатого** тела.
++На боевом пути nginx его жмёт:
++
++```
++$ curl --compressed https://orchestra.seedon.ru/api/models
++content-encoding: gzip
++size_download = 747 B          (заголовки ответа — ещё 162 B)
++```
++
++| | по проводу | на 3 с | в секунду |
++|---|---|---|---|
++| GET сейчас | 747 B тела + 162 B заголовков ≈ **909 B** | 909 B | **≈ 300 B/с** |
++| HEAD после правки | ~162 B заголовков + `X-Orchestra-Build` ≈ **190 B** | 190 B | ≈ 63 B/с |
++
++Экономия — **≈ 240 B/с на вкладку**, а не 1.5 КБ/с. Правку это не отменяет (она в три строки
++и строго лучше), но при канале 15–80 КБ/с речь про 0.3–1.6 % полосы, а не про 2–10 %.
++Дальше решать не мне: если исходной целью было «разгрузить канал юзера», порядок величины
++другой, и приоритет клиентской половины стоит пересчитать по этой цифре.
++
++## Что `/api/models` тащит лишнего (форму НЕ менял)
++
++Разбор тела, 4732 B несжатого:
++
++```
++models             4254 B  (12 моделей)
++provider_metadata   852 B  (5 провайдеров)
++proxy_connected       5 B
++```
++
++Внутри `models` по полям, суммарно по всем 12:
++
++```
++capabilities    2430 B   ← 57 % всего массива
++context_length   315 B
++id               279 B
++name             278 B
++provider         274 B
++runtime          243 B
++backend          243 B   ← побайтовый дубликат runtime ("backend": spec.runtime)
++price_*          168 B
++```
++
++Два наблюдения:
++1. **`capabilities` повторяется у каждой модели, а различных блобов всего 3** — по числу
++   рантаймов (`{"event_stream": "per_turn", "hibernate": true, …}`, 8 полей). 12 копий трёх
++   значений — 2430 B вместо ~600 B. Ключ дедупликации уже лежит в самом ответе: `runtime`.
++2. **`backend` — дубликат `runtime` по построению** (`"backend": spec.runtime`, `system.py:357`),
++   то есть каждая модель везёт одно и то же значение дважды.
++
++### После рестарта — что тут можно сделать отдельной задачей
++
++Обе правки меняют форму ответа, а значит ломают живого клиента до рестарта — не трогал.
++Когда рестарт пройдёт и клиент с сервером снова совпадут, тут лежит:
++
++1. **`capabilities` вынести в словарь верхнего уровня** `capabilities_by_runtime` и оставить
++   в модели только `runtime` как ключ: 2430 B → ~600 B, то есть **−1.8 КБ несжатого,
++   ≈40 % тела**. Ключ дедупликации уже есть в самом ответе, новых полей не нужно.
++2. **`backend` убрать** — это `"backend": spec.runtime` (`app/routes/system.py:357`), то есть
++   каждая модель везёт одно и то же значение дважды. Сначала грепнуть фронт: поле читается
++   живым клиентом, и снимать его можно только вместе с клиентской правкой.
++
++Оговорка, без которой цифра врёт: **в сжатом виде выигрыш будет заметно меньше**, чем 1.8 КБ.
++Именно на этих дубликатах gzip и берёт свой коэффициент 6.3 (4732 → 747 B); убрав их из
++тела, мы отбираем у него самую сжимаемую часть. Ожидать стоит десятков-сотни байт по проводу,
++а не полутора килобайт — и решать, стоит ли того смена контракта, надо по этой цифре, а не по
++несжатой. Мерить после правки тем же способом: `curl --compressed` через боевой хост.
++
++## Порядок применения
++
++Правка серверная и обратно совместимая: до рестарта живой сервер продолжает отвечать на HEAD
++405, клиент по-прежнему ходит GET'ом и работает. Клиентскую половину включать **только после
++рестарта** — иначе heartbeat начнёт получать 405, не найдёт `X-Orchestra-Build` и баннер
++версии из #15 замолчит.
++
++Проверка после рестарта:
++```bash
++curl -sI -H "Authorization: Bearer $INTERNAL_TOKEN" -X HEAD http://127.0.0.1:8888/api/models \
++  | grep -i x-orchestra-build      # должен быть непустым и совпадать с GET
++```
+diff --git a/docs/workers/back.md b/docs/workers/back.md
+index 6229c142cc480efb9b3c3cf91d254149d0c14956..c966c4bc6bbd33ea4422470336d6a281041af358 100644
+--- a/docs/workers/back.md
++++ b/docs/workers/back.md
+@@ -77,4 +77,21 @@
+   `TypeError` проглотил обработчик внутри планировщика, и тест навсегда завис на
+   `Event.wait()`. Симптом — пять зелёных точек и тишина. Меняешь сигнатуру seam → сразу
+   `grep "def fake_"` по тестам, а зависший прогон читай как несовпадение сигнатуры, а не как
+-  дедлок в проде.
++  дедлок в проде. **Сформулировал это правило — и следующим же коммитом в него попал:**
++  `blocked_backfill(_scope)` в `tests/test_api.py` остался стоять и блокировал всем полный
++  прогон сутки. Правило работает только как ШАГ, а не как знание: сменил сигнатуру →
++  до коммита `grep -rn "def fake_\|def blocked_\|def stub_" tests/` **и прогнать те файлы,
++  которые её мокают** (мой прогон #28 их не включал — оттуда и дыра).
++
++- **Трафик считать ПО ПРОВОДУ, а не по `len(body)`:** дашборд стоит за nginx, и он жмёт JSON.
++  `/api/models` — 4732 B тела и **747 B** на проводе (+162 B заголовков), коэффициент 6.3.
++  Проверка одной командой: `curl -s -o /dev/null -D - --compressed -H "Authorization: Bearer
++  $INTERNAL_TOKEN" https://orchestra.seedon.ru/<путь> -w '%{size_download}\n'`. Постановка
++  задачи #37 исходила из несжатой цифры и завышала экономию в 6 раз.
++
++- **Добавил маршрут → обнови `tests/route_surface_snapshot.json`.** `test_routes_surface`
++  сравнивает `(path, methods)` со снимком и краснеет на ЛЮБОМ новом маршруте. Снимок
++  регенерируется тем же кодом, что в тесте (`json.dumps(surface, indent=1, ensure_ascii=False)`);
++  перед перезаписью распечатай симметричную разницу — в снимке не должно ПРОПАСТЬ ничего.
++  FastAPI, в отличие от Starlette, HEAD к GET-маршруту сам не добавляет: нужен явный
++  `@router.head`.
+diff --git a/tests/route_surface_snapshot.json b/tests/route_surface_snapshot.json
+index 3aabc340d60bf8734877fa726b7cee50e27044c2..d4fbacf4e7f1cf52ab68b878a855fce5b16f847f 100644
+--- a/tests/route_surface_snapshot.json
++++ b/tests/route_surface_snapshot.json
+@@ -83,6 +83,12 @@
+    "GET"
+   ]
+  ],
++ [
++  "/api/models",
++  [
++   "HEAD"
++  ]
++ ],
+  [
+   "/api/models/refresh",
+   [
+@@ -561,4 +567,4 @@
+    "GET"
+   ]
+  ]
+-]
++]
+\ No newline at end of file
+diff --git a/tests/test_api.py b/tests/test_api.py
+index fa5fddac09b8272348937a71f12bf798bbdd8a0b..0931ccade9f7d18b30e05e9d0d072a69687fb52b 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -1062,7 +1062,7 @@ async def test_merge_exposes_raw_rag_backfill_status(db, monkeypatch, status):
+     )
+     scheduled = []
+ 
+-    def fake_schedule(scope):
++    def fake_schedule(scope, session_name=""):
+         scheduled.append(scope)
+         return status
+ 
+@@ -1112,7 +1112,7 @@ async def test_merge_returns_before_blocked_rag_backfill(db, monkeypatch):
+     started = asyncio.Event()
+     release = asyncio.Event()
+ 
+-    async def blocked_backfill(_scope):
++    async def blocked_backfill(_scope, session_name=None):
+         started.set()
+         await release.wait()
+         return {"files": 1, "logs": 0}
+diff --git a/tests/test_build_signal.py b/tests/test_build_signal.py
+index f137eb2f26d0125648cadbc024703f6754950079..fc61d7c5ca52f786a15d2a8b6630cea61cb4516a 100644
+--- a/tests/test_build_signal.py
++++ b/tests/test_build_signal.py
+@@ -73,6 +73,24 @@ class TestModelsHeader:
+         assert r.headers["X-Orchestra-Build"] == build_id()
+         assert set(r.json()) == {"models", "provider_metadata", "proxy_connected"}
+ 
++    def test_head_carries_same_build_header_with_empty_body(self, tmp_path, monkeypatch):
++        """Проверка не «метод разрешён», а «заголовок тот же»: heartbeat читает только его,
++        и без заголовка баннер обновления замолчал бы, не сломавшись."""
++        from fastapi.testclient import TestClient
++        monkeypatch.setattr("app.db.DB_PATH", tmp_path / "t.db")
++        from app.db import init_db
++        init_db()
++        from app.main import app
++        with TestClient(app) as client:
++            monkeypatch.delenv("DASHBOARD_USER", raising=False)
++            monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
++            head = client.head("/api/models")
++            get = client.get("/api/models")
++        assert head.status_code == 200, head.text
++        assert head.headers.get("X-Orchestra-Build")
++        assert head.headers["X-Orchestra-Build"] == get.headers["X-Orchestra-Build"]
++        assert head.content == b""
++
+ 
+ class TestTemplateCarriesBuild:
+     def test_body_has_data_build(self):

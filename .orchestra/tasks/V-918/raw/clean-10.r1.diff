@@ -1,0 +1,86 @@
+diff --git a/.dockerignore b/.dockerignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..f76ba91600b799921e430f57f5c278f8a831d3e8
+--- /dev/null
++++ b/.dockerignore
+@@ -0,0 +1,18 @@
++.git
++.venv
++__pycache__
++*.pyc
++*.db
++*.db-shm
++*.db-wal
++data/
++worktrees/
++.env
++.claude/
++_screenshots/
++artifacts/
++tests/
++docs/
++deploy/
++scripts/
++*.md
+diff --git a/Dockerfile b/Dockerfile
+new file mode 100644
+index 0000000000000000000000000000000000000000..4ae7a89295412d3c96410a74c64577795aba7fb7
+--- /dev/null
++++ b/Dockerfile
+@@ -0,0 +1,36 @@
++FROM python:3.12-slim
++
++# Install system deps: git, curl, Node.js 22
++RUN apt-get update && apt-get install -y --no-install-recommends \
++    git curl ca-certificates gnupg \
++    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
++    && apt-get install -y --no-install-recommends nodejs \
++    && apt-get clean && rm -rf /var/lib/apt/lists/*
++
++# Install uv
++COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
++
++# Install Claude CLI globally
++RUN npm install -g @anthropic-ai/claude-code
++
++WORKDIR /app
++
++# Install Python deps (cached layer — only re-runs if pyproject.toml/uv.lock changes)
++COPY pyproject.toml uv.lock ./
++RUN uv sync --frozen --no-dev
++
++# Copy application code
++COPY app/ ./app/
++COPY pipelines/ ./pipelines/
++COPY workers/ ./workers/
++
++# Ensure data dirs exist (volumes will overlay these)
++RUN mkdir -p data worktrees
++
++# Git identity required for worktree operations inside the container
++RUN git config --global user.email "orchestra@localhost" \
++    && git config --global user.name "Orchestra"
++
++EXPOSE 8888
++
++CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8888"]
+diff --git a/docker-compose.yml b/docker-compose.yml
+new file mode 100644
+index 0000000000000000000000000000000000000000..1e2781259974faae256641c3dd8f28a3c6aa6834
+--- /dev/null
++++ b/docker-compose.yml
+@@ -0,0 +1,14 @@
++services:
++  orchestra:
++    build: .
++    ports:
++      - "8888:8888"
++    volumes:
++      - ./data:/app/data
++      - ./worktrees:/app/worktrees
++      - ./.env:/app/.env
++      # Mount git config so Claude CLI can create commits inside worktrees
++      - /etc/gitconfig:/etc/gitconfig:ro
++    environment:
++      - PYTHONUNBUFFERED=1
++    restart: unless-stopped

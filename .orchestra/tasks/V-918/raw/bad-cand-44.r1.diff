@@ -1,0 +1,1476 @@
+diff --git a/app/backend_claude.py b/app/backend_claude.py
+index 705e3fa89974fab27126aeb0ccc70d84fdda7f04..57e4e17c5118e3571205db77436311137e940849 100644
+--- a/app/backend_claude.py
++++ b/app/backend_claude.py
+@@ -30,6 +30,8 @@ from app.events import AgentEvent
+ 
+ logger = logging.getLogger(__name__)
+ 
++CLAUDE_INTERRUPT_TIMEOUT = 5.0
++
+ _BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
+ _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
+ # Orchestrators must use spawn_worker instead of the built-in Agent/Task tools —
+@@ -111,6 +113,7 @@ class ClaudeBackend:
+         self._effort = effort
+         self._client: Optional[ClaudeSDKClient] = None
+         self._session_id: str | None = resume_session_id
++        self._pending_model_error = ""
+ 
+     @property
+     def session_id(self) -> Optional[str]:
+@@ -199,12 +202,30 @@ class ClaudeBackend:
+             for event in self._convert(msg):
+                 yield event
+ 
+-    async def interrupt(self) -> None:
+-        if self._client:
+-            try:
+-                await self._client.interrupt()
+-            except Exception as e:
+-                logger.warning(f"ClaudeBackend interrupt failed: {e}")
++    async def interrupt(self) -> bool:
++        """Interrupt the active turn, returning whether the CLI acknowledged it.
++
++        The SDK's control request waits up to 60 seconds by default. Orchestra needs a
++        short bound so a broken control channel cannot leave the Stop request hanging;
++        the session layer hard-disconnects this backend when False is returned.
++        """
++        if not self._client:
++            return True
++        try:
++            await asyncio.wait_for(
++                self._client.interrupt(),
++                timeout=CLAUDE_INTERRUPT_TIMEOUT,
++            )
++            return True
++        except asyncio.TimeoutError:
++            logger.error(
++                "ClaudeBackend interrupt was not acknowledged within %.1fs",
++                CLAUDE_INTERRUPT_TIMEOUT,
++            )
++            return False
++        except Exception as e:
++            logger.warning(f"ClaudeBackend interrupt failed: {e}")
++            return False
+ 
+     async def disconnect(self) -> None:
+         if self._client:
+@@ -310,7 +331,12 @@ class ClaudeBackend:
+                     events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
+             err = getattr(msg, "error", None)
+             if err:
+-                events.append(AgentEvent("error", f"model error: {err}"))
++                self._pending_model_error = str(err)
++                events.append(AgentEvent(
++                    "error",
++                    f"model error: {err}",
++                    metadata={"model_error": str(err)},
++                ))
+ 
+         elif isinstance(msg, UserMessage):
+             sub_id = getattr(msg, "parent_tool_use_id", None)
+@@ -363,8 +389,12 @@ class ClaudeBackend:
+             if msg.session_id:
+                 self._session_id = msg.session_id
+ 
+-            is_err = bool(getattr(msg, "is_error", False))
+-            err_list = getattr(msg, "errors", None) or []
++            model_error = self._pending_model_error
++            self._pending_model_error = ""
++            is_err = bool(getattr(msg, "is_error", False) or model_error)
++            err_list = list(getattr(msg, "errors", None) or [])
++            if model_error and model_error not in err_list:
++                err_list.append(model_error)
+             denials = getattr(msg, "permission_denials", None) or []
+ 
+             cost = getattr(msg, "total_cost_usd", 0) or 0
+@@ -407,6 +437,7 @@ class ClaudeBackend:
+                 "ok": not is_err,
+                 "is_error": is_err,
+                 "errors": err_list,
++                "model_error": model_error,
+                 "stop_reason": sr,
+                 "num_turns": nt,
+                 "cost_usd": cost,
+diff --git a/app/backend_codex.py b/app/backend_codex.py
+index f5ae782197f129f5657b33aa0ef01dc0939ce8bb..35eedb379444a6710701754971423a7f7f04efae 100644
+--- a/app/backend_codex.py
++++ b/app/backend_codex.py
+@@ -151,6 +151,11 @@ class CodexBackend:
+     def session_id(self) -> Optional[str]:
+         return self._thread_id
+ 
++    @property
++    def is_alive(self) -> bool:
++        """Whether the per-turn Codex subprocess is still running."""
++        return self._proc is not None and self._proc.returncode is None
++
+     async def connect(self) -> None:
+         # Codex launches a new subprocess per turn (stateless CLI), so connect is a no-op —
+         # the actual process starts in send() when the first message arrives
+@@ -229,7 +234,13 @@ class CodexBackend:
+             if etype == "thread.started":
+                 self._thread_id = data["thread_id"]
+                 self._rollout_path = None
+-                yield AgentEvent("status", f"codex thread={self._thread_id}")
++                # Persist the resumable thread immediately. A transport failure or
++                # service shutdown can happen before turn.completed arrives.
++                yield AgentEvent(
++                    "status",
++                    f"codex thread={self._thread_id}",
++                    metadata={"session_id": self._thread_id},
++                )
+ 
+             elif etype == "item.completed":
+                 item = data.get("item", {})
+diff --git a/app/backend_protocol.py b/app/backend_protocol.py
+index a2296f6fb410df08b825e7f8ff25f10e3f68eb90..a706a6da5f7818793991fd1b11c6615fb885cd58 100644
+--- a/app/backend_protocol.py
++++ b/app/backend_protocol.py
+@@ -11,5 +11,5 @@ class BackendLike(Protocol):
+     async def connect(self) -> None: ...
+     async def send(self, message: str) -> None: ...
+     async def events(self) -> AsyncIterator[AgentEvent]: ...
+-    async def interrupt(self) -> None: ...
++    async def interrupt(self) -> bool | None: ...
+     async def disconnect(self) -> None: ...
+diff --git a/app/db.py b/app/db.py
+index 4ed5d7aa275fa21255954e5d7bff0afba4a9ffb6..1571c834fadddec40c3498ee2a1b060944a30e9f 100644
+--- a/app/db.py
++++ b/app/db.py
+@@ -746,6 +746,15 @@ def subagent_upsert(session_id: str, task_id: str, **fields) -> None:
+         if k in fields and fields[k]:
+             cols.append(k); vals.append(int(fields[k]))
+             updates.append(f"{k}=MAX(excluded.{k}, subagents.{k})")
++    if fields.get("ended_at") and not fields.get("duration_ms"):
++        # local_bash notifications carry no TaskUsage. Preserve SDK duration
++        # when present; otherwise derive wall time from the persisted lifecycle.
++        updates.append(
++            "duration_ms=CASE WHEN subagents.duration_ms > 0 "
++            "THEN subagents.duration_ms ELSE MAX(0, CAST("
++            "(julianday(excluded.ended_at) - julianday(subagents.started_at)) "
++            "* 86400000 AS INTEGER)) END"
++        )
+     placeholders = ", ".join("?" for _ in cols)
+     set_clause = ", ".join(updates) if updates else "task_id=task_id"
+     with _conn() as c:
+diff --git a/app/manager.py b/app/manager.py
+index 9cf7be76b13e046736dbedf5f224848dc5075ce0..cdbab05d10272a1c77a6477de69eb04118006913 100644
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -1069,7 +1069,12 @@ class SessionManager:
+         return ""
+ 
+     def _make_idle_callback(self, scope: str):
+-        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str], stop_reason: str = ""):
++        async def _on_worker_idle(
++                worker_name: str,
++                worker_scope: str,
++                last_texts: list[str],
++                stop_reason: str = "",
++                turn_ok: bool = True):
+             worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
+             parent = worker_session.parent_name if worker_session else None
+             orch = parent or self._find_orchestrator_name(scope)
+@@ -1081,7 +1086,15 @@ class SessionManager:
+             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
+             ctx = self._context_warning(worker_name)
+             sr = f" (stop_reason={stop_reason})" if stop_reason else ""
+-            msg = f"[from:{worker_name}] [auto-report]{sr} Finished without explicit report. Last output:\n{summary}{ctx}"
++            outcome = (
++                "Finished without explicit report"
++                if turn_ok
++                else "Turn failed before an explicit report"
++            )
++            msg = (
++                f"[from:{worker_name}] [auto-report]{sr} {outcome}. "
++                f"Last output:\n{summary}{ctx}"
++            )
+             logger.info(f"Auto-report: {worker_name} → {orch}")
+             await orch_session.send(msg)
+         return _on_worker_idle
+diff --git a/app/routes/subagent.py b/app/routes/subagent.py
+index f4f68030c5896c05abbe71353336d726e514c131..4695736d8966be087c88803c01b554f48eba609b 100644
+--- a/app/routes/subagent.py
++++ b/app/routes/subagent.py
+@@ -3,17 +3,18 @@
+ Telemetry (tokens/summary/output_file/status) comes from the DB `subagents`
+ table (populated from Task* SDK messages). Full transcripts are read lazily
+ from the SDK's JSONL store via list_subagents / get_subagent_messages — NOT
+-duplicated in our DB. agent_id (SDK file id) != task_id (Task message id), so
+-transcript listing is independent of the telemetry table.
++duplicated in our DB. For local_agent tasks the SDK task_id is the transcript
++agent_id; local_bash tasks are background processes and have no transcript.
+ """
+ 
+ import logging
+ import re
++from datetime import datetime
+ 
+ from fastapi import APIRouter
+ from fastapi.responses import JSONResponse
+ 
+-from app.db import get_subagents, get_session
++from app.db import get_subagent, get_subagents, get_session
+ 
+ logger = logging.getLogger("orchestra.subagent")
+ 
+@@ -22,28 +23,81 @@ router = APIRouter(tags=["subagent"])
+ _SAFE_ID = re.compile(r"^[\w-]+$")  # agent_id goes into a filename — no path traversal
+ 
+ 
++def _duration_ms(row: dict) -> int:
++    """Return SDK duration or derive wall time for legacy/background rows."""
++    duration = int(row.get("duration_ms") or 0)
++    if duration or not row.get("started_at") or not row.get("ended_at"):
++        return duration
++    try:
++        started = datetime.fromisoformat(row["started_at"])
++        ended = datetime.fromisoformat(row["ended_at"])
++    except (TypeError, ValueError):
++        return 0
++    return max(0, round((ended - started).total_seconds() * 1000))
++
++
++def _transcript_ids(rows: list[dict], cwd: str) -> set[str]:
++    """Find persisted local-agent transcripts across all SDK session rotations."""
++    from claude_agent_sdk import list_subagents
++
++    wanted_by_sdk: dict[str, set[str]] = {}
++    for row in rows:
++        if row.get("task_type") == "local_bash":
++            continue
++        sdk_id = row.get("sdk_session_id") or ""
++        task_id = row.get("task_id") or ""
++        if sdk_id and task_id:
++            wanted_by_sdk.setdefault(sdk_id, set()).add(task_id)
++
++    available: set[str] = set()
++    for sdk_id, wanted in wanted_by_sdk.items():
++        try:
++            available.update(wanted.intersection(list_subagents(sdk_id, cwd or None)))
++        except Exception as e:
++            logger.warning("list_subagents failed for %s: %s", sdk_id, e)
++    return available
++
++
+ @router.get("/api/subagents/{session_id}")
+ async def subagents_list(session_id: str):
+-    """Telemetry rows for a session's sub-agents (from Task* messages)."""
+-    return {"subagents": get_subagents(session_id)}
++    """Telemetry for real SDK agents and background tasks, explicitly typed."""
++    rows = get_subagents(session_id)
++    sess = get_session(session_id)
++    available = _transcript_ids(rows, (sess or {}).get("cwd") or "") if sess else set()
++    out = []
++    for source in rows:
++        row = dict(source)
++        is_background = row.get("task_type") == "local_bash"
++        row["kind"] = "background" if is_background else "agent"
++        row["duration_ms"] = _duration_ms(row)
++        row["transcript_id"] = (
++            row.get("task_id") or ""
++        ) if not is_background and row.get("task_id") in available else ""
++        out.append(row)
++    return {"subagents": out}
+ 
+ 
+ @router.get("/api/subagent-transcripts/{session_id}")
+ async def subagent_transcript_ids(session_id: str):
+-    """SDK agent_ids of sub-agents whose transcripts exist for this session."""
++    """SDK agent_ids represented by telemetry, including older SDK sessions."""
+     sess = get_session(session_id)
+     if not sess:
+         return JSONResponse({"error": "session not found"}, status_code=404)
+-    sdk_id = sess.get("session_id") or ""
+-    if not sdk_id:
++    rows = get_subagents(session_id)
++    if not rows and not (sess.get("session_id") or ""):
+         return {"agent_ids": [], "note": "no sdk_session_id yet"}
+-    from claude_agent_sdk import list_subagents
+-    try:
+-        agent_ids = list_subagents(sdk_id, sess.get("cwd") or None)
+-    except Exception as e:
+-        logger.warning(f"list_subagents failed: {e}")
+-        return {"agent_ids": [], "error": str(e)}
+-    return {"agent_ids": agent_ids, "sdk_session_id": sdk_id}
++    agent_ids = _transcript_ids(rows, sess.get("cwd") or "")
++    current_sdk_id = sess.get("session_id") or ""
++    if current_sdk_id:
++        from claude_agent_sdk import list_subagents
++        try:
++            agent_ids.update(list_subagents(
++                current_sdk_id,
++                sess.get("cwd") or None,
++            ))
++        except Exception as e:
++            logger.warning("list_subagents failed for %s: %s", current_sdk_id, e)
++    return {"agent_ids": sorted(agent_ids), "sdk_session_id": current_sdk_id}
+ 
+ 
+ @router.get("/api/subagent-transcript/{session_id}/{agent_id}")
+@@ -54,7 +108,17 @@ async def subagent_transcript(session_id: str, agent_id: str, limit: int = 200,
+     sess = get_session(session_id)
+     if not sess:
+         return JSONResponse({"error": "session not found"}, status_code=404)
+-    sdk_id = sess.get("session_id") or ""
++    telemetry = get_subagent(session_id, agent_id)
++    if telemetry and telemetry.get("task_type") == "local_bash":
++        return {
++            "messages": [],
++            "note": "background tasks do not have transcripts",
++        }
++    sdk_id = (
++        (telemetry or {}).get("sdk_session_id")
++        or sess.get("session_id")
++        or ""
++    )
+     if not sdk_id:
+         return {"messages": [], "note": "no sdk_session_id yet"}
+     from claude_agent_sdk import get_subagent_messages
+diff --git a/app/session.py b/app/session.py
+index 43a36fb07738c8f26e8d4a0cad18b61714137b61..4fd7aecd97b4669adc9ecd2cf5cd5f0abd232c06 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -193,12 +193,15 @@ class AgentSession:
+     _spawn_warning: str = field(default="", repr=False)
+     _auto_continue_count: int = field(default=0, repr=False)
+     _rate_limit_retries: int = field(default=0, repr=False)
++    _server_error_retries: int = field(default=0, repr=False)
+     _session_limit_hit: bool = field(default=False, repr=False)
+     _manually_interrupted: bool = field(default=False, repr=False)
+ 
+     AUTO_CONTINUE_MAX = 5
+     RATE_LIMIT_MAX_RETRIES = 3
+     RATE_LIMIT_DELAY = 30
++    SERVER_ERROR_MAX_RETRIES = 3
++    SERVER_ERROR_RETRY_DELAY = 5
+ 
+     def __post_init__(self) -> None:
+         # Systems over state (ECS): cost/turn/hibernate methods live in systems,
+@@ -317,10 +320,12 @@ class AgentSession:
+             self._persist()
+ 
+     async def send(self, message: str) -> None:
++        # Retry budgets belong to one logical request. A real new message resets both;
++        # each internal retry preserves only its own failure class.
+         if not message.startswith("[system] Retrying after rate limit."):
+-            # Retry budget belongs to one logical request. A real new message starts a new
+-            # budget; internal retry turns deliberately preserve the current count.
+             self._rate_limit_retries = 0
++        if not message.startswith("[system] Retrying after transient server error."):
++            self._server_error_retries = 0
+             self._session_limit_hit = False
+         if self._compacting:
+             self._pending_messages.append(message)
+@@ -901,6 +906,27 @@ class AgentSession:
+             self.status = AgentStatus.IDLE
+             self._persist()
+ 
++    async def _retry_after_server_error(self, delay: int, expected_turn_gen: int) -> None:
++        """Resume through a fresh SDK transport after an upstream stream failure."""
++        await asyncio.sleep(delay)
++        try:
++            async with self._lifecycle_lock:
++                # A real user message already started a newer turn; it supersedes this
++                # automatic retry and must not be duplicated.
++                if self._turn_gen != expected_turn_gen or self.status != AgentStatus.IDLE:
++                    return
++                await self._disconnect_backend()
++            await self.send(
++                "[system] Retrying after transient server error. Continue where you "
++                "left off. Do not repeat completed research; execute the pending "
++                "deliverable now."
++            )
++            logger.info(f"[{self.name}] server-error retry after {delay}s")
++        except Exception as e:
++            logger.warning(f"[{self.name}] server-error retry failed: {e}")
++            self.status = AgentStatus.IDLE
++            self._persist()
++
+     async def _auto_continue(self) -> None:
+         await asyncio.sleep(1)
+         try:
+diff --git a/app/session_hibernate.py b/app/session_hibernate.py
+index bb77db8ad99be019dc7ba30fe6507929df0fc3b1..4565c3f5cdab2624879e120bb154480493f75428 100644
+--- a/app/session_hibernate.py
++++ b/app/session_hibernate.py
+@@ -17,7 +17,7 @@ if TYPE_CHECKING:
+ 
+ logger = logging.getLogger("app.session")
+ 
+-ZOMBIE_TIMEOUT_CODEX = 600
++CODEX_SILENCE_WARNING = 600
+ ZOMBIE_TIMEOUT_CLAUDE = 1800
+ HEARTBEAT_INTERVAL = 60
+ 
+@@ -25,6 +25,20 @@ HEARTBEAT_INTERVAL = 60
+ class HibernateManager:
+     def __init__(self, s: "AgentSession") -> None:
+         self.s = s
++        self._last_codex_silence_warning = 0.0
++
++    @staticmethod
++    def _codex_runtime_dead(s: "AgentSession") -> bool:
++        """Return true only when a Codex runtime component is definitely gone.
++
++        Silence alone is not proof: Codex may spend a long time reasoning or running a
++        tool without producing JSONL events. Process and listener state are observable.
++        """
++        if s._backend is None:
++            return True
++        if s._listen_task is None or s._listen_task.done():
++            return True
++        return getattr(s._backend, "is_alive", None) is False
+ 
+     def schedule(self) -> None:
+         s = self.s
+@@ -60,11 +74,12 @@ class HibernateManager:
+                 await asyncio.sleep(HEARTBEAT_INTERVAL)
+ 
+                 if s.status == AgentStatus.RUNNING and s._last_msg_time > 0:
+-                    silence = asyncio.get_event_loop().time() - s._last_msg_time
+-                    zombie_timeout = ZOMBIE_TIMEOUT_CODEX if s.backend_type == "codex" else ZOMBIE_TIMEOUT_CLAUDE
++                    now = asyncio.get_event_loop().time()
++                    silence = now - s._last_msg_time
++                    zombie_timeout = CODEX_SILENCE_WARNING if s.backend_type == "codex" else ZOMBIE_TIMEOUT_CLAUDE
+                     if silence > zombie_timeout:
+-                        if s.backend_type == "codex" or s._backend is None:
+-                            logger.error(f"[{s.name}] heartbeat: zombie detected ({silence:.0f}s silence, backend={'alive' if s._backend else 'dead'})")
++                        if s.backend_type == "codex" and self._codex_runtime_dead(s):
++                            logger.error(f"[{s.name}] heartbeat: dead Codex runtime detected ({silence:.0f}s silence)")
+                             s._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
+                             if s._backend:
+                                 await s._disconnect_backend()
+@@ -72,6 +87,23 @@ class HibernateManager:
+                             s._persist()
+                             if s._pending_messages:
+                                 s._spawn_bg(s._flush_pending())
++                        elif s.backend_type == "codex":
++                            # Long quiet turns are valid. Keep them alive and report at
++                            # most once per warning interval; manual interrupt remains
++                            # available for a genuinely wedged upstream process.
++                            if now - self._last_codex_silence_warning >= CODEX_SILENCE_WARNING:
++                                logger.warning(
++                                    f"[{s.name}] heartbeat: {silence:.0f}s silence, "
++                                    "Codex process and listener still alive"
++                                )
++                                self._last_codex_silence_warning = now
++                        elif s._backend is None:
++                            logger.error(f"[{s.name}] heartbeat: zombie detected ({silence:.0f}s silence, backend=dead)")
++                            s._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
++                            s.status = AgentStatus.IDLE
++                            s._persist()
++                            if s._pending_messages:
++                                s._spawn_bg(s._flush_pending())
+                         else:
+                             logger.warning(f"[{s.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
+                             s._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
+diff --git a/app/session_turns.py b/app/session_turns.py
+index 4b84717b457dc94554485817c92f330ff4356423..634a67f898c9e76d4ccac39ed9da3faf326c4796 100644
+--- a/app/session_turns.py
++++ b/app/session_turns.py
+@@ -101,7 +101,13 @@ class TurnManager:
+ 
+         async def _do_report():
+             try:
+-                await s.on_idle(s.name, s.scope, last_texts, stop_reason)
++                await s.on_idle(
++                    s.name,
++                    s.scope,
++                    last_texts,
++                    stop_reason,
++                    s._last_turn_ok,
++                )
+             except Exception as e:
+                 logger.error(f"Auto-report failed for {s.name}: {e}")
+ 
+@@ -138,6 +144,24 @@ class TurnManager:
+         else:
+             s._auto_continue_count = 0
+ 
++        server_error_retry = None
++        model_error = str(meta.get("model_error") or "")
++        if not ok and model_error == "server_error":
++            if s._server_error_retries < s.SERVER_ERROR_MAX_RETRIES:
++                s._server_error_retries += 1
++                delay = s.SERVER_ERROR_RETRY_DELAY * s._server_error_retries
++                server_error_retry = (delay, s._turn_gen)
++                s._log(
++                    "status",
++                    f"transient server_error — fresh-backend retry in {delay}s "
++                    f"({s._server_error_retries}/{s.SERVER_ERROR_MAX_RETRIES})",
++                )
++            else:
++                s._log(
++                    "error",
++                    f"server_error — gave up after {s.SERVER_ERROR_MAX_RETRIES} retries",
++                )
++
+         live_pct = s._last_context.get("percentage", 0)
+         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
+         def _fc(v):
+@@ -146,7 +170,12 @@ class TurnManager:
+         s._log("status", f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total {ctx_s}){limits_s}")
+ 
+         self.finish_turn_status()
+-        self.after_turn_idle_actions(live_pct)
++        self.after_turn_idle_actions(
++            live_pct,
++            allow_auto_report=server_error_retry is None,
++        )
++        if server_error_retry is not None:
++            s._spawn_bg(s._retry_after_server_error(*server_error_retry))
+ 
+     def finish_turn_status(self) -> None:
+         """Set IDLE or WAITING based on bg jobs, then persist."""
+@@ -161,7 +190,8 @@ class TurnManager:
+             s.progress_status = ""
+         s._persist()
+ 
+-    def after_turn_idle_actions(self, live_pct: int) -> None:
++    def after_turn_idle_actions(
++            self, live_pct: int, *, allow_auto_report: bool = True) -> None:
+         """Post-turn actions: compact ack, scope idle, auto-compact, auto-report, flush/hibernate."""
+         s = self.s
+         if s._compact_ack_event is not None and s._turn_gen == s._compact_ack_gen:
+@@ -178,7 +208,7 @@ class TurnManager:
+         # Don't auto-report mid-flight: WAITING means a bg job (e.g. codex_review) is
+         # still running and will wake the worker with its result — the turn isn't
+         # really "done", so reporting now spams a half-status to the orchestrator.
+-        if s.status != AgentStatus.WAITING:
++        if allow_auto_report and s.status != AgentStatus.WAITING:
+             self.fire_auto_report()
+ 
+         if s._pending_messages:
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 7b0b7e904a0a3d50708b1b4e398b39dbdcb83eea..c434269ad8e38bbb1e76b83da426361f4329f04e 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -4836,19 +4836,33 @@ async function _loadSubagents() {
+     body.innerHTML = '<div class="text-center text-slate-500 py-8">Loading...</div>';
+     try {
+         const sid = manager_session_id_for(selectedAgent);
+-        // Telemetry + transcript agent_ids in parallel. agent_id (SDK file id) != task_id,
+-        // so map telemetry cards → transcript ids by index (both time-ordered).
+-        const [data, tData] = await Promise.all([
+-            api(`/api/subagents/${encodeURIComponent(sid)}`),
+-            api(`/api/subagent-transcripts/${encodeURIComponent(sid)}`).catch(() => ({ agent_ids: [] })),
+-        ]);
++        const data = await api(`/api/subagents/${encodeURIComponent(sid)}`);
+         const subs = (data && data.subagents) || [];
+-        const agentIds = (tData && tData.agent_ids) || [];
+         if (!subs.length) {
+-            body.innerHTML = '<div class="text-center text-slate-500 py-8 italic">Этот агент ещё не запускал субагентов.</div>';
++            body.innerHTML = '<div class="text-center text-slate-500 py-8 italic">Здесь пока нет ни SDK-агентов, ни фоновых задач.</div>';
+             return;
+         }
+-        body.innerHTML = subs.map((s, i) => _renderSubagentCard(s, i, agentIds[i] || '')).join('');
++        const byNewest = (a, b) => String(b.started_at || '').localeCompare(String(a.started_at || ''));
++        const agents = subs.filter(s => s.kind !== 'background').sort(byNewest);
++        const jobs = subs.filter(s => s.kind === 'background').sort(byNewest);
++        const activeCount = subs.filter(s => s.status === 'running').length;
++
++        const sections = [
++            `<div class="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
++                <span class="rounded-full bg-purple-500/10 px-2 py-1 text-purple-300">🤖 SDK-агенты: ${agents.length}</span>
++                <span class="rounded-full bg-sky-500/10 px-2 py-1 text-sky-300">⚙️ Фоновые задачи: ${jobs.length}</span>
++                ${activeCount ? `<span class="rounded-full bg-amber-500/10 px-2 py-1 text-amber-300">⏳ Активны: ${activeCount}</span>` : ''}
++            </div>`,
++        ];
++        if (agents.length) {
++            sections.push(`<section class="mb-5">
++                <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-purple-300">SDK-агенты</h3>
++                ${agents.map((s, i) => _renderSubagentCard(s, i)).join('')}
++            </section>`);
++        }
++        if (jobs.length) sections.push(_renderBackgroundJobs(jobs));
++        body.innerHTML = sections.join('');
++
+         // Wire transcript toggles
+         body.querySelectorAll('.sa-transcript-btn').forEach(btn => {
+             btn.addEventListener('click', () => _toggleTranscript(btn, sid));
+@@ -4886,39 +4900,59 @@ function _subagentTitle(s) {
+     return t.length > 80 ? t.slice(0, 80) + '…' : t;
+ }
+ 
+-function _renderSubagentCard(s, idx, transcriptId) {
++function _subagentStatus(s) {
+     const statusMap = {
+         completed: ['🟢', '#22c55e', 'completed'],
+         failed: ['🔴', '#ef4444', 'failed'],
+         running: ['⏳', '#eab308', 'running'],
++        stopped: ['⏹️', '#94a3b8', 'stopped'],
+     };
+-    const [icon, color, label] = statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
++    return statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
++}
++
++function _subagentDuration(s) {
++    if (s.duration_ms) return _fmtDuration(s.duration_ms);
++    if (s.status === 'running' && s.started_at) {
++        const elapsed = Date.now() - new Date(s.started_at).getTime();
++        if (Number.isFinite(elapsed) && elapsed >= 0) return _fmtDuration(elapsed);
++    }
++    return '';
++}
++
++function _meaningfulSummary(s) {
++    const summary = String(s.summary || '').trim();
++    if (!summary) return '';
++    const normalize = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
++    return normalize(summary) === normalize(s.description) ? '' : summary;
++}
++
++function _renderSubagentCard(s, idx) {
++    const [icon, color, label] = _subagentStatus(s);
+     const desc = _escHtml(_subagentTitle(s));
+-    const taskType = s.task_type ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">${_escHtml(s.task_type)}</span>` : '';
+-    // "—" for missing data (local_bash sub-agents have no usage), not misleading "0"
+-    const metrics = [
+-        `🔢 ${s.total_tokens ? _fmtTokens(s.total_tokens) : '—'}`,
+-        `🔧 ${s.tool_uses ? s.tool_uses : '—'}`,
+-        `⏱️ ${s.duration_ms ? _fmtDuration(s.duration_ms) : '—'}`,
+-    ];
++    const metrics = [];
++    if (s.total_tokens) metrics.push(`🔢 ${_fmtTokens(s.total_tokens)}`);
++    if (s.tool_uses) metrics.push(`🔧 ${s.tool_uses}`);
++    const duration = _subagentDuration(s);
++    if (duration) metrics.push(`⏱️ ${duration}`);
+     if (s.last_tool_name) metrics.push(`⚙️ ${_escHtml(s.last_tool_name)}`);
+ 
+     let summaryBlock = '';
+-    if (s.summary) {
++    const summary = _meaningfulSummary(s);
++    if (summary) {
+         summaryBlock = `<div class="mt-2">
+             <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">▶ Показать summary</button>
+-            <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(s.summary)}</div>
++            <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(summary)}</div>
+         </div>`;
+     }
+     let fileBlock = '';
+     if (s.output_file) {
+         fileBlock = `<div class="mt-1 text-[10px] text-slate-500">📄 <span class="text-emerald-400 break-all">${_escHtml(s.output_file)}</span></div>`;
+     }
+-    const agentId = transcriptId || '';
++    const agentId = s.transcript_id || '';
+     const transcriptBtn = agentId
+         ? `<button class="sa-transcript-btn text-[10px] px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-purple-200 transition-colors" data-agent-id="${_escHtml(agentId)}" data-idx="${idx}">📜 Транскрипт</button>
+            <div class="sa-transcript-panel hidden mt-2"></div>`
+-        : `<span class="text-[10px] text-slate-600 italic">транскрипт недоступен</span>`;
++        : `<span class="text-[10px] text-slate-600 italic">транскрипт ещё не записан</span>`;
+ 
+     return `<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-3 mb-3" style="border-left:3px solid ${color}">
+         <div class="flex items-start justify-between gap-2 mb-2">
+@@ -4926,20 +4960,59 @@ function _renderSubagentCard(s, idx, transcriptId) {
+                 <div class="flex items-center gap-2 flex-wrap">
+                     <span class="text-sm">🤖</span>
+                     <span class="text-xs font-semibold text-white break-words">${desc}</span>
+-                    ${taskType}
++                    <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">agent</span>
+                 </div>
+             </div>
+             <span class="text-[10px] font-mono shrink-0" style="color:${color}">${icon} ${label}</span>
+         </div>
+-        <div class="flex items-center gap-3 flex-wrap text-[11px] text-slate-400">
+-            ${metrics.map(m => `<span>${m}</span>`).join('')}
+-        </div>
++        ${metrics.length ? `<div class="flex items-center gap-3 flex-wrap text-[11px] text-slate-400">${metrics.map(m => `<span>${m}</span>`).join('')}</div>` : ''}
+         ${fileBlock}
+         ${summaryBlock}
+         <div class="mt-2">${transcriptBtn}</div>
+     </div>`;
+ }
+ 
++function _renderBackgroundJob(s) {
++    const [icon, color, label] = _subagentStatus(s);
++    const duration = _subagentDuration(s);
++    const summary = _meaningfulSummary(s);
++    const details = summary
++        ? `<div class="mt-1 text-[10px] text-slate-400">${_saCollapsible(summary, 180)}</div>`
++        : '';
++    const output = s.output_file
++        ? `<div class="mt-1 text-[10px] text-emerald-400 break-all">📄 ${_escHtml(s.output_file)}</div>`
++        : '';
++    return `<div class="rounded-lg border border-slate-800/80 bg-slate-950/30 px-3 py-2" style="border-left:2px solid ${color}">
++        <div class="flex items-start justify-between gap-3">
++            <div class="min-w-0 flex-1">
++                <div class="text-[11px] font-medium text-slate-200 break-words">${_escHtml(_subagentTitle(s))}</div>
++                ${details}${output}
++            </div>
++            <div class="shrink-0 text-right">
++                <div class="text-[10px] font-mono" style="color:${color}">${icon} ${label}</div>
++                ${duration ? `<div class="mt-1 text-[10px] text-slate-500">⏱️ ${duration}</div>` : ''}
++            </div>
++        </div>
++    </div>`;
++}
++
++function _renderBackgroundJobs(jobs) {
++    const pinned = jobs.filter(s => s.status === 'running' || s.status === 'failed');
++    const completed = jobs.filter(s => s.status !== 'running' && s.status !== 'failed');
++    const recent = completed.slice(0, 12);
++    const visibleIds = new Set([...pinned, ...recent].map(s => s.task_id));
++    const visible = jobs.filter(s => visibleIds.has(s.task_id));
++    const older = completed.slice(12);
++    return `<section>
++        <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300">Фоновые задачи</h3>
++        <div class="space-y-2">${visible.map(_renderBackgroundJob).join('')}</div>
++        ${older.length ? `<details class="mt-3 rounded-lg border border-slate-800/70 bg-slate-950/20 p-2">
++            <summary class="cursor-pointer select-none text-[10px] text-slate-400 hover:text-slate-200">Показать старые задачи (${older.length})</summary>
++            <div class="mt-2 space-y-2">${older.map(_renderBackgroundJob).join('')}</div>
++        </details>` : ''}
++    </section>`;
++}
++
+ async function _toggleTranscript(btn, sid) {
+     const panel = btn.parentElement.querySelector('.sa-transcript-panel');
+     if (!panel) return;
+diff --git a/app/templates/dashboard.html b/app/templates/dashboard.html
+index b08fbadc52e200a8978b0dbc40b1bca2593f9eec..b2d03ee85646970d088ca46c7ee98e624d10d27c 100644
+--- a/app/templates/dashboard.html
++++ b/app/templates/dashboard.html
+@@ -187,11 +187,11 @@
+       </div>
+     </div>
+ 
+-    <!-- Sub-agents Modal -->
++    <!-- Agent activity modal -->
+     <div id="subagents-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeSubagentsModal()">
+       <div class="glass glow rounded-xl p-6 w-[90vw] max-w-3xl max-h-[85vh] flex flex-col">
+         <div class="flex justify-between items-center mb-4">
+-          <h2 class="text-sm font-bold text-white">🤖 Sub-agents · <span id="subagents-modal-agent" class="text-purple-300"></span></h2>
++          <h2 class="text-sm font-bold text-white">🤖 Agent activity · <span id="subagents-modal-agent" class="text-purple-300"></span></h2>
+           <button class="text-slate-400 hover:text-white text-lg" onclick="closeSubagentsModal()">✕</button>
+         </div>
+         <div id="subagents-body" class="flex-1 overflow-auto text-xs text-slate-300"></div>
+diff --git a/docs/tasks/sol-runtime-fixes/HANDOFF.md b/docs/tasks/sol-runtime-fixes/HANDOFF.md
+index bcde53c25fc62d5ff708832e61d8484e4ff90723..cb64df1bab39f26a021b18a714516ce351d35306 100644
+--- a/docs/tasks/sol-runtime-fixes/HANDOFF.md
++++ b/docs/tasks/sol-runtime-fixes/HANDOFF.md
+@@ -1,7 +1,29 @@
+ # Handoff: адаптация Orchestra под Codex / Sol
+ 
+ Дата: 2026-07-16  
+-Статус: реализовано, применено рестартом, live E2E пройден. Изменения не закоммичены.
++Статус: runtime-фиксы применялись ранее; новые фиксы ложных Codex/Claude timeout и Claude interrupt реализованы и протестированы, но сервис после них не перезапускался. Изменения не закоммичены.
++
++## Дополнение: ложная смерть Codex turn на 600-й секунде
++
++- `research-grok-build` не завис: с `16:37:00` до `16:46:58` от него продолжали приходить tool events. Orchestra убила backend ровно в `16:47:00` собственным `asyncio.timeout(600)`.
++- Прокси действительно оборвался в `16:43:53`, но Codex восстановил HTTPS transport к `16:44:10` и продолжил работу. Это сопутствующий сбой, не причина убийства.
++- Удалён абсолютный timeout всего Codex turn. Завершение теперь определяется потоком Codex (`turn.completed`/exit) или явным interrupt.
++- Heartbeat после 10 минут тишины не убивает живой Codex: recovery происходит только если исчез backend, завершился subprocess или умер listener. Тишина живого процесса только логируется.
++- `thread_id` сохраняется сразу по `thread.started`, поэтому restart/обрыв до `turn.completed` больше не лишает Orchestra возможности `codex exec resume`.
++- Исправлен self-cancel: `_disconnect_backend()` больше не отменяет и не `await`-ит heartbeat, если вызван из самого heartbeat.
++- Регрессионные тесты: `6 passed` для новых контрактов; расширенный набор — `72 passed, 1` известный несвязанный flaky `test_auto_report_fires_after_idle_timeout`. `compileall` и `git diff --check` прошли.
++- Для применения нужен явный рестарт `orchestra.service`; по правилам проекта в этой сессии он не выполнялся.
++
++## Дополнение: Claude SDK turn timeout и interrupt
++
++- В БД найдено `76` ложных `Turn timeout (600s)` у `32` Claude-сессий за 2026-07-09—16.
++- Старый код проверял возраст turn только при получении очередного события. После 600 секунд он выбрасывал именно это событие через `continue` и инжектил `[system] Turn timed out...` в живой SDK-stream; это могло разорвать пару `tool_use/tool_result` и породить `stop_reason=tool_use`.
++- Удалён абсолютный Claude turn timeout. Реальные stream failures по-прежнему проходят через существующий reconnect с лимитом пяти последовательных ошибок; heartbeat следит за listener отдельно.
++- SDK `interrupt()` внутри ждёт control response до `60s`. Orchestra теперь ждёт acknowledgement максимум `5s`; при timeout/error закрывает backend, чтобы модель не продолжала работать после отображения `idle`.
++- Состояние `idle` публикуется до ожидания control response под lifecycle lock. Новое сообщение ждёт завершения interrupt и начинает чистый turn вместо mid-turn injection.
++- Явный interrupt подавляет stale auto-report оборванного turn; следующий новый/queued/compact turn сбрасывает этот флаг.
++- `claude-agent-sdk` обновлён с `0.2.87` до `0.2.114`; минимальная версия `0.2.111`, где Anthropic исправил zombie CLI subprocess при asyncio cancellation.
++- Проверка затронутого набора: `64 passed, 1 deselected`; расширенный lifecycle/API/manager набор: `203 passed, 4 deselected` (известный flaky auto-report и три несвязанных manager-теста). `compileall` и `git diff --check` прошли.
+ 
+ ## Что сделано
+ 
+diff --git a/pyproject.toml b/pyproject.toml
+index bfcc60accf27f5732cf31d38a6a48f24e0869d86..d26077f21ca2c85552ef27a201bfe948ac9995f4 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -3,7 +3,7 @@ name = "orchestra"
+ version = "0.1.0"
+ requires-python = ">=3.12"
+ dependencies = [
+-    "claude-agent-sdk>=0.1.72",
++    "claude-agent-sdk>=0.2.111",
+     "fastapi>=0.115,<1.0",
+     "uvicorn[standard]>=0.34,<1.0",
+     "jinja2>=3.1,<4.0",
+diff --git a/tests/test_backend_claude.py b/tests/test_backend_claude.py
+index a05cd8cba7874bbaa96a029492d21c2695b39f06..6b6087b576405034454833ea34476104831e13a0 100644
+--- a/tests/test_backend_claude.py
++++ b/tests/test_backend_claude.py
+@@ -4,7 +4,9 @@ import asyncio
+ from unittest.mock import AsyncMock, patch
+ 
+ import pytest
++from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
+ 
++import app.backend_claude as backend_claude
+ from app.backend_claude import ClaudeBackend
+ 
+ 
+@@ -48,3 +50,70 @@ async def test_reconnect_timeout_disconnects_client():
+         with pytest.raises(TimeoutError):
+             await b.reconnect()
+     assert b._client is None
++
++
++@pytest.mark.asyncio
++async def test_interrupt_returns_true_on_control_ack():
++    client = AsyncMock()
++    client.interrupt = AsyncMock()
++    b = _backend()
++    b._client = client
++
++    assert await b.interrupt() is True
++    client.interrupt.assert_awaited_once()
++
++
++@pytest.mark.asyncio
++async def test_interrupt_is_bounded_when_control_ack_never_arrives(monkeypatch):
++    async def never_returns():
++        await asyncio.Event().wait()
++
++    client = AsyncMock()
++    client.interrupt = never_returns
++    b = _backend()
++    b._client = client
++    monkeypatch.setattr(backend_claude, "CLAUDE_INTERRUPT_TIMEOUT", 0.02, raising=False)
++
++    result = await asyncio.wait_for(b.interrupt(), timeout=0.2)
++
++    assert result is False
++
++
++def test_server_error_is_carried_into_terminal_turn_result():
++    b = _backend()
++
++    error_events = b._convert(AssistantMessage(
++        content=[TextBlock("API Error: Response stalled mid-stream.")],
++        model="claude-opus-4-8",
++        error="server_error",
++    ))
++    result_events = b._convert(ResultMessage(
++        subtype="result",
++        duration_ms=301_000,
++        duration_api_ms=301_000,
++        is_error=True,
++        num_turns=1,
++        session_id="sdk-server-error",
++        stop_reason="stop_sequence",
++        errors=[],
++    ))
++
++    assert error_events[-1].type == "error"
++    assert error_events[-1].metadata["model_error"] == "server_error"
++    turn_end = result_events[-1]
++    assert turn_end.type == "turn_end"
++    assert turn_end.metadata["ok"] is False
++    assert turn_end.metadata["model_error"] == "server_error"
++    assert turn_end.metadata["errors"] == ["server_error"]
++
++    next_result = b._convert(ResultMessage(
++        subtype="result",
++        duration_ms=10,
++        duration_api_ms=10,
++        is_error=False,
++        num_turns=1,
++        session_id="sdk-server-error",
++        stop_reason="stop_sequence",
++    ))[-1]
++    assert next_result.metadata["model_error"] == ""
++    assert next_result.metadata["errors"] == []
+diff --git a/tests/test_backend_codex.py b/tests/test_backend_codex.py
+index a943c5116d7b840ebc142eb1564e4b3eebafdbd0..547c8e6da83305e41fed827547b948f090df0db4 100644
+--- a/tests/test_backend_codex.py
++++ b/tests/test_backend_codex.py
+@@ -7,6 +7,7 @@ Regression net for the three bugs found in the codex-integration audit:
+ """
+ 
+ import json
++from types import SimpleNamespace
+ 
+ import pytest
+ 
+@@ -146,3 +147,31 @@ def test_codex_inherits_orchestra_proxy(monkeypatch):
+     env = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")._build_env()
+     assert env["HTTPS_PROXY"] == "http://127.0.0.1:12343"
+     assert env["HTTP_PROXY"] == "http://127.0.0.1:12343"
++
++
++@pytest.mark.asyncio
++async def test_thread_started_exposes_session_id_before_turn_completion():
++    class FakeStdout:
++        async def readline(self):
++            return b'{"type":"thread.started","thread_id":"thread-early"}\n'
++
++    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
++    backend._proc = SimpleNamespace(stdout=FakeStdout(), returncode=None)
++
++    events = backend.events()
++    event = await anext(events)
++    await events.aclose()
++
++    assert event.type == "status"
++    assert event.metadata["session_id"] == "thread-early"
++
++
++def test_is_alive_tracks_codex_process_state():
++    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
++    assert backend.is_alive is False
++
++    backend._proc = SimpleNamespace(returncode=None)
++    assert backend.is_alive is True
++
++    backend._proc.returncode = 0
++    assert backend.is_alive is False
+diff --git a/tests/test_session.py b/tests/test_session.py
+index 11f5fc569c7ae9d9aabc6c6adacb2da48691a969..513b13a62710a7704c3defb42bd261862e7ce217 100644
+--- a/tests/test_session.py
++++ b/tests/test_session.py
+@@ -238,13 +238,139 @@ class TestStop:
+ 
+         assert session.status == AgentStatus.IDLE
+ 
++    @pytest.mark.asyncio
++    async def test_interrupt_marks_idle_first_and_disconnects_on_missing_ack(self, session):
++        from app.session import AgentStatus
++
++        observed = {}
++
++        class InterruptBackend:
++            disconnected = False
++
++            async def interrupt(self):
++                observed["status"] = session.status
++                observed["lock"] = session._lifecycle_lock.locked()
++                return False
++
++            async def disconnect(self):
++                self.disconnected = True
++
++        backend = InterruptBackend()
++        session._backend = backend
++        session.status = AgentStatus.RUNNING
++        session._turn_start = 123.0
++
++        await session.interrupt()
++        await session._drain_persist()
++
++        assert observed == {"status": AgentStatus.IDLE, "lock": True}
++        assert backend.disconnected is True
++        assert session._backend is None
++        assert session._turn_start == 0
++
++    @pytest.mark.asyncio
++    async def test_message_waits_for_interrupt_before_starting_clean_turn(self, session):
++        from app.session import AgentStatus
++
++        interrupt_started = asyncio.Event()
++        release_interrupt = asyncio.Event()
++
++        class InterruptBackend:
++            def __init__(self):
++                self.sent = []
++
++            async def interrupt(self):
++                interrupt_started.set()
++                await release_interrupt.wait()
++                return True
++
++            async def send(self, message):
++                self.sent.append(message)
++
++        backend = InterruptBackend()
++        session._backend = backend
++        session.status = AgentStatus.RUNNING
++
++        interrupt_task = asyncio.create_task(session.interrupt())
++        await interrupt_started.wait()
++        send_task = asyncio.create_task(session.send("new direction"))
++        await asyncio.sleep(0)
++
++        assert backend.sent == []
++        assert not send_task.done()
++
++        release_interrupt.set()
++        await interrupt_task
++        await send_task
++
++        assert backend.sent == ["new direction"]
++        assert session.status == AgentStatus.RUNNING
++        assert session._manually_interrupted is False
++
++    @pytest.mark.asyncio
++    async def test_manual_interrupt_suppresses_stale_auto_report(self, session):
++        from app.session import AgentStatus
++
++        backend = AsyncMock()
++        backend.interrupt = AsyncMock(return_value=True)
++        session._backend = backend
++        session.status = AgentStatus.RUNNING
++        session.last_task_sender = "parent"
++        session.on_idle = AsyncMock()
++
++        await session.interrupt()
++        session._turns.fire_auto_report()
++        await asyncio.sleep(0)
++
++        session.on_idle.assert_not_awaited()
++
++
++class TestClaudeTurnLifecycle:
++    @pytest.mark.asyncio
++    async def test_long_active_turn_keeps_event_and_does_not_inject_timeout(self, session, monkeypatch):
++        from app.events import AgentEvent
++        from app.session import AgentStatus
++
++        class DelayedBackend:
++            def __init__(self):
++                self.sent = []
++
++            async def events(self):
++                await asyncio.sleep(0.06)
++                yield AgentEvent("status", "late but valid event")
++                yield AgentEvent("turn_end", metadata={
++                    "ok": True,
++                    "stop_reason": "end_turn",
++                    "num_turns": 1,
++                    "session_id": "claude-session-1",
++                })
++
++            async def send(self, message):
++                self.sent.append(message)
++
++        backend = DelayedBackend()
++        logs = []
++        session._log = lambda log_type, content: logs.append((log_type, content))
++        session._backend = backend
++        session.status = AgentStatus.RUNNING
++        session._turn_start = asyncio.get_running_loop().time()
++        monkeypatch.setattr(session, "TURN_TIMEOUT", 0.02, raising=False)
++        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
++
++        await asyncio.wait_for(session._claude_event_loop(), timeout=0.5)
++        await session._drain_persist()
++
++        assert backend.sent == []
++        assert ("status", "late but valid event") in logs
++        assert session.status == AgentStatus.IDLE
++
+ 
+ # ── Auto-report gate tests (Task 5) ──
+ 
+ # После мержа v2.16 авто-репорт стал немедленным (_fire_auto_report) вместо
+ # отложенного (_schedule_auto_report/AUTO_REPORT_IDLE_SEC). Тесты обновлены под
+ # живой API: проверяем те же гейты (did_report / orchestrator / pending / turn_ok),
+-# но через немедленный fire. on_idle теперь принимает 4 аргумента (+stop_reason).
++# но через немедленный fire. on_idle принимает stop_reason и turn_ok.
+ 
+ def _mk_session(monkeypatch=None, idle_sec=None):
+     from app.session import AgentSession
+@@ -257,10 +383,11 @@ def _mk_session(monkeypatch=None, idle_sec=None):
+ async def test_auto_report_fires_after_idle_timeout(monkeypatch):
+     s = _mk_session(monkeypatch)
+     fired = []
+-    async def on_idle(name, scope, texts, stop_reason=""):
++    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+         fired.append(name)
+     s.on_idle = on_idle
+     s._did_report = False
++    s.last_task_sender = "parent"
+     s._turn_logs = ["did stuff"]
+     # завершение хода → немедленный авто-репорт родителю
+     s._turns.fire_auto_report()
+@@ -272,7 +399,7 @@ async def test_auto_report_fires_after_idle_timeout(monkeypatch):
+ async def test_auto_report_skipped_if_did_report(monkeypatch):
+     s = _mk_session(monkeypatch)
+     fired = []
+-    async def on_idle(name, scope, texts, stop_reason=""):
++    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+         fired.append(name)
+     s.on_idle = on_idle
+     s._did_report = True  # был явный send_message
+@@ -287,7 +414,7 @@ async def test_auto_report_cancelled_by_new_turn(monkeypatch):
+     # есть отложенные сообщения (пришёл новый ход), авто-репорт не стреляет.
+     s = _mk_session(monkeypatch)
+     fired = []
+-    async def on_idle(name, scope, texts, stop_reason=""):
++    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+         fired.append(name)
+     s.on_idle = on_idle
+     s._did_report = False
+@@ -302,7 +429,7 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
+     s = _mk_session(monkeypatch)
+     s.is_orchestrator = True   # оркестратор отчитывается наверх ТОЛЬКО явным send_message
+     fired = []
+-    async def on_idle(name, scope, texts, stop_reason=""):
++    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+         fired.append(name)
+     s.on_idle = on_idle
+     s._did_report = False
+@@ -312,6 +439,24 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
+     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
+ 
+ 
++@pytest.mark.asyncio
++async def test_auto_report_passes_failed_turn_state(monkeypatch):
++    s = _mk_session(monkeypatch)
++    fired = []
++
++    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
++        fired.append((stop_reason, turn_ok))
++
++    s.on_idle = on_idle
++    s.last_task_sender = "parent"
++    s._last_stop_reason = "stop_sequence"
++    s._last_turn_ok = False
++    s._turns.fire_auto_report()
++    await asyncio.sleep(0.05)
++
++    assert fired == [("stop_sequence", False)]
++
++
+ # ── Этап 1: pipeline + is_orchestrator как хранимое поле ──
+ 
+ class TestPipelineField:
+@@ -741,11 +886,80 @@ class TestRateLimitClassification:
+         session.backend_type = "codex"
+         session.status = AgentStatus.RUNNING
+         session._rate_limit_retries = 2
++        session._server_error_retries = 2
+         session._log = lambda *_args, **_kwargs: None
+ 
+         await session.send("new user request")
+ 
+         assert session._rate_limit_retries == 0
++        assert session._server_error_retries == 0
++
++    @pytest.mark.asyncio
++    async def test_server_error_retries_fresh_without_false_auto_report(
++            self, session, monkeypatch):
++        from app.events import AgentEvent
++        from app.session import AgentStatus
++
++        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
++        session.status = AgentStatus.RUNNING
++        session.last_task_sender = "parent"
++        session._turn_gen = 7
++        session._hibernate.schedule = MagicMock()
++        session._turns.fire_auto_report = MagicMock()
++
++        async def noop():
++            return None
++
++        spawned = []
++
++        def capture(coro):
++            spawned.append(coro.cr_code.co_name)
++            coro.close()
++
++        session._spawn_bg = capture
++        session._retry_after_server_error = MagicMock(
++            side_effect=lambda *_args: noop())
++
++        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
++            "ok": False,
++            "stop_reason": "stop_sequence",
++            "num_turns": 1,
++            "model_error": "server_error",
++            "errors": ["server_error"],
++        }))
++        await session._drain_persist()
++
++        assert session.status == AgentStatus.IDLE
++        assert session._server_error_retries == 1
++        assert session._rate_limit_retries == 0
++        session._retry_after_server_error.assert_called_once_with(5, 7)
++        assert "noop" in spawned
++        session._turns.fire_auto_report.assert_not_called()
++
++    @pytest.mark.asyncio
++    async def test_server_error_retry_reconnects_only_if_turn_is_still_current(
++            self, session):
++        from app.session import AgentStatus
++
++        session.status = AgentStatus.IDLE
++        session._turn_gen = 4
++        session._disconnect_backend = AsyncMock()
++        session.send = AsyncMock()
++
++        await session._retry_after_server_error(0, 4)
++
++        session._disconnect_backend.assert_awaited_once()
++        retry_message = session.send.await_args.args[0]
++        assert retry_message.startswith("[system] Retrying after transient server error.")
++
++        session._disconnect_backend.reset_mock()
++        session.send.reset_mock()
++        session._turn_gen = 5
++
++        await session._retry_after_server_error(0, 4)
++
++        session._disconnect_backend.assert_not_awaited()
++        session.send.assert_not_awaited()
+ 
+ 
+ class TestFlushPendingDefersDuringCompact:
+@@ -810,3 +1024,38 @@ class TestEnsureBackendForceFresh:
+         session._backend = existing
+         result = await session._ensure_backend()
+         assert result is existing
++
++
++class TestCodexTurnLifecycle:
++    @pytest.mark.asyncio
++    async def test_active_turn_is_not_killed_by_total_wall_clock_timeout(self, session, monkeypatch):
++        from app.events import AgentEvent
++        from app.session import AgentStatus
++
++        class DelayedBackend:
++            def __init__(self):
++                self.disconnected = False
++
++            async def events(self):
++                yield AgentEvent("status", "thread started", {"session_id": "codex-thread-1"})
++                for _ in range(3):
++                    await asyncio.sleep(0.03)
++                    yield AgentEvent("status", "still active")
++
++            async def disconnect(self):
++                self.disconnected = True
++
++        backend = DelayedBackend()
++        session.backend_type = "codex"
++        session.status = AgentStatus.RUNNING
++        session._backend = backend
++        # The old implementation wrapped the whole turn in this timeout. A stream that
++        # stays active for longer than the threshold was still killed at the deadline.
++        monkeypatch.setattr(session, "CODEX_TURN_TIMEOUT", 0.05, raising=False)
++
++        await asyncio.wait_for(session._codex_turn_loop(), timeout=0.5)
++        await session._drain_persist()
++
++        assert backend.disconnected is False
++        assert session.session_id == "codex-thread-1"
++        assert session.status == AgentStatus.IDLE
+diff --git a/tests/test_session_hibernate.py b/tests/test_session_hibernate.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..1149d6617c48a0e2e05b7b2b543f17f837e38a45
+--- /dev/null
++++ b/tests/test_session_hibernate.py
+@@ -0,0 +1,28 @@
++"""Heartbeat health checks for long-running Codex turns."""
++
++from types import SimpleNamespace
++
++from app.session_hibernate import HibernateManager
++
++
++def _session(*, backend=None, listener_done=False):
++    listener = SimpleNamespace(done=lambda: listener_done)
++    return SimpleNamespace(_backend=backend, _listen_task=listener)
++
++
++def test_live_codex_process_and_listener_are_not_zombie():
++    backend = SimpleNamespace(is_alive=True)
++    assert HibernateManager._codex_runtime_dead(_session(backend=backend)) is False
++
++
++def test_dead_codex_process_is_zombie_even_with_live_listener():
++    backend = SimpleNamespace(is_alive=False)
++    assert HibernateManager._codex_runtime_dead(_session(backend=backend)) is True
++
++
++def test_missing_backend_or_dead_listener_is_zombie():
++    assert HibernateManager._codex_runtime_dead(_session(backend=None)) is True
++    backend = SimpleNamespace(is_alive=True)
++    assert HibernateManager._codex_runtime_dead(
++        _session(backend=backend, listener_done=True)
++    ) is True
+diff --git a/tests/test_subagent_routes.py b/tests/test_subagent_routes.py
+index ecf3bebd76adb176ccd1d1ace84a1427e5a8b80b..70d14c2346cf41284a2958459821d69bfd0b8420 100644
+--- a/tests/test_subagent_routes.py
++++ b/tests/test_subagent_routes.py
+@@ -22,13 +22,95 @@ async def test_transcript_ids_missing_session(monkeypatch):
+ 
+ @pytest.mark.asyncio
+ async def test_transcript_ids_no_sdk_session(monkeypatch):
++    monkeypatch.setattr(sr, "get_subagents", lambda sid: [])
+     monkeypatch.setattr(sr, "get_session", lambda sid: {"session_id": "", "cwd": "/c"})
+     r = await sr.subagent_transcript_ids("sess-1")
+     assert r["agent_ids"] == []
+ 
+ 
++@pytest.mark.asyncio
++async def test_subagent_list_separates_jobs_and_matches_transcripts_by_task_id(monkeypatch):
++    rows = [
++        {
++            "task_id": "agent-new", "task_type": "local_agent",
++            "sdk_session_id": "sdk-old", "started_at": "2026-07-17T00:00:00+00:00",
++            "ended_at": "2026-07-17T00:00:02+00:00", "duration_ms": 0,
++        },
++        {
++            "task_id": "bash-1", "task_type": "local_bash",
++            "sdk_session_id": "sdk-current", "started_at": "2026-07-17T00:00:00+00:00",
++            "ended_at": "2026-07-17T00:00:03+00:00", "duration_ms": 0,
++        },
++    ]
++    monkeypatch.setattr(sr, "get_subagents", lambda sid: rows)
++    monkeypatch.setattr(sr, "get_session",
++                        lambda sid: {"session_id": "sdk-current", "cwd": "/c"})
++    import claude_agent_sdk
++    calls = []
++
++    def fake_list(sdk_id, cwd):
++        calls.append((sdk_id, cwd))
++        return ["agent-new"] if sdk_id == "sdk-old" else []
++
++    monkeypatch.setattr(claude_agent_sdk, "list_subagents", fake_list)
++    r = await sr.subagents_list("sess-1")
++    by_id = {item["task_id"]: item for item in r["subagents"]}
++    assert by_id["agent-new"]["kind"] == "agent"
++    assert by_id["agent-new"]["transcript_id"] == "agent-new"
++    assert by_id["agent-new"]["duration_ms"] == 2000
++    assert by_id["bash-1"]["kind"] == "background"
++    assert by_id["bash-1"]["transcript_id"] == ""
++    assert by_id["bash-1"]["duration_ms"] == 3000
++    assert calls == [("sdk-old", "/c")]
++
++
++@pytest.mark.asyncio
++async def test_transcript_uses_historical_sdk_session_from_telemetry(monkeypatch):
++    monkeypatch.setattr(sr, "get_session",
++                        lambda sid: {"session_id": "sdk-current", "cwd": "/c"})
++    monkeypatch.setattr(sr, "get_subagent", lambda sid, task_id: {
++        "task_id": task_id,
++        "task_type": "local_agent",
++        "sdk_session_id": "sdk-old",
++    })
++
++    class _Msg:
++        type = "assistant"
++        message = {"content": "historical transcript"}
++        parent_tool_use_id = None
++
++    import claude_agent_sdk
++    called = {}
++
++    def fake_messages(sdk_id, agent_id, cwd, **kwargs):
++        called.update(sdk_id=sdk_id, agent_id=agent_id, cwd=cwd)
++        return [_Msg()]
++
++    monkeypatch.setattr(claude_agent_sdk, "get_subagent_messages", fake_messages)
++    r = await sr.subagent_transcript("sess-1", "agent-old")
++    assert r["count"] == 1
++    assert called == {
++        "sdk_id": "sdk-old", "agent_id": "agent-old", "cwd": "/c",
++    }
++
++
++@pytest.mark.asyncio
++async def test_background_task_has_no_transcript(monkeypatch):
++    monkeypatch.setattr(sr, "get_session",
++                        lambda sid: {"session_id": "sdk-current", "cwd": "/c"})
++    monkeypatch.setattr(sr, "get_subagent", lambda sid, task_id: {
++        "task_id": task_id,
++        "task_type": "local_bash",
++        "sdk_session_id": "sdk-current",
++    })
++    r = await sr.subagent_transcript("sess-1", "bash-1")
++    assert r["messages"] == []
++    assert r["note"] == "background tasks do not have transcripts"
++
++
+ @pytest.mark.asyncio
+ async def test_transcript_reads_messages(monkeypatch):
++    monkeypatch.setattr(sr, "get_subagent", lambda sid, task_id: None)
+     monkeypatch.setattr(sr, "get_session",
+                         lambda sid: {"session_id": "550e8400-e29b-41d4-a716-446655440000", "cwd": "/c"})
+ 
+@@ -47,6 +129,7 @@ async def test_transcript_reads_messages(monkeypatch):
+ 
+ @pytest.mark.asyncio
+ async def test_transcript_sdk_error_graceful(monkeypatch):
++    monkeypatch.setattr(sr, "get_subagent", lambda sid, task_id: None)
+     monkeypatch.setattr(sr, "get_session",
+                         lambda sid: {"session_id": "550e8400-e29b-41d4-a716-446655440000", "cwd": "/c"})
+     import claude_agent_sdk
+diff --git a/tests/test_subagents.py b/tests/test_subagents.py
+index 48e5e5f0ff4213ea8729743f4e8a1bf23b19f8b7..439b1a1690cb32a54a5cca0026a67287d7ec86f0 100644
+--- a/tests/test_subagents.py
++++ b/tests/test_subagents.py
+@@ -1,6 +1,6 @@
+ """Sub-agent telemetry: upsert (start→progress→end), no-wipe, latest-tokens."""
+ 
+-from datetime import datetime, timezone
++from datetime import datetime, timedelta, timezone
+ 
+ import pytest
+ 
+@@ -71,6 +71,16 @@ def test_end_sets_summary_output_status(db):
+     assert sa["ended_at"]
+ 
+ 
++def test_end_derives_duration_when_sdk_omits_usage(db):
++    from app.db import subagent_upsert, get_subagent
++    subagent_upsert("sess-1", "task-a", description="Background command",
++                    task_type="local_bash")
++    ended_at = (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat()
++    subagent_upsert("sess-1", "task-a", status="completed", ended_at=ended_at)
++    sa = get_subagent("sess-1", "task-a")
++    assert 1_500 <= sa["duration_ms"] <= 2_500
++
++
+ def test_two_subagents_same_session_distinct(db):
+     from app.db import subagent_upsert, get_subagents
+     subagent_upsert("sess-1", "task-a", description="A")
+diff --git a/uv.lock b/uv.lock
+index cf9ad42eebbfa00a48a02766ea826c58f435e9ed..d5fae7ad49e194ba0883e6926d3f970e36792d96 100644
+--- a/uv.lock
++++ b/uv.lock
+@@ -8,7 +8,7 @@ resolution-markers = [
+ ]
+ 
+ [options]
+-exclude-newer = "2026-07-05T13:44:44.546280874Z"
++exclude-newer = "2026-07-09T10:16:55.018333899Z"
+ exclude-newer-span = "P7D"
+ 
+ [[package]]
+@@ -325,20 +325,20 @@ wheels = [
+ 
+ [[package]]
+ name = "claude-agent-sdk"
+-version = "0.2.87"
++version = "0.2.114"
+ source = { registry = "https://pypi.org/simple" }
+ dependencies = [
+     { name = "anyio" },
+     { name = "mcp" },
+     { name = "sniffio" },
+ ]
+-sdist = { url = "https://files.pythonhosted.org/packages/26/dc/e2afd59a1dd6484b6500245fa2331a0d8c0b68e6c180bc29d8ce9540f38a/claude_agent_sdk-0.2.87.tar.gz", hash = "sha256:56f02a49a97f7be37e0cd7323494d1c09e52fb0db7ab94f53bba8a230bb4bd0e", size = 252063, upload-time = "2026-05-23T04:19:25Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/c6/f3/a74b32b52f3c0013e317afe27b44946b9bbceb16b53c2a8d9614bfc0e7ad/claude_agent_sdk-0.2.114.tar.gz", hash = "sha256:53263a25bddd52b354ba2975b348cc978493bf29cb21a8c74a1b92b06f88faa3", size = 268633, upload-time = "2026-07-08T21:35:01.546Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/6c/4e/b83c4c6ec1e0b63e9d4d58ba9a5abfd9936c55b8ee4c06b88f5e93bdfd70/claude_agent_sdk-0.2.87-py3-none-macosx_11_0_arm64.whl", hash = "sha256:52204a9609dec3aa96032afd48c07d72e05d13311faf614978f17b61326e6e31", size = 63037960, upload-time = "2026-05-23T04:19:29.056Z" },
+-    { url = "https://files.pythonhosted.org/packages/13/d7/5fb02260c5b95c66e108c35e046d4d66011921251f7896274b6b21594f14/claude_agent_sdk-0.2.87-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:1713e34e50b830ecac54386d39af14e3a2775f833f1ef715eb53566eaa1b6325", size = 65095745, upload-time = "2026-05-23T04:19:32.533Z" },
+-    { url = "https://files.pythonhosted.org/packages/1d/84/1061f6580bbbc78de629467abf051cdbbabe71b982297b401e3fde65c7e0/claude_agent_sdk-0.2.87-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:e9e23119d2a02ad1ea1a2707214db98f5baf2c8809577186629843ddfcb8ec18", size = 72725120, upload-time = "2026-05-23T04:19:36.539Z" },
+-    { url = "https://files.pythonhosted.org/packages/04/50/449f5044d76d9de18cf6a9f4b1c9386a74f41b4e2da5312df245d9dd23ef/claude_agent_sdk-0.2.87-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:5ac525d9ae3481296df5639d005e12ce2b6b0427426991f35da64db30be25c6e", size = 72875504, upload-time = "2026-05-23T04:19:40.839Z" },
+-    { url = "https://files.pythonhosted.org/packages/80/dd/3f9d7c491d5a98138d293192b31cc9ed792d3552b3a7e276163d7fe2d43a/claude_agent_sdk-0.2.87-py3-none-win_amd64.whl", hash = "sha256:f34973669a1efaeb1543e7b22d7b22feefd8af2fae3adfd39181635077dae432", size = 73514880, upload-time = "2026-05-23T04:19:44.65Z" },
++    { url = "https://files.pythonhosted.org/packages/ba/57/ded5a6e02940b73775e8235cc69c3f1f9aca15871b73951ea184f26b68b7/claude_agent_sdk-0.2.114-py3-none-macosx_11_0_arm64.whl", hash = "sha256:5170a7cf8e5f30cdd59d60505b82e444abd655e8391e92e8390b1d539c100550", size = 69490216, upload-time = "2026-07-08T21:35:05.659Z" },
++    { url = "https://files.pythonhosted.org/packages/ea/ee/646435d91960e83cf6989d70adc6e9b47295a1e93bb1c2d7be366c8786c8/claude_agent_sdk-0.2.114-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:42b76e889d8219cf741789205adc9306b62524af205080362eb75b1bc09aa10b", size = 74389245, upload-time = "2026-07-08T21:35:10.367Z" },
++    { url = "https://files.pythonhosted.org/packages/38/d0/f0c5ced2a1dcf28ad0da9643d81e535e9fa7c9cf70c09ae7573429e4bcdf/claude_agent_sdk-0.2.114-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:f583f04a8d7db22b5dc826c135225199e99c46092e563492aa2a13d52b81e8ed", size = 79425407, upload-time = "2026-07-08T21:35:15.18Z" },
++    { url = "https://files.pythonhosted.org/packages/1d/7a/2dc6f13a153187ec4ca0a2fd76e7e20cd3fb43d72eb8e01401fd4ab7a335/claude_agent_sdk-0.2.114-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:a3ec58cfff233c70782437a900fb152ef971b92887e03b03d218266285ad387a", size = 80450013, upload-time = "2026-07-08T21:35:20.331Z" },
++    { url = "https://files.pythonhosted.org/packages/c9/25/3cc0ea8ff94bdbc28cd0da69d4d6b4bd382b6f7d182b94351a313d59ceac/claude_agent_sdk-0.2.114-py3-none-win_amd64.whl", hash = "sha256:60096c88ead0ff7f05ae5cf90d7a75e47a02cbc16a97d0c813bc0409cbb0e334", size = 79985117, upload-time = "2026-07-08T21:35:25.45Z" },
+ ]
+ 
+ [[package]]
+@@ -1285,7 +1285,7 @@ dev = [
+ requires-dist = [
+     { name = "aiogram", specifier = ">=3.28,<4.0" },
+     { name = "aiohttp", specifier = ">=3.9,<4.0" },
+-    { name = "claude-agent-sdk", specifier = ">=0.1.72" },
++    { name = "claude-agent-sdk", specifier = ">=0.2.111" },
+     { name = "croniter", specifier = ">=2.0,<7.0" },
+     { name = "fastapi", specifier = ">=0.115,<1.0" },
+     { name = "fastembed", marker = "extra == 'rag'", specifier = ">=0.8.0" },

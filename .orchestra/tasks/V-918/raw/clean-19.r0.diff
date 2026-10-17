@@ -1,0 +1,850 @@
+diff --git a/docs/tasks/315/acceptance/README.md b/docs/tasks/315/acceptance/README.md
+index a8f8d09cce950b0bb09004fd2747e00f75a24f39..291ae2308a95eb233cc930f680b89e30f0b0be54 100644
+--- a/docs/tasks/315/acceptance/README.md
++++ b/docs/tasks/315/acceptance/README.md
+@@ -2,8 +2,9 @@
+ 
+ PLAN READY here means architecture/discussion ready only. The three user decisions in discussion.md
+ were resolved on 2026-08-24. Each ticket still requires a separately designed, behavior-specific RED
+-acceptance test committed against the current base. T1, T2 and T3 are now materialized by their
+-`test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T4–T7 remain at design only.
++acceptance test committed against the current base. T1, T2, T3 and corrective T3b are materialized by
++their behavior tests plus frozen JSON fixtures under `fixtures/`; T4–T7 remain at design only, and T4
++is stopped until T3b is implemented/merged.
+ No implementation is implied by this directory.
+ 
+ T2 oracle history: commits `529711a9feda296e361bc8a09fd8f7ec65be4a57` and
+@@ -14,6 +15,12 @@ fixed that wiring gap but contradicted itself by requiring audit metadata to nam
+ the production-path tests and scopes removed-domain bans only to canonical task/evidence/event bodies;
+ audit metadata may name excluded sources.
+ 
++T3b supersedes only the human-projection/output clauses of merged T3: its evidence, event, conflict,
++valid-time and 12-scenario semantics remain. The old T3 layout requirement for generated `README.md`
++and `topic.md` is excluded from future implementation. Exact baseline: 2 generator call sites, 3
++Markdown outputs at base initialization, 4 after a new topic, 2 frozen layout paths and 2 oracle
++assertions. T3b requires JSON-only canonical writes and one agent-facing typed tool.
++
+ ## Smoke probes (not acceptance oracles)
+ 
+ The test_smoke_t*.py files are deliberately minimal missing-seam diagnostics. Each only checks that a future
+@@ -22,6 +29,8 @@ reported as frozen oracles. They remain useful as early diagnostics.
+ 
+ T7 intentionally has no smoke probe: its first executable artifact must be the production-shaped
+ behavioral RED, because path/symbol existence cannot prove document ownership, prompt delivery or cutover.
++T3b also has no smoke: its controls must prove the current T3 Markdown mutation executes before the
++agent-only behavior fails.
+ 
+ | Ticket | Smoke command | Expected current result |
+ |---|---|---|
+@@ -34,7 +43,7 @@ behavioral RED, because path/symbol existence cannot prove document ownership, p
+ 
+ ## Required behavioral oracle design before Phase 3
+ 
+-The following table is the design freeze target. T1–T3 commands are committed behavioral RED gates;
++The following table is the design freeze target. T1–T3b commands are committed behavioral RED gates;
+ T4–T7 commands are still future commands. Each remaining ticket must turn its row into a real behavior
+ test, run it RED, commit that oracle, and only then implement. The smoke probe cannot satisfy any row.
+ 
+@@ -43,10 +52,11 @@ test, run it RED, commit that oracle, and only then implement. The smoke probe c
+ | T1 namespace/schema | in-memory records for task, evidence, fact, session, resource, skill; secret-form fixture | namespace resolver → schema validator → private-field projection filter | missing resolver or cross-kind write must fail with typed validation error | valid URI round-trips and private fields are excluded from all derived payloads | equivalent URI parser/validator implementation with same normalized output | remove resolver check while adding a namespace-looking path in a shared fallback; test must still fail | uv run python -m pytest docs/tasks/315/acceptance/test_t1_namespace_behavior.py -q | production-scale URI cardinality, multi-tenant policy, real secret inventory |
+ | T2 task migration/facade | immutable #299 SQLite backup + Git task/evidence manifest; project #N fixtures and two contour events | task facade → stable-ID store → Git event/SQLite projection → task_list/task_get adapters | duplicate stable ID, changed #N, or facade response drift must fail | unchanged task list/get and exact project #N replay | alternative UUID/ULID encoding with identical manifest mapping | omit Git event but retain SQLite row, or omit projection row but retain facade cache; both must be detected | uv run python -m pytest docs/tasks/315/acceptance/test_t2_task_behavior.py -q | live two-contour race rate, 10k-record performance, user choice on contiguous global #N |
+ | T3 evidence/promotion | #256 18-query holdout plus 12 synthetic promotion cases: identical, conflict, supersedes, disputed, rejected, as-of, TTL, missing anchor | promotion API → evidence resolver → topic registry → fact event/CAS → current query | source-less promotion, silent same-key overwrite, lost rejected fact, or wrong as-of must fail | valid evidence-linked current fact and idempotent replay | human-approved supersession workflow producing the same explicit event shape | remove provenance validation while adding a fallback topic parser; remove status filter while keeping current row; both mutations must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py -q | semantic duplicate-topic rate, answer utility, reviewer burden, real authoring ergonomics |
+-| T4 heads/projections | frozen Git head + changed topic/task records; SQLite projection copy with deliberately stale FTS/vector heads | merge generation → synchronous SQLite fold → async FTS/vector queue → memory search/fallback | stale projection returning “not found”, missing head receipt, or vector failure erasing current result must fail | equal-head projection returns typed current result; stale vector still returns SQLite result with debt | alternate projection backend with identical head/fallback contract | delete canonical fallback and leave stale SQLite row; remove head comparison and rely on pending count; both must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t4_heads_behavior.py -q | real embedder latency, index size growth, production restart timing |
++| T3b agent-only correction | merged T3 contract/implementation hashes, measured 3→4 Markdown mutation, synthetic historical docs/tasks/docs/kb/TODO/session corpus and direct-file/SQLite/vector fallback sentinels | single MCP `knowledge` tool → POST `/api/knowledge` → `knowledge_api` → KnowledgeService structured JSON/event/evidence owners | any generated Markdown/human summary, multiple agent tools, rewritten historical source, missing progressive level or fallback storage winning over absent canonical truth must fail | merged T3 structured promotion remains green; current Markdown generator demonstrably runs; historical bytes/hashes remain stable; JSON-only structured import/promotion/query succeeds through one tool | extra JSON fields/index backend and different compact agent payload shapes are allowed if summary < record < evidence and ownership/heads stay identical | hide `.markdown` below a generated directory plus `human_projection` in JSON; delete canonical then offer direct path, SQLite payload and vector hit together — all must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py -q | agent task success, corpus import duration and payload/tool-call effect until separately measured |
++| T4 heads/projections | STOPPED until T3b merges; frozen Git head + changed structured task/fact records; SQLite projection copy with deliberately stale FTS/vector heads | merge generation → synchronous SQLite fold → async FTS/vector queue → single typed knowledge query/fallback | stale projection returning “not found”, missing head receipt, vector failure erasing current result or direct file fallback must fail | equal-head typed projection returns current result; stale vector still returns typed result with debt | alternate projection backend with identical head/fallback contract | delete canonical fallback and leave stale SQLite row; forge equal head with stale payload; let vector/direct-file fallback hide canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior.py -q | real embedder latency, index size growth, production restart timing |
+ | T5 session/pack/privacy | synthetic session archive with extraction failure; OVPack-like manifest/checksum/scope fixtures; secret-form corpus | session commit → immutable archive → background extraction; pack validate/restore; redacted projections | archive loss, write-before-manifest-validation, scope bypass, or secret in index/prompt must fail | successful archive and valid restore/rebuild with zero secret matches | alternate pack format with same validated manifest and restore semantics | skip archive then return extraction success; validate checksum only after write; restore redacted body through fallback; all must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_behavior.py -q | legal purge semantics, key-management operations, real backup duration/size |
+ | T6 merge/cleanup | merge-operation fixtures covering target commit success + task-link/RAG/next-task partials; #309 route/duplicate inventories | pinned session merge → Git target commit → task/evidence receipt → projection queue → cleanup gates | treating secondary failure as no merge, losing link receipt, or deleting compatibility path before oracle must fail | target commit and partial states are distinct; existing v1 recovery path remains callable | alternate merge runner preserving same operation-state/receipt contract | remove partial-state branch while retaining success branch; route cleanup with stale legacy caller; both must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_behavior.py -q | live route/click telemetry, user-visible progress behavior, proxy-manager deployment behavior |
+-| T7 prompt/document migration/cutover | frozen tracked inventory of every `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive plus legacy reference corpus and assembled-prompt matrix for every runtime | inventory classifier → byte-preserving alias/evidence migration → typed `orch://` task/evidence/promotion/query owners → project prompt/skill assembly → legacy/shadow/canonical cutover gate | arbitrary Markdown becoming canonical, rewritten historical evidence, missing typed prompt API, projection-as-truth or destructive SQLite removal before gates must fail | every path classified exactly once; historical hashes unchanged; all legacy refs resolve; assembled prompts in every runtime contain typed `orch://` ID/API anchors and one owner; rollback restores legacy-compatible reads | additional document classes/metadata and runtime prompt layouts are allowed when they preserve the same normalized classification, ownership and delivery contract | add structured stubs while retaining editable Markdown co-master; patch only a source prompt while one assembled runtime stays stale; forge parity then delete SQLite; rewrite evidence while updating its alias; let vector fallback claim not-found after canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q | real authoring ergonomics, total corpus migration duration, live rollback duration and task success until separately measured |
++| T7 prompt/document migration/cutover | frozen tracked inventory of every `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive plus legacy reference corpus and assembled-prompt matrix for every runtime | inventory classifier → byte-preserving structured evidence/archive index → single typed `knowledge` tool + typed task IDs → project prompt/skill assembly → legacy/shadow/canonical cutover gate | arbitrary Markdown becoming canonical/regenerated, rewritten historical evidence, multiple/direct storage tools, projection-as-truth or destructive SQLite removal before gates must fail | every path classified exactly once; historical hashes unchanged; all legacy refs resolve; zero generated human files/summaries; every assembled runtime prompt contains the single tool/typed-ID anchors; rollback restores legacy-compatible reads | additional archive classes/JSON metadata and runtime prompt layouts are allowed when they preserve normalized ownership and delivery | retain editable Markdown co-master beside JSON; patch only source prompt while one assembled runtime stays stale; forge parity then delete SQLite; rewrite evidence while updating alias; let file/vector fallback hide canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q | real authoring ergonomics, total corpus migration duration, live rollback duration and task success until separately measured |
+ 
+ ## Quantitative gate (future implementation evidence)
+ 
+@@ -57,5 +67,6 @@ exact/current/rejected recall, stale contradictions, projection read-after-write
+ conflict loss, A/B/A/B prompt footprint/tool calls/time, privacy secret scan, and rollback replay parity.
+ T7 adds: classified_path_count equals frozen inventory count with no overlap/unclassified path; historical
+ evidence byte hashes and Git refs unchanged; legacy reference resolution 100%; all assembled runtime
+-prompts carry typed task/evidence/promotion/query anchors; shadow/canonical owner parity; no destructive
++prompts carry one `knowledge` tool + typed task anchors; generated human-readable output count 0;
++shadow/canonical owner parity; no destructive
+ SQLite removal before a live cutover receipt; reversible rollback reproduces the pre-cutover facade.
+diff --git a/docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract.json b/docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..a2ba57700070bb74b73923f9c476f5ad469dba71
+--- /dev/null
++++ b/docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract.json
+@@ -0,0 +1,56 @@
++{
++  "contract_version": 1,
++  "fixture_sha256": "6a66d6352c2e0105f2bbb50426838e87e8c1834a0643c196996531d16c6ab5a7",
++  "supersedes": {
++    "t3_contract_sha256": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
++    "t3_oracle_sha256": "51b19d136e9a44b339a7e387b5b6af1dfd406665e5d58e465451a1a0ae9df00f",
++    "reason": "README.md/topic.md generation and human projection requirements are removed; structured fact/evidence/event semantics remain"
++  },
++  "merged_t3_implementation_sha256": {
++    "app/ia/knowledge.py": "d2be14f9730df77e0d80881bae4af3df4b999ad3c432d1211c1a8c815459f72a",
++    "app/ia/evidence.py": "5f3c953a982472c65a9295c0e2119222dadb6ecb5eb3c3f8ec2999d4d54f6aa4",
++    "app/ia/events.py": "5914cd5c6e0816a035c2f21f61024c089b8c20fb62f0f0be809e3746fbc352d0"
++  },
++  "public_api": {
++    "app.ia.knowledge": {
++      "callables": ["knowledge_api", "knowledge_service_mode"],
++      "exceptions": ["CanonicalKnowledgeUnavailableError"]
++    },
++    "app.routes.knowledge": {
++      "attributes": ["router"]
++    },
++    "app.mcp_stdio": {
++      "callables": ["knowledge"]
++    }
++  },
++  "single_agent_tool": {
++    "name": "knowledge",
++    "http_path": "/api/knowledge",
++    "operations": ["promote", "query", "import_evidence"],
++    "detail_levels": ["summary", "record", "evidence"],
++    "production_chain": [
++      "mcp_stdio.knowledge",
++      "POST /api/knowledge",
++      "app.ia.knowledge.knowledge_api",
++      "KnowledgeService"
++    ]
++  },
++  "canonical_layout": {
++    "registry": "registry.json",
++    "fact": "projects/{project_id}/knowledge/topics/{topic_slug}/facts/{fact_key}/{stable_id}.json",
++    "event": "projects/{project_id}/knowledge/topics/{topic_slug}/events/{event_id}.json",
++    "evidence_ref": "projects/{project_id}/evidence/{stable_id}.json",
++    "archive_index": "archive-index.json"
++  },
++  "forbidden_generated_outputs": [
++    "README.md",
++    "topic.md",
++    "*.markdown",
++    "*.txt",
++    "*.html",
++    "human_projection",
++    "human_summary"
++  ],
++  "expected_controls": 3,
++  "expected_behavior_nodes": 6
++}
+diff --git a/docs/tasks/315/acceptance/fixtures/t3b_agent_only_records.json b/docs/tasks/315/acceptance/fixtures/t3b_agent_only_records.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..2eecda71ffe9b1b77aa9bf39a2fa6e9521ac69e0
+--- /dev/null
++++ b/docs/tasks/315/acceptance/fixtures/t3b_agent_only_records.json
+@@ -0,0 +1,107 @@
++{
++  "fixture_version": 1,
++  "audit_baseline": {
++    "merged_t3_command": "uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py -q",
++    "merged_t3_result": "18 passed",
++    "markdown_generator_call_sites": 2,
++    "initial_generated_markdown_files": 3,
++    "new_topic_generated_markdown_files": 4,
++    "t3_contract_markdown_layout_paths": 2,
++    "t3_oracle_markdown_behavior_assertions": 2,
++    "current_repo_inventory": {
++      "docs_tasks_md": 1281,
++      "docs_kb_md": 20,
++      "session_archive_md": 3,
++      "pipeline_prompt_md": 23,
++      "codex_skill_md": 2,
++      "todo_md": 1,
++      "claude_md": 1,
++      "agents_md": 1
++    }
++  },
++  "historical_sources": [
++    {
++      "path": "docs/tasks/315/research.md",
++      "class": "immutable-evidence",
++      "content": "# Synthetic historical research\n\nMeasured finding retained byte-for-byte.\n"
++    },
++    {
++      "path": "docs/kb/repo-ops.md",
++      "class": "cold-archive",
++      "content": "# Synthetic legacy topic\n\nImported once; never regenerated.\n"
++    },
++    {
++      "path": "TODO.md",
++      "class": "cold-archive",
++      "content": "- [ ] Synthetic historical TODO entry\n"
++    },
++    {
++      "path": "docs/archive/sessions/2026-08.md",
++      "class": "cold-archive",
++      "content": "# Synthetic session archive\n\nCold evidence only.\n"
++    }
++  ],
++  "import_request": {
++    "operation": "import_evidence",
++    "detail": "record",
++    "source": {
++      "path": "docs/tasks/315/research.md",
++      "class": "immutable-evidence",
++      "project_id": "orchestra",
++      "stable_id": "3b000000-0000-4000-8000-000000000001",
++      "canonical_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/3b000000-0000-4000-8000-000000000001",
++      "git_commit": "1111111111111111111111111111111111111111",
++      "anchor": "Measured finding",
++      "content_sha256": "$historical_sha256"
++    }
++  },
++  "progressive_queries": [
++    {
++      "operation": "query",
++      "detail": "summary",
++      "project_id": "orchestra",
++      "topic": "runtime-safety",
++      "mode": "current"
++    },
++    {
++      "operation": "query",
++      "detail": "record",
++      "project_id": "orchestra",
++      "topic": "runtime-safety",
++      "mode": "current"
++    },
++    {
++      "operation": "query",
++      "detail": "evidence",
++      "project_id": "orchestra",
++      "topic": "runtime-safety",
++      "mode": "current"
++    }
++  ],
++  "forbidden_generated_extensions": [".md", ".markdown", ".txt", ".html"],
++  "forbidden_generated_keys": [
++    "generated_markdown",
++    "human_projection",
++    "human_summary",
++    "readme_text",
++    "topic_markdown"
++  ],
++  "compound_mutants": {
++    "hidden_markdown_regeneration": {
++      "nested_output": ".generated/topics/runtime-safety/summary.markdown",
++      "json_marker": {"metadata": {"human_projection": "hidden duplicate truth"}}
++    },
++    "direct_file_fallback": {
++      "fallback_path": "docs/kb/repo-ops.md",
++      "fallback_content": "T3B_DIRECT_FILE_FALLBACK_MUST_NOT_WIN"
++    },
++    "sqlite_fallback": {
++      "payload_json": {"claim": "T3B_SQLITE_SECOND_TRUTH_MUST_NOT_WIN"}
++    },
++    "vector_fallback": {
++      "hits": [
++        {"content": "T3B_VECTOR_SECOND_TRUTH_MUST_NOT_WIN", "score": 1.0}
++      ]
++    }
++  }
++}
+diff --git a/docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py b/docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6dc53cae01561cb5c0abfbafc44d43c6116cb2ab
+--- /dev/null
++++ b/docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py
+@@ -0,0 +1,404 @@
++"""Frozen RED correction for #315 T3b: agent-only structured knowledge.
++
++The only agent-facing surface is one ``knowledge`` MCP tool backed by one
++``POST /api/knowledge`` route and ``app.ia.knowledge.knowledge_api`` owner.
++Canonical writes are JSON records/indexes only.  Historical Markdown remains
++byte-preserved cold evidence and is never regenerated or used as truth fallback.
++"""
++
++from __future__ import annotations
++
++import copy
++import hashlib
++import importlib
++import importlib.util
++import json
++from collections.abc import Mapping
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++
++HERE = Path(__file__).resolve().parent
++FIXTURE_PATH = HERE / "fixtures" / "t3b_agent_only_records.json"
++CONTRACT_PATH = HERE / "fixtures" / "t3b_agent_only_contract.json"
++T3_ORACLE_PATH = HERE / "test_t3_promotion_behavior.py"
++
++
++def _json(path: Path) -> dict:
++    return json.loads(path.read_text(encoding="utf-8"))
++
++
++def _fixture() -> dict:
++    return _json(FIXTURE_PATH)
++
++
++def _contract() -> dict:
++    return _json(CONTRACT_PATH)
++
++
++def _t3_oracle_module():
++    spec = importlib.util.spec_from_file_location("t3_oracle_for_t3b", T3_ORACLE_PATH)
++    assert spec is not None and spec.loader is not None
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++def _load_api() -> SimpleNamespace:
++    modules = {}
++    for module_name, surface in _contract()["public_api"].items():
++        try:
++            module = importlib.import_module(module_name)
++        except ImportError as exc:
++            pytest.fail(f"#315 T3b missing behavior: cannot import {module_name}: {exc}")
++        for name in surface.get("callables", []):
++            assert callable(getattr(module, name, None)), (
++                f"#315 T3b missing behavior: {module_name}.{name} is not callable"
++            )
++        for name in surface.get("exceptions", []):
++            error = getattr(module, name, None)
++            assert isinstance(error, type) and issubclass(error, Exception), (
++                f"#315 T3b missing behavior: {module_name}.{name} is not an exception"
++            )
++        for name in surface.get("attributes", []):
++            assert getattr(module, name, None) is not None, (
++                f"#315 T3b missing behavior: {module_name}.{name} is absent"
++            )
++        modules[module_name.replace(".", "_")] = module
++    return SimpleNamespace(**modules)
++
++
++def _historical_root(tmp_path: Path) -> tuple[Path, dict[str, str]]:
++    root = tmp_path / "historical"
++    hashes = {}
++    for source in _fixture()["historical_sources"]:
++        path = root / source["path"]
++        path.parent.mkdir(parents=True, exist_ok=True)
++        path.write_text(source["content"], encoding="utf-8")
++        hashes[source["path"]] = hashlib.sha256(path.read_bytes()).hexdigest()
++    return root, hashes
++
++
++def _materialize_import_request(historical_root: Path) -> dict:
++    request = copy.deepcopy(_fixture()["import_request"])
++    source_path = historical_root / request["source"]["path"]
++    request["source"]["content_sha256"] = (
++        f"sha256:{hashlib.sha256(source_path.read_bytes()).hexdigest()}"
++    )
++    request["source"]["source_root"] = str(historical_root)
++    return request
++
++
++def _nested_keys(value) -> set[str]:
++    if isinstance(value, Mapping):
++        return set(value) | {
++            key for child in value.values() for key in _nested_keys(child)
++        }
++    if isinstance(value, list):
++        return {key for child in value for key in _nested_keys(child)}
++    return set()
++
++
++def _assert_agent_only_canonical(root: Path) -> None:
++    allowed = {".json"}
++    files = [path for path in root.rglob("*") if path.is_file()]
++    assert files, "canonical structured store is empty"
++    assert {path.suffix.lower() for path in files} <= allowed
++    forbidden_keys = set(_fixture()["forbidden_generated_keys"])
++    for path in files:
++        payload = json.loads(path.read_text(encoding="utf-8"))
++        assert forbidden_keys.isdisjoint(_nested_keys(payload))
++
++
++def _asgi_app(api):
++    from fastapi import FastAPI
++
++    app = FastAPI()
++    app.include_router(api.app_routes_knowledge.router)
++    return app
++
++
++def _asgi_transport_api(app):
++    import httpx
++
++    async def call(method, path, **kwargs):
++        transport = httpx.ASGITransport(app=app)
++        async with httpx.AsyncClient(transport=transport, base_url="http://t3b.test") as client:
++            response = await client.request(method, path, json=kwargs.get("json"))
++        try:
++            payload = response.json()
++        except ValueError:
++            payload = {"error": response.text}
++        if response.status_code >= 400:
++            return {"error": payload.get("error", payload), "status": response.status_code}
++        return payload
++
++    return call
++
++
++def _tool_request(operation: str, detail: str, **payload) -> dict:
++    return {"operation": operation, "detail": detail, **payload}
++
++
++def test_t3b_harness_quantifies_current_t3_and_repository_conflicts():
++    fixture = _fixture()
++    contract = _contract()
++    audit = fixture["audit_baseline"]
++    assert hashlib.sha256(FIXTURE_PATH.read_bytes()).hexdigest() == contract["fixture_sha256"]
++    for relative, expected in contract["merged_t3_implementation_sha256"].items():
++        assert hashlib.sha256(Path(relative).read_bytes()).hexdigest() == expected
++    assert audit == {
++        "merged_t3_command": "uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py -q",
++        "merged_t3_result": "18 passed",
++        "markdown_generator_call_sites": 2,
++        "initial_generated_markdown_files": 3,
++        "new_topic_generated_markdown_files": 4,
++        "t3_contract_markdown_layout_paths": 2,
++        "t3_oracle_markdown_behavior_assertions": 2,
++        "current_repo_inventory": {
++            "docs_tasks_md": 1281,
++            "docs_kb_md": 20,
++            "session_archive_md": 3,
++            "pipeline_prompt_md": 23,
++            "codex_skill_md": 2,
++            "todo_md": 1,
++            "claude_md": 1,
++            "agents_md": 1,
++        },
++    }
++    knowledge_source = Path("app/ia/knowledge.py").read_text(encoding="utf-8")
++    assert knowledge_source.count("self._write_topic_documents()") == 2
++    assert '"README.md"' in knowledge_source and '"topic.md"' in knowledge_source
++    old_contract = _json(HERE / "fixtures" / "t3_promotion_contract.json")
++    assert set(old_contract["canonical_layout"]) >= {"readme", "topic"}
++    old_oracle = T3_ORACLE_PATH.read_text(encoding="utf-8")
++    assert 'root / "README.md"' in old_oracle
++    assert '["canonical_layout"]["topic"]' in old_oracle
++
++
++def test_t3b_harness_existing_structured_t3_behavior_and_markdown_mutation_execute(tmp_path):
++    t3 = _t3_oracle_module()
++    api = t3._load_api()
++    context = t3._materialization_context(tmp_path)
++    root = tmp_path / "knowledge-main"
++    with t3._knowledge_mode(api, tmp_path, context):
++        initial_markdown = sorted(root.rglob("*.md"))
++        result = t3._promote(api, t3._request("new_topic", context))
++        after_markdown = sorted(root.rglob("*.md"))
++    assert result["outcome"] == "created"
++    assert len(initial_markdown) == 3
++    assert len(after_markdown) == 4
++    assert len(t3._fact_files(root)) == 1
++    assert len(t3._event_files(root)) == 1
++    assert any(path.name == "README.md" for path in after_markdown)
++    assert any(path.name == "topic.md" for path in after_markdown)
++
++
++def test_t3b_harness_historical_sources_and_compound_mutants_are_material(tmp_path):
++    historical_root, before = _historical_root(tmp_path)
++    assert len(before) == 4
++    assert all(hashlib.sha256((historical_root / path).read_bytes()).hexdigest() == digest
++               for path, digest in before.items())
++    mutants = _fixture()["compound_mutants"]
++    assert mutants["hidden_markdown_regeneration"]["nested_output"].endswith(".markdown")
++    assert "human_projection" in _nested_keys(
++        mutants["hidden_markdown_regeneration"]["json_marker"]
++    )
++    assert mutants["direct_file_fallback"]["fallback_path"].endswith(".md")
++    assert mutants["sqlite_fallback"]["payload_json"]["claim"]
++    assert mutants["vector_fallback"]["hits"][0]["content"]
++
++
++@pytest.mark.asyncio
++async def test_t3b_single_mcp_tool_routes_to_one_typed_owner_and_writes_only_json(
++    tmp_path,
++    monkeypatch,
++):
++    api = _load_api()
++    t3 = _t3_oracle_module()
++    t3_api = t3._load_api()
++    context = t3._materialization_context(tmp_path)
++    calls = []
++    original = api.app_ia_knowledge.knowledge_api
++
++    def tracked(request):
++        calls.append(request["operation"])
++        return original(request)
++
++    monkeypatch.setattr(api.app_ia_knowledge, "knowledge_api", tracked)
++    app = _asgi_app(api)
++    monkeypatch.setattr(api.app_mcp_stdio, "_api", _asgi_transport_api(app))
++    root = tmp_path / "knowledge-main"
++    with t3._knowledge_mode(t3_api, tmp_path, context):
++        request = t3._request("new_topic", context)
++        raw = await api.app_mcp_stdio.knowledge(
++            operation="promote",
++            detail="summary",
++            payload={
++                "request": request,
++                "expected_head": t3_api.knowledge.knowledge_head(),
++            },
++        )
++    result = json.loads(raw)
++    assert result["operation"] == "promote"
++    assert result["outcome"] == "created"
++    assert result["uri"].startswith("orch://project/orchestra/knowledge/")
++    assert calls == ["promote"]
++    _assert_agent_only_canonical(root)
++    assert not list(root.rglob("*.md"))
++    assert not hasattr(api.app_mcp_stdio, "promote_knowledge")
++    assert not hasattr(api.app_mcp_stdio, "query_knowledge")
++
++
++def test_t3b_progressive_summary_record_evidence_payloads_use_same_api(tmp_path):
++    api = _load_api()
++    t3 = _t3_oracle_module()
++    t3_api = t3._load_api()
++    context = t3._materialization_context(tmp_path)
++    with t3._knowledge_mode(t3_api, tmp_path, context):
++        promote = _tool_request(
++            "promote",
++            "summary",
++            payload={
++                "request": t3._request("new_topic", context),
++                "expected_head": t3_api.knowledge.knowledge_head(),
++            },
++        )
++        api.app_ia_knowledge.knowledge_api(promote)
++        payloads = [
++            api.app_ia_knowledge.knowledge_api(copy.deepcopy(request))
++            for request in _fixture()["progressive_queries"]
++        ]
++    summary, record, evidence = payloads
++    assert summary["detail"] == "summary"
++    assert set(summary["items"][0]) == {
++        "uri", "record_type", "status", "claim", "canonical_head", "evidence_count"
++    }
++    assert record["detail"] == "record" and record["items"][0]["provenance"]
++    assert evidence["detail"] == "evidence" and evidence["items"][0]["evidence"]
++    sizes = [len(json.dumps(payload, sort_keys=True)) for payload in payloads]
++    assert sizes[0] < sizes[1] < sizes[2]
++    assert {payload["canonical_head"] for payload in payloads} == {
++        payloads[0]["canonical_head"]
++    }
++
++
++def test_t3b_import_evidence_is_idempotent_byte_preserving_and_json_only(tmp_path):
++    api = _load_api()
++    t3 = _t3_oracle_module()
++    t3_api = t3._load_api()
++    context = t3._materialization_context(tmp_path)
++    historical_root, before = _historical_root(tmp_path)
++    request = _materialize_import_request(historical_root)
++    root = tmp_path / "knowledge-main"
++    with t3._knowledge_mode(t3_api, tmp_path, context):
++        first = api.app_ia_knowledge.knowledge_api(request)
++        second = api.app_ia_knowledge.knowledge_api(copy.deepcopy(request))
++    assert first["outcome"] == "created"
++    assert second["outcome"] == "noop"
++    after = {
++        path: hashlib.sha256((historical_root / path).read_bytes()).hexdigest()
++        for path in before
++    }
++    assert after == before
++    assert first["source_sha256"] == f"sha256:{before['docs/tasks/315/research.md']}"
++    _assert_agent_only_canonical(root)
++    assert len(list(root.rglob("evidence/*.json"))) == 1
++
++
++def test_t3b_hidden_markdown_or_human_projection_output_is_rejected(tmp_path):
++    api = _load_api()
++    t3 = _t3_oracle_module()
++    t3_api = t3._load_api()
++    context = t3._materialization_context(tmp_path)
++    root = tmp_path / "knowledge-main"
++    with t3._knowledge_mode(t3_api, tmp_path, context):
++        api.app_ia_knowledge.knowledge_api(_tool_request(
++            "promote",
++            "record",
++            payload={
++                "request": t3._request("new_topic", context),
++                "expected_head": t3_api.knowledge.knowledge_head(),
++            },
++        ))
++    forbidden_extensions = set(_fixture()["forbidden_generated_extensions"])
++    assert not [
++        path for path in root.rglob("*")
++        if path.is_file() and path.suffix.lower() in forbidden_extensions
++    ]
++    _assert_agent_only_canonical(root)
++    forbidden_keys = set(_fixture()["forbidden_generated_keys"])
++    for path in root.rglob("*.json"):
++        assert forbidden_keys.isdisjoint(_nested_keys(_json(path)))
++
++
++def test_t3b_missing_canonical_never_uses_direct_file_sqlite_or_vector_fallback(
++    tmp_path,
++    monkeypatch,
++):
++    api = _load_api()
++    t3 = _t3_oracle_module()
++    t3_api = t3._load_api()
++    context = t3._materialization_context(tmp_path)
++    historical_root, _ = _historical_root(tmp_path)
++    fallback_path = historical_root / _fixture()["compound_mutants"]["direct_file_fallback"][
++        "fallback_path"
++    ]
++    fallback_reads = []
++    original_read_text = Path.read_text
++
++    def guarded_read_text(path, *args, **kwargs):
++        if path.resolve() == fallback_path.resolve():
++            fallback_reads.append(str(path))
++            return _fixture()["compound_mutants"]["direct_file_fallback"]["fallback_content"]
++        return original_read_text(path, *args, **kwargs)
++
++    monkeypatch.setattr(Path, "read_text", guarded_read_text)
++    root = tmp_path / "knowledge-main"
++    with t3._knowledge_mode(t3_api, tmp_path, context):
++        api.app_ia_knowledge.knowledge_api(_tool_request(
++            "promote",
++            "summary",
++            payload={
++                "request": t3._request("current", context),
++                "expected_head": t3_api.knowledge.knowledge_head(),
++            },
++        ))
++        fact_path = next(root.rglob("facts/*/*.json"))
++        fact_path.unlink()
++        mutant = _tool_request(
++            "query",
++            "summary",
++            project_id="orchestra",
++            topic="repo-ops",
++            mode="current",
++            fallback={
++                **_fixture()["compound_mutants"]["direct_file_fallback"],
++                **_fixture()["compound_mutants"]["sqlite_fallback"],
++                **_fixture()["compound_mutants"]["vector_fallback"],
++            },
++        )
++        with pytest.raises(api.app_ia_knowledge.CanonicalKnowledgeUnavailableError):
++            api.app_ia_knowledge.knowledge_api(mutant)
++    assert fallback_reads == []
++
++
++@pytest.mark.asyncio
++async def test_t3b_agent_tool_rejects_direct_storage_operations(tmp_path, monkeypatch):
++    api = _load_api()
++    app = _asgi_app(api)
++    monkeypatch.setattr(api.app_mcp_stdio, "_api", _asgi_transport_api(app))
++    for operation in ("read_file", "sqlite_query", "vector_search"):
++        raw = await api.app_mcp_stdio.knowledge(
++            operation=operation,
++            detail="summary",
++            payload={"path": "docs/kb/repo-ops.md", "sql": "SELECT *", "query": "x"},
++        )
++        result = json.loads(raw)
++        assert result["error"]["code"] == "unsupported_operation"
++        rendered = json.dumps(result)
++        assert "T3B_DIRECT_FILE_FALLBACK_MUST_NOT_WIN" not in rendered
++        assert "T3B_SQLITE_SECOND_TRUTH_MUST_NOT_WIN" not in rendered
++        assert "T3B_VECTOR_SECOND_TRUTH_MUST_NOT_WIN" not in rendered
+diff --git a/docs/tasks/315/discussion.md b/docs/tasks/315/discussion.md
+index 40ede87a6256579d1bdbffa66721d43fa8e38d8e..1e5ff1db897031051a9500a9e0be6c799e1a6a9e 100644
+--- a/docs/tasks/315/discussion.md
++++ b/docs/tasks/315/discussion.md
+@@ -12,9 +12,9 @@ evaluated.
+ | 4. Task store sequencing | Implement #299 task canonical/projection boundary first, then reuse it for knowledge links | Implement both behind separate projections, or knowledge first | #299 first settles stable ID/#N/head/merge semantics; it delays fact retrieval but avoids two incompatible migration seams | #299 user decision on lease/global #N remains unresolved, while a typed-fact pilot can prove value without task identity changes |
+ | 5. Session memory | Immutable session/cold history; explicit promotion only after evidence validation | Automatic extraction of all session memories into current facts | Safe provenance and privacy cost more writes; auto extraction risks source-less/collateral facts | a frozen promotion audit shows automatic extraction has zero false promotion and complete provenance across all allowed memory classes |
+ | 6. Private data and retention | Classify fields; keep private fields out of prompt/FTS/vector; use private Git or separately governed encrypted store; tombstone is not legal erase | Keep sensitive values in canonical Git with access controls only | Separate private store increases operational complexity; keeping values in Git can make legal purge/history rewrite unavoidable | documented legal policy plus secret-scan/restore measurements show private Git is acceptable and purge procedure is approved |
+-| 7. Progressive delivery | Compact hot topic registry, warm typed facts, cold evidence/session details; heads and debt in every result | Load all Markdown/log context or adopt OpenViking L0/L1/L2 wholesale | Requires summary/projection generation and fallback; avoids prompt bloat and stale silent misses | A/B/A/B frozen workload shows no reduction in tool calls/footprint or causes task-success loss larger than accepted budget |
++| 7. Progressive delivery | One typed agent tool returns structured summary/record/evidence payload levels with heads/debt; cold archives only through evidence refs | Separate query/promotion tools, direct files/SQLite/vector, or generated human summaries | One owner and machine payloads minimize branches and dual truth; direct storage access makes stale fallback indistinguishable from canon | frozen tasks show one tool loses required evidence or materially increases agent failure/tool calls |
+ | 8. Rollout and rollback | Fresh frozen manifest, shadow dual-read, replay parity, projection cutover, forward rollback/rebuild; no live service mutation during research | Direct cutover after migration script | Shadow mode costs storage/time; direct cutover risks loss of task/fact identity and stale projections | parity or rollback rehearsal fails; then keep old facade and redesign migration before any write |
+-| 9. Existing documents and agent cutover | After core T3–T6, classify every legacy document; canonical task/fact/event/evidence-ref bodies are structured Git JSON, while historical reports remain immutable evidence and README/topic Markdown is generated projection; switch assembled prompts through legacy→shadow→canonical | Treat current Markdown or SQLite as continuing co-master, or rewrite evidence into new records | A strict owner removes dual truth but requires alias manifests, prompt delivery checks and a reversible compatibility window; early deletion makes rollback impossible | byte-preserving inventory, shadow parity or assembled-prompt checks cannot cover the corpus/runtimes, so retain legacy owner and redesign before cutover |
++| 9. Existing documents and agent cutover | After corrected T3b plus T4–T6, classify every legacy document; structured Git JSON/registry is canonical, historical Markdown is byte-preserved cold evidence/archive, and no README/topic/human projection is generated | Keep/generated Markdown or SQLite as co-master, or rewrite evidence into new records | A single agent-only owner removes duplicate output and truth paths but requires alias manifests, prompt delivery checks and reversible compatibility | byte-preserving inventory, shadow parity or assembled-prompt checks cannot cover the corpus/runtimes, so retain legacy owner and redesign before cutover |
+ 
+ ## Immediate user decisions
+ 
+@@ -26,9 +26,29 @@ open; each ticket's separately frozen behavioral oracle is still mandatory.
+ Even after these choices, Phase 3 remains blocked until every ticket has a behavior-specific RED oracle
+ designed and frozen. The smoke probes in acceptance/ are only missing-seam diagnostics.
+ 
+-## User decision — final T7 boundary (2026-08-24)
++## User correction — agent-only knowledge boundary (2026-08-24)
+ 
+-T7 occurs only after the T3–T6 core data plane is implemented and verified. Canonical task state,
++The earlier T7 choice that generated README/topic Markdown is superseded. The user wants no
++human-readable generated output: optimize for agents and maximum simplicity. Merged T3 currently passes
++its frozen suite (`18 passed`) but conflicts with this decision in measured, exact ways:
++
++- `KnowledgeService._write_topic_documents()` is called at initialization and new-topic promotion (2
++  call sites); the base two-topic registry generates 3 Markdown files, and adding one topic generates 4;
++- the frozen T3 contract owns 2 Markdown layout paths (`README.md`, `topic.md`), and its oracle has 2
++  behavior assertions requiring those outputs;
++- current inventory to retain rather than regenerate is 1,281 `docs/tasks/**/*.md`, 20 `docs/kb/*.md`,
++  3 session-archive Markdown files, 23 pipeline prompt Markdown files, 2 Codex skill Markdown files plus
++  TODO.md/CLAUDE.md/AGENTS.md.
++
++T3b preserves T3's evidence/idempotency/conflict/valid-time semantics but removes every Markdown/human
++projection write. One agent-facing `knowledge` tool/API owns promotion, query and evidence import with
++structured progressive payloads (`summary`, `record`, `evidence`). Missing canonical truth fails closed;
++caller-supplied file paths, SQLite payloads or vector hits can never serve as an alternate truth path.
++T4 is stopped until this corrective oracle and implementation are merged.
++
++## User decision — final T7 boundary (corrected 2026-08-24)
++
++T7 occurs only after corrected T3b and the T4–T6 core data plane are implemented and verified. Canonical task state,
+ events and evidence references are structured Git records (JSON), not arbitrary Markdown. Typed fact
+ and fact-event records follow the same rule. Existing `docs/tasks/*.md` research/plan/review/report
+ bodies remain immutable evidence or human documentation; migration adds typed references and aliases
+@@ -36,21 +56,21 @@ without rewriting their historical bytes or Git lineage.
+ 
+ Existing documents are inventoried and assigned exactly one migration class:
+ 
+-- canonical structured record — task/fact/event/evidence-ref/resource/skill identity owned by typed JSON;
+-- immutable evidence/report — historical `docs/tasks/*.md`, measurements and review artifacts retained
+-  at their paths and addressed by evidence URI + commit/blob/anchor;
+-- generated human projection — `docs/kb/*.md`, topic Markdown and README derived from typed facts after
+-  cutover and forbidden from independent edits/claims;
+-- cold archive — session archives and retired TODO/instruction history, queryable only as archive until
+-  explicit evidence-backed promotion.
++- canonical structured record/index — task/fact/event/evidence-ref/resource/skill identity owned by JSON;
++- immutable evidence/cold archive — existing `docs/tasks/*.md`, `docs/kb/*.md`, measurements, review
++  artifacts, session archives and retired TODO history retained at their paths and addressed by typed
++  evidence URI + commit/blob/anchor;
++- active skill/resource source — hand-authored instruction source tracked by content hash, not generated;
++- derived machine projection — SQLite current/FTS/vector state rebuilt from canonical JSON and never
++  queried by agents as an independent truth path.
+ 
+ Active TODO/instruction/prompt/skill sources are classified deliberately, not bulk-promoted: an active
+ instruction becomes a typed `skill`/`resource` record pointing to its owning source and content hash;
+ assembled prompts are delivery projections. Agents must use typed `orch://` task/evidence/fact IDs and
+-the promotion/evidence/query APIs, and must never treat SQLite, vector hits or Markdown projections as
+-independent truth.
++the single typed knowledge tool, and must never read files, SQLite or vector hits as independent truth.
+ 
+-Cutover is legacy→shadow→canonical. SQLite stays a rebuildable hot projection/compatibility layer and
++No README, topic Markdown, HTML/text summary or other human projection is generated. Cutover is
++legacy→shadow→canonical. SQLite stays a rebuildable hot projection/compatibility layer and
+ is not destructively removed until shadow parity, privacy, rollback rehearsal, all-runtime assembled
+ prompt verification and live cutover receipts pass. Rollback changes the active owner/generation and
+ replays forward; it does not rewrite historical evidence or delete newer canonical events.
+diff --git a/docs/tasks/315/plan.md b/docs/tasks/315/plan.md
+index 59b32757aa80140f1f10dc5f8b0062853c97ae40..c42aab557fe5c3483f47e6eb4605f0304e71c020 100644
+--- a/docs/tasks/315/plan.md
++++ b/docs/tasks/315/plan.md
+@@ -13,6 +13,8 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
+ - app/ia/task_store.py — Git-canonical task records, #N lease/lookup and facade parity.
+ - app/ia/evidence.py — immutable evidence manifest/path-anchor/blob validation.
+ - app/ia/knowledge.py — topic registry, fact promotion/current/rejected/as-of queries.
++- app/routes/knowledge.py, app/mcp_stdio.py — one agent-facing typed `knowledge` API/tool for
++  promotion, query and evidence import with progressive structured payloads; no separate human output.
+ - app/ia/projections.py — SQLite current/event/FTS projection, head receipts and fallback.
+ - app/db.py — additive projection metadata/schema only; preserve existing session/log/task migrations
+   until cutover proves parity.
+@@ -58,12 +60,14 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
+ 6. Roll back before new canonical writes by switching reader/projection generation. After new canonical
+    writes, append forward restore/replay events and rebuild projections; never reset/delete Git history
+    to hide a failed cutover.
+-7. After T3–T6 are green, freeze a tracked document inventory and classify every `docs/tasks/*.md`,
+-   `docs/kb/*.md`, TODO/instruction source and session archive as exactly one of: canonical structured
+-   record, immutable evidence/report, generated human projection, or cold archive. Preserve historical
+-   evidence bytes and paths; migrate references through aliases/`orch://` IDs rather than rewriting it.
++7. After corrected T3b and T4–T6 are green, freeze a tracked document inventory and classify every
++   `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive as exactly one of:
++   canonical structured JSON, immutable evidence/cold archive, active skill/resource source, or derived
++   machine index. Preserve historical bytes and paths; import/index them once through structured refs
++   and `orch://` aliases rather than rewriting or regenerating Markdown.
+ 8. Run T7 legacy→shadow→canonical prompt/document cutover. Structured JSON task/fact/evidence-ref/event
+-   records are canonical; topic/README Markdown, SQLite, FTS and vector are rebuildable projections.
++   records and their structured registry/index are canonical; historical Markdown stays cold evidence,
++   never a regenerated projection. SQLite, FTS and vector remain rebuildable machine projections.
+    Do not destructively remove SQLite or legacy readers until shadow parity, rollback rehearsal, assembled
+    prompt delivery and live cutover receipts all pass. Rollback switches the owner/read generation and
+    replays forward; it never deletes newer canonical history.
+@@ -130,6 +134,24 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
+   EvidenceResolver → FactEventLog and emitted facts validate/project through T1 over T2 evidence.
+ - blocked-by: T1, T2.
+ 
++### T3b — agent-only structured knowledge correction
++
++- Files: future correction to app/ia/knowledge.py; new app/routes/knowledge.py; app/mcp_stdio.py single
++  `knowledge` tool; structured archive/evidence index. Existing app/ia/evidence.py/events.py fact semantics
++  remain. Frozen acceptance/test_t3b_agent_only_knowledge_behavior.py and
++  acceptance/fixtures/t3b_agent_only_*.json.
++- Test: uv run python -m pytest docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py -q
++- RED result: three audit/current-T3/historical controls pass; six behavior nodes fail on
++  `#315 T3b missing behavior: app.ia.knowledge.knowledge_api is not callable`.
++- AC: command is green; the only agent entry is one typed `knowledge` MCP/API supporting promote/query/
++  import_evidence and summary/record/evidence payload levels; new canonical writes are JSON records/index
++  only; no README/topic Markdown, HTML/text summary or hidden human-projection key is generated; existing
++  Markdown corpus bytes/paths remain cold evidence and import idempotently through structured refs; missing
++  canonical truth fails closed and cannot read caller-supplied file, SQLite payload or vector hits; MCP →
++  HTTP route → knowledge_api → KnowledgeService wiring is observable. Original T3 12-scenario semantics
++  remain, but its Markdown layout clauses are superseded by T3b.
++- blocked-by: T3.
++
+ ### T4 — SQLite current projection, heads and cold index
+ 
+ - Files: new app/ia/projections.py; additive app/db.py; app/rag.py, app/rag_service.py,
+@@ -141,7 +163,8 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
+   canonical_head, projection_head and indexed_head are returned separately; vector/log lag is visible;
+   stale SQLite falls back to canonical changed records; vector/index failure never erases current
+   task/fact result; existing RAG file/log content remains rebuildable.
+-- blocked-by: T3.
++- Gate: STOPPED by the user correction; do not design/freeze or implement T4 until T3b is merged.
++- blocked-by: T3b.
+ 
+ ### T5 — session commit, pack/restore rehearsal and privacy/retention
+ 
+@@ -174,20 +197,20 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
+ ### T7 — prompt + existing-document migration + final cutover
+ 
+ - Files: future scripts/ia_document_inventory.py, scripts/ia_migrate_documents.py; prompt/skill owners
+-  selected by the tracked delivery inventory; generated docs/kb registry/topic projections; migration
+-  manifests and alias maps. Historical evidence/report bodies are read-only inputs, not rewrite targets.
++  selected by the tracked delivery inventory; structured registry/archive indexes, migration manifests
++  and alias maps. Historical evidence/report bodies are read-only inputs, never regeneration targets.
+ - Test: future `uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q`;
+   behavioral oracle design is frozen in acceptance/README.md T7 row, but no RED is committed yet. No
+   existence smoke may substitute for it.
+ - AC: command is green; every in-scope legacy path is classified exactly once; canonical task
+   state/events/evidence refs/facts are structured Git JSON; historical evidence/report/session archive
+   bytes and Git lineage are unchanged; old path/#N references resolve through typed `orch://` aliases;
+-  README/topic Markdown is generated-only and cannot accept independent truth; all assembled runtime
+-  prompts instruct typed task/evidence/promotion/query APIs and deny SQLite/vector/Markdown authority;
++  no README/topic/human summary is generated; all assembled runtime prompts instruct the single typed
++  knowledge tool and typed task IDs, and deny direct file/SQLite/vector access as alternate authority;
+   legacy and shadow keep current readers recoverable, canonical cutover occurs only after parity/privacy/
+   rollback/live-delivery receipts, and rollback restores the previous owner without erasing canonical
+   events. Compound dual-truth, prompt-source-only, fake-parity deletion and rewritten-evidence mutants fail.
+-- blocked-by: T3, T4, T5, T6.
++- blocked-by: T3b, T4, T5, T6.
+ 
+ ## Phase 3 entry gate and quantitative gate
+ 
+@@ -195,8 +218,9 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
+ Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
+ conflicts and sensitive classes. Each ticket must still receive the exact
+ fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
+-behavioral RED test must be committed and independently verified before implementation. T1–T3 have
+-reached that oracle gate; T4–T7 have not. T7 runs only after core T3–T6 and has no existence-smoke
++behavioral RED test must be committed and independently verified before implementation. T1–T3 and T3b
++have reached that oracle gate; T4–T7 have not. T4 is stopped until T3b merges. T7 runs only after the
++corrected T3b plus T4–T6 core and has no existence-smoke
+ shortcut. Smoke probes never satisfy this gate.
+ 
+ The implementation report must include command output and frozen manifest for replay parity and 0
+@@ -204,7 +228,8 @@ duplicate identity; 0 source-less promoted facts; exact/current/rejected recall
+ on the #256 holdout; projection read-after-write and head debt; task facade parity and conflict-loss
+ count; prompt footprint/tool calls/time measured A/B/A/B; privacy secret scan; rollback replay parity.
+ T7 additionally reports exact document-classification coverage, unchanged historical evidence hashes,
+-typed-reference resolution, assembled-prompt delivery for every runtime, shadow mismatch count, cutover
++typed-reference resolution, zero newly generated human-readable files/summaries, single-tool assembled-
++prompt delivery for every runtime, shadow mismatch count, cutover
+ receipt and rehearsed rollback with legacy SQLite still recoverable.
+ 
+ No absolute future quality/latency/token constant is invented here. The acceptance test must report its

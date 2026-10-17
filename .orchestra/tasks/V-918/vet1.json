@@ -1,0 +1,270 @@
+{
+ "cand-15": [
+  "no",
+  "The origin redirects Opus 4.6 aliases to the still-available Opus 4.8 model; the later fix restores 4.6 as an option and changes orchestrator model selection based on a behavioral preference, not a defect evident from the origin diff."
+ ],
+ "cand-35": [
+  "no",
+  "The later fix addresses Grok ACP session replay and stream finalization in app/backend_grok.py; it does not correct a defect in the origin\\u2019s chat read-boundary behavior in app/static/js/app.js."
+ ],
+ "cand-07": [
+  "no",
+  "The origin adds comments only; the SSE agent-switch race fixed in app.js connectSSE/selectAgent was pre-existing behavior, not introduced by that diff."
+ ],
+ "cand-51": [
+  "unclear",
+  "I can\\u2019t access the specified packet file in this workspace, so I can\\u2019t determine whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-66": [
+  "yes",
+  "Origin\\u2019s workflow runner omitted task IDs and input item metadata from results, losing identity and item association; scripts/wf_run.py\\u2019s execute_stages and execute_tasks were fixed to retain those fields."
+ ],
+ "cand-27": [
+  "unclear",
+  "I can\\u2019t access the specified packet from the current workspace, so I can\\u2019t compare the origin diff with the later fixes."
+ ],
+ "cand-11": [
+  "no",
+  "The later proxy and tunnel changes add stable IDs and recovery behavior or remove hot switching; the origin\\u2019s extraction and route wiring show no clear defect that those changes correct."
+ ],
+ "cand-17": [
+  "yes",
+  "The origin\\u2019s rate-limit banner in app.js could remain visible after switching agents and could be triggered by initial history replay, misrepresenting stale or historical rate limits as current."
+ ],
+ "cand-39": [
+  "unclear",
+  "I can\\u2019t assess whether a later fix corrected an origin-introduced defect without the contents of cand-39.md."
+ ],
+ "cand-64": [
+  "unclear",
+  "I cannot access the referenced packet file from the provided context, so I cannot compare the origin diff with the later fixes."
+ ],
+ "cand-08": [
+  "yes",
+  "In app/diff_image.py, the origin truncates long lines in edit, write, and grep previews, silently hiding source characters; the later wrap fix restores those characters in the rendered rows."
+ ],
+ "cand-05": [
+  "yes",
+  "The origin added a six-hour cleanup task that deleted every log older than seven days via app.db:cleanup_old_logs, destroying agent history while session records remained."
+ ],
+ "cand-04": [
+  "yes",
+  "The origin left hidden profile/pipeline/role selects in the DOM and read their values in createOrchestrator; their populated selections could vary, creating an orchestrator with the wrong role, while the later fix hardcodes the intended defaults in app/static/js/app.js."
+ ],
+ "cand-13": [
+  "unclear",
+  "I could not read the specified packet file, so I cannot determine whether the later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-50": [
+  "unclear",
+  "I could not read the packet at the supplied path, so I cannot determine whether the later fixes correct a defect introduced by the origin diff."
+ ],
+ "cand-38": [
+  "unclear",
+  "I could not read the packet at the supplied path from the available context, so I cannot determine whether the later fixes address a defect introduced by the origin diff."
+ ],
+ "cand-10": [
+  "yes",
+  "In `app/session.py`\\u2019s `AgentSession.compact`, the origin updates `session_id` before validating the compact summary, so a failed compact can leave the session pointing at a bad replacement ID; the later fix restores the pre-compact ID on abort."
+ ],
+ "cand-49": [
+  "no",
+  "The later fix makes zero utilization windows without reset timestamps visible in app/db.py:_usage_providers_from_row, but the origin retained the pre-existing truthiness condition that already omitted such zeros, so it did not introduce this defect."
+ ],
+ "cand-63": [
+  "no",
+  "The later fix addresses turns missed after the orchestrator list began refreshing every 60 seconds; the origin compared status during the then-existing session refresh, and the longer polling interval was introduced later."
+ ],
+ "cand-62": [
+  "no",
+  "The later changes parallelize pytest and isolate test fixtures, extending execution behavior without correcting a defect inferable from the origin diff."
+ ],
+ "cand-20": [
+  "unclear",
+  "I can\\u2019t access the referenced packet at that path to inspect the origin diff and later fixes."
+ ],
+ "cand-59": [
+  "yes",
+  "In app/bg_jobs.py, cancelling an active run left its target worker waiting without a terminal notification; the later fix calls _interrupt_run_notify on cancellation."
+ ],
+ "cand-29": [
+  "unclear",
+  "I can\\u2019t inspect the specified packet because it is outside the provided workspace and its contents were not supplied."
+ ],
+ "cand-40": [
+  "unclear",
+  "I can\\u2019t access the referenced packet from the provided workspace context, so I can\\u2019t compare the origin diff with the later fixes."
+ ],
+ "cand-57": [
+  "unclear",
+  "The referenced file is outside the available workspace, so I cannot inspect the origin diff and later fixes to determine whether the origin introduced a defect."
+ ],
+ "cand-55": [
+  "no",
+  "The later changes address Codex quota and message recovery plus a CLI version update; none fixes a defect in the origin\\u2019s Astra registry or reasoning-effort changes."
+ ],
+ "cand-45": [
+  "yes",
+  "\\u0412 app/session.py \\u0430\\u0432\\u0442\\u043e\\u043c\\u0430\\u0442\\u0438\\u0447\\u0435\\u0441\\u043a\\u0438\\u0435 retry \\u0438 auto-continue \\u043f\\u043e\\u0441\\u043b\\u0435 \\u043e\\u0436\\u0438\\u0434\\u0430\\u043d\\u0438\\u044f \\u043c\\u043e\\u0433\\u043b\\u0438 \\u0437\\u0430\\u0432\\u0435\\u0440\\u0448\\u0438\\u0442\\u044c \\u0438\\u043b\\u0438 \\u0441\\u0431\\u0440\\u043e\\u0441\\u0438\\u0442\\u044c \\u0441\\u0442\\u0430\\u0442\\u0443\\u0441 \\u0443\\u0436\\u0435 \\u043d\\u043e\\u0432\\u043e\\u0433\\u043e \\u043b\\u0438\\u0431\\u043e \\u0432\\u0440\\u0443\\u0447\\u043d\\u0443\\u044e \\u043e\\u0441\\u0442\\u0430\\u043d\\u043e\\u0432\\u043b\\u0435\\u043d\\u043d\\u043e\\u0433\\u043e \\u0445\\u043e\\u0434\\u0430; \\u043f\\u043e\\u0437\\u0434\\u043d\\u0438\\u0439 \\u0444\\u0438\\u043a\\u0441 \\u0434\\u043e\\u0431\\u0430\\u0432\\u0438\\u043b \\u043f\\u0440\\u043e\\u0432\\u0435\\u0440\\u043a\\u0438 \\u043f\\u043e\\u043a\\u043e\\u043b\\u0435\\u043d\\u0438\\u044f \\u0445\\u043e\\u0434\\u0430, \\u0447\\u0442\\u043e\\u0431\\u044b \\u0443\\u0441\\u0442\\u0430\\u0440\\u0435\\u0432\\u0448\\u0435\\u0435 \\u043f\\u0440\\u043e\\u0434\\u043e\\u043b\\u0436\\u0435\\u043d\\u0438\\u0435 \\u043d\\u0435 \\u043c\\u0435\\u043d\\u044f\\u043b\\u043e \\u0435\\u0433\\u043e \\u0441\\u043e\\u0441\\u0442\\u043e\\u044f\\u043d\\u0438\\u0435."
+ ],
+ "cand-60": [
+  "no",
+  "The later changes improve run-job cancellation and notification delivery; they do not correct a defect introduced by the origin\\u2019s restart handling or process-spawn protection in BgJobManager."
+ ],
+ "cand-36": [
+  "unclear",
+  "The later fix updates tests for a changed merge_session signature, but the packet omits the intervening signature change, so it does not establish that the origin introduced a defect."
+ ],
+ "cand-46": [
+  "unclear",
+  "I cannot inspect the referenced packet because it is outside the provided workspace, so I cannot determine whether a later fix corrected an origin-introduced defect."
+ ],
+ "cand-30": [
+  "yes",
+  "The origin persisted only the fully assembled system_prompt, so worker restart could not reliably distinguish and refresh the role prompt from custom overlay or worker memory; app/manager.py later added prompt_overlay to preserve those boundaries and avoid losing or duplicating prompt content on reload."
+ ],
+ "cand-52": [
+  "unclear",
+  "I can\\u2019t determine whether a later fix corrected an origin-introduced defect because the packet contents were not provided."
+ ],
+ "cand-28": [
+  "unclear",
+  "The referenced packet contents are not available in the provided context, so I cannot compare the origin diff with the later fixes."
+ ],
+ "cand-31": [
+  "unclear",
+  "I can\\u2019t access the specified file from the provided workspace context, so I can\\u2019t compare the origin diff with the later fixes."
+ ],
+ "cand-32": [
+  "unclear",
+  "I could not access the specified packet, so I cannot determine whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-58": [
+  "yes",
+  "The origin frontend called PATCH /api/sessions/{name}/tg-topic, but that route only saved the database row and did not persist the in-memory session; the later fix switches to the existing POST /tg_topic persistence contract so toggles survive reloads."
+ ],
+ "cand-41": [
+  "no",
+  "The origin makes DELIVERY_UNKNOWN message receipts actionable in _message_delivery_receipt_text; the later change concerns task delivery receipts in _delivery_receipt_text and fixes a separate silent task-delivery failure."
+ ],
+ "cand-33": [
+  "unclear",
+  "I could not access the specified packet, so I cannot assess whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-37": [
+  "unclear",
+  "I can\\u2019t access the specified packet file in this context, so I can\\u2019t inspect the origin diff or later fixes."
+ ],
+ "cand-43": [
+  "yes",
+  "In app/ia/task_store.py, the origin made task_update_prevalidated fall back to the task's stored canonical_head, allowing a stale caller to adopt a newer global CAS generation; the later fix snapshots self.canonical_head before validation so intervening commits are rejected."
+ ],
+ "cand-24": [
+  "yes",
+  "The origin\\u2019s per-chat lock makes a low-priority send drop whenever an important call is in progress, so concurrent Telegram bursts lose queued messages; app/tg_bridge.py\\u2019s _tg_call_safe is changed to queue and prioritize calls."
+ ],
+ "cand-54": [
+  "yes",
+  "In app/merge_test_gate.py, changed_test_paths and changed_source_paths used lstrip(\\\\\\\"./\\\\\\\"), which strips valid leading dots as well as a ./ prefix and can misclassify dot-prefixed repository paths; the later _normalize_repo_path fix removes only the ./ prefix."
+ ],
+ "cand-25": [
+  "unclear",
+  "I can\\u2019t inspect the referenced packet because its contents were not provided."
+ ],
+ "cand-18": [
+  "unclear",
+  "I can\\u2019t access the referenced packet at that path from the current workspace, so I can\\u2019t assess the origin diff and later fixes."
+ ],
+ "cand-26": [
+  "yes",
+  "The origin made user-supplied HTML artifacts render inline without isolation; get_file_raw in app/routes/system.py served them same-origin, allowing scripts to access the dashboard origin, and the later CSP plus removal of allow-same-origin corrected that security defect."
+ ],
+ "cand-02": [
+  "yes",
+  "The origin changed task/payment inputs from thousands to exact currency units in app/tm.py, but app.js still appended \\u201ck\\u201d to those values in compact tool previews and fallback amount displays, misreporting amounts by 1,000\\u00d7; the later fix removed that suffix."
+ ],
+ "cand-12": [
+  "yes",
+  "In app/ssh_tunnel.py::_tunnel_loop, every failed SSH connection retries after a fixed 5 seconds indefinitely, causing process and log churn during an outage; the later fix adds reachability gating and exponential backoff."
+ ],
+ "cand-53": [
+  "yes",
+  "\\u0412 origin `app/tg_bridge.py` \\u0438 `app/tg_file_deliveries.py` \\u043e\\u0442\\u043f\\u0440\\u0430\\u0432\\u043b\\u044f\\u043b\\u0438 \\u0444\\u0430\\u0439\\u043b\\u044b \\u0441 \\u0444\\u043e\\u0442\\u043e-\\u0440\\u0430\\u0441\\u0448\\u0438\\u0440\\u0435\\u043d\\u0438\\u0435\\u043c \\u043a\\u0430\\u043a \\u0444\\u043e\\u0442\\u043e \\u0431\\u0435\\u0437 \\u043f\\u0440\\u043e\\u0432\\u0435\\u0440\\u043a\\u0438 \\u0433\\u0435\\u043e\\u043c\\u0435\\u0442\\u0440\\u0438\\u0438, \\u043f\\u043e\\u044d\\u0442\\u043e\\u043c\\u0443 Telegram \\u043c\\u043e\\u0433 \\u043e\\u0442\\u043a\\u043b\\u043e\\u043d\\u0438\\u0442\\u044c \\u043d\\u0435\\u0434\\u043e\\u043f\\u0443\\u0441\\u0442\\u0438\\u043c\\u043e\\u0435 \\u0438\\u0437\\u043e\\u0431\\u0440\\u0430\\u0436\\u0435\\u043d\\u0438\\u0435; V-701 \\u0434\\u043e\\u0431\\u0430\\u0432\\u0438\\u043b \\u043f\\u0440\\u043e\\u0432\\u0435\\u0440\\u043a\\u0443 \\u0438 \\u043f\\u0435\\u0440\\u0435\\u0432\\u043e\\u0434 \\u0442\\u0430\\u043a\\u0438\\u0445 \\u0444\\u0430\\u0439\\u043b\\u043e\\u0432 \\u0432 \\u0434\\u043e\\u043a\\u0443\\u043c\\u0435\\u043d\\u0442\\u044b."
+ ],
+ "cand-48": [
+  "no",
+  "The later fix only updates the CI action versions; it does not correct a defect introduced by the origin diff."
+ ],
+ "cand-14": [
+  "unclear",
+  "I can\\u2019t access the specified packet file in this workspace, so I can\\u2019t compare the origin diff with the later fixes."
+ ],
+ "cand-06": [
+  "yes",
+  "The origin\\u2019s `app/diff_image.py` renderers draw unwrapped lines onto canvases capped at 1200px, clipping long tool output; the later fix wraps lines so their trailing characters remain visible."
+ ],
+ "cand-16": [
+  "no",
+  "The origin removed New Orchestrator UI only when auth was enabled as an enterprise product choice; the later fix restores that capability as a requirement change, not a defect in the origin."
+ ],
+ "cand-19": [
+  "yes",
+  "In app/mcp_stdio.py codex_review, resume wrote directly to the shared <output>.round path and did not clear stale content first, so a failed or interrupted round could leave partial output that a later run appended as a completed review; the later fix's atomic round write and stale-temp cleanup address this data-integrity defect."
+ ],
+ "cand-65": [
+  "unclear",
+  "I can\\u2019t access the specified packet at the provided path, so I can\\u2019t compare the origin diff with the later fixes."
+ ],
+ "cand-44": [
+  "unclear",
+  "I cannot access the specified packet file from the available workspace to compare the origin diff with later fixes."
+ ],
+ "cand-34": [
+  "unclear",
+  "I could not access the specified packet file, so I cannot assess whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-09": [
+  "unclear",
+  "I could not inspect the packet file in this environment, so I cannot determine whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-23": [
+  "yes",
+  "Origin\\u2019s app/backend_codex.py _item_completed serializes the full imageGeneration result, including large base64 data, ahead of saved_path and revised_prompt; history truncation could hide those fields and prevent generated images from surviving chat switches."
+ ],
+ "cand-47": [
+  "unclear",
+  "I can\\u2019t access the specified packet from this workspace, so I can\\u2019t compare the origin diff with the later fixes."
+ ],
+ "cand-21": [
+  "unclear",
+  "I could not read the specified packet, so I cannot determine whether the later fixes corrected a defect introduced by the origin diff."
+ ],
+ "cand-61": [
+  "no",
+  "The later fix changes unrelated paths; it does not modify the origin\\u2019s quota recording in app/db.py or app/session_turns.py, so it identifies no defect introduced by the origin."
+ ],
+ "cand-01": [
+  "unclear",
+  "I could not read the specified packet, so I cannot determine whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-22": [
+  "unclear",
+  "I could not access the referenced packet to compare the origin diff with later fixes."
+ ],
+ "cand-03": [
+  "no",
+  "The later fix changes codex_review\\u2019s executable and proxy environment in app/mcp_stdio.py to adapt to DNS/403 errors from Russia; that is a later connectivity issue, not a defect introduced by the origin\\u2019s comments-only changes."
+ ],
+ "cand-42": [
+  "unclear",
+  "I can\\u2019t inspect the specified packet because its contents were not provided."
+ ],
+ "cand-56": [
+  "unclear",
+  "I can\\u2019t access the specified packet from the current workspace, so I can\\u2019t determine whether a later fix corrected a defect introduced by the origin diff."
+ ],
+ "cand-00": [
+  "yes",
+  "change_scope kept old session_id; fix resets to NULL"
+ ]
+}

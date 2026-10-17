@@ -1,0 +1,121 @@
+diff --git a/app/manager.py b/app/manager.py
+index 2aaaa405828f13c9b6b36a50fddf67253e27dc22..bb70eb29751553e34758bcaa652b8a9f30f93823 100644
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -1089,7 +1089,11 @@ class SessionManager:
+         return None
+ 
+     def _pick_color(self) -> str:
+-        used = [s.color for s in self.sessions.values()]
++        # Check both in-memory sessions AND DB to avoid duplicates on concurrent spawn / resume
++        used = {s.color for s in self.sessions.values() if s.color}
++        for row in get_all_sessions():
++            if row.get("color"):
++                used.add(row["color"])
+         for c in COLOR_PALETTE:
+             if c not in used:
+                 return c
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 9ab5c06d1c313267a1174afdbb22a98c004998a6..5e46c9207bfa760828b9914a568609c60199a76e 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -1742,7 +1742,16 @@ function addCopyBtn(el, text) {
+     btn.textContent = '📋';
+     btn.addEventListener('click', (e) => {
+         e.stopPropagation();
+-        navigator.clipboard.writeText(text);
++        // navigator.clipboard requires HTTPS — fallback for HTTP
++        if (navigator.clipboard && window.isSecureContext) {
++            navigator.clipboard.writeText(text);
++        } else {
++            const ta = document.createElement('textarea');
++            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px';
++            document.body.appendChild(ta); ta.select();
++            document.execCommand('copy');
++            document.body.removeChild(ta);
++        }
+         btn.textContent = '✅';
+         setTimeout(() => btn.textContent = '📋', 1500);
+     });
+diff --git a/pipelines/default/pipeline.yaml b/pipelines/default/pipeline.yaml
+index 5e9985af91ad5ee570f6d86cacaa68a43047d008..004e83a0c7b0629b41d18f38ad51de2f143dbd13 100644
+--- a/pipelines/default/pipeline.yaml
++++ b/pipelines/default/pipeline.yaml
+@@ -21,7 +21,7 @@ roles:
+     order: 0
+     model: opus
+     skills: [html-artifacts, vps-deploy, codex-debate]
+-    modules: [git-workflow, orchestration]
++    modules: [git-workflow, orchestration, background-jobs, task-management]
+     can_spawn: ["*"]
+     allow_unrouted_workers: true
+     when: Managing a team of workers, decomposing tasks, approving plans
+@@ -34,7 +34,7 @@ roles:
+     label: Sub-Orchestrator
+     order: 1
+     model: opus
+-    modules: [git-workflow, orchestration]
++    modules: [git-workflow, orchestration, background-jobs, task-management]
+     can_spawn: ["*"]
+     allow_unrouted_workers: true
+     tg: {emoji: "🎯"}
+diff --git a/pipelines/default/prompts/modules/background-jobs.md b/pipelines/default/prompts/modules/background-jobs.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..4f6cc112ec995f4a2ca296853bddf72ae57a8b78
+--- /dev/null
++++ b/pipelines/default/prompts/modules/background-jobs.md
+@@ -0,0 +1,23 @@
++<background-jobs>
++## Background jobs (server-side, survive hibernate & restart)
++
++Instead of Monitor or run_in_background (both BLOCKED), use server-side background jobs:
++- `bg_create(type, ...)` — create a background job. Types:
++  - `timer` — wake after delay: `bg_create(type="timer", delay_seconds=7200, message="check deploy")`
++  - `file` — watch file for pattern: `bg_create(type="file", path="/tmp/log.txt", pattern="DONE|ERROR")`
++  - `command` — run command periodically, match output: `bg_create(type="command", command="curl -s site.ru", pattern="200", interval_seconds=60)`
++  - `ssh` — stream ssh output, match pattern: `bg_create(type="ssh", host="root@vps", command="journalctl -f -u nginx", pattern="502")`
++  - `run` — execute long command, return output when done: `bg_create(type="run", command="ssh root@vps 'python migrate.py'")`
++  - `cron` — recurring wake on a cron schedule: `bg_create(type="cron", cron_expr="0 9 * * *", message="daily check")`
++- `bg_list()` — list active jobs
++- `bg_cancel(job_id)` — cancel a job
++
++Most types are one-shot (trigger once, done). The `cron` type is recurring.
++
++### Rules
++- **message must explain WHY** — don't just write "check X". Write what should happen when the job fires: "НАПОМИНАНИЕ: начислить надбавку 10% к окладу с декабря 2026"
++- **timer for reminders** — `bg_create(type="timer", delay_seconds=86400, message="REMINDER: do X tomorrow")`
++- **cron for recurring** — `bg_create(type="cron", cron_expr="0 9 * * 1", message="Weekly: check Y status")`
++- **run for long ops** — SSH, migrations, builds. Don't block your turn — fire and get notified when done
++- **command for monitoring** — periodic health checks, status polling
++</background-jobs>
+diff --git a/pipelines/default/prompts/modules/task-management.md b/pipelines/default/prompts/modules/task-management.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..479bf598cb8b6ccda0703c1d1b2051849f61f575
+--- /dev/null
++++ b/pipelines/default/prompts/modules/task-management.md
+@@ -0,0 +1,25 @@
++<task-management>
++## Task management
++
++Built-in task tracker. Agents create, update, and close tasks.
++
++### Tools
++- `task_create(title, project, price=0, description="", priority=2)` — create task. Price in exact currency units (20000 = 20 000). Priority: 0=critical, 1=high, 2=medium, 3=low
++- `task_update(par, status="", title="", price=-1, ...)` — update task. Only provided fields change. par: plain number "42"
++- `task_list(project="", status="", assignee="")` — list tasks with optional filters
++- `task_get(par)` — full task details with payment history and linked commits
++- `payment_receive(amount, client="", date="", note="")` — record payment. Auto-distributes to done tasks (smallest debt first). Amount in exact currency units
++- `payment_status(client="")` — balance, debt, recent payments
++
++### Workflow
++- **Starting work** → `task_update(par, status="in_progress")`
++- **Worker DONE** → `task_update(par, status="done")`
++- **Spawn with task** → `spawn_worker(..., task_id="42")` — auto-sets status=in_progress, creates branch `task-42/worker-name`
++- **After merge** → commits auto-linked to task via commit message `#42: description`
++
++### Rules
++- Update task status when starting and finishing work — don't leave tasks stuck in wrong state
++- Close tasks (status=done) when work is merged, not when worker reports DONE (merge might fail)
++- Use task numbers in commit messages: `#42: implemented feature`
++- Don't create tasks for trivial work (1-2 line fixes)
++</task-management>

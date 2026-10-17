@@ -1,0 +1,372 @@
+{
+ "items": [
+  {
+   "id": "bad-cand-02",
+   "kind": "bad",
+   "sha": "be3151563d782adc330e74da7f17463ad8da7734",
+   "subj": "refactor: extract currency symbol to CUR constant, remove hardcoded \u20bd",
+   "date": "2026-06-04T09:51:08+02:00",
+   "size": 35
+  },
+  {
+   "id": "bad-cand-04",
+   "kind": "bad",
+   "sha": "adfb56dde031cfa4236ac058a9d27375735be3f6",
+   "subj": "simplify New Orchestrator modal \u2014 hide Profile/Pipeline/Role, sane defaults",
+   "date": "2026-06-12T09:36:30+02:00",
+   "size": 25
+  },
+  {
+   "id": "bad-cand-06",
+   "kind": "bad",
+   "sha": "1e469c95b6f7f53c4cc0fe5322b445b2fb4144ee",
+   "subj": "feat: Edit/Write/Read/Grep/Bash diff images in TG \u2014 Pillow render, inline highlights",
+   "date": "2026-06-07T16:37:02+07:00",
+   "size": 484
+  },
+  {
+   "id": "bad-cand-08",
+   "kind": "bad",
+   "sha": "83d824805f0cb7350a1d59d63fb1857933698064",
+   "subj": "fix: readable bash/read/grep result images \u2014 bigger font, word wrap, line limit",
+   "date": "2026-06-16T13:39:10+07:00",
+   "size": 166
+  },
+  {
+   "id": "bad-cand-09",
+   "kind": "bad",
+   "sha": "514a791b8331f81a15de32d363feafd8b2acae03",
+   "subj": "#84: #84: typewriter streaming animation",
+   "date": "2026-06-21T20:14:20+07:00",
+   "size": 70
+  },
+  {
+   "id": "bad-cand-14",
+   "kind": "bad",
+   "sha": "e1d694a586376b2a4033e41ed6baaf1f29887d24",
+   "subj": "feat: auto-retry on rate_limit errors \u2014 3 retries with 30/60/90s backoff",
+   "date": "2026-06-24T13:39:49+02:00",
+   "size": 22
+  },
+  {
+   "id": "bad-cand-16",
+   "kind": "bad",
+   "sha": "e9f76b901bbad4f724546868973655c5ba94e17f",
+   "subj": "#93: enterprise production hardening \u2014 skip tunnel/yougile, fix usage/proxy JS",
+   "date": "2026-06-13T10:14:34+02:00",
+   "size": 47
+  },
+  {
+   "id": "bad-cand-17",
+   "kind": "bad",
+   "sha": "3a3757ee69f9d4bf15b85a5a960a9be6a8856cbf",
+   "subj": "feat: visible rate-limit banner with countdown timer",
+   "date": "2026-07-03T11:52:29+07:00",
+   "size": 65
+  },
+  {
+   "id": "bad-cand-20",
+   "kind": "bad",
+   "sha": "1473e3745922bf8c90f97e33346b5e6b860c78c4",
+   "subj": "#proxy-fix: check liveness via Anthropic, ipinfo geo best-effort",
+   "date": "2026-07-01T14:07:41+07:00",
+   "size": 518
+  },
+  {
+   "id": "bad-cand-21",
+   "kind": "bad",
+   "sha": "3ef921eaca4dee44c7d8b7f2f8dbb116cd5d8717",
+   "subj": "feat: full sub-agent telemetry \u2014 subagents table + transcript endpoints",
+   "date": "2026-07-03T12:13:55+07:00",
+   "size": 692
+  },
+  {
+   "id": "bad-cand-22",
+   "kind": "bad",
+   "sha": "1f5001124e6f9dcc4a54d1a0b904fca24d4b1328",
+   "subj": "#86: #86: real per-day cost analytics from turn logs",
+   "date": "2026-06-29T11:07:42+07:00",
+   "size": 177
+  },
+  {
+   "id": "bad-cand-24",
+   "kind": "bad",
+   "sha": "d7532ac82a5b18d492df46195c400b4b44aaf079",
+   "subj": "#tg-message-delivery: make Telegram topic delivery resilient",
+   "date": "2026-07-18T16:05:44+07:00",
+   "size": 1140
+  },
+  {
+   "id": "bad-cand-25",
+   "kind": "bad",
+   "sha": "6f8052091186d78a93b797b34560ae908964c9e3",
+   "subj": "Add Codex Pro rate limits to dashboard",
+   "date": "2026-07-18T13:27:03+07:00",
+   "size": 294
+  },
+  {
+   "id": "bad-cand-26",
+   "kind": "bad",
+   "sha": "538a2f5688167434ae5499db6f96c676a3e86f6d",
+   "subj": "fix: send_file shows Download/Preview instead of 'Disabled on server'",
+   "date": "2026-07-07T16:48:28+07:00",
+   "size": 37
+  },
+  {
+   "id": "bad-cand-32",
+   "kind": "bad",
+   "sha": "853a3903a2c263427f97b3906317cc9fe192998b",
+   "subj": "fix: show original quality images from Read \u2014 API for dashboard, send_photo for TG (no more base64 spam)",
+   "date": "2026-06-12T09:50:52+02:00",
+   "size": 30
+  },
+  {
+   "id": "bad-cand-39",
+   "kind": "bad",
+   "sha": "0d8208a7762e44e0273e58468ee963b04e42d5dd",
+   "subj": "\u043e\u043f\u0440\u043e\u0441 \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0430: \u0444\u0430\u0437\u043e\u0432\u044b\u0439 \u0441\u0434\u0432\u0438\u0433 \u0438 304 \u043d\u0430 /api/sessions",
+   "date": "2026-08-21T12:09:49+02:00",
+   "size": 100
+  },
+  {
+   "id": "bad-cand-44",
+   "kind": "bad",
+   "sha": "38caf30b2114f6d97bcb78740680f90231542abb",
+   "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-17 12:03)",
+   "date": "2026-07-17T12:03:10+07:00",
+   "size": 949
+  },
+  {
+   "id": "bad-cand-47",
+   "kind": "bad",
+   "sha": "bc0d3c343ff1d4e8f557656d06b9ee02e42e3059",
+   "subj": "fix: missing modules in orchestrator, duplicate colors, clipboard on HTTP",
+   "date": "2026-06-15T08:43:21+02:00",
+   "size": 69
+  },
+  {
+   "id": "bad-cand-51",
+   "kind": "bad",
+   "sha": "e25ca71e4b4bc21ba5ed4a114e5a96b8ac34f91f",
+   "subj": "#150: #150: null \u0432 five_hour_pct/seven_day_pct \u2014 \u0434\u044b\u0440\u0430 \u0432 \u0433\u0440\u0430\u0444\u0438\u043a\u0435, \u0430 \u043d\u0435 \u043d\u043e\u043b\u044c",
+   "date": "2026-08-07T05:43:34+02:00",
+   "size": 47
+  },
+  {
+   "id": "bad-cand-54",
+   "kind": "bad",
+   "sha": "d607f5fc7e0a4bcdeb583027356ec52523d7ba7b",
+   "subj": "V-607: #V-607: add mutation test gate for worker merges",
+   "date": "2026-09-21T09:16:18+02:00",
+   "size": 593
+  },
+  {
+   "id": "bad-cand-58",
+   "kind": "bad",
+   "sha": "4d3b26cc87004bd3938c9adfab4e56eab343f8cf",
+   "subj": "feat: toggle TG topic for agents via context menu",
+   "date": "2026-06-12T15:20:43+07:00",
+   "size": 53
+  },
+  {
+   "id": "bad-cand-59",
+   "kind": "bad",
+   "sha": "45e3bbcd9faa676c386ea2f4dab5e6d15876a0f3",
+   "subj": "#494: freeze capability and isolation oracles",
+   "date": "2026-09-05T10:50:31+07:00",
+   "size": 1193
+  },
+  {
+   "id": "bad-cand-63",
+   "kind": "bad",
+   "sha": "95abdc857651ff8fd183651ceeb1e3835b247ab6",
+   "subj": "fix: unread tabs track orchestrator turns",
+   "date": "2026-07-26T15:37:59+07:00",
+   "size": 87
+  },
+  {
+   "id": "clean-00",
+   "kind": "clean",
+   "sha": "a42803ec232b84339d03a876b0a55f3349b630e9",
+   "subj": "Compact cache pill: inline with model, shorter labels, 10px font",
+   "date": "2026-07-10T10:46:28+02:00",
+   "size": 23
+  },
+  {
+   "id": "clean-01",
+   "kind": "clean",
+   "sha": "07ddbf6ce224e7a0109fe5a5ec82839e6e6dff11",
+   "subj": "#124: #124: \u043f\u043e\u0440\u044f\u0434\u043e\u043a \u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u043e\u0432 light-dark \u0432 \u0441\u043a\u0438\u043b\u043b\u0435 html-artifacts \u2014 \u0441\u0432\u0435\u0442\u043b\u043e\u0435 \u043f\u0435\u0440\u0432\u044b\u043c",
+   "date": "2026-08-06T06:59:45+02:00",
+   "size": 24
+  },
+  {
+   "id": "clean-02",
+   "kind": "clean",
+   "sha": "2bdb6742f57db6cb0262dd700fd4a824af88fdfe",
+   "subj": "#V-607: \u043f\u043e\u0440\u044f\u0434\u043e\u043a \u0432\u043a\u043b\u0430\u0434\u043e\u043a \u043e\u0440\u043a\u0435\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u043e\u0432 \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u043f\u043b\u044f\u0448\u0435\u0442 \u043e\u0442 \u0442\u043e\u0433\u043e, \u043a\u043e\u0433\u043e \u043e\u0442\u043a\u0440\u044b\u0432\u0430\u043b\u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u043c",
+   "date": "2026-09-21T09:07:43+02:00",
+   "size": 29
+  },
+  {
+   "id": "clean-03",
+   "kind": "clean",
+   "sha": "26c0ca7db39683c72861e0bf3c40aef8c6ac14a5",
+   "subj": "Reject task symlinks and retire failed migration copies",
+   "date": "2026-09-08T16:22:59+07:00",
+   "size": 35
+  },
+  {
+   "id": "clean-04",
+   "kind": "clean",
+   "sha": "4f0c87aa3802c99575710da95a59d9f9f3496e01",
+   "subj": "#282: #282: wait for notify card and reconnect, not a 5s sleep",
+   "date": "2026-08-14T13:02:09+02:00",
+   "size": 37
+  },
+  {
+   "id": "clean-05",
+   "kind": "clean",
+   "sha": "475d56eb6772a64d35594dff90a4a616560b903f",
+   "subj": "\u0431\u043e\u043b\u044c\u0448\u0438\u0435 \u0444\u0430\u0439\u043b\u044b \u0438\u0437 TG \u043d\u0435 \u0442\u0435\u0440\u044f\u044e\u0442\u0441\u044f \u043f\u043e \u0442\u0430\u0439\u043c\u0430\u0443\u0442\u0443 \u0441\u0435\u0441\u0441\u0438\u0438",
+   "date": "2026-08-28T14:36:13+02:00",
+   "size": 46
+  },
+  {
+   "id": "clean-06",
+   "kind": "clean",
+   "sha": "f38cd69c796eb208c9ec75fee97c171d58f75aa9",
+   "subj": "#94: auto-retry proxy + client modal improvements + refresh button",
+   "date": "2026-06-13T10:18:27+02:00",
+   "size": 47
+  },
+  {
+   "id": "clean-07",
+   "kind": "clean",
+   "sha": "d817f47967e9bda702329d2f6677bf01130b2a06",
+   "subj": "Add Opus 5 as Claude default",
+   "date": "2026-07-25T10:43:40+07:00",
+   "size": 52
+  },
+  {
+   "id": "clean-08",
+   "kind": "clean",
+   "sha": "a85d78e314a8c67e18abfc98b50ededfaee2ef3a",
+   "subj": "#507: bound the handoff packet and stop delivering constraint bodies twice",
+   "date": "2026-09-05T19:47:41+07:00",
+   "size": 64
+  },
+  {
+   "id": "clean-09",
+   "kind": "clean",
+   "sha": "d5b234b805b05e980edf608d0a4d4f8d93429384",
+   "subj": "Squashed commits: - #71: loadOrchestrators \u043f\u043e\u043c\u0435\u0447\u0430\u0435\u0442 \u0441\u0432\u0435\u0436\u0435\u0441\u0442\u044c \u2014 \u0434\u0443\u0431\u043b\u044c \u0437\u0430\u043f\u0440\u043e\u0441\u0430 \u043d\u0430 \u0441\u0442\u0430\u0440\u0442\u0435 \u0443\u0431\u0440\u0430\u043d - #71: \u0437\u0430\u043c\u0435\u0442\u043a\u0430 \u043f\u0440\u043e \u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0439 \u0444\u043b\u0430\u043a test_chat_drop \u0432 \u043b\u0438\u0447\u043d\u043e\u0439 \u043f\u0430\u043c\u044f\u0442\u0438",
+   "date": "2026-08-04T10:40:46+02:00",
+   "size": 70
+  },
+  {
+   "id": "clean-10",
+   "kind": "clean",
+   "sha": "cc3978a23a19df0aae5dc30c2615bab4b04087df",
+   "subj": "#74: #74: Dockerfile + docker-compose.yml for one-command setup",
+   "date": "2026-06-09T16:29:44+07:00",
+   "size": 68
+  },
+  {
+   "id": "clean-11",
+   "kind": "clean",
+   "sha": "d9dc81df639e5550eec2e5ecda53159c646ca3e0",
+   "subj": "#369: #369: retake bubble screenshots \u2014 positive visibility check + frozen DOM clone + pixel self-check",
+   "date": "2026-08-22T10:13:46+02:00",
+   "size": 86
+  },
+  {
+   "id": "clean-12",
+   "kind": "clean",
+   "sha": "ccc55e9cf76b50c54fa6ed2d2c3c991a2efe8641",
+   "subj": "#88: auto-bootstrap \u2014 ensure workspace + default orchestrator on startup",
+   "date": "2026-06-12T09:59:10+02:00",
+   "size": 99
+  },
+  {
+   "id": "clean-13",
+   "kind": "clean",
+   "sha": "8d80c0525160e7bd1aa9287bb1ec21e43a934baf",
+   "subj": "#28, #37: #28: \u0437\u0430\u0433\u043b\u0443\u0448\u043a\u0438 backfill \u0432 test_api \u043f\u0440\u0438\u0432\u0435\u0434\u0435\u043d\u044b \u043a \u0441\u0438\u0433\u043d\u0430\u0442\u0443\u0440\u0435 \u0441 session_name",
+   "date": "2026-08-04T06:43:58+02:00",
+   "size": 168
+  },
+  {
+   "id": "clean-14",
+   "kind": "clean",
+   "sha": "9268255cf199a0b95e9001e803c3f13544256896",
+   "subj": "#277: #277: drop quota percents from the turn-ended TG line",
+   "date": "2026-08-14T12:33:28+02:00",
+   "size": 175
+  },
+  {
+   "id": "clean-15",
+   "kind": "clean",
+   "sha": "5265212d2cc68bac4a5c5bc0c07934046850808f",
+   "subj": "#70: #70: \u043f\u043e\u0432\u0442\u043e\u0440 GET \u043f\u0440\u0438 \u043e\u0431\u0440\u044b\u0432\u0435 \u2014 \u0442\u0440\u0438 \u043f\u043e\u043f\u044b\u0442\u043a\u0438 \u043f\u043e 3.5 \u0441, \u043e\u0442\u043a\u0430\u0437 \u0432\u0438\u0434\u0435\u043d \u044e\u0437\u0435\u0440\u0443",
+   "date": "2026-08-04T10:15:35+02:00",
+   "size": 288
+  },
+  {
+   "id": "clean-16",
+   "kind": "clean",
+   "sha": "ad423c58fe7b81762eac7c7f6523437ee9e39570",
+   "subj": "#185: #185: add chat event timeline navigation",
+   "date": "2026-08-11T12:01:59+02:00",
+   "size": 480
+  },
+  {
+   "id": "clean-17",
+   "kind": "clean",
+   "sha": "861ae8368f1ba9c3623a699b457a30409b480d39",
+   "subj": "#522: \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u0432\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u0442 \u043e\u0433\u043b\u0430\u0432\u043b\u0435\u043d\u0438\u0435 KB \u0432 \u0441\u0438\u0441\u0442\u0435\u043c\u043d\u044b\u0439 \u043f\u0440\u043e\u043c\u043f\u0442 \u0438\u0437 README \u043f\u0440\u043e\u0435\u043a\u0442\u0430",
+   "date": "2026-09-06T14:38:05+07:00",
+   "size": 511
+  },
+  {
+   "id": "clean-18",
+   "kind": "clean",
+   "sha": "9538e066cd4d56b8370cac80a75332097c512e56",
+   "subj": "#243: #243: preserve Codex threads across model switches",
+   "date": "2026-08-13T08:09:26+02:00",
+   "size": 589
+  },
+  {
+   "id": "clean-19",
+   "kind": "clean",
+   "sha": "b693f302465bd304506621de9c3342e9db612baa",
+   "subj": "#315: #315: freeze agent-only T3b correction oracle",
+   "date": "2026-08-24T23:19:46+07:00",
+   "size": 691
+  },
+  {
+   "id": "clean-20",
+   "kind": "clean",
+   "sha": "c74d0d75b945f2a5cbf27a5e8987f3387b662787",
+   "subj": "#368: #368: Phase 1 \u2014 \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u043e\u0432 \u0441\u0447\u0451\u0442\u0447\u0438\u043a\u0430 \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432 OpenRouter (\u0433\u0438\u0431\u0440\u0438\u0434: \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0447\u0451\u0442 + /activity)",
+   "date": "2026-08-22T10:24:00+02:00",
+   "size": 968
+  },
+  {
+   "id": "clean-21",
+   "kind": "clean",
+   "sha": "56ee0a744e7e87474d558fcfc20c58d4965f53a5",
+   "subj": "#315: #315: freeze T6 merge receipt oracle",
+   "date": "2026-08-25T03:34:00+07:00",
+   "size": 1127
+  },
+  {
+   "id": "clean-22",
+   "kind": "clean",
+   "sha": "e90cfb94ada2c1d2a36940e6f9d917714decd536",
+   "subj": "#116 T5: add typed MCP error contract",
+   "date": "2026-08-01T17:34:25+07:00",
+   "size": 1237
+  }
+ ]
+}

@@ -1,0 +1,1561 @@
+[
+ {
+  "sha": "0bb118cac79d746a5c1fee5a03353947c615c2f3",
+  "date": "2026-06-01T00:04:20+07:00",
+  "subj": "#29: scope-change: research + implementation plan for changing orchestrator scope/repo_path",
+  "size": 779,
+  "fixes": [
+   {
+    "fix": "c5fcd3610531e745d5f0c73d2645db5e933f651d",
+    "d": 11.635081018518518,
+    "n": 3,
+    "subj": "fix: reset session_id on change-scope \u2014 CLI session bound to old cwd, must start fresh",
+    "osubj": "#29: scope-change: research + implementation plan for changing orchestrator scope/repo_path",
+    "odate": "2026-06-01T00:04:20+07:00",
+    "files": [
+     "app/db.py",
+     "app/manager.py"
+    ]
+   }
+  ],
+  "id": "cand-00"
+ },
+ {
+  "sha": "5d3d2a1532e7386a178c58dda7ee8a3af27577e9",
+  "date": "2026-06-01T15:47:59+07:00",
+  "subj": "#41: #41: fix codex_review silent failures \u2014 notify worker on bg job timeout",
+  "size": 111,
+  "fixes": [
+   {
+    "fix": "62a9625e96aa3ca1cb0655eed38fc5281a2ccaf2",
+    "d": 37.04258101851852,
+    "n": 2,
+    "subj": "#codex-cwd: fix codex_review running in main repo instead of worker worktree",
+    "osubj": "#41: #41: fix codex_review silent failures \u2014 notify worker on bg job timeout",
+    "odate": "2026-06-01T15:47:59+07:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   },
+   {
+    "fix": "9f777f912dffc3e9b266346555e6fa2e8df783e2",
+    "d": 64.40649305555556,
+    "n": 2,
+    "subj": "Squashed commits: - #82: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0438\u043c\u044f \u043a\u0430\u043a \u0432\u043d\u0435\u0448\u043d\u0438\u0439 \u043a\u043b\u044e\u0447 \u0432 \u0442\u0440\u0451\u0445 \u0441\u043b\u043e\u044f\u0445, \u0442\u0438\u0445\u0438\u0439 \u043f\u0443\u0442\u044c \u043d\u0435 \u0442\u043e\u0442, \u0447\u0442\u043e \u0432 \u0440\u0435\u043f\u043e\u0440\u0442\u0435 - #82: \u043f\u043b\u0430\u043d \u2014 env \u0447\u0438\u043d\u0438\u0442\u0441\u044f \u043f\u0435\u0440\u0435\u0441\u0431",
+    "osubj": "#41: #41: fix codex_review silent failures \u2014 notify worker on bg job timeout",
+    "odate": "2026-06-01T15:47:59+07:00",
+    "files": [
+     "app/bg_jobs.py"
+    ]
+   },
+   {
+    "fix": "17a7d398b97ac538f4ac23bd34beb80015ded307",
+    "d": 128.4724652777778,
+    "n": 11,
+    "subj": "V-756: #V-756: fix repeated workflow prompts and wakes",
+    "osubj": "#41: #41: fix codex_review silent failures \u2014 notify worker on bg job timeout",
+    "odate": "2026-06-01T15:47:59+07:00",
+    "files": [
+     "app/bg_jobs.py"
+    ]
+   }
+  ],
+  "id": "cand-01"
+ },
+ {
+  "sha": "be3151563d782adc330e74da7f17463ad8da7734",
+  "date": "2026-06-04T09:51:08+02:00",
+  "subj": "refactor: extract currency symbol to CUR constant, remove hardcoded \u20bd",
+  "size": 35,
+  "fixes": [
+   {
+    "fix": "24b84184e624cf8dadd039dd29226207a4166955",
+    "d": 3.9529976851851854,
+    "n": 3,
+    "subj": "fix: remove k suffix from prices \u2014 display exact amounts with space separator",
+    "osubj": "refactor: extract currency symbol to CUR constant, remove hardcoded \u20bd",
+    "odate": "2026-06-04T09:51:08+02:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-02"
+ },
+ {
+  "sha": "a473c42f880452cd7a70c08358a21327266308c5",
+  "date": "2026-06-10T20:27:22+07:00",
+  "subj": "add WHY-only comments to backend Python files",
+  "size": 141,
+  "fixes": [
+   {
+    "fix": "76ea4de820fa4814ddfccd0258c951ed4483fb8e",
+    "d": 2.7917939814814816,
+    "n": 3,
+    "subj": "fix: pipeline model validation uses resolve_model fallback \u2014 unblocks enterprise single-model",
+    "osubj": "add WHY-only comments to backend Python files",
+    "odate": "2026-06-10T20:27:22+07:00",
+    "files": [
+     "app/pipeline.py"
+    ]
+   },
+   {
+    "fix": "83d824805f0cb7350a1d59d63fb1857933698064",
+    "d": 5.716527777777777,
+    "n": 2,
+    "subj": "fix: readable bash/read/grep result images \u2014 bigger font, word wrap, line limit",
+    "osubj": "add WHY-only comments to backend Python files",
+    "odate": "2026-06-10T20:27:22+07:00",
+    "files": [
+     "app/diff_image.py"
+    ]
+   },
+   {
+    "fix": "3d43458cf445291590254ed9656556196a0fa188",
+    "d": 10.890393518518518,
+    "n": 2,
+    "subj": "fix: codex_review uses proxy wrapper instead of direct binary \u2014 fixes DNS/403 errors from Russia",
+    "osubj": "add WHY-only comments to backend Python files",
+    "odate": "2026-06-10T20:27:22+07:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   },
+   {
+    "fix": "d9b5bc3c3cbe5d7ba7001cc09c9a2e892f5bb5b4",
+    "d": 53.824328703703706,
+    "n": 2,
+    "subj": "fix: \u043d\u0435 \u0443\u0434\u0430\u043b\u044f\u0442\u044c \u043b\u043e\u0433\u0438 \u0430\u0433\u0435\u043d\u0442\u043e\u0432 \u043d\u0438\u043a\u043e\u0433\u0434\u0430 \u2014 \u0443\u0431\u0440\u0430\u043d \u0442\u0430\u0439\u043c\u0435\u0440 retention, cleanup_old_logs \u043f\u0430\u0434\u0430\u0435\u0442 \u043f\u0440\u0438 \u0432\u044b\u0437\u043e\u0432\u0435",
+    "osubj": "add WHY-only comments to backend Python files",
+    "odate": "2026-06-10T20:27:22+07:00",
+    "files": [
+     "app/db.py"
+    ]
+   }
+  ],
+  "id": "cand-03"
+ },
+ {
+  "sha": "adfb56dde031cfa4236ac058a9d27375735be3f6",
+  "date": "2026-06-12T09:36:30+02:00",
+  "subj": "simplify New Orchestrator modal \u2014 hide Profile/Pipeline/Role, sane defaults",
+  "size": 25,
+  "fixes": [
+   {
+    "fix": "b5b7890c1cf28f0d9c24713ac27fbc0f4382d64d",
+    "d": 3.3140972222222222,
+    "n": 3,
+    "subj": "fix: hardcode role=orchestrator for New Orchestrator \u2014 hidden dropdown was picking random role",
+    "osubj": "simplify New Orchestrator modal \u2014 hide Profile/Pipeline/Role, sane defaults",
+    "odate": "2026-06-12T09:36:30+02:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-04"
+ },
+ {
+  "sha": "cc0b4739e206f43387e9ff18754c2c0151c104e9",
+  "date": "2026-06-01T19:48:21+07:00",
+  "subj": "#42: #42: fix P2 bugs \u2014 reconnect backoff, hibernate guard, GC task refs, log retention, rawMaxTokens, dead code cleanup",
+  "size": 794,
+  "fixes": [
+   {
+    "fix": "d9b5bc3c3cbe5d7ba7001cc09c9a2e892f5bb5b4",
+    "d": 62.85142361111111,
+    "n": 20,
+    "subj": "fix: \u043d\u0435 \u0443\u0434\u0430\u043b\u044f\u0442\u044c \u043b\u043e\u0433\u0438 \u0430\u0433\u0435\u043d\u0442\u043e\u0432 \u043d\u0438\u043a\u043e\u0433\u0434\u0430 \u2014 \u0443\u0431\u0440\u0430\u043d \u0442\u0430\u0439\u043c\u0435\u0440 retention, cleanup_old_logs \u043f\u0430\u0434\u0430\u0435\u0442 \u043f\u0440\u0438 \u0432\u044b\u0437\u043e\u0432\u0435",
+    "osubj": "#42: #42: fix P2 bugs \u2014 reconnect backoff, hibernate guard, GC task refs, log retention, rawMaxTokens, dead code cleanup",
+    "odate": "2026-06-01T19:48:21+07:00",
+    "files": [
+     "app/db.py",
+     "app/manager.py"
+    ]
+   }
+  ],
+  "id": "cand-05"
+ },
+ {
+  "sha": "1e469c95b6f7f53c4cc0fe5322b445b2fb4144ee",
+  "date": "2026-06-07T16:37:02+07:00",
+  "subj": "feat: Edit/Write/Read/Grep/Bash diff images in TG \u2014 Pillow render, inline highlights",
+  "size": 484,
+  "fixes": [
+   {
+    "fix": "83d824805f0cb7350a1d59d63fb1857933698064",
+    "d": 8.876481481481482,
+    "n": 68,
+    "subj": "fix: readable bash/read/grep result images \u2014 bigger font, word wrap, line limit",
+    "osubj": "feat: Edit/Write/Read/Grep/Bash diff images in TG \u2014 Pillow render, inline highlights",
+    "odate": "2026-06-07T16:37:02+07:00",
+    "files": [
+     "app/diff_image.py"
+    ]
+   },
+   {
+    "fix": "c5faacebdf96b48ffe809da0bd1afc1235ad4fef",
+    "d": 10.063877314814814,
+    "n": 12,
+    "subj": "fix: send_message in TG now renders markdown formatting via md_convert instead of raw HTML",
+    "osubj": "feat: Edit/Write/Read/Grep/Bash diff images in TG \u2014 Pillow render, inline highlights",
+    "odate": "2026-06-07T16:37:02+07:00",
+    "files": [
+     "app/tg_bridge.py"
+    ]
+   },
+   {
+    "fix": "d206a4c448cc6c8fe9eccc73387095c5dfa2c905",
+    "d": 32.18357638888889,
+    "n": 23,
+    "subj": "fix: no character loss \u2014 wrap instead of truncate everywhere",
+    "osubj": "feat: Edit/Write/Read/Grep/Bash diff images in TG \u2014 Pillow render, inline highlights",
+    "odate": "2026-06-07T16:37:02+07:00",
+    "files": [
+     "app/diff_image.py"
+    ]
+   },
+   {
+    "fix": "74639962d116aed9b1bdcefc4c3d1c0f8366701a",
+    "d": 46.12630787037037,
+    "n": 2,
+    "subj": "fix: queue Telegram outbound bursts",
+    "osubj": "feat: Edit/Write/Read/Grep/Bash diff images in TG \u2014 Pillow render, inline highlights",
+    "odate": "2026-06-07T16:37:02+07:00",
+    "files": [
+     "app/tg_bridge.py"
+    ]
+   }
+  ],
+  "id": "cand-06"
+ },
+ {
+  "sha": "d327b4bf5e07b42cdeedad72368e54ea07472b0f",
+  "date": "2026-06-10T20:30:05+07:00",
+  "subj": "add WHY-only comments to frontend files",
+  "size": 104,
+  "fixes": [
+   {
+    "fix": "1fe4ce1750e84351d3e682fa7e6c23a17cb157d7",
+    "d": 6.833125,
+    "n": 3,
+    "subj": "#82: #82: fix SSE race condition on agent switch",
+    "osubj": "add WHY-only comments to frontend files",
+    "odate": "2026-06-10T20:30:05+07:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-07"
+ },
+ {
+  "sha": "83d824805f0cb7350a1d59d63fb1857933698064",
+  "date": "2026-06-16T13:39:10+07:00",
+  "subj": "fix: readable bash/read/grep result images \u2014 bigger font, word wrap, line limit",
+  "size": 166,
+  "fixes": [
+   {
+    "fix": "5c0c41e62fc499da57ca3af621b0a1719376a239",
+    "d": 1.139675925925926,
+    "n": 3,
+    "subj": "fix: replace tab chars with spaces in diff_image renderers \u2014 removes \u25a1 tofu glyphs",
+    "osubj": "fix: readable bash/read/grep result images \u2014 bigger font, word wrap, line limit",
+    "odate": "2026-06-16T13:39:10+07:00",
+    "files": [
+     "app/diff_image.py"
+    ]
+   },
+   {
+    "fix": "d206a4c448cc6c8fe9eccc73387095c5dfa2c905",
+    "d": 23.307094907407407,
+    "n": 15,
+    "subj": "fix: no character loss \u2014 wrap instead of truncate everywhere",
+    "osubj": "fix: readable bash/read/grep result images \u2014 bigger font, word wrap, line limit",
+    "odate": "2026-06-16T13:39:10+07:00",
+    "files": [
+     "app/diff_image.py"
+    ]
+   }
+  ],
+  "id": "cand-08"
+ },
+ {
+  "sha": "514a791b8331f81a15de32d363feafd8b2acae03",
+  "date": "2026-06-21T20:14:20+07:00",
+  "subj": "#84: #84: typewriter streaming animation",
+  "size": 70,
+  "fixes": [
+   {
+    "fix": "eeea9b7ae0dd8d00fbc68a8bf4a752d53320b08b",
+    "d": 1.8982407407407407,
+    "n": 3,
+    "subj": "fix: insert non-stream messages before streaming bubble instead of finalizing it",
+    "osubj": "#84: #84: typewriter streaming animation",
+    "odate": "2026-06-21T20:14:20+07:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-09"
+ },
+ {
+  "sha": "1aa9c06ad1fc4c84c1cfd2bea2676a2d9000e993",
+  "date": "2026-07-01T11:28:40+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-01 11:28)",
+  "size": 517,
+  "fixes": [
+   {
+    "fix": "bb42ed21e0932b4ead15a954d82d6f563de1fcb3",
+    "d": 23.10587962962963,
+    "n": 11,
+    "subj": "fix: stop agent ack loops and restore Codex previews",
+    "osubj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-01 11:28)",
+    "odate": "2026-07-01T11:28:40+07:00",
+    "files": [
+     "app/session.py"
+    ]
+   }
+  ],
+  "id": "cand-10"
+ },
+ {
+  "sha": "bc3a51e59708aba26fad7705dc55a35f59d9bb65",
+  "date": "2026-06-02T08:10:19+02:00",
+  "subj": "#47: refactor \u2014 prompting.py, BackendLike, extract-methods, main.py split",
+  "size": 1387,
+  "fixes": [
+   {
+    "fix": "18d8061390dcdf2fce8b777d94079ab2438a35c0",
+    "d": 29.00084490740741,
+    "n": 8,
+    "subj": "#4: #proxy-fix: force stable id='direct' for direct proxy",
+    "osubj": "#47: refactor \u2014 prompting.py, BackendLike, extract-methods, main.py split",
+    "odate": "2026-06-02T08:10:19+02:00",
+    "files": [
+     "app/routes/proxy.py"
+    ]
+   }
+  ],
+  "id": "cand-11"
+ },
+ {
+  "sha": "fc175c07033d789dc39e479ef85aef079372769b",
+  "date": "2026-06-01T21:07:43+07:00",
+  "subj": "#43, #44: #43: SSH tunnel proxies \u2014 systemd services, proxy-setup docs",
+  "size": 179,
+  "fixes": [
+   {
+    "fix": "18d8061390dcdf2fce8b777d94079ab2438a35c0",
+    "d": 29.66931712962963,
+    "n": 2,
+    "subj": "#4: #proxy-fix: force stable id='direct' for direct proxy",
+    "osubj": "#43, #44: #43: SSH tunnel proxies \u2014 systemd services, proxy-setup docs",
+    "odate": "2026-06-01T21:07:43+07:00",
+    "files": [
+     "app/ssh_tunnel.py"
+    ]
+   }
+  ],
+  "id": "cand-12"
+ },
+ {
+  "sha": "9dc240151815c25fcba9d919b786922ba5f85502",
+  "date": "2026-06-21T19:57:14+07:00",
+  "subj": "#83: feat(#83): real-time token streaming in dashboard",
+  "size": 1084,
+  "fixes": [
+   {
+    "fix": "1473e3745922bf8c90f97e33346b5e6b860c78c4",
+    "d": 9.757256944444444,
+    "n": 12,
+    "subj": "#proxy-fix: check liveness via Anthropic, ipinfo geo best-effort",
+    "osubj": "#83: feat(#83): real-time token streaming in dashboard",
+    "odate": "2026-06-21T19:57:14+07:00",
+    "files": [
+     "app/backend_claude.py",
+     "tests/test_backend_stream.py"
+    ]
+   }
+  ],
+  "id": "cand-13"
+ },
+ {
+  "sha": "e1d694a586376b2a4033e41ed6baaf1f29887d24",
+  "date": "2026-06-24T13:39:49+02:00",
+  "subj": "feat: auto-retry on rate_limit errors \u2014 3 retries with 30/60/90s backoff",
+  "size": 22,
+  "fixes": [
+   {
+    "fix": "42e0352e8ba6fa836a8f155c8cdf86a9360f3649",
+    "d": 72.79366898148149,
+    "n": 3,
+    "subj": "fix: fence stale retries and isolate dashboard recovery failures",
+    "osubj": "feat: auto-retry on rate_limit errors \u2014 3 retries with 30/60/90s backoff",
+    "odate": "2026-06-24T13:39:49+02:00",
+    "files": [
+     "app/session.py"
+    ]
+   }
+  ],
+  "id": "cand-14"
+ },
+ {
+  "sha": "21b7a2a72d1e4a5a5168c67361e4b48fab5659aa",
+  "date": "2026-07-01T07:57:41+02:00",
+  "subj": "refactor: remove Opus 4.6, redirect all aliases to 4.8",
+  "size": 31,
+  "fixes": [
+   {
+    "fix": "ae8031299e139d51a91b17feeeb0141e8f65ec87",
+    "d": 2.2855439814814815,
+    "n": 4,
+    "subj": "Restore Opus 4.6 as real model, switch all orchestrators to 4.6",
+    "osubj": "refactor: remove Opus 4.6, redirect all aliases to 4.8",
+    "odate": "2026-07-01T07:57:41+02:00",
+    "files": [
+     "app/models.py"
+    ]
+   }
+  ],
+  "id": "cand-15"
+ },
+ {
+  "sha": "e9f76b901bbad4f724546868973655c5ba94e17f",
+  "date": "2026-06-13T10:14:34+02:00",
+  "subj": "#93: enterprise production hardening \u2014 skip tunnel/yougile, fix usage/proxy JS",
+  "size": 47,
+  "fixes": [
+   {
+    "fix": "00eff7863f7a464eeb2c09e2fb5e633807bae30a",
+    "d": 23.951377314814813,
+    "n": 2,
+    "subj": "Fix: show New Orchestrator button when auth enabled (was hidden by enterprise guard)",
+    "osubj": "#93: enterprise production hardening \u2014 skip tunnel/yougile, fix usage/proxy JS",
+    "odate": "2026-06-13T10:14:34+02:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-16"
+ },
+ {
+  "sha": "3a3757ee69f9d4bf15b85a5a960a9be6a8856cbf",
+  "date": "2026-07-03T11:52:29+07:00",
+  "subj": "feat: visible rate-limit banner with countdown timer",
+  "size": 65,
+  "fixes": [
+   {
+    "fix": "710a21be7689762825423ff432c25b9584c20f00",
+    "d": 4.194849537037037,
+    "n": 2,
+    "subj": "Fix: rate-limit banner persists on agent switch + triggers on history replay",
+    "osubj": "feat: visible rate-limit banner with countdown timer",
+    "odate": "2026-07-03T11:52:29+07:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-17"
+ },
+ {
+  "sha": "0e882d9db4d1de7e41700e3509da3b5ce1f9e87b",
+  "date": "2026-06-17T13:14:11+07:00",
+  "subj": "feat: Glob tool rendering \u2014 TG diff images + expandable skip",
+  "size": 59,
+  "fixes": [
+   {
+    "fix": "d206a4c448cc6c8fe9eccc73387095c5dfa2c905",
+    "d": 22.324444444444445,
+    "n": 4,
+    "subj": "fix: no character loss \u2014 wrap instead of truncate everywhere",
+    "osubj": "feat: Glob tool rendering \u2014 TG diff images + expandable skip",
+    "odate": "2026-06-17T13:14:11+07:00",
+    "files": [
+     "app/diff_image.py"
+    ]
+   }
+  ],
+  "id": "cand-18"
+ },
+ {
+  "sha": "c2f8519792b2bfd931596cf3e2bbcd067d9b796c",
+  "date": "2026-07-09T23:56:42+07:00",
+  "subj": "#codex-sessions: persistent Codex sessions in codex_review + full-cycle second-opinion rules",
+  "size": 463,
+  "fixes": [
+   {
+    "fix": "b929710c17dfab72b83ff969479e414144c5954f",
+    "d": 6.6921875,
+    "n": 51,
+    "subj": "Sol runtime fixes: context accounting, cost delta, limit retry, codex_review atomicity, orphan pipe",
+    "osubj": "#codex-sessions: persistent Codex sessions in codex_review + full-cycle second-opinion rules",
+    "odate": "2026-07-09T23:56:42+07:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   },
+   {
+    "fix": "ce2ddc45721460c57e18a56ecc11abe8e69e42a0",
+    "d": 32.64850694444444,
+    "n": 7,
+    "subj": "#179: #179: restore executable Codex reviews",
+    "osubj": "#codex-sessions: persistent Codex sessions in codex_review + full-cycle second-opinion rules",
+    "odate": "2026-07-09T23:56:42+07:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   }
+  ],
+  "id": "cand-19"
+ },
+ {
+  "sha": "1473e3745922bf8c90f97e33346b5e6b860c78c4",
+  "date": "2026-07-01T14:07:41+07:00",
+  "subj": "#proxy-fix: check liveness via Anthropic, ipinfo geo best-effort",
+  "size": 518,
+  "fixes": [
+   {
+    "fix": "3b2b2415a2154bb3a84022f0686af9c8673c91d2",
+    "d": 16.12383101851852,
+    "n": 12,
+    "subj": "fix: correlate subagent lifecycle events",
+    "osubj": "#proxy-fix: check liveness via Anthropic, ipinfo geo best-effort",
+    "odate": "2026-07-01T14:07:41+07:00",
+    "files": [
+     "app/backend_claude.py",
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-20"
+ },
+ {
+  "sha": "3ef921eaca4dee44c7d8b7f2f8dbb116cd5d8717",
+  "date": "2026-07-03T12:13:55+07:00",
+  "subj": "feat: full sub-agent telemetry \u2014 subagents table + transcript endpoints",
+  "size": 692,
+  "fixes": [
+   {
+    "fix": "3b2b2415a2154bb3a84022f0686af9c8673c91d2",
+    "d": 14.202835648148149,
+    "n": 4,
+    "subj": "fix: correlate subagent lifecycle events",
+    "osubj": "feat: full sub-agent telemetry \u2014 subagents table + transcript endpoints",
+    "odate": "2026-07-03T12:13:55+07:00",
+    "files": [
+     "app/backend_claude.py"
+    ]
+   },
+   {
+    "fix": "ce6e0eb70c1d02ccbd787b2a9caf497af6ec0d4c",
+    "d": 14.330844907407407,
+    "n": 4,
+    "subj": "fix: stabilize subagent lifecycle timestamps",
+    "osubj": "feat: full sub-agent telemetry \u2014 subagents table + transcript endpoints",
+    "odate": "2026-07-03T12:13:55+07:00",
+    "files": [
+     "app/db.py",
+     "app/session.py"
+    ]
+   }
+  ],
+  "id": "cand-21"
+ },
+ {
+  "sha": "1f5001124e6f9dcc4a54d1a0b904fca24d4b1328",
+  "date": "2026-06-29T11:07:42+07:00",
+  "subj": "#86: #86: real per-day cost analytics from turn logs",
+  "size": 177,
+  "fixes": [
+   {
+    "fix": "b7c1e794021bfd12d7423bae6f45fd6389779d30",
+    "d": 18.995462962962964,
+    "n": 3,
+    "subj": "#usage: fix analytics agents/all-time period \u2014 request full range not capped 7d/365d",
+    "osubj": "#86: #86: real per-day cost analytics from turn logs",
+    "odate": "2026-06-29T11:07:42+07:00",
+    "files": [
+     "app/routes/system.py",
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-22"
+ },
+ {
+  "sha": "69f7e4c1069f2c082a01d38283b90e8099e9306c",
+  "date": "2026-07-18T15:01:15+07:00",
+  "subj": "feat: render full Codex worker telemetry",
+  "size": 1029,
+  "fixes": [
+   {
+    "fix": "376be1c27363274aa19919f6c162abd555038a22",
+    "d": 1.0297453703703703,
+    "n": 2,
+    "subj": "fix: hide successful codex MCP startup noise",
+    "osubj": "feat: render full Codex worker telemetry",
+    "odate": "2026-07-18T15:01:15+07:00",
+    "files": [
+     "tests/test_backend_codex.py"
+    ]
+   },
+   {
+    "fix": "bb42ed21e0932b4ead15a954d82d6f563de1fcb3",
+    "d": 5.958252314814815,
+    "n": 3,
+    "subj": "fix: stop agent ack loops and restore Codex previews",
+    "osubj": "feat: render full Codex worker telemetry",
+    "odate": "2026-07-18T15:01:15+07:00",
+    "files": [
+     "app/static/js/app.js",
+     "app/static/js/tool-renderers.js"
+    ]
+   },
+   {
+    "fix": "e7d521de529985332b652593f2853c70157791d8",
+    "d": 37.027118055555555,
+    "n": 19,
+    "subj": "fix: preserve generated images across chat switches",
+    "osubj": "feat: render full Codex worker telemetry",
+    "odate": "2026-07-18T15:01:15+07:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-23"
+ },
+ {
+  "sha": "d7532ac82a5b18d492df46195c400b4b44aaf079",
+  "date": "2026-07-18T16:05:44+07:00",
+  "subj": "#tg-message-delivery: make Telegram topic delivery resilient",
+  "size": 1140,
+  "fixes": [
+   {
+    "fix": "74639962d116aed9b1bdcefc4c3d1c0f8366701a",
+    "d": 5.148043981481481,
+    "n": 53,
+    "subj": "fix: queue Telegram outbound bursts",
+    "osubj": "#tg-message-delivery: make Telegram topic delivery resilient",
+    "odate": "2026-07-18T16:05:44+07:00",
+    "files": [
+     "app/tg_bridge.py"
+    ]
+   },
+   {
+    "fix": "aca605412cc5e089abc97923d530db406f67b160",
+    "d": 6.818356481481482,
+    "n": 36,
+    "subj": "fix: isolate TG topic status updates",
+    "osubj": "#tg-message-delivery: make Telegram topic delivery resilient",
+    "odate": "2026-07-18T16:05:44+07:00",
+    "files": [
+     "app/tg_bridge.py",
+     "tests/test_tg_bridge.py"
+    ]
+   }
+  ],
+  "id": "cand-24"
+ },
+ {
+  "sha": "6f8052091186d78a93b797b34560ae908964c9e3",
+  "date": "2026-07-18T13:27:03+07:00",
+  "subj": "Add Codex Pro rate limits to dashboard",
+  "size": 294,
+  "fixes": [
+   {
+    "fix": "4bc0a84b5acd22fe4885a8f5db31ccf3bb5e9ece",
+    "d": 79.22769675925926,
+    "n": 2,
+    "subj": "V-703: #V-703: fix Codex runtime recovery and quota errors",
+    "osubj": "Add Codex Pro rate limits to dashboard",
+    "odate": "2026-07-18T13:27:03+07:00",
+    "files": [
+     "app/routes/system.py"
+    ]
+   }
+  ],
+  "id": "cand-25"
+ },
+ {
+  "sha": "538a2f5688167434ae5499db6f96c676a3e86f6d",
+  "date": "2026-07-07T16:48:28+07:00",
+  "subj": "fix: send_file shows Download/Preview instead of 'Disabled on server'",
+  "size": 37,
+  "fixes": [
+   {
+    "fix": "65e7e3cf706cbb4db1633f300e65658159f39853",
+    "d": 17.158958333333334,
+    "n": 2,
+    "subj": "fix: sandbox HTML artifact previews",
+    "osubj": "fix: send_file shows Download/Preview instead of 'Disabled on server'",
+    "odate": "2026-07-07T16:48:28+07:00",
+    "files": [
+     "app/routes/system.py"
+    ]
+   }
+  ],
+  "id": "cand-26"
+ },
+ {
+  "sha": "95672ac707b9082a478aaf185a6f21a13786c469",
+  "date": "2026-07-27T22:28:06+07:00",
+  "subj": "fix(95): T3 \u2014 session resume, and a race that silently disabled MCP isolation",
+  "size": 174,
+  "fixes": [
+   {
+    "fix": "5e11d8772f640292cbc745d092cd14becc447d4e",
+    "d": 19.717743055555555,
+    "n": 22,
+    "subj": "fix: stabilize Grok session replay and chat finalization",
+    "osubj": "fix(95): T3 \u2014 session resume, and a race that silently disabled MCP isolation",
+    "odate": "2026-07-27T22:28:06+07:00",
+    "files": [
+     "app/backend_grok.py"
+    ]
+   }
+  ],
+  "id": "cand-27"
+ },
+ {
+  "sha": "94b786f59e1c777cf8d14ba86303aa24431a9a65",
+  "date": "2026-07-29T12:03:30+07:00",
+  "subj": "#99: #99: add conditional recurring cron commands",
+  "size": 1118,
+  "fixes": [
+   {
+    "fix": "a36e1a236b5ed06e6902dba9f2b8b2d828d8cbec",
+    "d": 3.9583796296296296,
+    "n": 3,
+    "subj": "#120: restore cron_command test seam after pidfd spawn refactor",
+    "osubj": "#99: #99: add conditional recurring cron commands",
+    "odate": "2026-07-29T12:03:30+07:00",
+    "files": [
+     "tests/test_tg_bridge.py"
+    ]
+   },
+   {
+    "fix": "9f777f912dffc3e9b266346555e6fa2e8df783e2",
+    "d": 6.562384259259259,
+    "n": 8,
+    "subj": "Squashed commits: - #82: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0438\u043c\u044f \u043a\u0430\u043a \u0432\u043d\u0435\u0448\u043d\u0438\u0439 \u043a\u043b\u044e\u0447 \u0432 \u0442\u0440\u0451\u0445 \u0441\u043b\u043e\u044f\u0445, \u0442\u0438\u0445\u0438\u0439 \u043f\u0443\u0442\u044c \u043d\u0435 \u0442\u043e\u0442, \u0447\u0442\u043e \u0432 \u0440\u0435\u043f\u043e\u0440\u0442\u0435 - #82: \u043f\u043b\u0430\u043d \u2014 env \u0447\u0438\u043d\u0438\u0442\u0441\u044f \u043f\u0435\u0440\u0435\u0441\u0431",
+    "osubj": "#99: #99: add conditional recurring cron commands",
+    "odate": "2026-07-29T12:03:30+07:00",
+    "files": [
+     "app/bg_jobs.py"
+    ]
+   },
+   {
+    "fix": "402715d76122879322fbe2f688d2267c749cea39",
+    "d": 61.2037037037037,
+    "n": 16,
+    "subj": "V-653: #V-653: fix timer, cron timeout, and migration",
+    "osubj": "#99: #99: add conditional recurring cron commands",
+    "odate": "2026-07-29T12:03:30+07:00",
+    "files": [
+     "tests/test_bg_jobs.py"
+    ]
+   }
+  ],
+  "id": "cand-28"
+ },
+ {
+  "sha": "b929710c17dfab72b83ff969479e414144c5954f",
+  "date": "2026-07-16T11:33:27+02:00",
+  "subj": "Sol runtime fixes: context accounting, cost delta, limit retry, codex_review atomicity, orphan pipe",
+  "size": 642,
+  "fixes": [
+   {
+    "fix": "9f777f912dffc3e9b266346555e6fa2e8df783e2",
+    "d": 19.374918981481482,
+    "n": 2,
+    "subj": "Squashed commits: - #82: \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u2014 \u0438\u043c\u044f \u043a\u0430\u043a \u0432\u043d\u0435\u0448\u043d\u0438\u0439 \u043a\u043b\u044e\u0447 \u0432 \u0442\u0440\u0451\u0445 \u0441\u043b\u043e\u044f\u0445, \u0442\u0438\u0445\u0438\u0439 \u043f\u0443\u0442\u044c \u043d\u0435 \u0442\u043e\u0442, \u0447\u0442\u043e \u0432 \u0440\u0435\u043f\u043e\u0440\u0442\u0435 - #82: \u043f\u043b\u0430\u043d \u2014 env \u0447\u0438\u043d\u0438\u0442\u0441\u044f \u043f\u0435\u0440\u0435\u0441\u0431",
+    "osubj": "Sol runtime fixes: context accounting, cost delta, limit retry, codex_review atomicity, orphan pipe",
+    "odate": "2026-07-16T11:33:27+02:00",
+    "files": [
+     "app/bg_jobs.py"
+    ]
+   },
+   {
+    "fix": "17a7d398b97ac538f4ac23bd34beb80015ded307",
+    "d": 83.4408912037037,
+    "n": 8,
+    "subj": "V-756: #V-756: fix repeated workflow prompts and wakes",
+    "osubj": "Sol runtime fixes: context accounting, cost delta, limit retry, codex_review atomicity, orphan pipe",
+    "odate": "2026-07-16T11:33:27+02:00",
+    "files": [
+     "app/bg_jobs.py"
+    ]
+   }
+  ],
+  "id": "cand-29"
+ },
+ {
+  "sha": "420dfaba9922ad197e8e42b3a96db3142a61d1ac",
+  "date": "2026-07-16T16:36:59+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-16 16:36)",
+  "size": 367,
+  "fixes": [
+   {
+    "fix": "afc99e2deb91aae7535fd2dd497b257edb5da56e",
+    "d": 24.957372685185184,
+    "n": 4,
+    "subj": "#173: #173: fix prompt P0 defects",
+    "osubj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-16 16:36)",
+    "odate": "2026-07-16T16:36:59+07:00",
+    "files": [
+     "tests/test_mcp_codex_review.py"
+    ]
+   }
+  ],
+  "id": "cand-30"
+ },
+ {
+  "sha": "fa2ed9d95ccc995bf455b45dd49948fdad3793a2",
+  "date": "2026-08-03T19:17:40+02:00",
+  "subj": "#31: #31: \u043f\u0443\u0442\u044c \u043a codex \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442\u0441\u044f \u043d\u0430 \u043c\u0435\u0441\u0442\u0435 (CODEX_BIN -> which), \u0432\u043d\u044f\u0442\u043d\u044b\u0439 \u043e\u0442\u043a\u0430\u0437 \u0432\u043c\u0435\u0441\u0442\u043e exit 127",
+  "size": 200,
+  "fixes": [
+   {
+    "fix": "ce2ddc45721460c57e18a56ecc11abe8e69e42a0",
+    "d": 7.633946759259259,
+    "n": 4,
+    "subj": "#179: #179: restore executable Codex reviews",
+    "osubj": "#31: #31: \u043f\u0443\u0442\u044c \u043a codex \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442\u0441\u044f \u043d\u0430 \u043c\u0435\u0441\u0442\u0435 (CODEX_BIN -> which), \u0432\u043d\u044f\u0442\u043d\u044b\u0439 \u043e\u0442\u043a\u0430\u0437 \u0432\u043c\u0435\u0441\u0442\u043e exit 127",
+    "odate": "2026-08-03T19:17:40+02:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   }
+  ],
+  "id": "cand-31"
+ },
+ {
+  "sha": "853a3903a2c263427f97b3906317cc9fe192998b",
+  "date": "2026-06-12T09:50:52+02:00",
+  "subj": "fix: show original quality images from Read \u2014 API for dashboard, send_photo for TG (no more base64 spam)",
+  "size": 30,
+  "fixes": [
+   {
+    "fix": "8b0735950097a981f92ce6dbd0b7458d53d5513f",
+    "d": 60.907106481481485,
+    "n": 5,
+    "subj": "#212: #212: restore truncated Read images from full log",
+    "osubj": "fix: show original quality images from Read \u2014 API for dashboard, send_photo for TG (no more base64 spam)",
+    "odate": "2026-06-12T09:50:52+02:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-32"
+ },
+ {
+  "sha": "712254066c27a8dd220a73aa5184680290cdf457",
+  "date": "2026-08-05T17:02:57+02:00",
+  "subj": "Merge remote-tracking branch 'origin/main'",
+  "size": 705,
+  "fixes": [
+   {
+    "fix": "227f843f74c933a596652726e0e84650c227fc56",
+    "d": 7.695,
+    "n": 2,
+    "subj": "#254: #254: repair stale doubles and native canary timeout",
+    "osubj": "Merge remote-tracking branch 'origin/main'",
+    "odate": "2026-08-05T17:02:57+02:00",
+    "files": [
+     "tests/test_limit_wake.py"
+    ]
+   }
+  ],
+  "id": "cand-33"
+ },
+ {
+  "sha": "c4ff89c99007e51f59f120ca33133ead43d94be3",
+  "date": "2026-07-28T21:57:10+07:00",
+  "subj": "#98: #98: separate aggregate usage from current context",
+  "size": 1275,
+  "fixes": [
+   {
+    "fix": "5e11d8772f640292cbc745d092cd14becc447d4e",
+    "d": 18.739224537037035,
+    "n": 2,
+    "subj": "fix: stabilize Grok session replay and chat finalization",
+    "osubj": "#98: #98: separate aggregate usage from current context",
+    "odate": "2026-07-28T21:57:10+07:00",
+    "files": [
+     "app/backend_grok.py"
+    ]
+   }
+  ],
+  "id": "cand-34"
+ },
+ {
+  "sha": "1fc7a96f46823f3cd7901625589d3f9fd82a1746",
+  "date": "2026-08-01T17:37:15+07:00",
+  "subj": "#118: #118: restore chat at last read boundary",
+  "size": 219,
+  "fixes": [
+   {
+    "fix": "5e11d8772f640292cbc745d092cd14becc447d4e",
+    "d": 14.919722222222223,
+    "n": 2,
+    "subj": "fix: stabilize Grok session replay and chat finalization",
+    "osubj": "#118: #118: restore chat at last read boundary",
+    "odate": "2026-08-01T17:37:15+07:00",
+    "files": [
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-35"
+ },
+ {
+  "sha": "ab8e392bd8eb121c5dfefed9d0191210002c11a3",
+  "date": "2026-07-25T12:23:33+07:00",
+  "subj": "#codex-sleep: stop external-state wait polling",
+  "size": 592,
+  "fixes": [
+   {
+    "fix": "c3c9e207153de260928513287deaf522d2067fcc",
+    "d": 23.28792824074074,
+    "n": 2,
+    "subj": "#313: #313: route merge helper for request fixture in tests",
+    "osubj": "#codex-sleep: stop external-state wait polling",
+    "odate": "2026-07-25T12:23:33+07:00",
+    "files": [
+     "tests/test_api.py"
+    ]
+   }
+  ],
+  "id": "cand-36"
+ },
+ {
+  "sha": "80eefd5b4294eb5e7495372113760166b637936c",
+  "date": "2026-08-13T22:16:25+07:00",
+  "subj": "#1: #1: \u0435\u0434\u0438\u043d\u0430\u044f \u0442\u043e\u0447\u043a\u0430 \u0438\u0441\u0442\u0438\u043d\u044b \u0434\u043b\u044f \u043c\u043e\u0434\u0435\u043b\u0435\u0439 + Opus 4.6 \u0432 \u0441\u043f\u0438\u0441\u043e\u043a \u0432\u044b\u0431\u043e\u0440\u0430",
+  "size": 428,
+  "fixes": [
+   {
+    "fix": "dc09cc236651bd7b5b0290e4a9464d3b0b3335b8",
+    "d": 8.776724537037037,
+    "n": 9,
+    "subj": "Squashed commits: - #366: research + plan + 22 red tests (model catalog, two-level availability) - #366: plan review section + behavioral re",
+    "osubj": "#1: #1: \u0435\u0434\u0438\u043d\u0430\u044f \u0442\u043e\u0447\u043a\u0430 \u0438\u0441\u0442\u0438\u043d\u044b \u0434\u043b\u044f \u043c\u043e\u0434\u0435\u043b\u0435\u0439 + Opus 4.6 \u0432 \u0441\u043f\u0438\u0441\u043e\u043a \u0432\u044b\u0431\u043e\u0440\u0430",
+    "odate": "2026-08-13T22:16:25+07:00",
+    "files": [
+     "tests/test_backend_routing.py"
+    ]
+   }
+  ],
+  "id": "cand-37"
+ },
+ {
+  "sha": "fa3e993dbaf9b5ff00be483c9b293e141b9063c2",
+  "date": "2026-08-23T14:40:20+07:00",
+  "subj": "Allow fresh model switches without handoff",
+  "size": 206,
+  "fixes": [
+   {
+    "fix": "e26dcde8527def1d92ab3b2398e12822deeb1c00",
+    "d": 1.0629166666666667,
+    "n": 5,
+    "subj": "fix: switch Codex models in place",
+    "osubj": "Allow fresh model switches without handoff",
+    "odate": "2026-08-23T14:40:20+07:00",
+    "files": [
+     "app/routes/sessions.py",
+     "app/static/js/app.js",
+     "tests/test_change_model_unloaded.py",
+     "tests/test_frontend.py"
+    ]
+   }
+  ],
+  "id": "cand-38"
+ },
+ {
+  "sha": "0d8208a7762e44e0273e58468ee963b04e42d5dd",
+  "date": "2026-08-21T12:09:49+02:00",
+  "subj": "\u043e\u043f\u0440\u043e\u0441 \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0430: \u0444\u0430\u0437\u043e\u0432\u044b\u0439 \u0441\u0434\u0432\u0438\u0433 \u0438 304 \u043d\u0430 /api/sessions",
+  "size": 100,
+  "fixes": [
+   {
+    "fix": "a1211022912da5834b9c78ad29ef53388d389c81",
+    "d": 2.8190162037037036,
+    "n": 3,
+    "subj": "fix: send an empty 304 sessions response",
+    "osubj": "\u043e\u043f\u0440\u043e\u0441 \u0434\u0430\u0448\u0431\u043e\u0440\u0434\u0430: \u0444\u0430\u0437\u043e\u0432\u044b\u0439 \u0441\u0434\u0432\u0438\u0433 \u0438 304 \u043d\u0430 /api/sessions",
+    "odate": "2026-08-21T12:09:49+02:00",
+    "files": [
+     "app/routes/sessions.py",
+     "tests/test_sessions_conditional.py"
+    ]
+   }
+  ],
+  "id": "cand-39"
+ },
+ {
+  "sha": "83eda0e05777da73e8c98983ffa1d192e3916edb",
+  "date": "2026-08-13T12:22:44+02:00",
+  "subj": "#241: #241: tag the owner only when the turn calls notify_user",
+  "size": 489,
+  "fixes": [
+   {
+    "fix": "f4b7d9acdee6182add8a7deb75a9e718cf9a37f5",
+    "d": 10.833530092592593,
+    "n": 5,
+    "subj": "fix(prompts): suppress notify tags for active users",
+    "osubj": "#241: #241: tag the owner only when the turn calls notify_user",
+    "odate": "2026-08-13T12:22:44+02:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   }
+  ],
+  "id": "cand-40"
+ },
+ {
+  "sha": "8d2b1fe7dc3e1782968cb8c230a50eaf27d2cfab",
+  "date": "2026-08-27T16:57:50+02:00",
+  "subj": "#370: freeze unknown delivery response oracle",
+  "size": 92,
+  "fixes": [
+   {
+    "fix": "9093641f3fd831cf1c04deddb069a42a8d14bf78",
+    "d": 5.09380787037037,
+    "n": 12,
+    "subj": "v2.41.0: \u0430\u0443\u0434\u0438\u0442 \u043a\u043e\u0434\u043e\u0432\u043e\u0439 \u0431\u0430\u0437\u044b \u2014 27 \u0434\u0435\u0444\u0435\u043a\u0442\u043e\u0432 \u0437\u0430\u043a\u0440\u044b\u0442\u043e (3 P0 \u0432 tm.py), 2 \u0444\u0438\u043a\u0441\u0430 \u043e\u0442\u043a\u0430\u0447\u0435\u043d\u044b \u043a\u0430\u043a \u0440\u0435\u0433\u0440\u0435\u0441\u0441\u0438\u0438",
+    "osubj": "#370: freeze unknown delivery response oracle",
+    "odate": "2026-08-27T16:57:50+02:00",
+    "files": [
+     "app/mcp_stdio.py"
+    ]
+   }
+  ],
+  "id": "cand-41"
+ },
+ {
+  "sha": "2a048e6161bc57591b27852874b2aa6038c600ec",
+  "date": "2026-09-03T23:42:04+07:00",
+  "subj": "#465: research taskless adhoc merge deadlock",
+  "size": 1205,
+  "fixes": [
+   {
+    "fix": "e3d29ad1f8cb0a81e7c7cfb97be6d411afd23995",
+    "d": 1.5577662037037037,
+    "n": 14,
+    "subj": "#499: surface and repair derived lifecycle quarantine",
+    "osubj": "#465: research taskless adhoc merge deadlock",
+    "odate": "2026-09-03T23:42:04+07:00",
+    "files": [
+     "app/manager.py"
+    ]
+   }
+  ],
+  "id": "cand-42"
+ },
+ {
+  "sha": "ecd683e5cae28d693639b80d2cb5ab5f741ff6ff",
+  "date": "2026-08-26T15:09:55+07:00",
+  "subj": "Merge remote-tracking branch 'origin/main'",
+  "size": 158,
+  "fixes": [
+   {
+    "fix": "e3d29ad1f8cb0a81e7c7cfb97be6d411afd23995",
+    "d": 9.913425925925926,
+    "n": 2,
+    "subj": "#499: surface and repair derived lifecycle quarantine",
+    "osubj": "Merge remote-tracking branch 'origin/main'",
+    "odate": "2026-08-26T15:09:55+07:00",
+    "files": [
+     "app/routes/sessions.py"
+    ]
+   }
+  ],
+  "id": "cand-43"
+ },
+ {
+  "sha": "38caf30b2114f6d97bcb78740680f90231542abb",
+  "date": "2026-07-17T12:03:10+07:00",
+  "subj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-17 12:03)",
+  "size": 949,
+  "fixes": [
+   {
+    "fix": "42e0352e8ba6fa836a8f155c8cdf86a9360f3649",
+    "d": 50.06912037037037,
+    "n": 4,
+    "subj": "fix: fence stale retries and isolate dashboard recovery failures",
+    "osubj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-17 12:03)",
+    "odate": "2026-07-17T12:03:10+07:00",
+    "files": [
+     "app/session.py"
+    ]
+   },
+   {
+    "fix": "6057d1e11d6ff7e040f8a929b9b94b9b6db17328",
+    "d": 80.21210648148148,
+    "n": 4,
+    "subj": "V-706: #V-706: fix session API and delivery lifecycle",
+    "osubj": "WIP: auto-saved uncommitted changes before worker spawn (2026-07-17 12:03)",
+    "odate": "2026-07-17T12:03:10+07:00",
+    "files": [
+     "tests/test_session.py"
+    ]
+   }
+  ],
+  "id": "cand-44"
+ },
+ {
+  "sha": "6dac7dcbff16adb8a13e9c823df56c0a35667287",
+  "date": "2026-08-12T12:48:07+02:00",
+  "subj": "#220: #220: \u043f\u043b\u0430\u043d \u0444\u0430\u0437\u044b 2 \u2014 T1 \u043f\u0435\u0440\u0435\u0441\u0431\u043e\u0440\u043a\u0430 \u043f\u0440\u043e\u043c\u043f\u0442\u0430, T2/T3 \u0434\u0440\u0435\u043d\u0430\u0436, \u043a\u0440\u0430\u0441\u043d\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u0442\u0438\u043a\u0435\u0442\u043e\u0432",
+  "size": 1425,
+  "fixes": [
+   {
+    "fix": "e2e83139f4de1dd08dd63f1db7f244e0804520d2",
+    "d": 23.86650462962963,
+    "n": 10,
+    "subj": "fix: complete scoped recovery and continuation lifecycle safeguards",
+    "osubj": "#220: #220: \u043f\u043b\u0430\u043d \u0444\u0430\u0437\u044b 2 \u2014 T1 \u043f\u0435\u0440\u0435\u0441\u0431\u043e\u0440\u043a\u0430 \u043f\u0440\u043e\u043c\u043f\u0442\u0430, T2/T3 \u0434\u0440\u0435\u043d\u0430\u0436, \u043a\u0440\u0430\u0441\u043d\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u0442\u0438\u043a\u0435\u0442\u043e\u0432",
+    "odate": "2026-08-12T12:48:07+02:00",
+    "files": [
+     "app/session.py",
+     "tests/test_hot_apply.py"
+    ]
+   }
+  ],
+  "id": "cand-45"
+ },
+ {
+  "sha": "1750acf36d4d6dcd61c822853f41886bb2c9026c",
+  "date": "2026-07-28T13:24:33+07:00",
+  "subj": "#91: #91: synchronize lifecycle operations with turn completion",
+  "size": 486,
+  "fixes": [
+   {
+    "fix": "e2e83139f4de1dd08dd63f1db7f244e0804520d2",
+    "d": 39.049537037037034,
+    "n": 3,
+    "subj": "fix: complete scoped recovery and continuation lifecycle safeguards",
+    "osubj": "#91: #91: synchronize lifecycle operations with turn completion",
+    "odate": "2026-07-28T13:24:33+07:00",
+    "files": [
+     "app/session.py"
+    ]
+   }
+  ],
+  "id": "cand-46"
+ },
+ {
+  "sha": "bc0d3c343ff1d4e8f557656d06b9ee02e42e3059",
+  "date": "2026-06-15T08:43:21+02:00",
+  "subj": "fix: missing modules in orchestrator, duplicate colors, clipboard on HTTP",
+  "size": 69,
+  "fixes": [
+   {
+    "fix": "61b99180756209f2ddaa05f0864af3d41371bf5d",
+    "d": 89.94851851851851,
+    "n": 5,
+    "subj": "V-567: scope agent colors and repair live sessions",
+    "osubj": "fix: missing modules in orchestrator, duplicate colors, clipboard on HTTP",
+    "odate": "2026-06-15T08:43:21+02:00",
+    "files": [
+     "app/manager.py"
+    ]
+   }
+  ],
+  "id": "cand-47"
+ },
+ {
+  "sha": "20703eb661e918a8c7cb27324545c04c5f3f2fcb",
+  "date": "2026-06-09T16:32:44+07:00",
+  "subj": "#75: #75: GitHub Actions CI + fix broken test collections",
+  "size": 52,
+  "fixes": [
+   {
+    "fix": "8dd91d5e11731793faacdc6ba1dd5f6b8711b3c1",
+    "d": 117.9017013888889,
+    "n": 2,
+    "subj": "V-700: #V-700: fix dashboard CI and i18n issues",
+    "osubj": "#75: #75: GitHub Actions CI + fix broken test collections",
+    "odate": "2026-06-09T16:32:44+07:00",
+    "files": [
+     ".github/workflows/ci.yml"
+    ]
+   }
+  ],
+  "id": "cand-48"
+ },
+ {
+  "sha": "8ebed917ea48af4fe13286ffe7e5891141e95d67",
+  "date": "2026-08-07T05:35:47+02:00",
+  "subj": "#150: #150: \u043c\u043e\u043b\u0447\u0430\u0449\u0438\u0439 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a usage \u043f\u0438\u0448\u0435\u0442 NULL \u0438 \u0441\u0442\u0440\u043e\u043a\u0443 \u0432 \u0436\u0443\u0440\u043d\u0430\u043b \u0432\u043c\u0435\u0441\u0442\u043e \u043d\u0443\u043b\u044f",
+  "size": 264,
+  "fixes": [
+   {
+    "fix": "8dd91d5e11731793faacdc6ba1dd5f6b8711b3c1",
+    "d": 59.14958333333333,
+    "n": 2,
+    "subj": "V-700: #V-700: fix dashboard CI and i18n issues",
+    "osubj": "#150: #150: \u043c\u043e\u043b\u0447\u0430\u0449\u0438\u0439 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a usage \u043f\u0438\u0448\u0435\u0442 NULL \u0438 \u0441\u0442\u0440\u043e\u043a\u0443 \u0432 \u0436\u0443\u0440\u043d\u0430\u043b \u0432\u043c\u0435\u0441\u0442\u043e \u043d\u0443\u043b\u044f",
+    "odate": "2026-08-07T05:35:47+02:00",
+    "files": [
+     "app/db.py"
+    ]
+   }
+  ],
+  "id": "cand-49"
+ },
+ {
+  "sha": "d72bf45cad372cd59815c65edd9cea9c66d32890",
+  "date": "2026-09-17T16:56:55+02:00",
+  "subj": "V-589: #V-589: quota-lines.js \u0438 usage.js \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c, \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u044c",
+  "size": 380,
+  "fixes": [
+   {
+    "fix": "8dd91d5e11731793faacdc6ba1dd5f6b8711b3c1",
+    "d": 17.676574074074075,
+    "n": 2,
+    "subj": "V-700: #V-700: fix dashboard CI and i18n issues",
+    "osubj": "V-589: #V-589: quota-lines.js \u0438 usage.js \u043d\u0430 \u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u043c, \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u044c",
+    "odate": "2026-09-17T16:56:55+02:00",
+    "files": [
+     "app/static/js/quota-lines.js"
+    ]
+   }
+  ],
+  "id": "cand-50"
+ },
+ {
+  "sha": "e25ca71e4b4bc21ba5ed4a114e5a96b8ac34f91f",
+  "date": "2026-08-07T05:43:34+02:00",
+  "subj": "#150: #150: null \u0432 five_hour_pct/seven_day_pct \u2014 \u0434\u044b\u0440\u0430 \u0432 \u0433\u0440\u0430\u0444\u0438\u043a\u0435, \u0430 \u043d\u0435 \u043d\u043e\u043b\u044c",
+  "size": 47,
+  "fixes": [
+   {
+    "fix": "8dd91d5e11731793faacdc6ba1dd5f6b8711b3c1",
+    "d": 59.14417824074074,
+    "n": 2,
+    "subj": "V-700: #V-700: fix dashboard CI and i18n issues",
+    "osubj": "#150: #150: null \u0432 five_hour_pct/seven_day_pct \u2014 \u0434\u044b\u0440\u0430 \u0432 \u0433\u0440\u0430\u0444\u0438\u043a\u0435, \u0430 \u043d\u0435 \u043d\u043e\u043b\u044c",
+    "odate": "2026-08-07T05:43:34+02:00",
+    "files": [
+     "app/static/js/usage.js"
+    ]
+   }
+  ],
+  "id": "cand-51"
+ },
+ {
+  "sha": "11f2e2a02aa9750c50133e5c95f700c87e91dd96",
+  "date": "2026-07-16T14:46:07+02:00",
+  "subj": "Session 07-11 to 07-16: effort, RAG, Sol, Interaction Tax, worker-spawning, cache pills, TG UTF-16",
+  "size": 114,
+  "fixes": [
+   {
+    "fix": "6057d1e11d6ff7e040f8a929b9b94b9b6db17328",
+    "d": 80.89061342592592,
+    "n": 6,
+    "subj": "V-706: #V-706: fix session API and delivery lifecycle",
+    "osubj": "Session 07-11 to 07-16: effort, RAG, Sol, Interaction Tax, worker-spawning, cache pills, TG UTF-16",
+    "odate": "2026-07-16T14:46:07+02:00",
+    "files": [
+     "app/session.py"
+    ]
+   }
+  ],
+  "id": "cand-52"
+ },
+ {
+  "sha": "b09a8450edae2eecbfb54d41a4ef606fcc74f757",
+  "date": "2026-10-02T11:06:43+02:00",
+  "subj": "V-681: #V-681: MP4 \u0432 Telegram \u0443\u0445\u043e\u0434\u0438\u0442 \u0432\u0438\u0434\u0435\u043e \u0441 \u043f\u0440\u0435\u0432\u044c\u044e \u0438 \u043e\u0442\u043a\u0430\u0442\u043e\u043c \u0432 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442",
+  "size": 894,
+  "fixes": [
+   {
+    "fix": "5365e1ab413ee5d6af7e3a72ce556111f8e94e26",
+    "d": 3.0553703703703703,
+    "n": 4,
+    "subj": "V-701: #V-701: fix Telegram media routing",
+    "osubj": "V-681: #V-681: MP4 \u0432 Telegram \u0443\u0445\u043e\u0434\u0438\u0442 \u0432\u0438\u0434\u0435\u043e \u0441 \u043f\u0440\u0435\u0432\u044c\u044e \u0438 \u043e\u0442\u043a\u0430\u0442\u043e\u043c \u0432 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442",
+    "odate": "2026-10-02T11:06:43+02:00",
+    "files": [
+     "app/tg_bridge.py",
+     "app/tg_file_deliveries.py"
+    ]
+   }
+  ],
+  "id": "cand-53"
+ },
+ {
+  "sha": "d607f5fc7e0a4bcdeb583027356ec52523d7ba7b",
+  "date": "2026-09-21T09:16:18+02:00",
+  "subj": "V-607: #V-607: add mutation test gate for worker merges",
+  "size": 593,
+  "fixes": [
+   {
+    "fix": "ea58b7dbe01892f1f7e5a21a9cf982efc2ef5b9c",
+    "d": 14.14366898148148,
+    "n": 5,
+    "subj": "V-702: #V-702: fix merge gate outcomes and recovery routes",
+    "osubj": "V-607: #V-607: add mutation test gate for worker merges",
+    "odate": "2026-09-21T09:16:18+02:00",
+    "files": [
+     "app/merge_test_gate.py"
+    ]
+   }
+  ],
+  "id": "cand-54"
+ },
+ {
+  "sha": "d6155f9d4b4f01427c708e0ade542ab2fba7015b",
+  "date": "2026-09-05T13:00:21+07:00",
+  "subj": "#503: freeze Astra registry regression oracle",
+  "size": 45,
+  "fixes": [
+   {
+    "fix": "4bc0a84b5acd22fe4885a8f5db31ccf3bb5e9ece",
+    "d": 30.246238425925927,
+    "n": 3,
+    "subj": "V-703: #V-703: fix Codex runtime recovery and quota errors",
+    "osubj": "#503: freeze Astra registry regression oracle",
+    "odate": "2026-09-05T13:00:21+07:00",
+    "files": [
+     "app/runtime_history.py"
+    ]
+   }
+  ],
+  "id": "cand-55"
+ },
+ {
+  "sha": "65e7e3cf706cbb4db1633f300e65658159f39853",
+  "date": "2026-07-24T20:37:22+07:00",
+  "subj": "fix: sandbox HTML artifact previews",
+  "size": 59,
+  "fixes": [
+   {
+    "fix": "6ba1141c917b59244f59e9820152862571a11c5f",
+    "d": 73.6393287037037,
+    "n": 13,
+    "subj": "V-736: #V-736: restore CI on main",
+    "osubj": "fix: sandbox HTML artifact previews",
+    "odate": "2026-07-24T20:37:22+07:00",
+    "files": [
+     "tests/test_frontend.py"
+    ]
+   }
+  ],
+  "id": "cand-56"
+ },
+ {
+  "sha": "0f973de21a6db043356f4c97c3f3e1471cdcb1ea",
+  "date": "2026-09-23T07:00:18+02:00",
+  "subj": "V-620: switch_worker_branch releases a worker left bound after merge(continue)",
+  "size": 404,
+  "fixes": [
+   {
+    "fix": "6ba1141c917b59244f59e9820152862571a11c5f",
+    "d": 12.998402777777779,
+    "n": 2,
+    "subj": "V-736: #V-736: restore CI on main",
+    "osubj": "V-620: switch_worker_branch releases a worker left bound after merge(continue)",
+    "odate": "2026-09-23T07:00:18+02:00",
+    "files": [
+     "tests/test_switch_after_continue_620.py"
+    ]
+   }
+  ],
+  "id": "cand-57"
+ },
+ {
+  "sha": "4d3b26cc87004bd3938c9adfab4e56eab343f8cf",
+  "date": "2026-06-12T15:20:43+07:00",
+  "subj": "feat: toggle TG topic for agents via context menu",
+  "size": 53,
+  "fixes": [
+   {
+    "fix": "86bb4e238ac6a37a9945d4d1878324e217bb7e83",
+    "d": 117.3047800925926,
+    "n": 10,
+    "subj": "V-753: #V-753: fix dashboard TG topic toggle persistence",
+    "osubj": "feat: toggle TG topic for agents via context menu",
+    "odate": "2026-06-12T15:20:43+07:00",
+    "files": [
+     "app/routes/sessions.py",
+     "app/static/js/app.js"
+    ]
+   }
+  ],
+  "id": "cand-58"
+ },
+ {
+  "sha": "45e3bbcd9faa676c386ea2f4dab5e6d15876a0f3",
+  "date": "2026-09-05T10:50:31+07:00",
+  "subj": "#494: freeze capability and isolation oracles",
+  "size": 1193,
+  "fixes": [
+   {
+    "fix": "17a7d398b97ac538f4ac23bd34beb80015ded307",
+    "d": 32.67903935185185,
+    "n": 21,
+    "subj": "V-756: #V-756: fix repeated workflow prompts and wakes",
+    "osubj": "#494: freeze capability and isolation oracles",
+    "odate": "2026-09-05T10:50:31+07:00",
+    "files": [
+     "scripts/wf_run.py",
+     "tests/test_wf_run.py"
+    ]
+   }
+  ],
+  "id": "cand-59"
+ },
+ {
+  "sha": "444115851c9b857eadaaae43dcc568661b60e3ce",
+  "date": "2026-08-28T09:37:54+02:00",
+  "subj": "#414: cover restart-safe background jobs",
+  "size": 199,
+  "fixes": [
+   {
+    "fix": "17a7d398b97ac538f4ac23bd34beb80015ded307",
+    "d": 40.521134259259256,
+    "n": 14,
+    "subj": "V-756: #V-756: fix repeated workflow prompts and wakes",
+    "osubj": "#414: cover restart-safe background jobs",
+    "odate": "2026-08-28T09:37:54+02:00",
+    "files": [
+     "app/bg_jobs.py"
+    ]
+   }
+  ],
+  "id": "cand-60"
+ },
+ {
+  "sha": "2346bd703e66b182c383d1152ad8539bf071a011",
+  "date": "2026-07-29T12:14:47+07:00",
+  "subj": "#101: #101: record quota state on each turn",
+  "size": 345,
+  "fixes": [
+   {
+    "fix": "aa7a76100c97db8b3bf215a0c79ac8720773d4bb",
+    "d": 77.28585648148149,
+    "n": 4,
+    "subj": "V-847: #V-847: parallelize full pytest and isolate fixtures",
+    "osubj": "#101: #101: record quota state on each turn",
+    "odate": "2026-07-29T12:14:47+07:00",
+    "files": [
+     "tests/test_turn_usage.py"
+    ]
+   }
+  ],
+  "id": "cand-61"
+ },
+ {
+  "sha": "b6782ca8a78e1511e10191f6b04f33f1ca41bb07",
+  "date": "2026-08-19T04:39:45+02:00",
+  "subj": "#336: #336: \u0437\u0430\u043c\u0435\u0440 merge-gate \u0434\u043e \u043f\u0440\u0430\u0432\u043a\u0438 \u2014 \u0433\u0434\u0435 \u043f\u043e\u0442\u043e\u043b\u043e\u043a, \u043f\u043e\u0447\u0435\u043c\u0443 180\u0441 \u043d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442, \u0433\u0434\u0435 \u0442\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u0440\u0430\u0437\u043b\u0438\u0447\u0438\u0435 \u043a\u0440\u0430\u0441\u043d\u043e\u0433\u043e \u0438 \u043d\u0435\u0437\u0430\u0432\u0435\u0440\u0448\u0451",
+  "size": 764,
+  "fixes": [
+   {
+    "fix": "aa7a76100c97db8b3bf215a0c79ac8720773d4bb",
+    "d": 56.39351851851852,
+    "n": 2,
+    "subj": "V-847: #V-847: parallelize full pytest and isolate fixtures",
+    "osubj": "#336: #336: \u0437\u0430\u043c\u0435\u0440 merge-gate \u0434\u043e \u043f\u0440\u0430\u0432\u043a\u0438 \u2014 \u0433\u0434\u0435 \u043f\u043e\u0442\u043e\u043b\u043e\u043a, \u043f\u043e\u0447\u0435\u043c\u0443 180\u0441 \u043d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442, \u0433\u0434\u0435 \u0442\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u0440\u0430\u0437\u043b\u0438\u0447\u0438\u0435 \u043a\u0440\u0430\u0441\u043d\u043e\u0433\u043e \u0438 \u043d\u0435\u0437\u0430\u0432\u0435\u0440\u0448\u0451",
+    "odate": "2026-08-19T04:39:45+02:00",
+    "files": [
+     "app/merge_test_gate.py",
+     "pyproject.toml"
+    ]
+   }
+  ],
+  "id": "cand-62"
+ },
+ {
+  "sha": "95abdc857651ff8fd183651ceeb1e3835b247ab6",
+  "date": "2026-07-26T15:37:59+07:00",
+  "subj": "fix: unread tabs track orchestrator turns",
+  "size": 87,
+  "fixes": [
+   {
+    "fix": "59cf84d21a4ebb254020350dcb132ccb03de7c58",
+    "d": 80.9752199074074,
+    "n": 5,
+    "subj": "V-863: #V-863: restore unread dots on orchestrator tabs",
+    "osubj": "fix: unread tabs track orchestrator turns",
+    "odate": "2026-07-26T15:37:59+07:00",
+    "files": [
+     "app/static/js/app.js",
+     "tests/test_frontend.py"
+    ]
+   }
+  ],
+  "id": "cand-63"
+ },
+ {
+  "sha": "382660ab41b6fd6af8f3cfbadd304facda149d21",
+  "date": "2026-10-06T07:33:42+02:00",
+  "subj": "V-738: #V-738: add staged dynamic workflow execution",
+  "size": 354,
+  "fixes": [
+   {
+    "fix": "532c73f62062c51ab96421ac9e448270f21182fd",
+    "d": 11.121423611111112,
+    "n": 11,
+    "subj": "V-916: #V-916: fix workflow schema, identity, and resume races",
+    "osubj": "V-738: #V-738: add staged dynamic workflow execution",
+    "odate": "2026-10-06T07:33:42+02:00",
+    "files": [
+     "app/mcp_stdio.py",
+     "scripts/wf_run.py",
+     "tests/test_dynamic_workflows.py"
+    ]
+   }
+  ],
+  "id": "cand-64"
+ },
+ {
+  "sha": "038f06b7b20ff1c4153a287f146b67482c76fb10",
+  "date": "2026-10-05T13:35:44+02:00",
+  "subj": "V-720: #V-720: add one-call dynamic workflows",
+  "size": 319,
+  "fixes": [
+   {
+    "fix": "532c73f62062c51ab96421ac9e448270f21182fd",
+    "d": 11.870011574074073,
+    "n": 11,
+    "subj": "V-916: #V-916: fix workflow schema, identity, and resume races",
+    "osubj": "V-720: #V-720: add one-call dynamic workflows",
+    "odate": "2026-10-05T13:35:44+02:00",
+    "files": [
+     "scripts/wf_run.py",
+     "tests/test_dynamic_workflows.py"
+    ]
+   }
+  ],
+  "id": "cand-65"
+ },
+ {
+  "sha": "62e76da504520541efbcfe235cc295d38b59abfb",
+  "date": "2026-10-08T14:01:22+02:00",
+  "subj": "V-782: shared workflow admission scheduler and agent cgroup isolation",
+  "size": 1166,
+  "fixes": [
+   {
+    "fix": "532c73f62062c51ab96421ac9e448270f21182fd",
+    "d": 8.852210648148148,
+    "n": 2,
+    "subj": "V-916: #V-916: fix workflow schema, identity, and resume races",
+    "osubj": "V-782: shared workflow admission scheduler and agent cgroup isolation",
+    "odate": "2026-10-08T14:01:22+02:00",
+    "files": [
+     "scripts/wf_run.py"
+    ]
+   }
+  ],
+  "id": "cand-66"
+ }
+]

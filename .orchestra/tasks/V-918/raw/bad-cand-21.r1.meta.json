@@ -1,0 +1,1 @@
+{"id": "bad-cand-21.r1", "sha": "3ef921eaca4dee44c7d8b7f2f8dbb116cd5d8717", "rc": 0, "seconds": 29.4, "usage": {"input_tokens": 293922, "cached_input_tokens": 258816, "cache_write_input_tokens": 0, "output_tokens": 2314, "reasoning_output_tokens": 800}, "diff_bytes": 52421, "dirty_after": "", "stderr": ""}
