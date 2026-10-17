@@ -1,0 +1,80 @@
+{
+ "passed": true,
+ "results": [
+  {
+   "check": "offset",
+   "status": "pass",
+   "detail": "encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]"
+  },
+  {
+   "check": "loudness",
+   "status": "pass",
+   "detail": "integrated -18.01 LUFS, target -18"
+  },
+  {
+   "check": "true peak",
+   "status": "pass",
+   "detail": "-2.49 dBTP (limit -1.0)"
+  },
+  {
+   "check": "picture key1",
+   "status": "warn",
+   "detail": "appear at frame 381: change at frame 380 (0.23 vs local 0.17)"
+  },
+  {
+   "check": "picture key2",
+   "status": "warn",
+   "detail": "appear at frame 405: change at frame 405 (0.13 vs local 0.01)"
+  },
+  {
+   "check": "picture key3",
+   "status": "warn",
+   "detail": "appear at frame 429: change at frame 430 (0.13 vs local 0.06)"
+  },
+  {
+   "check": "sync key1",
+   "status": "pass",
+   "detail": "peak 0.00 frames from its cue"
+  },
+  {
+   "check": "audible key1",
+   "status": "pass",
+   "detail": "stands out by 1.7 dB in 1000-2000 Hz over music+voice"
+  },
+  {
+   "check": "sync key2",
+   "status": "pass",
+   "detail": "peak 0.00 frames from its cue"
+  },
+  {
+   "check": "audible key2",
+   "status": "pass",
+   "detail": "stands out by 2.3 dB in 1000-2000 Hz over music+voice"
+  },
+  {
+   "check": "sync key3",
+   "status": "pass",
+   "detail": "peak 0.01 frames from its cue"
+  },
+  {
+   "check": "audible key3",
+   "status": "pass",
+   "detail": "stands out by 1.8 dB in 1000-2000 Hz over music+voice"
+  },
+  {
+   "check": "voice",
+   "status": "pass",
+   "detail": "music sits 15.8 LU under the voice (median while speaking)"
+  },
+  {
+   "check": "music",
+   "status": "pass",
+   "detail": "median -30.1 LUFS short-term; unplanned dips at []"
+  },
+  {
+   "check": "silence",
+   "status": "pass",
+   "detail": "none"
+  }
+ ]
+}
