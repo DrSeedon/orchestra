@@ -1880,6 +1880,20 @@ class ClaudeBackend:
                 **turn_usage.metadata(),
             }, usage=turn_usage))
 
+        # V-919: the session id used to arrive only with ResultMessage, so a first turn cut by a
+        # restart left the row without one and auto_resume_all skipped the agent entirely.
+        # The CLI already writes the transcript under this id from the init message on.
+        if (isinstance(msg, SystemMessage)
+                and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))
+                and getattr(msg, "subtype", "") == "init"):
+            init_session_id = (getattr(msg, "data", None) or {}).get("session_id")
+            if init_session_id and init_session_id != self._session_id:
+                self._session_id = init_session_id
+                events.append(AgentEvent(
+                    "status", f"claude session={init_session_id}",
+                    metadata={"session_id": init_session_id},
+                ))
+
         if (isinstance(msg, SystemMessage)
                 and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))
                 and getattr(msg, "subtype", "") == "compact_boundary"):

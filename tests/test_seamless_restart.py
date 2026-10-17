@@ -118,7 +118,9 @@ async def test_t3_auto_resume_wakes_a_gracefully_interrupted_worker(
     assert [session.id for session, _handoff in loaded] == [row_id]
     assert len(spawned) == 1
     await spawned[0][0]
-    notice.assert_awaited_once_with(loaded[0][0])
+    notice.assert_awaited_once()
+    assert notice.await_args.args[0] is loaded[0][0]
+    assert notice.await_args.args[1]["id"] == row_id
 
 
 @pytest.fixture(autouse=True)

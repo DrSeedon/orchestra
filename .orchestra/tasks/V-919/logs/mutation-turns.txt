@@ -1,0 +1,8 @@
+E       TypeError: SessionManager._inject_restart_notice() takes 2 positional arguments but 3 were given
+tests/test_restart_continuation_919.py:166: TypeError
+FAILED tests/test_restart_continuation_919.py::test_claude_init_message_reports_session_id_before_turn_end
+FAILED tests/test_restart_continuation_919.py::test_early_session_id_is_persisted_and_starts_a_fresh_cost_baseline
+FAILED tests/test_restart_continuation_919.py::test_first_turn_without_session_id_is_resumed_with_its_messages
+FAILED tests/test_restart_continuation_919.py::test_resumed_worker_does_not_report_a_failed_turn_to_its_parent
+FAILED tests/test_restart_continuation_919.py::test_undeliverable_restart_notice_is_reported_to_the_parent
+5 failed, 1 passed in 8.03s

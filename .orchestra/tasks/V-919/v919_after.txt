@@ -1,0 +1,298 @@
+Oct 17 11:17:35.024697 vmi3407579 python[3114402]: ERROR:    Cancel 2 running task(s), timeout graceful shutdown exceeded
+Oct 17 11:17:35.025386 vmi3407579 python[3114402]: INFO:     Waiting for application shutdown.
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: ERROR:    Exception in ASGI application
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 117, in receive
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     return self.receive_nowait()
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 112, in receive_nowait
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     raise WouldBlock
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: anyio.WouldBlock
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: During handling of the above exception, another exception occurred:
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 421, in run_asgi
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     result = await app(  # type: ignore[func-returns-value]
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     return await self.app(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/fastapi/applications.py", line 1159, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await self.middleware_stack(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await self.app(scope, receive, _send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 29, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await responder(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 130, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 46, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await self.app(scope, receive, self.send_with_compression)
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 192, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     async with anyio.create_task_group() as task_group:
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 803, in __aexit__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     raise exc_val
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 194, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await response(scope, wrapped_receive, send)
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 232, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     async for chunk in self.body_iterator:
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 174, in body_stream
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     async for message in recv_stream:
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/abc/_streams.py", line 35, in __anext__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     return await self.receive()
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 125, in receive
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await receive_event.wait()
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1804, in wait
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await self._event.wait()
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/usr/lib/python3.12/asyncio/locks.py", line 212, in wait
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await fut
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]: asyncio.exceptions.CancelledError: Task cancelled, timeout graceful shutdown exceeded
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]: ERROR:    Exception in ASGI application
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 117, in receive
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     return self.receive_nowait()
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 112, in receive_nowait
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     raise WouldBlock
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]: anyio.WouldBlock
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]: During handling of the above exception, another exception occurred:
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 421, in run_asgi
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     result = await app(  # type: ignore[func-returns-value]
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     return await self.app(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/fastapi/applications.py", line 1159, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await self.middleware_stack(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await self.app(scope, receive, _send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 29, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await responder(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 130, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 46, in __call__
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     await self.app(scope, receive, self.send_with_compression)
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 192, in __call__
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     async with anyio.create_task_group() as task_group:
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 803, in __aexit__
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     raise exc_val
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 194, in __call__
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     await response(scope, wrapped_receive, send)
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 232, in __call__
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     async for chunk in self.body_iterator:
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 174, in body_stream
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     async for message in recv_stream:
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/abc/_streams.py", line 35, in __anext__
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     return await self.receive()
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 125, in receive
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     await receive_event.wait()
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1804, in wait
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     await self._event.wait()
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:   File "/usr/lib/python3.12/asyncio/locks.py", line 212, in wait
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]:     await fut
+Oct 17 11:17:35.041530 vmi3407579 python[3114402]: asyncio.exceptions.CancelledError: Task cancelled, timeout graceful shutdown exceeded
+Oct 17 11:17:35.066552 vmi3407579 python[3114402]: INFO:aiogram.dispatcher:Polling stopped
+Oct 17 11:17:35.342633 vmi3407579 python[3114402]: ERROR:aiogram.dispatcher:Failed to fetch updates - TelegramNetworkError: HTTP Client says - ServerDisconnectedError: Server disconnected
+Oct 17 11:17:35.342633 vmi3407579 python[3114402]: WARNING:aiogram.dispatcher:Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8748210717)
+Oct 17 11:17:35.694292 vmi3407579 python[3114402]: [Orchestra-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.694574 vmi3407579 python[3114402]: WARNING:app.session:[Orchestra-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695125 vmi3407579 python[3114402]: [seedon-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695194 vmi3407579 python[3114402]: WARNING:app.session:[seedon-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695354 vmi3407579 python[3114402]: [kesha-tg-bot-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695414 vmi3407579 python[3114402]: WARNING:app.session:[kesha-tg-bot-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695604 vmi3407579 python[3114402]: [katya-work-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695604 vmi3407579 python[3114402]: WARNING:app.session:[katya-work-orchestrator] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695800 vmi3407579 python[3114402]: [gamelab] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.695800 vmi3407579 python[3114402]: WARNING:app.session:[gamelab] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.696094 vmi3407579 python[3114402]: [research-video-style] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.696094 vmi3407579 python[3114402]: WARNING:app.session:[research-video-style] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.696213 vmi3407579 python[3114402]: [feat-lossless-restart] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.696213 vmi3407579 python[3114402]: WARNING:app.session:[feat-lossless-restart] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.696797 vmi3407579 python[3114402]: [bench-review-big] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.696797 vmi3407579 python[3114402]: WARNING:app.session:[bench-review-big] events() exhausted normally (attempt 1/5)
+Oct 17 11:17:35.909635 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:35.909635 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:35.909934 vmi3407579 python[3114402]: [Orchestra-orchestrator] heartbeat cancelled
+Oct 17 11:17:35.909934 vmi3407579 python[3114402]: INFO:app.session:[Orchestra-orchestrator] heartbeat cancelled
+Oct 17 11:17:35.915386 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:35.915386 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:35.915729 vmi3407579 python[3114402]: [katya-work-orchestrator] heartbeat cancelled
+Oct 17 11:17:35.915779 vmi3407579 python[3114402]: INFO:app.session:[katya-work-orchestrator] heartbeat cancelled
+Oct 17 11:17:36.007342 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:36.007342 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:36.007690 vmi3407579 python[3114402]: [seedon-orchestrator] heartbeat cancelled
+Oct 17 11:17:36.007690 vmi3407579 python[3114402]: INFO:app.session:[seedon-orchestrator] heartbeat cancelled
+Oct 17 11:17:40.908350 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.908350 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.908350 vmi3407579 python[3114402]: [gamelab] heartbeat cancelled
+Oct 17 11:17:40.908350 vmi3407579 python[3114402]: INFO:app.session:[gamelab] heartbeat cancelled
+Oct 17 11:17:40.915455 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.915455 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.915455 vmi3407579 python[3114402]: [bench-review-big] heartbeat cancelled
+Oct 17 11:17:40.915455 vmi3407579 python[3114402]: INFO:app.session:[bench-review-big] heartbeat cancelled
+Oct 17 11:17:40.918189 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.918189 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.918189 vmi3407579 python[3114402]: [feat-lossless-restart] heartbeat cancelled
+Oct 17 11:17:40.918189 vmi3407579 python[3114402]: INFO:app.session:[feat-lossless-restart] heartbeat cancelled
+Oct 17 11:17:40.927181 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.927181 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.927181 vmi3407579 python[3114402]: [research-video-style] heartbeat cancelled
+Oct 17 11:17:40.927181 vmi3407579 python[3114402]: INFO:app.session:[research-video-style] heartbeat cancelled
+Oct 17 11:17:40.994567 vmi3407579 python[3114402]: ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.994567 vmi3407579 python[3114402]: WARNING:app.backend_claude:ClaudeBackend disconnect: process already gone ('NoneType' object has no attribute 'returncode')
+Oct 17 11:17:40.994567 vmi3407579 python[3114402]: [kesha-tg-bot-orchestrator] heartbeat cancelled
+Oct 17 11:17:40.995009 vmi3407579 python[3114402]: INFO:app.session:[kesha-tg-bot-orchestrator] heartbeat cancelled
+Oct 17 11:17:40.995598 vmi3407579 python[3114402]: INFO:     Application shutdown complete.
+Oct 17 11:17:40.995679 vmi3407579 python[3114402]: INFO:     Finished server process [3114402]
+Oct 17 11:17:41.080474 vmi3407579 systemd[1]: orchestra.service: Deactivated successfully.
+Oct 17 11:17:41.082693 vmi3407579 systemd[1]: Stopped orchestra.service - Orchestra AI Agent Orchestrator.
+Oct 17 11:17:41.082839 vmi3407579 systemd[1]: orchestra.service: Consumed 1h 35min 43.843s CPU time, 14.0G memory peak, 12.0G memory swap peak.
+Oct 17 11:17:41.101090 vmi3407579 systemd[1]: Starting orchestra.service - Orchestra AI Agent Orchestrator...
+Oct 17 11:17:42.582441 vmi3407579 python[3358929]: INFO:     Started server process [3358929]
+Oct 17 11:17:42.582441 vmi3407579 python[3358929]: INFO:     Waiting for application startup.
+Oct 17 11:17:56.420627 vmi3407579 python[3358929]: No proxy configured, using 30 hardcoded models
+Oct 17 11:17:57.032593 vmi3407579 python[3358929]: Resumed orchestrator: Orchestra-orchestrator
+Oct 17 11:17:57.043571 vmi3407579 python[3358929]: Resumed orchestrator: seedon-orchestrator
+Oct 17 11:17:57.050305 vmi3407579 python[3358929]: Resumed orchestrator: kesha-tg-bot-orchestrator
+Oct 17 11:17:57.058546 vmi3407579 python[3358929]: Resumed orchestrator: Claude-Code-Game-Master-orchestrator
+Oct 17 11:17:57.065731 vmi3407579 python[3358929]: Resumed orchestrator: University-orchestrator
+Oct 17 11:17:57.075137 vmi3407579 python[3358929]: Resumed orchestrator: VPN-orchestrator
+Oct 17 11:17:57.084822 vmi3407579 python[3358929]: Resumed orchestrator: katya-work-orchestrator
+Oct 17 11:17:57.095886 vmi3407579 python[3358929]: Resumed orchestrator: comfy-image-orchestrator-vps
+Oct 17 11:17:57.110926 vmi3407579 python[3358929]: Resumed orchestrator: cog-second-brain-orchestrator
+Oct 17 11:17:57.116434 vmi3407579 python[3358929]: Resumed orchestrator: openrouter-lab-orchestrator
+Oct 17 11:17:57.151278 vmi3407579 python[3358929]: Resumed worker: sales
+Oct 17 11:17:57.186165 vmi3407579 python[3358929]: Resumed worker: direct-research
+Oct 17 11:17:57.207698 vmi3407579 python[3358929]: Resumed worker: ai-table-worker
+Oct 17 11:17:57.241213 vmi3407579 python[3358929]: Resumed worker: prompt-engineer
+Oct 17 11:17:57.261784 vmi3407579 python[3358929]: Resumed worker: oshibki-dz
+Oct 17 11:17:57.277551 vmi3407579 python[3358929]: Resumed worker: skripty
+Oct 17 11:17:57.291987 vmi3407579 python[3358929]: Resumed worker: fix-spawn
+Oct 17 11:17:57.309539 vmi3407579 python[3358929]: Resumed worker: fix-dashboard
+Oct 17 11:17:57.326238 vmi3407579 python[3358929]: Resumed worker: fix-telegram
+Oct 17 11:17:57.342424 vmi3407579 python[3358929]: Resumed worker: fix-codex
+Oct 17 11:17:57.359593 vmi3407579 python[3358929]: Resumed worker: fix-api
+Oct 17 11:17:57.373232 vmi3407579 python[3358929]: Resumed worker: disk-audit
+Oct 17 11:17:57.386986 vmi3407579 python[3358929]: Resumed worker: rilsy
+Oct 17 11:17:57.400019 vmi3407579 python[3358929]: Resumed worker: lit-uroki
+Oct 17 11:17:57.416037 vmi3407579 python[3358929]: Resumed worker: tender-scout
+Oct 17 11:17:57.432106 vmi3407579 python[3358929]: Resumed worker: avito
+Oct 17 11:17:57.447928 vmi3407579 python[3358929]: Resumed worker: google-slaydy
+Oct 17 11:17:57.462547 vmi3407579 python[3358929]: Resumed worker: disk-audit
+Oct 17 11:17:57.477127 vmi3407579 python[3358929]: Resumed worker: gamelab
+Oct 17 11:17:57.490985 vmi3407579 python[3358929]: Resumed worker: kurs-syrye
+Oct 17 11:17:57.504975 vmi3407579 python[3358929]: Resumed worker: metodika
+Oct 17 11:17:57.518787 vmi3407579 python[3358929]: Resumed worker: platforma
+Oct 17 11:17:57.536901 vmi3407579 python[3358929]: Resumed worker: feat-tg-proxy
+Oct 17 11:17:57.550646 vmi3407579 python[3358929]: Resumed worker: sentiment
+Oct 17 11:17:57.563630 vmi3407579 python[3358929]: Resumed worker: kuzenkov
+Oct 17 11:17:57.579816 vmi3407579 python[3358929]: Resumed worker: itog-soch
+Oct 17 11:17:57.598287 vmi3407579 python[3358929]: Resumed worker: video-platforma
+Oct 17 11:17:57.615998 vmi3407579 python[3358929]: Resumed worker: feat-toska-slides
+Oct 17 11:17:57.631633 vmi3407579 python[3358929]: Resumed worker: feat-video-sound
+Oct 17 11:17:57.645987 vmi3407579 python[3358929]: Resumed worker: index-video
+Oct 17 11:17:57.659803 vmi3407579 python[3358929]: Resumed worker: claude-runtime
+Oct 17 11:17:57.672266 vmi3407579 python[3358929]: Resumed worker: urok-svyaz
+Oct 17 11:17:57.684277 vmi3407579 python[3358929]: Resumed worker: perf-audit
+Oct 17 11:17:57.697586 vmi3407579 python[3358929]: Resumed worker: neuro
+Oct 17 11:17:57.712629 vmi3407579 python[3358929]: Resumed worker: tender-cards
+Oct 17 11:17:57.731220 vmi3407579 python[3358929]: Resumed worker: browser-agent
+Oct 17 11:17:57.748826 vmi3407579 python[3358929]: Resumed worker: nn-video
+Oct 17 11:17:57.764097 vmi3407579 python[3358929]: Resumed worker: accountant
+Oct 17 11:17:57.776806 vmi3407579 python[3358929]: Resumed worker: feat-tool-guard
+Oct 17 11:17:57.790603 vmi3407579 python[3358929]: Resumed worker: feat-bg-listener
+Oct 17 11:17:57.805441 vmi3407579 python[3358929]: Resumed worker: feat-task-cards
+Oct 17 11:17:57.821629 vmi3407579 python[3358929]: Resumed worker: feat-voice-input
+Oct 17 11:17:57.839777 vmi3407579 python[3358929]: Resumed worker: decision-cost
+Oct 17 11:17:57.856124 vmi3407579 python[3358929]: Resumed worker: craft-3b1b
+Oct 17 11:17:57.871789 vmi3407579 python[3358929]: Resumed worker: ux-dizain
+Oct 17 11:17:57.889356 vmi3407579 python[3358929]: Resumed worker: doska-fichi
+Oct 17 11:17:57.905166 vmi3407579 python[3358929]: Resumed worker: doski-2
+Oct 17 11:17:57.923537 vmi3407579 python[3358929]: Resumed worker: ai-table-gm
+Oct 17 11:17:57.942453 vmi3407579 python[3358929]: Resumed worker: collector-opus
+Oct 17 11:17:57.958728 vmi3407579 python[3358929]: Resumed worker: design-system
+Oct 17 11:17:57.972935 vmi3407579 python[3358929]: Resumed worker: ikit-film
+Oct 17 11:17:57.992333 vmi3407579 python[3358929]: Resumed worker: tg-kanal
+Oct 17 11:17:58.008660 vmi3407579 python[3358929]: Resumed worker: research-tts
+Oct 17 11:17:58.027688 vmi3407579 python[3358929]: Resumed worker: ege-rus-uroki
+Oct 17 11:17:58.048517 vmi3407579 python[3358929]: Resumed worker: gamelab-content
+Oct 17 11:17:58.066340 vmi3407579 python[3358929]: Resumed worker: gamelab-ui
+Oct 17 11:17:58.088220 vmi3407579 python[3358929]: Resumed worker: gamelab-bots
+Oct 17 11:17:58.104080 vmi3407579 python[3358929]: Resumed worker: research-video-style
+Oct 17 11:17:58.123547 vmi3407579 python[3358929]: Resumed worker: bench-evals-pilot
+Oct 17 11:18:01.354246 vmi3407579 python[3358929]: Bootstrap: skipping, orchestrator exists
+Oct 17 11:18:01.467376 vmi3407579 python[3358929]: bg_jobs: cleaned up 17 old terminated jobs
+Oct 17 11:18:01.475906 vmi3407579 python[3358929]: bg_jobs: restored 22 jobs, expired 0
+Oct 17 11:18:01.648671 vmi3407579 python[3358929]: TG bridge: starting in background (HTTP is already serving)
+Oct 17 11:18:01.656998 vmi3407579 python[3358929]: runaway guard armed: limit=2.0GiB interval=20s strikes=2
+Oct 17 11:18:01.722767 vmi3407579 python[3358929]: stale worktree skipped (dirty): /home/kesha/orchestra/worktrees/home-kesha-orchestra/v609-baseline-hardening
+Oct 17 11:18:01.811351 vmi3407579 python[3358929]: TG Bot using LOCAL API: http://localhost:8081
+Oct 17 11:18:01.811351 vmi3407579 python[3358929]: TG Bridge started (polling immediate, topics deferred) | group=-1003760207564
+Oct 17 11:18:01.837473 vmi3407579 python[3358929]: TG polling started
+Oct 17 11:18:01.843525 vmi3407579 python[3358929]: stale worktree skipped (dirty): /home/kesha/orchestra/worktrees/home-kesha-projects-university/wf-V-19-3e4abd6c290e-f108520c7766f4d55525ef0e9ad476352ff3ce6aa07fcccc918c9a015a137af6-0-a1
+Oct 17 11:18:01.921358 vmi3407579 python[3358929]: stale worktree skipped (dirty): /home/kesha/orchestra/worktrees/home-kesha-projects-university/wf-V-19-3e4abd6c290e-b7a6d0b113303fcf48d496950a49449943078a0ec428db2fdea0de617ee05d4d-0-a1
+Oct 17 11:18:02.029889 vmi3407579 python[3358929]: stale worktree skipped (dirty): /home/kesha/orchestra/worktrees/home-kesha-projects-university/wf-V-19-3e4abd6c290e-f862939780305bb81d74013cdc22273ea09f294e305b0836a6ed619282e2b8c6-0-a1
+Oct 17 11:18:04.432126 vmi3407579 python[3358929]: TG bridge: ready
+Oct 17 11:18:04.433045 vmi3407579 systemd[1]: Started orchestra.service - Orchestra AI Agent Orchestrator.
+Oct 17 11:18:04.434981 vmi3407579 python[3358929]: systemd readiness published after application startup gates
+Oct 17 11:18:05.012436 vmi3407579 python[3358929]: INFO:     Application startup complete.
+Oct 17 11:18:05.012825 vmi3407579 python[3358929]: INFO:     Uvicorn running on socket ('0.0.0.0', 8888) (Press CTRL+C to quit)
+Oct 17 11:18:05.502029 vmi3407579 python[3358929]: TG incoming: chat=-1003760207564 thread=82134 from=Maxim text=
+Oct 17 11:18:05.839176 vmi3407579 python[3358929]: download voice_20261017_091757_248857.oga: local copy in 267ms (/home/kesha/orchestra/data/tg-bot-api/8748210717:AAEOe6URMauyMnwQMMKbWJ1gkrGW_ducV6g/voice/file_2795.oga)
+Oct 17 11:18:05.935957 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:18:05.942213 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:18:06.538634 vmi3407579 python[3358929]: Deepgram: audio=8.7s size=172KB transcribe=697ms
+Oct 17 11:18:06.550695 vmi3407579 python[3358929]: handle_voice total=1048ms duration=8s
+Oct 17 11:18:07.209055 vmi3407579 python[3358929]: [seedon-orchestrator] claude persistent event loop started
+Oct 17 11:18:07.209976 vmi3407579 python[3358929]: [seedon-orchestrator] heartbeat started
+Oct 17 11:18:07.221799 vmi3407579 python[3358929]: turn signal [121] delivered to seedon-orchestrator
+Oct 17 11:18:07.551969 vmi3407579 python[3358929]: [bench-evals-pilot] claude persistent event loop started
+Oct 17 11:18:07.551969 vmi3407579 python[3358929]: [bench-evals-pilot] heartbeat started
+Oct 17 11:18:07.575020 vmi3407579 python[3358929]: bg_job bg-2c8cea5110: triggered → bench-evals-pilot
+Oct 17 11:18:07.617048 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:18:08.472916 vmi3407579 python[3358929]: [gamelab] claude persistent event loop started
+Oct 17 11:18:08.472916 vmi3407579 python[3358929]: [gamelab] heartbeat started
+Oct 17 11:18:08.472916 vmi3407579 python[3358929]: Restart notice injected: gamelab
+Oct 17 11:18:08.758673 vmi3407579 python[3358929]: Grok usage unavailable: no OAuth credentials
+Oct 17 11:18:09.479819 vmi3407579 python[3358929]: [Orchestra-orchestrator] claude persistent event loop started
+Oct 17 11:18:09.480100 vmi3407579 python[3358929]: [Orchestra-orchestrator] heartbeat started
+Oct 17 11:18:09.484479 vmi3407579 python[3358929]: turn signal [122, 123, 124] delivered to Orchestra-orchestrator
+Oct 17 11:18:12.635469 vmi3407579 python[3358929]: [research-video-style] claude persistent event loop started
+Oct 17 11:18:12.636426 vmi3407579 python[3358929]: [research-video-style] heartbeat started
+Oct 17 11:18:12.636426 vmi3407579 python[3358929]: Restart notice injected: research-video-style
+Oct 17 11:18:12.995771 vmi3407579 python[3358929]: [kesha-tg-bot-orchestrator] claude persistent event loop started
+Oct 17 11:18:12.996056 vmi3407579 python[3358929]: [kesha-tg-bot-orchestrator] heartbeat started
+Oct 17 11:18:12.996489 vmi3407579 python[3358929]: Restart notice injected: kesha-tg-bot-orchestrator
+Oct 17 11:18:13.726828 vmi3407579 python[3358929]: TG send_message dropped: rate slot unavailable
+Oct 17 11:18:20.898792 vmi3407579 python[3358929]: INFO:     127.0.0.1:41472 - "POST /api/tm/tasks HTTP/1.1" 200 OK
+Oct 17 11:18:23.084327 vmi3407579 python[3358929]: Auto-report: gamelab recorded as turn signal 125
+Oct 17 11:18:23.186422 vmi3407579 python[3358929]: turn signal [125] delivered to seedon-orchestrator
+Oct 17 11:18:32.015318 vmi3407579 python[3358929]: INFO:     127.0.0.1:50970 - "POST /api/sessions/gamelab/send HTTP/1.1" 202 Accepted
+Oct 17 11:18:35.835011 vmi3407579 python[3358929]: TG send_message dropped: rate slot unavailable
+Oct 17 11:18:36.983804 vmi3407579 python[3358929]: INFO:     127.0.0.1:51000 - "POST /api/sessions/feat-lossless-restart/send HTTP/1.1" 202 Accepted
+Oct 17 11:18:37.012752 vmi3407579 python[3358929]: TG send_message dropped: rate slot unavailable
+Oct 17 11:18:37.926687 vmi3407579 python[3358929]: INFO:     127.0.0.1:51016 - "POST /api/sessions/bench-review-big/send HTTP/1.1" 202 Accepted
+Oct 17 11:18:38.917937 vmi3407579 python[3358929]: [feat-lossless-restart] claude persistent event loop started
+Oct 17 11:18:38.917937 vmi3407579 python[3358929]: [feat-lossless-restart] heartbeat started
+Oct 17 11:18:39.839701 vmi3407579 python[3358929]: [bench-review-big] claude persistent event loop started
+Oct 17 11:18:39.840421 vmi3407579 python[3358929]: [bench-review-big] heartbeat started
+Oct 17 11:18:41.070055 vmi3407579 python[3358929]: TG edit_message dropped: rate slot unavailable
+Oct 17 11:18:42.123549 vmi3407579 python[3358929]: TG send_message dropped: rate slot unavailable
+Oct 17 11:18:52.684733 vmi3407579 python[3358929]: INFO:     127.0.0.1:49776 - "POST /api/sessions/research-video-style/checklist HTTP/1.1" 200 OK
+Oct 17 11:18:56.185396 vmi3407579 python[3358929]: TG edit_message dropped: rate slot unavailable
+Oct 17 11:18:57.124180 vmi3407579 python[3358929]: No proxy configured, using 30 hardcoded models
+Oct 17 11:18:57.237457 vmi3407579 python[3358929]: TG send_message dropped: rate slot unavailable
+Oct 17 11:18:57.782233 vmi3407579 python[3358929]: bg_job created: bg-c0c7f44b4e type=run target=gamelab
+Oct 17 11:18:57.817451 vmi3407579 python[3358929]: INFO:     127.0.0.1:49860 - "POST /api/bg/jobs HTTP/1.1" 200 OK
+Oct 17 11:18:57.873765 vmi3407579 python[3358929]: bg_job bg-c0c7f44b4e: run started pid=3361742 on=local timeout=3600s cmd_len=165
+Oct 17 11:19:06.542123 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:19:06.609780 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:19:08.025249 vmi3407579 python[3358929]: 'CLAUDE.md' is tracked by /home/kesha/projects/kesha-tg-bot — copy skipped
+Oct 17 11:19:08.265962 vmi3407579 python[3358929]: INFO:     127.0.0.1:58294 - "POST /api/sessions HTTP/1.1" 201 Created
+Oct 17 11:19:08.345045 vmi3407579 python[3358929]: INFO:     127.0.0.1:39100 - "POST /api/sessions/feat-text-memory/initial-deliveries HTTP/1.1" 202 Accepted
+Oct 17 11:19:09.110317 vmi3407579 python[3358929]: [Orchestra-orchestrator] persistent event loop cancelled

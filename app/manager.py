@@ -456,6 +456,45 @@ def replace_ownership_block(
     return head + ownership_block(after) + tail + memory_separator + memory, True
 
 
+_RESTART_REPLAY_LIMIT = 20_000
+
+
+def restart_notice_text(row: dict) -> str:
+    """Wake-up text for an agent whose turn a restart cut off.
+
+    Without a native session id the runtime starts an empty conversation, so the messages of
+    the cut turn are replayed: otherwise the agent wakes up without its task (V-919).
+    """
+    text = (
+        "[system] Orchestra server restarted while your turn was running. "
+        "Commands running inside the turn were stopped; background jobs created with "
+        "bg_create keep running and report as usual. Continue your task from where you "
+        "stopped: check files and external action outcomes first and do not blindly repeat "
+        "the last operation."
+    )
+    if row.get("session_id"):
+        return text + " The saved conversation was restored."
+    from app.db import _conn
+    with _conn() as c:
+        last_end = c.execute(
+            "SELECT COALESCE(MAX(id), 0) FROM logs WHERE session_id=? AND type='status' "
+            "AND content LIKE 'turn ended%'", (row["id"],),
+        ).fetchone()[0]
+        messages = [r[0] for r in c.execute(
+            "SELECT content FROM logs WHERE session_id=? AND type='user_message' AND id>? "
+            "ORDER BY id", (row["id"], last_end),
+        ).fetchall()]
+    if not messages:
+        return text
+    replay = "\n\n---\n\n".join(messages)
+    if len(replay) > _RESTART_REPLAY_LIMIT:
+        replay = "…" + replay[-_RESTART_REPLAY_LIMIT:]
+    return (
+        text + " The conversation could not be restored because the turn was cut before "
+        "it was saved. Messages of that turn, oldest first:\n\n" + replay
+    )
+
+
 class SessionManager:
     def __init__(self):
         self.sessions: dict[str, AgentSession] = {}
@@ -2326,20 +2365,15 @@ class SessionManager:
             was_waiting = {r["id"] for r in c.execute(
                 "SELECT id FROM sessions WHERE status = 'waiting'"
             ).fetchall()}
+            # A turn cut before the runtime reported its native id (first turn, V-919) has no
+            # session_id, yet it is exactly the agent that must continue.
             resumable = [dict(r) for r in c.execute(
-                "SELECT * FROM sessions WHERE session_id IS NOT NULL "
-                "AND status IN ('running', 'interrupted', 'idle', 'waiting')"
+                "SELECT * FROM sessions WHERE (session_id IS NOT NULL "
+                "AND status IN ('running', 'interrupted', 'idle', 'waiting')) "
+                "OR status IN ('running', 'interrupted')"
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' "
                       "WHERE status IN ('running', 'interrupted', 'waiting')")
-
-        # V-680: the parent learns that these turns ended, durably and before any load can fail.
-        from app import turn_signals
-        try:
-            turn_signals.record_interrupted_by_restart(was_running_rows)
-        except Exception as error:
-            logger.error("turn signals for restart-interrupted turns failed: %s: %s",
-                         type(error).__name__, error)
 
         # R1: load orchestrators first — workers need their parent_name resolved,
         # and the orchestrator's on_idle callback registered before workers resume
@@ -2349,11 +2383,14 @@ class SessionManager:
             row["session_id"]: row for row in list_latest_runtime_handoffs()
         }
 
+        not_continued = []
         for kind, rows in (("orchestrator", orchs), ("worker", workers)):
             for row in rows:
                 if row["id"] in self.sessions:
                     continue
                 if not Path(row.get("cwd") or row["scope"]).is_dir():
+                    if row["id"] in was_running:
+                        not_continued.append(row)
                     continue
                 try:
                     session = await self._load_from_db(
@@ -2367,13 +2404,31 @@ class SessionManager:
                             session._persist()
                     elif row["id"] in was_running:
                         spawn_supervised(
-                            self._inject_restart_notice(session),
+                            self._inject_restart_notice(session, row),
                             f"уведомление о рестарте для {session.name}",
                         )
                 except Exception as e:
                     logger.error("Failed to resume %s %s: %s", kind, row["name"], e)
+                    if row["id"] in was_running:
+                        not_continued.append(row)
+        # V-680 told the parent about every restart-cut turn, which read as a failure and
+        # made orchestrators intervene while the worker was already continuing (V-919).
+        # The continued turn reports its own end; only a turn that cannot continue is
+        # signalled here.
+        self._signal_restart_cut_turns(not_continued)
 
-    async def _inject_restart_notice(self, session: AgentSession) -> None:
+    @staticmethod
+    def _signal_restart_cut_turns(rows: list[dict]) -> None:
+        if not rows:
+            return
+        from app import turn_signals
+        try:
+            turn_signals.record_interrupted_by_restart(rows)
+        except Exception as error:
+            logger.error("turn signals for restart-interrupted turns failed: %s: %s",
+                         type(error).__name__, error)
+
+    async def _inject_restart_notice(self, session: AgentSession, row: dict) -> None:
         import random
         # Random stagger: if N agents resume simultaneously they'd all hit the SDK
         # concurrently and cause a connection storm; spread them over 15s
@@ -2383,16 +2438,12 @@ class SessionManager:
                 origin="system", senders=("system",), subtype="restart",
             )
             await self.send(
-                session.id,
-                "[system] Orchestra server restarted. "
-                "Your previous turn and local commands were interrupted. "
-                "The saved conversation was restored. Check files and external action outcomes "
-                "before continuing; do not blindly repeat the last operation.",
-                provenance=provenance,
+                session.id, restart_notice_text(row), provenance=provenance,
             )
             logger.info(f"Restart notice injected: {session.name}")
         except Exception as e:
             logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
+            self._signal_restart_cut_turns([row])
 
     async def _periodic_worktree_cleanup(self) -> None:
         WT_CLEANUP_INTERVAL = 24 * 3600

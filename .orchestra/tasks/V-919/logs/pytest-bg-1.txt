@@ -1,0 +1,30 @@
+                break
+            await asyncio.sleep(0.05)
+        assert pid, "run job did not record its process"
+        group = f"/proc/{pid}"
+        assert os.path.exists(group)
+    
+        # "crash": the old generation never runs shutdown; a fresh manager restores from the DB.
+        old._tasks.pop(job_id).cancel = lambda *a, **k: None  # keep the orphan alive
+        new = BgJobManager()
+        new.set_session_manager(Manager())
+        try:
+            await new.restore_from_db()
+    
+            for _ in range(100):
+                try:
+                    os.killpg(pid, 0)
+                except ProcessLookupError:
+                    break
+                await asyncio.sleep(0.05)
+            else:
+>               pytest.fail("orphaned run process group survived the INTERRUPTED verdict")
+E               Failed: orphaned run process group survived the INTERRUPTED verdict
+
+tests/test_bg_jobs.py:1834: Failed
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.bg_jobs:bg_jobs.py:936 bg_job bg-ac254ded64: FAILED → notified w915: Process exited with exit code -9
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::test_v915_restart_stops_orphaned_run_process_and_reports_honestly
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 66 passed, 1 skipped in 37.28s

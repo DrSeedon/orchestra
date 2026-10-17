@@ -13,6 +13,7 @@
 - Панель «Context» справа застывает на значении момента выбора агента — OPEN-DEFECT, [T115](.orchestra/tasks/V-698/triage.md#t115). Доказательство: `app/static/js/app.js:2603,2862-2918,3216`.
 
 ## Запуск и layout
+- Главный процесс Orchestra 17.10 трижды за 26 минут убит глобальным OOM (07:20, 07:35, 07:46 UTC; `oom_score_adj 800`, пик юнита 14 ГБ + 12 ГБ swap): это и были утренние «рестарты», а не зависший shutdown. Найти, что раздуло память юнита. — [V-919](.orchestra/tasks/V-919/report.md)
 - Миграция раскладки проекта при старте прячет незакоммиченные файлы проекта в stash… — OPEN-DEFECT, [T004](.orchestra/tasks/V-698/triage.md#t004). Доказательство: `app/orchestra_layout.py:1162 onward (stash precedes migration; restore follows success)`.
 - bg_create(type="run") исполняет команду в cwd сервиса /home/kesha/orchestra, а не… — OPEN-DEFECT, [T014, T169](.orchestra/tasks/V-698/triage.md#t014). Доказательство: `app/bg_jobs.py:1054-1058 (local subprocess call has no cwd)`.
 - migrate_orchestra_layout.py --repair НЕ чинит смешанное состояние, а отсылает сам… — OPEN-DEFECT, [T146](.orchestra/tasks/V-698/triage.md#t146). Доказательство: `scripts/migrate_orchestra_layout.py; 71a008fe:TODO.md:L210`.

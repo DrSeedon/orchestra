@@ -1,0 +1,30 @@
+_error_message = <function AsyncMockMixin.assert_awaited_with.<locals>._error_message at 0x77201b45bd80>
+actual = call(namespace(id='41300000-0000-4000-8000-000000000001', name='interrupted-413'), {'active_turn_id': '', 'leftover': ..., 'parent_name': '', 'pipeline': 'default', 'owned_dirs': '', 'tg_topic': 0, 'session_id_history': '[]', 'effort': ''})
+cause = None
+
+    def assert_awaited_with(self, /, *args, **kwargs):
+        """
+        Assert that the last await was with the specified arguments.
+        """
+        if self.await_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            raise AssertionError(f'Expected await: {expected}\nNot awaited')
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs, action='await')
+            return msg
+    
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.await_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected await not found.
+E           Expected: mock(namespace(id='41300000-0000-4000-8000-000000000001', name='interrupted-413'))
+E             Actual: mock(namespace(id='41300000-0000-4000-8000-000000000001', name='interrupted-413'), {'active_turn_id': '', 'leftover': '', 'id': '41300000-0000-4000-8000-000000000001', 'name': 'interrupted-413', 'scope': '/tmp/pytest-of-kesha/pytest-24539/test_t3_auto_resume_wakes_a_gr0', 'cwd': '/tmp/pytest-of-kesha/pytest-24539/test_t3_auto_resume_wakes_a_gr0', 'model': 'gpt-5.6-luna', 'system_prompt': '', 'prompt_overlay': None, 'status': 'interrupted', 'session_id': 'thread-413', 'provider_cost_baseline_usd': 0.0, 'cost_usd': 0.0, 'worktree_path': None, 'branch': None, 'base_branch': '', 'needs_switch': 0, 'is_orchestrator': 0, 'color': '#818cf8', 'mcp_servers_custom': '', 'profile': '', 'runtime_handoff': '', 'history_import_source': None, 'last_summary': '', 'created_at': '2026-10-17T09:23:05.949191+00:00', 'finished_at': None, 'cli_pid': 0, 'cli_started_at': 0, 'context_pct': 0, 'context_tokens': 0, 'progress_pct': 0, 'progress_status': '', 'backend_type': 'codex', 'task_id': '', 'description': '', 'cost_usd_cached': 0.0, 'context_cost': 0.0, 'cost_reset_v1': 0, 'total_turns': 0, 'total_input_tokens': 0, 'total_output_tokens': 0, 'total_cache_read_tokens': 0, 'total_cache_create_tokens': 0, 'total_tool_calls': 0, 'template_hash': '', 'disabled_tools': '[]', 'role': 'worker', 'parent_id': '', 'parent_name': '', 'pipeline': 'default', 'owned_dirs': '', 'tg_topic': 0, 'session_id_history': '[]', 'effort': ''})
+
+/usr/lib/python3.12/unittest/mock.py:2323: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_seamless_restart.py::test_t3_auto_resume_wakes_a_gracefully_interrupted_worker
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 11 passed in 11.99s
