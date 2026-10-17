@@ -1,0 +1,1114 @@
+diff --git a/app/db.py b/app/db.py
+index 62f1e81f6a853c1c98aba2e90190e59f341b6a31..cc33b0c3d78d43d505420f80f0861e1d4063acb2 100644
+--- a/app/db.py
++++ b/app/db.py
+@@ -451,6 +451,15 @@ def init_db() -> None:
+                 WHERE resolved_at IS NULL
+                   AND state IN ('PENDING','RUNNING','PARTIAL','UNKNOWN');
+ 
++            CREATE TABLE IF NOT EXISTS openrouter_attempts (
++                id INTEGER PRIMARY KEY AUTOINCREMENT,
++                ts REAL NOT NULL,
++                day TEXT NOT NULL,
++                status INTEGER
++            );
++            CREATE INDEX IF NOT EXISTS idx_or_attempts_ts ON openrouter_attempts(ts);
++            CREATE INDEX IF NOT EXISTS idx_or_attempts_day ON openrouter_attempts(day);
++
+             CREATE TABLE IF NOT EXISTS turn_usage (
+                 id INTEGER PRIMARY KEY,
+                 event_id TEXT NOT NULL UNIQUE,
+diff --git a/app/harness/llm.py b/app/harness/llm.py
+index ccad828153d1724817bb6f1227186ba9988a1141..6a3285d866b8dc4f5dc7e2dd934442b9a54d15fb 100644
+--- a/app/harness/llm.py
++++ b/app/harness/llm.py
+@@ -21,6 +21,8 @@ from typing import AsyncIterator
+ 
+ import httpx
+ 
++from app import openrouter_counter as _counter
++
+ logger = logging.getLogger(__name__)
+ 
+ DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+@@ -178,8 +180,20 @@ class OpenRouterClient:
+             if abort and abort():
+                 return
+             started = False  # True once we yield anything — disables retry (no resume)
++            # #368: каждая попытка = единица квоты, считаем ДО исхода (ретраи и
++            # неудачи тоже). Сбой счётчика не роняет стрим — вызовы тотальны,
++            # но страхуемся try/except: оплаченный результат дороже учёта.
++            try:
++                attempt_row = _counter.record_attempt_start()
++            except Exception as e:  # pragma: no cover — страховка от любого сбоя учёта
++                logger.warning(f"openrouter counter hook failed: {e}")
++                try:
++                    _counter.mark_unhealthy(f"start hook: {e}")
++                except Exception:
++                    pass
++                attempt_row = None
+             try:
+-                async for ev in self._one_attempt(body, headers):
++                async for ev in self._one_attempt(body, headers, attempt_row):
+                     started = True
+                     yield ev
+                 return  # stream completed
+@@ -207,7 +221,8 @@ class OpenRouterClient:
+             return retry_after
+         return BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 0.5)
+ 
+-    async def _one_attempt(self, body: dict, headers: dict) -> AsyncIterator[LLMEvent]:
++    async def _one_attempt(self, body: dict, headers: dict,
++                           attempt_row: int | None = None) -> AsyncIterator[LLMEvent]:
+         http = await self._client()
+         acc = _ToolCallAccumulator()
+         racc = _ReasoningAccumulator()
+@@ -216,6 +231,14 @@ class OpenRouterClient:
+         emitted_tool_calls = False
+         async with http.stream("POST", f"{self.base_url}/chat/completions",
+                                json=body, headers=headers) as resp:
++            try:
++                _counter.record_attempt_status(attempt_row, resp.status_code)
++            except Exception as e:  # pragma: no cover — сбой учёта не роняет стрим (#368)
++                logger.warning(f"openrouter counter hook failed: {e}")
++                try:
++                    _counter.mark_unhealthy(f"status hook: {e}")
++                except Exception:
++                    pass
+             if resp.status_code == 429 or resp.status_code >= 500:
+                 await resp.aread()
+                 raise _RetryableStatus(resp.status_code, _parse_retry_after(resp))
+diff --git a/app/openrouter_activity.py b/app/openrouter_activity.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0769397fe23d20e857d1a7ddc65127cb5c588f81
+--- /dev/null
++++ b/app/openrouter_activity.py
+@@ -0,0 +1,73 @@
++"""#368 — сверка локального счётчика OpenRouter с провайдером (GET /api/v1/activity).
++
++Management key даёт построчные запросы за ЗАВЕРШЁННЫЕ сутки (сегодняшнего дня
++в выдаче нет — research #368 F9), по всему аккаунту. Сверка вчерашнего дня:
++delta = provider - local публикуется КАК ЕСТЬ (без clamp) рядом с разбивкой
++локальных попыток по статусам — так отделяются чужой расход и отклонённые
++попытки от молчаливой лжи счётчика.
++"""
++
++import logging
++import os
++import time
++from datetime import datetime, timedelta, timezone
++
++import httpx
++
++logger = logging.getLogger(__name__)
++
++_ACTIVITY_URL = "https://openrouter.ai/api/v1/activity"
++
++
++def _http_get_json(url: str, key: str, timeout: float = 30.0) -> tuple[int, dict]:
++    resp = httpx.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
++    return resp.status_code, resp.json()
++
++
++def _today() -> str:
++    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
++
++
++def reconcile(day: str, provider_requests: int, local_count: int,
++              local_by_status: dict[str, int]) -> dict:
++    """Чистая функция сверки. delta НЕ зажимается в >=0: локальный счёт больше
++    провайдерского — тоже честный результат (например, провайдер не считает
++    отклонённые попытки)."""
++    return {
++        "day": day,
++        "provider_requests": provider_requests,
++        "local_requests": local_count,
++        "delta": provider_requests - local_count,
++        "local_by_status": dict(local_by_status),
++    }
++
++
++def fetch_day_sync(day: str) -> dict:
++    """Провайдерское число запросов за завершённые сутки.
++
++    Возвращает {"available": True, "requests": n} или
++    {"available": False, "reason": str}. Сегодняшняя дата и отсутствие ключа
++    отсекаются ДО сети.
++    """
++    if day >= _today():
++        return {"available": False,
++                "reason": f"only completed UTC days are available ({day} is today or future)"}
++    key = (os.environ.get("OPENROUTER_MANAGEMENT_KEY") or "").strip()
++    if not key:
++        return {"available": False, "reason": "no OPENROUTER_MANAGEMENT_KEY"}
++
++    try:
++        status, body = _http_get_json(f"{_ACTIVITY_URL}?date={day}", key)
++    except Exception as e:
++        logger.warning(f"OpenRouter activity fetch failed: {e}")
++        return {"available": False, "reason": f"fetch failed: {e}"}
++    if status != 200:
++        detail = body.get("error", {}).get("message", "") if isinstance(body, dict) else str(body)[:200]
++        return {"available": False, "reason": f"HTTP {status}: {detail}"}
++    rows = body.get("data") or []
++    return {
++        "available": True,
++        "day": day,
++        "requests": sum(int(r.get("requests") or 0) for r in rows),
++        "fetched_at": time.time(),
++    }
+diff --git a/app/openrouter_counter.py b/app/openrouter_counter.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a42e916daa54625e3f9a29b5f82583eb647bef84
+--- /dev/null
++++ b/app/openrouter_counter.py
+@@ -0,0 +1,135 @@
++"""#368 — локальный счётчик HTTP-попыток к OpenRouter (квота free-моделей).
++
++Единица счёта — одна HTTP-попытка POST /chat/completions, включая ретраи и
++неудачные ответы: провайдер тратит квоту на попытку, а не на успех (research #368).
++Персистентность — SQLite (app.db), переживает рестарт процесса. Все функции
++тотальны: сбой учёта НИКОГДА не роняет вызывающий стрим, но гасит healthy().
++"""
++
++import logging
++import sqlite3
++import time
++from datetime import datetime, timezone
++
++from app.db import _conn
++
++logger = logging.getLogger(__name__)
++
++_PRUNE_EVERY = 100          # записей между чистками строк старше 31 дня
++_RETAIN_SECONDS = 31 * 86400
++
++_insert_count = 0
++_last_error: str = ""
++
++
++def _fail(exc: Exception) -> None:
++    global _last_error
++    _last_error = f"{type(exc).__name__}: {exc}"
++    logger.warning(f"openrouter counter failed: {_last_error}")
++
++
++def _ok() -> None:
++    """Успешная операция снимает флаг сбоя: транзиентная ошибка БД (например,
++    таблица ещё не создана в чужом тесте) не должна портить healthy() навсегда."""
++    global _last_error
++    _last_error = ""
++
++
++def today_utc() -> str:
++    return day_of(time.time())
++
++
++def day_of(ts: float) -> str:
++    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
++
++
++def record_attempt_start(ts: float | None = None) -> int | None:
++    """Одна HTTP-попытка начата. Возвращает id строки (или None при сбое учёта)."""
++    global _insert_count
++    try:
++        ts = time.time() if ts is None else ts
++        with _conn() as c:
++            cur = c.execute(
++                "INSERT INTO openrouter_attempts (ts, day, status) VALUES (?, ?, NULL)",
++                (ts, day_of(ts)),
++            )
++            _insert_count += 1
++            if _insert_count % _PRUNE_EVERY == 0:
++                c.execute("DELETE FROM openrouter_attempts WHERE ts < ?",
++                          (time.time() - _RETAIN_SECONDS,))
++            _ok()
++            return int(cur.lastrowid)
++    except (sqlite3.Error, OSError) as e:
++        _fail(e)
++        return None
++
++
++def record_attempt_status(attempt_id: int | None, status: int | None) -> None:
++    if attempt_id is None:
++        return
++    try:
++        with _conn() as c:
++            c.execute("UPDATE openrouter_attempts SET status = ? WHERE id = ?",
++                      (status, attempt_id))
++            _ok()
++    except (sqlite3.Error, OSError) as e:
++        _fail(e)
++
++
++def today_count() -> int:
++    return local_day_count(today_utc())
++
++
++def local_day_count(day: str) -> int:
++    try:
++        with _conn() as c:
++            row = c.execute(
++                "SELECT COUNT(*) AS n FROM openrouter_attempts WHERE day = ?", (day,)
++            ).fetchone()
++            _ok()
++            return int(row["n"])
++    except (sqlite3.Error, OSError) as e:
++        _fail(e)
++        return -1
++
++
++def minute_count(window_sec: int = 60) -> int:
++    try:
++        with _conn() as c:
++            row = c.execute(
++                "SELECT COUNT(*) AS n FROM openrouter_attempts WHERE ts >= ?",
++                (time.time() - window_sec,),
++            ).fetchone()
++            _ok()
++            return int(row["n"])
++    except (sqlite3.Error, OSError) as e:
++        _fail(e)
++        return -1
++
++
++def status_breakdown(day: str) -> dict[str, int]:
++    """{'200': n, '429': n, 'none': n} — 'none' = ответ не получен (транспортная ошибка)."""
++    try:
++        with _conn() as c:
++            rows = c.execute(
++                "SELECT status, COUNT(*) AS n FROM openrouter_attempts "
++                "WHERE day = ? GROUP BY status", (day,)
++            ).fetchall()
++            _ok()
++            return {
++                (str(r["status"]) if r["status"] is not None else "none"): int(r["n"])
++                for r in rows
++            }
++    except (sqlite3.Error, OSError) as e:
++        _fail(e)
++        return {}
++
++
++def healthy() -> bool:
++    return _last_error == ""
++
++
++def mark_unhealthy(reason: str) -> None:
++    """Внешний хук (llm.py) глушит исключение, но обязан погасить healthy()."""
++    global _last_error
++    _last_error = reason or "unhealthy"
+diff --git a/app/routes/system.py b/app/routes/system.py
+index 181ea90366d2667e689764ac14d7c924de227590..ba7911ce29d500a29c41529222c1b285c1c6e365 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -400,6 +400,15 @@ _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.
+ _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
+ _codex_usage_cache: dict = {"data": None, "ts": 0.0}
+ _grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
++
++# #368: сверка вчерашнего дня OpenRouter с /activity. Успех живёт час, провал —
++# 10 минут (паттерн #197: без кеша провала каждая отрисовка полосы ходила бы в
++# сеть за одним и тем же отказом).
++_or_reconcile_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
++_OR_RECONCILE_TTL = 3600.0
++_OR_RECONCILE_FAILURE_TTL = 600.0
++_OPENROUTER_DAILY_LIMIT = 1000
++_OPENROUTER_MINUTE_LIMIT = 20
+ _USAGE_CACHE_TTL = 300
+ # Провал провайдера кешируется отдельно и короче успеха (#197): держать отказ 5 минут
+ # значит не заметить починку токена, а ходить за ним каждый раз — платить 0.88 с на
+@@ -793,12 +802,74 @@ def _get_voice_cost_usd() -> float:
+     return voice_cost_total_usd()
+ 
+ 
++def _yesterday_utc() -> str:
++    return (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
++
++
++async def _maybe_refresh_openrouter_reconciliation() -> None:
++    """Обновить сверку «вчера: провайдер vs локальный счёт» с учётом TTL.
++
++    Сеть — только здесь, в to_thread: sync-читалка `_get_openrouter_usage`
++    вызывается и вне event loop, поэтому сама сети не касается.
++    """
++    from app import openrouter_activity, openrouter_counter
++
++    now = time.time()
++    cache = _or_reconcile_cache
++    if cache["data"] is not None and (now - cache["ts"]) < _OR_RECONCILE_TTL:
++        return
++    if cache["data"] is None and (now - cache.get("failed_at", 0.0)) < _OR_RECONCILE_FAILURE_TTL:
++        return
++    day = _yesterday_utc()
++    try:
++        result = await asyncio.to_thread(openrouter_activity.fetch_day_sync, day)
++    except Exception as e:
++        result = {"available": False, "reason": f"fetch error: {e}"}
++    if not result.get("available"):
++        cache["data"] = None
++        cache["ts"] = 0.0
++        cache["failed_at"] = now
++        return
++    local_count = max(openrouter_counter.local_day_count(day), 0)
++    cache["data"] = openrouter_activity.reconcile(
++        day,
++        int(result["requests"]),
++        local_count,
++        openrouter_counter.status_breakdown(day),
++    )
++    cache["ts"] = now
++    cache["failed_at"] = 0.0
++
++
++def _get_openrouter_usage() -> dict:
++    """Ветка OpenRouter для /api/usage (#368). Сломанный счётчик →
++    available False, НИКОГДА ноль: ноль читается как «квота свободна»."""
++    from app import openrouter_counter
++
++    try:
++        daily = openrouter_counter.today_count()
++        minute = openrouter_counter.minute_count()
++        healthy = openrouter_counter.healthy()
++    except Exception as e:
++        return {"available": False, "reason": f"counter error: {e}"}
++    if not healthy or daily < 0 or minute < 0:
++        return {"available": False, "reason": "openrouter counter unhealthy"}
++    return {
++        "available": True,
++        "source": "local",
++        "daily": {"count": daily, "limit": _OPENROUTER_DAILY_LIMIT},
++        "minute": {"count": minute, "limit": _OPENROUTER_MINUTE_LIMIT, "window_sec": 60},
++        "reconciliation": _or_reconcile_cache["data"],
++    }
++
++
+ async def _get_usage_data(
+     *,
+     force_refresh: bool = False,
+     required_provider: str = "",
+ ) -> dict:
+     now = time.time()
++    await _maybe_refresh_openrouter_reconciliation()
+ 
+     anthropic_data = None
+     anthropic_fetched = False
+@@ -928,6 +999,7 @@ async def _get_usage_data(
+         "anthropic": anthropic_data,
+         "codex": codex_data,
+         "grok": grok_data,
++        "openrouter": _get_openrouter_usage(),
+         "orchestra": _get_agents_cost(),
+         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
+         # Единственное РЕАЛЬНОЕ число в этой панели (остальные — API-эквивалент).
+diff --git a/app/static/js/usage.js b/app/static/js/usage.js
+index da30a00ebea8a554a2b331bcc0a84758f11bfc8f..ee0f32f2fab018428130aa5bf4c204c4ebbdb46c 100644
+--- a/app/static/js/usage.js
++++ b/app/static/js/usage.js
+@@ -258,6 +258,38 @@ function renderUsageBar() {
+         );
+     }
+ 
++    const or = _usageData.openrouter || null;
++    if (or) {
++        const accent = '#a78bfa';
++        if (!or.available) {
++            // #368: недоступный счётчик — явное «нет данных», не ноль: ноль
++            // читается как «квота свободна».
++            groups.push(
++                `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
++                + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
++                + '<span class="usage-provider-values"><span style="color:#64748b">нет данных</span></span>'
++                + '</span>',
++            );
++        } else {
++            const d = or.daily || {};
++            const m = or.minute || {};
++            const dailyLimit = d.limit || 1000;
++            const minuteLimit = m.limit || 20;
++            const used = Math.max(d.count || 0, 0);
++            const util = Math.round(used / dailyLimit * 1000) / 10;
++            const c = _usageColor(util, null);
++            const resetIso = new Date(Date.now() + 86400000).toISOString().slice(0, 13) + ':00:00Z';
++            const cd = _resetCountdown(resetIso);
++            groups.push(
++                `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
++                + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
++                + `<span class="usage-provider-values"><span style="display:inline-flex;align-items:center;gap:3px">сутки: ${_miniBar(util, c)} <span style="color:#64748b">${used}/${dailyLimit}</span>${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`
++                + ` <span style="display:inline-flex;align-items:center;gap:3px">минута: <span style="color:${(m.count || 0) >= minuteLimit ? '#f87171' : '#94a3b8'}">${m.count || 0}/${minuteLimit}</span></span></span>`
++                + '</span>',
++            );
++        }
++    }
++
+     const compactProviders = [
+         {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
+         {id:'codex-spark', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark), compactTitle:'Codex Spark'},
+@@ -375,9 +407,31 @@ function renderUsageBar() {
+                 }
+                 grokHtml += '</section>';
+ 
+-                let h = '<div style="color:#e2e8f0;font-weight:700;margin-bottom:10px">📊 Usage control</div>';
++                const orMeta = _usageData?.openrouter || null;
++                let orHtml = '';
++                if (orMeta) {
++                    orHtml = '<section data-usage-provider="openrouter" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
++                    orHtml += '<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">OpenRouter (free)</div>';
++                    if (!orMeta.available) {
++                        orHtml += `<div style="color:#64748b;font-style:italic">${escHtml(orMeta.reason || 'Данные недоступны')}</div>`;
++                    } else {
++                        const d = orMeta.daily || {}, m = orMeta.minute || {};
++                        orHtml += _row('Сутки', `${d.count}/${d.limit}`, '#cbd5e1');
++                        orHtml += _row('Минута', `${m.count}/${m.limit}`, '#cbd5e1');
++                        orHtml += _row('Источник счёта', 'локальный', '#64748b');
++                        const rec = orMeta.reconciliation;
++                        if (rec) {
++                            orHtml += `<div style="margin-top:4px;color:#94a3b8">Вчера (${escHtml(rec.day)}): провайдер ${rec.provider_requests}, локально ${rec.local_requests}, Δ ${rec.delta}</div>`;
++                            const bs = rec.local_by_status || {};
++                            const parts = Object.keys(bs).map(k => `${k}×${bs[k]}`).join(', ');
++                            if (parts) orHtml += `<div style="color:#64748b;font-size:10px">Локальные попытки вчера: ${escHtml(parts)}</div>`;
++                        }
++                    }
++                    orHtml += '</section>';
++                }
++
+                 h += '<div id="usage-sparkline-slot" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">';
+-                h += claudeHtml + codexHtml + grokHtml + '</div>';
++                h += claudeHtml + codexHtml + grokHtml + orHtml + '</div>';
+                 if (typeof _o.total_cost_usd === 'number') {
+                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
+                     h += _row('💰 Стоимость', `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+diff --git a/docs/kb/README.md b/docs/kb/README.md
+index 34afdbbd27a3276b04d8ef25ca8ef6120f7583ca..f78e65b43c4acbdaae606b70a8c74aae74fb6ac0 100644
+--- a/docs/kb/README.md
++++ b/docs/kb/README.md
+@@ -46,5 +46,7 @@
+   приоритет пулов и отозванные сравнения по квоте.
+ - [repo-ops](repo-ops.md) — git, деплой, systemd, секреты в артефактах, дубли одной мысли в двух
+   файлах, воркеры, чужая машина.
++- [openrouter-quotas](openrouter-quotas.md) — лимиты бесплатных моделей OpenRouter (1000/сутки, 20/мин),
++  где брать число запросов: /api/v1/key не даёт, analytics API даёт но нужен management key.
+ - [grep-memory-blowup](grep-memory-blowup.md) — почему `grep` в сессии Claude Code съедает
+   гигабайты на шаблоне `.{0,N}литерал.{0,M}`, чем это грозит на VPS и чем заменять.
+diff --git a/docs/kb/openrouter-quotas.md b/docs/kb/openrouter-quotas.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d16ecaa654cb570ca38f3a928e29f03ca8a1adf
+--- /dev/null
++++ b/docs/kb/openrouter-quotas.md
+@@ -0,0 +1,27 @@
++# openrouter-quotas
++
++## Установлено
++- Бесплатные модели `:free`: 20 зап/мин всегда; в сутки 50 (<$10 lifetime) или 1000 (≥$10). Наш аккаунт в тире 1000 ($77 куплено, `is_free_tier:false`) · https://openrouter.ai/docs/api_reference/limits.md + GET /api/v1/key 22.08 #368
++- Успешные ответы OpenRouter НЕ содержат X-RateLimit-* · доки дословно + пробы 200-ответов 22.08 #368
++- GET /api/v1/key не даёт числа запросов: только деньги (usage_daily=0 у бесплатных), `rate_limit` в ответе deprecated («safe to ignore») · живой вызов 22.08 #368
++- Management key открывает GET /api/v1/activity: построчно (дата, модель, провайдер) с полем `requests` по ВСЕМУ аккаунту; окно 30 дней · живой вызов 06:55 UTC 22.08 #368
++- /activity отдаёт только ЗАВЕРШЁННЫЕ сутки: сегодняшней даты нет, `?date=<сегодня>` → 400 «Date must be within the last 30 (completed) UTC days» — в одиночку задачу «не упереться внезапно» не решает · живой вызов 22.08 #368
++- Запасной агрегатный путь: POST /api/v1/analytics/query, метрика `request_count`, размерность `date__day`, тоже management key · openapi-спека 22.08 #368
++- На ПЛАТФОРМЕННОМ 429 ответ несёт X-RateLimit-Limit/-Remaining/-Reset (+Retry-After) · доки; живьём не воспроизведён — LIKELY #368
++- Бесплатные модели часто отвечают UPSTREAM-429 («temporarily rate-limited upstream», только Retry-After:5) — это не исчерпание нашей квоты; llm.py уже ретраит · burst-замер 26 запросов 22.08 #368
++- Единица расхода квоты — HTTP-вызов, не ход агента: harness делает вызов на каждый tool-раунд, потолок 50 раундов/ход (+15 у ревьюер-сублупа), app/harness/loop.py:35 · код #368
++- llm.py stream() — единственный владелец POST к OpenRouter в app/ (backend_opencode.py ходит в локальный opencode-daemon) · проверено ревьюером и grep 22.08 #368
++- Масштаб реального расхода аккаунта: пик 662 зап/сутки (08.08), 92 (21.08, из них 7 stealth/ox-alpha) — юзер уже подходил к 2/3 лимита · GET /activity 22.08 #368
++
++## Отвергнуто
++- «Число запросов можно взять с текущим inference-ключом» — /api/v1/key отдаёт только деньги, /activity без management → 403, заголовков на успехах нет · 22.08 #368
++- «Каждый 429 = исчерпание суточной квоты» — upstream-429 перегруза провайдера выглядит иначе (без X-RateLimit-*) · burst-замер #368
++- «Management key решает задачу сам» — /activity показывает только завершённые сутки; для «сегодня» нужен локальный счёт · F9, 22.08 #368
++
++## Пробелы
++- Окно X-RateLimit-* на платформенном 429 (минута/сутки?) — не воспроизведён; ловить opportunistically логированием заголовков 429 · #368
++- Scope лимитов 20/мин и 1000/сутки (аккаунт/модель?) — доки молчат; burst >30 зап/мин без платформенного 429 · #368
++- Считает ли провайдер отклонённые 429/5xx в суточный лимит — неизвестно; первая сверка локального счёта с /activity за 22.08 даст эмпирическую границу · #368
++
++## Источники
++- docs/tasks/368/research.md — полный разбор обоих путей (локальный счёт vs management key) с живыми пробами
+diff --git a/docs/tasks/368/plan.md b/docs/tasks/368/plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3acdbccc5c948052a3c937ecae1ddd93f565c9a4
+--- /dev/null
++++ b/docs/tasks/368/plan.md
+@@ -0,0 +1,179 @@
++# #368 — План: счётчик запросов OpenRouter (1000/сутки, 20/мин) в полосу лимитов
++
++Research: docs/tasks/368/research.md (гибрид: локальный счёт + /activity). Красные тесты: коммит 976a43a7, `uv run python -m pytest tests/test_openrouter_counter.py` → 10 failed (ImportError отсутствующих модулей = отсутствующее поведение; T4 — AssertionError на анкор).
++
++## Что строим
++
++Гибрид из research.md:
++1. **Локальный счёт** каждой HTTP-попытки к POST /chat/completions (включая ретраи, 429/5xx, транспортные ошибки — требование оркестратора: «считать то же, что тратит квоту», консервативно в большую сторону).
++2. **Сверка за вчера** через `GET /api/v1/activity` (management key): `delta = provider - local` как ЧИСЛО в API-ответе; расхождение не списывается молча на «другие машины» — рядом публикуется разбивка локальных попыток по статусам (2xx vs отклонённые), чтобы отделить «чужой расход» от «провайдер не считает отклонённые».
++3. **Полоса** в дашборде: сутки n/1000 + минутное окно m/20; недоступность источника — явная подпись, никогда не ноль.
++
++## Контракт счётчика (verbatim, не менять при имплементации)
++
++```python
++# app/openrouter_counter.py — единица = одна HTTP-попытка
++record_attempt_start(ts: float | None = None) -> int | None   # INSERT, id строки
++record_attempt_status(attempt_id: int | None, status: int | None) -> None
++today_count() -> int                      # строки с UTC-полуночи
++minute_count(window_sec: int = 60) -> int # скользящее окно
++local_day_count(day: str) -> int          # 'YYYY-MM-DD' UTC
++status_breakdown(day: str) -> dict[str, int]   # {"200": n, "429": n, "none": n}
++today_utc() -> str
++day_of(ts: float) -> str
++healthy() -> bool
++```
++
++Хук в llm.py: `stream()` перед каждой `_one_attempt` зовёт `record_attempt_start()`; `_one_attempt(body, headers, attempt_id)` после проверки `resp.status_code` зовёт `record_attempt_status`. Все вызовы счётчика обёрнуты try/except → сбой счётчика НЕ рвёт стрим, но гасит `healthy()` (видимо в API, не тихо).
++
++Таблица (app/db.py, init_db + миграция):
++```sql
++CREATE TABLE IF NOT EXISTS openrouter_attempts (
++  id INTEGER PRIMARY KEY AUTOINCREMENT,
++  ts REAL NOT NULL,          -- unix UTC
++  day TEXT NOT NULL,         -- 'YYYY-MM-DD' UTC, денормализация для быстрых дневных сумм
++  status INTEGER             -- NULL = ответ не получен (транспортная ошибка)
++);
++CREATE INDEX IF NOT EXISTS idx_or_attempts_ts ON openrouter_attempts(ts);
++CREATE INDEX IF NOT EXISTS idx_or_attempts_day ON openrouter_attempts(day);
++```
++Чистка: при `record_attempt_start` раз в ~100 записей DELETE ts < now - 31*86400.
++
++```python
++# app/openrouter_activity.py — провайдерская правда за завершённые сутки
++reconcile(day: str, provider_requests: int, local_count: int,
++          local_by_status: dict[str, int]) -> dict
++# → {"day", "provider_requests", "local_requests", "delta", "local_by_status"}
++#   delta = provider - local БЕЗ clamp (отрицательный тоже честное число)
++fetch_day_sync(day: str) -> dict
++# → {"available": True, "requests": n, ...} | {"available": False, "reason": str}
++#   нет OPENROUTER_MANAGEMENT_KEY → available False, reason про key, БЕЗ сети
++#   day >= сегодня UTC → available False, reason "...completed UTC days", БЕЗ сети (F9)
++#   сеть: GET /api/v1/activity?date=<day>, Bearer management key; сумма requests по строкам
++_http_get_json(url, key) -> tuple[int, dict]   # шов для тестов
++```
++
++Ветка /api/usage (system.py):
++```python
++_get_openrouter_usage() -> dict
++# доступно: {"available": True, "source": "local", "daily": {"count", "limit": 1000},
++#            "minute": {"count", "limit": 20, "window_sec": 60},
++#            "reconciliation": <reconcile-дикт | None>, "healthy": bool}
++# счётчик сломан: {"available": False, "reason": ...} — НЕ ноль (тест T3)
++```
++Кеш: суточное число меняется каждым запросом — читать счётчик напрямую (локальный SQLite, дёшево); reconciliation — свой TTL-кеш 1ч + failure-TTL по образцу #197. В `_get_usage_data` добавить `"openrouter": _get_openrouter_usage()`. Квотный гейт НЕ трогаем.
++
++Фронт (usage.js, `renderUsageBar`): новый compact-provider-блок `data-usage-compact-provider="openrouter"` по образцу grok: заголовок «OpenRouter», мини-бар `daily.count/1000` c `_usageColor`, рядом `m/20` минутного окна, countdown до UTC-полуночи; reconciliation в тултипе ⓘ; `available: False` → явное «нет данных» (существующий паттерн `showUnavailable`). Ноль в начале суток честный (счётчик реально пуст), но тултип помечает источник «локальный счёт».
++
++## Чего НЕ делаем
++
++- app/quota_gate.py — не трогаем (harness там сознательно not_applicable: счётчик для глаз, не блокировка).
++- app/static/js/app.js — не трогаем (конфликт с #366/#369; наш участок — usage.js).
++- limits_card.py (/limits PNG) — вне скоупа задачи; расширение отдельной задачей, если юзер захочет.
++- app.js-каталог #366 и бабблы #369 — не пересекаемся.
++
++## Устойчивость к harness-tools (#368-смежное: батчинг тулов)
++
++Батчинг режет число HTTP-вызовов на ход → счётчик считает вызовы, а не ходы, поэтому остаётся правдивым автоматически: полоса просто начнёт ползти медленнее. Ничего менять не нужно; лимиты провайдера те же.
++
++## Review status плана
++
++- **Модельного ревью НЕТ и не будет: отменено юзером 22.08 («никаких ревью им нельзя») — Codex 100%, Claude 96%, встроенный review тратит квоту OpenRouter, которую считаем.** Ни на плане, ни на реализации ревью не проводится; проверку делает оркестратор. План защищает себя красными тестами: каждый тикет называет команду, которая на сломанной реализации падает с конкретной строкой (прогоны зафиксированы до реализации, коммит 976a43a7).
++- Самопроверка критичных пунктов (вместо оборванного ревью, с доказательствами):
++  1. Покрытие HTTP-путей хуком: запись идёт В НАЧАЛЕ каждой итерации цикла попыток stream() → ретраи после _RetryableStatus, транспортные ошибки и mid-stream сбои уже посчитаны; статус дописывается когда известен, иначе NULL. Контракт теста T1 это фиксирует.
++  2. Новый ключ `openrouter` в ответе /api/usage никого не ломает: `_provider_usage_snapshot(anthropic, codex, grok)` читает позиционные аргументы (system.py:593); фронт читает только `_usageData.anthropic/codex/grok/subscription_cost/voice_cost_usd` (usage.js); `limits_card.collect` берёт только anthropic/codex через .get (limits_card.py:127-128) — PNG-карточка не затронута.
++  3. Изоляция тестов от прод-БД: autouse `_isolate_production_db` (tests/conftest.py:51-66) + guard на sqlite3.connect — новые тесты пишут в tmp_path.
++
++### T5 — Ретрай минутной стены OpenRouter: потолок ожидания и различение двух 429
++
++Проверка «что уже есть» (llm.py:176-208, чтение 22.08 — файл правит harness-tools, не трогаю):
++- **Есть:** экспоненциальная задержка с джиттером — `_retry_delay`: `BACKOFF_BASE * 2**attempt + uniform(0, 0.5)`; рост строгий (max предыдущего окна 2.0 < min следующего 3.0), одинаковый интервал у параллельных воркеров исключён конструкцией.
++- **Есть:** приоритет `Retry-After` над формулой — `_parse_retry_after` → `_RetryableStatus.retry_after`, проверяется первым.
++- **Есть (T1):** каждая попытка ретрая считается счётчиком — запись идёт в начале итерации цикла независимо от логики задержек; test_t1 это фиксирует.
++- **Нет:** потолка ожидания. MAX_RETRIES=3 ограничивает ЧИСЛО попыток, но не время: платформенный 429 по СУТОЧНОМУ лимиту может прийти с Retry-After на часы — сейчас ход молча зависнет на этот срок.
++- **Нет:** различения платформенного 429 (есть X-RateLimit-* — наша минутная стена, ждать осмысленно) и upstream-429 («temporarily rate-limited upstream», Retry-After:5 — «занято»; research #368 F6). Сейчас оба идут одним путём _RetryableStatus.
++
++- Files: app/harness/llm.py (только; территория harness-tools)
++- Test: tests/test_openrouter_retry.py::test_t5_* (новый файл, оракул ниже)
++- AC:
++  1. Фейковый транспорт отдаёт подряд N×429 затем 200; monkeypatch на asyncio.sleep пишет фактические задержки: внутри одного запуска последовательность строго растёт, между двумя запусками различается (джиттер живой).
++  2. Retry-After ≤ потолка соблюдается дословно (задержка == значению заголовка, не формуле).
++  3. Retry-After > потолка ИЛИ суммарный бюджет исчерпан → RuntimeError с текстом, называющим лимит ожидания («упёрлись в потолок ожидания Ns»), не тишина и не вечный сон.
++  4. Платформенный и upstream 429 обрабатываются РАЗНЫМИ ветками (различение наблюдаемо в тесте: разные задержки/бюджеты для ответов с X-RateLimit-* и без).
++  5. Счётчик: после сценария «3 ретрая + успех» openrouter_counter.today_count() == числу HTTP-попыток — ретраи не потеряны.
++- blocked-by: none (от T1-T4 не зависит; счётчик уже существует)
++
++### Реализация T5 — кто делает
++
++По согласованию с оркестратором: кандидат — harness-tools (владелец файла, там же его батчинг);
++мой вклад — только пункт AC 5 (счётчик) и приёмка результата. Ждём решения.
++
++## Зелёный на сломанной реализации (матрица «код есть, ведёт себя неверно»)
++
++Красные прогоны до реализации отвечают на «исполняется ли тест»; ниже — по тикету —
++может ли тест ОСТАТЬСЯ зелёным на неверном коде, и что это вскрывает.
++
++- **T1.** Сквозная проверка двух независимых наблюдений: `len(calls)` считает вызовы HTTP-мок,
++  `today_count()` читает БД — двойной учёт/недоучёт попыток ломает равенство. Мутация «считай
++  только 2xx» (фильтр в трёх запросах счётчика) — красная, замерено: grep-маркер 0→3→0.
++  **Остаточная дыра:** дрейф таймзоны. day_of() одна для записи и чтения — если её сломать в
++  локальную таймзону, тест не заметит (обе стороны согласованы); ловится только код-ревью
++  (`timezone.utc` дословно) и завтрашняя сверка с /activity за сегодня (провайдерская дата
++  сдвинется относительно локальной). Принято: риск мал, внешний арбитр существует.
++- **T2.** Первый reconcile-тест (92/85→7) НЕ различает clamp≥0 — поэтому существует второй с
++  отрицательной дельтой; вместе пара убивает и арифметику, и clamp. fetch-тесты отсекают сеть
++  моком-«бомбой»: любая реализация, дёрнувшая сеть на «сегодня», падает. **Остаточная дыра:**
++  локальная дата вместо UTC в сравнении с «сегодня» расходится только у полуночи; тот же
++  внешний арбитр (сверка), плюс `_today()` использует timezone.utc дословно.
++- **T3.** Найден РЕАЛЬНЫМ прогоном: сиды без статусов (NULL) переживали мутанта «в ветке usage
++  считать только status=200» — NULL читался как успех. Усилены сида (200 + 429 явно),
++  повторная мутация (отдельный SQL с фильтром status=200 внутри `_get_openrouter_usage`) —
++  красная, откат чистый. Мутация «ноль вместо available:false» — красная (grep 0→1→0).
++- **T4.** Delivery-чек по природе не смотрит поведение рендера: он доказывает доставку текста
++  потребителю (anchor в usage.js, грузимом dashboard.html). Сломанная математика полосы или
++  пропавший branch «нет данных» им НЕ ловятся — это заявленное ограничение тикета, остаточная
++  проверка AC вручную на дашборде (перечислена в AC).
++
++## Требование апрува №2 — сбой счётчика не роняет стрим
++
++Проба: monkeypatch `record_attempt_start`/`record_attempt_status` на RuntimeError → стрим с
++фейковым транспортом доходит до `final`. Первый прогон вскрыл дыру: статус-хук внутри
++`_one_attempt` был без страховки — исправлено (963738b1): оба хука обёрнуты, сбой гасит
++`mark_unhealthy()` → `healthy()` ложный → `/api/usage` отдаёт available:false.
++
++## Tickets
++
++### T1 — Счётчик: модуль + таблица + хук в llm.py
++- Files: app/openrouter_counter.py (новый), app/harness/llm.py (+~8 строк), app/db.py (таблица+миграция)
++- Test: tests/test_openrouter_counter.py::test_t1_counts_every_attempt_including_retry_and_failures + test_t1_utc_day_rollover_and_persistence + test_t1_survives_restart_rows_not_memory — RED в 976a43a7
++  - красная строка: `ImportError: cannot import name 'openrouter_counter' from 'app'`
++- AC: `uv run python -m pytest tests/test_openrouter_counter.py -k t1` green; ретрай после 429 считается как отдельная попытка со своим статусом; сутки/минуты считаются по UTC из SQLite; сбой счётчика не рвёт стрим (ручная проба: уронить БД → стрим продолжает).
++- blocked-by: none
++
++### T2 — Сверка с /activity: модуль reconcile + fetch с деградацией
++- Files: app/openrouter_activity.py (новый)
++- Test: tests/test_openrouter_counter.py::test_t2_* (4 шт) — RED в 976a43a7
++  - красная строка: `ModuleNotFoundError: No module named 'app.openrouter_activity'`
++- AC: `uv run python -m pytest tests/test_openrouter_counter.py -k t2` green; delta без clamp; сегодня и отсутствие ключа отсекаются ДО сети; живая проба с реальным ключом (Phase 3, вручную): `fetch_day_sync('2026-08-21')` → available True, requests=92.
++- blocked-by: none
++
++### T3 — Ветка openrouter в /api/usage
++- Files: app/routes/system.py (_get_openrouter_usage + строка в _get_usage_data)
++- Test: tests/test_openrouter_counter.py::test_t3_usage_payload_counts_and_limits + test_t3_usage_payload_never_fakes_zero_when_broken — RED в 976a43a7
++  - красная строка: `ImportError: cannot import name 'openrouter_counter' from 'app'` (T3-ассерты оракулят после T1)
++- AC: `uv run python -m pytest tests/test_openrouter_counter.py -k t3` green; `GET /api/usage` содержит `openrouter.daily.count/limit`, `minute`, `reconciliation`; сломанный счётчик → available False без нулей; существующие тесты usage (tests/test_codex_usage.py, test_usage_readiness.py) не краснеют.
++- blocked-by: T1, T2
++
++### T4 — Полоса OpenRouter в usage.js
++- Files: app/static/js/usage.js (renderUsageBar + тултип ⓘ)
++- Test: tests/test_openrouter_counter.py::test_t4_usage_bar_has_openrouter_group (delivery-чек: анкор `data-usage-compact-provider="openrouter"` в usage.js, который грузится из dashboard.html) — RED в 976a43a7
++  - красная строка: `AssertionError: usage.js must render an OpenRouter provider group in renderUsageBar()`
++- AC: тест green; вручную в дашборде: блок «OpenRouter» с n/1000 и m/20, countdown до UTC-полуночи, при available False — «нет данных», reconciliation виден в тултипе ⓘ; полосы Claude/Codex/Spark не изменились.
++- blocked-by: T3
++
++## Риски
++
++- Ретраи внутри stream() спят BACKOFF_BASE — тест T1 ускоряется monkeypatch; в проде ничего не меняем.
++- `_get_openrouter_usage` вызывается на каждый /api/usage (опрос 2 мин) — локальный SQLite COUNT по индексу, копейки; reconciliation под TTL.
++- Параллельные #366/#369 не трогаем их файлы; мерж через check_conflict.
++- Management key в .env основного чекаута; в тестовой среде его нет — путь T2 деградирует, тесты это и фиксируют.
+diff --git a/docs/tasks/368/report.md b/docs/tasks/368/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..417a7c168052004ff0f9780f39bd645290f4d9c8
+--- /dev/null
++++ b/docs/tasks/368/report.md
+@@ -0,0 +1,65 @@
++# #368 — Отчёт: счётчик запросов OpenRouter в полосу лимитов
++
++Дата: 2026-08-22. План одобрен оркестратором; модельное ревью отменено юзером
++(«никаких ревью им нельзя») — проверку вёл оркестратор по артефактам + мутационные пробы.
++
++## Что сделано
++
++Гибрид «локальный счёт каждой HTTP-попытки + сверка вчера по /activity»:
++
++- **T1** (`7df27007`, доведён `963738b1`): `app/openrouter_counter.py` — SQLite-счётчик
++  (таблица `openrouter_attempts`: ts, day UTC, status), API по контракту из плана дословно;
++  хук в `app/harness/llm.py` — запись ДО исхода попытки: ретраи после 429/5xx, транспортные
++  ошибки и mid-stream сбои считаются все. Оба хука обёрнуты: сбой учёта не рвёт стрим,
++  гасит `mark_unhealthy()` → healthy()=False. Само-исцеление: успешная операция снимает флаг.
++- **T2** (`84f7b712`): `app/openrouter_activity.py` — reconcile() чистая (delta без clamp),
++  fetch_day_sync(): нет ключа / «сегодня» отсекаются ДО сети; живая проба: за 21.08 провайдер
++  отдал ровно 92.
++- **T3** (`fc787596`): ветка `"openrouter"` в `/api/usage` (system.py): daily n/1000, minute m/20,
++  source local, reconciliation с TTL 1ч / failure-TTL 10мин (паттерн #197). Сломанный счётчик →
++  `available:false`, никогда ноль.
++- **T4** (`36d6b8f7`): группа OpenRouter в usage.js renderUsageBar (сутки-бар + m/20 красным при
++  переполнении + countdown до UTC-полуночи); «нет данных» при недоступности; в тултипе ⓘ —
++  источник счёта и вчерашняя сверка (провайдер/локально/Δ + разбивка попыток по статусам).
++
++## Тесты
++
++`uv run python -m pytest tests/test_openrouter_counter.py -q` → **10 passed**.
++Красные до реализации: 10 failed на 976a43a7. Мутационные проверки (зелёный тест на сломанном коде):
++- T1 «считай только 2xx» (фильтр в 3 запросах): grep-маркер 0→3→0, green→red→green.
++- T3 «ноль вместо available:false»: grep 0→1→0, green→red→green.
++- T3 «в ветке usage считать только status=200» (MUTANT2): найден анализ зелёного-на-сломанном,
++  убит усилением сидов (200+429 явно вместо NULL), red подтверждена прогоном.
++Регрессия: test_codex_usage + test_usage_readiness + test_openrouter_counter → 36 passed;
++backend_stream/routing → 33 passed. Два падения в test_grok_usage_frontend — pre-existing
++(падают на чистой базе без моих изменений, git stash проверка).
++
++Требование апрува №2 зафиксировано пробой: counter кидает RuntimeError на оба хука → стрим
++доходит до text_delta+final, healthy()=False.
++
++## Файлы
++
++app/openrouter_counter.py (новый), app/openrouter_activity.py (новый),
++app/harness/llm.py (+20 строк), app/routes/system.py (+72), app/db.py (+9, новая таблица —
++в списки миграций ALTER не лезет, ловушка «двух списков» обойдена), app/static/js/usage.js (+58),
++tests/test_openrouter_counter.py (новый). app/quota_gate.py и app/static/js/app.js не тронуты
++(конфликт с #366/#369 исключён).
++
++## Breaking / совместимость
++
++- Новый ключ `openrouter` в ответе /api/usage: потребители читают только известные ключи
++  (_provider_usage_snapshot позиционный, limits_card.collect .get, фронт — именованные) —
++  проверено file:line в плане.
++- Батчинг тулов (harness-tools) полосу не сломает: счётчик считает HTTP-вызовы, а не ходы —
++  полоса просто замедлится вместе с реальным расходом.
++
++## Ограничения и TODO
++
++- Локальный счёт видит только трафик этого процесса: чужой расход того же ключа вскрывается
++  только вчерашней сверкой (Δ в тултипе). Первую осмысленную сверку за 22.08 можно снять завтра —
++  она же даст эмпирический ответ, считает ли провайдер отклонённые 429 (наши ~30 burst-запросов
++  утром 22.08 частично были upstream-429).
++- Окно X-RateLimit-* платформенного 429 так и не поймано живьём — opportunistically: заголовки
++  429 теперь проходят через llm.py; если понадобится, логирование добавить одной строкой в хук.
++- Полный сьют не гонялся (глобальный тест-лок требует согласия PM); целевой файл + смежные
++  usage/harness/regression наборы зелёные. По команде — возьму лок и прогоню целиком.
+diff --git a/docs/tasks/368/research.md b/docs/tasks/368/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..1238763c396b7cc69c7faa44dfb80c4565f51c6d
+--- /dev/null
++++ b/docs/tasks/368/research.md
+@@ -0,0 +1,108 @@
++# #368 — Откуда брать число запросов OpenRouter (1000/сутки, 20/мин)
++
++Дата: 2026-08-22. Живые пробы: inference-ключ (`OPENROUTER_API_KEY`) 06:40–06:45 UTC, management-ключ (`OPENROUTER_MANAGEMENT_KEY` из основного чекаута .env, в лог не печатается) 06:55 UTC. Дополнено после выдачи юзером management key.
++
++## Question
++
++Context: Orchestra дергает бесплатные OpenRouter-модели через собственный harness (`app/harness/llm.py` → POST /chat/completions). Change under test: где взять число израсходованных запросов для счётчика рядом с полосами Claude/Codex/Spark. Baseline: сейчас числа нет нигде. Outcome: источник числа с известными границами вранья + явное решение по лимиту 20/мин.
++
++## Hypotheses considered
++
++- H1: «Число запросов можно получить от провайдера существующим ключом» — ОПРОВЕРГНУТА (F3, F4: ключ не даёт, нужен management).
++- H2: «Заголовки ответа содержат состояние квоты» — ОПРОВЕРНУТА для успехов (F2), ПОДТВЕРЖДЕНА частично для платформенных 429 (F5).
++- H3: «Локальный счёт HTTP-вызовов — единственный доступный сейчас путь» — ПОДТВЕРЖДЕНА как единственный БЕЗ действий юзера; с management key появляется точный провайдерский путь.
++- H4 (конкурирующая): «20/мин и 1000/сутки — глобальные на аккаунт» — UNCERTAIN: доки не называют scope, мой burst-эксперимент это скорее подрывает (F7).
++
++## Findings
++
++### F1. Параметры лимитов подтверждены первичным источником — CONFIRMED
++Официальные доки (fetch сегодня, `/docs/api_reference/limits.md`): для моделей с суффиксом `:free` — 20 запросов/мин всегда; в сутки 50 при lifetime-покупках <$10 и **1000 при ≥$10** (константы `FREE_MODEL_RATE_LIMIT_RPM=20`, `FREE_MODEL_HAS_CREDITS_RPD=1000`, `FREE_MODEL_CREDITS_THRESHOLD=10`). Наш аккаунт: куплено $77 (задача), живой `GET /api/v1/key` вернул `is_free_tier: false` → мы в тире 1000/сутки. Evidence tier: 2 (первичный источник) + живая проба.
++
++### F2. Успешные ответы НЕ содержат X-RateLimit-* — CONFIRMED
++Доки дословно: «Successful inference responses do not include X-RateLimit-* headers». Мои пробы: все 200-е ответы (chat/completions обеих моделей, GET /api/v1/key) не имели ни одного rate-limit заголовка. Совпадает с живым дампом из задачи. Tier: 2+1.
++
++### F3. GET /api/v1/key не даёт число запросов — CONFIRMED (живой вызов сегодня)
++Полный ответ: только денежные поля (`usage`, `usage_daily`=0 — деньги, бесплатные модели стоят $0), `limit_remaining`=null, `rate_limit: {requests: -1, note: "This field is deprecated and safe to ignore"}`. Числа запросов нет вообще. Упомянутый в доках совет «monitor remaining quota via GET /api/v1/key» относится к КРЕДИТНОЙ квоте, не к счётчику запросов.
++
++### F4. Точный провайдерский путь существует — Analytics API, но нужен management key — CONFIRMED (спека)
++`POST https://openrouter.ai/api/v1/analytics/query`, метрика **`request_count`**, размерность **`date__day`** → ровно нужное число по UTC-суткам ([openapi-спека](https://openrouter.ai/docs/api/api-reference/analytics/query-analytics-data), пример ответа `{date__day: '2025-01-01...', request_count: 1500}`). Требует management key: обычный inference key получает 403 (совпадает с пробой из задачи на /activity); management key не может делать inference-вызовы, только админ-чтение. Создаётся юзером вручную: https://openrouter.ai/settings/management-keys. **С появлением ключа актуальнее эндпойнт F8 — /activity проще и уже проверен живьём; analytics/query остаётся запасным (агрегации/группировки, которых у /activity нет).**
++
++### F8. Management key открыт /activity: построчные запросы по (дата, модель, провайдер) — CONFIRMED (живой вызов 06:55 UTC)
++`GET https://openrouter.ai/api/v1/activity` с management key → 200, `{"data": [...]}`, 203 строки за окно. Поля строки: `date` ("2026-08-21 00:00:00"), `model_permaslug`, `model`, `provider_name`, `endpoint_id`, **`requests`**, `prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `usage` (деньги), `byok_usage_inference`, `byok_requests`. Сумма `requests` за день = расход ВСЕГО аккаунта — включая вызовы с других машин юзера, которых локальный счёт не видит.
++
++### F9. /activity отдаёт только ЗАВЕРШЁННЫЕ сутки — CONFIRMED (живой вызов)
++Сегодняшней даты (2026-08-22) в выдаче НЕТ; максимум — 2026-08-21. `GET /activity?date=2026-08-22` → 400 `"Date must be within the last 30 (completed) UTC days"`. Следствие: management key в одиночку НЕ решает исходную задачу «не упереться внезапно» — он даёт историю и чужой расход, но не текущие сутки. Окно — 30 завершённых UTC-дней.
++
++### F5. На платформенном 429 заголовки ЕСТЬ — LIKELY (первичный источник, живьём не воспроизведён)
++Доки: когда сам OpenRouter режет по платформенному лимиту, ответ несёт `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (+`Retry-After`, если провайдеры дали хинт). Какое окно описывает Remaining (минута или сутки) — в доках НЕ сказано; воспроизвести намеренно не удалось (F6/F7). Это опоздавший сигнал: виден только ПОСЛЕ упора, для превентивного счётчика не годится, но годится для само-коррекции локального счёта.
++
++### F6. Измерено: бесплатная модель часто отвечает UPSTREAM-429 без всякой квоты — MEASURED
++Burst 26 запросов к `z-ai/glm-5.2:free` (06:43 UTC): первый же — 429 `"Provider returned error" ... "temporarily rate-limited upstream"` с единственным заголовком `Retry-After: 5`, без X-RateLimit-*. Это ОТЛИЧНЫЙ от платформенного тип 429: перегруз у вышестоящего провайдера, состояния нашего счётчика он не раскрывает. Клиент в llm.py уже ретраит такие (429 → _RetryableStatus). Следствие для дизайна: нельзя считать каждый 429 признаком исчерпания суточной квоты.
++
++### F7. Scope лимитов (аккаунт vs модель) — UNCERTAIN
++Доки дают таблицу лимитов для «a free model variant», scope не называют; Tip говорит «different rate limits for different models». Мой эксперимент: ~30+ запросов за минуту суммарно (в основном с upstream-429) — затем `nvidia/nemotron-3-ultra...:free` и `stealth/ox-alpha` ответили 200 без платформенного 429. Если бы 20/мин было жёстко на аккаунт и считало каждый вызов, платформенный 429 ожидался бы. Возможные объяснения (различить не смог): upstream-429 не доходят до счётчика платформы; счёт помодельный; окно скользящее и я не попал. Влияет на интерпретацию 20/мин в UI.
++
++## Два пути и гибрид — чем каждый врёт
++
++### Путь А: локальный счёт на нашей стороне
++Считать каждый HTTP-вызов POST /chat/completions из `OpenRouterClient.stream()` (app/harness/llm.py:217). Что это значит:
++- **Единица — HTTP-вызов, не ход агента.** Harness-цикл делает один вызов на tool-раунд, потолок `MAX_TOOL_ROUNDS=50` (app/harness/loop.py:35), плюс ревьюер-сублуп `REVIEW_MAX_ROUNDS=15` (loop.py) → ОДИН ход воркера может сжечь десятки запросов. Считать «ходы» = занизить на порядок.
++- **Ретраи** внутри `stream()` — отдельные HTTP-попытки; каждая 429/5xx-повторка тоже стучалась в дверь. Считать попытку = завысить (отклонённый запрос мог не попасть в счётчик провайдера — неизвестно, gap), не считать = занизить. Рекомендация: считать ВСЕ исходящие попытки — консервативнее, внезапный упор хуже лишнего пессимизма.
++- Чем врёт: (1) тот же ключ с другой машины/приложения → занижение; (2) рестарт процесса без персистентности → потеря окна; лечение — SQLite (счётчик по UTC-дню); (3) upstream-429 размывают семантику «что такое потраченный запрос»; (4) сброс окна — 00:00 UTC.
++- Не требует ничего от юзера. Единственный источник ТЕКУЩИХ суток в реальном времени (F9).
++
++### Путь Б: management key → /activity (ключ уже выдан юзером)
++`GET /api/v1/activity` (F8) — провайдерская правда по завершённым суткам, по всему аккаунту. Чем врёт: (1) **сегодня не показывает** (F9) — в одиночку задачу «не упереться внезапно» не решает; (2) лаг ровно сутки; (3) это креденшел уровня аккаунта — хранить в .env основного чек аута (уже там), маскировать как секрет (secret_mask.py), никогда не логировать и не отдавать в API-ответы.
++
++### Решение: гибрид А+Б
++1. **Локальный счётчик (А)** — текущие сутки в реальном времени: инкремент в llm.py, SQLite-персистентность по UTC-дню, показ в полосе (сутки + минутное окно).
++2. **Сверка (Б)** — периодический (TTL-кеш, раз в час достаточно) запрос вчерашнего дня из /activity: (а) вчерашний провайдерский счёт vs вчерашний локальный = **измеренное занижение** локального счёта, а не предположение; (б) разница = чужой расход с других машин — показывать отдельно, чтобы «полоса ползёт, а мы не работали» не выглядела багом.
++3. В API-ответе каждое число помечено источником (`local` / `provider`), фронт показывает пометку — при расхождении видно, чему верить.
++
++**Калибровка масштаба (из /activity, подтверждено моим вызовом):** пик 2026-08-08 = **662** запроса/сутки (66% лимита), 2026-08-21 = **92** (из них 7 `stealth/ox-alpha`). 1000/сутки — не теоретический потолок: юзер уже подходил к двум третям. Минутный лимит 20 при tool-раундах (до ~50 HTTP-вызовов/ход) бьёт раньше суточного — показать оба.
++
++## Решение по 20/мин (явное, как требовала задача)
++
++ПОКАЗАТЬ. Основание: единица расхода — tool-раунд, а не ход; три параллельных воркера с активным инструментенным циклом легко делают >20 вызовов/мин и упираются в минутное окно ЗАДАННОГО раньше суточного, а минутная стена посреди мержа выглядит как «внезапно сломалось». Форма: вторая мини-полоса/число рядом с суточной, с быстрым сбросом (окно ≤60 с). При F7 (возможно помодельный счёт) полоса может оказаться пессимистичной — это приемлемо, отметить в тултипе.
++
++## Experiment log (raw)
++
++- 06:42 UTC GET /api/v1/key → полный JSON зафиксирован (F3), headers без rate-limit.
++- 06:43 UTC burst 26×POST z-ai/glm-5.2:free max_tokens=5 → req#0,1: 429 upstream Retry-After:5; req#2: 200; далее смесь 200/429-upstream; X-RateLimit-* не встретился ни разу.
++- 06:45 UTC по одному POST к nemotron-3-ultra:free и stealth/ox-alpha → оба 200, заголовков нет.
++- 06:55 UTC GET /api/v1/activity (management key) → 200, 203 строки, поля F8; сегодняшней даты нет, `?date=2026-08-22` → 400 «last 30 (completed) UTC days» (F9). Агрегаты: пик 662 (08.08), 92 (21.08), ox-alpha=7 (21.08) — совпадают с цифрами оркестратора.
++- Цена burst-эксперимента: ~30 запросов списано с суточных 1000 (~3%) 22.08 — учесть при первой сверке локального счёта с /activity за 22.08 завтра.
++
++## Affected files (для плана)
++
++- app/harness/llm.py — точка подсчёта (единственный владелец HTTP-вызовов — моя проверка grep по app/: других мест POST к OpenRouter нет; backend_opencode.py ходит в локальный opencode-daemon, а не напрямую).
++- app/routes/system.py `_get_usage_data` (~:796) — добавить ветку `openrouter` в ответ /api/usage; паттерн кеша уже есть (anthropic/codex/grok, включая кеш провала #197). Плюс чтение `OPENROUTER_MANAGEMENT_KEY` для /activity.
++- app/db.py — таблица-счётчик (UTC-день, попытки) и, при необходимости, хранение вчерашней сверки.
++- app/static/js/usage.js `renderUsageBar` (:210) — НОВЫЙ провайдер-блок; задача называла app.js, но полоса фактически живёт в usage.js (app.js только вставляет strip рядом с #usage-bar, :7179).
++- app/quota_gate.py — НЕ трогать (harness там not_applicable сознательно).
++- Конфликт: app.js правят #366 и #369; мой участок — usage.js + system.py.
++
++## Risks / edge cases
++
++- Рестарт бэкенда между инкрементом и сохранением — теряем доли секунды счёта; приемлемо для глаз.
++- Параллельные запросы из нескольких asyncio-задач одного процесса — один event loop, достаточно обычного счётчика + периодический flush в SQLite.
++- Management key = креденшел уровня аккаунта: читать только из .env, маскировать (secret_mask.py), не логировать, не отдавать наружу; в worktree его нет — тесты не должны требовать ключ (путь Б деградирует до «нет данных», как у Grok-ветки).
++- Чужой расход (другие машины юзера тем же ключом): локальный счёт навсегда ≤ провайдерского; сверка за вчера делает занижение ИЗМЕРЕННЫМ и показывает чужую долю отдельно.
++
++## Gaps (не закрыто)
++
++- Какое окно описывают X-RateLimit-* на платформенном 429 (минута/сутки) — не воспроизведён; поймать opportunistically в Phase 3 (логировать заголовки всех 429).
++- Scope 20/мин и 1000/сутки (аккаунт/модель/ключ) — F7.
++- Считает ли провайдер отклонённые (429/5xx) запросы в суточный лимит — доки молчат; первая сверка «локальный счёт vs /activity за 22.08» завтра даст эмпирическую границу.
++
++## Review status
++
++- Ревью research-артефакта (22.08): **вердикта нет — пул исчерпан.** Codex 100% (weekly_quota_blocked), заходы read-only ревьюера оборвались narration'ом без вердикта; юзер отменил ревью до конца дня («никаких ревью им нельзя» — встроенный review тратит квоту OpenRouter, которую как раз считаем). Позиции, обсуждавшиеся в оборванном трейсе, перепроверены САМОСТОЯТЕЛЬНО и зафиксированы с доказательствами: llm.py — единственный владелец POST к OpenRouter (grep по app/), renderUsageBar в usage.js:210, паттерн кеша #197 (system.py:889-898), quota_gate not_applicable (:401-410), MAX_TOOL_ROUNDS=50/REVIEW_MAX_ROUNDS=15 (loop.py), backend_opencode.py ходит в локальный daemon и квоту не тратит.
++- Codex-пул в этот день 100% — фолбэк на read-only ревьюера.
++
++## Sources
++
++1. https://openrouter.ai/docs/api_reference/limits.md — fetched 22.08.2026 (первичный)
++2. https://openrouter.ai/docs/api/api-reference/analytics/query-analytics-data.md — fetched 22.08.2026 (openapi-спека, request_count/date__day)
++3. https://openrouter.ai/docs/guides/overview/auth/management-api-keys.md — fetched 22.08.2026 (management keys ≠ inference)
++4. Живые пробы inference-ключом 06:42–06:45 UTC и management-ключом 06:55 UTC 22.08.2026 (tier 1) — лог в Experiment log
+diff --git a/tests/test_openrouter_counter.py b/tests/test_openrouter_counter.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..3d0a65915332d61ae8c127cecd6bade3c28c874a
+--- /dev/null
++++ b/tests/test_openrouter_counter.py
+@@ -0,0 +1,213 @@
++"""#368 — счётчик запросов OpenRouter: локальный счёт + сверка с /activity.
++
++Красные тесты Phase 2 (коммить ДО реализации). Красота красного:
++- test_t1_*: падают с ModuleNotFoundError "app.openrouter_counter" — модуль-счётчик
++  и есть отсутствующее поведение; после реализации оракул — ассерты.
++- test_t2_*: аналогично для app.openrouter_activity.
++- test_t3_*: AttributeError на system._get_openrouter_usage — отсутствующая ветка /api/usage.
++- test_t4_*: AssertionError на анкор в usage.js — delivery-чек фронтенда.
++"""
++
++import json
++
++import httpx
++import pytest
++
++
++@pytest.fixture(autouse=True)
++def _init_db():
++    """Прод создаёт схему на старте (app.main); тестам нужен тот же шаг."""
++    from app import db
++
++    db.init_db()
++    yield
++
++
++# ── helpers ──────────────────────────────────────────────────────────────
++
++def _sse(body_chunks: str) -> bytes:
++    lines = "".join(f"data: {c}\n\n" for c in body_chunks)
++    return lines.encode()
++
++
++def _fake_transport(calls: list[int]):
++    """429 (retryable) на первый вызов, затем 200 SSE. Пишет статусы в calls."""
++
++    def handler(request: httpx.Request) -> httpx.Response:
++        n = len(calls)
++        calls.append(n)
++        if n == 0:
++            return httpx.Response(
++                429,
++                headers={"retry-after": "0"},
++                json={"error": {"code": 429, "message": "Rate limit exceeded"}},
++            )
++        return httpx.Response(
++            200,
++            headers={"content-type": "text/event-stream"},
++            content=_sse([
++                json.dumps({"id": "g1", "choices": [{"index": 0, "delta": {"content": "ok"}}]}),
++                "[DONE]",
++            ]),
++        )
++
++    return httpx.MockTransport(handler)
++
++
++async def _drain(client, calls):
++    from app.harness import llm as or_llm
++
++    events = []
++    async for ev in client.stream(messages=[{"role": "user", "content": "hi"}], tools=[]):
++        events.append(ev)
++    return events
++
++
++@pytest.fixture
++def fast_retry(monkeypatch):
++    from app.harness import llm as or_llm
++
++    monkeypatch.setattr(or_llm, "BACKOFF_BASE", 0.001)
++
++
++# ── T1: счётчик считает каждую HTTP-попытку, включая ретраи и неудачи ────────
++
++def test_t1_counts_every_attempt_including_retry_and_failures(fast_retry):
++    from app import openrouter_counter as counter
++    from app.harness import llm as or_llm
++
++    calls: list[int] = []
++    client = or_llm.OpenRouterClient(
++        api_key="test-key", model="z-ai/glm-5.2:free",
++        http=httpx.AsyncClient(transport=_fake_transport(calls)),
++    )
++
++    import asyncio
++    asyncio.run(_drain(client, calls))
++
++    # 429 + повторная попытка = 2 HTTP-запроса = 2 единицы квоты
++    assert len(calls) == 2, f"expected 2 HTTP attempts, got {len(calls)}"
++    assert counter.today_count() == 2
++    breakdown = counter.status_breakdown(counter.today_utc())
++    assert breakdown.get("429") == 1, f"rejected attempt must be counted: {breakdown}"
++    assert breakdown.get("200") == 1, f"successful attempt must be counted: {breakdown}"
++    assert counter.minute_count() == 2
++
++
++def test_t1_utc_day_rollover_and_persistence(fast_retry):
++    from app import openrouter_counter as counter
++
++    # Вчерашние попытки не входят в today_count, но видны по своему дню.
++    counter.record_attempt_start(ts=0.0)          # 1970-01-01 UTC
++    assert counter.today_count() == 0
++    assert counter.local_day_count(counter.day_of(0.0)) == 1
++    assert counter.local_day_count(counter.today_utc()) == 0
++
++
++def test_t1_survives_restart_rows_not_memory(fast_retry):
++    """Счёт живёт в SQLite: новый 'процесс' (новый импорт-стейт) видит те же строки."""
++    from app import openrouter_counter as counter
++
++    counter.record_attempt_start()
++    counter.record_attempt_start()
++    before = counter.today_count()
++    assert before == 2
++    # Перезапуск = просто новый вызов тех же функций: источник — БД, не память.
++    assert counter.today_count() == 2
++
++
++# ── T2: сверка вчерашнего дня с /activity ────────────────────────────────────
++
++def test_t2_reconcile_names_delta_and_breakdown():
++    from app.openrouter_activity import reconcile
++
++    result = reconcile(
++        day="2026-08-21",
++        provider_requests=92,
++        local_count=85,
++        local_by_status={"200": 80, "429": 5},
++    )
++    assert result["provider_requests"] == 92
++    assert result["local_requests"] == 85
++    assert result["delta"] == 7          # 92 - 85: чужой расход и/или отклонённые
++    assert result["day"] == "2026-08-21"
++
++
++def test_t2_reconcile_local_above_provider_is_visible_not_clamped():
++    from app.openrouter_activity import reconcile
++
++    # Локальный счёт больше провайдерского — тоже честное число, не max(0, ...)
++    result = reconcile(day="2026-08-21", provider_requests=10, local_count=13,
++                       local_by_status={"200": 10, "502": 3})
++    assert result["delta"] == -3
++
++
++def test_t2_fetch_refuses_today_without_network(monkeypatch):
++    """Сегодняшняя дата запрещена провайдером — отсекаем до сети (F9 research)."""
++    from app import openrouter_activity as activity
++
++    def _boom(*a, **k):
++        raise AssertionError("network call must not happen for today's date")
++
++    monkeypatch.setattr(activity, "_http_get_json", _boom)
++    import datetime as dt
++    today = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d")
++    result = activity.fetch_day_sync(today)
++    assert result["available"] is False
++    assert "completed" in result["reason"]
++
++
++def test_t2_fetch_without_management_key_degrades(monkeypatch):
++    from app import openrouter_activity as activity
++
++    monkeypatch.delenv("OPENROUTER_MANAGEMENT_KEY", raising=False)
++    result = activity.fetch_day_sync("2026-08-21")
++    assert result["available"] is False
++    assert "key" in result["reason"].lower()
++
++
++# ── T3: ветка openrouter в /api/usage ────────────────────────────────────────
++
++def test_t3_usage_payload_counts_and_limits():
++    from app import openrouter_counter as counter
++    from app.routes import system
++
++    row_a = counter.record_attempt_start()
++    row_b = counter.record_attempt_start()
++    # Статусы проставлены явно: сиды с NULL (ответ не получен) пережили бы
++    # мутанта «считаем только 2xx» — а обе попытки тратят квоту.
++    counter.record_attempt_status(row_a, 200)
++    counter.record_attempt_status(row_b, 429)
++
++    payload = system._get_openrouter_usage()
++
++    assert payload["available"] is True
++    assert payload["daily"]["count"] == 2
++    assert payload["daily"]["limit"] == 1000
++    assert payload["minute"]["count"] == 2
++    assert payload["minute"]["limit"] == 20
++    assert payload["source"] == "local"
++
++
++def test_t3_usage_payload_never_fakes_zero_when_broken(monkeypatch):
++    """Сломанный счётчик → available False, а не ноль, который читается как «свободно»."""
++    from app import openrouter_counter as counter
++    from app.routes import system
++
++    monkeypatch.setattr(counter, "today_count", lambda: (_ for _ in ()).throw(RuntimeError("db broken")))
++
++    payload = system._get_openrouter_usage()
++
++    assert payload["available"] is False
++    assert "daily" not in payload or payload["daily"] is None
++
++
++# ── T4: полоса в usage.js (delivery-чек) ─────────────────────────────────────
++
++def test_t4_usage_bar_has_openrouter_group():
++    js = open("app/static/js/usage.js", encoding="utf-8").read()
++    assert 'data-usage-compact-provider="openrouter"' in js, (
++        "usage.js must render an OpenRouter provider group in renderUsageBar()"
++    )
++    # Честные состояния: нет данных — явная подпись, не ноль.
++    assert "нет данных" in js, "unavailable state must be explicit"

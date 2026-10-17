@@ -1,0 +1,134 @@
+diff --git a/TODO.md b/TODO.md
+index 231db2d179cf14be2192f8b7b7ec68e181d09cbc..395309b31aeba4a7ddd5b19d89c5e0155c0bb7f8 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -165,6 +165,13 @@
+ 
+ - **Детектор «слепого ревью» судит по СОДЕРЖИМОМУ текста и объявляет состоявшееся ревью несостоявшимся — ошибка смещена в опасную сторону.** Владелец: `_blind_review_error()` (`app/bg_jobs.py:53`), регулярка `_BLIND_REVIEW` ищет `Unable to perform an evidence-backed review|bwrap:|failed rtm_newaddr|setting up uid map: permission denied` **в артефакте ИЛИ в выводе джоба**, и любое совпадение перебивает положительные признаки. Замер 05.09 (#515, воркер `fix-ci-green`, джоб `bg-ec95512979`): артефакт 5671 байт, семь находок, ровно один `## Verdict`, дословная цитата из ревьюируемого файла — маркеров в артефакте и в `research.md` НЕТ ни одного, значит совпадение пришло из потока выполнения codex; на этой машине `bwrap` не установлен (`RC=127`), и строка про него правдоподобно попадает в stderr КАЖДОГО ревью. Цена ложного вердикта: 547 441 input + 3 258 output токенов оплачены, а агента толкает перезапустить раунд — на прозе потолок 2 раунда, то есть ложный FAILED уничтожает половину квоты ревью. Чинить двумя правками: (1) положительные признаки должны ПЕРЕБИВАТЬ маркер — есть `## Verdict` и непустые находки → ревью состоялось; (2) маркеры искать только в служебном потоке и только в его начале, но НЕ в теле артефакта, иначе ревью, которое ЦИТИРУЕТ ошибку песочницы, объявляется несостоявшимся. Негативный контроль обязателен: артефакт, который дословно цитирует `bwrap: command not found` в тексте находки, обязан считаться состоявшимся.
+ 
++- **ПОПРАВКА 05.09 к двум записям выше — их происхождение НЕ подтвердилось у названных источников; обе считать непроверенными, пока не найден первоисточник.**
++  - Запись «Ревью-гейт мержа (#462) блокирует одобренную работу, если квитанцию выписывал не сам воркер» приписана оркестратору `kesha-tg-bot`. Он отвечает выгрузкой: в его транскрипте (2636 записей, 27.07→05.09) РЕАЛЬНЫХ вызовов тулов `merge_worker` и `codex_review` — **ноль**, квитанций по scope `kesha-tg-bot` в локальной БД — ноль, `change_worker_model` на luna он не делал. Вероятный настоящий источник — его тёзка `kesha-tg-bot-orchestrator` на VPS Contabo (`/home/kesha/projects/kesha-tg-bot`), который пишет в ДРУГУЮ базу `/home/kesha/orchestra/data/orchestra.db`; её в локальном срезе нет физически. Отсюда общее правило разбора: **два оркестратора с почти одинаковыми именами в разных инстансах Orchestra — разные агенты и разные базы**; прежде чем искать «потерянные данные», проверь, в какой инсталляции они вообще писались.
++  - Запись «`codex_review(mode=\"implementation\")` жёстко подставляет `\"main\"` → `fatal: Needed a single revision`» приписана VPN-Service. Их оркестратор отвечает: такого отказа НЕТ ни одного, поиск по `logs.content` даёт только его же поисковые команды. Единственный реальный отказ `codex_review` у них — `project_context_missing` от 05.09 03:21:31 UTC, вызывал воркер `fix-fresh-links`, `tool_is_error=0`. При этом сама конфигурация подтверждена фактом и остаётся латентным дефектом: у сессии `VPN-orchestrator` `base_branch=''`, `branch=None`, а `git symbolic-ref refs/remotes/origin/HEAD` → `refs/remotes/origin/master`, ветки `main` в репозитории нет. То есть баг воспроизведётся при первом же вызове от оркестратора, но НАБЛЮДЁН не был.
++
++- **Тест-гейт мержа объявляет «ran out of its time budget», когда на самом деле отсутствует плагин `pytest-timeout`, и советует ретрай, который никогда не помогает.** Дословно (VPN-Service, операция `15ab33fc-8ef3-4b11-b486-d8ae0ba85ca1`): `Merge test gate inconclusive (pytest_timeout_unavailable): : --timeout=120 --timeout-method=signal ... No test was reported red — the gate ran out of its time budget. Do NOT 'fix' tests. Retry the same operation`. Гейт добавляет `--timeout=120 --timeout-method=signal`, но `pytest-timeout` не стоял ни в venv воркера, ни в основном venv, ни в `pytest.ini`; тесты в том же venv отрабатывают за 4.65 с, то есть бюджет ни при чём. Хуже совета: retry с тем же `operation_id` вернул байт-в-байт тот же отказ ДАЖЕ ПОСЛЕ установки плагина — разлочилось только новой операцией без `operation_id`. Чинить два места: (1) отсутствующий плагин обязан называться отсутствующим плагином, а не исчерпанным бюджетом; (2) либо retry той же операции обязан перечитывать окружение, либо инструкция обязана велеть новую операцию.
++
++- **Orchestra кладёт свои служебные файлы в ЦЕЛЕВОЕ рабочее дерево и затем сама же блокирует ими мерж.** Дословно (VPN-Service, операция `5953f217-0b61-4ed2-976a-2b4ed87b55be`): `target working tree is dirty at '/mnt/data/Projects/Python/VPN-Service' (3 file(s): .orchestra/kb/.gitattributes, .orchestra/kb/manifest.json, .orchestra/kb/records/) — commit or discard first`. Файлы появились неотслеженными, оркестратор их не создавал. То есть платформа порождает грязь, которую её же гейт чистоты считает препятствием, и владелец репозитория вынужден руками разбирать чужие артефакты. Чинить: либо служебная раскладка создаётся отслеженной/игнорируемой при инициализации, либо гейт чистоты не считает свои же файлы грязью.
+ - **Красный тест на `main` (HEAD `7fb6dc66`): отказ смены модели теряет машинный код причины, и дашборд печатает `unknown error`.** Воспроизведение: `.venv/bin/python -m pytest tests/test_handoff_effect_classification.py -q` → `1 failed, 9 passed`, `test_change_model_refusal_names_the_blocking_call_not_only_its_code`, `KeyError: 'error_code'` на `tests/test_handoff_effect_classification.py:265`. Механика: тест патчит `_prepare_runtime_handoff` на блокирующий результат и ждёт `_handoff_blocked_result` (`app/session.py:204`, код там выставляется корректно), но при codex→codex `_change_model_locked` (`app/session.py:4792-4798`) уходит раньше в `_change_model_in_place_locked` по признаку `runtime_capabilities.model_retarget`, и подготовка хендоффа вообще не вызывается. То есть либо тест протух после появления in-place retarget, либо in-place путь неправомерно проскакивает гейт «вызов инструмента может ещё выполняться». Решить, что из двух, и починить; заодно проверить, что при отказе дашборд получает `error_code`, а не пусто (`app/static/js/app.js:2610` печатает `unknown error` именно на пустом коде). Найдено воркером `fix-handoff-packet` при работе над #507, baseline подтверждён мной в чистом дереве; в scope #507 НЕ входит.
+ 
+ - **Наш собственный сторож старых путей `scripts/check_orchestra_paths.py` МЁРТВ и не печатает ни одной цифры.** `main()` падает `ValueError: not enough values to unpack (expected 3, got 2)` на `git cat-file --batch` для блобов, которых нет в объектном хранилище; классификация, вызванная напрямую, даёт `live=0, unclassified=0`. Замер 05.09 (#514, `audit-layout-fallout`, 8 мигрированных корней). Второй дефект того же файла — замысла, а не реализации: `occurrence_class` (строки 93-106) БЕЗУСЛОВНО относит любой путь под `tests/` к `negative`, а под `.orchestra/` — к `historical`, поэтому живой старый путь именно в этих деревьях сторож не увидит по построению; существует он ровно в 1 репозитории из 8. Чинить: отсутствующий объект — законный исход `missing`, а не падение; класс определять по ФАКТУ прогона (падение называет путь), а не по каталогу. Проверка после починки: на трёх известных красных файлах katya-work сторож обязан дать ненулевой `live`.
+diff --git a/app/db.py b/app/db.py
+index c1f71e1f67355c00e7e60fee562c330f7a68fd3d..2bbbb24336aee57dad62a28d24c1f5ba10aded71 100644
+--- a/app/db.py
++++ b/app/db.py
+@@ -2502,19 +2502,18 @@ def confirm_runtime_handoff(
+         if not attempt or attempt["status"] != "capability_validated":
+             raise RuntimeError("runtime handoff attempt was not capability validated")
+         expected_candidate_sha256 = handoff["packet_sha256"]
+-        ledger_packet = json.loads(handoff["packet_json"])
+-        if (
+-            attempt["mode"] in {"packet_delta", "fallback_packet"}
+-            and ledger_packet.get("integrity")
+-        ):
++        if attempt["mode"] in {"packet_delta", "fallback_packet"}:
+             # The delivered candidate is a projection of the ledger packet, so its hash
+-            # is recomputed here rather than read from the attempt it must verify.
++            # is recomputed here rather than read from the attempt it must verify. The
++            # projection is unconditional in `_stage_runtime_handoff_target`, so it must
++            # be unconditional here too: a ledger packet the staging step still projects
++            # but this one skips would fail confirmation after the source was released.
+             from app.runtime_history import (
+                 build_runtime_delivery_packet,
+                 build_runtime_packet_fallback,
+             )
+ 
+-            packet = build_runtime_delivery_packet(ledger_packet)
++            packet = build_runtime_delivery_packet(json.loads(handoff["packet_json"]))
+             if attempt["mode"] == "fallback_packet":
+                 packet = build_runtime_packet_fallback(packet)
+             expected_candidate_sha256 = packet["integrity"]["canonical_sha256"]
+diff --git a/tests/test_runtime_handoff_v2.py b/tests/test_runtime_handoff_v2.py
+index 22f2029cc819099e915a22baee886845c44793d5..e9bc0d9661671da07c9da2b27b8d3634673a7faf 100644
+--- a/tests/test_runtime_handoff_v2.py
++++ b/tests/test_runtime_handoff_v2.py
+@@ -401,10 +401,17 @@ def test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools(
+ 
+ @pytest.mark.asyncio
+ async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect(
+-    session, monkeypatch,
++    session, monkeypatch, tmp_path,
+ ):
+     from app.session import AgentStatus
+ 
++    # The oracle is "a prompt that does not fit is refused before the source is
++    # disconnected", so the window it does not fit into has to be pinned. Since
++    # `_model_context_window` started reading the installed Codex config, an empty
++    # CODEX_HOME is what keeps the target on the catalog value (258 400) instead of
++    # whatever this machine has in ~/.codex.
++    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
++
+     session.model = "claude-sonnet-5[1m]"
+     session.backend_type = "claude"
+     session.session_id = "source-claude-session"
+@@ -579,6 +586,11 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
+     tmp_path, monkeypatch,
+ ):
+     from app import db as dbmod
++    from app.runtime_history import (
++        build_runtime_delivery_packet,
++        build_runtime_state_packet,
++        runtime_packet_sha256,
++    )
+ 
+     db_path = tmp_path / "confirm.db"
+     monkeypatch.setattr(dbmod, "DB_PATH", db_path)
+@@ -586,6 +598,27 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
+     confirm = getattr(dbmod, "confirm_runtime_handoff", None)
+     assert callable(confirm), "atomic handoff confirmation is absent"
+     created_at = datetime.now(timezone.utc).isoformat()
++    # A ledger row production can actually produce: `build_runtime_state_packet` always
++    # writes `integrity`, and the attempt records the hash of the projected candidate
++    # that reached the target, not the ledger hash.
++    ledger_packet = build_runtime_state_packet(
++        [{
++            "id": 1, "ts": created_at, "type": "user_message",
++            "content": "continue", "event_id": "", "tool_use_id": None,
++            "tool_name": None, "tool_is_error": None,
++        }],
++        session_meta={"id": "s1"}, snapshot_id=1,
++        current_system_prompt="current system policy",
++        project_docs=[{"path": "AGENTS.md", "content": "tracked repo policy"}],
++    )
++    packet_json = json.dumps(
++        ledger_packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
++    )
++    packet_sha256 = ledger_packet["integrity"]["canonical_sha256"]
++    candidate_sha256 = runtime_packet_sha256(
++        build_runtime_delivery_packet(ledger_packet)
++    )
++    assert candidate_sha256 != packet_sha256
+     with sqlite3.connect(db_path) as conn:
+         conn.execute(
+             """INSERT INTO sessions
+@@ -603,8 +636,11 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
+                 created_at, updated_at)
+                VALUES ('h1', 's1', 'request-1', 'source_released', 'codex',
+                        'gpt-5.6-sol', 'old-thread', 'claude',
+-                       'claude-sonnet-5[1m]', 0, ?, '{}', ?, 'packet_delta', ?, ?)""",
+-            ("a" * 64, "b" * 64, created_at, created_at),
++                       'claude-sonnet-5[1m]', 1, ?, ?, ?, 'packet_delta', ?, ?)""",
++            (
++                ledger_packet["integrity"]["snapshot_sha256"], packet_json,
++                packet_sha256, created_at, created_at,
++            ),
+         )
+         conn.execute(
+             """INSERT INTO runtime_handoff_attempts
+@@ -612,7 +648,7 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
+                 target_session_id, candidate_sha256, created_at, updated_at)
+                VALUES ('h1', 1, 'packet_delta', 'capability_validated',
+                        'staging/h1/1', 'target-session', ?, ?, ?)""",
+-            ("b" * 64, created_at, created_at),
++            (candidate_sha256, created_at, created_at),
+         )
+         conn.execute(
+             """CREATE TRIGGER abort_confirm BEFORE UPDATE ON runtime_handoffs

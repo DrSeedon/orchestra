@@ -1,0 +1,673 @@
+diff --git a/app/runtime_registry.py b/app/runtime_registry.py
+index 9ae1d2c02bdf4548577e9ad50da0a82c9bbe2d06..6b4a226ae8b7a362db9f5638be1605725fc41bd2 100644
+--- a/app/runtime_registry.py
++++ b/app/runtime_registry.py
+@@ -319,7 +319,7 @@ register_runtime(RuntimeDefinition(
+         reconnect=False,
+         hibernate=True,
+         process_liveness=True,
+-        resume_across_models=False,
++        resume_across_models=True,
+     ),
+     factory=_codex_factory,
+ ))
+diff --git a/docs/tasks/243/codex-review-impl.md b/docs/tasks/243/codex-review-impl.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..fd144557fe28211b181f75b6f4e069e94f24451e
+--- /dev/null
++++ b/docs/tasks/243/codex-review-impl.md
+@@ -0,0 +1,61 @@
++## Summary
++
++Implementation is safe to merge. The capability change preserves the Codex thread only for same-runtime model switches; existing cross-runtime handoff/reset branches remain unchanged. Reconnect constructs `CodexBackend` with the new model and preserved session ID, and app-server receives the model in both `thread/resume` and `turn/start`.
++
++Focused verification:
++
++`uv run pytest -q tests/test_runtime_registry.py tests/test_session.py -k 'builtin_runtime_capabilities_are_explicit or codex_model_switch_preserves_native_thread'`
++
++Literal result: `2 passed, 218 deselected in 7.50s`
++
++## Findings
++
++suggestion: `tests/test_session.py:3893` — The test protects `session_id`, empty handoff, history, and `native_session_reset=false`, but stops before reconnect. Extend it to call `_make_backend()` or `_ensure_backend()` and assert that the resulting backend receives both `model="gpt-5.6-sol"` and `resume_thread_id="codex-native-session"`. The production call chain is currently correct, but this is an important part of the intended behavior and could regress independently.
++
++suggestion: `docs/tasks/243/research.md:37` — The report describes a sequential `Sol seed → Sol control → Luna → Spark` path and later calls the last transition “Luna→Spark,” but the probe copies the original seed separately for every model and resumes each branch directly from that seed. Correct the wording to `Sol→Sol`, `Sol→Luna`, and `Sol→Spark`. The literal evidence still justifies native cross-model resume and the cache comparison, but it does not demonstrate a sequential Luna→Spark transition.
++
++## Verdict
++
++APPROVED — no blocking crash, context-loss, corruption, or unsafe-silent behavior found. The Spark 121,600-token limitation is accurately documented as a visible fail-loud outcome after resuming the 132,343-token Sol thread.
++
++## Round 2
++
++### Summary
++
++The production-seam test now verifies that `_make_backend()` passes runtime `codex`, the new model, and the preserved native session ID. No new blocking bug was introduced.
++
++Focused verification:
++
++`uv run pytest -q tests/test_runtime_registry.py tests/test_session.py -k 'builtin_runtime_capabilities_are_explicit or codex_model_switch_preserves_native_thread'`
++
++Literal result: `2 passed, 218 deselected in 4.81s`
++
++### Findings
++
++suggestion: `docs/tasks/243/research.md` — The independent-branch wording and table are corrected, but three stale sequential claims remain: the F1 heading says `Luna→Spark`, the confidence line calls this a “последовательного canary”, and source M1 says `Sol→Sol→Luna→Spark semantic canary`. Change those to independent Sol-seed branches so the report matches the literal probe throughout.
++
++### Verdict
++
++APPROVED — no blocking crash, context-loss, corruption, or unsafe-silent behavior found. The remaining issue is documentation consistency only.
++
++## Round (2026-08-13T06:06:02Z)
++
++## Summary
++
++Prior test-coverage finding is resolved. The production seam now verifies the new model and preserved session ID. No new blocking bug found.
++
++Focused test:
++
++`uv run pytest -q tests/test_runtime_registry.py tests/test_session.py -k 'builtin_runtime_capabilities_are_explicit or codex_model_switch_preserves_native_thread'`
++
++Literal result: `2 passed, 218 deselected in 4.81s`
++
++Round 2 was appended to `docs/tasks/243/codex-review-impl.md`.
++
++## Findings
++
++suggestion: The research table is corrected, but three stale sequential descriptions remain: `Luna→Spark`, “последовательного canary,” and `Sol→Sol→Luna→Spark semantic canary`. They should describe independent branches from the Sol seed.
++
++## Verdict
++
++APPROVED — no blocking crash, context loss, corruption, or unsafe silent behavior.
+diff --git a/docs/tasks/243/probe-results.json b/docs/tasks/243/probe-results.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..1bb0084d123643b7f22894185b1371a9cfc9d52b
+--- /dev/null
++++ b/docs/tasks/243/probe-results.json
+@@ -0,0 +1,68 @@
++{
++  "scratch": "/home/kesha/.cache/orchestra-probes/r243-u8kll_76",
++  "marker": "R243-6eac83ef-0ef0-41a4-b7e0-50c941eb6202",
++  "seed": {
++    "requested_id": null,
++    "returned_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "session_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "ok": true,
++    "stop_reason": "end_turn",
++    "cost_usd": 0.113669,
++    "cache_hit": 33,
++    "input_tokens": 32605,
++    "output_tokens": 6,
++    "cached_input_tokens": 11008,
++    "context_tokens": 32605,
++    "max_tokens": 258400,
++    "text": "Stored."
++  },
++  "gpt-5.6-sol": {
++    "requested_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "returned_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "session_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "ok": true,
++    "stop_reason": "end_turn",
++    "cost_usd": 0.027489,
++    "cache_hit": 93,
++    "input_tokens": 33651,
++    "output_tokens": 31,
++    "cached_input_tokens": 31488,
++    "context_tokens": 33651,
++    "max_tokens": 258400,
++    "text": "R243-6eac83ef-0ef0-41a4-b7e0-50c941eb6202"
++  },
++  "gpt-5.6-luna": {
++    "requested_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "returned_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "session_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "ok": true,
++    "stop_reason": "end_turn",
++    "cost_usd": 0.0066945600000000004,
++    "cache_hit": 15,
++    "input_tokens": 38310,
++    "output_tokens": 77,
++    "cached_input_tokens": 5888,
++    "context_tokens": 38310,
++    "max_tokens": 258400,
++    "text": "R243-6eac83ef-0ef0-41a4-b7e0-50c941eb6202"
++  },
++  "gpt-5.3-codex-spark": {
++    "requested_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "returned_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "session_id": "019ff9b0-8c7e-7d72-b1b0-80c7c72494bd",
++    "ok": true,
++    "stop_reason": "end_turn",
++    "cost_usd": 0.0,
++    "cache_hit": 15,
++    "input_tokens": 35761,
++    "output_tokens": 367,
++    "cached_input_tokens": 5504,
++    "context_tokens": 35761,
++    "max_tokens": 121600,
++    "model_error": "",
++    "errors": [],
++    "cost_unaccounted": true,
++    "cost_error": "ValueError: No published token price for gpt-5.3-codex-spark",
++    "text": "R243-6eac83ef-0ef0-41a4-b7e0-50c941eb6202"
++  }
++}
+diff --git a/docs/tasks/243/probe-spark-overflow.json b/docs/tasks/243/probe-spark-overflow.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..09834e2e90cec0409b109f7a5425d1216ad65845
+--- /dev/null
++++ b/docs/tasks/243/probe-spark-overflow.json
+@@ -0,0 +1,38 @@
++{
++  "scratch": "/home/kesha/.cache/orchestra-probes/r243-23e5gv1q",
++  "marker": "R243-f3c5c59c-a541-4245-8c22-064400a3dd9c",
++  "requested_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
++  "sol_overflow": {
++    "returned_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
++    "session_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
++    "ok": true,
++    "stop_reason": "end_turn",
++    "cost_usd": 0.612389,
++    "cache_hit": 8,
++    "input_tokens": 132343,
++    "output_tokens": 7,
++    "cached_input_tokens": 11008,
++    "context_tokens": 132343,
++    "max_tokens": 258400,
++    "text": "STORED"
++  },
++  "spark_after_overflow": {
++    "returned_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
++    "session_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
++    "ok": false,
++    "stop_reason": "error",
++    "cost_usd": 0.0,
++    "cache_hit": 0,
++    "input_tokens": 0,
++    "output_tokens": 0,
++    "cached_input_tokens": 0,
++    "context_tokens": 0,
++    "max_tokens": 121600,
++    "model_error": "context_window",
++    "errors": [
++      "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.",
++      "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
++    ],
++    "text": ""
++  }
++}
+diff --git a/docs/tasks/243/probe_cross_model_resume.py b/docs/tasks/243/probe_cross_model_resume.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..bccfb21003007fb3adcdc4f21318a70e83354498
+--- /dev/null
++++ b/docs/tasks/243/probe_cross_model_resume.py
+@@ -0,0 +1,154 @@
++"""Isolated live probe for resuming one Codex thread under another model."""
++
++import argparse
++import asyncio
++import json
++import os
++import shutil
++import tempfile
++import uuid
++from pathlib import Path
++
++from app.backend_codex import CodexBackend
++
++
++MARKER = f"R243-{uuid.uuid4()}"
++MODELS = ("gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark")
++
++
++async def run_turn(backend: CodexBackend, prompt: str) -> dict:
++    await backend.send(prompt)
++    chunks: list[str] = []
++    errors: list[str] = []
++    events: list[str] = []
++    result: dict = {}
++    async for event in backend.events():
++        events.append(event.type)
++        if event.type == "text":
++            chunks.append(event.content)
++        elif event.type == "error":
++            errors.append(event.content)
++        elif event.type == "turn_end":
++            result = dict(event.metadata)
++            break
++    result.update(text="\n".join(chunks), errors=errors, events=events)
++    return result
++
++
++async def backend_turn(root: Path, model: str, thread_id: str | None, prompt: str,
++                       system_prompt: str) -> tuple[str, dict]:
++    os.environ["CODEX_HOME"] = str(root)
++    backend = CodexBackend(
++        model=model,
++        cwd=str(Path.cwd()),
++        system_prompt=system_prompt,
++        resume_thread_id=thread_id,
++        reasoning_effort="low",
++    )
++    try:
++        await asyncio.wait_for(backend.connect(), timeout=60)
++        returned_id = backend.session_id
++        assert returned_id
++        result = await asyncio.wait_for(run_turn(backend, prompt), timeout=180)
++        return returned_id, result
++    finally:
++        await backend.disconnect()
++
++
++async def main() -> None:
++    source_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
++    scratch_parent = Path.home() / ".cache" / "orchestra-probes"
++    scratch_parent.mkdir(parents=True, exist_ok=True)
++    scratch = Path(tempfile.mkdtemp(prefix="r243-", dir=scratch_parent))
++    seed = scratch / "seed"
++    seed.mkdir()
++    shutil.copy2(source_home / "auth.json", seed / "auth.json")
++
++    padding = " ".join(f"context-{index:05d}" for index in range(3_000))
++    system_prompt = (
++        "This is an isolated model-resume canary. Do not call tools. "
++        f"Context padding follows: {padding}"
++    )
++    seed_id, seed_result = await backend_turn(
++        seed,
++        MODELS[0],
++        None,
++        f"Store this secret marker from the user message: {MARKER}. "
++        "Acknowledge that it is stored without printing it.",
++        system_prompt,
++    )
++
++    results = {
++        "scratch": str(scratch),
++        "marker": MARKER,
++        "seed": {"requested_id": None, "returned_id": seed_id, **seed_result},
++    }
++    for model in MODELS:
++        root = scratch / model.replace(".", "_")
++        shutil.copytree(seed, root)
++        returned_id, result = await backend_turn(
++            root,
++            model,
++            seed_id,
++            "Return only the secret marker from the prior thread, verbatim.",
++            system_prompt,
++        )
++        results[model] = {
++            "requested_id": seed_id,
++            "returned_id": returned_id,
++            **result,
++        }
++    print(json.dumps(results, ensure_ascii=False, indent=2))
++
++
++async def spark_overflow(seed: Path, seed_id: str, marker: str) -> None:
++    scratch = seed.parent
++    source = scratch / "overflow-sol"
++    shutil.copytree(seed, source)
++    padding = " ".join(f"context-{index:05d}" for index in range(12_000))
++    system_prompt = (
++        "This is an isolated model-resume canary. Do not call tools. "
++        f"Context padding follows: {padding}"
++    )
++    overflow = " ".join(f"overflow-{index:06d}" for index in range(15_000))
++    returned_id, sol_result = await backend_turn(
++        source,
++        MODELS[0],
++        seed_id,
++        "Store this additional context and answer only STORED. " + overflow,
++        system_prompt,
++    )
++    spark_root = scratch / "overflow-spark"
++    shutil.copytree(source, spark_root)
++    try:
++        spark_id, spark_result = await backend_turn(
++            spark_root,
++            MODELS[2],
++            seed_id,
++            "Return only the secret marker from the earliest prior context, verbatim.",
++            system_prompt,
++        )
++        spark = {"returned_id": spark_id, **spark_result}
++    except Exception as error:
++        spark = {"error_type": type(error).__name__, "error": str(error)}
++    print(json.dumps({
++        "scratch": str(scratch),
++        "marker": marker,
++        "requested_id": seed_id,
++        "sol_overflow": {"returned_id": returned_id, **sol_result},
++        "spark_after_overflow": spark,
++    }, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--seed-root", type=Path)
++    parser.add_argument("--thread-id")
++    parser.add_argument("--marker")
++    args = parser.parse_args()
++    if args.seed_root:
++        if not args.thread_id or not args.marker:
++            parser.error("--seed-root requires --thread-id and --marker")
++        asyncio.run(spark_overflow(args.seed_root, args.thread_id, args.marker))
++    else:
++        asyncio.run(main())
+diff --git a/docs/tasks/243/report.md b/docs/tasks/243/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..330ee7b1323e1da690c8540b44a1ded71011a240
+--- /dev/null
++++ b/docs/tasks/243/report.md
+@@ -0,0 +1,81 @@
++# #243 — отчёт
++
++## Итог
++
++Консервативный флаг был неверен. Codex CLI 0.146.0 возобновил один Sol thread на Luna и
++Spark, сохранил тот же thread id и дословно вспомнил UUID из старого user turn. Orchestra
++теперь оставляет native thread при смене модели внутри runtime `codex`; межрантаймовые ветки
++и их history import не менялись.
++
++## Изменения
++
++- `app/runtime_registry.py`: `codex.resume_across_models=True`.
++- `tests/test_runtime_registry.py`: capability закреплена явно.
++- `tests/test_session.py`: same-runtime смена сохраняет `session_id`, не строит handoff, не
++  пишет id в history и создаёт следующий backend с новой моделью плюс старым native id.
++- `docs/tasks/243/probe_cross_model_resume.py`: воспроизводимый изолированный canary.
++- `docs/tasks/243/probe-results.json`: literal Sol→Sol / Sol→Luna / Sol→Spark результаты.
++- `docs/tasks/243/probe-spark-overflow.json`: literal fail-loud Spark overflow.
++- `docs/tasks/243/research.md`: метод, числа, контрдоказательства и границы.
++- `docs/tasks/243/codex-review-impl.md`: два раунда зрячего ревью.
++
++## Прямые измерения
++
++Codex 0.146.0, один seed thread `019ff9b0-8c7e-7d72-b1b0-80c7c72494bd`, UUID находился
++только в первом user turn:
++
++| Ветка от Sol seed | returned id тот же | UUID вспомнился | input / cached | cache hit |
++|---|---:|---:|---:|---:|
++| Sol→Sol | да | да | 33 651 / 31 488 | 93.57% |
++| Sol→Luna | да | да | 38 310 / 5 888 | 15.37% |
++| Sol→Spark | да | да | 35 761 / 5 504 | 15.39% |
++
++История переносится, но первый changed-model ход почти cold: Luna получила 32 422 fresh input
++tokens против 2 163 у Sol control. При этом API-equivalent стоимость Luna была ниже:
++$0.00669456 против $0.027489. Для Spark цена неизвестна и не выдумывалась.
++
++Spark ниже своего runtime-reported effective окна `121 600` продолжил нить. Отдельный Sol
++thread с `132 343` context tokens Spark принял по id, но первый ход завершил громко:
++`model_error=context_window`, `input_tokens=0`; auto-compact не сработал.
++
++## Проверки
++
++- Focused regressions:
++  `uv run --active pytest -q tests/test_runtime_registry.py tests/test_session.py::TestRuntimeCapabilities tests/test_backend_codex.py::test_resume_rejects_substituted_thread_before_turn`
++  → `17 passed in 6.14s`.
++- Production-seam subset после review-fix:
++  `uv run --active pytest -q tests/test_runtime_registry.py tests/test_session.py -k 'builtin_runtime_capabilities_are_explicit or codex_model_switch_preserves_native_thread'`
++  → `2 passed, 218 deselected in 5.17s`; ревьюер повторил →
++  `2 passed, 218 deselected in 4.81s`.
++- Мутация `codex.resume_across_models=True → False`: оба целевых теста покраснели
++  (`2 failed`, `mutant_rc=1`); после восстановления → `2 passed`.
++- JSON артефакты разобраны `python3 -m json.tool`; probe компилируется; secret-shape scan
++  (`y0_`, `sk-or-v1-`, `ya29.`, GitHub, Google, Bearer) → 0.
++- Полный сьют не запускался по прямому ограничению задачи.
++
++## Codex review
++
++Раунд 1: `APPROVED`, два suggestions — закрыть production reconnect seam тестом и исправить
++ложную последовательность веток в исследовании. Оба приняты.
++
++Раунд 2: `APPROVED — no blocking crash, context-loss, corruption, or unsafe-silent behavior
++found.` Ревьюер подтвердил production seam; последнюю consistency-suggestion в прозе исправили
++без третьего раунда.
++
++## Pre-mortem
++
++| Возможная регрессия следующего потребителя | Симптом | Проверка |
++|---|---|---|
++| Старый id потерялся в `change_model` | новый чистый thread / handoff | session oracle + мутация capability |
++| Новая модель не доехала в backend | resume старой моделью | `build_backend` получает new model и old id |
++| Cross-runtime reset случайно отключён | Claude↔Codex смешивает native ids | predicate не менялся; `TestRuntimeCapabilities` focused suite |
++| Canary читает UUID из текущего prompt | ложный semantic pass | финальный UUID только в seed user turn; первый дефектный стенд исключён |
++| Большая Sol-нити переключена в Spark | первый ход падает | literal visible `context_window`; ограничение документировано, silent fallback нет |
++
++## Breaking / TODO
++
++- Breaking API: нет.
++- Поведенческое изменение намеренное: same-runtime Codex model switch сохраняет native id и
++  больше не строит lossy handoff.
++- Остаётся сознательное ограничение: Orchestra пока не блокирует заранее переход в Spark,
++  когда текущий контекст больше окна Spark; провайдер отказывает громко на первом ходе.
+diff --git a/docs/tasks/243/research.md b/docs/tasks/243/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..4af412246828040494ca6daed2e4acb49280e85a
+--- /dev/null
++++ b/docs/tasks/243/research.md
+@@ -0,0 +1,165 @@
++# #243 — Codex resume при смене модели внутри рантайма
++
++## Вопрос
++
++**Контекст:** Orchestra сейчас считает любую смену модели внутри `codex` несовместимой с
++нативным resume: `resume_across_models=False` в `app/runtime_registry.py`, поэтому
++`AgentSession._change_model_locked()` архивирует thread id и строит `runtime_handoff`.
++
++**Проверяемое изменение:** возобновить один настоящий Codex thread, созданный на Sol, сначала
++на Luna, затем на Spark, не импортируя и не пересобирая историю.
++
++**Baseline:** resume того же thread на той же модели Sol.
++
++**Решающий исход:** `thread/resume` возвращает запрошенный id, а новая модель дословно возвращает
++UUID, который находился только в первом user turn. Для цены сравниваются `input_tokens`,
++`cached_input_tokens` и API-equivalent `cost_usd` первого хода после resume.
++
++## Гипотезы и фальсификаторы
++
++1. **H1:** Codex 0.146.0 умеет native resume между моделями одного рантайма, потому что модель
++   задаётся заново и в `thread/resume`, и в `turn/start`, а thread остаётся тем же.
++   **Фальсификатор:** protocol/model error, другой returned id или отсутствие UUID в ответе.
++2. **H2 (альтернатива):** app-server принимает resume формально, но новая модель получает чистый
++   контекст. **Фальсификатор:** точный UUID из первого user turn в ответе новой модели.
++3. **H3:** видимая история сохраняется, но prefix cache привязан к модели и первый changed-model
++   ход становится почти cold. **Фальсификатор:** cache hit Luna/Spark сопоставим с Sol control.
++4. **H4:** Spark отказывает не из-за смены модели, а только когда сохранённый контекст больше
++   его собственного окна. **Фальсификатор:** отказ ниже окна либо успешный ход выше окна без
++   compaction.
++
++## Стенд
++
++- Бинарник: дословный вывод `codex --version` — `codex-cli 0.146.0`.
++- Отдельный `CODEX_HOME` под `/home/kesha/.cache/orchestra-probes/r243-*`; из рабочего home
++  копировался только `auth.json`. Живые worker/thread не использовались.
++- Из одного замороженного Sol seed сделаны три независимые ветки:
++  `Sol→Sol control`, `Sol→Luna` и `Sol→Spark`.
++- Один thread id на всём пути:
++  `019ff9b0-8c7e-7d72-b1b0-80c7c72494bd`.
++- Маркер `R243-6eac83ef-0ef0-41a4-b7e0-50c941eb6202` присутствовал **только в первом user
++  message**. Текущий prompt и `developerInstructions` при resume маркер не содержали.
++- Первый пробный стенд исключён из semantic evidence: он ошибочно повторял маркер в новых
++  `developerInstructions`. Его cache-цифры согласовывались с финальным прогоном, но вывод о
++  recall на нём не строится.
++
++Команда и полный воспроизводимый код — `probe_cross_model_resume.py`; literal результаты —
++`probe-results.json` и `probe-spark-overflow.json`.
++
++## Findings
++
++### F1. Sol→Luna и Sol→Spark продолжают тот же native thread — CONFIRMED
++
++| Ход | requested id = returned id | Ответ содержит UUID | Статус |
++|---|---:|---:|---|
++| Sol→Sol control | да | да | `ok=true`, `end_turn` |
++| Sol→Luna | да | да | `ok=true`, `end_turn` |
++| Sol→Spark | да | да | `ok=true`, `end_turn` |
++
++Во всех трёх случаях returned/session id дословно равен seed id. Luna и Spark вернули
++`R243-6eac83ef-0ef0-41a4-b7e0-50c941eb6202`, которого не было в текущем запросе. Значит
++`resume_across_models=False` — консервативное допущение, а не ограничение Codex CLI. [M1]
++
++**Confidence: CONFIRMED** — прямой изолированный прогон, semantic oracle и проверка identity.
++
++### F2. Первый changed-model ход сохраняет историю, но теряет большую часть prefix cache — CONFIRMED для этого прогона
++
++| Первый ход после resume | input | cache read | fresh input | cache hit | API-equivalent cost |
++|---|---:|---:|---:|---:|---:|
++| Sol→Sol control | 33 651 | 31 488 | 2 163 | 93.57% | $0.027489 |
++| Sol→Luna | 38 310 | 5 888 | 32 422 | 15.37% | $0.00669456 |
++| Sol→Spark | 35 761 | 5 504 | 30 257 | 15.39% | неизвестна |
++
++Luna получила примерно в 15 раз больше fresh input, чем same-model control; Spark — примерно
++в 14 раз. Потеря cache не делает Luna дороже Sol в долларах: цена Luna на fresh input намного
++ниже, и фактический первый Luna-ход стоил $0.00669456 против $0.027489 у тёплого Sol control.
++Для Spark денежная цена не заявляется: `CODEX_TOKEN_PRICES` намеренно хранит `None`, и событие
++вернуло `cost_unaccounted=true`. [M1][C1]
++
++Это измерение первого changed-model хода, а не утверждение о вечной потере cache: прогон не
++мерил второй Luna/Spark ход и не устанавливает, когда новый prefix снова прогревается.
++
++**Confidence: CONFIRMED для трёх веток одного Sol-seed canary** — runtime token counters;
++обобщение на другие длины и задержки остаётся LIKELY.
++
++### F3. Spark принимает cross-model resume ниже окна, но первый ход громко падает выше окна — CONFIRMED
++
++Ниже окна Spark принял тот же id при `context_tokens=35 761`, сообщил собственный effective
++`max_tokens=121 600` и вспомнил UUID. [M1]
++
++В отдельном overflow-прогоне Sol сохранил тот же thread при `context_tokens=132 343` из
++`258 400`. Затем `thread/resume` на Spark тоже вернул тот же id, но первый `turn/start`
++завершился:
++
++```text
++ok=false
++model_error=context_window
++input_tokens=0
++Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.
++```
++
++Автоматического compaction перед отказом не было. Это отказ по размеру после успешного resume,
++не запрет смены модели. [M2]
++
++**Confidence: CONFIRMED** — два разрешающих плеча ниже окна и один адресный отрицательный
++прогон выше runtime-reported окна.
++
++### F4. Что именно переносится и теряется — частично CONFIRMED
++
++- **Переносится:** native thread id и доступный модели диалог; semantic canary доказал recall
++  раннего user fact без summary/import. [M1]
++- **Не переносится как тёплый cache:** в первый changed-model ход cache hit упал с 93.57% до
++  15.37–15.39%. [M1]
++- **Внутреннее reasoning-состояние:** UNCERTAIN. Rollout физически остаётся тем же, но внешний
++  протокол не сообщает, какие provider-specific reasoning blobs новая модель использовала.
++  Дословный UUID доказывает видимый контекст, а не перенос скрытого состояния.
++
++## Изменение в коде
++
++`app/runtime_registry.py` меняет одну capability-строку для `codex`:
++
++```python
++resume_across_models=True
++```
++
++Тогда существующая ветка `app/session.py` сама оставляет `session_id` на месте, отключает старый
++backend и следующий connect делает штатный `thread/resume` уже с новой моделью. Нового пути,
++конвертера или handoff-кода не появляется.
++
++Оракул фиксирует оба уровня контракта:
++
++- registry объявляет доказанную capability;
++- `AgentSession.change_model()` внутри `codex` оставляет `session_id`, не строит handoff и
++  возвращает `native_session_reset=false`.
++
++## Counter-evidence и границы
++
++1. **Spark overflow — реальная регрессия области применимости:** с новым флагом переключение
++   большой Sol-нити на Spark сохранит thread, но следующий ход fail-loud завершится
++   `context_window`; прежний reset+summary мог уместиться. Автоматический размерный fallback не
++   добавлялся: задача просила исправить capability одной строкой, а не вводить новый скрытый
++   lossy-путь. Оператору видна точная причина.
++2. Один canary не доказывает перенос каждого provider-specific item. Он доказывает identity и
++   semantic recall обычного user fact.
++3. Cache measurement последовательный, а не статистическая выборка. Цифры нельзя объявлять
++   постоянным тарифом для любого контекста.
++4. CLI API version-sensitive; результат относится к установленному Codex 0.146.0.
++
++## Затронутые файлы и риски
++
++- `app/runtime_registry.py` — capability `codex.resume_across_models`.
++- `app/session.py` — код не меняется, но существующий predicate выбирает другой путь.
++- `tests/test_runtime_registry.py`, `tests/test_session.py` — поведенческий oracle.
++- `docs/tasks/243/` — probe, raw evidence, отчёт.
++
++Главный риск — переключение в модель с меньшим окном (Spark). Оно теперь сохраняет настоящий
++thread и падает громко при переполнении вместо превентивного lossy reset.
++
++## Источники
++
++- **[M1], tier 1 direct measurement:** `docs/tasks/243/probe-results.json`, финальные
++  независимые ветки Sol→Sol, Sol→Luna и Sol→Spark одного semantic canary.
++- **[M2], tier 1 direct measurement:** `docs/tasks/243/probe-spark-overflow.json`, Spark
++  overflow canary.
++- **[C1], tier 2 primary source:** `app/backend_codex.py` (`thread/resume`, `turn/start`, token
++  accounting, price table) и `app/session.py:2837-2867` (reset predicate).
+diff --git a/docs/workers/feat-runtime-switch.md b/docs/workers/feat-runtime-switch.md
+index f4353197970bbd95e3c000da4dadc9cde752a332..536260567377be306d6378767df66ef7f43e1f11 100644
+--- a/docs/workers/feat-runtime-switch.md
++++ b/docs/workers/feat-runtime-switch.md
+@@ -5,3 +5,4 @@
+ - Merge фикса `app/mcp_stdio.py` в `main` не обновляет уже запущенный MCP subprocess этого long-lived worker: перед повторной проверкой исправленного тула нужен reconnect, иначе он продолжит исполнять pre-merge код своей ветки.
+ - Для внешнего review и handoff указывать immutable commit SHA, а не имя рабочей ветки: Orchestra может перенести persistent worker на `adhoc-*`, после чего diff по прежней `task-*` ветке станет пустым.
+ - Ошибки чужого протокола не типизировать по substring свободного `message`: сперва проверить `code`/`data`/parameter field на реальном response; структурного discriminator нет → fail-loud без догадочного fallback.
++- Semantic resume-canary хранит маркер только в СТАРОМ ходе: не повторять его в текущем system/developer prompt, иначе точный recall — ложноположительный.
+diff --git a/tests/test_runtime_registry.py b/tests/test_runtime_registry.py
+index 768926d46349aeb55d694bde7b61378d20a0422f..4fa6faaae122a81af7cc4ba8fbc62c0a765d711f 100644
+--- a/tests/test_runtime_registry.py
++++ b/tests/test_runtime_registry.py
+@@ -32,7 +32,7 @@ def test_builtin_runtime_capabilities_are_explicit():
+     assert codex.event_stream == "per_turn"
+     assert codex.mid_turn_inject is True
+     assert codex.process_liveness is True
+-    assert codex.resume_across_models is False
++    assert codex.resume_across_models is True
+ 
+     assert {
+         "claude": claude.hibernate,
+diff --git a/tests/test_session.py b/tests/test_session.py
+index 65710192c3e894e4418d56be23c2d360232beef4..8e95f4939cd0e24c9c1dbdb13841331adedd29e8 100644
+--- a/tests/test_session.py
++++ b/tests/test_session.py
+@@ -3890,7 +3890,7 @@ class TestRuntimeCapabilities:
+         session._admission_service.assert_not_awaited()
+ 
+     @pytest.mark.asyncio
+-    async def test_codex_model_switch_starts_fresh_native_thread(
++    async def test_codex_model_switch_preserves_native_thread(
+             self, session, monkeypatch):
+         from app.session import AgentStatus
+ 
+@@ -3910,10 +3910,17 @@ class TestRuntimeCapabilities:
+         result = await session.change_model("gpt-5.6-sol")
+ 
+         assert result["runtime_changed"] is False
+-        assert result["native_session_reset"] is True
+-        assert session.session_id is None
+-        assert session.runtime_handoff == "provider-neutral handoff"
+-        assert session.session_id_history[-1]["session_id"] == "codex-native-session"
++        assert result["native_session_reset"] is False
++        assert session.session_id == "codex-native-session"
++        assert session.runtime_handoff == ""
++        assert session.session_id_history == []
++        session._build_runtime_handoff.assert_not_awaited()
++        with patch("app.session.build_backend") as build:
++            session._make_backend()
++        runtime_id, context = build.call_args.args
++        assert runtime_id == "codex"
++        assert context.model == "gpt-5.6-sol"
++        assert context.resume_session_id == "codex-native-session"
+ 
+     @pytest.mark.asyncio
+     async def test_runtime_handoff_is_one_shot_user_message_context(self, session):

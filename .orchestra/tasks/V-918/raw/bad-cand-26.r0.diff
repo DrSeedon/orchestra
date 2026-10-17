@@ -1,0 +1,66 @@
+diff --git a/app/routes/system.py b/app/routes/system.py
+index bef4d9a65effa108c7b9425b74050f7464750272..1b7e96ed294d45b13b57455e22a08fbcf6822f17 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -197,14 +197,17 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
+ 
+ 
+ @router.get("/api/files/raw")
+-async def get_file_raw(path: str):
++async def get_file_raw(path: str, download: bool = False):
+     if not _is_safe_path(path):
+         return JSONResponse({"error": "access denied"}, status_code=403)
+     from starlette.responses import FileResponse
+     target = Path(path)
+     if not target.is_file():
+         return JSONResponse({"error": "not found"}, status_code=404)
+-    return FileResponse(str(target))
++    # download=1 forces a save dialog (Content-Disposition: attachment); default lets
++    # the browser render inline (used for HTML preview in a new tab).
++    filename = target.name if download else None
++    return FileResponse(str(target), filename=filename)
+ 
+ 
+ @router.get("/api/files/content")
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index cc4dd84934ae652c6a1eb74a45c1a5cf846d563d..60dac8cd07422100cc7bcde53961cc6bac603325 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -3108,18 +3108,26 @@ function addChatEntry(type, content, ts, anchor, payload) {
+                 }
+                 const fp = lastTool.dataset.filePath;
+                 if (!hasError && fp) {
+-                    const openBtn = document.createElement('button');
+-                    openBtn.textContent = '📂 Открыть';
+-                    openBtn.style.cssText = 'margin-top:4px;padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
+-                    openBtn.onmouseenter = () => { openBtn.style.borderColor = 'rgba(99,102,241,0.6)'; openBtn.style.color = '#c7d2fe'; };
+-                    openBtn.onmouseleave = () => { openBtn.style.borderColor = 'rgba(99,102,241,0.3)'; openBtn.style.color = '#a5b4fc'; };
+-                    openBtn.onclick = () => {
+-                        fetch(`/api/open-file?path=${encodeURIComponent(fp)}`)
+-                            .then(r => { if (r.status === 403) throw new Error('disabled'); if (!r.ok) throw new Error('fail'); return r.json(); })
+-                            .then(() => { openBtn.textContent = '✅ Opened'; setTimeout(() => { openBtn.textContent = '📂 Открыть'; }, 1500); })
+-                            .catch(e => { openBtn.textContent = e.message === 'disabled' ? '🚫 Disabled on server' : '❌ Not found'; setTimeout(() => { openBtn.textContent = '📂 Открыть'; }, 2000); });
++                    const btnRow = document.createElement('div');
++                    btnRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
++                    const _fileBtn = (label, onClick) => {
++                        const b = document.createElement('button');
++                        b.textContent = label;
++                        b.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
++                        b.onmouseenter = () => { b.style.borderColor = 'rgba(99,102,241,0.6)'; b.style.color = '#c7d2fe'; };
++                        b.onmouseleave = () => { b.style.borderColor = 'rgba(99,102,241,0.3)'; b.style.color = '#a5b4fc'; };
++                        b.onclick = onClick;
++                        return b;
+                     };
+-                    lastTool.appendChild(openBtn);
++                    btnRow.appendChild(_fileBtn('📥 Download', () => {
++                        window.open(`/api/files/raw?path=${encodeURIComponent(fp)}&download=1`, '_blank');
++                    }));
++                    if (/\.html?$/i.test(fp)) {
++                        btnRow.appendChild(_fileBtn('👁 Preview', () => {
++                            window.open(`/api/files/raw?path=${encodeURIComponent(fp)}`, '_blank');
++                        }));
++                    }
++                    lastTool.appendChild(btnRow);
+                 }
+                 addTimestamp(lastTool, ts);
+                 return;

@@ -1,0 +1,1359 @@
+diff --git a/app/tg_bridge.py b/app/tg_bridge.py
+index 221ee14e091726e729305c2948373b36ef483784..c2c8fb3f16640c0a65fff58b301354768809bbba 100644
+--- a/app/tg_bridge.py
++++ b/app/tg_bridge.py
+@@ -14,7 +14,12 @@ from pathlib import Path
+ 
+ import aiohttp
+ from aiogram import Bot, Dispatcher, types, F
+-from aiogram.exceptions import TelegramRetryAfter
++from aiogram.exceptions import (
++    TelegramBadRequest,
++    TelegramNetworkError,
++    TelegramRetryAfter,
++    TelegramServerError,
++)
+ from aiogram.client.default import DefaultBotProperties
+ from telegramify_markdown import convert as md_convert
+ 
+@@ -424,20 +429,11 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
+         e.offset += offsets[2]
+     for e in result_ents:
+         e.offset += offsets[6]
+-    try:
+-        entities = [
+-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
+-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
+-        ] + tool_ents + result_ents
+-        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+-    except Exception as e:
+-        if "message is not modified" in str(e).lower():
+-            return
+-        try:
+-            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+-        except Exception as e2:
+-            if "message is not modified" not in str(e2).lower():
+-                logger.warning(f"TG edit failed: {e2}")
++    entities = [
++        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
++        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
++    ] + tool_ents + result_ents
++    await _tg_edit_message_safe(chat_id, msg.message_id, text, entities)
+ 
+ 
+ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
+@@ -447,17 +443,8 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
+     text = f"{header}\n{conv_body}"
+     offset = _utf16_len(header) + 1
+     length = _utf16_len(conv_body)
+-    try:
+-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+-        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+-    except Exception as e:
+-        if "message is not modified" in str(e).lower():
+-            return
+-        try:
+-            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+-        except Exception as e2:
+-            if "message is not modified" not in str(e2).lower():
+-                logger.warning(f"TG edit failed: {e2}")
++    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
++    await _tg_edit_message_safe(chat_id, msg.message_id, text, entities)
+ 
+ 
+ # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
+@@ -470,15 +457,8 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str)
+     text = f"{header}\n{conv_body}"
+     offset = _utf16_len(header) + 1
+     length = _utf16_len(conv_body)
+-    try:
+-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+-        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+-    except Exception:
+-        try:
+-            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
+-        except Exception as e:
+-            logger.warning(f"TG send failed: {e}")
+-            return None
++    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
++    return await _tg_send_safe(chat_id, text, thread_id, entities=entities)
+ 
+ 
+ TG_MSG_LIMIT = 4096
+@@ -513,47 +493,178 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
+     return chunks
+ 
+ 
+-_flood_until: float = 0
+-_last_send: float = 0
+-# TG allows ~1 msg/sec per chat — enforce minimum interval to avoid flood errors
+-_TG_MIN_INTERVAL = 1.0
++def _formatted_chunks(text: str) -> list[tuple[str, list | None]]:
++    """Convert first, then enforce Telegram's limit on the final payload."""
++    converted, entities = _md_entities(text)
++    if _utf16_len(converted) <= TG_MSG_LIMIT:
++        return [(converted, entities or None)]
++    return [(chunk, None) for chunk in _split_message(converted)]
+ 
+ 
+-# Rate-limited send with flood control: waits out flood bans before retrying important messages.
+-# Non-important messages are silently dropped after a flood to avoid queue buildup.
+-async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
+-                         entities=None, important: bool = False):
+-    global _flood_until, _last_send
+-    now = asyncio.get_event_loop().time()
+-    if _flood_until > now:
+-        await asyncio.sleep(_flood_until - now + 0.1)
+-        now = asyncio.get_event_loop().time()
+-    gap = now - _last_send
+-    if gap < _TG_MIN_INTERVAL:
+-        await asyncio.sleep(_TG_MIN_INTERVAL - gap)
+-    try:
+-        result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
+-                                         parse_mode=None, entities=entities)
+-        _last_send = asyncio.get_event_loop().time()
+-        return result
+-    except TelegramRetryAfter as e:
+-        _flood_until = asyncio.get_event_loop().time() + e.retry_after
+-        logger.warning(f"TG flood: pausing {e.retry_after}s")
+-        if important:
+-            await asyncio.sleep(e.retry_after + 0.5)
++_TG_GROUP_INTERVAL = 3.05
++_TG_PRIVATE_INTERVAL = 1.05
++_TG_IMPORTANT_ATTEMPTS = 3
++_TG_NETWORK_RETRY_DELAY = 1.0
++_TG_RETRY_AFTER_MARGIN = 0.25
++_TG_ENTITY_REJECTED = object()
++_tg_chat_locks: dict[int, asyncio.Lock] = {}
++_tg_flood_until: dict[int, float] = {}
++_tg_last_send: dict[int, float] = {}
++
++
++def _reset_tg_delivery_state() -> None:
++    _tg_chat_locks.clear()
++    _tg_flood_until.clear()
++    _tg_last_send.clear()
++
++
++def _tg_interval(chat_id: int) -> float:
++    return _TG_GROUP_INTERVAL if chat_id < 0 else _TG_PRIVATE_INTERVAL
++
++
++async def _tg_call_safe(chat_id: int, call, *, important: bool = False, label: str = "call"):
++    """Serialize one chat, retry important transient failures, shed low-value bursts."""
++    loop = asyncio.get_running_loop()
++    lock = _tg_chat_locks.setdefault(chat_id, asyncio.Lock())
++    interval = _tg_interval(chat_id)
++    now = loop.time()
++    if not important and (
++        lock.locked()
++        or _tg_flood_until.get(chat_id, 0) > now
++        or now - _tg_last_send.get(chat_id, 0) < interval
++    ):
++        logger.debug(f"TG {label} dropped before queue: chat={chat_id}")
++        return None
++
++    attempts = _TG_IMPORTANT_ATTEMPTS if important else 1
++    async with lock:
++        for attempt in range(1, attempts + 1):
++            now = loop.time()
++            flood_wait = _tg_flood_until.get(chat_id, 0) - now
++            interval_wait = interval - (now - _tg_last_send.get(chat_id, 0))
++            wait = max(0, flood_wait, interval_wait)
++            if wait:
++                await asyncio.sleep(wait)
++            # A timeout is ambiguous: Telegram may have accepted the request. Count
++            # every attempt, not only confirmed responses, before any retry.
++            _tg_last_send[chat_id] = loop.time()
+             try:
+-                result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
+-                                                parse_mode=None, entities=entities)
+-                _last_send = asyncio.get_event_loop().time()
++                result = await call()
+                 return result
+-            except Exception as e2:
+-                logger.warning(f"TG important message LOST after flood retry: {e2}; text[:80]={text[:80]!r}")
+-        return None
+-    except Exception as e:
+-        logger.warning(f"TG send failed: {e}")
++            except TelegramRetryAfter as e:
++                _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
++                logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
++                if not important or attempt == attempts:
++                    break
++            except (TelegramNetworkError, TelegramServerError) as e:
++                if important and attempt < attempts:
++                    logger.warning(
++                        f"TG {label} ambiguous delivery, retry {attempt + 1}/{attempts}: {e}"
++                    )
++                    await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
++                    continue
++                if important:
++                    logger.warning(f"TG {label} LOST after {attempt} attempts: {e}")
++                else:
++                    logger.warning(f"TG {label} failed: {e}")
++                return None
++            except Exception as e:
++                if important:
++                    logger.warning(f"TG {label} LOST: {e}")
++                else:
++                    logger.warning(f"TG {label} failed: {e}")
++                return None
++
++        if important:
++            logger.warning(f"TG {label} LOST after {attempts} flood attempts")
+         return None
+ 
+ 
++async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
++                         entities=None, important: bool = False):
++    async def _send():
++        try:
++            return await bot.send_message(
++                chat_id, text, message_thread_id=thread_id,
++                parse_mode=None, entities=entities,
++            )
++        except TelegramBadRequest:
++            if not entities:
++                raise
++            return _TG_ENTITY_REJECTED
++
++    result = await _tg_call_safe(
++        chat_id, _send, important=important, label="send_message",
++    )
++    if result is not _TG_ENTITY_REJECTED:
++        return result
++
++    logger.warning("TG formatted send rejected; trying without entities")
++
++    async def _send_plain():
++        return await bot.send_message(
++            chat_id, text, message_thread_id=thread_id,
++            parse_mode=None, entities=None,
++        )
++
++    return await _tg_call_safe(
++        chat_id, _send_plain, important=important, label="send_message_plain",
++    )
++
++
++async def _tg_edit_message_safe(chat_id: int, message_id: int, text: str, entities=None):
++    async def _edit():
++        try:
++            return await bot.edit_message_text(
++                text, chat_id=chat_id, message_id=message_id,
++                entities=entities,
++            )
++        except TelegramBadRequest as e:
++            if "message is not modified" in str(e).lower():
++                return True
++            if not entities:
++                raise
++            return _TG_ENTITY_REJECTED
++
++    result = await _tg_call_safe(chat_id, _edit, label="edit_message")
++    if result is not _TG_ENTITY_REJECTED:
++        return result
++
++    async def _edit_plain():
++        try:
++            return await bot.edit_message_text(
++                text, chat_id=chat_id, message_id=message_id,
++            )
++        except TelegramBadRequest as e:
++            if "message is not modified" in str(e).lower():
++                return True
++            raise
++
++    return await _tg_call_safe(chat_id, _edit_plain, label="edit_message_plain")
++
++
++async def _tg_send_file_safe(
++    chat_id: int, path: str, caption: str | None, thread_id: int | None,
++    *, is_photo: bool, important: bool,
++):
++    from aiogram.types import FSInputFile
++
++    async def _send():
++        tg_file = FSInputFile(path, filename=Path(path).name)
++        if is_photo:
++            return await bot.send_photo(
++                chat_id, tg_file, caption=caption, message_thread_id=thread_id,
++            )
++        return await bot.send_document(
++            chat_id, tg_file, caption=caption, message_thread_id=thread_id,
++        )
++
++    label = "send_photo" if is_photo else "send_document"
++    return await _tg_call_safe(
++        chat_id, _send, important=important, label=label,
++    )
++
++
+ _TG_TOOL_ICONS = {
+     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
+     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
+@@ -758,7 +869,7 @@ def _find_thread_for_scope(scope: str) -> int | None:
+     return None
+ 
+ 
+-async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: bool):
++async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: bool):
+     mirror = config.get("mirrors", {}).get(orch_name)
+     if not mirror or not bot:
+         return
+@@ -766,13 +877,9 @@ async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: boo
+     topic_id = mirror.get("topic_id")
+     if not chat_id:
+         return
+-    try:
+-        if is_photo:
+-            await bot.send_photo(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+-        else:
+-            await bot.send_document(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+-    except Exception as e:
+-        logger.warning(f"Mirror file send failed for {orch_name}: {e}")
++    await _tg_send_file_safe(
++        chat_id, path, caption, topic_id, is_photo=is_photo, important=True,
++    )
+ 
+ 
+ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
+@@ -800,36 +907,17 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
+         return {"error": f"no TG topic for scope: {scope}"}
+     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
+     label = label[:1024]
+-    try:
+-        from aiogram.types import FSInputFile
+-        tg_file = FSInputFile(path, filename=fp.name)
+-        is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
+-        if is_photo:
+-            msg = await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+-        else:
+-            msg = await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+-        logger.info(f"send_file: delivered msg_id={msg.message_id} chat_id={msg.chat.id} thread={getattr(msg, 'message_thread_id', None)}")
+-        if orch_name:
+-            mirror_file = FSInputFile(path, filename=fp.name)
+-            await _mirror_send_file(orch_name, mirror_file, label, is_photo)
+-        return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
+-    except TelegramRetryAfter as e:
+-        logger.warning(f"send_file flood: retry after {e.retry_after}s")
+-        await asyncio.sleep(e.retry_after + 0.5)
+-        try:
+-            tg_file2 = FSInputFile(path, filename=fp.name)
+-            if is_photo:
+-                msg2 = await bot.send_photo(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
+-            else:
+-                msg2 = await bot.send_document(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
+-            logger.info(f"send_file retry: delivered msg_id={msg2.message_id} chat_id={msg2.chat.id}")
+-            return {"ok": True, "message_id": msg2.message_id, "chat_id": msg2.chat.id}
+-        except Exception as e2:
+-            logger.error(f"send_file retry failed: {e2}")
+-            return {"error": f"Send failed after flood retry: {e2}"}
+-    except Exception as e:
+-        logger.error(f"send_file exception: type={type(e).__name__} err={e}")
+-        return {"error": str(e)}
++    is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
++    msg = await _tg_send_file_safe(
++        config["group_id"], path, label, thread_id,
++        is_photo=is_photo, important=True,
++    )
++    if msg is None:
++        return {"error": "TG file delivery failed; see tg-bridge logs"}
++    logger.info(f"send_file: delivered msg_id={msg.message_id} chat_id={msg.chat.id} thread={getattr(msg, 'message_thread_id', None)}")
++    if orch_name:
++        await _mirror_send_file(orch_name, path, label, is_photo)
++    return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
+ 
+ 
+ _topic_status = {}
+@@ -905,33 +993,37 @@ _ICON_IDLE = "5350392020785437399"
+ async def _update_topic_status(orch_name: str, is_running: bool):
+     if _topic_status.get(orch_name) == is_running:
+         return
+-    _topic_status[orch_name] = is_running
+     short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
+     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
+ 
+     async def _do_edit(chat_id, thread_id):
+-        for attempt in range(3):
++        async def _edit():
+             try:
+-                await bot.edit_forum_topic(chat_id=chat_id, message_thread_id=thread_id,
+-                                           name=short, icon_custom_emoji_id=icon_id)
+-                return
+-            except TelegramRetryAfter as e:
+-                await asyncio.sleep(e.retry_after + 0.5)
+-            except Exception as e:
+-                if "TOPIC_NOT_MODIFIED" in str(e):
+-                    return
+-                logger.debug(f"Topic icon update failed: {e}")
+-                return
++                return await bot.edit_forum_topic(
++                    chat_id=chat_id, message_thread_id=thread_id,
++                    name=short, icon_custom_emoji_id=icon_id,
++                )
++            except TelegramBadRequest as e:
++                if "TOPIC_NOT_MODIFIED" in str(e).upper():
++                    return True
++                raise
++
++        return await _tg_call_safe(
++            chat_id, _edit, label="topic_status",
++        )
+ 
+     thread_id = config["topics"].get(orch_name)
++    primary_updated = False
+     if thread_id and bot:
+-        await _do_edit(config["group_id"], thread_id)
++        primary_updated = await _do_edit(config["group_id"], thread_id) is not None
+     mirror = config.get("mirrors", {}).get(orch_name)
+     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
+         await _do_edit(mirror["chat_id"], mirror["topic_id"])
++    if primary_updated:
++        _topic_status[orch_name] = is_running
+ 
+ 
+-async def _mirror_send(orch_name: str, text: str, entities=None):
++async def _mirror_send(orch_name: str, text: str, entities=None, *, important: bool = False):
+     mirrors = config.get("mirrors", {})
+     mirror = mirrors.get(orch_name)
+     if not mirror or not bot:
+@@ -940,10 +1032,9 @@ async def _mirror_send(orch_name: str, text: str, entities=None):
+     topic_id = mirror.get("topic_id")
+     if not chat_id:
+         return
+-    try:
+-        await bot.send_message(chat_id, text, message_thread_id=topic_id, entities=entities)
+-    except Exception as e:
+-        logger.warning(f"Mirror send failed for {orch_name}: {e}")
++    return await _tg_send_safe(
++        chat_id, text, topic_id, entities=entities, important=important,
++    )
+ 
+ 
+ async def ensure_topics():
+@@ -1018,8 +1109,9 @@ async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str)
+     with open(tmp, "wb") as f:
+         f.write(png)
+     try:
+-        from aiogram.types import FSInputFile
+-        await bot.send_photo(chat_id, FSInputFile(tmp), message_thread_id=thread_id)
++        await _tg_send_file_safe(
++            chat_id, tmp, None, thread_id, is_photo=True, important=False,
++        )
+     finally:
+         try:
+             os.unlink(tmp)
+@@ -1192,13 +1284,17 @@ async def stream_logs(orch_name: str, thread_id: int):
+                             img_path = img_match.group(1)
+                             caption = c.replace(img_path, '').strip()[:1024] or None
+                             try:
+-                                from aiogram.types import FSInputFile
+-                                tg_file = FSInputFile(img_path)
+-                                await bot.send_photo(config["group_id"], tg_file, caption=caption, message_thread_id=thread_id)
++                                await _tg_send_file_safe(
++                                    config["group_id"], img_path, caption, thread_id,
++                                    is_photo=True, important=True,
++                                )
+                                 mirror = config.get("mirrors", {}).get(orch_name)
+                                 if mirror and mirror.get("chat_id"):
+-                                    mirror_file = FSInputFile(img_path)
+-                                    await bot.send_photo(mirror["chat_id"], mirror_file, caption=caption, message_thread_id=mirror.get("topic_id"))
++                                    await _tg_send_file_safe(
++                                        mirror["chat_id"], img_path, caption,
++                                        mirror.get("topic_id"), is_photo=True,
++                                        important=True,
++                                    )
+                             except Exception as e:
+                                 logger.warning(f"TG send photo failed: {e}")
+                             continue
+@@ -1213,18 +1309,14 @@ async def stream_logs(orch_name: str, thread_id: int):
+                         # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
+                         head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
+                         raw_text = f"{head}\n{c}"
+-                        for chunk in _split_message(raw_text):
+-                            try:
+-                                converted, ents = md_convert(chunk)
+-                                from aiogram.types import MessageEntity as AioEntity
+-                                aio_ents = [AioEntity(**e.to_dict()) for e in ents] if ents else None
+-                                await _tg_send_safe(config["group_id"], converted, thread_id,
+-                                                    entities=aio_ents, important=True)
+-                                await _mirror_send(orch_name, converted, entities=aio_ents)
+-                            except Exception as e:
+-                                logger.warning(f"text md_convert/send failed, fallback to plain: {e}; chunk[:80]={chunk[:80]!r}")
+-                                await _tg_send_safe(config["group_id"], chunk, thread_id, important=True)
+-                                await _mirror_send(orch_name, chunk)
++                        for converted, aio_ents in _formatted_chunks(raw_text):
++                            await _tg_send_safe(
++                                config["group_id"], converted, thread_id,
++                                entities=aio_ents, important=True,
++                            )
++                            await _mirror_send(
++                                orch_name, converted, entities=aio_ents, important=True,
++                            )
+                         continue
+                     elif t == "tool":
+                         tool_name = c.split(":")[0].strip() if ":" in c else "tool"
+@@ -1264,12 +1356,11 @@ async def stream_logs(orch_name: str, thread_id: int):
+                                 sm_to = sm_params.get("to", "?")
+                                 sm_msg = sm_params.get("message", "")
+                                 sm_md = f"✉️ **→ {sm_to}**\n\n{sm_msg}"
+-                                converted, entities = md_convert(sm_md)
+-                                from aiogram.types import MessageEntity as AioEntity
+-                                aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
+-                                for chunk in _split_message(converted):
+-                                    await _tg_send_safe(config["group_id"], chunk, thread_id, entities=aio_ents, important=True)
+-                                    aio_ents = None
++                                for chunk, aio_ents in _formatted_chunks(sm_md):
++                                    await _tg_send_safe(
++                                        config["group_id"], chunk, thread_id,
++                                        entities=aio_ents, important=True,
++                                    )
+                                 _last_diff_sent = True
+                             except Exception as _e:
+                                 logger.debug(f"send_message pretty format failed: {_e}")
+@@ -1319,9 +1410,11 @@ async def stream_logs(orch_name: str, thread_id: int):
+                                 _read_params = _json.loads(_last_tool_raw[_colon + 1:].strip())
+                                 _img_path = _read_params.get("file_path", "")
+                                 if _img_path and Path(_img_path).is_file():
+-                                    from aiogram.types import FSInputFile
+-                                    await bot.send_photo(config["group_id"], FSInputFile(_img_path),
+-                                                         message_thread_id=thread_id, caption=f"📷 {Path(_img_path).name}")
++                                    await _tg_send_file_safe(
++                                        config["group_id"], _img_path,
++                                        f"📷 {Path(_img_path).name}", thread_id,
++                                        is_photo=True, important=False,
++                                    )
+                                     if _last_tool_msg:
+                                         _last_tool_msg = None
+                                         _last_tool_text = ""
+@@ -1376,18 +1469,15 @@ async def stream_logs(orch_name: str, thread_id: int):
+                     else:
+                         continue
+                     is_important = t in ("text", "error", "user_message")
+-                    for chunk in _split_message(text):
+-                        try:
+-                            converted, entities = md_convert(chunk)
+-                            from aiogram.types import MessageEntity as AioEntity
+-                            aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
+-                            await _tg_send_safe(config["group_id"], converted, thread_id,
+-                                                entities=aio_ents, important=is_important)
+-                            await _mirror_send(orch_name, converted, entities=aio_ents)
+-                        except Exception:
+-                            await _tg_send_safe(config["group_id"], chunk, thread_id,
+-                                                important=is_important)
+-                            await _mirror_send(orch_name, chunk)
++                    for converted, aio_ents in _formatted_chunks(text):
++                        await _tg_send_safe(
++                            config["group_id"], converted, thread_id,
++                            entities=aio_ents, important=is_important,
++                        )
++                        await _mirror_send(
++                            orch_name, converted, entities=aio_ents,
++                            important=is_important,
++                        )
+             except Exception as e:
+                 logger.error(f"Stream error for {orch_name}: {e}")
+                 _idle_ticks = 0
+@@ -1549,6 +1639,7 @@ async def start_bridge(manager):
+     global bot, _manager, DEEPGRAM_API_KEY
+     from dotenv import load_dotenv
+     load_dotenv()
++    _reset_tg_delivery_state()
+ 
+     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
+ 
+@@ -1671,6 +1762,7 @@ async def stop_bridge():
+     # drop stale refs — a handler racing past the unhook must see inactive state
+     bot = None
+     _manager = None
++    _reset_tg_delivery_state()
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/docs/tasks/tg-message-delivery/codex-review-impl.md b/docs/tasks/tg-message-delivery/codex-review-impl.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..4515540e6904f21f9729f807515c1e6baecc8030
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/codex-review-impl.md
+@@ -0,0 +1,41 @@
++# Codex implementation review — Telegram delivery
++
++## Round 1
++
++Verdict: **NOT READY**.
++
++- `blocking: app/tg_bridge.py:_tg_call_safe` — an ambiguous network/server failure did not update `_tg_last_send`, so a retry could bypass the 3.05-second group interval.
++- `blocking: app/tg_bridge.py:_tg_send_safe` — the no-entities fallback made a second immediate Bot API request inside one limiter slot.
++- `suggestion: app/tg_bridge.py:send_message pretty path` — either classify the user-visible inter-agent message explicitly as important or make it non-important like ordinary tool chatter.
++- `question: delivery state` — confirm whether per-chat dictionaries are intentionally lifecycle/config bounded.
++
++## Resolution
++
++- Count every Bot API attempt by updating `_tg_last_send` immediately before `await call()`. Added a regression test that proves an ambiguous timeout retry consumes the interval.
++- Return an entity-rejection sentinel, then route the plain send through a second `_tg_call_safe()` invocation. Applied the same accounting to edit fallback and added a send timing regression test.
++- Kept pretty `send_message` important and documented why: it is the user-visible inter-agent message implicated in this incident, not disposable tool diagnostics.
++- Per-chat state is intentionally bounded by primary/mirror chat configuration for the current MVP and is cleared at bridge start/stop.
++
++The first persistent-session resume attempt failed with `thread/resume failed: no rollout found`. A fresh read-only review was used rather than claiming continuity or approval without evidence.
++
++## Round 2
++
++Verdict: **APPROVED**.
++
++- A: **FIXED** — every attempted request now consumes a rate slot.
++- B: **FIXED** — entity send/edit fallbacks re-enter the common limiter.
++- Prior suggestion: **addressed** in plan and implementation.
++- New blocking findings: **none**.
++- Non-blocking question retained: the local parsing-exception fallback from pretty `send_message` to `_send_expandable()` remains non-important. The primary path is important, so this rare fallback does not block the MVP fix.
++
++Independent review verification:
++
++```text
++PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest tests/test_tg_bridge.py -q -p no:cacheprovider
++52 passed in 1.70s
++
++git diff --check
++clean
++```
++
++Review session IDs: Round 1 `019f745c-b736-7e50-ae9c-d9e97a04ca3f`; independent Round 2 `019f7462-1220-7472-8dfb-ab6d98e328aa`.
+diff --git a/docs/tasks/tg-message-delivery/codex-review-plan.md b/docs/tasks/tg-message-delivery/codex-review-plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..9db19e837c3b1153155e5c88a13c9eb6d6236c4a
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/codex-review-plan.md
+@@ -0,0 +1,16 @@
++# Codex review — plan
++
++**Reviewer:** GPT-5.5, isolated read-only CLI fallback.  
++**Target:** `plan.md` checked against `app/tg_bridge.py` and `tests/test_tg_bridge.py`.  
++**Verdict:** no blocking findings; plan is fit for implementation after four clarifications.
++
++## Findings and resolution
++
++- **suggestion:** distinguish Telegram `bot.send_message` coverage from the `"send_message"` tool pretty-render branch. **ACK:** T2 AC names both paths.
++- **suggestion:** mirror file delivery also needs a fresh `FSInputFile` on retry. **ACK:** T2 AC requires primary and mirror recreation/routing.
++- **suggestion:** explicitly test the two edit helpers dropping before lock wait. **ACK:** T2 AC names `_edit_tool_with_result()` and `_edit_expandable()` and forbids invoking `edit_message_text` while busy.
++- **question:** decide whether an important retry holds the lock. **Resolved:** it holds the per-chat lock through `retry_after`/network backoff, preventing overtaking and retry stampedes; T1 AC now fixes this contract.
++
++## Verdict
++
++No unresolved blocking or disagreement. The tickets remain vertical and acyclic: reliable text, then media/edit/file coverage, then integrated evidence.
+diff --git a/docs/tasks/tg-message-delivery/codex-review-research.md b/docs/tasks/tg-message-delivery/codex-review-research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a442af886bd7ee4e09c7a2595dd6ba8eafe8e2e4
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/codex-review-research.md
+@@ -0,0 +1,28 @@
++# Codex second opinion — research
++
++**Reviewer:** GPT-5.5 via isolated read-only `codex exec` because the `codex_review` MCP method was unavailable in this worker session.  
++**Target:** `docs/tasks/tg-message-delivery/research.md` plus `app/tg_bridge.py` and `tests/test_tg_bridge.py`.  
++**Verdict:** core mechanics confirmed; implementation blocked until limiter scope and starvation policy were made explicit.
++
++## Findings
++
++- **blocking:** Locking only `_tg_send_safe()` would leave `_send_expandable`, photos, edits, files, topic status, and mirrors outside control. Either route message-producing calls through a shared per-chat limiter now or narrow the claimed fix.
++- **blocking:** The 1-second lock-free race is real and sufficient to violate the documented group limit, but Telegram does not fully document every shared flood bucket. Do not claim it exactly explains every 429 or that `GetUpdates` necessarily shares the same bucket.
++- **blocking:** `_tg_send_safe()` returning `None` does make the caller's Bot API fallback unreachable. Clarify that the fallback still works when `md_convert()` itself raises.
++- **blocking:** `send_message` pretty formatting has a separate entity-range bug: it splits converted text but applies the full-message entity list to chunk 1. Recompute entities or send split chunks plain.
++- **question:** Holding a lock through a 40-second retry prevents a stampede but may starve other topics. Specify priority/drop/backlog behavior and accept the tradeoff explicitly.
++- **suggestion:** Treat timeout retry as an at-least-once policy and log it as ambiguous because Telegram exposes no `sendMessage` idempotency key.
++- **suggestion:** The exact 3720→5262 row is strong live evidence together with the code path, but it is not stored in repository fixtures yet; add a deterministic regression test.
++
++## Resolution
++
++- **ACK:** implementation scope now covers all primary-group message-producing calls through a per-chat limiter; mirrors use separate per-chat state.
++- **ACK:** research wording now calls the limiter defect sufficient and likely major, not an exhaustive explanation of every internal flood bucket.
++- **ACK:** the `md_convert()` fallback qualification was corrected.
++- **ACK:** the implementation plan will make multi-chunk formatted messages plain, so entities cannot cross chunk boundaries.
++- **ACK:** important sends wait in per-stream SQLite order; non-important traffic drops before queueing; no extra unbounded queue is introduced. Cross-topic fairness after long flood waits remains an accepted MVP risk.
++- **ACK:** ambiguous network retries will be bounded and explicitly logged.
++
++## Final verdict
++
++No research conclusion was falsified. The tightened scope is suitable for planning and implementation.
+diff --git a/docs/tasks/tg-message-delivery/plan.md b/docs/tasks/tg-message-delivery/plan.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..5d95f7385ae6a3dd655fb53390a01b178e631f9a
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/plan.md
+@@ -0,0 +1,90 @@
++# Plan — reliable Telegram topic delivery
++
++## Scope and assumptions
++
++Fix the observed sender-side losses without restarting Orchestra or changing system/proxy configuration. The live SOCKS route, local Bot API service, and topic map are healthy; implementation stays in `app/tg_bridge.py` plus focused tests.
++
++Delivery policy:
++
++- primary agent/user/error/file messages are **important** and use bounded at-least-once retry;
++- the pretty-rendered `send_message` tool is also important because it is the user-visible record of inter-agent communication, not disposable tool diagnostics;
++- timeout retry is ambiguous and may duplicate, so it is logged explicitly;
++- tool/status/result-image/topic-icon traffic is **non-important** and drops before waiting when its chat is busy, flooded, or still inside the group interval;
++- each chat has independent state; all topics in the primary supergroup share one lock and one 3.05-second interval;
++- no explicit unbounded queue is added. Each `stream_logs()` coroutine already preserves its session's SQLite order while awaiting the per-chat lock.
++
++## Changes
++
++### `app/tg_bridge.py`
++
++1. Replace scalar `_last_send`/`_flood_until` state with per-chat locks and timestamps.
++2. Add `_tg_call_safe(chat_id, call, important, label)`:
++   - serialize calls for the same chat;
++   - use 3.05 seconds for negative group IDs and 1.05 seconds otherwise;
++   - honor `TelegramRetryAfter` without a retry stampede;
++   - retry `TelegramNetworkError` / `TelegramServerError` only for important calls, with a small bounded backoff and ambiguous-delivery logging;
++   - reject non-important calls before queueing when the chat is already busy/throttled;
++   - emit a distinct final `LOST` warning for an important call that still fails.
++3. Make `_tg_send_safe()` use the generic limiter and retry a formatted `TelegramBadRequest` once without entities.
++4. Add `_formatted_chunks()` that converts Markdown first, verifies final UTF-16 length, and sends multi-chunk output without entities.
++5. Use `_formatted_chunks()` in agent text, generic log text, and pretty `send_message` rendering.
++6. Route primary/mirror `sendMessage`, expandable sends, message edits, photos, documents, explicit files, result images, and topic-status edits through the per-chat limiter with the correct importance.
++7. Reset limiter state in the existing bridge lifecycle so tests/restarts cannot inherit stale locks or flood timestamps.
++
++### `tests/test_tg_bridge.py`
++
++Add deterministic tests using fake/`AsyncMock` bots; no Telegram or proxy access:
++
++- post-conversion Markdown table expansion is split into final payloads ≤4096 UTF-16 units with no cross-chunk entities;
++- concurrent important sends to one group are serialized by the configured interval;
++- separate chat IDs do not block each other;
++- important 429 and transient network failures retry within bounds;
++- formatted bad request retries once without entities;
++- final important failure returns `None` and emits `LOST`;
++- non-important traffic drops before queueing under contention/throttle;
++- all send attempts retain the requested `message_thread_id`;
++- explicit file delivery recreates its file object across retries and preserves topic routing.
++
++## What not to touch
++
++- no `.env`, `/etc/proxychains4.conf`, user proxychains config, systemd units, token, group IDs, or topic mappings;
++- no incoming Telegram handlers, transcription, media batching, or topic creation/deletion behavior;
++- no service restart or production Telegram send during verification;
++- no broader `tg_bridge.py` split/refactor (a separate worker already owns that initiative).
++
++## Migration and compatibility
++
++No schema/config migration. Function signatures remain compatible except internal helpers may accept an `important` flag. The only intentional behavior change is shedding non-important TG chatter during bursts instead of triggering 429 and losing important text.
++
++## Tickets
++
++### T1 — Preserve formatted agent text end to end
++- Files: `app/tg_bridge.py`, `tests/test_tg_bridge.py`
++- AC:
++  - three concurrent important sends to the same negative `chat_id` occur at least the configured interval apart;
++  - different chat IDs can send independently;
++  - `TelegramRetryAfter` and transient network/server errors retry important text within the configured bound;
++  - important retry sleeps while retaining the per-chat lock, so later callers cannot stampede or overtake the retry;
++  - an entity-related bad request retries the same visible text once with `entities=None`;
++  - the historical table shape expands beyond 4096 only after Markdown conversion, yet every emitted chunk is ≤4096 UTF-16 units and multi-chunk output has no entities;
++  - every attempt preserves the original non-null `message_thread_id`;
++  - non-important send calls return without invoking the bot when the same chat is busy or inside its interval.
++- blocked-by: none
++
++### T2 — Put media, edits, files, mirrors, and topic status behind the same per-chat policy
++- Files: `app/tg_bridge.py`, `tests/test_tg_bridge.py`
++- AC:
++  - no primary/mirror `bot.send_message`, `bot.send_photo`, `bot.send_document`, or high-frequency message edit in the delivery paths bypasses `_tg_call_safe` / `_tg_send_safe`, and the `"send_message"` tool pretty-render path uses `_formatted_chunks()`;
++  - explicit `send_file_to_tg()` treats primary and mirror delivery as important, recreates `FSInputFile` for each transient retry, preserves each topic ID, and returns the primary delivered message ID;
++  - result/diff images, `_edit_tool_with_result()`, `_edit_expandable()`, expandable output, and topic-icon updates are non-important; their `edit_message_text` / send call is not invoked while the chat lock is busy;
++  - existing topic routing/file tests remain green.
++- blocked-by: T1
++
++### T3 — Verify the integrated regression and produce evidence
++- Files: `docs/tasks/tg-message-delivery/codex-review-impl.md`, `docs/tasks/tg-message-delivery/report.md`, optional `retro.md`
++- AC:
++  - focused TG tests pass;
++  - full `UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest -x -q` passes;
++  - adversarial diff review has no unresolved blocking finding;
++  - `report.md` records test output, behavior tradeoffs, files, and the fact that no service restart occurred.
++- blocked-by: T2
+diff --git a/docs/tasks/tg-message-delivery/report.md b/docs/tasks/tg-message-delivery/report.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f8244e74914322dfee1193333eb1fe3551af737
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/report.md
+@@ -0,0 +1,79 @@
++# Report — reliable Telegram topic delivery
++
++## Outcome
++
++The missing-topic symptom was sender-side loss, not bad topic IDs or a currently dead proxy. Live evidence showed group flood errors, transient request timeouts, invalid Markdown entities, and a post-conversion 4096-unit overflow. The bridge now serializes all high-frequency message-producing operations per chat, preserves important messages with bounded retries, sheds non-important chatter before it builds backlog, and validates the final converted payload.
++
++## Root cause evidence
++
++- Orchestra journal, last 24 hours: 11 caught flood events plus 11 generic `SendMessage` flood failures, 7 `send_message` timeouts, 2 file timeouts, 2 result-image timeouts, 3 invalid entity URLs, and 1 message-too-long rejection.
++- SQLite candidate outbound volume: 60 active minutes above 20 operations/minute and a maximum of 78/minute; Telegram directly returned 429s with `retry_after=3..40s`.
++- Old concurrent limiter experiment: three same-chat callers started within `0.000014s`, `0.000010s`, and `0.000009s` despite a configured interval.
++- Exact SQLite row `265954`: raw Markdown `3720` UTF-16 units became `5262` after conversion. The fixed path emits two payloads of `4057` and `1204` units.
++- Current routing config: 25 primary topics and one mirror, with zero null/zero topic IDs.
++- `telegram-bot-api`: active/running, PID 1535, `NRestarts=0`; both proxychains configs select `socks5 127.0.0.1 12345`; three clean proxy requests succeeded in `0.405s`, `0.413s`, and `0.419s`.
++
++## Changes
++
++- `app/tg_bridge.py`
++  - per-chat lock, flood deadline, and 3.05s group / 1.05s private interval;
++  - bounded important retries for 429, network, and server failures, with explicit ambiguous-delivery and final `LOST` logs;
++  - every attempted Bot API request consumes a rate slot, including timeouts and rejected entity requests;
++  - entity fallback uses a separate limited request; file retry recreates `FSInputFile`;
++  - message, edit, photo, document, mirror, result-image, and topic-status paths use the common policy;
++  - Markdown conversion precedes UTF-16 validation; multi-chunk output is sent without cross-chunk entities.
++- `tests/test_tg_bridge.py`
++  - 14 delivery regressions covering concurrency, chat independence, 429/network/entity retries, attempt accounting, final loss, non-important shedding, Markdown expansion, topic preservation, and file recreation.
++
++## Tickets and acceptance evidence
++
++- **T1 complete:** same-group calls serialize; different chats remain independent; retries retain `message_thread_id`; post-conversion chunks remain within 4096 UTF-16 units.
++- **T2 complete:** high-frequency direct send/edit/media paths use the shared limiter; explicit file primary/mirror retries recreate file objects and preserve topic IDs.
++- **T3 complete with baseline caveat:** focused suite and adversarial review pass. The repository-wide suite cannot go green in this worker environment for unrelated pre-existing test isolation/schema failures described below.
++
++## Verification
++
++```text
++UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest -q tests/test_tg_bridge.py
++52 passed in 1.45s
++
++PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest tests/test_tg_bridge.py -q -p no:cacheprovider
++52 passed in 1.70s
++
++python -m compileall app/tg_bridge.py
++passed
++
++git diff --check
++clean
++```
++
++Repository-wide attempts stopped on unrelated baseline failures:
++
++```text
++UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest -x -q
++1 failed, 418 passed
++tests/test_mcp_stdio.py::test_list_agents_groups_by_parent
++worker PARENT_NAME leaked into the test expectation
++
++env -u WORKER_NAME -u WORKER_ROLE -u PARENT_NAME UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest -x -q
++1 failed, 557 passed, 20 skipped
++tests/test_session.py::TestStart::test_with_message_sets_running_then_idle
++sqlite3.OperationalError: no such table: bg_jobs
++```
++
++Codex Round 1 found two rate-accounting blockers. Both were reproduced with failing tests, fixed, and independently re-reviewed. Round 2: **APPROVED**, no new blocking findings. Full record: `codex-review-impl.md`.
++
++## Compatibility, risks, and operations
++
++- No schema, environment, proxy, topic-map, or systemd changes.
++- Important timeout retries are at-least-once and can duplicate a message if Telegram accepted the request but lost its response.
++- Non-important tool/status/image traffic is intentionally omitted during bursts so it cannot crowd out agent/user messages.
++- Topics in one supergroup correctly share its group quota, so important messages may be delayed under a real flood wait.
++- No production Telegram message was sent, and no service was restarted. The fix is not live until this commit is merged and Orchestra is restarted by explicit user action.
++
++## Tier-2 proposals from retro
++
++- Make test fixtures clear Orchestra worker identity variables and initialize the `bg_jobs` schema explicitly.
++- Add TTL/owner liveness handling for the shared test lock; the current lock is stale since 2026-07-01.
++
++These are logged only and were not applied because they are outside this task.
+diff --git a/docs/tasks/tg-message-delivery/research.md b/docs/tasks/tg-message-delivery/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ede923fcd09ea0fe4197fe5716bb46e11dbd5ec9
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/research.md
+@@ -0,0 +1,169 @@
++# Research — intermittent Telegram topic delivery
++
++**Date:** 2026-07-18  
++**Scope:** local Orchestra service, `app/tg_bridge.py`, live read-only SQLite data, systemd journals, and both proxychains configurations.
++
++## Question
++
++- **Context:** every active agent has an independent `stream_logs()` task, while all primary topics belong to one Telegram supergroup.
++- **Change under test:** make outbound delivery preserve important agent/user/error messages through bursts and transient Telegram/proxy failures.
++- **Baseline:** the current `_tg_send_safe()` helper plus direct `bot.send_*` / edit calls.
++- **Outcome:** no silent loss after a recoverable 429/network error, every final payload is within the Bot API limit, and important sends are serialized below the group quota.
++
++## Hypotheses considered
++
++### H1 — sender-side control is the primary cause
++
++The bridge loses messages because concurrent stream tasks bypass or race the throttle, final payload validation happens too early, and send errors are swallowed.
++
++**Falsifier:** concurrent `_tg_send_safe()` calls are serialized; the observed failures have no matching journal evidence; final post-Markdown payloads remain within 4096 units; or callers detect `None` and retry/fallback.
++
++### H2 — the current SOCKS5 route or `telegram-bot-api` process is the primary cause
++
++The bridge loses messages because the local API process or its proxy is currently unavailable.
++
++**Falsifier:** service is active without restarts, the configured SOCKS endpoint accepts TCP, and repeated Telegram HTTPS requests through that route succeed.
++
++### H3 — topic routing is the primary cause
++
++Messages land outside their forum topics because `message_thread_id` is absent or the persisted mapping contains null IDs.
++
++**Falsifier:** all configured topic IDs are non-null/non-zero and the stream path passes its persisted ID to every primary text send.
++
++### H4 — the old UTF-16 splitter bug remains unchanged
++
++The bridge splits by Python characters and breaks astral Unicode characters.
++
++**Falsifier:** `_split_message()` measures UTF-16 units and property checks keep each raw chunk within the configured limit.
++
++## Findings
++
++### F1 — group flood control is being exceeded; the limiter defect is a sufficient and likely major cause
++
++**CONFIRMED — official primary documentation, live journal records, SQLite measurement, and a three-iteration concurrency experiment.**
++
++Telegram's official FAQ says to avoid more than one message per second in one chat and that a bot cannot send more than 20 messages per minute in a group [1]. Topics do not create separate group quotas; all 25 primary topics use the same negative `group_id` in the current configuration.
++
++The code enforces only `_TG_MIN_INTERVAL = 1.0`, which permits approximately 60 calls/minute. Git history shows commit `106a439d` originally used 3 seconds for the documented group quota; commit `ee6f61ab` deliberately changed it to 1 second and queued all non-important traffic. Moreover, `_last_send` is read outside any lock. Three runs with three concurrent `_tg_send_safe()` calls produced send spans of `0.000014s`, `0.000010s`, and `0.000009s` against a configured `0.05s` interval: all coroutines slept together and then sent together.
++
++Live SQLite agent-event volume for the last 24 hours provides a candidate count of outbound Bot API operations: 234 active minutes, 60 minutes above 20 candidate calls, and a maximum of 78/minute. This is an approximation because some tool events are skipped or become edits/photos, but the journal directly confirms the result:
++
++```text
++TG flood: pausing ...                         11
++TG send failed: ... Flood control exceeded   11
++GetUpdates flood                              1
++```
++
++Observed `retry_after` values included 3–40 seconds. Several high-frequency paths (`_send_expandable`, photos, edits, files, topic-icon changes) call `bot.*` directly and therefore bypass `_tg_send_safe()` entirely. Telegram does not publish every internal flood bucket, so the lock-free limiter is not claimed as the exact explanation of every 429; it is independently sufficient to violate the documented group ceiling and matches the observed `SendMessage` failures.
++
++### F2 — recoverable send failures are silently converted to apparent success
++
++**CONFIRMED — direct code inspection plus live journal records.**
++
++`_tg_send_safe()` retries only `TelegramRetryAfter`, and only once for `important=True`. Every other exception is logged and converted to `None`. The text caller awaits the helper inside a `try` block, but does not inspect the result. Because no exception escapes, its plain-text fallback is unreachable for Bot API send errors; the fallback remains reachable for a `md_convert()` exception itself.
++
++The last 24 hours contain these concrete losses/failures:
++
++```text
++send_message request timeout                  7
++send_file request timeout                     2
++result-image request timeout                  2
++invalid local-path URL entity                 3
++message too long                              1
++topic-icon request timeout                   20
++```
++
++Network timeouts are transient candidates for bounded retry. Retrying a timed-out `sendMessage` changes delivery from at-most-once toward at-least-once and therefore carries a duplicate-message risk if Telegram accepted the first request but its response was lost.
++
++### F3 — splitting raw Markdown before conversion allows an oversized final payload
++
++**CONFIRMED — reproduced with the exact SQLite row that caused the live Bot API rejection.**
++
++The Bot API accepts 1–4096 characters after entity parsing [2]. In the agent-text path, `_split_message(raw_text)` runs before `md_convert(chunk)`. The real message in log row `265954` measured:
++
++```text
++raw_utf16=3720
++converted_utf16=5262
++preconvert_chunk_count=1
++postconvert_lengths=[5262]
++```
++
++The Markdown table conversion expanded the payload by 1542 UTF-16 units. The journal recorded `Bad Request: message is too long` four seconds later. The existing UTF-16 function is correct; the remaining bug is validation order. Long converted messages also retain an entity list for the unsplit full text in the `send_message` pretty-format path, which can make entity ranges invalid after splitting.
++
++### F4 — Markdown URL entities can turn local paths into rejected messages
++
++**CONFIRMED — three live Bot API rejections and code behavior.**
++
++The journal contains three `Bad Request: entity URL '/mnt/data/.../research.md' is invalid: URL host is empty` errors. `md_convert()` produced URL entities for local Markdown links. `_tg_send_safe()` swallowed each rejection, so the caller never resent the same visible text without entities.
++
++### F5 — current topic IDs and routing are valid
++
++**REFUTED as root cause — live configuration measurement and call-site inspection.**
++
++`data/tg_bridge.json` contains 25 primary topics and one mirror; there are zero null/zero primary topic IDs and zero null/zero mirror IDs. `stream_logs(name, thread_id)` passes that ID as `message_thread_id` on the primary text path. `send_file_to_tg()` explicitly rejects missing topic IDs instead of silently sending to the general topic. The Bot API documents `message_thread_id` as the forum-topic identifier [2].
++
++### F6 — the proxy and local API are healthy now, but transient network faults occurred
++
++**CONFIRMED for current health; LIKELY as a secondary contributor — direct measurements plus journal history.**
++
++`telegram-bot-api` is currently `active/running`, PID 1535, with `NRestarts=0` since 2026-07-18 09:21:31 +07. Its own journal had no entries in the requested last hour. Both `/etc/proxychains4.conf` and `~/.proxychains/proxychains.conf` currently select `socks5 127.0.0.1 12345`; the TCP endpoint passed 3/3 connection attempts. With inherited HTTP proxy variables removed to avoid double-proxying the diagnostic curl, Telegram HTTPS returned HTTP 302 in 3/3 runs at `0.405s`, `0.413s`, and `0.419s`.
++
++The Orchestra journal nevertheless recorded request timeouts earlier in the 24-hour window. Thus a transient route/API stall contributes to loss only because the bridge performs no bounded retry for important network failures; current proxy outage is not the primary root cause.
++
++### F7 — the old UTF-16 defect is fixed, but a related post-conversion defect remains
++
++**CONFIRMED — direct source inspection and the reproduced long-message failure.**
++
++`_utf16_len()` measures UTF-16LE code units, and `_split_message()` uses it for every fit decision. No null topic or malformed-surrogate evidence appeared. The remaining failure is not the old Python-`len()` bug: `md_convert()` changes the final text after the UTF-16 limit was checked.
++
++## Counter-evidence and limits
++
++- The proxy is healthy now, so current liveness tests cannot reproduce the earlier timeout window. The journal is the evidence for those transient failures.
++- SQLite `logs` has no `tg`/`telegram` event type; it stores agent events, not Python logger output. One older tool-result row (`249793`) embeds a copied journal excerpt with a 26-second flood pause, but it is not a first-class delivery record. Root-cause evidence therefore comes primarily from systemd journal plus deterministic code experiments.
++- The 78 calls/minute SQLite figure is a candidate Bot API operation count, not packet capture. Direct 429 journal entries independently confirm quota exhaustion.
++- Bounded retry after a network timeout can duplicate a message. There is no Bot API idempotency key for `sendMessage`; the fix must explicitly prefer at-least-once delivery for important messages and keep retries small.
++- The official FAQ states message limits, but does not fully specify how every edit/topic operation shares internal flood buckets. The observed `GetUpdates` and send flood errors show that the current aggregate traffic is already unsafe regardless of that undocumented detail.
++
++## Root cause
++
++The missing-topic symptom has three sender-side causes that compound:
++
++1. **Flooding:** a 1-second, lock-free throttle serves many concurrent topic streams in a group limited to 20 messages/minute; numerous high-frequency calls bypass the helper.
++2. **False success:** `_tg_send_safe()` catches timeout, bad-request, and other failures, returns `None`, and callers proceed as if delivery succeeded. Important messages retry only one special error class.
++3. **Invalid final payload:** raw Markdown is split before conversion, so conversion can exceed 4096 units; invalid Markdown URL entities are not retried as plain text.
++
++The live proxy, bot process, topic IDs, and the repaired raw UTF-16 splitter are not the primary causes.
++
++## Recommended fix
++
++1. Route every message-producing call in the primary group (`sendMessage`, message edits, photos, and files) through a limiter keyed by `chat_id`, then restore a group-safe ~3.05-second interval. Mirror chats get independent per-chat limiters. Under contention/flood, discard low-value tool/status/image traffic before it occupies a slot; preserve important agent/user/error/file messages in arrival order.
++2. For important `sendMessage`, retry `TelegramRetryAfter` according to `retry_after` and retry transient `TelegramNetworkError`/server errors with a small bounded backoff. Hold serialization through the wait to prevent a retry stampede.
++3. If Telegram rejects formatted entities, retry the same visible text once without entities. Log a distinct `LOST` message only after the final important attempt fails.
++4. Convert Markdown first, then check the final UTF-16 length. If it needs multiple chunks, send plain chunks so entity offsets cannot cross chunk boundaries.
++5. Hold a per-chat lock through flood/network retry so waiting coroutines cannot stampede. Do not build an unbounded explicit queue: each important `stream_logs()` coroutine blocks on the lock and therefore preserves its own SQLite order; non-important calls are rejected before waiting. This accepts possible cross-topic unfairness after a long flood wait but bounds low-value backlog for the MVP.
++6. Add unit tests for concurrent serialization, 429/network retry, entity fallback, final-payload splitting, and topic-ID preservation.
++
++## Affected files, risks, and edge cases
++
++- `app/tg_bridge.py`: outbound throttling/retry and Markdown preparation.
++- `tests/test_tg_bridge.py`: deterministic asyncio and formatting regression coverage.
++- `docs/tasks/tg-message-delivery/`: research, plan, review, and report artifacts.
++
++Risks: duplicate important message after an ambiguous network timeout; delayed important messages during a real 40-second flood wait; intentionally omitted tool/status chatter during bursts; formatting loss only for multi-chunk or entity-rejected messages. Do not restart Orchestra during implementation—the project requires explicit user approval because restart interrupts active turns.
++
++## Sources
++
++1. [Telegram Bots FAQ — rate limits](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this) — **Tier 2, primary official documentation**, opened 2026-07-18.
++2. [Telegram Bot API — `sendMessage`, `message_thread_id`, and `retry_after`](https://core.telegram.org/bots/api) — **Tier 2, primary official specification**, opened 2026-07-18.
++
++## Raw measurement commands
++
++All production data access was read-only. No Telegram message was sent during experiments.
++
++- `sqlite3 -readonly /mnt/data/Projects/Python/orchestra/data/orchestra.db ...`
++- `journalctl -u orchestra --since '24 hours ago'`
++- `systemctl show telegram-bot-api -p ActiveState -p SubState -p MainPID -p NRestarts`
++- three `nc -z 127.0.0.1 12345` checks
++- three clean-environment `proxychains4 ... curl https://api.telegram.org` checks
++- fake-bot asyncio concurrency experiment, three iterations
++- exact-row `md_convert()` reproduction for SQLite log ID `265954`
+diff --git a/docs/tasks/tg-message-delivery/retro.md b/docs/tasks/tg-message-delivery/retro.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..648ea7007e6f8a6907f624eee5aaf46c4b190a80
+--- /dev/null
++++ b/docs/tasks/tg-message-delivery/retro.md
+@@ -0,0 +1,31 @@
++# Retro — tg-message-delivery
++
++## Metrics
++
++- Tool calls: >40 | Retries: 4 (sudo diagnostics, two full-suite environment variants, one Codex session resume) | Turns: 1 | Files: 9
++- Codex: 2 blocking findings in Round 1, both fixed; independent Round 2 APPROVED | Tests: 52 focused passed; full suite stopped twice on unrelated failures | User corrections: 0
++
++## What went wrong (signal → root cause)
++
++- **Signal:** Codex Round 1 found that ambiguous failures and entity fallback could bypass the restored interval. **Root cause:** the first implementation accounted for confirmed delivery rather than Bot API request attempts, and treated fallback as formatting internals instead of a second request. **Category:** correctness.
++- **Signal:** the exact full-suite command failed after 418 passing tests because `PARENT_NAME` affected `test_list_agents_groups_by_parent`; the clean-environment retry then failed after 557 passing tests because the test DB lacked `bg_jobs`. **Root cause:** repository-wide tests are not hermetic with respect to Orchestra worker environment and background-job schema setup. **Category:** process.
++- **Signal:** the shared test lock reports owner `test-sonnet5` since 2026-07-01. **Root cause:** test-lock cleanup does not reliably expire dead owners. **Category:** process.
++- **Signal:** persistent Codex resume failed with `no rollout found`. **Root cause:** review-session state was unavailable despite a recorded session ID; an independent second review was required. **Category:** process.
++
++## What went well (keep doing)
++
++- Timing tests failed before each Round 1 fix and passed afterward, proving both rate-accounting findings rather than accepting them on authority.
++- The independent Round 2 review reran the focused suite (`52 passed`) and found no remaining blocker.
++- Read-only production measurements separated current proxy/topic health from historical sender failures without sending test messages or restarting services.
++
++## Proposed changes (Tier-2 — NOT applied, awaiting approval)
++
++| Target | Change | Evidence | Status |
++|---|---|---|---|
++| test fixtures | Clear `WORKER_NAME`, `WORKER_ROLE`, and `PARENT_NAME`; initialize the `bg_jobs` schema explicitly | two unrelated full-suite failures in one task, n=1 | logged, not promoted |
++| test lock helper | Expire locks whose owner/session is no longer alive | lock held since 2026-07-01 | logged, not promoted |
++| Codex review backend | Preserve/resume a recorded rollout or return an actionable recovery path | `thread/resume failed: no rollout found`, n=1 | logged, not promoted |
++
++## Written to worker memory (Tier-1 — applied)
++
++- none; each process signal is n=1 and not yet generalizable.
+diff --git a/tests/test_tg_bridge.py b/tests/test_tg_bridge.py
+index 57347cfb99d3296cae0608dec5156dbb5554091c..15b9814cf9d6192d1e1a00a99df2afef632c4051 100644
+--- a/tests/test_tg_bridge.py
++++ b/tests/test_tg_bridge.py
+@@ -8,9 +8,12 @@
+ """
+ 
+ import asyncio
++import time
+ from unittest.mock import AsyncMock
+ 
+ import pytest
++from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError, TelegramRetryAfter
++from aiogram.methods import SendMessage
+ 
+ 
+ @pytest.fixture
+@@ -25,6 +28,9 @@ def tb(tmp_path, monkeypatch):
+     tg_bridge._topic_status = {}
+     tg_bridge.bot = None
+     tg_bridge._pil_available = None
++    monkeypatch.setattr(tg_bridge, "_tg_chat_locks", {}, raising=False)
++    monkeypatch.setattr(tg_bridge, "_tg_flood_until", {}, raising=False)
++    monkeypatch.setattr(tg_bridge, "_tg_last_send", {}, raising=False)
+     return tg_bridge
+ 
+ 
+@@ -482,3 +488,261 @@ class TestSendFileRouting:
+         result = await tb.send_file_to_tg(file_tmp, "cap", "/s", "ghost")
+ 
+         assert "error" in result
++
++
++# ── reliable outbound delivery ─────────────────────────────────────────────
++
++
++class TestFormattedChunks:
++    def test_splits_after_markdown_expands_table(self, tb):
++        raw = (
++            f"| {'A' * 100} | B |\n"
++            "| --- | --- |\n"
++            + "\n".join("| x | y |" for _ in range(40))
++        )
++
++        converted, _ = tb.md_convert(raw)
++        chunks = tb._formatted_chunks(raw)
++
++        assert tb._utf16_len(raw) < tb.TG_MSG_LIMIT
++        assert tb._utf16_len(converted) > tb.TG_MSG_LIMIT
++        assert len(chunks) > 1
++        assert all(tb._utf16_len(text) <= tb.TG_MSG_LIMIT for text, _ in chunks)
++        assert all(entities is None for _, entities in chunks)
++
++    def test_keeps_entities_for_single_chunk(self, tb):
++        chunks = tb._formatted_chunks("hello **world**")
++
++        assert len(chunks) == 1
++        text, entities = chunks[0]
++        assert text == "hello world"
++        assert entities
++
++
++class TestTgSendSafe:
++    @pytest.mark.asyncio
++    async def test_serializes_concurrent_group_sends(self, tb, monkeypatch):
++        sent_at = []
++
++        async def send_message(*args, **kwargs):
++            sent_at.append(time.monotonic())
++            return object()
++
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = send_message
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.02)
++
++        await asyncio.gather(*(
++            tb._tg_send_safe(-100, f"m{i}", 42, important=True)
++            for i in range(3)
++        ))
++
++        assert len(sent_at) == 3
++        assert sent_at[1] - sent_at[0] >= 0.018
++        assert sent_at[2] - sent_at[1] >= 0.018
++
++    @pytest.mark.asyncio
++    async def test_different_chats_do_not_share_lock(self, tb, monkeypatch):
++        both_started = asyncio.Event()
++        started = []
++
++        async def send_message(chat_id, *args, **kwargs):
++            started.append(chat_id)
++            if len(started) == 2:
++                both_started.set()
++            await asyncio.wait_for(both_started.wait(), timeout=0.1)
++            return object()
++
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = send_message
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
++
++        await asyncio.gather(
++            tb._tg_send_safe(-100, "a", 1, important=True),
++            tb._tg_send_safe(-200, "b", 2, important=True),
++        )
++
++        assert set(started) == {-100, -200}
++
++    @pytest.mark.asyncio
++    async def test_retries_rate_limit_with_same_thread(self, tb, monkeypatch):
++        method = SendMessage(chat_id=-100, text="hello")
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = [
++            TelegramRetryAfter(method=method, message="flood", retry_after=0),
++            object(),
++        ]
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
++        monkeypatch.setattr(tb, "_TG_RETRY_AFTER_MARGIN", 0)
++
++        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
++
++        assert result is not None
++        assert tb.bot.send_message.await_count == 2
++        assert [c.kwargs["message_thread_id"] for c in tb.bot.send_message.await_args_list] == [77, 77]
++
++    @pytest.mark.asyncio
++    async def test_retries_ambiguous_network_error(self, tb, monkeypatch, caplog):
++        method = SendMessage(chat_id=-100, text="hello")
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = [
++            TelegramNetworkError(method=method, message="timeout"),
++            object(),
++        ]
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
++        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
++
++        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
++
++        assert result is not None
++        assert tb.bot.send_message.await_count == 2
++        assert "ambiguous delivery" in caplog.text
++
++    @pytest.mark.asyncio
++    async def test_network_retry_counts_failed_request_against_interval(self, tb, monkeypatch):
++        method = SendMessage(chat_id=-100, text="hello")
++        started = []
++
++        async def send_message(*args, **kwargs):
++            started.append(asyncio.get_running_loop().time())
++            if len(started) == 1:
++                raise TelegramNetworkError(method=method, message="timeout")
++            return object()
++
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = send_message
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.03)
++        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
++
++        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
++
++        assert result is not None
++        assert started[1] - started[0] >= 0.025
++
++    @pytest.mark.asyncio
++    async def test_retries_bad_entities_as_plain_text(self, tb, monkeypatch):
++        method = SendMessage(chat_id=-100, text="local path")
++
++        async def send_message(*args, **kwargs):
++            if kwargs.get("entities"):
++                raise TelegramBadRequest(method=method, message="entity URL is invalid")
++            return object()
++
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = send_message
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
++
++        result = await tb._tg_send_safe(-100, "local path", 77, entities=[object()], important=True)
++
++        assert result is not None
++        assert tb.bot.send_message.await_count == 2
++        assert tb.bot.send_message.await_args_list[1].kwargs["entities"] is None
++
++    @pytest.mark.asyncio
++    async def test_plain_entity_fallback_uses_a_new_rate_slot(self, tb, monkeypatch):
++        method = SendMessage(chat_id=-100, text="local path")
++        started = []
++
++        async def send_message(*args, **kwargs):
++            started.append(asyncio.get_running_loop().time())
++            if kwargs.get("entities"):
++                raise TelegramBadRequest(method=method, message="entity URL is invalid")
++            return object()
++
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = send_message
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.03)
++
++        result = await tb._tg_send_safe(
++            -100, "local path", 77, entities=[object()], important=True,
++        )
++
++        assert result is not None
++        assert started[1] - started[0] >= 0.025
++
++    @pytest.mark.asyncio
++    async def test_logs_lost_after_final_network_failure(self, tb, monkeypatch, caplog):
++        method = SendMessage(chat_id=-100, text="hello")
++        tb.bot = AsyncMock()
++        tb.bot.send_message.side_effect = TelegramNetworkError(method=method, message="timeout")
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
++        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
++
++        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
++
++        assert result is None
++        assert tb.bot.send_message.await_count == tb._TG_IMPORTANT_ATTEMPTS
++        assert "LOST" in caplog.text
++
++    @pytest.mark.asyncio
++    async def test_drops_nonimportant_call_while_chat_busy(self, tb):
++        tb.bot = AsyncMock()
++        lock = asyncio.Lock()
++        await lock.acquire()
++        tb._tg_chat_locks[-100] = lock
++        try:
++            result = await tb._tg_send_safe(-100, "tool", 77, important=False)
++        finally:
++            lock.release()
++
++        assert result is None
++        tb.bot.send_message.assert_not_awaited()
++
++    @pytest.mark.asyncio
++    async def test_drops_nonimportant_call_inside_interval(self, tb, monkeypatch):
++        tb.bot = AsyncMock()
++        tb.bot.send_message.return_value = object()
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 10)
++
++        first = await tb._tg_send_safe(-100, "tool-1", 77)
++        second = await tb._tg_send_safe(-100, "tool-2", 77)
++
++        assert first is not None
++        assert second is None
++        tb.bot.send_message.assert_awaited_once()
++
++    @pytest.mark.asyncio
++    async def test_drops_edit_before_lock_wait(self, tb):
++        tb.bot = AsyncMock()
++        lock = asyncio.Lock()
++        await lock.acquire()
++        tb._tg_chat_locks[-100] = lock
++        try:
++            result = await tb._tg_edit_message_safe(-100, 5, "updated", [object()])
++        finally:
++            lock.release()
++
++        assert result is None
++        tb.bot.edit_message_text.assert_not_awaited()
++
++
++class TestSendFileRetry:
++    @pytest.mark.asyncio
++    async def test_recreates_files_for_primary_and_mirror_retry(self, tb, tmp_path, monkeypatch):
++        path = tmp_path / "report.txt"
++        path.write_text("hello")
++        method = SendMessage(chat_id=-100, text="file placeholder")
++        primary = type("M", (), {
++            "message_id": 5,
++            "chat": type("C", (), {"id": -100123456})(),
++            "message_thread_id": 555,
++        })()
++        tb.bot = AsyncMock()
++        tb.bot.send_document.side_effect = [
++            TelegramNetworkError(method=method, message="timeout"),
++            primary,
++            TelegramNetworkError(method=method, message="timeout"),
++            object(),
++        ]
++        tb.config["topics"] = {"worker-a": 555}
++        tb.config["mirrors"] = {"worker-a": {"chat_id": -200, "topic_id": 666}}
++        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
++        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
++
++        result = await tb.send_file_to_tg(str(path), "cap", "/s", "worker-a", as_document=True)
++
++        assert result["ok"] is True
++        assert tb.bot.send_document.await_count == 4
++        files = [call.args[1] for call in tb.bot.send_document.await_args_list]
++        assert len({id(file) for file in files}) == 4
++        assert [call.kwargs["message_thread_id"] for call in tb.bot.send_document.await_args_list] == [555, 555, 666, 666]

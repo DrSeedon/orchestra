@@ -1,0 +1,716 @@
+diff --git a/app/backend_claude.py b/app/backend_claude.py
+index 34abc9fd40158a84e5203445cc18f591ca3c0b66..b5408e17f6c6715079bdf67c7ddf9970c6662abc 100644
+--- a/app/backend_claude.py
++++ b/app/backend_claude.py
+@@ -240,69 +240,92 @@ class ClaudeBackend:
+             await self._cleanup_failed_client()
+             raise
+ 
++    @staticmethod
++    def _tag_sub(event: AgentEvent, sub_id) -> AgentEvent:
++        """Mark an event as belonging to a sub-agent so the UI nests it.
++
++        sub_id None (main agent) → event unchanged. Otherwise stamp subagent_id;
++        the type is preserved (tool_use stays tool_use) — the frontend groups by
++        subagent_id, not by a renamed type."""
++        if sub_id is not None:
++            event.metadata = {**event.metadata, "subagent_id": sub_id}
++        return event
++
+     def _convert(self, msg) -> list[AgentEvent]:
+         events = []
+         if isinstance(msg, StreamEvent):
+-            # v1 streaming scope: ONLY main-agent text. Skip subagent partials
+-            # (parent_tool_use_id set) and non-text deltas (thinking/tool-arg/sig).
+-            # The final AssistantMessage still carries everything and is persisted.
++            # Main-agent text partials → "stream". Subagent partials (parent_tool_use_id
++            # set) → "subagent_stream" tagged with sub_id so the UI nests them under the
++            # sub-agent block instead of dropping them (which looked like a hang).
+             ev = msg.event or {}
+-            if msg.parent_tool_use_id is not None:
+-                return events
+             if ev.get("type") != "content_block_delta":
+                 return events
+             delta = ev.get("delta") or {}
+             if delta.get("type") != "text_delta":
+                 return events
+             text = delta.get("text") or ""
+-            if text:
++            if not text:
++                return events
++            sub_id = msg.parent_tool_use_id
++            if sub_id is not None:
++                events.append(AgentEvent("subagent_stream", text, metadata={"subagent_id": sub_id}))
++            else:
+                 events.append(AgentEvent("stream", text))
+             return events
+ 
+         if isinstance(msg, AssistantMessage):
++            # Subagent messages carry parent_tool_use_id → tag events so the UI groups
++            # them under the sub-agent block instead of mixing with the parent's stream.
++            sub_id = getattr(msg, "parent_tool_use_id", None)
+             for block in msg.content:
+                 if isinstance(block, TextBlock) and block.text:
+-                    events.append(AgentEvent("text", block.text))
++                    events.append(self._tag_sub(AgentEvent("text", block.text), sub_id))
+                 elif isinstance(block, ThinkingBlock) and block.thinking:
+-                    events.append(AgentEvent("thinking", block.thinking))
++                    events.append(self._tag_sub(AgentEvent("thinking", block.thinking), sub_id))
+                 elif isinstance(block, ToolUseBlock):
+                     try:
+                         inp = _json.dumps(block.input, ensure_ascii=False, indent=2)
+                     except Exception:
+                         inp = str(block.input)
+                     short_name = block.name.split('__')[-1] if '__' in block.name else block.name
+-                    events.append(AgentEvent("tool_use", f"{block.name}: {inp}",
+-                                             metadata={"tool_name": block.name, "short_name": short_name}))
++                    events.append(self._tag_sub(AgentEvent("tool_use", f"{block.name}: {inp}",
++                                             metadata={"tool_name": block.name, "short_name": short_name}), sub_id))
+                 elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+-                    events.append(AgentEvent("tool_result", _extract_tool_result(block)))
++                    events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
+             err = getattr(msg, "error", None)
+             if err:
+                 events.append(AgentEvent("error", f"model error: {err}"))
+ 
+         elif isinstance(msg, UserMessage):
++            sub_id = getattr(msg, "parent_tool_use_id", None)
+             if hasattr(msg, 'content') and isinstance(msg.content, list):
+                 for block in msg.content:
+                     if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+-                        events.append(AgentEvent("tool_result", _extract_tool_result(block)))
++                        events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
+ 
+         elif isinstance(msg, TaskStartedMessage):
+             desc = getattr(msg, "description", "") or ""
+             task_type = getattr(msg, "task_type", "") or ""
+             task_id = getattr(msg, "task_id", "") or ""
+-            events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}"))
++            events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}",
++                                     metadata={"subagent_id": task_id}))
+ 
+         elif isinstance(msg, TaskProgressMessage):
+             desc = getattr(msg, "description", "") or ""
+             last_tool = getattr(msg, "last_tool_name", "") or ""
++            task_id = getattr(msg, "task_id", "") or ""
+             usage = getattr(msg, "usage", None)
+             tokens = usage.total_tokens if usage and hasattr(usage, "total_tokens") else 0
+-            events.append(AgentEvent("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}"))
++            events.append(AgentEvent("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}",
++                                     metadata={"subagent_id": task_id}))
+ 
+         elif isinstance(msg, TaskNotificationMessage):
+             desc = getattr(msg, "description", "") or ""
+             status = getattr(msg, "status", "") or ""
+             summary = getattr(msg, "summary", "") or ""
+-            events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}"))
++            task_id = getattr(msg, "task_id", "") or ""
++            events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}",
++                                     metadata={"subagent_id": task_id}))
+ 
+         elif isinstance(msg, ResultMessage):
+             sr = getattr(msg, "stop_reason", None) or "unknown"
+diff --git a/app/proxy_manager.py b/app/proxy_manager.py
+index f4aad0e0f70609827caa3d5885350a0a1c969014..c21b8fe701e6eac9e89d2f3cdf08ea4d61da166e 100644
+--- a/app/proxy_manager.py
++++ b/app/proxy_manager.py
+@@ -26,8 +26,13 @@ COUNTRY_FLAGS = {
+     "IT": "🇮🇹", "PT": "🇵🇹", "DK": "🇩🇰", "LT": "🇱🇹",
+     "LV": "🇱🇻", "EE": "🇪🇪", "IS": "🇮🇸", "MD": "🇲🇩",
+ }
+-IP_CHECK_URL = "https://ipinfo.io/json"
+-IP_CHECK_TIMEOUT = 8
++# Liveness = can we reach Anthropic (what we actually use)? ANY HTTP response
++# (200/401/403/404) means the proxy tunnels fine. ipinfo.io was giving false
++# "dead" for live proxies (intermittent timeouts) — it's now best-effort geo only.
++LIVENESS_URL = "https://api.anthropic.com"
++GEO_URL = "https://ipinfo.io/json"
++CHECK_TIMEOUT = 8
++GEO_TIMEOUT = 5
+ 
+ 
+ @dataclass
+@@ -88,24 +93,36 @@ class ProxyManager:
+         return await self._do_check(entry)
+ 
+     async def _do_check(self, entry: ProxyEntry) -> dict:
++        """Two-tier: liveness via Anthropic (any HTTP response = alive), geo via
++        ipinfo (best-effort — its flakiness must NOT mark a live proxy dead)."""
++        proxy = entry.url if entry.url and entry.url != "direct" else None
+         try:
+-            kwargs = {"timeout": IP_CHECK_TIMEOUT, "verify": False}
+-            if entry.url and entry.url != "direct":
+-                kwargs["proxy"] = entry.url
+-            async with httpx.AsyncClient(**kwargs) as client:
+-                resp = await client.get(IP_CHECK_URL)
++            async with httpx.AsyncClient(timeout=CHECK_TIMEOUT, verify=False, proxy=proxy) as client:
++                await client.get(LIVENESS_URL)  # any response (200/401/403/404) = tunnel works
++        except Exception as e:
++            return {"id": entry.id, "ok": False, "error": str(e) or "unreachable"}
++        result = {"id": entry.id, "ok": True}
++        try:
++            result.update(await self._geo(proxy))  # best-effort, never flips ok
++        except Exception:
++            pass  # geo is decoration — its failure must not mark a live proxy dead
++        return result
++
++    async def _geo(self, proxy: str | None) -> dict:
++        try:
++            async with httpx.AsyncClient(timeout=GEO_TIMEOUT, verify=False, proxy=proxy) as client:
++                resp = await client.get(GEO_URL)
+                 if resp.status_code != 200:
+-                    return {"id": entry.id, "ok": False, "error": f"HTTP {resp.status_code}"}
++                    return {}
+                 data = resp.json()
+-                country = data.get("country", "??")
++                country = data.get("country", "")
+                 return {
+-                    "id": entry.id, "ok": True,
+-                    "ip": data.get("ip", "?"), "country": country,
++                    "ip": data.get("ip", ""), "country": country,
+                     "city": data.get("city", ""), "org": data.get("org", ""),
+                     "flag": COUNTRY_FLAGS.get(country, "🏳️"),
+                 }
+-        except Exception as e:
+-            return {"id": entry.id, "ok": False, "error": str(e)}
++        except Exception:
++            return {}  # geo unavailable — proxy still reported alive
+ 
+     async def list_proxies(self) -> dict:
+         """List proxies from .env. `active` = current HTTPS_PROXY (read-only).
+diff --git a/app/session.py b/app/session.py
+index 36880bfb9c51ec622dc97511421dea1e24c3d60a..debc318f28377a38309fd04bf3e52552d752a234 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -526,6 +526,23 @@ class AgentSession:
+             from app.live_broker import broker
+             broker.publish(self.id, {"type": "stream", "content": event.content})
+             return
++        if event.type == "subagent_stream":
++            # Live sub-agent output → broker only (ephemeral, like main stream).
++            # subagent_id lets the UI nest it under the right sub-agent block.
++            from app.live_broker import broker
++            broker.publish(self.id, {"type": "subagent_stream", "content": event.content,
++                                     "subagent_id": event.metadata.get("subagent_id", "")})
++            return
++        # Sub-agent tool_use/text/tool_result (tagged with subagent_id) → broker ONLY
++        # (ephemeral live nesting under the sub-agent block). NOT persisted — the DB
++        # record is subagent_start/end; persisting these too would double-render them
++        # (once in the accordion via broker, once in the main flow on reload).
++        sub_id = event.metadata.get("subagent_id")
++        if sub_id and event.type in ("tool_use", "tool_result", "text", "thinking"):
++            from app.live_broker import broker
++            broker.publish(self.id, {"type": "subagent_event", "event_type": event.type,
++                                     "content": event.content[:2000], "subagent_id": sub_id})
++            return
+         if event.type == "text":
+             from app.live_broker import broker
+             broker.clear_accum(self.id)
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 1bab70e59092b6f9ecd6b7a799de09f770b91db3..760752b90b2590ff289cf804b49a5260aa83796e 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -180,10 +180,10 @@ function connectSSE() {
+                         }
+                     }
+                 } else {
+-                    addChatEntry(l.type, l.content, l.ts);
++                    addChatEntry(l.type, l.content, l.ts, null, l);
+                 }
+             } else {
+-                addChatEntry(l.type, l.content, l.ts);
++                addChatEntry(l.type, l.content, l.ts, null, l);
+             }
+             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
+             // Live stream partials carry no id — skip id bookkeeping for them
+@@ -2063,10 +2063,48 @@ function _findLastBefore(parent, selector, anchor) {
+ }
+ 
+ const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
++
++// Append a live sub-agent log line into its accordion body. If the accordion
++// isn't there yet (race: stream before start), no-op — the sub-agent block owns
++// its own rendering; live lines are best-effort decoration.
++function appendSubagentLog(subId, evType, content) {
++    const chat = $('#chat');
++    const host = chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`);
++    if (!host) return;
++    const body = host.querySelector('.sa-body');
++    if (!body) return;
++    if (evType === 'stream') {
++        // Coalesce contiguous stream text into one line (typewriter feel)
++        let last = body.lastElementChild;
++        if (last && last.classList.contains('sa-stream')) {
++            last.textContent += content;
++        } else {
++            last = document.createElement('div');
++            last.className = 'sa-stream';
++            last.textContent = content;
++            body.appendChild(last);
++        }
++    } else {
++        const line = document.createElement('div');
++        const icon = evType === 'tool_use' ? '🔧' : evType === 'tool_result' ? '↳' : evType === 'thinking' ? '💭' : '';
++        line.style.cssText = 'margin-top:2px;color:' + (evType === 'tool_use' ? '#c4b5fd' : '#94a3b8');
++        const short = content.length > 300 ? content.slice(0, 300) + '…' : content;
++        line.textContent = `${icon} ${short}`;
++        body.appendChild(line);
++    }
++    body.scrollTop = body.scrollHeight;
++}
++
+ // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
+ // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
+-function addChatEntry(type, content, ts, anchor) {
++// payload = full SSE log object (carries subagent_id for sub-agent nesting)
++function addChatEntry(type, content, ts, anchor, payload) {
+     if (HIDE_THINKING && type === 'thinking') return;
++    // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
++    if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {
++        appendSubagentLog(payload.subagent_id, payload.event_type || 'stream', content);
++        return;
++    }
+     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
+     const chat = $('#chat');
+     let _insertedBeforeStream = false;
+@@ -2239,38 +2277,69 @@ function addChatEntry(type, content, ts, anchor) {
+         const el = document.createElement('div');
+         el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
+ 
++        const subId = (payload && payload.subagent_id) || meta.id || '';
++
+         if (type === 'subagent_start') {
++            // Collapsible accordion: header + body where live sub-agent logs nest.
+             el.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
+-            el.innerHTML = `🤖 <span style="color:#e2e8f0">Sub-agent: "${DOMPurify.sanitize(desc)}"</span>`;
+-            if (meta.type) {
+-                const sub = document.createElement('div');
+-                sub.style.cssText = 'font-size:10px;color:#64748b;margin-top:1px;padding-left:20px';
+-                sub.textContent = `type: ${meta.type}`;
+-                el.appendChild(sub);
+-            }
++            if (subId) el.dataset.subagentId = subId;
++            const header = document.createElement('div');
++            header.style.cssText = 'cursor:pointer;user-select:none';
++            header.innerHTML = `<span class="sa-caret">▶</span> 🤖 <span style="color:#e2e8f0">Sub-agent: "${DOMPurify.sanitize(desc)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
++            const body = document.createElement('div');
++            body.className = 'sa-body';
++            body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
++            let _expanded = false;
++            header.addEventListener('click', () => {
++                _expanded = !_expanded;
++                body.style.display = _expanded ? 'block' : 'none';
++                header.querySelector('.sa-caret').textContent = _expanded ? '▼' : '▶';
++            });
++            el.appendChild(header);
++            el.appendChild(body);
+         } else if (type === 'subagent_progress') {
+-            el.style.cssText += ';color:#64748b';
++            // Update the live progress line inside the matching accordion (or standalone)
+             const tokens = meta.tokens ? (parseInt(meta.tokens) >= 1000 ? (parseInt(meta.tokens) / 1000).toFixed(1) + 'k' : meta.tokens) : '';
+-            el.textContent = `⏳ "${desc}" — ${meta.tool ? 'using ' + meta.tool : ''}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
+-        } else {
++            const line = `⏳ ${meta.tool ? 'using ' + meta.tool : 'working'}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
++            const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
++            if (host) {
++                let prog = host.querySelector('.sa-progress');
++                if (!prog) {
++                    prog = document.createElement('div');
++                    prog.className = 'sa-progress';
++                    prog.style.cssText = 'font-size:10px;color:#64748b;padding-left:14px;margin-top:2px';
++                    host.appendChild(prog);
++                }
++                prog.textContent = line;
++                return;  // updated in place, no new bubble
++            }
++            el.style.cssText += ';color:#64748b';
++            el.textContent = `⏳ "${desc}" — ${line}`;
++        } else {  // subagent_end → mark the accordion done + collapse
+             const ok = !meta.status || meta.status === 'completed';
++            const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
++            const summaryText = textParts.slice(1).join(' | ').trim();
++            if (host) {
++                const hdr = host.querySelector('div');
++                if (hdr) hdr.innerHTML = `<span class="sa-caret">▶</span> ${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'done' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
++                const prog = host.querySelector('.sa-progress');
++                if (prog) prog.remove();
++                if (summaryText) {
++                    const sumEl = document.createElement('div');
++                    sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
++                    sumEl.textContent = summaryText;
++                    host.appendChild(sumEl);
++                }
++                host.style.borderLeftColor = ok ? '#22c55e' : '#ef4444';
++                return;  // updated existing accordion, no new bubble
++            }
+             el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
+             el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
+-            const summaryText = textParts.slice(1).join(' | ').trim();
+             if (summaryText) {
+                 const sumEl = document.createElement('div');
+-                sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;max-height:40px;overflow:hidden;white-space:pre-wrap';
+-                sumEl.textContent = summaryText.length > 200 ? summaryText.slice(0, 200) + '…' : summaryText;
++                sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;white-space:pre-wrap';
++                sumEl.textContent = summaryText.length > 300 ? summaryText.slice(0, 300) + '…' : summaryText;
+                 el.appendChild(sumEl);
+-                if (summaryText.length > 200) {
+-                    el.style.cursor = 'pointer';
+-                    let _saExp = false;
+-                    el.addEventListener('click', () => {
+-                        _saExp = !_saExp;
+-                        sumEl.textContent = _saExp ? summaryText : summaryText.slice(0, 200) + '…';
+-                        sumEl.style.maxHeight = _saExp ? 'none' : '40px';
+-                    });
+-                }
+             }
+         }
+         addTimestamp(el, ts);
+diff --git a/app/tg_bridge.py b/app/tg_bridge.py
+index e0922c3426e526d8b8f4f7087efdbfc77a42b8f8..f5d7f57ddbac9f1b86be21824367adbf0925bc24 100644
+--- a/app/tg_bridge.py
++++ b/app/tg_bridge.py
+@@ -1353,6 +1353,13 @@ async def stream_logs(orch_name: str, thread_id: int):
+                             if not still_running:
+                                 await _update_topic_status(orch_name, False)
+                         text = f"⚡ {c}"
++                    elif t == "subagent_end":
++                        # Only the FINAL of a sub-agent (start/progress/stream = spam, dropped).
++                        # Content: "desc | status=X | summary". Show desc + ok/fail.
++                        _parts = [p.strip() for p in c.split("|")]
++                        _desc = _parts[0] if _parts else ""
++                        _ok = "status=failed" not in c
++                        text = f"{'✅' if _ok else '❌'} Sub-agent {'done' if _ok else 'failed'}: {_desc}"
+                     else:
+                         continue
+                     is_important = t in ("text", "error", "user_message")
+diff --git a/docs/tasks/no-subagents/research.md b/docs/tasks/no-subagents/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e890cace1348cb15a88afd3750a24b46d6342d1
+--- /dev/null
++++ b/docs/tasks/no-subagents/research.md
+@@ -0,0 +1,98 @@
++# Research — выпилить sub-agents (Task/Agent) у всех агентов
++
++**Дата:** 2026-07-01
++**⛔ ОТМЕНЕНО (юзер передумал):** бан субагентов НЕ делаем. Claude Code SDK/промпт зашит
++их использовать — бан = деградация (агент натыкается на deny, костылит). Новое направление —
++сделать субагентов ВИДИМЫМИ (см. `docs/tasks/subagent-visibility/`). Этот файл — история решения
++(почему бан плох + что tasks-pm на субагентах построен). Реализация B откачена.
++
++**Задача (была):** убрать встроенные Task/Agent tools не только у оркестраторов, но у всех (воркеров тоже).
++
++---
++
++## Как сейчас работает (backend_claude.py)
++
++Два независимых механизма блокировки:
++
++1. **`_ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}`** — через `can_use_tool` permission callback (`_make_auto_approve`). Только оркестраторы. Ловит `Agent`, но НЕ `Task`.
++2. **`_ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]`** — через CLI `disallowed_tools` (`_disallowed_tools`). Только оркестраторы. **Это правильный механизм** — комментарий (стр 37) объясняет: запуск субагента приходит как `TaskStartedMessage`, который permission callback НЕ видит. `disallowed_tools` физически убирает тул из набора.
++
++Логика: `_disallowed_tools(is_orchestrator)` = `_ALWAYS_DISALLOWED` + (если оркестратор) `_ORCH_DISALLOWED_TOOLS`.
++- `_ALWAYS_DISALLOWED = [ScheduleWakeup, Cron*, Workflow]` — у всех.
++- Воркеры: Task/Agent ОСТАВЛЕНЫ (стр 61: «воркерам — оставляем»).
++
++**is_orchestrator** = из манифеста пайплайна (`kind: orchestrator/worker`).
++
++## Другие backends
++- **backend_codex.py** — нет disallowed/subagent логики. Codex CLI не имеет Task/Agent. Ничего не трогать.
++- **backend_opencode.py** — то же. Нет Task/Agent. Ничего не трогать.
++→ Правка ТОЛЬКО в backend_claude.py.
++
++## Тривиальный фикс (то что просил оркестратор)
++Перенести `"Task", "Agent"` из `_ORCH_DISALLOWED_TOOLS` в `_ALWAYS_DISALLOWED`:
++```python
++_ALWAYS_DISALLOWED = ["Task", "Agent", "ScheduleWakeup", "CronCreate", "CronDelete", "CronList", "Workflow"]
++_ORCH_DISALLOWED_TOOLS = []  # или удалить, слить логику
++```
++Плюс `_ORCH_BLOCKED_TOOLS` можно оставить (Agent там для двойной страховки на orchestrator, но disallowed уже покрывает всех).
++
++---
++
++## ⚠️ БЛОКЕР — конфликт с пайплайном `tasks-pm`
++
++Задача предполагала «может где-то воркеру реально нужен Task — проверь». **ПРОВЕРИЛ. ДА, нужен — целый пайплайн на этом построен.**
++
++`pipelines/tasks-pm/` — активный пайплайн (в гите, рядом с `default`). Его архитектура экономии контекста ЦЕЛИКОМ построена на субагентах:
++
++| Файл | Что говорит |
++|------|-------------|
++| `roles/secretary.md:102,109` | secretary (**kind=worker**) — «Subagents через Task — можно», «прочитай 20 файлов → спавни субагента через Task tool, не пожирай контекст» |
++| `roles/worker.md:3` | «Можешь использовать субагентов (Agent) для поиска/анализа» |
++| `roles/analyst.md:2` | «нанимаешь воркеров-исследователей (они юзают субагентов)» |
++| `roles/tester.md:2` | «чтение всех отчётов делаешь через воркеров/субагентов» |
++| `roles/base-orchestrator.md:2` | «спавнишь воркера (он юзает субагентов)» |
++| `_pipeline.md:12` | «нанимай воркера-секретаря (он юзает субагентов)» |
++
++**Стратегия tasks-pm:** оркестратор (Opus, дорогой контекст) делегирует рутину секретарю/воркеру, а тот через Task-субагенты читает пачку файлов, НЕ раздувая контекст. Это осознанный дизайн, не случайность.
++
++Если тупо перенести Task/Agent в `_ALWAYS_DISALLOWED` → **весь tasks-pm сломается**: секретарь и воркеры этого пайплайна потеряют инструмент, на который завязаны их промпты.
++
++`default` пайплайн (наш, где я = full-cycle worker) — субагенты НЕ использует, для него бан безопасен и полезен (юзер словил зависание именно тут).
++
++---
++
++## Варианты решения (нужно решение оркестратора/юзера)
++
++### A. Блок для всех БЕЗ исключений (как просил оркестратор буквально)
++Перенести в `_ALWAYS_DISALLOWED`. Просто, но **ломает tasks-pm** (секретарь/воркеры теряют Task).
+++ максимальная простота, детерминизм.
++− tasks-pm пайплайн деградирует: его роли начнут жечь контекст оркестратора (то, от чего секретарь и спасал). Надо будет чистить 6 промптов tasks-pm.
++
++### B. Блок для всех КРОМЕ ролей, которым субагенты нужны by design (per-role opt-in)
++Роль в пайплайне может объявить `allow_subagents: true` (только secretary/worker в tasks-pm). Дефолт — запрещено.
+++ не ломает tasks-pm, чистый бан для default.
++− +1 механизм (поле в манифесте + проброс в backend). Против «минимум абстракций», но это 1 флаг, не абстракция.
++
++### C. Блок по пайплайну: default → бан, tasks-pm → как есть
++Читать из pipeline manifest флаг на уровне пайплайна.
++− грубее B, тот же оверхед.
++
++---
++
++## Рекомендация
++
++**Спросить оркестратора/юзера — это его territory-решение, не моё.** Причина: задача явно про «юзер словил зависание» в **default** пайплайне (full-cycle worker запустил Task на pytest). Проблема РЕАЛЬНА для default. Но tasks-pm СПЕЦИАЛЬНО построен на субагентах.
++
++Мой технический совет: **Вариант B (per-role opt-in `allow_subagents`)** — 1 флаг в манифесте, дефолт `false` (бан у всех), tasks-pm secretary/worker ставят `true`. Это:
++- чинит боль юзера (default воркеры без Task),
++- не ломает рабочий tasks-pm,
++- детерминистично и явно (роль ДЕКЛАРИРУЕТ что ей нужны субагенты).
++
++Если юзер скажет «tasks-pm не нужен / выпиливаем субагентов ВЕЗДЕ жёстко» → Вариант A + чистка 6 промптов tasks-pm (убрать инструкции про Task, заменить на «читай сам через grep/Serena»).
++
++**НЕ реализую пока — жду решения A/B/C.** Тривиальный перенос 2 строк оказался НЕ тривиальным из-за tasks-pm.
++
++## Файлы под правку (по вариантам)
++- **A:** `backend_claude.py` (перенос 2 строк) + `pipelines/tasks-pm/prompts/{secretary,worker,analyst,tester,base-orchestrator}.md` + `_pipeline.md` (убрать Task-инструкции).
++- **B:** `backend_claude.py` (читать флаг) + `app/pipeline.py` (поле `allow_subagents` в ResolvedRole) + `app/manager.py` (проброс в backend) + `pipelines/tasks-pm/pipeline.yaml` (secretary/worker: allow_subagents=true).
++- Общее: `pipelines/default/prompts/base.md:46` уже говорит «NEVER use built-in Agent» — оставить.
+diff --git a/docs/tasks/subagent-visibility/research.md b/docs/tasks/subagent-visibility/research.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3aaa0935ca4cbf899f4125777cdc0aa90a6214c5
+--- /dev/null
++++ b/docs/tasks/subagent-visibility/research.md
+@@ -0,0 +1,117 @@
++# Research — сделать субагентов ВИДИМЫМИ (live-логи)
++
++**Дата:** 2026-07-01
++**Задача:** НЕ банить субагентов (Claude Code SDK зашит их юзать). Проблема — они выглядят как ЗАВИСАНИЕ: юзер видит «🤖 Sub-agent: X» + тишина + «✅ completed», не зная что внутри. Показать их активность live.
++**SDK:** claude-agent-sdk **0.2.87**.
++
++---
++
++## TL;DR
++
++Хорошая новость: **SDK отдаёт ВСЁ про субагентов**, Orchestra это частично дропает, частично мешает с основным потоком. Три источника данных:
++
++1. **StreamEvent с `parent_tool_use_id != None`** — live partial-текст/дельты субагента. **Сейчас ДРОПАЕТСЯ** (backend_claude.py:250). Включить = live-стриминг вывода субагента.
++2. **AssistantMessage/UserMessage с `parent_tool_use_id != None`** — полные tool_use/tool_result/text субагента. **Сейчас НЕ фильтруются** → эмитятся как события основного агента, БЕЗ атрибуции (мешаются с родителем!). Надо тегировать `parent_tool_use_id`.
++3. **TaskStartedMessage / TaskProgressMessage / TaskNotificationMessage** — метаданные (старт/прогресс-хартбит/финал). Уже ловим (backend_claude.py:288-305), но плоско.
++
++**Вывод:** это НЕ «SDK даёт мало». SDK даёт полное дерево. Проблема — Orchestra (а) выкидывает live-partial субагента, (б) не связывает события субагента с его task_id → нельзя отрисовать вложенно.
++
++---
++
++## 1. Что SDK реально даёт по субагентам
++
++### Метаданные (уже ловим, backend_claude.py:288-305)
++| Message | Поля | Что даёт |
++|---------|------|----------|
++| `TaskStartedMessage` | `task_id, description, task_type, tool_use_id, session_id, data` | старт субагента |
++| `TaskProgressMessage` | `task_id, description, last_tool_name, usage, tool_use_id, data` | хартбит: какой тул сейчас + токены |
++| `TaskNotificationMessage` | `task_id, status, summary, output_file, usage` | финал + может писать в файл! |
++
++`TaskUsage` (TypedDict): `total_tokens, tool_uses, duration_ms`.
++`data: dict[str, Any]` — сырое поле, может нести доп. детали (проверить в рантайме на живом субагенте).
++
++### Полные логи (НЕ используем должным образом)
++**Ключевое:** `AssistantMessage` И `UserMessage` имеют поле **`parent_tool_use_id`**.
++- Субагент вызвал Bash → приходит `AssistantMessage(content=[ToolUseBlock(Bash)], parent_tool_use_id="task_xxx")`.
++- Результат → `UserMessage(content=[ToolResultBlock], parent_tool_use_id="task_xxx")`.
++- Текст субагента → `AssistantMessage(content=[TextBlock], parent_tool_use_id="task_xxx")`.
++
++→ **Полная активность субагента (его tool-вызовы, их вывод, его текст) ДОСТУПНА.** Проблема: `_convert` (backend_claude.py:262-286) НЕ смотрит на `parent_tool_use_id` для Assistant/User → эмитит их как обычные `tool_use`/`tool_result`/`text` события основного агента. Они СЕЙЧАС уже в потоке, но неотличимы от родителя → выглядят как будто основной агент сам это делает, ИЛИ (если CLI буферизует) прилетают пачкой после «тишины».
++
++### Live-стрим субагента (ДРОПАЕТСЯ)
++`StreamEvent.parent_tool_use_id` — партиалы субагента. backend_claude.py:250:
++```python
++if msg.parent_tool_use_id is not None:
++    return events   # ← субагентские партиалы ВЫКИДЫВАЕМ
++```
++Комментарий (стр 246): «v1 streaming scope: ONLY main-agent text». Осознанное ограничение v1. Снять его = live-typing вывода субагента.
++
++### SDK-функции для субагентов (бонус, не для live)
++`list_subagents(session_id, directory)` → list[str] (id субагентов).
++`get_subagent_messages(session_id, agent_id, ...)` → list[SessionMessage] (полный транскрипт субагента из стора, ПОСТ-фактум).
++→ полезно для «раскрыть завершённого субагента» (клик → подтянуть транскрипт), но не для live.
++
++---
++
++## 2. Nested субагенты (субагент → свои субагенты)
++
++- SDK-типы это поддерживают структурно: `parent_tool_use_id` — цепочка. Субагент A (task_1) спавнит субагента B → события B несут `parent_tool_use_id` B, а B стартовал внутри A.
++- **НО** плоский `parent_tool_use_id` даёт только ОДИН уровень родителя, не полную глубину. Чтобы построить ДЕРЕВО, надо трекать маппинг `task_id → parent task_id` по `TaskStartedMessage` (у него есть `tool_use_id` = откуда запущен).
++- **Наша версия 0.2.87** — типы позволяют. Реально ли CLI шлёт nested-события — надо проверить экспериментом (спавнить субагента который сам спавнит). Практически: для v1 достаточно ОДНОГО уровня (родитель → субагенты), nested-дерево — v2.
++
++---
++
++## 3. План: как показать live-логи субагента
++
++### Backend (app/backend_claude.py, app/events.py)
++1. **Тегировать события субагента `parent_tool_use_id`:**
++   - В `_convert`, для `AssistantMessage`/`UserMessage`: если `msg.parent_tool_use_id` задан → добавить в `AgentEvent.metadata` поле `subagent_id=parent_tool_use_id`. Событие остаётся tool_use/tool_result/text, но помечено принадлежностью субагенту.
++2. **Включить live-partial субагента:**
++   - backend_claude.py:250 — вместо `return events` эмитить `AgentEvent("subagent_stream", text, metadata={subagent_id})`. Отдельный тип, чтобы фронт клал его в блок субагента, не в основной.
++3. **task_id в start/progress/end уже есть** — прокинуть его в metadata (сейчас в строку через `|`, лучше в metadata структурно).
++
++### Events/persistence (app/session.py, app/events.py)
++4. `AgentEvent` уже носит `metadata` (см. tool_use). Добавить `subagent_id` туда — минимально.
++5. Live-partial субагента — через тот же `live_broker` что основной стриминг (session.py:519 роутит stream в broker). Роутить `subagent_stream` тоже, с subagent_id.
++
++### Frontend (app/static/js/app.js:2229+)
++6. Сейчас subagent_start/progress/end — плоские строки. Сделать **аккордеон**: subagent_start создаёт контейнер с `data-subagent-id`, последующие `subagent_stream`/tool_use[subagent_id]/progress кладутся ВНУТРЬ него (вложенный поток), subagent_end сворачивает.
++7. Live-typing вывода субагента — как у основного (typewriter уже есть для stream).
++
++### TG (app/tg_bridge.py)
++8. Сейчас TG субагентов не рендерит (grep пусто). Минимум — при subagent_end слать «🤖 Sub-agent X: <summary>». Live-стрим в TG НЕ слать (спам, как решили для основного — final-only). Опционально: одно сообщение «субагент работает: tool=X» с edit по прогрессу.
++
++---
++
++## Оценка сложности
++
++| Часть | Сложность | Заметки |
++|-------|-----------|---------|
++| Тегировать subagent_id в metadata (Assistant/User) | низкая (~15 стр) | backend_claude._convert |
++| Включить subagent_stream (снять дроп :250) | низкая (~10 стр) | + роутинг в broker |
++| task_id/parent в metadata структурно | низкая | заменить `|`-строки |
++| Frontend аккордеон вложенности | **средняя** (~60-80 стр JS) | группировка по subagent_id, сворачивание |
++| TG subagent_end сообщение | низкая (~15 стр) | tg_bridge |
++| Nested-дерево (>1 уровень) | высокая | v2, отдельно. Нужен маппинг task→parent + эксперимент |
++
++**MVP (рекомендую):** тегирование subagent_id + subagent_stream + фронт-аккордеон ОДНОГО уровня + TG-финал. Nested — отдельная задача после проверки что CLI их реально шлёт.
++
++---
++
++## Риски / edge cases
++
++1. **Смешение с основным потоком** — сейчас subagent Assistant/User события уже эмитятся без тега. Если добавим тег, но фронт старый — они всё равно покажутся в основном (back-compat ок, просто без группировки). Не ломает.
++2. **Объём partial-ов** — субагент может генерить много. Как основной поток, через bounded broker queue (drop-oldest уже есть, live_broker.py). Не заспамит.
++3. **parent_tool_use_id для nested** — плоский, только 1 родитель. Для дерева нужен доп. маппинг. MVP — не строим дерево, только «субагент под родителем».
++4. **`data` поле** — не изучено что внутри. Проверить экспериментом, но не блокер (метаданных из явных полей достаточно).
++5. **Персистентность** — live-partial субагента эфемерны (как основной stream, не в DB). Финал субагента (subagent_end) — в лог. При reconnect SSE — только финал, live уже прошёл (как основной stream, ок).
++
++---
++
++## Рекомендация
++
++**MVP из 4 частей** (backend теги + subagent_stream + фронт-аккордеон 1 уровень + TG-финал). ~110-130 строк, средняя сложность. Nested-дерево — отдельная задача (сначала эксперимент: реально ли CLI 0.2.87 шлёт nested-события).
++
++Ключевая правка ДЕШЁВАЯ и с наибольшим эффектом: **снять дроп на backend_claude.py:250** + тегировать subagent_id. Это сразу превращает «тишину» в живой поток. Фронт-аккордеон — косметика поверх.
++
++НЕ реализую — жду решения оркестратора (MVP / что-то урезать / расширить до nested).
+diff --git a/tests/test_backend_stream.py b/tests/test_backend_stream.py
+index 1399414eeca54e5d46406fcaf5fe82fdfa73acea..a54548c5f67ec651c325ec5fddc07141708385ab 100644
+--- a/tests/test_backend_stream.py
++++ b/tests/test_backend_stream.py
+@@ -1,12 +1,13 @@
+-"""Task #83 — ClaudeBackend._convert StreamEvent scope filter.
++"""ClaudeBackend._convert StreamEvent scope filter + sub-agent tagging.
+ 
+-v1 streaming: ONLY main-agent text_delta becomes a "stream" AgentEvent.
+-Everything else (thinking/tool-arg deltas, subagent partials, non-delta events)
+-is dropped — the final AssistantMessage still carries them and is persisted.
++Main-agent text_delta → "stream". Sub-agent text_delta (parent_tool_use_id set)
++→ "subagent_stream" tagged with subagent_id (surfaced, not dropped). Non-text
++deltas (thinking/tool-arg/sig) and non-delta events are still dropped.
+ """
+ from claude_agent_sdk import StreamEvent
+ 
+ from app.backend_claude import ClaudeBackend
++from app.events import AgentEvent
+ 
+ 
+ def _backend():
+@@ -66,13 +67,19 @@ def test_signature_delta_dropped():
+     assert b._convert(msg) == []
+ 
+ 
+-def test_subagent_text_delta_dropped():
++def test_subagent_text_delta_becomes_subagent_stream():
++    # Sub-agent partials are no longer dropped — they surface as subagent_stream
++    # tagged with subagent_id so the UI nests them under the sub-agent block.
+     b = _backend()
+     msg = _stream({
+         "type": "content_block_delta", "index": 0,
+         "delta": {"type": "text_delta", "text": "sub"},
+     }, parent_tool_use_id="toolu_123")
+-    assert b._convert(msg) == []
++    out = b._convert(msg)
++    assert len(out) == 1
++    assert out[0].type == "subagent_stream"
++    assert out[0].content == "sub"
++    assert out[0].metadata.get("subagent_id") == "toolu_123"
+ 
+ 
+ def test_non_delta_events_dropped():
+@@ -80,3 +87,15 @@ def test_non_delta_events_dropped():
+     for etype in ("message_start", "content_block_start",
+                   "content_block_stop", "message_delta", "message_stop"):
+         assert b._convert(_stream({"type": etype})) == []
++
++
++def test_tag_sub_marks_only_subagent_events():
++    # main agent (sub_id None) → event unchanged; sub-agent → subagent_id stamped
++    main = ClaudeBackend._tag_sub(AgentEvent("tool_use", "x", metadata={"tool_name": "Bash"}), None)
++    assert "subagent_id" not in main.metadata
++    assert main.metadata["tool_name"] == "Bash"
++
++    sub = ClaudeBackend._tag_sub(AgentEvent("tool_use", "x", metadata={"tool_name": "Bash"}), "toolu_9")
++    assert sub.metadata["subagent_id"] == "toolu_9"
++    assert sub.metadata["tool_name"] == "Bash"  # existing metadata preserved
++    assert sub.type == "tool_use"  # type unchanged — UI groups by id, not type
+diff --git a/tests/test_proxy.py b/tests/test_proxy.py
+index ba55dcc541eb850651262a7e3ee53641d73bed20..d38ed79919aa8eac0818193bad6772c47c9290d7 100644
+--- a/tests/test_proxy.py
++++ b/tests/test_proxy.py
+@@ -49,6 +49,39 @@ def test_no_mutation_methods_gone():
+     assert not hasattr(mgr, "refresh_loop")
+ 
+ 
++@pytest.mark.asyncio
++async def test_check_geo_failure_keeps_alive(monkeypatch):
++    # liveness (Anthropic) OK but geo (ipinfo) throwing must NOT flip ok→false
++    mgr = pm.ProxyManager()
++
++    class _Resp:
++        status_code = 404  # any response = tunnel works
++
++    class _Client:
++        def __init__(self, **kw): ...
++        async def __aenter__(self): return self
++        async def __aexit__(self, *a): ...
++        async def get(self, url): return _Resp()
++
++    monkeypatch.setattr(pm.httpx, "AsyncClient", _Client)
++
++    async def boom(proxy):
++        raise RuntimeError("ipinfo timeout")
++
++    monkeypatch.setattr(mgr, "_geo", boom)
++    r = await mgr._do_check(pm.ProxyEntry(id="c", name="C", url="http://127.0.0.1:12343"))
++    assert r["ok"] is True  # geo blew up, liveness held
++
++
++@pytest.mark.asyncio
++async def test_check_dead_proxy_real_error():
++    # unreachable proxy → ok:false with a NON-empty error (not "")
++    entry = pm.ProxyEntry(id="d", name="D", url="http://127.0.0.1:19998")
++    r = await pm.ProxyManager()._do_check(entry)
++    assert r["ok"] is False
++    assert r["error"], "error must be non-empty for a dead proxy"
++
++
+ def test_set_env_preserves_tokens(tmp_path, monkeypatch):
+     env = tmp_path / ".env"
+     env.write_text(

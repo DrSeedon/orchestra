@@ -1,0 +1,17 @@
+PROJECT CONTEXT (tool-owned; calibrate review severity):
+- Scale: distributed platform team, production
+- Users: high-load multi-project orchestration
+- Stack: Python 3.12+, FastAPI, Jinja2, SSE, SQLite, Codex and Claude runtimes
+- Philosophy: simple shared runtime with explicit contracts and deterministic agent workflows
+- What matters: correctness, isolation, data integrity, durable delivery, and truthful operator state
+- What does NOT matter: enterprise ceremony, speculative abstractions, or maximizing test coverage as an end in itself
+
+CALLER-SUPPLIED TASK CALIBRATION:
+Task: #150: #150: null в five_hour_pct/seven_day_pct — дыра в графике, а не ноль
+END CALLER-SUPPLIED TASK CALIBRATION
+
+Review calibration: blocking = crash/corrupt/security; suggestion = real improvement; nit = skip.
+Review the exact committed implementation snapshot pinned by the server.
+Run `git diff --binary --full-index 59e727f3640d804ea7fbdf4e2bdd8a5a4724dba3...1920aa94d49b271e30afd3c9596d10df37eeab04` and review that complete diff; do not substitute HEAD or a task file.
+Return the complete review in your final response. Do not edit files.
+Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish the requested review; preserve partial findings.

@@ -1,0 +1,47 @@
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 17d456022764fb8f7ca41ee9187297642f3e2edf..2897117d5331fceea4f7daeb6d7516cec99dc235 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -608,9 +608,9 @@ async function createOrchestrator() {
+     const name = $('#orch-name').value.trim();
+     const cwd = $('#orch-cwd').value.trim();
+     const model = $('#orch-model').value;
+-    const profile = $('#orch-profile').value;
+-    const pipeline = $('#orch-pipeline').value;
+-    const role = $('#orch-role').value;
++    const profile = $('#orch-profile').value || 'personal';
++    const pipeline = $('#orch-pipeline').value || 'default';
++    const role = $('#orch-role').value || 'orchestrator';
+     const errEl = $('#orch-error');
+     if (!name || !cwd) { errEl.textContent = 'Name and project path required'; errEl.classList.remove('hidden'); return; }
+     const btn = $('#create-orch-btn');
+diff --git a/app/templates/dashboard.html b/app/templates/dashboard.html
+index d5039582d0d69bbaf373cb36bb270ace4da35400..bd5a7de73bf20d6d5db6771588365f513dc6f4dc 100644
+--- a/app/templates/dashboard.html
++++ b/app/templates/dashboard.html
+@@ -83,21 +83,10 @@
+                     <select id="orch-model" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+                     </select>
+                 </div>
+-                <div>
+-                    <label class="text-xs text-slate-500 block mb-1">Profile</label>
+-                    <select id="orch-profile" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+-                    </select>
+-                </div>
+-                <div>
+-                    <label class="text-xs text-slate-500 block mb-1">Pipeline</label>
+-                    <select id="orch-pipeline" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+-                    </select>
+-                </div>
+-                <div>
+-                    <label class="text-xs text-slate-500 block mb-1">Role</label>
+-                    <select id="orch-role" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+-                    </select>
+-                </div>
++                <!-- Profile/Pipeline/Role hidden — sane defaults for new orchestrators -->
++                <select id="orch-profile" class="hidden"></select>
++                <select id="orch-pipeline" class="hidden"></select>
++                <select id="orch-role" class="hidden"></select>
+                 <div id="orch-error" class="text-xs text-red-400 hidden"></div>
+                 <button id="create-orch-btn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Create Orchestrator</button>
+             </div>

@@ -1,0 +1,63 @@
+diff --git a/app/tg_bridge.py b/app/tg_bridge.py
+index b63b8cf749df8745526c46acb353cc548e25a5c9..4da6dc4999d059fe21a20bf0287a0556239dafd8 100644
+--- a/app/tg_bridge.py
++++ b/app/tg_bridge.py
+@@ -3845,7 +3845,12 @@ async def start_bridge(manager):
+         from aiogram.client.telegram import TelegramAPIServer
+         server = TelegramAPIServer(base=f"{local_api}/bot{{token}}/{{method}}", file=f"{local_api}/file/bot{{token}}/{{path}}")
+         from aiogram.client.session.aiohttp import AiohttpSession
+-        session = AiohttpSession(api=server)
++        # Дефолт aiogram — 60 с на вызов, и на большом файле его срубает раньше, чем
++        # Local Bot API успевает дописать файл на диск: `get_file` для .wav на 494 МБ
++        # упал на 60 948 мс, хотя файл уже лежал в `data/tg-bot-api/`. Ждём мы СВОЙ
++        # локальный сервер на том же диске, а не сеть Telegram, поэтому бюджет щедрый:
++        # цена ожидания — задержка одного сообщения, цена таймаута — потерянный файл.
++        session = AiohttpSession(api=server, timeout=1800)
+         bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None), session=session)
+         logger.info(f"TG Bot using LOCAL API: {local_api}")
+     else:
+diff --git a/tests/test_tg_large_file_timeout.py b/tests/test_tg_large_file_timeout.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..922d41dbbbd08623953b666a0d6e8ceb3b6d71b3
+--- /dev/null
++++ b/tests/test_tg_large_file_timeout.py
+@@ -0,0 +1,39 @@
++"""Большой файл из Telegram не должен теряться по таймауту сессии.
++
++28.08.2026: .wav на 518 326 700 Б (494 МБ) не дошёл до агента — `get_file` упал на
++60 948 мс, ровно дефолтные 60 с aiogram. Файл при этом УЖЕ лежал на диске в
++`data/tg-bot-api/.../documents/file_1210.wav`: ждали мы свой локальный Bot API,
++который дописывал файл, а не сеть Telegram. Юзер увидел «file: too large» —
++сообщение, которое врало про причину.
++"""
++
++import inspect
++import pathlib
++
++
++def test_local_api_session_raises_the_default_timeout():
++    """Сессия к локальному Bot API создаётся с явным таймаутом, а не с дефолтом 60 с.
++
++    Читаем ФАЙЛ, а не импортированный модуль: `app.tg_bridge` в общем прогоне бывает
++    замокан соседними тестами, и `inspect.getsource` тогда падает на AsyncMock.
++    """
++    source = pathlib.Path("app/tg_bridge.py").read_text(encoding="utf-8")
++
++    assert "AiohttpSession(api=server, timeout=" in source, (
++        "сессия к Local Bot API обязана задавать timeout явно: дефолт aiogram 60 с "
++        "теряет большие файлы, которые сервер ещё дописывает на диск"
++    )
++    line = next(l for l in source.splitlines() if "AiohttpSession(api=server" in l)
++    value = int(line.split("timeout=")[1].split(")")[0])
++    assert value >= 600, f"бюджет {value} с мал для файлов в сотни МБ"
++
++
++def test_session_timeout_is_the_value_requests_actually_use():
++    """Проверка, что параметр не декоративный: `make_request` берёт именно `self.timeout`."""
++    from aiogram.client.session.aiohttp import AiohttpSession
++
++    body = inspect.getsource(AiohttpSession.make_request)
++
++    assert "timeout=self.timeout if timeout is None else timeout" in body
++    # И что именно этот путь порождает текст, который увидели в журнале.
++    assert 'message="Request timeout error"' in body

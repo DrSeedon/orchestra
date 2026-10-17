@@ -1,0 +1,17 @@
+PROJECT CONTEXT (tool-owned; calibrate review severity):
+- Scale: distributed platform team, production
+- Users: high-load multi-project orchestration
+- Stack: Python 3.12+, FastAPI, Jinja2, SSE, SQLite, Codex and Claude runtimes
+- Philosophy: simple shared runtime with explicit contracts and deterministic agent workflows
+- What matters: correctness, isolation, data integrity, durable delivery, and truthful operator state
+- What does NOT matter: enterprise ceremony, speculative abstractions, or maximizing test coverage as an end in itself
+
+CALLER-SUPPLIED TASK CALIBRATION:
+Task: #70: #70: повтор GET при обрыве — три попытки по 3.5 с, отказ виден юзеру
+END CALLER-SUPPLIED TASK CALIBRATION
+
+Review calibration: blocking = crash/corrupt/security; suggestion = real improvement; nit = skip.
+Review the exact committed implementation snapshot pinned by the server.
+Run `git diff --binary --full-index cb573242d3d7482db46b50ebef63fadb1d0a6fd1...a6326ee249e9fb714f9a0733e10b6c91c93af7a7` and review that complete diff; do not substitute HEAD or a task file.
+Return the complete review in your final response. Do not edit files.
+Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish the requested review; preserve partial findings.
