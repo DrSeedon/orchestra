@@ -162,7 +162,7 @@ const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-m
    if(v.opacity){const[,q,f,b]=v.opacity;k=f==0&&b!=0?1-q:b==0&&f!=0?q:0}
    if(v.text&&!g)put(e,'text',v.text[0]);
    if(g){const[x,q,f,b]=v.text,x2=f!==b&&q<1;put(e,'text',x2?b:x);put(g,'text',f);put(e,'fill-opacity',x2?xin(q):1);put(g,'fill-opacity',x2?xout(q):0);
-    if(x2){dy=(1-q)*6;gy=-q*6}for(const a of['opacity','fill'])if(v[a])put(g,a,e.getAttribute(a))}
+    if(x2){dy=(1-q)*6;gy=-q*6}for(const a in v)if(a!='text'&&a!='along'&&a!='at')put(g,a,e.getAttribute(a));if(v.along)put(g,'transform',e.getAttribute('transform'))}
    if(FX[id]){const tf=d=>`translateY(${(d+k*6).toFixed(2)}px) scale(${(1-.03*k).toFixed(4)})`;put(e,'css',tf(dy));if(g)put(g,'css',tf(gy))}
    if(v.along){const p=$(v.along[0]),pt=p.getPointAtLength(clamp(v.at?.[0]??0)*p.getTotalLength());put(e,'transform',`translate(${pt.x.toFixed(2)},${pt.y.toFixed(2)})`)}}}
  const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
