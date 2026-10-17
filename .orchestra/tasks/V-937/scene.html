@@ -1,0 +1,235 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Рестарт без потерь — V-937</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mv{max-width:980px;margin:16px auto;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px #0000000d,0 6px 20px #0000000a}
+.mv h1{font-size:21px;margin:0 0 8px;letter-spacing:-.01em}.stg{overflow-x:auto}.stg>svg{width:100%;min-width:680px;height:auto;display:block}
+.cap{position:relative;min-height:4.4em;margin:8px 0}.cap b{display:block;font-size:16px}#capB{position:absolute;inset:0 0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:#f5f5f7;color:#1d1d1f;cursor:pointer;transition:transform .25s cubic-bezier(.3,1.5,.5,1),background-color .2s}
+.bar button:hover{background:#e8e8ed}.bar button:active{transform:scale(.88)}.bar svg{width:14px;height:14px;fill:currentColor}
+#bPlay{width:40px;height:40px;background:#007aff;color:#fff}#bPlay:hover{background:#0071e3}#bPlay svg{width:16px;height:16px}
+#bPlay path{transition:opacity .2s,transform .3s cubic-bezier(.3,1.5,.5,1);transform-box:fill-box;transform-origin:center}#bPlay .i2,#bPlay.on .i1{opacity:0;transform:scale(.4)}#bPlay.on .i2{opacity:1;transform:none}
+#seek{flex:1;min-width:140px;-webkit-appearance:none;appearance:none;height:4px;margin:0 4px;border-radius:2px;background:linear-gradient(#007aff 0 0) 0/var(--p,0%) 100% no-repeat,#e5e5ea;cursor:pointer}
+#seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek:hover::-webkit-slider-thumb{transform:scale(1.2)}#seek:hover::-moz-range-thumb{transform:scale(1.2)}
+#clock{font-variant-numeric:tabular-nums;min-width:92px;text-align:right;color:#6e6e73}.bar select{border:0;background:#f5f5f7;border-radius:8px;padding:6px 8px;font:inherit;cursor:pointer}
+.ch{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none}
+.ch li{--o:0;padding:3px 10px;border-radius:8px;cursor:pointer;background:color-mix(in srgb,#007aff calc(var(--o)*100%),#f5f5f7);color:color-mix(in srgb,#fff calc(var(--o)*100%),#1d1d1f)}.ch li:hover{filter:brightness(.96)}
+@media print{.bar{display:none}}@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="mv">
+<h1>Title: what we explain</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1280 590" role="img" aria-labelledby="st"><title id="st">Рестарт Orchestra без потерь</title>
+<g id="room"></g>
+<g id="roomEnd" opacity="0"></g>
+<g id="agentsLayer" opacity="0">
+ <g id="agents">
+  <rect x="90" y="330" width="300" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="240" y="393" text-anchor="middle" font-size="36">агент</text><path id="wire0" d="M640 140L240 330" stroke="#c9ced8" stroke-width="3" fill="none"/><rect x="490" y="330" width="300" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="640" y="393" text-anchor="middle" font-size="36">агент</text><path id="wire1" d="M640 140L640 330" stroke="#c9ced8" stroke-width="3" fill="none"/><rect x="890" y="330" width="300" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="1040" y="393" text-anchor="middle" font-size="36">агент</text><path id="wire2" d="M640 140L1040 330" stroke="#c9ced8" stroke-width="3" fill="none"/>
+  <rect id="plat" x="440" y="40" width="400" height="100" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <text id="platT" x="640" y="104" text-anchor="middle" font-size="38" font-weight="600">Orchestra</text>
+ </g>
+ <text id="rst" x="640" y="215" text-anchor="middle" font-size="36" fill="#c9551b" opacity="0">↻ перезапуск: новый код</text>
+</g>
+<g id="lossLayer" opacity="0">
+ <text x="70" y="90" font-size="30" fill="#6b7280">рестарт 17.10: в работе 5 агентов</text>
+ <g id="a0" opacity="0"><rect x="70" y="130" width="210" height="150" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="175" y="200" text-anchor="middle" font-size="30">агент 1</text><text id="av0" x="175" y="252" text-anchor="middle" font-size="28" opacity="0" fill="#0e5e9c">✓ продолжил</text></g><g id="a1" opacity="0"><rect x="302" y="130" width="210" height="150" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="407" y="200" text-anchor="middle" font-size="30">агент 2</text><text id="av1" x="407" y="252" text-anchor="middle" font-size="28" opacity="0" fill="#0e5e9c">✓ продолжил</text></g><g id="a2" opacity="0"><rect x="534" y="130" width="210" height="150" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="639" y="200" text-anchor="middle" font-size="30">агент 3</text><text id="av2" x="639" y="252" text-anchor="middle" font-size="28" opacity="0" fill="#0e5e9c">✓ продолжил</text></g><g id="a3" opacity="0"><rect x="766" y="130" width="210" height="150" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="871" y="200" text-anchor="middle" font-size="30">агент 4</text><text id="av3" x="871" y="252" text-anchor="middle" font-size="28" opacity="0" fill="#c9551b">✗ ход пропал</text></g><g id="a4" opacity="0"><rect x="998" y="130" width="210" height="150" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="1103" y="200" text-anchor="middle" font-size="30">агент 5</text><text id="av4" x="1103" y="252" text-anchor="middle" font-size="28" opacity="0" fill="#c9551b">✗ ход пропал</text></g>
+ <text id="loss" x="640" y="370" text-anchor="middle" font-size="48" font-weight="700" fill="#c9551b" opacity="0">2 из 5 агентов — 40 %</text>
+ <text id="manual" x="640" y="450" text-anchor="middle" font-size="32"></text>
+</g>
+<g id="jobLayer" opacity="0">
+ <text x="170" y="110" font-size="30" fill="#6b7280">фоновое задание: длинный прогон тестов</text>
+ <rect x="170" y="150" width="940" height="70" rx="12" fill="#eef0f3"/>
+ <rect id="jobBar" x="170" y="150" width="0" height="70" rx="12" fill="#d6e8f4"/>
+ <path id="jobCut" d="M640 120V250" stroke="#c9551b" stroke-width="5" opacity="0"/>
+ <text id="jobCutT" x="655" y="270" font-size="28" fill="#c9551b" opacity="0">рестарт</text>
+ <text id="jobMsg" x="170" y="360" font-size="38" class="mono" fill="#c9551b"></text>
+ <text id="jobAgain" x="170" y="430" font-size="32" fill="#c9551b" opacity="0">✗ агент запускает всё заново</text>
+</g>
+<g id="turnLayer" opacity="0">
+ <text x="150" y="90" font-size="30" fill="#6b7280">один ход агента</text>
+ <path d="M150 200H1130" stroke="#c9ced8" stroke-width="6"/>
+ <circle cx="170" cy="200" r="14" fill="#16171b"/><text x="170" y="160" text-anchor="middle" font-size="26">начало</text>
+ <circle cx="1110" cy="200" r="14" fill="#16171b"/><text x="1110" y="160" text-anchor="middle" font-size="26">конец</text>
+ <g id="oldId" opacity="0"><rect x="890" y="240" width="360" height="64" rx="10" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/>
+  <text x="1070" y="283" text-anchor="middle" font-size="30" fill="#c9551b">раньше: номер здесь</text></g>
+ <g id="newId" opacity="0"><rect x="50" y="240" width="360" height="64" rx="10" fill="#d6e8f4" stroke="#0e5e9c" stroke-width="2"/>
+  <text x="230" y="283" text-anchor="middle" font-size="30" fill="#0e5e9c">теперь: номер здесь ✓</text></g>
+ <g id="turnCut" opacity="0"><path d="M640 160V240" stroke="#c9551b" stroke-width="5"/>
+  <text x="640" y="140" text-anchor="middle" font-size="26" fill="#c9551b">рестарт</text></g>
+ <text id="resume" x="640" y="400" text-anchor="middle" font-size="34" fill="#0e5e9c"></text>
+</g>
+<g id="fileLayer" opacity="0">
+ <g id="oldProc"><rect x="90" y="60" width="300" height="110" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="240" y="126" text-anchor="middle" font-size="30">старый процесс</text></g>
+ <text id="oldX" x="240" y="215" text-anchor="middle" font-size="30" fill="#c9551b" opacity="0">✗ остановлен</text>
+ <rect x="490" y="300" width="300" height="110" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="640" y="366" text-anchor="middle" font-size="30">задание</text>
+ <g id="fileBox" opacity="0"><rect x="890" y="300" width="300" height="110" rx="14" fill="#d6e8f4" stroke="#0e5e9c" stroke-width="2"/>
+  <text x="1040" y="348" text-anchor="middle" font-size="30" fill="#0e5e9c">файл:</text>
+  <text x="1040" y="386" text-anchor="middle" font-size="30" fill="#0e5e9c">вывод + код</text></g>
+ <path id="toFile" d="M790 355H880" stroke="#0e5e9c" stroke-width="4" marker-end="url(#paper-arrow)" opacity="0"/>
+ <g id="newProc" opacity="0"><rect x="890" y="60" width="300" height="110" rx="14" fill="#fff" stroke="#0e5e9c" stroke-width="3"/>
+  <text x="1040" y="126" text-anchor="middle" font-size="30" fill="#0e5e9c">новый процесс</text></g>
+ <path id="readFile" d="M1040 290V180" stroke="#0e5e9c" stroke-width="4" marker-end="url(#paper-arrow)" opacity="0"/>
+ <text id="fileRes" x="640" y="500" text-anchor="middle" font-size="34" fill="#0e5e9c" opacity="0">ждёт конца → отдаёт результат агенту ✓</text>
+</g>
+<g id="numLayer" opacity="0">
+ <text x="115" y="40" font-size="26" fill="#6b7280">живой рестарт 17.10</text>
+ <g id="n0" opacity="0"><rect x="115" y="60" width="330" height="250" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="280" y="190" text-anchor="middle" font-size="88" font-weight="700" class="mono" fill="#0e5e9c">40 с</text><text x="280" y="260" text-anchor="middle" font-size="30" fill="#6b7280">пауза</text></g><g id="n1" opacity="0"><rect x="475" y="60" width="330" height="250" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="640" y="190" text-anchor="middle" font-size="88" font-weight="700" class="mono" fill="#0e5e9c">25</text><text x="640" y="260" text-anchor="middle" font-size="30" fill="#6b7280">заданий поднято</text></g><g id="n2" opacity="0"><rect x="835" y="60" width="330" height="250" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/><text x="1000" y="190" text-anchor="middle" font-size="88" font-weight="700" class="mono" fill="#0e5e9c">2</text><text x="1000" y="260" text-anchor="middle" font-size="30" fill="#6b7280">бежали в рестарт</text></g>
+ <text id="res1" x="115" y="390" font-size="34" class="mono"></text>
+ <text id="res2" x="115" y="450" font-size="30" fill="#0e5e9c" opacity="0">второе вернуло свой код ошибки, а не «прервано»</text>
+</g>
+<g id="consLayer" opacity="0">
+ <text id="con1" x="150" y="150" font-size="36" fill="#c9551b" opacity="0">✗ команды внутри хода обрываются</text>
+ <text id="con1b" x="190" y="210" font-size="30" fill="#6b7280" opacity="0">агент узнаёт из напоминания и проверяет результат</text>
+ <text id="con2" x="150" y="320" font-size="36" fill="#c9551b" opacity="0">✗ на время рестарта всё стоит на паузе</text>
+ <text id="con2b" x="190" y="380" font-size="30" fill="#6b7280" opacity="0">в этот раз — 40 секунд</text>
+</g>
+<g id="endLayer" opacity="0">
+ <g id="endCard">
+  <rect x="190" y="90" width="900" height="290" rx="16" fill="#fff" stroke="#0e5e9c" stroke-width="3"/>
+  <text x="640" y="215" text-anchor="middle" font-size="64" font-weight="700" fill="#0e5e9c">рестарт = пауза</text>
+  <text x="640" y="300" text-anchor="middle" font-size="44" fill="#16171b">а не потеря работы ✓</text>
+ </g>
+</g>
+</svg></div>
+<div class="cap"><div id="capA" aria-live="polite"><b id="capT"></b><span id="capX"></span></div><div id="capB" aria-hidden="true"><b></b><span></span></div></div>
+<div class="bar"><button id="bPrev" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Play or pause"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Time"><span id="clock"></span>
+ <select id="rate" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+<ol class="ch" id="chap"></ol>
+</div>
+<script>
+// ── SCENE ──
+Paper.install();
+const BOX = {x: 96, y: 18, w: 1088, h: 556};
+const PIC = Paper.picture('room', BOX, {scene: 'night-desk'});
+const VIEW = Paper.view('night-desk', {to: [640, 235], width: 1100});
+const MINI = Paper.mini(PIC, 'agents', VIEW);
+MINI.setAttribute('opacity', 0);
+const END = Paper.picture('roomEnd', BOX, {scene: 'cafe'});
+const VEND = Paper.view('cafe', {to: [640, 235], width: 1100});
+Paper.mini(END, 'endCard', VEND);
+const STEPS = [
+ {t: 'Агенты работают', say: 'Оркестра это команда ИИ-агентов: они часами работают сами и запускают долгие фоновые задания.',
+  sub: 'Orchestra — команда ИИ-агентов: они часами работают сами и запускают долгие фоновые задания.'},
+ {t: 'Перезапуск', say: 'Но иногда платформу надо перезапустить, чтобы включить новый код.',
+  set: {plat: {fill: '#fde4d0', stroke: '#c9551b'}, platT: {fill: '#c9551b'}, rst: {opacity: 1},
+        wire0: {stroke: '#fde4d0'}, wire1: {stroke: '#fde4d0'}, wire2: {stroke: '#fde4d0'}},
+  w: {plat: [.35, .5], platT: [.35, .5], rst: [.45, .6], wire0: [.5, .65], wire1: [.5, .65], wire2: [.5, .65]}},
+ {t: 'Живой пример', say: 'Живой пример. Семнадцатого октября перезапуск застал за работой пятерых агентов.',
+  sub: 'Живой пример. 17 октября перезапуск застал за работой пятерых агентов.',
+  set: {lossLayer: {opacity: 1}, a0: {opacity: 1}, a1: {opacity: 1}, a2: {opacity: 1}, a3: {opacity: 1}, a4: {opacity: 1}},
+  w: {lossLayer: [0, .15], a0: [.3, .4], a1: [.36, .46], a2: [.42, .52], a3: [.48, .58], a4: [.54, .64]}},
+ {t: 'Потеря', say: 'Трое продолжили, а у двоих работа молча пропала: это сорок процентов.',
+  sub: 'Трое продолжили, а у двоих работа молча пропала: это 40 %.',
+  set: {av0: {opacity: 1}, av1: {opacity: 1}, av2: {opacity: 1}, av3: {opacity: 1}, av4: {opacity: 1}, loss: {opacity: 1}},
+  w: {av0: [.05, .15], av1: [.08, .18], av2: [.11, .21], av3: [.4, .5], av4: [.43, .53], loss: [.7, .82]}},
+ {t: 'Вручную', say: 'Оркестратор пересылал им задания вручную.'},
+ {t: 'Фоновые задания', say: 'Фоновые задания, например длинный прогон тестов, обрывались.',
+  set: {lossLayer: {opacity: 0}, jobLayer: {opacity: 1}, jobCut: {opacity: 1}, jobCutT: {opacity: 1}},
+  w: {lossLayer: [0, .1], jobLayer: [.08, .2], jobCut: [.75, .85], jobCutT: [.75, .85]}},
+ {t: 'Заново', say: 'Агенту приходило «прервано», и всё запускали заново.',
+  set: {jobAgain: {opacity: 1}}, w: {jobAgain: [.6, .75]}},
+ {t: 'Номер разговора', say: 'Теперь номер разговора с агентом запоминается в начале его хода, а не в конце.',
+  set: {jobLayer: {opacity: 0}, turnLayer: {opacity: 1}, newId: {opacity: 1}, oldId: {opacity: 1}},
+  w: {jobLayer: [0, .08], turnLayer: [.06, .16], newId: [.45, .6], oldId: [.78, .9]}},
+ {t: 'Продолжай', say: 'После перезапуска агента поднимают по этому номеру со словами: продолжай с м+еста остановки.',
+  set: {oldId: {opacity: 0}, turnCut: {opacity: 1}}, w: {oldId: [0, .1], turnCut: [.05, .18]}},
+ {t: 'Вывод в файл', say: 'А фоновое задание пишет вывод и код завершения в файл.',
+  set: {turnLayer: {opacity: 0}, fileLayer: {opacity: 1}, fileBox: {opacity: 1}, toFile: {opacity: 1}},
+  w: {turnLayer: [0, .08], fileLayer: [.06, .16], fileBox: [.35, .5], toFile: [.4, .55]}},
+ {t: 'Подхват', say: 'Перезапуск его не трогает: новый процесс дожидается конца и отдаёт результат агенту.',
+  set: {oldProc: {opacity: .35}, oldX: {opacity: 1}, newProc: {opacity: 1}, readFile: {opacity: 1}, fileRes: {opacity: 1}},
+  w: {oldProc: [.05, .2], oldX: [.05, .2], newProc: [.35, .5], readFile: [.5, .62], fileRes: [.7, .85]}},
+ {t: 'Проверка', say: 'Проверка в тот же день: пауза сорок секунд, поднято двадцать пять фоновых заданий, два бежали прямо во время перезапуска.',
+  sub: 'Проверка в тот же день: пауза 40 с, поднято 25 фоновых заданий, 2 бежали прямо во время перезапуска.',
+  set: {fileLayer: {opacity: 0}, numLayer: {opacity: 1}, n0: {opacity: 1}, n1: {opacity: 1}, n2: {opacity: 1}},
+  w: {fileLayer: [0, .06], numLayer: [.04, .1], n0: [.15, .25], n1: [.38, .48], n2: [.68, .78]}},
+ {t: 'Результат', say: 'Одно через шестнадцать минут принесло итог: двести двадцать восемь тестов прошли. Второе честно вернуло свою ошибку.',
+  sub: 'Одно через 16 минут принесло итог: 228 тестов прошли. Второе честно вернуло свою ошибку.',
+  set: {res2: {opacity: 1}}, w: {res2: [.72, .86]}},
+ {t: 'Минус', say: 'Честный минус: команды, которые агент запускает внутри хода, обрываются. Он узнаёт об этом из напоминания.',
+  set: {numLayer: {opacity: 0}, consLayer: {opacity: 1}, con1: {opacity: 1}, con1b: {opacity: 1}},
+  w: {numLayer: [0, .08], consLayer: [.05, .12], con1: [.1, .22], con1b: [.6, .72]}},
+ {t: 'Пауза', say: 'И на время перезапуска агенты ждут.',
+  set: {con2: {opacity: 1}, con2b: {opacity: 1}}, w: {con2: [.05, .2], con2b: [.5, .65]}},
+ {t: 'Итог', say: 'Перезапуск теперь просто пауза, а не потеря работы.', hold: 1.6,
+  set: {consLayer: {opacity: 0}}, w: {consLayer: [0, .15]}},
+];
+STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);
+STEPS.forEach(s => s.d ??= Math.max(3, s.say.length / 14));  // браузерный просмотр без озвучки
+function draw(i, p, t) {
+  const st = []; let at = 0; for (const s of STEPS) { st.push(at); at += s.d; }
+  const last = st.length - 1, d0 = STEPS[0].d;
+  Paper.brush(PIC, t, 0, 1.2);
+  Paper.camera(PIC, t, {...VIEW, t0: .4 * d0, t1: st[1] - .15});
+  MINI.setAttribute('opacity', Paper.fade(t, .25 * d0, .4).toFixed(3));
+  $('room').setAttribute('opacity', (1 - Paper.fade(t, st[1] - .1)).toFixed(3));
+  Paper.live(PIC, t);
+  // схема платформы и агентов: шаги 1–2
+  const ag = Paper.fade(t, st[1] - .15) - Paper.fade(t, st[2], .3);
+  $('agentsLayer').setAttribute('opacity', Math.max(0, ag).toFixed(3));
+  Paper.type($('manual'), 'оркестратор → пересылает задания вручную', t, st[4] + .2, st[4] + STEPS[4].d * .75, {cursor: t < st[5]});
+  // полоса прогона растёт до рестарта (середина полосы) и встаёт
+  const s5 = st[5], d5 = STEPS[5].d;
+  $('jobBar').setAttribute('width', (470 * Math.min(1, Math.max(0, (t - s5 - d5 * .2) / (d5 * .55)))).toFixed(1));
+  Paper.type($('jobMsg'), '[Background job INTERRUPTED]', t, st[6] + .1, st[6] + STEPS[6].d * .45, {cursor: t < st[7]});
+  Paper.type($('resume'), '«продолжай с места остановки»', t, st[8] + STEPS[8].d * .6, st[8] + STEPS[8].d * .95, {cursor: t < st[9]});
+  Paper.type($('res1'), '✓ Ran 228 tests … OK', t, st[12] + STEPS[12].d * .3, st[12] + STEPS[12].d * .55, {cursor: false});
+  // концовка: утренняя сцена проявляется кистью, камера отъезжает от ноутбука с итогом
+  $('roomEnd').setAttribute('opacity', t >= st[last] ? 1 : 0);
+  Paper.brush(END, t, st[last], 1.2); Paper.live(END, t);
+  const dl = STEPS[last].d;
+  Paper.camera(END, st[last] + dl - (t - st[last]), {...VEND, t0: st[last] + .2 * dl, t1: st[last] + .75 * dl});
+}
+// ── PLAYER ──
+function $(id){return document.getElementById(id)} // function declaration is hoisted; scenes may call $ before the player
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),SK=7;
+const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // critically damped spring
+const hex=/^#[0-9a-f]{6}$/i,mix=(a,b,p)=>typeof a=='number'&&typeof b=='number'?a+(b-a)*p:hex.test(a)&&hex.test(b)?'#'+[1,3,5].map(k=>Math.round(parseInt(a.substr(k,2),16)*(1-p)+parseInt(b.substr(k,2),16)*p).toString(16).padStart(2,'0')).join(''):p>0?b:a;
+const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-motion: reduce)').matches,FADE=.5,sp=EASE.spring;let T=0,t=0,on=false,last=0,ci=-1,gl=null;
+ const get=(e,a)=>{const v=a=='text'?e.textContent:e.getAttribute(a);return v!==null&&v!==''&&!isNaN(v)?+v:v};
+ // each attribute has its own segment list {t0,t1,a,b}; value holds between segments
+ for(const s of STEPS){for(const[id,o]of Object.entries(s.set||{}))for(const[a,v]of Object.entries(o)){const e=E[id]??=$(id),L=(TL[id]??={})[a]??=Object.assign([],{v0:get(e,a)}),
+   to=Array.isArray(v)?v[1]:v,st=a=='text'||/opacity/.test(a)||typeof to=='string',w=s.w?.[id];
+   L.push({t0:T+(w?w[0]*s.d:0),t1:T+(w?w[1]*s.d:st?Math.min(s.d,FADE):s.d),a:Array.isArray(v)?v[0]:(L.length?L.at(-1).b:L.v0)??to,b:to,e:s.e,st,m0:0,m1:0})}
+  S.push(T);T+=s.d}
+ // same-direction motion joins with shared velocity (monotone Fritsch–Butland spline)
+ for(const id in TL)for(const a in TL[id]){const L=TL[id][a];for(let k=1;k<L.length;k++){const x=L[k-1],y=L[k],h0=x.t1-x.t0,h1=y.t1-y.t0,d0=(x.b-x.a)/h0,d1=(y.b-y.a)/h1;
+   if(!x.st&&!y.st&&!x.e&&!y.e&&Math.abs(x.t1-y.t0)<1e-9&&x.b===y.a&&d0*d1>0)x.m1=y.m0=3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1)}}
+ for(const id in TL){const e=E[id],o=TL[id];if(o.along||!(o.text||o.opacity))continue;FX[id]=1;
+  if(o.text){const g=G[id]=e.cloneNode(true);g.removeAttribute('id');g.setAttribute('aria-hidden','true');e.after(g)}
+  for(const x of[e,G[id]])if(x)Object.assign(x.style,{transformBox:'fill-box',transformOrigin:'center'})}
+ const val=(L,t)=>{let g=null;for(const s of L)if(s.t0<t||s.t0<=0&&t<=0)g=s;if(!g)return[L.v0,1,L.v0,L.v0];
+  const h=g.t1-g.t0,p=h>0?clamp((t-g.t0)/h):1;if(p>=1)return[g.b,1,g.a,g.b];
+  if(g.m0||g.m1){const p2=p*p,p3=p2*p;return[(2*p3-3*p2+1)*g.a+(p3-2*p2+p)*h*g.m0+(3*p2-2*p3)*g.b+(p3-p2)*h*g.m1,p,g.a,g.b]}
+  const q=(EASE[g.e]||sp)(p);return[mix(g.a,g.b,q),q,g.a,g.b]};
+ const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // text change: old leaves before new appears, so letters do not overlap
+ const put=(e,a,v)=>{const c=e._c??={};if(c[a]===v)return;c[a]=v;a=='text'?e.textContent=v:a=='css'?e.style.transform=v:a[0]=='-'?e.style.setProperty(a,v):e.setAttribute(a,v)};
+ function frame(te){for(const id in TL){const e=E[id],o=TL[id],g=G[id],v={};for(const a in o)v[a]=val(o[a],te);let dy=0,gy=0,k=0;
+   for(const a in v)if(a!='text'&&a!='along'&&a!='at'&&v[a][0]!=null)put(e,a,v[a][0]);
+   if(v.opacity){const[,q,f,b]=v.opacity;k=f==0&&b!=0?1-q:b==0&&f!=0?q:0}
+   if(v.text&&!g)put(e,'text',v.text[0]);
+   if(g){const[x,q,f,b]=v.text,x2=f!==b&&q<1;put(e,'text',x2?b:x);put(g,'text',f);put(e,'fill-opacity',x2?xin(q):1);put(g,'fill-opacity',x2?xout(q):0);
+    if(x2){dy=(1-q)*6;gy=-q*6}for(const a in v)if(a!='text'&&a!='along'&&a!='at')put(g,a,e.getAttribute(a));if(v.along)put(g,'transform',e.getAttribute('transform'))}
+   if(FX[id]){const tf=d=>`translateY(${(d+k*6).toFixed(2)}px) scale(${(1-.03*k).toFixed(4)})`;put(e,'css',tf(dy));if(g)put(g,'css',tf(gy))}
+   if(v.along){const p=$(v.along[0]),pt=p.getPointAtLength(clamp(v.at?.[0]??0)*p.getTotalLength());put(e,'transform',`translate(${pt.x.toFixed(2)},${pt.y.toFixed(2)})`)}}}
+ const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
+ function seek(v){t=clamp(v,0,T);const i=at(t);frame(rm?end(i):t);if(typeof draw=='function')draw(i,rm?1:clamp((t-S[i])/STEPS[i].d),t);
+  if(i!==ci){ci=i;$('capT').textContent=(i+1)+'. '+STEPS[i].t;$('capX').textContent=STEPS[i].x;const B=$('capB').children;B[0].textContent=i?i+'. '+STEPS[i-1].t:'';B[1].textContent=i?STEPS[i-1].x:'';
+   [...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}
+  const q=rm||!i?1:sp(clamp((t-S[i])/FADE));[...$('chap').children].forEach((li,k)=>put(li,'--o',k==i?q:k==i-1?1-q:0));$('capA').style.cssText=`opacity:${xin(q)};transform:translateY(${(1-q)*6}px)`;$('capB').style.cssText=`opacity:${xout(q)};transform:translateY(${-q*6}px)`;
+  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' s'}
+ function tick(now){if(!on)return;seek(t+Math.max(0,now-last)/1000*$('rate').value);last=now;t>=T?pause():requestAnimationFrame(tick)}
+ function play(){gl=null;if(t>=T)t=0;on=true;last=performance.now();$('bPlay').classList.add('on');requestAnimationFrame(tick)}
+ function pause(){on=false;gl=null;$('bPlay').classList.remove('on')}
+ function glide(to){pause();if(rm)return seek(to);const a=t,t0=performance.now(),g=gl={to},f=now=>{if(gl!==g)return;const q=clamp((now-t0)/400);seek(q<1?a+(to-a)*EASE.out(q):to);if(q<1)requestAnimationFrame(f);else gl=null};requestAnimationFrame(f)}
+ const toggle=()=>on?pause():play(),next=()=>{const c=gl?gl.to:t,i=at(c);glide(c<end(i)-1e-3?end(i):end(Math.min(i+1,S.length-1)))},prev=()=>{const c=gl?gl.to:t,i=at(c);glide(i?end(i-1):0)};
+ $('seek').max=T;$('seek').oninput=e=>{pause();seek(+e.target.value)};$('bPlay').onclick=toggle;$('bNext').onclick=next;$('bPrev').onclick=prev;
+ STEPS.forEach((s,k)=>{const li=document.createElement('li');li.textContent=(k+1)+'. '+s.t;li.onclick=()=>{seek(S[k]);play()};$('chap').append(li)});
+ addEventListener('keydown',e=>{const f={' ':toggle,ArrowRight:next,ArrowLeft:prev,Home:()=>{pause();seek(0)},End:()=>{pause();seek(T)}}[e.key];if(f&&e.target.tagName!='SELECT'){e.preventDefault();f()}});
+ seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return t},T,S}})();
+</script></body></html>
