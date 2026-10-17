@@ -125,6 +125,18 @@ THEMES = {"paper": "video-paper.css", "dark": "video-dark.css"}
 SEEK_JS = "t => { P.seek(t); window.Paper?.chrome?.(t); }"
 
 
+# Плеер до V-922: копия текста для перехода «старый → новый» не повторяла x/y/размер, и старое
+# слово вспыхивало там, где элемент стоял в начале ролика.
+OLD_PLAYER_GHOST = "for(const a of['opacity','fill'])if(v[a])put(g,a,e.getAttribute(a))"
+
+
+def warn_old_player(scene: Path) -> None:
+    if OLD_PLAYER_GHOST in scene.read_text(errors="replace"):
+        print(f"предупреждение: {scene.name} — плеер старой версии: при смене текста у сдвинутой подписи "
+              "мелькнёт старое слово на исходном месте. Замени строку плеера по каркасу "
+              "html-artifacts/references/animation.md (V-922)", file=sys.stderr, flush=True)
+
+
 def open_scene(pw, scene: Path, voice: dict | None, theme: str = "paper"):
     browser = pw.chromium.launch()
     page = browser.new_page(viewport=VIEW, device_scale_factor=SCALE)
@@ -147,6 +159,7 @@ def open_scene(pw, scene: Path, voice: dict | None, theme: str = "paper"):
 # ---------- озвучка ----------
 
 def read_steps(scene: Path, lang: str) -> list[dict]:
+    warn_old_player(scene)
     with sync_playwright() as pw:
         browser, page = open_scene(pw, scene, None)
         steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null, d: s.d, events: s.events || []}))")

@@ -907,3 +907,29 @@ def test_default_bed_mixes_under_voice_and_passes_sound_qa(tmp_path):
                          "--audio", str(out / f"{name}.sound")], capture_output=True, text=True)
     assert qa.returncode == 0, qa.stdout + qa.stderr
     assert "pass  silence" in qa.stdout and "pass  voice" in qa.stdout
+
+
+def test_text_change_ghost_follows_the_moved_label(tmp_path):
+    """V-922: при смене текста уходящее слово рисует копия; она должна стоять там же, где подпись сейчас,
+    а не там, где подпись была в начале ролика (иначе старое слово мелькает в другом месте кадра)."""
+    import re as _re
+
+    md = (ROOT / ".orchestra/pipelines/default/prompts/skills/html-artifacts/references/animation.md").read_text()
+    html = _re.search(r"```html motion-template\n(.*?)```", md, _re.S).group(1)
+    html = _re.sub(r'<svg id="stage".*?</svg>', '<svg id="stage" viewBox="0 0 900 200">'
+                   '<text id="lbl" x="100" y="50" font-size="40">old</text></svg>', html, count=1, flags=_re.S)
+    html = _re.sub(r"const STEPS = \[.*?\];\n", "const STEPS = [{d: 1, t: 'move', x: '', set: {lbl: {x: 600, 'font-size': 20}}},"
+                   " {d: 1, t: 'rename', x: '', set: {lbl: {text: 'new'}}}];\n", html, count=1, flags=_re.S)
+    scene = tmp_path / "ghost.html"
+    scene.write_text(html)
+    with make.sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.goto(scene.as_uri())
+        ghost = page.evaluate("""() => { P.seek(1.03);
+            const e = document.getElementById('lbl'), g = e.nextElementSibling;
+            return {text: g.textContent, fo: g.getAttribute('fill-opacity'), visible: +g.getAttribute('fill-opacity') > 0,
+                    x: g.getAttribute('x'), size: g.getAttribute('font-size'), ex: e.getAttribute('x')}; }""")
+        browser.close()
+    assert ghost["text"] == "old" and ghost["visible"], ghost
+    assert ghost["x"] == ghost["ex"] == "600" and ghost["size"] == "20", ghost
