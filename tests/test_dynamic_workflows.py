@@ -140,6 +140,13 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     assert spec_path.stat().st_size > 64 * 1024
     spec = json.loads(spec_path.read_text())
     assert spec['mode'] == 'stages' and len(spec['stages'][0]['tasks']) == 2
+    assert [task['task_id'] for task in spec['stages'][0]['tasks']] == [
+        'stage-1-item-1', 'stage-1-item-2',
+    ]
+    assert [task['item'] for task in spec['stages'][0]['tasks']] == [
+        {'id': 1, 'profile': 'first'}, {'id': 2, 'profile': 'second'},
+    ]
+    assert [task['item_index'] for task in spec['stages'][0]['tasks']] == [0, 1]
     assert [task['billing'] for task in spec['stages'][0]['tasks']] == [
         'api_credit', 'api_credit',
     ]
@@ -256,6 +263,7 @@ async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypa
     assert spec['tasks'] == [{
         'prompt': 'legacy task', 'model': 'gpt-6-luna',
         'billing': 'subscription', 'label': 'Task 1',
+        'task_id': 'task-1',
     }]
     assert spec['mode'] == mode
     assert spec['dashboard']['task_id'] == 'V-738'
@@ -347,7 +355,8 @@ async def test_inline_chain_passes_each_result_as_structured_input(tmp_path):
         'mode': 'chain',
         'tasks': [{'prompt': 'first'}, {'prompt': 'second'}],
     })
-    assert [item.data for item in result] == ['result-1', 'result-2']
+    assert [item['result'].data for item in result] == ['result-1', 'result-2']
+    assert [item['task_id'] for item in result] == ['task-1', 'task-2']
     assert prompts[0] == 'first'
     assert prompts[1].startswith('second\n\nStructured inputs:\n["result-1"]')
 
@@ -379,6 +388,12 @@ async def test_stages_give_every_next_stage_task_all_previous_results(tmp_path):
         ]},
     ])
     assert len(result) == 2 and len(result[0]) == len(result[1]) == 2
+    assert [item['task_id'] for item in result[0]] == [
+        'stage-1-task-1', 'stage-1-task-2',
+    ]
+    summary = wf_run._notification_summary(engine.write_manifest())
+    assert 'stage-1-task-1: result-1' in summary
+    assert 'stage-1-task-2: result-2' in summary
     assert [step['label'] for step in engine.write_manifest()['steps']] == [
         'Stage 1 · Task 1', 'Stage 1 · Task 2', 'Stage 2 · Task 1', 'Stage 2 · Task 2',
     ]
@@ -407,7 +422,8 @@ async def test_stage_budget_is_global_and_resume_replays_prior_stage(tmp_path):
         default_modules=(),
     )
     partial = await first.execute_stages(stages)
-    assert partial[0][0].data == 'result-1' and partial[1] == [None]
+    assert partial[0][0]['result'].data == 'result-1'
+    assert partial[1][0]['result'] is None
     assert first.write_manifest()['partial_reason'] == 'budget'
     assert prompts == ['first']
 
@@ -417,6 +433,6 @@ async def test_stage_budget_is_global_and_resume_replays_prior_stage(tmp_path):
         default_modules=(),
     )
     complete = await resumed.execute_stages(stages)
-    assert [item[0].data for item in complete] == ['result-1', 'result-2']
+    assert [item[0]['result'].data for item in complete] == ['result-1', 'result-2']
     assert prompts[0] == 'first'
     assert prompts[1].startswith('second\n\nStructured inputs:\n["result-1"]')

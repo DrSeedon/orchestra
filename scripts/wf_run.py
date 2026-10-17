@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import ast
 import base64
+import fcntl
 import hashlib
 import inspect
 import json
@@ -118,6 +119,64 @@ class WorkspacePreparationError(RuntimeError):
     pass
 
 
+class WorkflowRunAlreadyActive(RuntimeError):
+    pass
+
+
+class WorkflowRunLock:
+    def __init__(self, path: Path):
+        self.path = path
+        self.fd: int | None = None
+
+    def __enter__(self) -> "WorkflowRunLock":
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                os.lseek(fd, 0, os.SEEK_SET)
+                owner = os.read(fd, 64).decode("ascii", errors="ignore").strip()
+                if owner.isdigit():
+                    raise WorkflowRunAlreadyActive(
+                        f"workflow run already active (pid {owner})"
+                    )
+                # The owner may have acquired the lock but not yet published its PID.
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            os.ftruncate(fd, 0)
+            os.write(fd, str(os.getpid()).encode("ascii"))
+            os.fsync(fd)
+            self.fd = fd
+            return self
+        except BaseException:
+            os.close(fd)
+            raise
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        if self.fd is not None:
+            fcntl.flock(self.fd, fcntl.LOCK_UN)
+            os.close(self.fd)
+            self.fd = None
+
+
+def _task_result_record(
+    task: dict[str, Any], result: WorkflowValue | None, *, task_id: str,
+    task_index: int, stage_index: int | None = None,
+) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "task_id": str(task.get("task_id") or task.get("id") or task_id),
+        "task_index": task_index,
+        "result": result,
+    }
+    if stage_index is not None:
+        record["stage_index"] = stage_index
+    if "item" in task:
+        record["item"] = task["item"]
+    if "item_index" in task:
+        record["item_index"] = task["item_index"]
+    return record
+
+
 class Budget:
     def __init__(self, maximum_usd: float, maximum_calls: int):
         if maximum_usd < 0:
@@ -224,13 +283,58 @@ def _parse_and_validate(raw: str, schema: dict) -> Any:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as error:
-        if schema.get("type") == "string":
+        wrapped = _extract_wrapped_json(raw)
+        if wrapped is not None:
+            try:
+                value = json.loads(wrapped)
+            except json.JSONDecodeError as wrapped_error:
+                if schema.get("type") != "string":
+                    raise ValueError(
+                        f"invalid JSON: {wrapped_error.msg} at line "
+                        f"{wrapped_error.lineno} column {wrapped_error.colno}"
+                    ) from wrapped_error
+                value = raw
+        elif schema.get("type") == "string":
             value = raw
-            _validate_schema(value, schema)
-            return value
-        raise ValueError(f"invalid JSON: {error.msg} at line {error.lineno} column {error.colno}") from error
+        else:
+            raise ValueError(
+                f"invalid JSON: {error.msg} at line {error.lineno} column {error.colno}"
+            ) from error
     _validate_schema(value, schema)
     return value
+
+
+def _extract_wrapped_json(raw: str) -> str | None:
+    for match in re.finditer(r"```(?:json)?\s*\r?\n?(.*?)```", raw, re.IGNORECASE | re.DOTALL):
+        return match.group(1).strip()
+
+    stack: list[str] = []
+    start = -1
+    in_string = False
+    escaped = False
+    pairs = {"}": "{", "]": "["}
+    for index, char in enumerate(raw):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "{[":
+            if not stack:
+                start = index
+            stack.append(char)
+        elif char in "}]" and stack:
+            if stack[-1] != pairs[char]:
+                return None
+            stack.pop()
+            if not stack:
+                return raw[start:index + 1]
+    return None
 
 
 def _schema_retry_prompt(prompt: str, error: str, schema: dict) -> str:
@@ -560,6 +664,7 @@ class WorkflowEngine:
                     int(row.get("next_attempt") or 0),
                     str(row.get("error") or "schema validation failed"),
                 )
+                self._step_records[call_key] = {**row, "reason": "schema", "value": None}
             elif event == "prepare_failed":
                 call_key = str(row.get("call_key") or "")
                 last_state[call_key] = "prepare_failed"
@@ -941,6 +1046,7 @@ class WorkflowEngine:
                 self.journal.append({
                     "event": "schema_invalid",
                     "call_key": call_key,
+                    "label": label,
                     "attempt": attempt + 1,
                     "next_attempt": attempt + 1,
                     "error": schema_error,
@@ -950,6 +1056,13 @@ class WorkflowEngine:
                         result.text.encode("utf-8", errors="replace")
                     ) > _SCHEMA_RESPONSE_MAX_BYTES,
                 })
+                self._step_records[call_key] = {
+                    "call_key": call_key,
+                    "label": label,
+                    "reason": "schema",
+                    "error": schema_error,
+                    "value": None,
+                }
                 if attempt < 2:
                     current_prompt = _schema_retry_prompt(rendered, schema_error, schema)
 
@@ -964,7 +1077,7 @@ class WorkflowEngine:
                 reason=reason,
                 label=label,
                 cost_usd=total_cost,
-                error=result.error if result is not None else "",
+                error=(schema_error or result.error) if result is not None else "",
             )
             return None
 
@@ -1276,15 +1389,25 @@ class WorkflowEngine:
             )
 
         if mode == "parallel":
-            self.result = await self.parallel([
+            values = await self.parallel([
                 lambda task=task: run_task(task) for task in tasks
             ])
+            self.result = [
+                _task_result_record(
+                    task, value,
+                    task_id=f"task-{index + 1}", task_index=index,
+                )
+                for index, (task, value) in enumerate(zip(tasks, values))
+            ]
         elif mode == "chain":
             results = []
             prior = None
-            for task in tasks:
+            for index, task in enumerate(tasks):
                 prior = await run_task(task, prior)
-                results.append(prior)
+                results.append(_task_result_record(
+                    task, prior,
+                    task_id=f"task-{index + 1}", task_index=index,
+                ))
                 if prior is None:
                     break
             self.result = results
@@ -1295,9 +1418,9 @@ class WorkflowEngine:
     async def execute_stages(self, stages: list[dict[str, Any]]) -> Any:
         results_by_stage = []
         previous: list[WorkflowValue] = []
-        for stage in stages:
+        for stage_index, stage in enumerate(stages):
             stage_tasks = stage["tasks"]
-            results = await self.parallel([
+            values = await self.parallel([
                 lambda task=task, prior=tuple(previous): self.agent(
                     task["prompt"], model=task.get("model", "luna"),
                     schema=task.get("schema"), inputs=prior,
@@ -1306,10 +1429,19 @@ class WorkflowEngine:
                 )
                 for task in stage_tasks
             ])
+            results = [
+                _task_result_record(
+                    task, value,
+                    task_id=f"stage-{stage_index + 1}-task-{task_index + 1}",
+                    task_index=task_index,
+                    stage_index=stage_index,
+                )
+                for task_index, (task, value) in enumerate(zip(stage_tasks, values))
+            ]
             results_by_stage.append(results)
-            if any(value is None for value in results):
+            if any(record["result"] is None for record in results):
                 break
-            previous = results
+            previous = [record["result"] for record in results]
         self.result = results_by_stage
         return self.result
 
@@ -1338,8 +1470,6 @@ def _args() -> argparse.Namespace:
 async def _main() -> int:
     args = _args()
     run_id = args.resume or args.run_id
-    from app.agent_cgroups import enter_workflow_cgroup
-    enter_workflow_cgroup(run_id)
     if sum(bool(value) for value in (args.workflow, args.tasks_b64, args.spec)) != 1:
         raise ValueError("provide exactly one of workflow, --spec, or --tasks-b64")
     workflow = args.workflow.resolve() if args.workflow else None
@@ -1349,6 +1479,17 @@ async def _main() -> int:
     elif args.spec:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     run_dir = ROOT / "data" / "workflow-runs" / run_id
+    with WorkflowRunLock(run_dir / ".run.lock"):
+        return await _run_locked(args, run_id, workflow, spec, run_dir)
+
+
+async def _run_locked(
+    args: argparse.Namespace, run_id: str, workflow: Path | None,
+    spec: dict | None, run_dir: Path,
+) -> int:
+    from app.agent_cgroups import enter_workflow_cgroup
+
+    enter_workflow_cgroup(run_id)
     encoded_spec = args.tasks_b64 or ""
     command_parts = [
         "env", f"ORCHESTRA_TASK_ID={os.environ.get('ORCHESTRA_TASK_ID', '')}",
@@ -1426,12 +1567,19 @@ def _notification_summary(manifest: dict) -> str:
                 break
     omitted = 0
     for index, value in enumerate(results):
-        data = value.get("data") if isinstance(value, dict) else None
-        path = value.get("result_path") if isinstance(value, dict) else None
-        label = f"{index + 1}. {path or 'no result path'}"
+        task_id = value.get("task_id") if isinstance(value, dict) else None
+        result = value.get("result") if isinstance(value, dict) else None
+        result = result if isinstance(result, dict) else value
+        data = result.get("data") if isinstance(result, dict) else None
+        path = result.get("result_path") if isinstance(result, dict) else None
+        item_index = value.get("item_index") if isinstance(value, dict) else None
+        identity = str(task_id or f"task-{index + 1}")
+        if item_index is not None:
+            identity += f" item[{item_index}]"
+        label = f"{identity}: {path or 'no result path'}"
         if isinstance(data, str) and data:
             answer = " ".join(data.split())
-            label = f"{index + 1}. {answer[:120]}"
+            label = f"{identity}: {answer[:120]}"
         if sum(map(len, lines)) + len(label) + len(lines) * 1 > 2400:
             omitted = len(results) - index
             break
@@ -1444,4 +1592,8 @@ def _notification_summary(manifest: dict) -> str:
 
 
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(_main()))
+    try:
+        raise SystemExit(asyncio.run(_main()))
+    except WorkflowRunAlreadyActive as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(2) from error
