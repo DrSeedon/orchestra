@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T2-sonnet-r2",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": false,
+ "stop_reason": "error",
+ "error": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\nError: Input must be provided either through stdin or as a prompt argument when using --print\n",
+ "paid_tokens": 0,
+ "output_tokens": 0,
+ "input_tokens": 0,
+ "cache_read_tokens": 0,
+ "cache_create_tokens": 0,
+ "turns": null,
+ "cost_usd_api_equiv": null,
+ "seconds": 17.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": ""
+}

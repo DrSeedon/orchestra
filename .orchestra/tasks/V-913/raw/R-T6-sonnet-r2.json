@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T6-sonnet-r2",
+ "task": "T6",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16993,
+ "output_tokens": 2893,
+ "input_tokens": 14,
+ "cache_read_tokens": 97473,
+ "cache_create_tokens": 14086,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.10479660000000002,
+ "seconds": 56.0,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The workflow runner names each agent worktree from only the first 12 hex characters of the call's content digest. The per-call occurrence counter is dropped. Ten byte-identical calls therefore all get the same worktree name, and `create_worktree` rejects every call after the first. Stale directories are not involved.\n\nEvidence:\n- `scripts/wf_run.py`, `_call_key` (line ~517): the key is `sha256(canonical payload):occurrence`. The occurrence counter in `self._occurrences` is the only thing that tells identical calls apart.\n- `scripts/wf_run.py`, `_run_attempt` (line ~818): `name = f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. `call_key[:12]` keeps only the first 12 characters of the digest, so the `:N` suffix is cut off. With the same prompt and workspace option, `run_id`, digest and attempt are all equal, so the name is identical for all 10 calls.\n- `app/workspace.py`, `create_worktree` (lines 571–582): the path is `WORKTREE_ROOT/<repo_slug>/<name>`, and `if wt_path.exists(): raise ValueError(\"worktree already exists ...\")`.\n- Concurrency 3 is not the trigger. The second call raises the error whether it runs alongside the first or after it, because the first call's worktree is still in use or not yet cleaned up. The `ValueError` is not retried, so the stage aborts.\n- Different prompts give different digests and so different names. That matches your report that those batches work.\n\nReproduction: I ran the real `app.workspace.create_worktree` against a throwaway git repo (`scratch/repro.py`). It used the same name formula, `wf-RUNID-{key[:12]}-a0`, with keys built the way `_call_key` builds them.\n- 10 identical payloads (occurrence 0..9) gave 1 distinct name. 1 call succeeded and the next raised `ValueError: worktree already exists: …`.\n- 10 different payloads gave 10 distinct names and 10 successes.\n\nI ran the calls sequentially, so this shows the collision is by name and not timing. I did not run `wf_run.py` end to end with concurrency 3, so that exact setup is not reproduced.\n\nWhy the teammate's guess doesn't fit: your report says `git worktree list` was clean and the run directory fresh. The collision happens within the run itself, and the pattern depends on the prompt being identical, not on leftover state. Stale directories would also hit batches with different prompts.\n\nRecommended fix: make the worktree name unique per call.\n- Include the occurrence in the name. For example, build it from `call_key.replace(\":\", \"-\")` (digest plus occurrence), or use `call_key[:12]` plus `-o{occurrence}`.\n- Alternatively, keep a per-run monotonic counter.\n- The archive path at line 857 already uses the full `call_key`, so it is unaffected.\n- Optionally, make `create_worktree` collisions fail with a clearer message that names the call."
+}

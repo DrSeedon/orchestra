@@ -1,0 +1,25 @@
+{
+ "run_id": "A-T8-sonnet-r1",
+ "task": "T8",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 17784,
+ "output_tokens": 1664,
+ "input_tokens": 8,
+ "cache_read_tokens": 61777,
+ "cache_create_tokens": 16112,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0934594,
+ "seconds": 81.1,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/r.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The hang is not in `wait_for`/`shield`. It comes from the unbounded `await reader` after the timeout, in `bash()` in `app/harness/tools.py`.\n\n**How it happens**\n- `wait_for(shield(reader), timeout)` does fire on time. That is the \"harness timeout … killed\" message the user sees at about 30 s.\n- The `except asyncio.TimeoutError` branch then calls `_kill_proc(proc)` and `out, _ = await reader`. There is no timeout on that second await.\n- `reader` is `proc.communicate()`. It finishes only when the shared stdout/stderr pipe reaches EOF and the process has exited. EOF needs every holder of the pipe's write end to close it.\n- `_kill_proc` calls `_cleanup_pidfd_group` in `app/bg_jobs.py`. It signals only the process group that the pidfd identifies (SIGTERM, then SIGKILL).\n- A descendant that leaves that group still holds the pipe. Examples are `setsid cmd &`, `nohup setsid …`, or a daemonizing server or watcher.\n- That descendant survives the kill, the pipe never reaches EOF, and `await reader` blocks until the descendant exits on its own. That can be minutes or forever.\n- The `finally` block also does `await reader` with no bound. It only suppresses `CancelledError`, so it has the same problem.\n\n**Evidence** (scratch repro `scratch/r.py`, calling `bash(cmd, \".\", timeout=3)`):\n- `sleep 30`: returned in 4.3 s.\n- `sleep 20 & sleep 30`: returned in 3.2 s. The background child is in the same group and is killed.\n- `setsid sleep 20 & sleep 30`: returned in 20.5 s. The timeout message came only after the escaped `sleep 20` exited, not at 3 s. A child that lives for 10 minutes would hold the call for 10 minutes.\n\nThis also explains why only some commands hang. Commands that keep their pipe-holding children in the same group return on time.\n\n**Fix I recommend**\n1. After the kill, bound the drain. Wrap it in `asyncio.wait_for(asyncio.shield(reader), ~2s)`. If it times out, cancel `reader` and use whatever output was already read.\n2. `communicate()` buffers internally, so cancelling it loses the partial output. Replace it with a small loop that reads `proc.stdout` in chunks into a buffer the timeout handler can read directly. The \"Partial output\" then survives even if EOF never arrives.\n3. Apply the same bounded wait in the `finally` block.\n4. Optionally, when the timeout is reached, close the transport (`proc._transport.close()`) so a leaked descendant can't keep the call alive.\n\nMy teammate's `wait_for`/`shield` guess is not the cause. The timeout fires correctly and the blocking happens afterwards."
+}

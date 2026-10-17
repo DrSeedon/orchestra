@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T3-sonnet-r2",
+ "task": "T3",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 15762,
+ "output_tokens": 2599,
+ "input_tokens": 14,
+ "cache_read_tokens": 89897,
+ "cache_create_tokens": 13149,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.09659340000000002,
+ "seconds": 54.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The teammate's guess is wrong. The live database is not behind on schema. The MCP stdio server opens a different database from the one the live server uses. `ORCHESTRA_DB_PATH` is not passed to it.\n\nEvidence (from reading the code; I did not reproduce the failure):\n- `app/runtime_env.py`: `MCP_BASE_ENV` is the environment the MCP subprocess gets. It contains only `PYTHONPATH` and, if set, `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` and `INTERNAL_TOKEN`. `ORCHESTRA_DB_PATH` is not in that list. `app/manager.py:365` spreads `MCP_BASE_ENV` into the MCP environment.\n- `app/db.py:_resolve_db_path` uses `ORCHESTRA_DB_PATH` if it is set. Otherwise it falls back to `_DEFAULT_DB_PATH`, which is `data/orchestra.db` in the checkout. `DB_PATH` is computed when the module is imported. In the MCP process the variable is missing, so it resolves to the default file.\n- `app/mcp_stdio.py` (around line 4025, in the `codex_review` tool) calls `init_db()` before `review_receipt_reserve`. It runs this way for every project. `app/main.py:384` re-resolves `DB_PATH` in the live server, which does have the variable. That is why the live server is healthy.\n- `app/db.py:init_db` compares `PRAGMA user_version` with `SCHEMA_VERSION = 1`. If the version differs, or the file already has tables, it raises `database schema needs offline migration before starting Orchestra`. The default `data/orchestra.db` was therefore opened and rejected: its schema version is not 1, or it holds tables with `user_version` 0. The live database, migrated on 11 September, was never opened.\n\nNot verified:\n- The snapshot has no `data/` directory, so I could not read `user_version` of `data/orchestra.db`.\n- I did not find what changed on 12 September. \"Nothing in the review code changed\" fits. The likely change is in the environment: the `data/orchestra.db` file, or how the service is launched. Before that date the default file was probably empty or a valid version-1 database. Compare the file's modification time and `PRAGMA user_version` with the live database.\n\nFix:\n1. Add `ORCHESTRA_DB_PATH` to the variables copied in `app/runtime_env.py`, resolved to an absolute path. The MCP subprocess then uses the same database as the server. `app/manager.py:365` picks it up with no further change.\n2. Don't run the offline migration on the live database. It is already migrated, and `init_db` is a no-op there. Don't migrate or delete the stale `data/orchestra.db` blindly either. Inspect it first, then archive it or remove it.\n3. For the MCP `codex_review` path, consider calling `init_db` only when the database is the intended one. Failing with the resolved path in the error message would show this kind of mismatch at once."
+}

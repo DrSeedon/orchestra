@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T2-sonnet-r1",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 9138,
+ "output_tokens": 1878,
+ "input_tokens": 10,
+ "cache_read_tokens": 43102,
+ "cache_create_tokens": 7250,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0564204,
+ "seconds": 27.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The most likely cause is the hard-coded 15-second timeout in `_git()` in `app/merge_test_gate.py`. `changed_paths()` hits it on a branch this large, and the caller reports the resulting `None` as \"cannot derive target-relative merge paths\". I could not reproduce this, because the snapshot has no git repo and no copy of the branch.\n\nEvidence:\n- The error is raised at `app/merge_operations.py:864`, in `_prepare_admission_snapshot`. It fires whenever `changed_paths(...)` returns `None`.\n- `changed_paths()` (`app/merge_test_gate.py:167-199`) has several `None` exits. They are a missing worktree, \"not inside a work tree\", an unverifiable `target_sha`, no usable base ref, and a failed `git diff --name-only {base}...HEAD`.\n- `_git()` (lines 150-164) runs every command with `timeout=15` and `check=False`. It turns both `TimeoutExpired` and any non-zero exit into `None`. The cause is never reported, so a timeout looks exactly like a missing merge base.\n- `git diff --name-only base...HEAD` runs rename detection by default (`diff.renames`). With about 1900 added PNGs and about 60 renames, the inexact-rename matching over many added and deleted binary blobs is the expensive part. `git ls-files --others` over such a tree adds more time.\n- The failure depends on size and repeats identically on every retry. Small branches pass. That fits a deterministic timeout, not a flaky or missing-ref problem.\n\nThe teammate's guess is probably wrong for two reasons:\n- A missing merge base would not give an \"empty list\". In that case `git diff A...HEAD` exits non-zero and `_git` returns `None`. That would not depend on branch size, and small merges to the same target work.\n- An empty list would not raise this error at all, because the check is `changed is None`, not `not changed`.\n\nI can't rule it out entirely. The same `None` return covers it, and `_git` discards stderr, so nothing in the logs tells the two apart.\n\nRecommended fix:\n1. In `changed_paths`, call `git diff --name-only --no-renames -z {base}...HEAD`. Rename detection is useless for choosing tests, since both old and new paths should count as changed. Consider `--no-ext-diff` too.\n2. Give this call a much larger timeout, for example 120 seconds or a parameter. Keep 15 seconds for the cheap `rev-parse` calls.\n3. Make `_git` log or return the failure reason (timeout vs. return code and stderr). Make `_prepare_admission_snapshot` include that reason in the `ValueError`, so the two failure modes are distinguishable.\n4. To confirm, run `time git diff --name-only base...HEAD` on the branch with and without `--no-renames`. Also run `git merge-base base HEAD` to rule out the teammate's theory."
+}

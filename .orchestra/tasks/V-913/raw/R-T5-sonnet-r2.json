@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T5-sonnet-r2",
+ "task": "T5",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 26991,
+ "output_tokens": 4377,
+ "input_tokens": 16,
+ "cache_read_tokens": 133652,
+ "cache_create_tokens": 22598,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.1609244,
+ "seconds": 69.8,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Гонка в `send()`. Старый `_listen_task` завершается штатно, но его done-callback `_on_task_done` видит уже новый ход со статусом RUNNING. Codex-слушатель не падает, а гипотеза про падение при исчерпании квоты не подтверждается. Сам механизм я воспроизвёл упрощённой моделью, но не на реальных 14 строках журнала.\n\nЦепочка:\n1. `_turn_event_loop` (session.py:2435) обрабатывает `turn_end` / `turn FAILED: rate_limit` и вызывает `after_turn_idle_actions`. Статус при этом уже IDLE.\n2. В `after_turn_idle_actions` (session_turns.py:547-553) `mailbox.claim` находит письма. Пишется «mailbox: N — продолжаю ход» и запускается фоновая `_deliver_mailbox`. Она вызывает `s.send()` (session_turns.py:609).\n3. `send()` пишет `user_message` и вызывает `_start_turn_state` (session.py:1575, :1160). Статус становится RUNNING, а `_listen_task` всё ещё указывает на старую завершающуюся задачу.\n4. Новая задача создаётся только после `await _ensure_backend` и `await provider_send` (session.py:1580, :1646, :1683-1686).\n5. Старый поток событий к этому моменту заканчивается, и срабатывает `_on_task_done`. Защита `task is not self._listen_task` (session.py:2879) пропускает, потому что `_listen_task` ещё старый. Статус RUNNING, поэтому ветка `else` (session.py:2894-2896) вызывает `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")`. Отсюда ошибка, автоотчёт «Turn failed before an explicit report (no output)» и IDLE.\n6. Затем `provider_send` возвращается, создаётся новая задача, и пишется «codex turn=… started». Поэтому воркер жив и ход идёт.\n\nЭти шаги совпадают с порядком строк в обоих отрывках: `mailbox`, `user_message`, `error`, `turn started`. Во втором отрывке id ошибки (557156) стоит раньше `user_message` (557157), а её время (20.846) позже (20.830). Это тоже согласуется с гонкой двух конкурирующих корутин, но сам порядок id я не воспроизводил.\n\nСвязь с квотой: после `rate_limit` или `limit` у воркера, скорее всего, больше накопленных писем (например от оркестратора), поэтому ветка mailbox срабатывает чаще. Это моё предположение, подтверждённое только отрывком 374011-374015. Пересечение 14 случаев с квотой я не проверял.\n\nВоспроизведение (`scratch/repro.py`): модель без реального бэкенда, с настоящим `AgentSession._on_task_done` и заглушкой сессии. Задача A завершается после перевода статуса в IDLE. Затем статус ставится в RUNNING, до создания задачи B есть `await`, и `_finish_failed_running_turn` вызывается с этой самой строкой. Побочный эффект скрипта: сама задача B тоже завершилась со статусом RUNNING и дала второй вызов. Это артефакт скрипта, не часть механизма. Вариант без `await` тоже дал один вызов, но только от B; ложного вердикта от A в нём нет. Реальные `send()`, Codex и БД я не запускал.\n\nFIX (рекомендую):\n- В `_turn_event_loop` пометить ход. Например, в `_on_task_done` сравнивать поколение: `task._turn_gen != self._turn_gen` значит устаревший слушатель, и ничего не делать.\n- Либо проверять, завершился ли поток событий штатно. `_turn_event_loop` может ставить флаг «ended_cleanly» после `turn_end`, и `_on_task_done` будет его учитывать.\n- Либо в `send()` сначала обнулять `_listen_task` (None) до смены статуса. Тогда `task is not self._listen_task` отсечёт старую задачу.\n\nПервый вариант самый надёжный."
+}

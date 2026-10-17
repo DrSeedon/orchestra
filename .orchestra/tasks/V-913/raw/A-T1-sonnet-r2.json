@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T1-sonnet-r2",
+ "task": "T1",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 35768,
+ "output_tokens": 4278,
+ "input_tokens": 20,
+ "cache_read_tokens": 208353,
+ "cache_create_tokens": 31470,
+ "turns": 15,
+ "cost_usd_api_equiv": 0.21037060000000002,
+ "seconds": 49.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: I couldn't pin down the exact trigger. This directory has no git repository or logs, so I read the code and did not run the failing merge. The strongest candidate is that `main` already contains worker.txt with the same content, so the squash merge staged nothing.\n\nWhat the code shows for your error:\n- Your error message, \"merge produced no new commits\", is a fallback string. It is not the same-tip message, which is the one `merge_worktree_to_main` (app/workspace.py ~1347-1359) returns when worker HEAD equals the target tip.\n- The fallback string is produced in two places that apply the same rule (ok, target unchanged, zero commits). The first is the end of `merge_worktree_to_main` (workspace.py ~1723-1732). The second is `normalize_merge_result` (app/merge_operations.py ~1023-1036), which the route in app/routes/sessions.py ~2102-2115 mirrors.\n- So git did not fail. The merge ran, reported ok, and left `main` unchanged. That rules out a dirty worktree, a conflict, a hook rejection, a pinned-HEAD mismatch and a diff-budget refusal, because those return their own error messages.\n- The only branch that can give ok with an unchanged target is in the squash path (workspace.py ~1608-1675). The code runs `git merge --squash <worker_head>` in the checkout that owns `main`, then checks `git diff --cached --quiet`. If nothing is staged, it returns `{\"ok\": True, \"commits_merged\": 0}` without committing (~1669-1675), and the later checks turn that into `NO_COMMITS_MERGED`.\n- `git log main..task-416/worker` can show a commit while the squash still stages nothing. That happens when `main` already has the same tree change. Examples are an earlier manual cherry-pick or merge of identical content, or a squash done under a different commit.\n- The unrelated-history path (`_cherry_pick_branch`, ~1050-1125) behaves the same way. It skips empty picks and returns no commit.\n- Retrying gives the same answer because the outcome depends only on the contents of `main` and the worker branch.\n\nChecks that would confirm it (read-only, in the main checkout):\n- `git diff main task-416/worker --stat` should be empty or lack worker.txt.\n- `git show main:worker.txt` should exist and match the worker's copy.\n- `git merge-tree --write-tree main task-416/worker` should output the same tree as `git rev-parse main^{tree}`.\n- `git worktree list --porcelain` should show which checkout owns `main`.\n\nRecommended fix:\n1. Don't retry `merge_worker`. If the tree check above confirms `main` already has the content, treat the work as already integrated. Close the task and clean up the worker branch. If the diff is not empty, send the output of those four commands back and I'll look again.\n2. Change the code so this case reports an explicit code, for example `ALREADY_APPLIED` or \"worker changes already present on target\". At the moment it is indistinguishable from the same-tip case. Its `next_action` (`CHECK_WORKER_THEN_NEW_OPERATION`) also sends the orchestrator into retries that cannot succeed."
+}

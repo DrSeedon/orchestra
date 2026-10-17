@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T5-sonnet-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 28945,
+ "output_tokens": 5069,
+ "input_tokens": 20,
+ "cache_read_tokens": 184973,
+ "cache_create_tokens": 23856,
+ "turns": 14,
+ "cost_usd_api_equiv": 0.1831486,
+ "seconds": 68.2,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: A stale listener task's completion callback is read as a crash of the new turn. The Codex listener does not crash. I reproduced the verdict in a model of the sequence, not through the real `AgentSession` and Codex backend, so that last link is unproven.\n\nEvidence:\n- Codex is `event_stream=\"per_turn\"` (`app/runtime_registry.py:345`). Each turn has its own `_turn_event_loop` task, stored in `self._listen_task`.\n- In both excerpts a `mailbox: N — продолжаю ход вместо пробуждения` row comes right before the error. That row is written by `after_turn_idle_actions` (`app/session_turns.py:548`), which runs inside the old task A while it handles `turn_end`. It spawns `_deliver_mailbox`, which calls `s.send()` (`session_turns.py:609`).\n- `send()` sets `status=RUNNING` (via `_start_turn_state`). It then awaits `provider_send(...)` (`app/session.py:1646`) and only afterwards replaces `self._listen_task` with the new task B (`session.py:1683`).\n- If A's event stream closes inside that gap, A is still `self._listen_task` and the status is RUNNING. The guard `if task is not self._listen_task` in `_on_task_done` (`session.py:2879`) doesn't catch it. The `else` branch (`session.py:2894-2896`) then calls `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")`.\n- That function sets IDLE, logs the error and calls `report_abnormal_end`. That produces the `Turn failed before an explicit report (no output)` message (`app/turn_signals.py:153`). It then claims the mailbox again.\n- The new turn is actually running. B starts moments later (`codex turn=… started`). In excerpt 1 the order is user_message at .377, error at .386, turn started at .470. In excerpt 2 the error row has an earlier timestamp (.846) than the user_message row (.830). That fits a callback firing during `send`.\n- After quota exhaustion, `turn FAILED: rate_limit` ends the turn and closes the stream almost immediately. The gap is then likely to be hit, which would explain why several of the 14 followed quota exhaustion. I did not measure this.\n\nTeammate's guess: not supported. The worker is alive, a new turn starts at .470, and excerpt 2 shows the same pattern after a normal `end_turn`. Quota only changes timing.\n\nReproduction: `scratch/repro.py` uses the real `AgentSession._on_task_done` with a stub session and a stub `send`. If A ends during the send, the exact row `listen task exited unexpectedly while RUNNING` appears and the status goes to IDLE. If A ends outside the gap, nothing is logged. I did not drive the real `_turn_event_loop` or Codex backend, so I haven't shown that the real stream closes inside the window. The existing `test_stale_listener_end_does_not_fail_a_new_running_turn` only covers the case where B already replaced A.\n\nRecommended fix: make the verdict depend on the turn, not on task identity.\n1. Capture `self._turn_gen` (or a turn id) when the listener is created. In `_on_task_done`, ignore the callback if the generation has moved on. Also ignore it if `_start_turn_state` ran after the task was created, which covers the gap.\n2. Set `_listen_task` before the `await provider_send`, or hold a \"turn starting\" flag across it.\n3. Add a regression test where `_deliver_mailbox` is mid-send while the old task finishes."
+}

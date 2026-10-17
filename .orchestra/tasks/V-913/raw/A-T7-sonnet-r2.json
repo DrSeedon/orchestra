@@ -1,0 +1,29 @@
+{
+ "run_id": "A-T7-sonnet-r2",
+ "task": "T7",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 87657,
+ "output_tokens": 19172,
+ "input_tokens": 82,
+ "cache_read_tokens": 1692400,
+ "cache_create_tokens": 68403,
+ "turns": 43,
+ "cost_usd_api_equiv": 0.8039760000000002,
+ "seconds": 438.6,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/fakecli.sh",
+  "scratch/sdk_repro.py",
+  "scratch/test_repro.py",
+  "scratch/test_repro2.py",
+  "scratch/test_repro3.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: I did not find a persistent failure in the Claude path. The only mechanism I could reproduce is in the process-owning runtime backends, so this is a likely cause rather than a confirmed one for your session. In `CodexBackend.disconnect` (`app/backend_codex.py:1117`), a dead child pid makes the disconnect raise `ProcessLookupError` on every call. `_change_runtime_chat_locked` turns that into `text_tail_source_release_failed`, and the failure never clears.\n\nEvidence:\n- `AgentSession._change_runtime_chat_locked` (`app/session.py:3394-3413`) wraps `_drain_persist()` and `_disconnect_backend()` in one `except Exception`. Any exception becomes `text_tail_source_release_failed` / `history_transfer: blocked`.\n- `_disconnect_backend` (`app/session.py:4054`) only sets `self._backend = None` after `backend.disconnect()` returns. If that raises, the session keeps the old backend.\n- `CodexBackend.disconnect` calls `_disconnect_direct` (`app/backend_codex.py:1084`). When `proc.returncode is None`, it calls `proc.terminate()` with no `ProcessLookupError` guard. The fallback `except BaseException` only records `_teardown_error` and re-raises, so `_proc` is never cleared and `_finalize_disconnect` never runs.\n- When the pid is already gone but asyncio has not recorded an exit code, `returncode` stays `None`. Every retry then hits the same unguarded `terminate()`. `RuntimeProcessGroup.stop` (`app/runtime_process_group.py`) and the Claude SDK transport both suppress `ProcessLookupError`. The direct path doesn't, and `backend_grok.py:762` has the same unguarded `proc.terminate()`.\n- Scratch repro (`scratch/test_repro3.py`): a backend with a stale `_proc` whose `terminate()` raises `ProcessLookupError`. Three `change_model` calls all return `text_tail_source_release_failed`.\n\nWhat I ruled out: I could not make the pure Claude path fail repeatedly.\n- `ClaudeBackend.disconnect` (`app/backend_claude.py:1160`) nulls `_client` in a `finally`, so a second call is a no-op.\n- `scratch/test_repro.py` (the SDK disconnect raising once) fails once, then the retry succeeds.\n- `scratch/test_repro2.py` (a real CLI that dies, with live listener and heartbeat tasks) succeeds on the first try.\n- `scratch/sdk_repro.py` (a real SDK client with a dead CLI) disconnects cleanly three times.\n\nIf the orchestrator session really is `backend_type == \"claude\"`, this explanation doesn't apply and the cause is something I didn't reproduce. Check `backend_type` and the backend class of that session first.\n\nRecommended fix:\n1. In `CodexBackend._disconnect_direct` and `GrokBackend.disconnect`, wrap `terminate()` and `kill()` in `contextlib.suppress(ProcessLookupError)`, then reap and clear the process state.\n2. In `CodexBackend.disconnect`, clear `_proc` and `_process_group` when the exception is `ProcessLookupError` or when the process is verifiably gone. A failed teardown should not pin the dead owner forever.\n3. In `_disconnect_backend`, drop `self._backend` once the backend's process is verifiably dead, so a stale backend can't block the switch.\n4. As an immediate workaround, restart the session (`stop`/`_disconnect_backend` via the manager) or use `fresh=True`. Note that `fresh=True` discards the dialog history."
+}

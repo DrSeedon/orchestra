@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T2-sonnet-r2",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 10085,
+ "output_tokens": 1809,
+ "input_tokens": 10,
+ "cache_read_tokens": 48147,
+ "cache_create_tokens": 8266,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.060803399999999994,
+ "seconds": 26.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `changed_paths()` in `app/merge_test_gate.py` turns any failure of its git calls into `None`, including a 15-second timeout. `_prepare_admission_snapshot()` in `app/merge_operations.py` (line 863) then reports that `None` as \"cannot derive target-relative merge paths\". The most likely trigger is the 15-second timeout on the heavy `git diff` call for this branch. I did not reproduce it, because there is no git repo or branch in this snapshot.\n\nEvidence:\n- `app/merge_operations.py:858-864` calls `changed_paths(worktree, target_ref, target_sha)`. If the result is `None`, it raises the error you saw. An empty list would not raise it. That is why \"the base-relative path list comes back empty\" doesn't match the code.\n- `app/merge_test_gate.py:150-164`: `_git()` runs git with a hard `timeout=15`. It returns `None` on `TimeoutExpired`, `OSError` or any non-zero exit, so the three cases look the same to the caller.\n- `changed_paths()` (lines 167-199) returns `None` whenever `_git` does. The calls that can fail this way are `rev-parse`, `git diff --name-only <sha>...HEAD` (line 189) and the `ls-files --others` call (line 193).\n- Branch size fits a timeout. `diff A...HEAD` computes the merge base and then runs rename detection, which git enables by default. With about 60 renames among about 1900 binary PNGs, git has to read and compare the blobs. In a 2402-file diff that can pass 15 seconds, especially on a cold cache. Small branches finish well within the limit.\n- It fails identically on every retry because the timeout is deterministic for a fixed diff size. A transient problem would not repeat that way.\n- The teammate's guess is unlikely. A missing merge base makes `git diff A...HEAD` exit with 128, which gives `None` rather than an empty list. It would also hit small branches the same way, and those merge fine. It cannot be fully ruled out without the repo.\n\nRecommended fix:\n1. In `changed_paths()`, pass `--no-renames` to the diff. This also gives a complete path list, with both the old and new name shown as separate entries. Using `--name-only --no-renames -z` also avoids path-quoting issues. Binary files need no content comparison for a name list.\n2. Raise the timeout for the diff and `ls-files` calls, or make it configurable. Don't keep a flat 15 seconds for repo-wide calls.\n3. Make `_git` distinguish a timeout from a git error, and make `_prepare_admission_snapshot` include the cause (timeout, exit code, stderr) in its message. Today the error is a generic \"cannot derive\" with no detail.\n4. To confirm, run in the worktree: `time git diff --name-only <target>...HEAD`, then the same with `--no-renames`. Also check `git merge-base <target> HEAD`."
+}

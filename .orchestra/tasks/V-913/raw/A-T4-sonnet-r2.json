@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T4-sonnet-r2",
+ "task": "T4",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19954,
+ "output_tokens": 1768,
+ "input_tokens": 6,
+ "cache_read_tokens": 37739,
+ "cache_create_tokens": 18180,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0979598,
+ "seconds": 21.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The hot reload works, but its result is never used for any variable that was already in the process environment. `_live_quota_env()` in `app/quota_gate.py` gives the startup environment priority over `.env`. Under systemd, `EnvironmentFile` has already put the old `QUOTA_GATED_LANES` value into the process environment, so the old value wins until the service restarts. I read the code but did not run it, so the production behaviour is inferred from the code and your debug-log observation.\n\nEvidence:\n- At import, `_startup_quota_env = {name: os.environ.get(name) for name in _QUOTA_ENV_NAMES}` (line 143) takes a snapshot of the process environment. It is never refreshed.\n- `_live_quota_env()` (lines 191-200) resolves each name in this order:\n  1. `_startup_quota_env[name]` if it is not None.\n  2. Otherwise the `.env` value, if the key is present in `.env`.\n  3. Otherwise `_UNSET`.\n- `quota_policy()` calls this on every evaluation, and `evaluate_worker_admission` calls `quota_policy()`. That is why the gate keeps the old lanes.\n- systemd reads `.env` once at unit start and exports each key into the service's environment. So `QUOTA_GATED_LANES=claude,sol` is in `os.environ` at import, the snapshot holds it, and it beats the edited, now-empty `.env` value forever.\n- The teammate's guess is wrong. The mtime check (lines 179-190) does fire. It re-parses `.env` into `_dotenv_values` and updates `_dotenv_mtime_ns`, which matches your debug log showing a new mtime and new values. The re-read values are then masked at lines 193-195.\n- A plain local shell has no exported `QUOTA_GATED_LANES`. The snapshot value is None, so the code falls through to `.env` and the edit applies at once.\n- The empty value is not the problem. `_parse_lanes` handles `\"\"` correctly and returns `frozenset()`. The check is `is not None`, so an empty string would also win if it were the startup value.\n- The module constants `GATED_LANES` and `CURVED_LANES` (lines 245-246) are frozen at import from `os.environ`. Nothing else in `app/` references them, so they don't explain this, but they are also stale after any edit.\n\nRecommended fix:\n1. Make `.env` win when it defines the key. In `_live_quota_env`, check `name in _dotenv_quota_keys` first and use the `.env` value. Fall back to the startup environment only when `.env` doesn't define the key. This is the order a \"hot-reloadable `.env`\" implies. If you want real environment overrides to keep priority, document that and don't advertise `.env` hot reload for these keys.\n2. Add a regression test. Set `os.environ[\"QUOTA_GATED_LANES\"]=\"claude,sol\"` before import, write `.env` with `QUOTA_GATED_LANES=`, and assert that `quota_policy().gated_lanes == frozenset()`.\n3. Remove or lazily compute the frozen `GATED_LANES` and `CURVED_LANES` constants.\n4. Short-term workaround: remove or empty the line in the file that `EnvironmentFile` points to, then run `systemctl restart`. A plain `.env` edit is not enough under systemd, because that file is only read when the unit starts."
+}

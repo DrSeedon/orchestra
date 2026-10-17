@@ -1,0 +1,29 @@
+{
+ "run_id": "A-T7-sonnet-r1",
+ "task": "T7",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 99794,
+ "output_tokens": 22052,
+ "input_tokens": 90,
+ "cache_read_tokens": 2133499,
+ "cache_create_tokens": 77652,
+ "turns": 53,
+ "cost_usd_api_equiv": 0.9580078000000001,
+ "seconds": 439.9,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/fake_cli.sh",
+  "scratch/t.py",
+  "scratch/t2.py",
+  "scratch/t3.py",
+  "scratch/test_x.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The persistent failure is in `RuntimeProcessGroup.stop()` (`app/runtime_process_group.py`). `CodexBackend.disconnect()` can't recover from it once the runtime process is dead and its cgroup is gone. I did not find any Claude-specific path that fails on every retry, so this fits only if the session's backend is actually a Codex runtime. That would contradict the \"Claude CLI died\" framing. I reproduced the `stop()` failure in isolation. I did not reproduce it through a full Codex session switch.\n\nHow the error arises:\n- A model switch that changes runtime goes `change_model` → `_change_model_locked` → `_change_runtime_chat_locked` (`app/session.py`, around 3394).\n- That function calls `_drain_persist()` and then `_disconnect_backend()` inside one `try`. Any exception becomes `text_tail_source_release_failed`, and the session's state isn't changed.\n- `_disconnect_backend()` calls `backend.disconnect()`. For Codex (`app/backend_codex.py:1117`), that calls `self._process_group.stop(proc, …)`.\n- `stop()` loops on `self.populated()`, which reads `<cgroup>/cgroup.events`. If the process is dead and the cgroup directory is already gone, that read raises `FileNotFoundError`. `stop()` doesn't handle it.\n- The exception also skips `_finalize_disconnect()`. So `_proc`, `_process_group` and `_teardown_error` stay set, and `session._backend` isn't cleared (`app/session.py:4061`).\n- Every retry hits the same missing cgroup and fails the same way.\n\nEvidence:\n- A scratch script (`scratch/t3.py`) gave `stop()` a dead process and a missing cgroup directory. Both calls raised the same `FileNotFoundError` on `cgroup.events`.\n- I also tested `ClaudeBackend.disconnect()` (`app/backend_claude.py:1160`). It re-raises once but clears `_client` in its `finally`, so the second call succeeds (`scratch/t.py`, `scratch/test_x.py`).\n- The Claude SDK client disconnects cleanly after its CLI exits (`scratch/t2.py`). Nothing in the Claude path keeps failing.\n- `_drain_persist` uses `return_exceptions=True`, so it isn't the cause.\n\nRecommended fix:\n1. Make `RuntimeProcessGroup.populated()` and `stop()` treat a missing cgroup as empty:\n   - Catch `FileNotFoundError` in `populated()` and return False.\n   - Use `rmdir(missing_ok)`-style cleanup at the end of `stop()`.\n2. In `CodexBackend.disconnect()`, when the process is already dead (`returncode` set), call `_finalize_disconnect()` in a `finally` and clear the owner. Keep the `_teardown_error` record. Right now a failed stop keeps the owner, so every retry fails.\n3. In `_disconnect_backend`, cancel the heartbeat and listener tasks in a `finally`. They are currently skipped when `backend.disconnect()` raises, so the listener keeps trying to reconnect.\n4. Add a regression test with a dead process and a missing cgroup directory. It should check that `change_model` succeeds and `source.disconnect` clears the backend.\n\nI created only scratch files under `./scratch/` and modified no existing file."
+}

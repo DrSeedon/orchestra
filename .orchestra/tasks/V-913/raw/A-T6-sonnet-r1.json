@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T6-sonnet-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 15256,
+ "output_tokens": 2041,
+ "input_tokens": 10,
+ "cache_read_tokens": 58820,
+ "cache_create_tokens": 13205,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.085014,
+ "seconds": 23.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: Workspace names for identical calls collide, because the worktree name drops the occurrence counter. Stale worktrees from earlier runs are not the cause.\n\n**Evidence**\n- `WorkflowEngine._call_key` (scripts/wf_run.py:517-523) returns `f\"{digest}:{occurrence}\"`. The digest is a 64-character sha256 hex string. The occurrence counter, which is the only thing that tells byte-identical calls apart, comes after it.\n- `_run_attempt` (scripts/wf_run.py:818) builds the workspace name as `f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. `call_key[:12]` keeps only the first 12 hex characters of the digest and cuts off the `:N` suffix. All 10 identical calls therefore get the same name: same run_id, same digest prefix, same attempt number.\n- `create_worktree` (app/workspace.py:561-582) maps that name to `WORKTREE_ROOT/<repo_slug>/<name>`. It raises `ValueError(\"worktree already exists: ...\")` when that path exists. It runs under `repo_mutation_lock`, and `_prepare_workspace_sync` runs in `asyncio.to_thread`.\n- With concurrency 3, the first call's worktree is still live when the second call's `create_worktree` runs. The second call finds the path and raises. `_run_attempt`'s `except BaseException` branch then re-raises, which aborts the stage.\n- Calls with different prompts have different digests, so their prefixes differ and they never collide. That matches the batches that work.\n- The same short name is also used for `run_dir/cancelled-workspaces/<name>`, so cancelled-workspace archives would collide too.\n- A fresh run directory with an empty `git worktree list` rules out stale worktrees. The conflict comes from siblings in the same batch. I traced this by reading the code. I did not run a reproduction.\n\n**Fix**\n- Make the worktree name unique per call and attempt. Put the occurrence counter into the name, for example `digest[:12]` plus `-o{occurrence}`. Or hash the whole `call_key`: `hashlib.sha256(call_key.encode()).hexdigest()[:12]`. Keeping the name deterministic keeps resume behaviour stable.\n- Also make the branch name unique. For the no-task case, `create_worktree` derives the branch `feat/<slug>/<name>` from the name, so a unique name fixes that as well.\n- Optionally add a regression test that runs 10 identical `tools=\"all\"` calls at concurrency 3 with a fake adapter. Assert that the prepared worktree names are all distinct."
+}
