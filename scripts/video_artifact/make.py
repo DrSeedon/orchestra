@@ -137,12 +137,20 @@ def warn_old_player(scene: Path) -> None:
               "html-artifacts/references/animation.md (V-922)", file=sys.stderr, flush=True)
 
 
+@lru_cache(maxsize=1)
+def paper_scenes() -> dict:
+    """Готовые сцены открытия/концовки (scenes/*.svg + index.json) для Paper.picture(..., {scene})."""
+    index = json.loads((HERE / "scenes" / "index.json").read_text())
+    return {name: {**meta, "svg": (HERE / "scenes" / f"{name}.svg").read_text()} for name, meta in index.items()}
+
+
 def open_scene(pw, scene: Path, voice: dict | None, theme: str = "paper"):
     browser = pw.chromium.launch()
     page = browser.new_page(viewport=VIEW, device_scale_factor=SCALE)
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+    page.add_init_script(f"window.__PAPER_SCENES = {json.dumps(paper_scenes(), ensure_ascii=False)};")
     page.add_init_script((HERE / "paper.js").read_text())
     if voice is not None:
         page.add_init_script(VOICE_JS % json.dumps(voice, ensure_ascii=False))
@@ -153,6 +161,8 @@ def open_scene(pw, scene: Path, voice: dict | None, theme: str = "paper"):
     page.evaluate("theme => { document.documentElement.dataset.theme = theme; }", theme)
     page.evaluate("document.fonts.ready")
     page.evaluate(SEEK_JS, page.evaluate("P.t"))  # перерисовать подписи после смены шрифта и вёрстки
+    if issues := page.evaluate("window.Paper ? Paper.supportIssues() : []"):
+        fail("картина: предметы висят в воздухе или стоят мимо опоры — " + "; ".join(issues))
     return browser, page
 
 
@@ -218,6 +228,41 @@ def check_steps(steps: list[dict], lang: str, engine: str | None = "vosk") -> li
                 fail(f"шаг {i}: в say есть {''.join(bad)} — числа пиши словами с нужным падежом, латиницу произноси по-русски")
             if bad := tera_unsupported_characters(spoken_text):
                 fail(f"шаг {i}: символ {bad[0]!r} не поддержан русским TeraTTS")
+    return steps
+
+
+STRESS_DICT = HERE / "stress_ru.json"
+_RU_WORD = re.compile(r"[А-Яа-яЁё+]+")
+
+
+def apply_stress_dictionary(steps: list[dict], path: Path = STRESS_DICT) -> list[dict]:
+    """Русская разметка ударений до синтеза: словарные исправления ставятся сами, а омограф без `+`
+    останавливает сборку — автоматический RUAccent размечает слова по одному и смысла не видит."""
+    table = json.loads(path.read_text())
+    fixed = {k.lower(): v for k, v in table.get("fixed", {}).items()}
+    homographs = {w.lower() for w in table.get("homographs", [])}
+    problems = []
+
+    def mark(match: re.Match) -> str:
+        word = match.group(0)
+        if "+" in word:
+            return word
+        target = fixed.get(word.lower())
+        if target is None:
+            return word
+        return target[0].upper() + target[1:] if word[0].isupper() else target
+
+    for i, step in enumerate(steps, 1):
+        say = _RU_WORD.sub(mark, step["say"])
+        if say != step["say"] and step.get("sub") is None:
+            step["sub"] = step["say"]
+        step["say"] = say
+        for word in _RU_WORD.findall(say):
+            if "+" not in word and word.lower() in homographs:
+                problems.append(f"шаг {i}: «{word}»")
+    if problems:
+        fail("омографы без ручного ударения — поставь + перед ударной гласной (сто+ит / ст+оит, "
+             "замк+а / з+амка): " + "; ".join(problems))
     return steps
 
 
@@ -1017,6 +1062,8 @@ def _main() -> None:
             preview_html(args.scene, steps, out, name, first_step, last_step, args.theme)
         return
     steps = check_steps(steps, args.lang, args.tts_engine)
+    if args.lang == "ru":
+        steps = apply_stress_dictionary(steps)
     if args.stress_only:
         if args.lang == "ru" and args.tts_engine == "tera":
             steps = tera_stress(steps, enabled=not args.no_stress)
@@ -1029,6 +1076,11 @@ def _main() -> None:
         return
     if args.lang == "ru" and args.tts_engine == "vosk":
         steps = mark_stress(steps, args.lang, enabled=not args.no_stress, engine="vosk")
+    if args.lang == "ru" and args.tts_engine == "tera" and not args.check_only:
+        # Ударения каждой сборки — в файл рядом с роликом: их сверяют глазами (QA, V-935).
+        steps = tera_stress(steps, enabled=not args.no_stress)
+        (out / f"{name}.stress.txt").write_text("\n".join(step["_tts_text"] for step in steps) + "\n")
+        print(f"ударения: {out / f'{name}.stress.txt'}", flush=True)
     has_events = any(step.get("events") for step in steps)
     if args.no_music and args.music:
         fail("--music и --no-music взаимоисключающие")

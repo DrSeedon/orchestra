@@ -933,3 +933,67 @@ def test_text_change_ghost_follows_the_moved_label(tmp_path):
         browser.close()
     assert ghost["text"] == "old" and ghost["visible"], ghost
     assert ghost["x"] == ghost["ex"] == "600" and ghost["size"] == "20", ghost
+
+
+def test_stress_dictionary_fixes_known_misses_and_blocks_unmarked_homographs(tmp_path):
+    table = tmp_path / "stress.json"
+    table.write_text(json.dumps({"fixed": {"хода": "х+ода", "после": "п+осле"}, "homographs": ["стоит"]}))
+    steps = [{"say": "Со следующего хода. После паузы.", "sub": None}, {"say": "Блок сто+ит в конце.", "sub": None}]
+    done = make.apply_stress_dictionary(steps, table)
+    assert done[0]["say"] == "Со следующего х+ода. П+осле паузы." and done[0]["sub"] == "Со следующего хода. После паузы."
+    assert done[1]["say"] == "Блок сто+ит в конце."
+    with pytest.raises(SystemExit) as stop:
+        make.apply_stress_dictionary([{"say": "Это стоит денег.", "sub": None}], table)
+    assert "стоит" in str(stop.value)
+
+
+def test_bundled_stress_dictionary_is_valid_and_marks_each_fix():
+    table = json.loads(make.STRESS_DICT.read_text())
+    assert table["homographs"] and all(word == word.lower() for word in table["homographs"])
+    assert all("+" in value and value.replace("+", "") == key for key, value in table["fixed"].items())
+
+
+def _scenes_page(tmp_path, body):
+    page_file = tmp_path / "scenes.html"
+    page_file.write_text(f'<svg id="stage" viewBox="0 0 1280 590" width="1280" height="590" style="display:block">{body}</svg>')
+    return page_file
+
+
+def _with_kit(playwright, page_file):
+    browser = playwright.chromium.launch()
+    page = browser.new_page(viewport={"width": 1280, "height": 590})
+    page.add_init_script(f"window.__PAPER_SCENES = {json.dumps(make.paper_scenes(), ensure_ascii=False)};")
+    page.add_init_script((ROOT / "scripts/video_artifact/paper.js").read_text())
+    page.goto(page_file.as_uri())
+    return browser, page
+
+
+def test_bundled_scenes_stand_on_supports_and_zoom_onto_the_diagram(tmp_path):
+    """V-935: в готовых сценах ничего не висит в воздухе, и наезд на экран сцены кончается ровно на схеме."""
+    page_file = _scenes_page(tmp_path, '<g id="pic"></g><rect id="dia" x="90" y="40" width="1100" height="390"/>')
+    with make.sync_playwright() as playwright:
+        browser, page = _with_kit(playwright, page_file)
+        results = page.evaluate("""() => Object.keys(Paper.SCENES).map(name => {
+            const g = document.getElementById('pic'); g.removeAttribute('mask'); delete g._paper; g.innerHTML = '';
+            const pic = Paper.picture(g, {x: 96, y: 18, w: 1088, h: 556}, {scene: name});
+            const view = Paper.view(name), slot = Paper.mini(pic, 'dia', view);
+            Paper.camera(pic, 2, {...view, t0: 0, t1: 1});
+            const a = slot.lastElementChild.getBoundingClientRect(), b = document.getElementById('dia').getBoundingClientRect();
+            return {name, issues: Paper.supportIssues(), gap: Math.max(...['x', 'y', 'width', 'height'].map(k => Math.abs(a[k] - b[k]))),
+                    supported: g.querySelectorAll('[data-on]').length};
+        })""")
+        browser.close()
+    assert len(results) >= 3
+    for r in results:
+        assert r["issues"] == [] and r["supported"] >= 1 and r["gap"] < 1, r
+
+
+def test_support_check_reports_an_object_floating_beside_its_support(tmp_path):
+    page_file = _scenes_page(tmp_path, '<rect id="desk" x="400" y="350" width="500" height="40"/>'
+                                       '<g data-on="desk"><rect x="420" y="300" width="40" height="50"/></g>'
+                                       '<g data-on="desk"><rect x="960" y="300" width="40" height="52"/></g>')
+    with make.sync_playwright() as playwright:
+        browser, page = _with_kit(playwright, page_file)
+        issues = page.evaluate("Paper.supportIssues()")
+        browser.close()
+    assert len(issues) == 1 and "desk" in issues[0]

@@ -98,8 +98,34 @@ Call `Paper.install()` and `Paper.picture()` in the scene script after the SVG, 
 during the first `draw`). For the match cut, place a `<use href="#cards"
 transform="${Paper.miniature(VIEW)}">` copy of the diagram inside the picture: after the zoom it
 lands exactly on the original. Keep text inside that copy as large as the diagram's; small text
-in the zoomed monitor is unreadable. The progress bar and caption blur are added by the tool. A
-working scene with every technique: `.orchestra/tasks/V-917/demo/scene.html`.
+in the zoomed monitor is unreadable. Reference a group that is itself visible (`#agents`
+inside a faded `#agentsLayer`): a `<use>` copies the referenced element's own `opacity`. The
+progress bar and caption blur are added by the tool.
+
+**Opening and closing pictures come from a scene library** (`scripts/video_artifact/scenes/`,
+`index.json`; owner decision, 2026-10-17: a video series must not start and end with the same
+room every time). `Paper.picture('pic', box, {scene: 'board'})` fills the picture; `Paper.view(scene)`
+gives the camera view onto the scene's screen; `Paper.mini(pic, 'agents', view)` places the
+matching copy there; `Paper.live(pic, t)` turns clocks and moves steam. Bundled scenes:
+
+| scene | picture | fits |
+|---|---|---|
+| `night-desk` | night room, monitor, desk lamp | the problem, someone working late |
+| `board` | bright office, whiteboard, plant | rules, processes, agreements, summing up |
+| `cafe` | morning window, laptop and coffee | "now it works", light features, a calm ending |
+
+Pick by the topic and use a different scene (or the same one reversed) for the ending; a closing
+can zoom out (`camera` with mirrored time) or wipe away (`Paper.brush(pic, t, t0, dur, {out: true})`).
+A new scene is an SVG fragment with ids prefixed by its name, one `.paper-mini` group on its
+screen, and a line in `index.json` with `screen: [x, y, w, h]`.
+
+**Objects stand on supports.** Mark every prop that must rest on something with
+`data-on="<support id>"` (the lamp and the monitor on the desk top, the chair on the floor, the
+pot on the sill). `make.py` stops the build when a marked object's bottom is not on its support or
+its centre is beside it: a lamp hanging in the air read as a mistake to the owner (V-929). The
+check does not judge good placement; look at the unzoomed opening frame yourself (the chair in
+front of the desk, not beside it). Working scenes: `.orchestra/tasks/V-917/demo/scene.html`,
+`.orchestra/tasks/V-935/openings/openings.html`.
 
 ## Second engine: Manim
 
@@ -206,6 +232,14 @@ If Tera's bundled stress pass or the Vosk RUAccent worker fails to load, stop an
 TTS environment. Do not use `--no-stress` as a workaround for a broken requested build. Manual `+`
 markers are targeted corrections for specific words the automatic pass marks incorrectly; do not
 replace automatic stress with hand-marking.
+
+**Stress dictionary and homograph gate** (`scripts/video_artifact/stress_ru.json`, V-935). The
+automatic pass marks words one at a time and cannot see meaning: in V-929 it said «ход+а» for
+«хо́да», «ст+оит» in «блок сто́ит в конце» and «з+амка» for the lock «замка́». `fixed` words are
+corrected before synthesis automatically; a word from `homographs` without a manual `+` stops the
+build with the step number. Every Tera build writes `<name>.stress.txt` next to the video. When
+you hear or find a new mistake, add the word to `fixed` (one stress for every meaning) or
+`homographs` (stress depends on meaning).
 
 **Check stress yourself before the build.** Automatic stress can make mistakes: in V-696 RUAccent marked
 «посл+е» instead of «по́сле» once in five edits. The owner hears every such word. Before a full

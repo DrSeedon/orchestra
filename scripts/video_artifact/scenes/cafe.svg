@@ -1,0 +1,27 @@
+<!-- Утро у окна: стол на одной ножке, ноутбук и чашка на столе, цветок на подоконнике, лампа на шнуре. Экран ноутбука — место для мини-схемы. -->
+<defs>
+ <linearGradient id="cf-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3dfc4"/><stop offset="1" stop-color="#e8c9a6"/></linearGradient>
+ <linearGradient id="cf-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcf96"/><stop offset="1" stop-color="#f6a979"/></linearGradient>
+ <radialGradient id="cf-sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2c8"/><stop offset="1" stop-color="#ffd89a" stop-opacity="0"/></radialGradient>
+</defs>
+<rect x="60" y="0" width="1160" height="600" fill="url(#cf-wall)"/>
+<rect id="cf-floor" x="60" y="470" width="1160" height="135" fill="#c79a6e"/>
+<g><rect x="770" y="50" width="380" height="280" fill="url(#cf-sky)"/>
+ <circle cx="1010" cy="250" r="90" fill="url(#cf-sun)"/><circle cx="1010" cy="250" r="34" fill="#fff0c4"/>
+ <path d="M770 280Q860 250 950 285T1150 270V330H770Z" fill="#e48f6a" opacity=".7"/>
+ <rect x="770" y="50" width="380" height="280" fill="none" stroke="#8a5a3a" stroke-width="10"/><path d="M960 50V330" stroke="#8a5a3a" stroke-width="8"/>
+ <rect id="cf-sill" x="750" y="330" width="420" height="14" fill="#9a6a48"/></g>
+<g data-on="cf-sill"><path d="M1062 300H1110L1104 330H1068Z" fill="#c9551b"/>
+ <path d="M1072 300Q1060 270 1078 255Q1084 280 1084 300ZM1088 300Q1092 262 1112 252Q1108 284 1096 300Z" fill="#5f8a55"/></g>
+<g><path d="M330 0V96" stroke="#5a463a" stroke-width="3"/><path d="M290 130Q330 84 370 130Z" fill="#0e5e9c"/>
+ <ellipse cx="330" cy="134" rx="40" ry="5" fill="#fbe6b0" opacity=".9"/></g>
+<rect x="630" y="414" width="20" height="146" fill="#5e3a26"/><ellipse cx="640" cy="562" rx="70" ry="8" fill="#5e3a26"/>
+<rect id="cf-table" x="380" y="400" width="520" height="14" rx="6" fill="#7a4a30"/>
+<g data-on="cf-table"><path d="M552 392L740 392L730 250L562 250Z" fill="#3b3f48"/>
+ <path d="M560 384L732 384L724 260L568 260Z" fill="#eef3f6"/>
+ <g class="paper-mini"></g>
+ <rect x="520" y="392" width="250" height="8" rx="3" fill="#9aa1ab"/></g>
+<g data-on="cf-table"><rect x="800" y="364" width="42" height="34" rx="6" fill="#fbf8f0" stroke="#d8cfc0" stroke-width="2"/>
+ <path d="M842 372Q858 374 856 384Q854 392 842 392" fill="none" stroke="#d8cfc0" stroke-width="4"/>
+ <ellipse cx="821" cy="399" rx="34" ry="4" fill="#e6ddcf"/>
+ <path class="paper-steam" d="M812 356Q806 344 814 334Q822 324 816 312M828 356Q822 344 830 334Q838 324 832 312" fill="none" stroke="#fffaf0" stroke-width="3" stroke-linecap="round" opacity=".8"/></g>

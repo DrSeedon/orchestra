@@ -36,11 +36,16 @@
     /** Turn <g id> into a painted picture inside box {x, y, w, h}: torn paper edge, grain,
      *  vignette, slight hand-drawn wobble. Its children go into a camera group.
      *  Returns {cam, brush}; pass the result to Paper.brush and Paper.camera. */
-    picture(g, box) {
+    picture(g, box, {scene} = {}) {
       if (typeof g === 'string') g = document.getElementById(g);
       if (g._paper) return g._paper;
       const svg = g.ownerSVGElement;
       Paper.install(svg);
+      if (scene) {
+        const known = Paper.SCENES[scene];
+        if (!known) throw new Error(`Paper: unknown scene "${scene}"; known: ${Object.keys(Paper.SCENES).join(', ')}`);
+        g.innerHTML = known.svg;
+      }
       const id = g.id || `pic${Math.random().toString(36).slice(2, 8)}`;
       const defs = svg.querySelector('defs');
       const torn = mk(defs, 'mask', {id: `${id}-torn`});
@@ -61,15 +66,64 @@
       const inner = mk(g, 'g', {mask: `url(#${id}-torn)`});
       inner.append(cam);
       g.setAttribute('mask', `url(#${id}-brush)`);
-      g._paper = {cam, brush, box};
+      g._paper = {cam, brush, box, scene};
       return g._paper;
     },
 
+    /** Bundled opening/closing scenes (scripts/video_artifact/scenes/, injected by make.py):
+     *  {id: {title, fits, screen: [x, y, w, h], svg}}. */
+    SCENES: window.__PAPER_SCENES || {},
+
+    /** Camera view for a bundled scene: its screen centre moves to `to` and the screen grows
+     *  until a diagram `width` wide fills it. Use with camera(), miniature() and mini(). */
+    view(scene, {to = [640, 235], width = 1100} = {}) {
+      const [x, y, w, h] = Paper.SCENES[scene].screen;
+      return {from: [x + w / 2, y + h / 2], to, scale: width / w};
+    },
+
+    /** Put a shrunken <use> copy of the diagram `refId` on the picture's screen, so the push-in
+     *  ends exactly on the real diagram. Returns the copy's group (fade it in with opacity). */
+    mini(pic, refId, view) {
+      const slot = pic.cam.querySelector('.paper-mini') || mk(pic.cam, 'g');
+      mk(slot, 'use', {href: `#${refId}`, transform: Paper.miniature(view)});
+      return slot;
+    },
+
+    /** Small life in a picture: clock hands (.paper-hand-h/.paper-hand-m with data-c="x,y")
+     *  turn and steam (.paper-steam) drifts. Pure in t. */
+    live(pic, t) {
+      for (const [cls, speed, start] of [['.paper-hand-m', 9, 300], ['.paper-hand-h', .75, -40]])
+        for (const e of pic.cam.querySelectorAll(cls)) e.setAttribute('transform', `rotate(${(start + t * speed).toFixed(2)} ${e.dataset.c.replace(',', ' ')})`);
+      for (const e of pic.cam.querySelectorAll('.paper-steam')) {
+        e.setAttribute('transform', `translate(${(Math.sin(t * 1.7) * 3).toFixed(2)} ${(-((t * 6) % 10)).toFixed(2)})`);
+        e.setAttribute('opacity', (.55 + .3 * Math.sin(t * 2.3)).toFixed(3));
+      }
+    },
+
+    /** Frame check (V-935): every element with data-on="<support id>" must rest on its support —
+     *  its bottom inside the support's vertical span and its centre above the support's width.
+     *  make.py fails the build on any issue: a lamp in mid-air reads as a mistake to every viewer. */
+    supportIssues(root = document) {
+      const issues = [];
+      for (const e of root.querySelectorAll('[data-on]')) {
+        const s = root.getElementById ? root.getElementById(e.dataset.on) : document.getElementById(e.dataset.on);
+        if (!s) { issues.push(`${e.dataset.on}: опора не найдена`); continue; }
+        // экранные рамки: учитывают transform у самого предмета и у его предков
+        const a = e.getBoundingClientRect(), b = s.getBoundingClientRect(), bottom = a.y + a.height, cx = a.x + a.width / 2, tol = 6;
+        if (bottom < b.y - tol || bottom > b.y + b.height + tol || cx < b.x || cx > b.x + b.width)
+          issues.push(`предмет над «${e.dataset.on}» висит или стоит мимо: низ ${bottom.toFixed(0)}, опора y ${b.y.toFixed(0)}…${(b.y + b.height).toFixed(0)}, ` +
+            `центр x ${cx.toFixed(0)}, опора x ${b.x.toFixed(0)}…${(b.x + b.width).toFixed(0)}`);
+      }
+      return issues;
+    },
+
     /** Brush reveal: the picture appears in roller strokes between t0 and t0 + dur. */
-    brush(pic, t, t0 = 0, dur = 1.2) {
+    brush(pic, t, t0 = 0, dur = 1.2, {out = false} = {}) {
       const L = pic.brush._len ??= pic.brush.getTotalLength();
+      const q = ease((t - t0) / dur);
       pic.brush.style.strokeDasharray = L;
-      pic.brush.style.strokeDashoffset = (L * (1 - ease((t - t0) / dur))).toFixed(1);
+      // out: the same strokes wipe the picture away, starting where the reveal started
+      pic.brush.style.strokeDashoffset = (out ? -L * q : L * (1 - q)).toFixed(1);
     },
 
     /** Camera push-in: point `from` (picture coordinates) moves to `to` (stage coordinates)

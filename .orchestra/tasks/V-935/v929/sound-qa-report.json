@@ -1,0 +1,35 @@
+{
+ "passed": true,
+ "results": [
+  {
+   "check": "offset",
+   "status": "pass",
+   "detail": "encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]"
+  },
+  {
+   "check": "loudness",
+   "status": "pass",
+   "detail": "integrated -18.02 LUFS, target -18"
+  },
+  {
+   "check": "true peak",
+   "status": "pass",
+   "detail": "-3.25 dBTP (limit -1.0)"
+  },
+  {
+   "check": "voice",
+   "status": "pass",
+   "detail": "music sits 16.2 LU under the voice (median while speaking)"
+  },
+  {
+   "check": "music",
+   "status": "pass",
+   "detail": "median -32.0 LUFS short-term; unplanned dips at []"
+  },
+  {
+   "check": "silence",
+   "status": "pass",
+   "detail": "none"
+  }
+ ]
+}
