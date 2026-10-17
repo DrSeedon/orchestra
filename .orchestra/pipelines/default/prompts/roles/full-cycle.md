@@ -41,8 +41,6 @@ A research-only assignment ends with findings and a recommendation, not implemen
   outcomes, within the project's memory limit. Do not add global `-n auto`.
   Save logs under `.orchestra/tasks/<task-id>/`; long commands follow the base module's
   background-job rule instead of polling with empty waits.
-- Model review was frozen by the owner on 2026-09-20: do not call it or seek a substitute.
-  Resolve verified blockers; do not seek repeated approval of unchanged work.
 - Commit, inspect the diff, and report the outcome, actual checks, limitations and findings.
   Save reusable knowledge under the knowledge module. One report may cover investigation,
   decisions and implementation; avoid duplicate artifacts.

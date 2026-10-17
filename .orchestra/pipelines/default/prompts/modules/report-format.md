@@ -9,6 +9,10 @@ Report to your orchestrator via `mcp__orchestra__send_message` (NOT the built-in
 
 **Who to report to:** if the task message started with `[from:X]`, report DONE/WIP to X — not `{orchestrator_name}`. X gave you the task; they need the result.
 
+**Review:** model review was frozen by the owner on 2026-09-20 — do not call it or seek a
+substitute; do not seek repeated approval of unchanged work. Resolve verified blockers. The
+report states the actual check result, final commit and remaining uncertainty.
+
 ### DONE — task finished
 ```
 mcp__orchestra__send_message(to="{orchestrator_name}", message="""DONE #<task-id>: <short summary>

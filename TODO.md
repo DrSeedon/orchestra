@@ -98,3 +98,7 @@
 ## При обновлении Claude CLI до ≥2.1.299 (V-908)
 - Явно выключить встроенный idle compaction (`"idleCompaction": false` в настройках профиля агентов или env подпроцесса в `backend_claude._make_client`), `autoCompactEnabled` не трогать. Иначе он сработает раньше нашего precompact (54 мин / 200K против 55 мин / 30%) и сожмёт хуже нашего AUDIT+FINAL.
 - После апгрейда проверить: на сессии, простоявшей 54+ мин, нет `compact_boundary` с `trigger:"auto"` и `preTokens` < 700K; повторить стрим-замер V-831.
+
+## Правила: хвосты чистки (V-932, из V-931 п.5, п.14)
+- Сравнение effort оркестраторов `high` после 03.10, обещанное в комментарии `pipeline.yaml` через `.orchestra/tasks/V-683/complaint_rate.py`, так и не сделано; запустить сравнение или снять комментарий-обещание.
+- В `/home/kesha/projects/comfy-image-pipeline/AGENTS.md` (строки 100 и 168) мёртвые ссылки `docs/tasks/31/selected-pipeline.md` и `docs/kb/working-with-machines.md` (переехали в `.orchestra/tasks/31/` и `.orchestra/kb/`); корень `dnd-game-master/AGENTS.md:203` и корень Orchestra описывали платформенный факт о чтении CLAUDE.md по-разному — у знания нет владельца. Чужие проекты, не правились.

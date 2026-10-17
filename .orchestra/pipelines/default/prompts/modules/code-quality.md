@@ -46,7 +46,8 @@ depends on the previous result; do not batch mutations or retries merely to save
 including `bg_create type=run`, lives inside the platform cgroup with a hard memory ceiling; the
 kernel can OOM-kill it while the machine still has free memory. `free` shows the wrong limit for
 you, and agents cannot use `dmesg`, so the symptom looks like a code or data defect. Measured on
-the VPS on 2026-09-19: `/proc/self/cgroup` was `orchestra.service`, `MemoryMax` was 12 GB, and
+the VPS on 2026-09-19: `/proc/self/cgroup` was `orchestra.service`, `MemoryMax` was 12 GB (check the
+current value with `systemctl show orchestra -p MemoryMax`), and
 the platform already used 8.5 GB. The mistaken diagnosis cost seven successive rewrites
 (lowering the engine limit, splitting grouping, changing architecture, hash buckets,
 approximate counting, and deleting 23 GB), none of which addressed the cause. Diagnose with
