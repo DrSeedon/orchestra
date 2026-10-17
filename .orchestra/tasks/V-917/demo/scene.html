@@ -1,0 +1,183 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V-917 демо: сверка AGENTS.md и CLAUDE.md</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mv{max-width:980px;margin:16px auto;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px #0000000d,0 6px 20px #0000000a}
+.mv h1{font-size:21px;margin:0 0 8px;letter-spacing:-.01em}.stg{overflow-x:auto}.stg>svg{width:100%;min-width:680px;height:auto;display:block}
+.cap{position:relative;min-height:4.4em;margin:8px 0}.cap b{display:block;font-size:16px}#capB{position:absolute;inset:0 0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:#f5f5f7;color:#1d1d1f;cursor:pointer;transition:transform .25s cubic-bezier(.3,1.5,.5,1),background-color .2s}
+.bar button:hover{background:#e8e8ed}.bar button:active{transform:scale(.88)}.bar svg{width:14px;height:14px;fill:currentColor}
+#bPlay{width:40px;height:40px;background:#007aff;color:#fff}#bPlay:hover{background:#0071e3}#bPlay svg{width:16px;height:16px}
+#bPlay path{transition:opacity .2s,transform .3s cubic-bezier(.3,1.5,.5,1);transform-box:fill-box;transform-origin:center}#bPlay .i2,#bPlay.on .i1{opacity:0;transform:scale(.4)}#bPlay.on .i2{opacity:1;transform:none}
+#seek{flex:1;min-width:140px;-webkit-appearance:none;appearance:none;height:4px;margin:0 4px;border-radius:2px;background:linear-gradient(#007aff 0 0) 0/var(--p,0%) 100% no-repeat,#e5e5ea;cursor:pointer}
+#seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek:hover::-webkit-slider-thumb{transform:scale(1.2)}#seek:hover::-moz-range-thumb{transform:scale(1.2)}
+#clock{font-variant-numeric:tabular-nums;min-width:92px;text-align:right;color:#6e6e73}.bar select{border:0;background:#f5f5f7;border-radius:8px;padding:6px 8px;font:inherit;cursor:pointer}
+.ch{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none}
+.ch li{--o:0;padding:3px 10px;border-radius:8px;cursor:pointer;background:color-mix(in srgb,#007aff calc(var(--o)*100%),#f5f5f7);color:color-mix(in srgb,#fff calc(var(--o)*100%),#1d1d1f)}.ch li:hover{filter:brightness(.96)}
+@media print{.bar{display:none}}@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="mv">
+<h1>Title: what we explain</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1280 590" role="img" aria-labelledby="st"><title id="st">Сверка AGENTS.md и CLAUDE.md</title>
+<defs>
+ <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#232b52"/><stop offset="1" stop-color="#1a2040"/></linearGradient>
+ <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f3d99c" stop-opacity=".55"/><stop offset="1" stop-color="#f3d99c" stop-opacity="0"/></radialGradient>
+ <radialGradient id="scr" cx=".45" cy=".4" r=".8"><stop offset="0" stop-color="#fbeec0"/><stop offset="1" stop-color="#e6cf8a"/></radialGradient>
+</defs>
+<!-- картина: ночная комната; рамку, зерно, виньетку и маску кисти добавляет Paper.picture -->
+<g id="room">
+ <rect x="60" y="0" width="1160" height="600" fill="url(#wall)"/>
+ <rect x="60" y="405" width="1160" height="200" fill="#151a31"/>
+ <ellipse cx="640" cy="270" rx="430" ry="250" fill="url(#glow)"/>
+ <g><rect x="955" y="68" width="160" height="190" fill="#10152e" stroke="#46507c" stroke-width="7"/><path d="M1035 68V258M955 163H1115" stroke="#46507c" stroke-width="6"/>
+  <circle cx="1072" cy="112" r="22" fill="#e7e1c8"/><circle cx="1065" cy="106" r="4" fill="#cfc8ad"/><circle cx="1080" cy="119" r="3" fill="#cfc8ad"/>
+  <circle cx="985" cy="98" r="2" fill="#cfd5ea"/><circle cx="1000" cy="215" r="2" fill="#cfd5ea"/><circle cx="1090" cy="200" r="2" fill="#cfd5ea"/></g>
+ <g><circle cx="860" cy="100" r="36" fill="#e9e5d8" stroke="#2b2b30" stroke-width="6"/>
+  <line id="hh" x1="860" y1="100" x2="860" y2="80" stroke="#222" stroke-width="5" stroke-linecap="round"/>
+  <line id="hm" x1="860" y1="100" x2="860" y2="72" stroke="#222" stroke-width="3" stroke-linecap="round"/></g>
+ <g><rect x="165" y="70" width="170" height="135" rx="4" fill="#d9d4c6"/><rect x="165" y="70" width="170" height="34" rx="4" fill="#8f3b26"/>
+  <text x="250" y="93" text-anchor="middle" font-size="17" font-weight="700" fill="#f5efe4">Октябрь 2026</text>
+  <g fill="#7d7a73" id="calDots"></g><circle cx="281" cy="165" r="11" fill="none" stroke="#c9551b" stroke-width="3"/></g>
+ <path d="M400 385L440 352H900L940 385Z" fill="#6b3324"/><rect x="400" y="385" width="540" height="16" fill="#4e2419"/>
+ <rect x="418" y="401" width="16" height="140" fill="#43201a"/><rect x="906" y="401" width="16" height="140" fill="#43201a"/>
+ <rect x="518" y="186" width="244" height="134" rx="14" fill="#d8cfb5" stroke="#9a8f74" stroke-width="2"/>
+ <rect x="530" y="198" width="220" height="108" rx="8" fill="url(#scr)"/>
+ <rect x="612" y="320" width="56" height="22" fill="#bdb398"/><rect x="588" y="342" width="104" height="10" rx="3" fill="#a99f84"/>
+ <circle cx="752" cy="312" r="2.5" fill="#6fbf73"/>
+ <g id="mini" opacity="0"><use id="miniUse" href="#cards"/></g>
+ <path d="M990 352L1002 300L968 278" fill="none" stroke="#3a2a22" stroke-width="7" stroke-linecap="round"/>
+ <path d="M940 290Q955 255 990 262L978 300Z" fill="#c9551b"/><ellipse cx="992" cy="352" rx="26" ry="6" fill="#3a2a22"/>
+ <rect x="440" y="290" width="92" height="120" rx="10" fill="#7a2e1f"/><rect x="452" y="410" width="68" height="12" fill="#5d2318"/><rect x="480" y="422" width="10" height="70" fill="#2a2730"/>
+ <path d="M440 500H530" stroke="#2a2730" stroke-width="8" stroke-linecap="round"/>
+</g>
+<g id="dia" opacity="0" class="mono">
+ <g id="cards" class="mono">
+  <rect id="aCard" x="240" y="20" width="380" height="300" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <rect id="cCard" x="660" y="20" width="380" height="300" rx="14" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <g id="bars" fill="#dfe2e8"><rect x="272" y="118" width="250" height="12" rx="6"/><rect x="272" y="150" width="300" height="12" rx="6"/><rect x="272" y="182" width="210" height="12" rx="6"/><rect x="272" y="214" width="270" height="12" rx="6"/><rect x="272" y="246" width="160" height="12" rx="6"/><rect x="692" y="118" width="250" height="12" rx="6"/><rect x="692" y="150" width="300" height="12" rx="6"/><rect x="692" y="182" width="210" height="12" rx="6"/><rect x="692" y="214" width="270" height="12" rx="6"/><rect x="692" y="246" width="160" height="12" rx="6"/></g>
+  <text id="aName" x="272" y="86" font-size="40" font-weight="500">AGENTS.md</text>
+  <text id="cName" x="692" y="86" font-size="40" font-weight="500">CLAUDE.md</text>
+ </g>
+ <g id="chips" font-family="Manrope,system-ui,sans-serif" font-size="30" text-anchor="middle" fill="#6b7280">
+  <text x="430" y="378">Codex</text><text x="850" y="378">Claude</text></g>
+ <g id="rowA" opacity="0"></g><g id="rowC" opacity="0"></g>
+ <path id="linkArrow" opacity="0" d="M108 292Q62 252 104 212" fill="none" stroke="#0e5e9c" stroke-width="3.5" marker-end="url(#paper-arrow)" stroke-dasharray="140" stroke-dashoffset="140"/>
+ <text id="cnt" x="1080" y="440" text-anchor="end" font-size="34" fill="#6b7280" opacity="0">0 из 16 171 байт</text>
+ <text id="ok" x="200" y="440" font-size="34" fill="#0e5e9c" opacity="0">✓ симлинк + git commit</text>
+ <text id="alarm" x="200" y="440" font-size="34" fill="#c9551b"></text>
+</g>
+</svg></div>
+<div class="cap"><div id="capA" aria-live="polite"><b id="capT"></b><span id="capX"></span></div><div id="capB" aria-hidden="true"><b></b><span></span></div></div>
+<div class="bar"><button id="bPrev" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Play or pause"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Time"><span id="clock"></span>
+ <select id="rate" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+<ol class="ch" id="chap"></ol>
+</div>
+<script>
+// ── SCENE ──
+// картина и совпадение наезда: копия карточек в мониторе — обратная проекция камеры
+Paper.install();
+const PIC = Paper.picture('room', {x: 96, y: 18, w: 1088, h: 556});
+const VIEW = {from: [640, 252], to: [640, 170], scale: 4.2};
+$('miniUse').setAttribute('transform', Paper.miniature(VIEW));
+// первые 8 байт AGENTS.md: «# Orches»; размер файла 16 171 байт
+const BYTES='23 20 4F 72 63 68 65 73'.split(' '), SIZE=16171, X0=400, STEP=86;
+(()=>{const ns='http://www.w3.org/2000/svg',mk=(g,n,a)=>{const e=document.createElementNS(ns,n);for(const k in a)e.setAttribute(k,a[k]);g.append(e);return e};
+ [['rowA',172],['rowC',262]].forEach(([id,y],r)=>{const g=$(id);BYTES.forEach((b,k)=>{
+  mk(g,'rect',{id:`b${r}_${k}`,x:X0+k*STEP,y,width:76,height:60,rx:8,fill:'#eef0f3'});
+  const t=mk(g,'text',{id:`t${r}_${k}`,x:X0+38+k*STEP,y:y+43,'text-anchor':'middle','font-size':36,fill:'#3b3e46'});t.textContent=b})});
+ const c=$('calDots');for(let k=0;k<28;k++){const e=document.createElementNS(ns,'rect');Object.entries({x:176+(k%7)*22,y:116+Math.floor(k/7)*22,width:12,height:9,rx:2}).forEach(([a,v])=>e.setAttribute(a,v));c.append(e)}})();
+const STEPS = [
+ {t:'Два файла', say:'Правила для Кодекса и для Клода лежат в двух файлах.', sub:'Правила для Codex и Claude лежат в двух файлах: AGENTS.md и CLAUDE.md.', set:{mini:{opacity:1}}, w:{mini:[.25,.4]}},
+ // карточки сворачиваются в подписи строк байтов: имена файлов переезжают и уменьшаются
+ {t:'Сверка', say:'Чтобы копии не разошлись, раз в шесть часов платформа сравнивает их побайтно.',
+  set:{aCard:{opacity:0}, cCard:{opacity:0}, bars:{opacity:0}, chips:{opacity:0},
+       aName:{x:120, y:214, 'font-size':32}, cName:{x:120, y:304, 'font-size':32}, rowA:{opacity:1}, rowC:{opacity:1}, cnt:{opacity:1}},
+  w:{aCard:[.2,.32], cCard:[.2,.32], bars:[.2,.3], chips:[.2,.3], aName:[.22,.42], cName:[.22,.42], rowA:[.38,.48], rowC:[.38,.48], cnt:[.45,.52]}},
+ {t:'Совпали', say:'Совпали: второй файл становится симл+инком.', sub:'Совпали — второй файл становится симлинком.',
+  set:{rowC:{opacity:0}, cnt:{opacity:0}, cName:{text:'CLAUDE.md → AGENTS.md', fill:'#0e5e9c'}, linkArrow:{'stroke-dashoffset':0, opacity:1}, ok:{opacity:1}},
+  w:{rowC:[0,.15], cnt:[0,.15], cName:[.15,.35], linkArrow:[.3,.55], ok:[.5,.7]}},
+ {t:'Разошлись', say:'Разошлись: платформа ничего не трогает и зовёт оркестратора.', sub:'Разошлись — платформа ничего не трогает и зовёт оркестратора.', hold:1.0,
+  set:{ok:{opacity:0}, linkArrow:{opacity:0}, cName:{text:'CLAUDE.md', fill:'#16171b'}, rowC:{opacity:1}},
+  w:{ok:[0,.1], linkArrow:[0,.1], cName:[0,.15], rowC:[.05,.2]},
+  events:[{id:'key1', at:.55, sound:'key/fs-194795-vintage-keyboard-1-1', weight:'support', visual:'appear'},
+          {id:'key2', at:1.35, sound:'key/fs-194795-vintage-keyboard-1-2', weight:'support', visual:'appear'},
+          {id:'key3', at:2.15, sound:'key/fs-194796-vintage-keyboard-2-1', weight:'support', visual:'appear'}]},
+];
+STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);
+STEPS.forEach(s => s.d ??= Math.max(2.5, s.say.length / 15));  // браузерный просмотр без озвучки
+const ALARM='≠ ничего не пишем → оркестратору';
+function draw(i, p, t){
+ const st=[];let acc=0;for(const s of STEPS){st.push(acc);acc+=s.d}
+ const d0=STEPS[0].d;
+ Paper.brush(PIC, t, 0, 1.2);
+ $('hm').setAttribute('transform',`rotate(${(300+t*9).toFixed(2)} 860 100)`);$('hh').setAttribute('transform',`rotate(${(-40+t*.75).toFixed(2)} 860 100)`);
+ // наезд: экран (640,252) → центр карточек (640,170); кончается до смены шага
+ Paper.camera(PIC, t, {...VIEW, t0: .45*d0, t1: st[1]-.15});
+ $('room').setAttribute('opacity',(1-Paper.fade(t, st[1]-.1)).toFixed(3));
+ $('dia').setAttribute('opacity',Paper.fade(t, st[1]-.15).toFixed(3));
+ // сверка: курсор по 8 ячейкам, счётчик по всем 16 171 байтам
+ const q=i>=1?clamp((t-st[1]-.52*STEPS[1].d)/(STEPS[1].d*.4)):0,n=Math.floor(q*8+1e-9);
+ const diverged=i>=3;
+ for(let r=0;r<2;r++)for(let k=0;k<8;k++){
+  const bad=diverged&&r==1&&k==5;
+  $(`b${r}_${k}`).setAttribute('fill',bad?'#fde4d0':k<n||diverged?'#d6e8f4':k==n&&q>0?'#c7ccd6':'#eef0f3');
+  $(`t${r}_${k}`).setAttribute('fill',bad?'#c9551b':k<n||diverged?'#0e5e9c':'#3b3e46');
+  if(r==1&&k==5)$(`t1_5`).textContent=bad?'6F':'68'}
+ $('cnt').textContent=`${Math.round(q*SIZE).toLocaleString('ru-RU')} из ${SIZE.toLocaleString('ru-RU')} байт${q>=1?' ✓':''}`;
+ $('cnt').setAttribute('fill',q>=1?'#0e5e9c':'#6b7280');
+ Paper.type($('alarm'), ALARM, t, st[3]+.4, st[3]+.4+STEPS[3].d*.45);
+}
+// ── PLAYER ──
+function $(id){return document.getElementById(id)} // function declaration is hoisted; scenes may call $ before the player
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),SK=7;
+const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // critically damped spring
+const hex=/^#[0-9a-f]{6}$/i,mix=(a,b,p)=>typeof a=='number'&&typeof b=='number'?a+(b-a)*p:hex.test(a)&&hex.test(b)?'#'+[1,3,5].map(k=>Math.round(parseInt(a.substr(k,2),16)*(1-p)+parseInt(b.substr(k,2),16)*p).toString(16).padStart(2,'0')).join(''):p>0?b:a;
+const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-motion: reduce)').matches,FADE=.5,sp=EASE.spring;let T=0,t=0,on=false,last=0,ci=-1,gl=null;
+ const get=(e,a)=>{const v=a=='text'?e.textContent:e.getAttribute(a);return v!==null&&v!==''&&!isNaN(v)?+v:v};
+ // each attribute has its own segment list {t0,t1,a,b}; value holds between segments
+ for(const s of STEPS){for(const[id,o]of Object.entries(s.set||{}))for(const[a,v]of Object.entries(o)){const e=E[id]??=$(id),L=(TL[id]??={})[a]??=Object.assign([],{v0:get(e,a)}),
+   to=Array.isArray(v)?v[1]:v,st=a=='text'||/opacity/.test(a)||typeof to=='string',w=s.w?.[id];
+   L.push({t0:T+(w?w[0]*s.d:0),t1:T+(w?w[1]*s.d:st?Math.min(s.d,FADE):s.d),a:Array.isArray(v)?v[0]:(L.length?L.at(-1).b:L.v0)??to,b:to,e:s.e,st,m0:0,m1:0})}
+  S.push(T);T+=s.d}
+ // same-direction motion joins with shared velocity (monotone Fritsch–Butland spline)
+ for(const id in TL)for(const a in TL[id]){const L=TL[id][a];for(let k=1;k<L.length;k++){const x=L[k-1],y=L[k],h0=x.t1-x.t0,h1=y.t1-y.t0,d0=(x.b-x.a)/h0,d1=(y.b-y.a)/h1;
+   if(!x.st&&!y.st&&!x.e&&!y.e&&Math.abs(x.t1-y.t0)<1e-9&&x.b===y.a&&d0*d1>0)x.m1=y.m0=3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1)}}
+ for(const id in TL){const e=E[id],o=TL[id];if(o.along||!(o.text||o.opacity))continue;FX[id]=1;
+  if(o.text){const g=G[id]=e.cloneNode(true);g.removeAttribute('id');g.setAttribute('aria-hidden','true');e.after(g)}
+  for(const x of[e,G[id]])if(x)Object.assign(x.style,{transformBox:'fill-box',transformOrigin:'center'})}
+ const val=(L,t)=>{let g=null;for(const s of L)if(s.t0<t||s.t0<=0&&t<=0)g=s;if(!g)return[L.v0,1,L.v0,L.v0];
+  const h=g.t1-g.t0,p=h>0?clamp((t-g.t0)/h):1;if(p>=1)return[g.b,1,g.a,g.b];
+  if(g.m0||g.m1){const p2=p*p,p3=p2*p;return[(2*p3-3*p2+1)*g.a+(p3-2*p2+p)*h*g.m0+(3*p2-2*p3)*g.b+(p3-p2)*h*g.m1,p,g.a,g.b]}
+  const q=(EASE[g.e]||sp)(p);return[mix(g.a,g.b,q),q,g.a,g.b]};
+ const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // text change: old leaves before new appears, so letters do not overlap
+ const put=(e,a,v)=>{const c=e._c??={};if(c[a]===v)return;c[a]=v;a=='text'?e.textContent=v:a=='css'?e.style.transform=v:a[0]=='-'?e.style.setProperty(a,v):e.setAttribute(a,v)};
+ function frame(te){for(const id in TL){const e=E[id],o=TL[id],g=G[id],v={};for(const a in o)v[a]=val(o[a],te);let dy=0,gy=0,k=0;
+   for(const a in v)if(a!='text'&&a!='along'&&a!='at'&&v[a][0]!=null)put(e,a,v[a][0]);
+   if(v.opacity){const[,q,f,b]=v.opacity;k=f==0&&b!=0?1-q:b==0&&f!=0?q:0}
+   if(v.text&&!g)put(e,'text',v.text[0]);
+   if(g){const[x,q,f,b]=v.text,x2=f!==b&&q<1;put(e,'text',x2?b:x);put(g,'text',f);put(e,'fill-opacity',x2?xin(q):1);put(g,'fill-opacity',x2?xout(q):0);
+    if(x2){dy=(1-q)*6;gy=-q*6}for(const a of['opacity','fill'])if(v[a])put(g,a,e.getAttribute(a))}
+   if(FX[id]){const tf=d=>`translateY(${(d+k*6).toFixed(2)}px) scale(${(1-.03*k).toFixed(4)})`;put(e,'css',tf(dy));if(g)put(g,'css',tf(gy))}
+   if(v.along){const p=$(v.along[0]),pt=p.getPointAtLength(clamp(v.at?.[0]??0)*p.getTotalLength());put(e,'transform',`translate(${pt.x.toFixed(2)},${pt.y.toFixed(2)})`)}}}
+ const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
+ function seek(v){t=clamp(v,0,T);const i=at(t);frame(rm?end(i):t);if(typeof draw=='function')draw(i,rm?1:clamp((t-S[i])/STEPS[i].d),t);
+  if(i!==ci){ci=i;$('capT').textContent=(i+1)+'. '+STEPS[i].t;$('capX').textContent=STEPS[i].x;const B=$('capB').children;B[0].textContent=i?i+'. '+STEPS[i-1].t:'';B[1].textContent=i?STEPS[i-1].x:'';
+   [...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}
+  const q=rm||!i?1:sp(clamp((t-S[i])/FADE));[...$('chap').children].forEach((li,k)=>put(li,'--o',k==i?q:k==i-1?1-q:0));$('capA').style.cssText=`opacity:${xin(q)};transform:translateY(${(1-q)*6}px)`;$('capB').style.cssText=`opacity:${xout(q)};transform:translateY(${-q*6}px)`;
+  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' s'}
+ function tick(now){if(!on)return;seek(t+Math.max(0,now-last)/1000*$('rate').value);last=now;t>=T?pause():requestAnimationFrame(tick)}
+ function play(){gl=null;if(t>=T)t=0;on=true;last=performance.now();$('bPlay').classList.add('on');requestAnimationFrame(tick)}
+ function pause(){on=false;gl=null;$('bPlay').classList.remove('on')}
+ function glide(to){pause();if(rm)return seek(to);const a=t,t0=performance.now(),g=gl={to},f=now=>{if(gl!==g)return;const q=clamp((now-t0)/400);seek(q<1?a+(to-a)*EASE.out(q):to);if(q<1)requestAnimationFrame(f);else gl=null};requestAnimationFrame(f)}
+ const toggle=()=>on?pause():play(),next=()=>{const c=gl?gl.to:t,i=at(c);glide(c<end(i)-1e-3?end(i):end(Math.min(i+1,S.length-1)))},prev=()=>{const c=gl?gl.to:t,i=at(c);glide(i?end(i-1):0)};
+ $('seek').max=T;$('seek').oninput=e=>{pause();seek(+e.target.value)};$('bPlay').onclick=toggle;$('bNext').onclick=next;$('bPrev').onclick=prev;
+ STEPS.forEach((s,k)=>{const li=document.createElement('li');li.textContent=(k+1)+'. '+s.t;li.onclick=()=>{seek(S[k]);play()};$('chap').append(li)});
+ addEventListener('keydown',e=>{const f={' ':toggle,ArrowRight:next,ArrowLeft:prev,Home:()=>{pause();seek(0)},End:()=>{pause();seek(T)}}[e.key];if(f&&e.target.tagName!='SELECT'){e.preventDefault();f()}});
+ seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return t},T,S}})();
+</script></body></html>

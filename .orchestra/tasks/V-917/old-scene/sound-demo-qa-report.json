@@ -1,0 +1,65 @@
+{
+ "passed": true,
+ "results": [
+  {
+   "check": "offset",
+   "status": "pass",
+   "detail": "encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]"
+  },
+  {
+   "check": "loudness",
+   "status": "pass",
+   "detail": "integrated -18.01 LUFS, target -18"
+  },
+  {
+   "check": "true peak",
+   "status": "pass",
+   "detail": "-2.02 dBTP (limit -1.0)"
+  },
+  {
+   "check": "picture marker-motion",
+   "status": "warn",
+   "detail": "move at frame 55: motion peak at frame 55"
+  },
+  {
+   "check": "picture marker-land",
+   "status": "pass",
+   "detail": "land at frame 233: motion stops at frame 235"
+  },
+  {
+   "check": "sync marker-motion",
+   "status": "pass",
+   "detail": "peak 0.00 frames from its cue"
+  },
+  {
+   "check": "audible marker-motion",
+   "status": "pass",
+   "detail": "stands out by 1.9 dB in 2000-4000 Hz over music+voice"
+  },
+  {
+   "check": "sync marker-land",
+   "status": "pass",
+   "detail": "peak 0.00 frames from its cue"
+  },
+  {
+   "check": "audible marker-land",
+   "status": "pass",
+   "detail": "stands out by 1.9 dB in 250-500 Hz over music+voice"
+  },
+  {
+   "check": "voice",
+   "status": "pass",
+   "detail": "music sits 14.7 LU under the voice (median while speaking)"
+  },
+  {
+   "check": "music",
+   "status": "pass",
+   "detail": "median -29.1 LUFS short-term; unplanned dips at []"
+  },
+  {
+   "check": "silence",
+   "status": "pass",
+   "detail": "none"
+  }
+ ]
+}

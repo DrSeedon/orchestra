@@ -706,7 +706,7 @@ def test_manim_missing_font_fails_instead_of_silent_substitution(tmp_path):
 
 
 @pytest.mark.skipif(not MANIM_PY.exists(), reason="окружение Manim не установлено")
-def test_default_cmu_serif_is_bundled_and_long_caption_fits_frame(tmp_path):
+def test_default_theme_font_is_bundled_and_long_caption_fits_frame(tmp_path):
     run = _manim("""
 class S(VoiceScene):
     STEPS = [{"t": "t", "say": "x"}]
@@ -782,3 +782,128 @@ def test_tera_render_phrase_synthesizes_each_sentence_once_and_never_the_gap():
                      "<ru>Второе предложение здесь</ru>", "<ru>и конец.</ru>"]
     assert not any("None" in call for call in calls)
     assert len(audio) == 3 * 200 + 2 * round(0.42 * 44_100) + 2 * round(0.5 * 44_100)
+
+
+_THEME_SCENE = """<!doctype html><html><head><meta charset="utf-8"></head><body>
+<div class="mv"><h1>Title</h1><div class="stg"><svg id="stage" viewBox="0 0 1280 590"></svg></div>
+<div class="cap"><div id="capA"><b></b><span>caption</span></div><div id="capB"><b></b><span></span></div></div></div>
+<script>
+const STEPS = [{t: 'a', say: 'x', d: 1}, {t: 'b', say: 'y', d: 1}];
+window.voice?.(STEPS);
+const P = {t: 0, T: 2, S: [0, 1], seek(t) { this.t = t; }};
+</script></body></html>"""
+
+
+def _theme_probe(tmp_path, **kwargs):
+    scene = tmp_path / "scene.html"
+    scene.write_text(_THEME_SCENE)
+    with make.sync_playwright() as playwright:
+        browser, page = make.open_scene(playwright, scene, {"d": [1, 1]}, **kwargs)
+        page.evaluate(make.SEEK_JS, 1.0)
+        probe = page.evaluate("""() => ({
+            theme: document.documentElement.dataset.theme,
+            background: getComputedStyle(document.querySelector('.mv')).backgroundColor,
+            heading: getComputedStyle(document.querySelector('.mv h1')).display,
+            progress: document.getElementById('paper-progress')?.style.width ?? null,
+        })""")
+        browser.close()
+    return probe
+
+
+def test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable(tmp_path):
+    paper = _theme_probe(tmp_path)
+    assert paper == {"theme": "paper", "background": "rgb(246, 247, 249)", "heading": "none", "progress": "50%"}
+    dark = _theme_probe(tmp_path, theme="dark")
+    assert dark["theme"] == "dark" and dark["background"] == "rgb(11, 14, 20)" and dark["progress"] is None
+
+
+def test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original(tmp_path):
+    scene = tmp_path / "kit.html"
+    scene.write_text("""<svg id="stage" viewBox="0 0 1280 590" width="1280" height="590" style="display:block">
+            <g id="room"><rect width="1280" height="590" fill="#123"/></g>
+            <rect id="orig" x="240" y="20" width="380" height="300"/></svg>""")
+    with make.sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1280, "height": 590})
+        page.add_init_script((ROOT / "scripts/video_artifact/paper.js").read_text())
+        page.goto(scene.as_uri())
+        result = page.evaluate("""() => {
+            const view = {from: [640, 252], to: [640, 170], scale: 4.2, t0: 1, t1: 2};
+            const pic = Paper.picture('room', {x: 96, y: 18, w: 1088, h: 556});
+            const mini = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+            mini.setAttribute('href', '#orig');
+            mini.setAttribute('transform', Paper.miniature(view));
+            pic.cam.append(mini);
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            document.getElementById('stage').append(label);
+            const state = t => {
+                Paper.camera(pic, t, view); Paper.brush(pic, t); Paper.type(label, 'тревога', t, 1, 2);
+                return [pic.cam.getAttribute('transform'), pic.brush.style.strokeDashoffset, label.textContent];
+            };
+            const forward = state(1.6), later = state(3), back = state(1.6);
+            state(3);  // зум закончен: копия в картине должна лечь на оригинал
+            const a = mini.getBoundingClientRect(), b = document.getElementById('orig').getBoundingClientRect();
+            return {same: JSON.stringify(forward) === JSON.stringify(back), forward, later,
+                    gap: Math.max(...['x', 'y', 'width', 'height'].map(k => Math.abs(a[k] - b[k])))};
+        }""")
+        browser.close()
+    assert result["same"], result
+    assert result["forward"] != result["later"]
+    assert result["gap"] < 1, result
+
+
+def test_default_bed_comes_from_the_sound_kit_and_missing_bed_fails(tmp_path):
+    kit = tmp_path / "kit"
+    with pytest.raises(SystemExit):
+        make.default_bed(kit)
+    (kit / "bed").mkdir(parents=True)
+    (kit / "bed" / "pad.wav").touch()
+    (kit / "catalog.json").write_text(json.dumps({"types": {"bed": {"defaults": ["bed/pad"]}}}))
+    assert make.default_bed(kit) == kit / "bed" / "pad.wav"
+
+
+def test_music_bed_without_events_still_gets_a_mix_sheet(tmp_path):
+    voice, bed = tmp_path / "voice.wav", tmp_path / "bed.wav"
+    timing = {"T": 3.0, "steps": [{"step_start": 0.0, "d": 3.0, "events": []}]}
+    sheet = make.sound_cues(timing, 30, voice, bed, tmp_path / "kit")
+    assert sheet["cues"] == [] and sheet["music"]["file"] == str(bed.resolve())
+    assert make.sound_cues(timing, 30, voice, None, tmp_path / "kit") == {}
+
+
+@pytest.mark.skipif(not (make.SOUND_HOME / "catalog.json").exists(), reason="набор звуков не установлен")
+@pytest.mark.timeout(600)
+def test_default_bed_mixes_under_voice_and_passes_sound_qa(tmp_path):
+    """Подложка набора по умолчанию тихо ложится под голос: qa.py (громкость, голос над музыкой, тишина) проходит."""
+    import subprocess
+    import wave
+    import random
+
+    rng = random.Random(7)
+    clips = []
+    for n in range(3):
+        clip = tmp_path / f"{n}.wav"
+        # речеподобный шум: 2,4 с слогов по 0,15 с с короткими провалами
+        frames = bytearray()
+        for k in range(int(2.4 * make.SR)):
+            on = (k // int(0.15 * make.SR)) % 4 != 3
+            sample = int(rng.gauss(0, 6000)) if on else 0
+            frames += max(-32768, min(32767, sample)).to_bytes(2, "little", signed=True)
+        with wave.open(str(clip), "wb") as output:
+            output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+            output.writeframes(bytes(frames))
+        clips.append(clip)
+    steps = [{"t": str(n), "say": "фраза", "sub": None, "hold": None, "events": []} for n in range(3)]
+    timing = make.plan(steps, clips, 1)
+    out, name = tmp_path / "out", "scene"
+    out.mkdir()
+    make.voice_track(timing, clips, out / f"{name}.voice.wav")
+    total = make.PRE + timing["T"] + make.POST
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"color=c=#f6f7f9:s=320x180:d={total}:r=30",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(out / f"{name}.video.mp4")], check=True)
+    sheet = make.sound_cues(timing, 30, out / f"{name}.voice.wav", make.default_bed())
+    make.sound_mix(out, name, sheet)
+    mp4 = make.mux(out, name, sound=True)
+    qa = subprocess.run([make.UV_BIN, "run", "--script", str(make.SOUND_SCRIPTS / "qa.py"), str(mp4),
+                         "--audio", str(out / f"{name}.sound")], capture_output=True, text=True)
+    assert qa.returncode == 0, qa.stdout + qa.stderr
+    assert "pass  silence" in qa.stdout and "pass  voice" in qa.stdout

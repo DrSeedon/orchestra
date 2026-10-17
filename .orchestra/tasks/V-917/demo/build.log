@@ -1,0 +1,50 @@
+stage 1/4: scene and speech plan
+синтез 4 фраз (TeraTTS f05ea799, ru_m1, один CPU sampler)…
+озвучка: 1/4, осталось ~60 с
+озвучка: 2/4, осталось ~21 с
+озвучка: 3/4, осталось ~8 с
+озвучка: 4/4, осталось ~0 с
+stage 2/4: timing plan ready
+кадры HTML: 1/4, осталось ~228 с
+кадры HTML: 2/4, осталось ~98 с
+кадры HTML: 3/4, осталось ~34 с
+кадры HTML: 4/4, осталось ~0 с
+    0.32–  2.94  шаг  3.44 с  Правила для Кодекса и для Клода лежат в двух файлах.
+    3.76–  7.99  шаг  5.05 с  Чтобы копии не разошлись, раз в шесть часов платформа сравнивает их побайтно.
+    8.81– 11.26  шаг  3.27 с  Совпали: второй файл становится симл+инком.
+   12.08– 15.70  шаг  4.93 с  Разошлись: платформа ничего не трогает и зовёт оркестратора.
+длина ролика 18.7 с
+stage 3/4: rendering frames
+/home/kesha/v904-work/v917build/scene-contact.png
+stage 4/4: mix, mux, and checks
+mix.wav  -18.0 LUFS  TP -2.49 dBTP  events 3
+  key1         key/fs-194795-vintage-keyboard-1-1 support peak  12.710s  gain   -3.0 dB  (best-band target)
+  key2         key/fs-194795-vintage-keyboard-1-2 support peak  13.510s  gain   -5.9 dB  (best-band target)
+  key3         key/fs-194796-vintage-keyboard-2-1 support peak  14.310s  gain   -9.0 dB  (best-band target)
+pass  offset                 encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]
+pass  loudness               integrated -18.01 LUFS, target -18
+pass  true peak              -2.48 dBTP (limit -1.0)
+warn  picture key1           appear at frame 381: change at frame 380 (0.23 vs local 0.18)
+warn  picture key2           appear at frame 405: change at frame 405 (0.14 vs local 0.01)
+warn  picture key3           appear at frame 429: change at frame 430 (0.13 vs local 0.03)
+pass  sync key1              peak 0.00 frames from its cue
+pass  audible key1           stands out by 1.7 dB in 1000-2000 Hz over music+voice
+pass  sync key2              peak 0.00 frames from its cue
+pass  audible key2           stands out by 2.3 dB in 1000-2000 Hz over music+voice
+pass  sync key3              peak 0.01 frames from its cue
+pass  audible key3           stands out by 1.8 dB in 1000-2000 Hz over music+voice
+pass  voice                  music sits 15.8 LU under the voice (median while speaking)
+pass  music                  median -30.1 LUFS short-term; unplanned dips at []
+pass  silence                none
+
+PASSED: 0 failed, 3 warnings. Picture: /home/kesha/v904-work/v917build/scene.sound/qa.png
+/home/kesha/v904-work/v917build/scene.mp4 2.3 МБ
+  recall 1.00  сдвиг слова 0.0  звука 0.02  Правила для Кодекса и для Клода лежат в двух файлах.
+      слышно: правила для кодекса и клода лежат в двух файлах
+  recall 1.00  сдвиг слова -0.08  звука 0.02  Чтобы копии не разошлись, раз в шесть часов платформа сравнивает их побайтно.
+      слышно: чтобы копии не разошлись раз в 6 часов платформа сравнивает их побайтно
+  recall 1.00  сдвиг слова 0.07  звука 0.01  Совпали: второй файл становится симл+инком.
+      слышно: совпали второй файл становится симлинком
+  recall 1.00  сдвиг слова 0.0  звука 0.02  Разошлись: платформа ничего не трогает и зовёт оркестратора.
+      слышно: разошлись платформа ничего не трогает и зовет оркестратора
+минимальная дословность 1.0, наибольший сдвиг: первого слова 0.08 с, начала звука 0.02 с

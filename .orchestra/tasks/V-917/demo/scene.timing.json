@@ -1,0 +1,69 @@
+{
+ "steps": [
+  {
+   "title": "Два файла",
+   "say": "Правила для Кодекса и для Клода лежат в двух файлах.",
+   "sub": "Правила для Codex и Claude лежат в двух файлах: AGENTS.md и CLAUDE.md.",
+   "step_start": 0.0,
+   "phrase_start": 0.318,
+   "phrase_end": 2.938,
+   "d": 3.438,
+   "events": []
+  },
+  {
+   "title": "Сверка",
+   "say": "Чтобы копии не разошлись, раз в шесть часов платформа сравнивает их побайтно.",
+   "sub": null,
+   "step_start": 3.438,
+   "phrase_start": 3.756,
+   "phrase_end": 7.993,
+   "d": 5.055,
+   "events": []
+  },
+  {
+   "title": "Совпали",
+   "say": "Совпали: второй файл становится симл+инком.",
+   "sub": "Совпали — второй файл становится симлинком.",
+   "step_start": 8.493,
+   "phrase_start": 8.811,
+   "phrase_end": 11.26,
+   "d": 3.267,
+   "events": []
+  },
+  {
+   "title": "Разошлись",
+   "say": "Разошлись: платформа ничего не трогает и зовёт оркестратора.",
+   "sub": "Разошлись — платформа ничего не трогает и зовёт оркестратора.",
+   "step_start": 11.76,
+   "phrase_start": 12.078,
+   "phrase_end": 15.695,
+   "d": 4.935,
+   "events": [
+    {
+     "id": "key1",
+     "at": 0.55,
+     "sound": "key/fs-194795-vintage-keyboard-1-1",
+     "weight": "support",
+     "visual": "appear"
+    },
+    {
+     "id": "key2",
+     "at": 1.35,
+     "sound": "key/fs-194795-vintage-keyboard-1-2",
+     "weight": "support",
+     "visual": "appear"
+    },
+    {
+     "id": "key3",
+     "at": 2.15,
+     "sound": "key/fs-194796-vintage-keyboard-2-1",
+     "weight": "support",
+     "visual": "appear"
+    }
+   ]
+  }
+ ],
+ "T": 16.695,
+ "pre": 0.4,
+ "post": 1.6
+}

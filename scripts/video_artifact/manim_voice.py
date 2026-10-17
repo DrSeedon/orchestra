@@ -44,9 +44,17 @@ if TEX_BIN.is_dir():
 config.tex_template = TexTemplate(preamble="\n".join((
     r"\usepackage[T2A]{fontenc}", r"\usepackage[utf8]{inputenc}", r"\usepackage[english,russian]{babel}",
     r"\usepackage{amsmath}", r"\usepackage{amssymb}")))
-BG, PANEL, LINE, MUTED = "#000000", "#151a24", "#2a3142", "#8b93a7"
-BLUE_, GREEN_, RED_, GOLD_, FG = "#58c4dd", "#83c167", "#fc6255", "#f0ac5f", "#e6e6e6"
-FONT, MONO = "CMU Serif", "JetBrains Mono"
+# Тема приходит от make.py (--theme): «бумага» по умолчанию, как у HTML-сцен (V-917), dark — прежняя.
+THEME = os.environ.get("VIDEO_ARTIFACT_THEME", "paper")
+if THEME == "dark":
+    BG, PANEL, LINE, MUTED = "#000000", "#151a24", "#2a3142", "#8b93a7"
+    BLUE_, GREEN_, RED_, GOLD_, FG = "#58c4dd", "#83c167", "#fc6255", "#f0ac5f", "#e6e6e6"
+    FONT = "CMU Serif"
+else:
+    BG, PANEL, LINE, MUTED = "#f6f7f9", "#ffffff", "#d9dce3", "#6b7280"
+    BLUE_, GREEN_, RED_, GOLD_, FG = "#0e5e9c", "#2e7d4f", "#c9551b", "#c9551b", "#16171b"
+    FONT = "Manrope"
+MONO = "JetBrains Mono"
 
 for ttf in ("Manrope.ttf", "JetBrainsMono.ttf", "cmunrm.ttf", "cmunbx.ttf"):
     manimpango.register_font(str(FONTS / ttf))

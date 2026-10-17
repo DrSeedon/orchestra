@@ -120,20 +120,27 @@ def font_css() -> str:
     return "\n".join(rules)
 
 
-def open_scene(pw, scene: Path, voice: dict | None):
+THEMES = {"paper": "video-paper.css", "dark": "video-dark.css"}
+# После каждого P.seek кадр дорисовывает хром темы (полоса прогресса, размытие субтитра): сцена его не пишет.
+SEEK_JS = "t => { P.seek(t); window.Paper?.chrome?.(t); }"
+
+
+def open_scene(pw, scene: Path, voice: dict | None, theme: str = "paper"):
     browser = pw.chromium.launch()
     page = browser.new_page(viewport=VIEW, device_scale_factor=SCALE)
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+    page.add_init_script((HERE / "paper.js").read_text())
     if voice is not None:
         page.add_init_script(VOICE_JS % json.dumps(voice, ensure_ascii=False))
     page.goto(scene.resolve().as_uri())
     if errors:
         fail(f"ошибки JS в сцене: {errors}")
-    page.add_style_tag(content=font_css() + "\n" + (HERE / "video.css").read_text())
+    page.add_style_tag(content=font_css() + "\n" + (HERE / THEMES[theme]).read_text())
+    page.evaluate("theme => { document.documentElement.dataset.theme = theme; }", theme)
     page.evaluate("document.fonts.ready")
-    page.evaluate("P.seek(P.t)")  # перерисовать подписи после смены шрифта и вёрстки
+    page.evaluate(SEEK_JS, page.evaluate("P.t"))  # перерисовать подписи после смены шрифта и вёрстки
     return browser, page
 
 
@@ -444,8 +451,19 @@ def plan(steps: list[dict], clips: list[Path], rate: float) -> dict:
     return {"steps": rows, "T": round(at, 3), "pre": PRE, "post": POST}
 
 
-def sound_cues(timing: dict, fps: int, voice: Path, music: Path, kit: Path = SOUND_HOME) -> dict:
-    """Place declared scene events on the already planned step timeline."""
+def default_bed(kit: Path = SOUND_HOME) -> Path:
+    """Подложка по умолчанию — первая из defaults типа bed в каталоге набора звуков."""
+    catalog = kit / "catalog.json"
+    beds = json.loads(catalog.read_text()).get("types", {}).get("bed", {}).get("defaults", []) if catalog.is_file() else []
+    path = kit / f"{beds[0]}.wav" if beds else None
+    if path is None or not path.is_file():
+        fail(f"в наборе {kit} нет подложки типа bed: собери набор `uv run --script "
+             f"{SOUND_SCRIPTS / 'sfx.py'} kit`, укажи свою дорожку --music или собери без неё --no-music")
+    return path
+
+
+def sound_cues(timing: dict, fps: int, voice: Path, music: Path | None, kit: Path = SOUND_HOME) -> dict:
+    """Place declared scene events on the already planned step timeline; a music bed alone also needs a mix."""
     cues = []
     for step_no, row in enumerate(timing["steps"], 1):
         for event_no, event in enumerate(row.get("events", []), 1):
@@ -462,11 +480,11 @@ def sound_cues(timing: dict, fps: int, voice: Path, music: Path, kit: Path = SOU
                 if key in event:
                     cue[key] = event[key]
             cues.append(cue)
-    if not cues:
+    if not cues and music is None:
         return {}
     return {"fps": fps, "duration_s": round(PRE + timing["T"] + POST, 3),
             "energy": "calm", "lufs": -18, "kit": str(kit),
-            "music": {"file": str(music.resolve()), "start_s": 0, "loop": True, "fade_out_s": 1.0},
+            "music": {"file": str(music.resolve()), "start_s": 0, "loop": True, "fade_out_s": 1.0} if music else None,
             "voice": [{"file": str(voice.resolve()), "start_s": 0}], "cues": cues}
 
 
@@ -498,12 +516,13 @@ def voice_track(timing: dict, clips: list[Path], out: Path) -> None:
 
 # ---------- кадры ----------
 
-def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: bool, jobs: int) -> None:
+def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: bool, jobs: int,
+           theme: str = "paper") -> None:
     voice = {"d": [row["d"] for row in timing["steps"]]}
     frames_dir = out / "frames" / name
     frames_dir.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as pw:
-        browser, page = open_scene(pw, scene, voice)
+        browser, page = open_scene(pw, scene, voice, theme)
         applied = page.evaluate("[window.__VOICE_APPLIED === true, P.T, STEPS.map(s => s.d)]")
         if not applied[0] or abs(applied[1] - timing["T"]) > 1e-6:
             fail("сцена не приняла длительности озвучки: после `const STEPS = [...]` нужна строка "
@@ -511,7 +530,7 @@ def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: boo
         stills = []
         for i, row in enumerate(timing["steps"]):
             t = row["step_start"] + row["d"] - 0.05
-            page.evaluate(f"P.seek({t})")
+            page.evaluate(SEEK_JS, t)
             path = frames_dir / f"step{i + 1:02d}.png"
             page.screenshot(path=str(path))
             stills.append(path)
@@ -526,7 +545,7 @@ def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: boo
     total = round((PRE + timing["T"] + POST) * fps)
     times = [min(max(k / fps - PRE, 0.0), timing["T"]) for k in range(total)]
     size = -(-total // jobs)
-    parts = [(scene, voice, times[i:i + size], str(out / f".{name}.part{n:02d}.mp4"), fps)
+    parts = [(scene, voice, times[i:i + size], str(out / f".{name}.part{n:02d}.mp4"), fps, theme)
              for n, i in enumerate(range(0, total, size))]
     with ProcessPoolExecutor(len(parts), mp_context=get_context("spawn")) as pool:
         list(pool.map(render_part, parts))
@@ -540,8 +559,10 @@ def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: boo
 
 
 class HTMLRenderPipeline:
-    def __init__(self, scene: Path, steps: list[dict], out: Path, name: str, fps: int, jobs: int, rate: float):
+    def __init__(self, scene: Path, steps: list[dict], out: Path, name: str, fps: int, jobs: int, rate: float,
+                 theme: str = "paper"):
         self.scene, self.steps, self.out, self.name, self.fps = scene, steps, out, name, fps
+        self.theme = theme
         self.rate = rate
         self.pool = ProcessPoolExecutor(max_workers=jobs, mp_context=get_context("spawn"))
         self.parts = []
@@ -557,7 +578,7 @@ class HTMLRenderPipeline:
         last = round((PRE + row["step_start"] + row["d"] + (POST if index == len(self.steps) - 1 else 0)) * self.fps)
         times = [min(max(frame / self.fps - PRE, 0.0), prefix["T"]) for frame in range(first, last)]
         part = self.out / f".{self.name}.step{index:04d}.mp4"
-        future = self.pool.submit(render_part, (self.scene, {"d": voice_durations}, times, str(part), self.fps))
+        future = self.pool.submit(render_part, (self.scene, {"d": voice_durations}, times, str(part), self.fps, self.theme))
         future.add_done_callback(self.render_done)
         self.parts.append((part, future))
 
@@ -584,17 +605,17 @@ class HTMLRenderPipeline:
 
 
 def render_part(args) -> None:
-    scene, voice, times, path, fps = args
+    scene, voice, times, path, fps, theme = args
     ff = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-y", "-framerate", str(fps), "-f", "image2pipe", "-i", "-",
          "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", path],
         stdin=subprocess.PIPE)
     with sync_playwright() as pw:
-        browser, page = open_scene(pw, scene, voice)
+        browser, page = open_scene(pw, scene, voice, theme)
         last_t, shot = None, b""
         for t in times:
             if t != last_t:
-                page.evaluate(f"P.seek({t})")
+                page.evaluate(SEEK_JS, t)
                 shot = page.screenshot(type="png", animations="allow")
                 last_t = t
             ff.stdin.write(shot)
@@ -615,7 +636,8 @@ def fresh_text_cache(media: Path) -> None:
     stamp.write_text(digest)
 
 
-def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps: int, video: bool) -> None:
+def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps: int, video: bool,
+                 theme: str = "paper") -> None:
     """Manim сам пишет MP4; длительности шагов получает через VIDEO_ARTIFACT_VOICE (см. manim_voice.py).
     --stills тоже рендерит, но в 480p: кадр Manim нельзя снять без проигрыша сцены до него."""
     media = out / ".manim"
@@ -625,7 +647,7 @@ def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps:
     run(str(MANIM_BIN / "manim"), "render", *quality, "--media_dir", str(media), "-o", name,
         str(scene.resolve()), cls,
         env={**os.environ, "VIDEO_ARTIFACT_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),
-             "PYTHONDONTWRITEBYTECODE": "1",
+             "PYTHONDONTWRITEBYTECODE": "1", "VIDEO_ARTIFACT_THEME": theme,
              "PATH": f"{MANIM_BIN}:{os.environ['PATH']}"})
     rendered = max(media.glob(f"videos/**/{name}.mp4"), key=lambda p: p.stat().st_mtime)
     frames_dir = out / "frames" / name
@@ -673,13 +695,14 @@ def preview_manim(scene: Path, cls: str, out: Path, name: str, first_step: int, 
     return contact
 
 
-def preview_html(scene: Path, steps: list[dict], out: Path, name: str, first_step: int, last_step: int) -> Path:
+def preview_html(scene: Path, steps: list[dict], out: Path, name: str, first_step: int, last_step: int,
+                 theme: str = "paper") -> Path:
     durations = [float(step.get("d") or 1.0) for step in steps]
     voice = {"d": durations}
     frames = out / f".preview-renders-{first_step}-{last_step}"
     frames.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as pw:
-        browser, page = open_scene(pw, scene, voice)
+        browser, page = open_scene(pw, scene, voice, theme)
         applied = page.evaluate("[window.__VOICE_APPLIED === true, P.T]")
         if not applied[0]:
             fail("сцена не принимает быстрый предпросмотр: нужна строка `window.voice?.(STEPS);` после STEPS")
@@ -687,7 +710,7 @@ def preview_html(scene: Path, steps: list[dict], out: Path, name: str, first_ste
         selected = []
         for index, duration in enumerate(durations):
             if first_step - 1 <= index <= last_step - 1:
-                page.evaluate(f"P.seek({at + duration - 0.05})")
+                page.evaluate(SEEK_JS, at + duration - 0.05)
                 frame = frames / f"step{index + 1:02d}.png"
                 page.screenshot(path=str(frame))
                 selected.append(frame)
@@ -860,9 +883,9 @@ def word_scores(phrase: str, hits: list[int | None]) -> tuple[float, float, int]
     return lexical_recall, numeric_recall, len(numeric)
 
 
-def voice_onsets(mp4: Path) -> list[float]:
+def voice_onsets(media: Path) -> list[float]:
     """Где в итоговом MP4 (после AAC и loudnorm) кончается тишина — фактические начала фраз."""
-    log = run("ffmpeg", "-v", "info", "-i", str(mp4), "-vn", "-af", "silencedetect=noise=-40dB:d=0.25",
+    log = run("ffmpeg", "-v", "info", "-i", str(media), "-vn", "-af", "silencedetect=noise=-40dB:d=0.25",
               "-f", "null", "-", capture_output=True, text=True).stderr
     return [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log)]
 
@@ -884,7 +907,10 @@ def check(out: Path, name: str, timing: dict, key: str, lang: str = "ru") -> dic
     heard = [t for t, _n in heard_words]
     by_say = align([row["say"] for row in timing["steps"]], heard)
     by_sub = align([row["sub"] or row["say"] for row in timing["steps"]], heard)
-    onsets = voice_onsets(out / f"{name}.mp4")
+    # Под музыкой тишины между фразами нет: начала фраз ищутся в голосовой дорожке микса,
+    # а совпадение микса с MP4 до сэмпла проверяет qa.py (offset).
+    stem = out / f"{name}.sound" / "stems" / "voice.wav"
+    onsets = voice_onsets(stem if stem.is_file() else out / f"{name}.mp4")
     rows = []
     for row, say_hits, sub_hits in zip(timing["steps"], by_say, by_sub, strict=True):
         say_score = word_scores(row["say"], say_hits)
@@ -936,7 +962,10 @@ def _main() -> None:
     ap.add_argument("--stress-only", action="store_true",
                     help="показать нормализованные фразы и ударения без генерации WAV")
     ap.add_argument("--fps", type=int, default=30)
-    ap.add_argument("--music", type=Path, help="CC0 или собственная фоновая дорожка; обязателен, если в STEPS заданы events")
+    ap.add_argument("--music", type=Path, help="своя CC0-подложка вместо подложки набора по умолчанию")
+    ap.add_argument("--no-music", action="store_true", help="без подложки: только голос (и тогда без events)")
+    ap.add_argument("--theme", choices=sorted(THEMES), default="paper",
+                    help="paper — светлая «бумажная» тема (по умолчанию), dark — прежняя тёмная")
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
     ap.add_argument("--stills", action="store_true", help="без видео: тайминг и контакт-лист")
@@ -947,6 +976,7 @@ def _main() -> None:
     ap.add_argument("--no-check", action="store_true")
     ap.add_argument("--check-only", action="store_true", help="только проверить готовый MP4")
     args = ap.parse_args()
+    os.environ["VIDEO_ARTIFACT_THEME"] = args.theme  # Manim-подпроцессы (сборка, предпросмотр, тайминг) берут тему отсюда
     out, name = args.out, args.scene.stem
     out.mkdir(parents=True, exist_ok=True)
 
@@ -971,7 +1001,7 @@ def _main() -> None:
         if manim:
             preview_manim(args.scene, cls, out, name, first_step, last_step)
         else:
-            preview_html(args.scene, steps, out, name, first_step, last_step)
+            preview_html(args.scene, steps, out, name, first_step, last_step, args.theme)
         return
     steps = check_steps(steps, args.lang, args.tts_engine)
     if args.stress_only:
@@ -987,13 +1017,20 @@ def _main() -> None:
     if args.lang == "ru" and args.tts_engine == "vosk":
         steps = mark_stress(steps, args.lang, enabled=not args.no_stress, engine="vosk")
     has_events = any(step.get("events") for step in steps)
-    if has_events and not args.music:
-        fail("в STEPS заданы звуковые events: укажи фоновую CC0-дорожку через --music")
-    if has_events and not args.music.is_file():
-        fail(f"не найдена фоновая дорожка: {args.music}")
+    if args.no_music and args.music:
+        fail("--music и --no-music взаимоисключающие")
+    if has_events and args.no_music:
+        fail("в STEPS заданы звуковые events: они слышны только поверх подложки, убери --no-music")
+    music = None
+    if args.music:
+        if not args.music.is_file():
+            fail(f"не найдена фоновая дорожка: {args.music}")
+        music = args.music
+    elif not args.no_music and not (args.stills or args.timing_only):
+        music = default_bed()
     pipeline = None
     if not manim and not args.stills and not args.check_only:
-        pipeline = HTMLRenderPipeline(args.scene, steps, out, name, args.fps, args.jobs, args.rate)
+        pipeline = HTMLRenderPipeline(args.scene, steps, out, name, args.fps, args.jobs, args.rate, args.theme)
     rendered_clips = []
     speech_started = time.monotonic()
 
@@ -1031,7 +1068,7 @@ def _main() -> None:
     print("stage 2/4: timing plan ready", flush=True)
     if pipeline:
         pipeline.finish()
-    sheet = sound_cues(timing, args.fps, out / f"{name}.voice.wav", args.music) if has_events else {}
+    sheet = sound_cues(timing, args.fps, out / f"{name}.voice.wav", music)
     (out / f"{name}.timing.json").write_text(json.dumps(timing, ensure_ascii=False, indent=1))
     for row in timing["steps"]:
         print(f"  {row['phrase_start']:6.2f}–{row['phrase_end']:6.2f}  шаг {row['d']:5.2f} с  {row['say']}")
@@ -1043,11 +1080,11 @@ def _main() -> None:
         print("stage 3/4: rendering frames", flush=True)
         voice_track(timing, clips, out / f"{name}.voice.wav")
         if manim:
-            render_manim(args.scene, cls, timing, out, name, args.fps, video=not args.stills)
+            render_manim(args.scene, cls, timing, out, name, args.fps, video=not args.stills, theme=args.theme)
         elif pipeline:
-            render(args.scene, timing, out, name, args.fps, video=False, jobs=args.jobs)
+            render(args.scene, timing, out, name, args.fps, video=False, jobs=args.jobs, theme=args.theme)
         else:
-            render(args.scene, timing, out, name, args.fps, video=not args.stills, jobs=args.jobs)
+            render(args.scene, timing, out, name, args.fps, video=not args.stills, jobs=args.jobs, theme=args.theme)
         print(out / f"{name}-contact.png")
         if args.stills:
             return
