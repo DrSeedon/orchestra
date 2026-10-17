@@ -488,6 +488,26 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker("browser")
 
 
+_AGENT_CGROUP_VARS = ("ORCHESTRA_AGENT_CGROUP", "ORCHESTRA_AGENT_ROOT", "ORCHESTRA_AGENT_CGROUP_REQUIRED")
+
+
+@pytest.fixture(autouse=True)
+def _restore_agent_cgroup_env():
+    """`initialize_agent_cgroup` writes os.environ directly; monkeypatch does not undo that.
+
+    A test that left ORCHESTRA_AGENT_CGROUP_REQUIRED=1 made every later provider spawn in the
+    same xdist worker raise "delegated agent cgroup is unavailable" (V-928: CI shard 0 after
+    shard composition changed). The vars are process-wide state, so each test gets them back.
+    """
+    saved = {name: os.environ.get(name) for name in _AGENT_CGROUP_VARS}
+    yield
+    for name, value in saved.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+
+
 @pytest.fixture(autouse=True)
 def _isolated_git_task_owner(tmp_path, monkeypatch):
     """Task API tests use real private Git; SQL-only tests need no repository setup."""
