@@ -12,17 +12,20 @@
 Only orchestrator sessions with a valid MCP proof. Own project (`project` empty = caller's scope) only. `project="*"` (all projects) only for `Orchestra-orchestrator` with scope = Orchestra root. Removing/updating follows the same check against the rule's project. Foreign project and global from others → 403 (tests `test_permissions`, `test_http_route_enforces_proof_and_scope`).
 
 ## Your first rule
-After the restart, from `Orchestra-orchestrator` call:
+After the restart, from `Orchestra-orchestrator`:
 
 ```
 temp_rule_set(
   text="Модели воркеров: Sonnet на простые задачи, Opus на сложные; Luna только для второго мнения.",
+  reason="До 20.10 идёт сжигание подписки Claude; решение владельца 17.10.",
   targets=["orchestrators"],
+  mode="expires",
   expires_at="2026-10-20T07:00:00Z",
-  project="*",
-  on_expire="remove")
+  project="*")
 ```
-(`on_expire="notify"` instead if you want a one-time notice at the deadline with the rule still in force.) Live orchestrators receive it on their next turn; after the deadline it disappears from the prompt on the turn after. Not entered into the live system.
+Use `mode="review"` for a one-time "time to review" notice with the rule still in force, `mode="permanent"` (no date) for a lasting one. Not entered into the live system.
+
+Modes: `expires` = stored on_expire remove; `review` = notify; `permanent` = no date. `reason` is mandatory; the block shows mode/date/reason/author/creation date; the orchestrator-only module `orchestration.md` carries the usage paragraph (reaches orchestrator and sub-orchestrator, not workers; test `test_orchestrator_module_reaches_orchestrators_not_workers`).
 
 ## Checks
-`uv run --frozen python -m pytest tests/test_temp_rules_v927.py tests/test_hot_apply.py tests/test_session.py tests/test_mcp_stdio.py tests/test_tool_scoping.py -q` → 433 passed. Mutation: forcing `rules_changed=False` in `AgentSession.send` reddens `test_live_session_gets_and_loses_rule`. Full suite not run. Not checked live: a real Claude/Codex session; the 60 s notice sweep in a running manager (skipped under pytest).
+`uv run --frozen python -m pytest tests/test_temp_rules_v927.py tests/test_hot_apply.py tests/test_session.py tests/test_mcp_stdio.py tests/test_tool_scoping.py -q` → 433 passed (first version); after the reason/modes change: test_temp_rules_v927, test_routes_surface, test_default_pipeline, test_check_pipeline_manifest, test_hot_apply, test_mcp_stdio, test_tool_scoping → 256 passed. Mutation: forcing `rules_changed=False` in `AgentSession.send` reddens `test_live_session_gets_and_loses_rule`. Full suite not run. Not checked live: a real Claude/Codex session; the 60 s notice sweep in a running manager (skipped under pytest).

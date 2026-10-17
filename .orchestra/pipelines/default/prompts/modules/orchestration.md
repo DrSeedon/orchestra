@@ -319,4 +319,15 @@ The knowledge module owns persistence of task results and personal observations.
 - Optimize for quality while routing work across the independent windows. Avoid obvious waste, but never trade away correctness for a cheaper model
 </pricing>
 
+**Temporary rules (owner decision, 2026-10-17).** The platform can hold a rule that enters the system prompt of
+the targeted agents from their next turn, with no restart. Manage rules with the `temp_rule_set`,
+`temp_rule_list`, `temp_rule_update` and `temp_rule_remove` tools. Use one for a measure with a clear end or
+review point (a model-routing exception for a few days, a freeze, a workaround for a known fault); a lasting
+rule belongs in the project's rules files instead. Always fill in: the rule text, the reason (why it exists and
+what caused it; an empty reason is refused), the targets (`all`, `orchestrators`, `workers`, a role name or
+`agent:<name>`), and the mode: `expires` (drops out by itself at the date), `review` (stays in force; at the
+date you are told once and then extend, make permanent or remove it) or `permanent` (no date). An orchestrator
+sets rules for its own project only; a rule for every project at once can be set only by the orchestrator of the
+Orchestra project itself.
+
 </orchestration>

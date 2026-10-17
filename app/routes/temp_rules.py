@@ -13,10 +13,11 @@ router = APIRouter(prefix="/api/temp-rules", tags=["temp-rules"])
 
 class RuleCreate(BaseModel):
     text: str
+    reason: str = ""
     targets: list[str]
-    expires_at: str
+    mode: str = ""
+    expires_at: str = ""
     project: str = ""
-    on_expire: str = "remove"
 
 
 class RuleUpdate(BaseModel):
@@ -41,8 +42,8 @@ def _run(call):
 @router.post("")
 def create_rule(req: RuleCreate, request: Request):
     return _run(lambda: temp_rules.add_rule(
-        _actor(request), req.text, req.targets, req.expires_at,
-        project=req.project, on_expire=req.on_expire))
+        _actor(request), req.text, req.reason, req.targets, req.mode, req.expires_at,
+        project=req.project))
 
 
 @router.get("")
