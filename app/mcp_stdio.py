@@ -3262,6 +3262,7 @@ async def dynamic_workflow(
                 if not isinstance(stage_tasks, list) or not stage_tasks:
                     return f"Error: stages[{stage_index}].tasks must be a non-empty array"
                 task_count = len(stage_tasks)
+                stage_tasks = [(task, None, None) for task in stage_tasks]
             elif "prompt" in stage and "items" in stage:
                 template = stage["prompt"]
                 items = stage["items"]
@@ -3271,17 +3272,21 @@ async def dynamic_workflow(
                     return f"Error: stages[{stage_index}].items must be a non-empty array"
                 task_count = len(items)
                 stage_tasks = (
-                    {"prompt": template.replace(
-                        "{item}", item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
-                    )}
-                    for item in items
+                    (
+                        {"prompt": template.replace(
+                            "{item}", item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
+                        )},
+                        item,
+                        task_index,
+                    )
+                    for task_index, item in enumerate(items)
                 )
             else:
                 return f"Error: stages[{stage_index}] needs tasks or prompt and items"
             if total_tasks + task_count > 1000:
                 return "Error: expanded workflow exceeds 1,000 tasks"
             normalized_stage = []
-            for task_index, task in enumerate(stage_tasks):
+            for task_index, (task, item, item_index) in enumerate(stage_tasks):
                 if not isinstance(task, dict) or not isinstance(task.get("prompt"), str) or not task["prompt"].strip():
                     return f"Error: stages[{stage_index}].tasks[{task_index}].prompt must be a non-empty string"
                 normalized, error = _normalize_dynamic_task(
@@ -3293,6 +3298,14 @@ async def dynamic_workflow(
                 if error:
                     return f"Error: {error}"
                 normalized["label"] = f"Stage {stage_index + 1} · Task {task_index + 1}"
+                normalized["task_id"] = str(
+                    task.get("task_id") or task.get("id")
+                    or f"stage-{stage_index + 1}-task-{task_index + 1}"
+                )
+                if item_index is not None:
+                    normalized["task_id"] = f"stage-{stage_index + 1}-item-{item_index + 1}"
+                    normalized["item"] = item
+                    normalized["item_index"] = item_index
                 normalized_stage.append(normalized)
                 spec_payload_size += len(
                     json.dumps(normalized, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -3315,6 +3328,9 @@ async def dynamic_workflow(
             if error:
                 return f"Error: {error}"
             row["label"] = f"Task {index + 1}"
+            row["task_id"] = str(
+                task.get("task_id") or task.get("id") or f"task-{index + 1}"
+            )
             normalized.append(row)
         spec_payload = {"tasks": normalized, "mode": mode}
     if (not isinstance(budget_usd, (int, float)) or isinstance(budget_usd, bool)

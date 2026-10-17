@@ -1,7 +1,9 @@
 import asyncio
 import json
+import os
 import sqlite3
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -24,6 +26,46 @@ def test_string_schema_accepts_plain_text_and_json_string():
     schema = {"type": "string"}
     assert _parse_and_validate("answer without quotes\n", schema) == "answer without quotes\n"
     assert _parse_and_validate('"quoted JSON string"', schema) == "quoted JSON string"
+
+
+@pytest.mark.parametrize("wrapped,schema,expected", [
+    (
+        'Here is the result:\n```json\n{"answer": "ok"}\n```',
+        {"type": "object", "properties": {"answer": {"type": "string"}}},
+        {"answer": "ok"},
+    ),
+    (
+        'Result: {"answer": {"text": "brace } in string"}} Done.',
+        {"type": "object", "properties": {"answer": {"type": "object"}}},
+        {"answer": {"text": "brace } in string"}},
+    ),
+])
+def test_schema_parser_extracts_json_wrapped_in_text(wrapped, schema, expected):
+    assert _parse_and_validate(wrapped, schema) == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wrapped", [
+    'Here is the result:\n```json\n{"answer": "ok"}\n```',
+    'Result: {"answer": "ok"} Done.',
+])
+async def test_wrapped_schema_response_does_not_dispatch_a_retry(tmp_path, wrapped):
+    calls = []
+
+    async def adapter(prompt, **_kwargs):
+        calls.append(prompt)
+        return _result(wrapped)
+
+    engine = _engine("wrapped-schema", tmp_path, budget_usd=1, max_calls=1, adapter=adapter)
+    value = await engine.agent(
+        "return an answer", model="luna",
+        schema={"type": "object", "properties": {"answer": {"type": "string"}}},
+    )
+
+    assert value.data == {"answer": "ok"}
+    assert len(calls) == 1
+    assert engine.budget.dispatched_calls == 1
+    assert not any(row.get("event") == "schema_invalid" for row in engine.journal.load())
 
 
 def _git_repo(path: Path) -> Path:
@@ -52,6 +94,67 @@ def _result(text: str, *, cost: float = 0.01, runtime: str = "codex", model: str
 def _engine(*args, **kwargs):
     kwargs.setdefault("default_modules", ())
     return WorkflowEngine(*args, **kwargs)
+
+
+@pytest.mark.asyncio
+async def test_resume_refuses_when_another_process_holds_the_run_lock(tmp_path, monkeypatch):
+    monkeypatch.setattr(wf_run, "ROOT", tmp_path)
+    from app import agent_cgroups
+    monkeypatch.setattr(agent_cgroups, "enter_workflow_cgroup", lambda _run_id: None)
+    run_id = "already-running"
+    run_dir = tmp_path / "data" / "workflow-runs" / run_id
+    run_dir.mkdir(parents=True)
+    manifest = run_dir / "manifest.json"
+    manifest.write_text('{"owner":"first"}\n')
+    spec = tmp_path / "spec.json"
+    spec.write_text('{"mode":"parallel","tasks":[{"prompt":"stub"}]}')
+
+    async def adapter(prompt, **_kwargs):
+        return _result(prompt)
+
+    async def readiness(_model):
+        return {"state": "available"}
+
+    original_engine = wf_run.WorkflowEngine
+
+    def fake_engine(*args, **kwargs):
+        kwargs.update(adapter=adapter, readiness_checker=readiness, usage_writer=None)
+        return original_engine(*args, **kwargs)
+
+    monkeypatch.setattr(wf_run, "WorkflowEngine", fake_engine)
+    monkeypatch.setattr(sys, "argv", [
+        "wf_run.py", "--resume", run_id, "--budget-usd", "1", "--spec", str(spec),
+    ])
+
+    with wf_run.WorkflowRunLock(run_dir / ".run.lock"):
+        with pytest.raises(
+            RuntimeError,
+            match=rf"workflow run already active \(pid {os.getpid()}\)",
+        ):
+            await wf_run._main()
+
+    assert manifest.read_text() == '{"owner":"first"}\n'
+    assert not (run_dir / "manifest.json.new").exists()
+
+
+@pytest.mark.asyncio
+async def test_stage_results_include_task_identity_and_item(tmp_path):
+    async def adapter(prompt, **_kwargs):
+        return _result(prompt)
+
+    engine = _engine("item-identity", tmp_path, budget_usd=1, adapter=adapter)
+    result = await engine.execute_stages([{
+        "tasks": [{
+            "task_id": "stage-1-item-1", "item": {"id": "a", "name": "first"},
+            "item_index": 0, "prompt": "first",
+        }],
+    }])
+
+    row = result[0][0]
+    assert row["task_id"] == "stage-1-item-1"
+    assert row["item"] == {"id": "a", "name": "first"}
+    assert row["item_index"] == 0
+    assert row["result"].data == "first"
 
 
 @pytest.mark.asyncio
@@ -625,7 +728,9 @@ async def test_schema_retries_twice_with_validation_error_then_returns_none(tmp_
     schema_json = json.dumps(schema, ensure_ascii=False, sort_keys=True)
     assert all(schema_json in prompt for prompt in prompts)
     assert prompts[0] != prompts[1] != prompts[2]
-    assert engine.write_manifest()["partial_reason"] == "schema"
+    manifest = engine.write_manifest()
+    assert manifest["partial_reason"] == "schema"
+    assert "wrong type" in manifest["steps"][0]["error"]
 
 
 @pytest.mark.asyncio
@@ -948,6 +1053,7 @@ async def test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt(tmp_
     assert await first.agent("work", model="luna", schema=schema) is None
     first_manifest = first.write_manifest()
     assert first_manifest["partial_reason"] == "call_limit"
+    assert "invalid JSON" in first_manifest["steps"][0]["error"]
     assert len(first_calls) == 1
     first_rows = first.journal.load()
     deferred = next(row for row in first_rows if row.get("event") == "retry_deferred")
