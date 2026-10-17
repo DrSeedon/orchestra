@@ -717,7 +717,7 @@ def _enter_sparse_or_full(repo: Path, wt_path: Path, rule, task_id: str, ref: st
 def create_worktree(repo_path: str, name: str, task_id: str = "",
                     base_branch: str = "",
                     worktree_cfg: "WorktreeCfg | None" = None,
-                    base_commit: str = "") -> Worktree:
+                    base_commit: str = "", sparse_task_id: str = "") -> Worktree:
     repo = validate_repo_root(repo_path)
     if base_branch and base_commit:
         raise ValueError("pass either base_branch or base_commit, not both")
@@ -771,7 +771,7 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
             try:
                 _enter_sparse_or_full(
                     repo, wt_path, sparse_rule,
-                    sparse_worktree.task_id_from_branch(branch),
+                    sparse_worktree.task_id_from_branch(branch) or sparse_task_id,
                     branch_initial_oid or branch,
                 )
             except Exception:
