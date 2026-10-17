@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K3-sonnet-r2",
+ "task": "K3",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 6761,
+ "output_tokens": 1516,
+ "input_tokens": 6,
+ "cache_read_tokens": 17112,
+ "cache_create_tokens": 5239,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0395504,
+ "seconds": 16.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: In `BgJobManager.create` (`app/bg_jobs.py`, around lines 382-394), a timer's expiry is capped at `MAX_TIMER_TIMEOUT` (8 days, line 36). The timer's trigger time is not capped. A 10-day timer is therefore set to expire about 2 days before it is due to fire.\n\nEvidence:\n- Line 36 sets `MAX_TIMER_TIMEOUT = 8 * 86400`.\n- Lines 388-393 compute the timeout for timers:\n  - `timeout_seconds = max(timeout_seconds, int(delay_seconds) + 3600)` correctly adds an hour of slack on top of the delay.\n  - The next line, `timeout_seconds = max(1, min(timeout_seconds, max_timeout))`, then clamps that value to 8 days. For `delay_seconds=864000` (10 days), `expires_at` becomes now + 8d.\n- Line 399 sets `trigger_at = now + delay_seconds`, which is now + 10d. It is not clamped, so it falls after `expires_at`.\n- Line 448 starts `_run_timer` (or `_run_wake_timer` at line 446), which does `asyncio.sleep(delay)` for the full 10 days. The sleep is never shortened.\n- Expiry is enforced separately from that sleep:\n  - `bg_expire_overdue()` (line 527) and the restore path (lines 558-560, `bg_expire_job` when `expires_at` has passed) mark the job `expired` once `expires_at` passes, at day 8.\n  - The timer therefore either never reaches `_trigger`, or the job is already `expired` when it does. That matches the symptom: no wake, and status `expired`.\n- Delays of up to 3 days work because 3d + 1h is well under the 8-day cap, so the `+3600` slack survives. By this logic, any delay above about 8 days minus 1 hour fails, not just 10 days.\n\nI read the code and did not run it. I did not create a scratch reproduction.\n\nRecommended fix:\n1. Don't let the cap shrink a timer's lifetime below its delay. Clamp the delay instead, and make the two checks consistent:\n   - Option A (preferred if long timers are meant to work): for timers, skip the `min(..., max_timeout)` clamp, or raise `MAX_TIMER_TIMEOUT` above the largest allowed delay plus slack. For example, `timeout_seconds = max(timeout_seconds, delay + 3600)` with no upper clamp for timers.\n   - Option B (if there should be a limit): reject the request in the config validation near line 73-76 with an explicit error such as \"delay_seconds exceeds max of N\". Set that limit to `MAX_TIMER_TIMEOUT - 3600` so the job never silently expires.\n2. Add a regression test that creates a timer with a delay larger than `MAX_TIMER_TIMEOUT` and asserts that `expires_at > trigger_at`, or that creation returns an error."
+}

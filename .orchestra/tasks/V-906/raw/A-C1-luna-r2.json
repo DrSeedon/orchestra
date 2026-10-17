@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C1-luna-r2",
+ "task": "C1",
+ "group": "C",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 4534,
+ "output_tokens": 277,
+ "input_tokens": 15905,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00068068,
+ "seconds": 7.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "[Scene: A long conversation scrolls past, packed with notes and decisions.]\nAn AI agent can work with you through a long conversation. It follows the details as the work unfolds.\n\n[Scene: The conversation reaches a window frame; older messages fold into a small card.]\nBut the model has a limit to how much conversation it can hold at once. When the chat gets too big, that history is compressed into a summary.\n\n[Scene: The agent picks up the card and continues working.]\nThe agent continues from that summary. It’s like handing someone a short briefing before they carry on with a project.\n\n[Scene: Small details fade away as the summary card comes into focus.]\nThat briefing can’t hold everything. If a detail from the old conversation wasn’t carried into the summary, the agent may no longer know it. It can’t reliably bring back what’s missing.\n\n[Scene: A person asks the agent about earlier decisions; the agent checks the summary and answers.]\nSo how do you know whether the summary did its job? Ask the agent questions about the earlier work. If it can answer key questions, the summary preserved what matters. If it can’t, the missing context may need to be added.\n\n[Scene: The summary is updated, and the work continues.]\nA summary helps the agent keep going—but only with the details it carries forward."
+}

@@ -1,0 +1,30 @@
+{
+ "run_id": "R-T5-luna-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 37244,
+ "output_tokens": 1735,
+ "input_tokens": 186805,
+ "cache_read_tokens": 151296,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.005931360000000001,
+ "seconds": 24.1,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"sed -n '1,260p' app/session.py && sed -n '1,320p' app/session_turns.py\"",
+  "/bin/bash -lc 'rg -n \"listen task exited|report_abnormal_end|listener|RUNNING|turn FAILED|_listen\" app/session.py app/session_turns.py'",
+  "/bin/bash -lc \"sed -n '2260,2510p' app/session.py; sed -n '2840,2965p' app/session.py; sed -n '390,455p' app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '345,445p' app/session_turns.py; rg -n \\\"def _handle_event|handle_turn_end|turn_end|_turn_gen\\\" app/session.py | head -50; rg -n \\\"listen task exited unexpectedly|_on_task_done|turn_event_loop\\\" tests\"",
+  "/bin/bash -lc \"sed -n '2640,2750p' app/session.py; sed -n '1,120p' tests/test_listen_task_done_648.py; sed -n '1130,1170p' app/session.py; sed -n '2830,2860p' app/session.py\"",
+  "/bin/bash -lc \"sed -n '455,560p' app/session_turns.py; \""
+ ],
+ "final_text": "CAUSE: `_on_task_done()` treats a normally completed per-turn listener as a crash whenever the session happens to be RUNNING when its done callback executes. That status can belong to the *next* turn, not the turn whose listener just ended.\n\nIn `TurnManager.handle_turn_end()` (`app/session_turns.py`), `finish_turn_status()` sets the session IDLE, then `after_turn_idle_actions()` claims queued mailbox messages and schedules their delivery. In `app/session.py`, delivery sets the session RUNNING before awaiting backend setup and send. If that happens before the old listener’s done callback runs, `_on_task_done()` sees RUNNING and calls `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")`. That logs the false error and invokes `report_abnormal_end()`, producing the automatic failure report. The next log row can then show the still-live worker starting another turn.\n\nThis fits both excerpts: one shows a failed `rate_limit` turn followed by mailbox continuation; the other shows a normal `turn ended` followed by mailbox continuation. Quota exhaustion can precede the race, but it does not explain the false listener verdict.\n\nI did not reproduce the exact journal sequence from this snapshot. The existing `tests/test_listen_task_done_648.py` checks stale-task identity, but not the window where the next turn is RUNNING before its listener replaces the old task. I recommend associating each listener with the turn generation it serves and ignoring completion callbacks once that generation has advanced; add a regression test for mailbox delivery entering RUNNING before the prior callback runs."
+}

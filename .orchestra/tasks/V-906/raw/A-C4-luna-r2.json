@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C4-luna-r2",
+ "task": "C4",
+ "group": "C",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16015,
+ "output_tokens": 176,
+ "input_tokens": 15839,
+ "cache_read_tokens": 0,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0016719,
+ "seconds": 5.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "Imagine you’re checking whether a delivery app warns you when a package is late. You set the test up with a package that arrives on time, then the app says “all good.” The test turns green—but that only shows the app stayed quiet when it should. It says nothing about whether the app would warn you about a late package. The warning might be broken, and the test would still pass.\n\n“Checking that the test can fail” means briefly making the app behave incorrectly on purpose—say, treating a late package as on time—and confirming the test turns red. Then you restore the correct behavior and check that it turns green again. That tells you the test is paying attention to the thing it’s meant to check.\n\nA green test is evidence, not proof. It’s useful only if the test would notice the mistake it was designed to catch."
+}

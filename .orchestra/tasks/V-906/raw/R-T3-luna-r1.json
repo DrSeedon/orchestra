@@ -1,0 +1,36 @@
+{
+ "run_id": "R-T3-luna-r1",
+ "task": "T3",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 35012,
+ "output_tokens": 3416,
+ "input_tokens": 312428,
+ "cache_read_tokens": 280832,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00767592,
+ "seconds": 58.9,
+ "contamination_flag": true,
+ "files_created": [
+  "scratch/legacy-default.sqlite",
+  "scratch/repro-legacy.sqlite"
+ ],
+ "commands": [
+  "/bin/bash -lc \"pwd && rg --files -g 'AGENTS.md' -g '*.py' -g '*.toml' -g '*.yaml' -g '*.yml' -g '*.json' -g '*.md' | head -200\"",
+  "/bin/bash -lc 'rg -n \"database schema needs offline migration|offline migration|ORCHESTRA_DB_PATH|codex_review|mcp.*stdio|migrate\" app'",
+  "/bin/bash -lc \"sed -n '1,130p' app/db.py && sed -n '1,130p' app/mcp_stdio.py && rg -n \\\"init_db|connect\\\\(|get_db_path|DB_PATH|offline\\\" app/mcp_stdio.py app/*.py tests/test_mcp_stdio.py tests/test_mcp_codex_review.py tests/test_db_connection_ownership.py\"",
+  "/bin/bash -lc \"sed -n '370,400p' app/main.py; sed -n '4000,4040p' app/mcp_stdio.py; rg -n \\\"ORCHESTRA_DB_PATH|mcp_servers|mcp_stdio\\\" app/backend_codex.py app/runtime_env.py app/main.py tests/test_mcp_config_isolation.py tests/test_mcp_codex_review.py; ls -l data/orchestra.db; PYTHONPATH=. /home/kes",
+  "/bin/bash -lc \"rg --files --hidden -g '\"'! .git'\"' | rg '(\"'^|/)data/|orchestra'\"\\\\.db|\\\\.env|mcp_stdio'; sed -n '2090,2145p' app/backend_codex.py; sed -n '1,90p' app/runtime_env.py; rg -n \\\"DB_PATH|ORCHESTRA_DB_PATH\\\" tests\"",
+  "/bin/bash -lc \"rg -n \\\"MCP_BASE_ENV|mcp_servers=.*orchestra|MCP_STDIO_CMD|ORCHESTRA_SCOPE\\\" app/backend_codex.py app/backend_claude.py app/runtime_env.py; sed -n '1,100p' tests/test_production_db_isolation.py; sed -n '60,85p' tests/conftest.py; sed -n '330,365p' app/backend_codex.py\"",
+  "/bin/bash -lc \"mkdir -p scratch && PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport os, sqlite3, subprocess, sys, tempfile\nfrom pathlib import Path\nroot=Path.cwd()\np=root/'scratch'/'legacy-default.sqlite'\nwith sqlite3.connect(p) as c:\n    c.execute('create table legacy_marker(x)')",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport os, sqlite3, subprocess, sys\nfrom pathlib import Path\nroot=Path.cwd()\nfor name in ('data/orchestra.db','data/orchestra.db-wal','data/orchestra.db-shm'):\n    (root/name).unlink(missing_ok=True)\ntry: (root/'data').rmdir",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport os, sqlite3, subprocess, sys\nfrom pathlib import Path\nroot=Path.cwd(); p=root/'scratch'/'repro-legacy.sqlite'\nwith sqlite3.connect(p) as c: c.execute('create table legacy_marker(x)')\nenv=os.environ.copy(); env['PYTHON"
+ ],
+ "final_text": "CAUSE: MCP-процесс `codex_review` выбирает неверную БД. `app.db` вычисляет `DB_PATH` при импорте из `ORCHESTRA_DB_PATH`, а без этой переменной берёт `data/orchestra.db` рядом с кодом. `app.runtime_env.MCP_BASE_ENV` передаёт MCP-процессу `PYTHONPATH`, прокси и `INTERNAL_TOKEN`, но не `ORCHESTRA_DB_PATH`. При этом живой сервер обновляет `DB_PATH` в `app.main.lifespan` и запускается с путём к своей БД. Поэтому здоровая БД живого сервера не опровергает ошибку: при вызове `codex_review` функция в `app.mcp_stdio` вызывает `app.db.init_db()` уже для дефолтного файла.\n\n`init_db()` в `app/db.py` выдаёт это сообщение, если файл содержит таблицы, но его `user_version` не равен текущей версии схемы. Версия файла из сообщения об ошибке не доказывает, что отстаёт БД живого сервера.\n\nМеханизм воспроизвёл на scratch-БД: создал файл с таблицей и `user_version=0`, затем вызвал `init_db()` с `ORCHESTRA_DB_PATH`, указывающим на этот файл; получил ровно `database schema needs offline migration before starting Orchestra`. Само состояние указанного в задаче дефолтного файла подтвердить не удалось: в снимке отсутствует `data/orchestra.db`.\n\nРекомендую передавать `ORCHESTRA_DB_PATH` в окружение Orchestra MCP-сервера при его настройке, чтобы он открывал ту же БД, что и живой сервер. Не запускать миграцию наугад: сначала проверить версию схемы именно дефолтного файла."
+}

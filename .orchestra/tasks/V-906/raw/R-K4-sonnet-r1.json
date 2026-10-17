@@ -1,0 +1,25 @@
+{
+ "run_id": "R-K4-sonnet-r1",
+ "task": "K4",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 20642,
+ "output_tokens": 4049,
+ "input_tokens": 18,
+ "cache_read_tokens": 106057,
+ "cache_create_tokens": 16575,
+ "turns": 15,
+ "cost_usd_api_equiv": 0.1280374,
+ "seconds": 38.8,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Когда авторизация дашборда выключена, `send_message` всё равно требует cookie оператора, а её при пустых учётных данных получить нельзя. Выполнить воспроизведение я не смог, поэтому причина подтверждена только чтением кода.\n\nЦепочка:\n1. `app/routes/sessions.py`, `send_message` (`POST /api/sessions/{name}/send`, строки ~903–927). Фронтенд шлёт только `{message, scope}`, поэтому `req.sender` пуст и код идёт в ветку `else`. Там `operator = request is not None and validate_session(request.cookies.get(\"session\",\"\"))`. Если `operator` ложен, возвращается 403 `SOURCE_PROVENANCE_REQUIRED: a sender or authenticated operator is required`. Текст и код ответа совпадают с наблюдаемым.\n2. `app/auth.py`, `validate_session` (строки 55–62). При пустых `DASHBOARD_USER` или `DASHBOARD_PASSWORD` она сразу возвращает `False`.\n3. `check_credentials` при пустых учётных данных тоже возвращает `False`, так что войти нельзя и cookie `session` не появится. `AuthMiddleware` (`app/main.py:537`) при выключенной авторизации пропускает запрос дальше без проверок. Поэтому к обработчику запрос доходит, но уже без доказательства оператора.\n\nВыходит, что `send_message` проверяет только `validate_session` и не учитывает `is_auth_enabled()`. Другие места это учитывают. `app/routes/portfolio.py` (`_project_list_actor`, строки 100–103) при выключенной авторизации пропускает запрос как локального оператора. `is_owner_mode()` в `app/auth.py` тоже считает такую машину своей. Исключение — `require_operator_session`, которая при выключенной авторизации отказывает намеренно.\n\nНеточность: ветка с `delivery_id` (строки ~701–713) использует тот же `validate_session`. Для неё это, видимо, задумано (требует MCP-proof или оператора), но при выключенной авторизации оператор там тоже недостижим.\n\nВоспроизведение: в моём наборе инструментов нет запуска команд, поэтому я не запускал ни тесты, ни скрипт. Я написал `scratch/repro.py`. Он делает то же, что тест `test_review_live_dashboard_cookie_delivers_user_origin` в `tests/test_message_provenance_review_433.py`, но с пустыми `DASHBOARD_*` и без cookie. Ожидаю от него 403 с этим кодом, но этого не видел. Строгое условие «воспроизводит точно» не выполнено, и вывод опирается на чтение кода.\n\nFIX: в `send_message` определить оператора так же, как в `portfolio._dashboard_operator`, но с учётом выключенной авторизации:\n`operator = request is not None and (not is_auth_enabled() or validate_session(cookie))`.\nЛибо вынести это в общую функцию в `app/auth.py`, например `is_dashboard_operator(request)`. Для ветки без `sender` этого достаточно, и источник будет `origin=\"user\"`. Для ветки с `delivery_id` решение нужно принять отдельно.\n\nРиск: при выключенной авторизации любой, кто достучится до порта, будет считаться оператором. Это то же допущение, которое уже сделано для остального API через `AuthMiddleware`.\n\nНужен тест: пустые учётные данные, запрос без cookie и без `sender` должен дать `origin=\"user\"`. Тест для включённой авторизации должен по-прежнему давать 403."
+}

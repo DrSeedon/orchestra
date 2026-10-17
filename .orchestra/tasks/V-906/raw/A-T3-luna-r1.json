@@ -1,0 +1,31 @@
+{
+ "run_id": "A-T3-luna-r1",
+ "task": "T3",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 30130,
+ "output_tokens": 1496,
+ "input_tokens": 225626,
+ "cache_read_tokens": 196992,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.00558132,
+ "seconds": 24.2,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"pwd && rg --files -g 'AGENTS.md' -g 'app/**' -g 'tests/**' -g '*.py' -g '*.toml' -g '*.ini' | head -200\"",
+  "/bin/bash -lc \"rg -n \\\"database schema needs offline migration|ORCHESTRA_DB_PATH|offline migration|migrate\\\" app/db.py app/mcp_stdio.py tests/test_production_db_isolation.py tests/test_mcp_stdio.py tests/test_mcp_codex_review.py tests/test_db.py && sed -n '1,260p' app/db.py && sed -n '1,200p' app/mc",
+  "/bin/bash -lc \"sed -n '1040,1100p' tests/test_db.py; cat tests/test_production_db_isolation.py; rg -n \\\"init_db\\\\(|DB_PATH|_resolve_db_path\\\" app tests | head -100; ls -l data/orchestra.db 2>/dev/null\"",
+  "/bin/bash -lc \"rg -n \\\"codex_review|mcp_stdio|ORCHESTRA_DB_PATH|env=.*ORCHESTRA\\\" app tests | head -180; ls -l data/orchestra.db; sed -n '1,130p' tests/conftest.py\"",
+  "/bin/bash -lc \"sed -n '1,220p' app/runtime_env.py; rg -n \\\"ORCHESTRA_DB_PATH|env.*ORCHESTRA|mcp_servers\\\" app/backend_codex.py app/backend_grok.py app/runtime_env.py tests/test_runtime_env.py tests/test_mcp_config_isolation.py tests/test_backend_codex.py | head -180; sed -n '250,320p' tests/test_bac",
+  "/bin/bash -lc \"rg -n \\\"MCP_BASE_ENV|MCP_STDIO_CMD\\\" app; nl -ba app/db.py | sed -n '18,78p'; nl -ba app/runtime_env.py | sed -n '1,35p'; nl -ba app/backend_codex.py | sed -n '2090,2145p'; rg -n \\\"data/orchestra.db\\\" .gitignore README* pyproject.toml app tests | head -80\"",
+  "/bin/bash -lc \"nl -ba app/manager.py | sed -n '345,390p'; rg -n \\\"init_db\\\" app/__init__.py app/main.py app/*.py | head -30; rg -n \\\"ORCHESTRA_DB_PATH\\\" tests app | head -50\""
+ ],
+ "final_text": "CAUSE: The live database is not behind. The MCP subprocess is opening the checkout’s default `data/orchestra.db` because its launch environment drops `ORCHESTRA_DB_PATH`.\n\nIn [db.py](/home/kesha/bench906/runs/A-T3-luna-r1/app/db.py:21), `_resolve_db_path()` uses `ORCHESTRA_DB_PATH` when present and otherwise selects the checkout’s default file. `init_db()` raises the reported error when that file has an existing schema it does not recognize at [db.py](/home/kesha/bench906/runs/A-T3-luna-r1/app/db.py:67).\n\nThe propagation gap is in [runtime_env.py](/home/kesha/bench906/runs/A-T3-luna-r1/app/runtime_env.py:17): `MCP_BASE_ENV` forwards proxy and auth variables but omits `ORCHESTRA_DB_PATH`. [manager.py](/home/kesha/bench906/runs/A-T3-luna-r1/app/manager.py:363) builds the MCP environment from that allowlist. The stdio server then calls `init_db()` during `codex_review` in [mcp_stdio.py](/home/kesha/bench906/runs/A-T3-luna-r1/app/mcp_stdio.py:4023).\n\nRecommend adding `ORCHESTRA_DB_PATH` to the MCP subprocess environment propagation, then reconnecting/restarting the MCP client so it inherits the configured database path. Do not migrate the live database based on this error."
+}

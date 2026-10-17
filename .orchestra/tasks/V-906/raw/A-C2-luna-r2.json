@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C2-luna-r2",
+ "task": "C2",
+ "group": "C",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 1943,
+ "output_tokens": 143,
+ "input_tokens": 15880,
+ "cache_read_tokens": 14080,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0003923,
+ "seconds": 5.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "A live “agent activity board” shows all ten agents as compact cards, grouped by task, with a plain-language current action, last progress update, and a clear state: working, waiting, or possibly stuck.\n\nThe owner can scan the board, spot stale or blocked agents by age of last progress, and open a card to see its latest status and relevant chat excerpt; a waiting agent’s card can show what input it needs.\n\nUnlike a log list, the board makes state and progress comparable across agents at once, so the owner can find exceptions without opening ten separate histories.\n\nMain risk: status labels may be misleading if agents report progress inconsistently or go quiet during legitimate long-running work."
+}

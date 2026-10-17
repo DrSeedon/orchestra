@@ -1,0 +1,28 @@
+{
+ "run_id": "A-K1-luna-r1",
+ "task": "K1",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 14007,
+ "output_tokens": 454,
+ "input_tokens": 63985,
+ "cache_read_tokens": 50432,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.00208662,
+ "seconds": 10.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"rg -n \\\"run_pytest|TimeoutExpired|subprocess\\\\.run|merge_test_gate\\\" .\"",
+  "/bin/bash -lc \"sed -n '1,205p' app/merge_test_gate.py\"",
+  "/bin/bash -lc 'rg -n \"text=True|encoding=|errors=\" app/merge_test_gate.py app'",
+  "/bin/bash -lc \"sed -n '1,180p' tests/test_merge_test_gate.py\""
+ ],
+ "final_text": "CAUSE: `app/merge_test_gate.py` calls `subprocess.run(..., capture_output=True, text=True)` in `run_pytest`. Completed runs return decoded strings, but `subprocess.TimeoutExpired.stdout` and `.stderr` may still be bytes even in text mode. The timeout handler concatenates them at line 125 before checking whether the result is bytes, so mixed or byte values raise `TypeError`. The reported failure is therefore in error handling for a timeout, not in pytest’s test result.\n\nFix: normalize each captured stream to `str` before concatenating, decoding bytes with UTF-8 and replacement errors. Add a timeout-path test covering byte-valued stdout and stderr."
+}

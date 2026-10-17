@@ -1,0 +1,30 @@
+{
+ "run_id": "A-T3-luna-r1",
+ "task": "T3",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 21094,
+ "output_tokens": 968,
+ "input_tokens": 166174,
+ "cache_read_tokens": 146048,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.00395708,
+ "seconds": 19.2,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"rg --files -g 'AGENTS.md' -g '*.py' -g '*.toml' -g '*.yaml' -g '*.yml' -g '*.json' -g '*.md' | head -200\"",
+  "/bin/bash -lc \"rg -n \\\"database schema needs offline migration|ORCHESTRA_DB_PATH|offline migration|migrat\\\" app/db.py app/mcp* app -g '*.py' | head -220\"",
+  "/bin/bash -lc \"sed -n '1,130p' app/db.py; rg -n \\\"init_db|ensure_schema|db_path|mcp_stdio|stdio\\\" app tests/test_mcp_stdio.py tests/test_mcp_codex_review.py\"",
+  "/bin/bash -lc \"sed -n '1,120p' app/mcp_stdio.py; sed -n '4010,4045p' app/mcp_stdio.py; sed -n '370,405p' app/main.py; rg -n \\\"runtime_env|ORCHESTRA_DB_PATH|mcp_stdio.py|MCP\\\" app/runtime_env.py app/backend_codex.py app/harness/mcp.py tests/test_mcp_config_isolation.py tests/test_db_connection_owners",
+  "/bin/bash -lc \"cat app/runtime_env.py; sed -n '2085,2205p' app/backend_codex.py; rg -n \\\"MCP_BASE_ENV|env=.*MCP|MCP_STDIO_CMD\\\" app\"",
+  "/bin/bash -lc \"sed -n '340,390p' app/manager.py; rg -n \\\"_make_mcp_config|ORCHESTRA_DB_PATH|DB_PATH\\\" tests/test_mcp_config_isolation.py tests/test_codex_review_sandbox.py tests/test_mcp_codex_review.py app/manager.py\""
+ ],
+ "final_text": "CAUSE: The MCP subprocess does not inherit `ORCHESTRA_DB_PATH`, so `codex_review` calls `app.db.init_db()` against the checkout’s default `data/orchestra.db`. That file is nonempty and its schema version is not `SCHEMA_VERSION` (1), so `init_db()` raises the offline-migration error.\n\nEvidence: `app.db._resolve_db_path()` uses `ORCHESTRA_DB_PATH` only when set, then captures the result in `DB_PATH` at import. `app.mcp_stdio` imports `app.db` and calls `init_db()` in the review handler. The web server refreshes `DB_PATH` from its environment in `app.main.lifespan`, but `app.runtime_env.MCP_BASE_ENV` propagates only `PYTHONPATH`, proxy variables, and `INTERNAL_TOKEN`; `app.manager._make_mcp_config()` builds the MCP child environment from that base. The server’s database override therefore never reaches the child. This explains why the migrated live database works for the server while the MCP tool fails on the default checkout database.\n\nRecommended fix: pass the server’s resolved database path into the MCP subprocess environment when building its config, and ensure it is refreshed consistently with the server’s runtime configuration. Don’t migrate the checkout’s default database as a workaround; the MCP process should use the same database as the live server."
+}

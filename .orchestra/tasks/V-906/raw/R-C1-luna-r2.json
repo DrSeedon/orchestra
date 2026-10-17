@@ -1,0 +1,23 @@
+{
+ "run_id": "R-C1-luna-r2",
+ "task": "C1",
+ "group": "C",
+ "arm": "R",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 2166,
+ "output_tokens": 273,
+ "input_tokens": 15973,
+ "cache_read_tokens": 14080,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0004666,
+ "seconds": 6.6,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "[Scene: An AI agent works through a long conversation, with messages piling up.]  \nAn AI agent can work with you through a long conversation. It uses that conversation to keep track of what you’ve asked and what it has done.\n\n[Scene: The conversation fills a frame until it reaches its limit.]  \nBut the model has a limit to how much conversation it can hold in view at once. When the conversation gets too big, it’s compressed into a summary, and the work continues from there.\n\n[Scene: The full conversation fades, leaving a short summary on screen.]  \nThat summary carries forward the main points. But anything left out is gone from the agent’s view. It may have happened earlier, but the agent can’t rely on details that didn’t make it into the summary.\n\n[Scene: The agent answers questions about earlier decisions; a human checks its answers.]  \nSo how do you know whether the summary kept what matters? Ask the agent questions about the old work. If it can answer accurately, the summary is helping. If it can’t, something important may have been lost.\n\n[Scene: The agent resumes work with the summary beside it.]  \nA summary is a bridge across a long session. Check what made it across, and the agent can keep going with a clearer picture of the work so far."
+}

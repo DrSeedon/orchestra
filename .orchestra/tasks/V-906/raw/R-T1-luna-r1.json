@@ -1,0 +1,29 @@
+{
+ "run_id": "R-T1-luna-r1",
+ "task": "T1",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 32164,
+ "output_tokens": 1954,
+ "input_tokens": 140930,
+ "cache_read_tokens": 110720,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0051052,
+ "seconds": 44.8,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'rg -n \"NO_COMMITS_MERGED|CHECK_WORKER_THEN_NEW_OPERATION|merge_worker|merge produced no new commits\" app tests'",
+  "/bin/bash -lc \"sed -n '1980,2140p' app/routes/sessions.py && sed -n '1240,1380p' app/workspace.py && sed -n '1640,1760p' app/workspace.py && sed -n '900,970p' app/merge_operations.py\"",
+  "/bin/bash -lc \"sed -n '1380,1650p' app/workspace.py && sed -n '280,350p' tests/test_merge_operations.py && sed -n '430,500p' tests/test_merge_operations.py\"",
+  "/bin/bash -lc 'rg -n \"linked worktree|worktree.*main|_branch_worktree_path|NO_COMMITS_MERGED|merge --squash|same commit\" tests/test_merge* tests/test_workspace.py app/workspace.py'",
+  "/bin/bash -lc \"sed -n '250,330p' app/workspace.py; sed -n '780,835p' app/workspace.py; sed -n '1220,1250p' app/workspace.py; sed -n '480,530p' tests/test_workspace.py\""
+ ],
+ "final_text": "CAUSE: По имеющимся данным конкретную причину воспроизвести не удалось. Из `git log main..task-416/worker` следует, что у веток разные коммиты; этого недостаточно, чтобы установить, почему Git не создал новый коммит в `main`.\n\nВ `app/workspace.py`, `merge_worktree_to_main()`, код считает коммиты командой `git rev-list --count main..<worker_head>`, затем выполняет `git merge --squash <worker_head>` в worktree, владеющем целевой веткой. Если после squash `git diff --cached --quiet` сообщает, что индекс пуст, функция возвращает `ok=True, commits_merged=0`; последующая проверка замечает, что target не сдвинулся, и выставляет `NO_COMMITS_MERGED`. `app/merge_operations.py` преобразует этот код в наблюдавшийся ответ и рекомендацию проверить ветку воркера.\n\nТакое возможно, если squash не даёт отличий дерева для `main`, даже когда у ветки воркера есть отдельный коммит. Но наличие нового tracked-файла само по себе этого не доказывает: в описании нет содержимого деревьев и результата команд Git внутри целевого worktree. Связанный worktree с `main` сам по себе не выглядит причиной: `app/workspace.py` находит checkout целевой ветки через `_branch_worktree_path()`.\n\nРекомендую зафиксировать в диагностике `target_before`, `worker_head`, число `main..<worker_head>` и результат проверки staged diff после squash, затем проверить, отличается ли дерево `worker_head` от дерева `main`. Без этих данных точную причину заявить нельзя."
+}

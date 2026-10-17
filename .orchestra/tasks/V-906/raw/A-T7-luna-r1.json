@@ -1,0 +1,31 @@
+{
+ "run_id": "A-T7-luna-r1",
+ "task": "T7",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 32848,
+ "output_tokens": 1152,
+ "input_tokens": 253904,
+ "cache_read_tokens": 222208,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.00596768,
+ "seconds": 19.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"text_tail_source_release_failed|dialog switch blocked|switch.*model|release.*source|text_tail\" .'",
+  "/bin/bash -lc \"sed -n '3300,3610p' app/session.py && sed -n '4400,4600p' tests/test_session.py\"",
+  "/bin/bash -lc 'rg -n \"def _disconnect_backend|async def _disconnect_backend|async def change_model|_change_runtime_chat_locked|_drain_persist|class Claude|async def disconnect|def disconnect\" app/session.py app'",
+  "/bin/bash -lc \"sed -n '3240,3305p' app/session.py && sed -n '4035,4155p' app/session.py && sed -n '1120,1205p' app/backend_claude.py && rg -n \\\"text_tail_source_release_failed|source_release_failed|disconnect.*dead|returncode|wait\\\\(\\\" tests/test_session.py tests\"",
+  "/bin/bash -lc \"sed -n '1,130p' tests/test_session.py && rg -n \\\"ClaudeBackend.*disconnect|disconnect.*Claude|_client|ProcessError|ProcessNotFound|Process.*exited|exit.*process|dead.*CLI|text tail\\\" tests/test_session.py tests/test_backend_claude.py app/backend_claude.py\"",
+  "/bin/bash -lc \"sed -n '1,150p' tests/test_backend_claude.py && sed -n '1010,1055p' app/backend_claude.py && rg -n \\\"_process|_transport|disconnect\\\\(\\\" /home/kesha/orchestra/.venv/lib/python*/site-packages/claude_agent_sdk -g '*.py' 2>/dev/null | head -80\"",
+  "/bin/bash -lc \"sed -n '1150,1180p' app/backend_claude.py && sed -n '3260,3295p' app/session.py && sed -n '3388,3420p' app/session.py && nl -ba app/backend_claude.py | sed -n '1158,1172p' && nl -ba app/session.py | sed -n '3394,3418p'\""
+ ],
+ "final_text": "CAUSE: The Claude CLI is already dead, but its SDK client is still attached to the session. During a cross-runtime switch, `_change_runtime_chat_locked()` calls `_disconnect_backend()`. That calls `ClaudeBackend.disconnect()`, which re-raises any exception from `client.disconnect()`. The switch catches it and returns `text_tail_source_release_failed` before changing the model. Retrying repeats the same cleanup failure.\n\nEvidence: `app/session.py` in `_change_runtime_chat_locked()` maps disconnect exceptions to this error; `_disconnect_backend()` leaves `self._backend` attached if `backend.disconnect()` raises. In `app/backend_claude.py`, `ClaudeBackend.disconnect()` clears `_client` in `finally` but re-raises the SDK error, so the session retains the stale backend. The dead process explains the cleanup failure; the code’s unconditional propagation makes that failure block the switch.\n\nFix recommended: make disconnect tolerate an already-exited CLI process, while still cleaning up client and MCP config. Also ensure `_disconnect_backend()` clears the session’s backend reference in a `finally` block when the backend has relinquished its client. This should let the switch proceed while retaining the text-tail history transfer."
+}

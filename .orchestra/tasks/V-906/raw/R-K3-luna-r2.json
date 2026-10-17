@@ -1,0 +1,29 @@
+{
+ "run_id": "R-K3-luna-r2",
+ "task": "K3",
+ "group": "K",
+ "arm": "R",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 20576,
+ "output_tokens": 1331,
+ "input_tokens": 165677,
+ "cache_read_tokens": 146432,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.004054319999999999,
+ "seconds": 18.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"sed -n '1,260p' app/bg_jobs.py && rg -n \\\"timer|expired|delay_seconds|bg_create\\\" tests app\"",
+  "/bin/bash -lc \"sed -n '350,470p' app/bg_jobs.py; sed -n '490,585p' app/bg_jobs.py; sed -n '800,835p' app/bg_jobs.py; rg -n \\\"MAX_TIMER_TIMEOUT|MAX_TIMEOUT|expires_at|trigger_at|timeout_seconds\\\" app/bg_jobs.py\"",
+  "/bin/bash -lc \"rg -n \\\"bg_expire_overdue|expire_overdue|_expire\\\\(\\\" app/bg_jobs.py app/db.py; sed -n '2025,2060p' app/db.py; rg -n \\\"MAX_TIMER_TIMEOUT|864000|8 days|timer.*timeout\\\" tests/test_bg_jobs.py\"",
+  "/bin/bash -lc \"sed -n '2090,2120p' app/db.py; sed -n '640,680p' app/bg_jobs.py; sed -n '1,130p' tests/test_bg_jobs.py; rg -n \\\"def create|timeout_seconds\\\" tests/test_bg_jobs.py | head\"",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport asyncio, tempfile\nfrom pathlib import Path\nimport app.db as db\nfrom app.bg_jobs import BgJobManager\n\ndb.DB_PATH = Path(tempfile.mkdtemp()) / 'bg.db'\ndb.init_db()\nasync def main():\n    manager = BgJobManager()\n    mana"
+ ],
+ "final_text": "CAUSE: В `BgJobManager.create()` в `app/bg_jobs.py` время жизни таймера ограничено `MAX_TIMER_TIMEOUT = 8 * 86400`. Для задержки 864000 секунд код сначала запрашивает таймаут `delay_seconds + 3600`, затем обрезает его до 691200 секунд. Таймер назначен на 10 дней, а задача истекает через 8.\n\nВоспроизведение через `BgJobManager.create()` подтвердило точные значения: `timeout_seconds=691200`, `trigger_at` через `864000` секунд, `expires_at` через `691200`. При восстановлении из БД `restore_from_db()` вызывает `bg_expire_overdue()` и помечает просроченную задачу как `expired` до её срока срабатывания.\n\nРекомендую убрать ограничение для таймеров или поднять его как минимум выше максимальной допустимой задержки с запасом в час."
+}

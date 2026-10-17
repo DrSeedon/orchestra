@@ -1,0 +1,23 @@
+{
+ "run_id": "R-C2-luna-r2",
+ "task": "C2",
+ "group": "C",
+ "arm": "R",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 2004,
+ "output_tokens": 136,
+ "input_tokens": 15948,
+ "cache_read_tokens": 14080,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0003956,
+ "seconds": 6.1,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "Agent pulse board: show all ten agents as compact cards grouped by live state—working, waiting on a tool or person, or stalled—with each card’s current task, last meaningful progress time, and next expected event. The owner can scan for stale cards, open one agent’s latest progress summary, or nudge, resume, or stop it from the card. Unlike a log list, the board makes state and lack of movement visible across agents at once, so the owner can spot where attention is needed without reading ten timelines. Main risk: an agent may report an inaccurate state or progress time, making a healthy task look stuck—or hiding a real stall."
+}

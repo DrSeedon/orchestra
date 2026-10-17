@@ -1,0 +1,25 @@
+{
+ "run_id": "R-K2-sonnet-r1",
+ "task": "K2",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 24195,
+ "output_tokens": 4457,
+ "input_tokens": 18,
+ "cache_read_tokens": 125882,
+ "cache_create_tokens": 19720,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.1486624,
+ "seconds": 49.5,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Not confirmed. I could not reproduce the error, so what follows is a hypothesis, not an established root cause.\n\nWhy I couldn't reproduce: my tools here are only Read, Grep, Glob, Write and Edit. I can't run commands, so `git merge --squash` never ran. I wrote `scratch/repro.py`, which builds a repo with Cyrillic file names and checks whether the squash output decodes as UTF-8. It has not been run.\n\nEstablished by reading `app/workspace.py`:\n- `_git_cmd` (line 130) is only a thin wrapper around `subprocess.run`. It sets no `encoding` or `errors`, and no `-c core.quotepath`.\n- Every caller passes `capture_output=True, text=True`. Python therefore decodes git's bytes strictly, using the locale's encoding.\n- A decode failure raises `UnicodeDecodeError` from inside `subprocess.run`, once the child has already finished.\n- In the merge function (about lines 1687–1735), the squash is staged by `git merge --squash` at 1687. After that come `git diff --cached --quiet` (1717), `git commit` (1730), then `_parse_merged_commits` (1887) and `_conflict_paths` (154). The first two print only status text.\n- No `try/except` wraps these calls, so the exception skips the commit and rollback paths. The merge ends in an unknown state, with the squash staged and nothing committed.\n\nThe message names the 'utf-8' codec, so the locale was UTF-8. Valid Cyrillic UTF-8 can't produce a stray 0x80 start byte. Git must therefore have emitted bytes that are not valid UTF-8. These are possible sources, none checked:\n- A path or commit message stored in cp1251 (0x80 is \"Ђ\" in cp1251).\n- A diffstat line truncated mid-character.\n- Raw non-UTF-8 paths in the output of `git merge --squash` or `git commit`.\n\nWhat I could not match is the exact byte 0x80 at offset 4021. I did not identify which command's output contained it.\n\nRecommended fix (a precaution that is not proven to cure this case):\n1. In `_git_cmd`, default to `encoding=\"utf-8\", errors=\"replace\"`, or use `surrogateescape` if paths must round-trip.\n2. Wrap the post-`merge --squash` section in a `try/except`. On failure, call `_rollback_merge_target`, so a decode error can't leave the merge in UNKNOWN state.\n3. Use `-z` for any output that carries paths.\n4. To confirm the cause, run `git merge --squash` on the failing project in bytes mode, and look at the bytes around offset 4021 of stdout."
+}

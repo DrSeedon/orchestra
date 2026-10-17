@@ -1,0 +1,31 @@
+{
+ "run_id": "A-T6-luna-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 39171,
+ "output_tokens": 1150,
+ "input_tokens": 273157,
+ "cache_read_tokens": 235136,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.006728460000000001,
+ "seconds": 20.1,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"worktree already exists|worktree|dynamic_workflow|wf_run|writable workspace|workspace\" scripts app tests'",
+  "/bin/bash -lc \"rg -n \\\"dynamic_workflow|wf_run|create_worktree\\\\(|task_id|agent_calls|concurrency|prompt\\\" scripts/wf_run.py app\"",
+  "/bin/bash -lc \"sed -n '1,260p' scripts/wf_run.py && rg -n \\\"def .*workflow|dynamic_workflow|create_worktree\\\\(\\\" app scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '300,430p' scripts/wf_run.py && sed -n '560,610p' app/workspace.py && sed -n '3110,3245p' app/mcp_stdio.py && rg -n \\\"prepare|workspace_path|run_id|value_id|agent_call|call_index|index\\\" scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '620,940p' scripts/wf_run.py && rg -n \\\"call_key|_stable|hashlib|canonical|prompt\\\" scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '430,625p' scripts/wf_run.py && sed -n '1025,1100p' scripts/wf_run.py && rg -n \\\"wf_run|call_key|duplicate|identical|same prompt\\\" tests\"",
+  "/bin/bash -lc \"sed -n '130,320p' tests/test_dynamic_workflows.py && sed -n '330,430p' tests/test_wf_run.py && sed -n '1,80p' app/workspace.py\""
+ ],
+ "final_text": "CAUSE: Identical calls receive unique `call_key` values, but their worktree names omit the part that makes those keys unique.\n\nIn `scripts/wf_run.py`, `WorkflowEngine._call_key()` hashes the call payload and appends an occurrence number, such as `:0`, `:1`. But `_run_attempt()` names the worktree with `call_key[:12]`, which keeps only the shared hash prefix. Identical calls therefore request the same path. At concurrency 3, one call creates it and another reaches `app.workspace.create_worktree()`, where the existing-path check raises `ValueError: worktree already exists`. Different prompts produce different hash prefixes, so their paths don’t collide.\n\nThis does not require stale directories: the colliding calls create the path during the current run. The recommended fix is to include a per-call unique identifier in the worktree name, such as the occurrence suffix or a digest of the full `call_key`, while preserving the run and attempt components."
+}

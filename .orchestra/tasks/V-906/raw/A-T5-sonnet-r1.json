@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T5-sonnet-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16494,
+ "output_tokens": 2880,
+ "input_tokens": 12,
+ "cache_read_tokens": 60759,
+ "cache_create_tokens": 13602,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.09538379999999999,
+ "seconds": 31.8,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: Race between the mailbox continuation and the old turn's listen task. The Codex listener does not crash, so the teammate's guess is wrong. `_on_task_done` in `app/session.py` takes the old task's normal exit for a silent death. I traced this by reading the code. I haven't run it or reproduced it.\n\nSequence:\n1. The old `_turn_event_loop` (`session.py:2435`) reads `turn_end` or a failed turn (`turn FAILED: rate_limit`). `_handle_event` then calls `after_turn_idle_actions` (`session_turns.py:511`).\n2. `after_turn_idle_actions` claims the mailbox, logs \"mailbox: N — продолжаю ход вместо пробуждения\" and spawns `_deliver_mailbox` (`session_turns.py:573`). That calls `s.send()`.\n3. `send()` calls `_start_turn_state` (`session.py:1575`), which sets status=RUNNING. It then awaits `_ensure_backend` and `backend.send`. Only afterwards does it assign the new `self._listen_task` (`session.py:1683`).\n4. The old `_turn_event_loop` is still draining `backend.events()`. When its stream ends, it returns normally, with no exception and no cancellation.\n5. In that window, `_on_task_done` (`session.py:2878`) runs for the old task. The guard `task is not self._listen_task` passes, because the pointer still names the old task. `task.exception()` is None, and status is RUNNING (set by the new `send`). The code falls into the \"silent death\" branch and calls `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")` (`session.py:2896`).\n\nThat function (`session.py:2296`) logs the error, sets IDLE and sends `report_abnormal_end` (\"Turn failed before an explicit report (no output)\"). The new turn's `codex turn=… started` still follows, because `backend.send` completes anyway. The worker looks alive but has been marked IDLE and reported as failed.\n\nEvidence from the logs:\n- In both excerpts the order is the same: \"mailbox: N — продолжаю ход\", then `user_message [from:…]`, then the error. That is the `send` window.\n- In the second excerpt id 557156 has an earlier timestamp (20.846) than 557157 (20.830). Both rows are written at the same moment, so this is concurrent interleaving.\n- The first excerpt follows `turn FAILED: rate_limit`, which also goes through `after_turn_idle_actions` and the mailbox path. That is why some of the 14 cases came after the quota ran out. The quota only makes turn endings, and therefore mailbox continuations, more frequent. The Codex listener itself does not crash.\n\nRecommended fix:\n1. In `_on_task_done`, treat the exit as abnormal only if the task that ended is the current turn's listener and the turn has not been handed over. Concretely, add a turn generation or \"continuation in progress\" marker. Set it in `_deliver_mailbox` / `_start_turn_state` before the first await. `_turn_event_loop` should capture the generation at start. `_on_task_done` should ignore the exit when the generation has changed.\n2. Alternatively, make `_start_turn_state` or `send` clear or replace `self._listen_task` synchronously (for example with a placeholder) before the first await. The old task would then fail the identity guard.\n3. Also keep `_turn_event_loop`'s `finally` from marking IDLE or reporting abnormal end when a successor turn already owns the status. This is the same check as in point 1.\n4. Add a regression test: the old task finishes while `send()` is awaiting `backend.send`. Assert that status stays RUNNING and that no `report_abnormal_end` is called."
+}

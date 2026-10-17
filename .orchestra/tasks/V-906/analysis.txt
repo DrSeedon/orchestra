@@ -1,0 +1,73 @@
+== correct (cross-model grader), per group x arm x model
+T all     correct_cross  A 22/31  R 20/30   R-only 1 A-only 4 p=0.38
+T all     correct_same   A 27/32  R 20/30   R-only 0 A-only 6 p=0.03
+T all     correct_any    A 27/32  R 22/31   R-only 0 A-only 5 p=0.06
+T all     decoy          A 1/31   R 1/30    R-only 1 A-only 1 p=1.00
+T luna    correct_cross  A 9/15   R 9/15    R-only 1 A-only 2 p=1.00
+T luna    correct_same   A 14/16  R 10/16   R-only 0 A-only 4 p=0.12
+T luna    correct_any    A 14/16  R 11/16   R-only 0 A-only 3 p=0.25
+T luna    decoy          A 1/15   R 0/15    R-only 0 A-only 1 p=1.00
+T sonnet  correct_cross  A 13/16  R 11/15   R-only 0 A-only 2 p=0.50
+T sonnet  correct_same   A 13/16  R 10/14   R-only 0 A-only 2 p=0.50
+T sonnet  correct_any    A 13/16  R 11/15   R-only 0 A-only 2 p=0.50
+T sonnet  decoy          A 0/16   R 1/15    R-only 1 A-only 0 p=1.00
+K all     correct_cross  A 11/16  R 10/14   R-only 1 A-only 0 p=1.00
+K all     correct_same   A 12/16  R 12/16   R-only 0 A-only 0 p=1.00
+K all     correct_any    A 12/16  R 12/16   R-only 0 A-only 0 p=1.00
+K all     decoy          A 0/16   R 0/14    R-only 0 A-only 0 p=1.00
+K luna    correct_cross  A 6/8    R 4/6     R-only 0 A-only 0 p=1.00
+K luna    correct_same   A 6/8    R 6/8     R-only 0 A-only 0 p=1.00
+K luna    correct_any    A 6/8    R 6/8     R-only 0 A-only 0 p=1.00
+K luna    decoy          A 0/8    R 0/6     R-only 0 A-only 0 p=1.00
+K sonnet  correct_cross  A 5/8    R 6/8     R-only 1 A-only 0 p=1.00
+K sonnet  correct_same   A 6/8    R 6/8     R-only 0 A-only 0 p=1.00
+K sonnet  correct_any    A 6/8    R 6/8     R-only 0 A-only 0 p=1.00
+K sonnet  decoy          A 0/8    R 0/8     R-only 0 A-only 0 p=1.00
+
+== per task (cross-model correct, A vs R, both models, 2 reps -> /4)
+K1: A 4/4  R 2/2
+K2: A 0/4  R 0/4
+K3: A 4/4  R 4/4
+K4: A 3/4  R 4/4
+T1: A 0/4  R 0/3
+T2: A 3/4  R 3/4
+T3: A 3/4  R 3/4
+T4: A 3/3  R 4/4
+T5: A 4/4  R 4/4
+T6: A 4/4  R 3/4
+T7: A 1/4  R 1/3
+T8: A 4/4  R 2/4
+
+== reproduction
+T luna   A: n=16 ran-commands 3, files-created 0, mean repro cmds 0.2, claims {'none': 12, 'not_reproduced': 2, None: 1, 'ran': 1}
+T luna   R: n=16 ran-commands 9, files-created 5, mean repro cmds 0.9, claims {'ran': 8, 'not_reproduced': 6, 'none': 1, None: 1}
+T sonnet A: n=16 ran-commands 0, files-created 3, mean repro cmds 0.0, claims {'not_reproduced': 16}
+T sonnet R: n=15 ran-commands 0, files-created 12, mean repro cmds 0.0, claims {'not_reproduced': 15}
+K luna   A: n=8 ran-commands 0, files-created 0, mean repro cmds 0.0, claims {'none': 8}
+K luna   R: n=8 ran-commands 6, files-created 3, mean repro cmds 1.1, claims {'ran': 6, None: 2}
+K sonnet A: n=8 ran-commands 0, files-created 0, mean repro cmds 0.0, claims {'not_reproduced': 8}
+K sonnet R: n=8 ran-commands 0, files-created 5, mean repro cmds 0.0, claims {'not_reproduced': 8}
+
+== paid tokens and turns (sum; geo ratio R/A over matched cells, 95% bootstrap)
+T all     n=31 A 739052 R 795191 (x1.08) geo x1.11 [0.98; 1.26] | turns A 300 R 362 geo x1.28 [1.13; 1.45]
+T luna    n=16 A 436804 R 407048 (x0.93) geo x0.92 [0.76; 1.12] | turns A 142 R 161 geo x1.15 [0.95; 1.37]
+T sonnet  n=15 A 302248 R 388143 (x1.28) geo x1.36 [1.24; 1.50] | turns A 158 R 201 geo x1.44 [1.25; 1.67]
+K all     n=16 A 197444 R 302927 (x1.53) geo x1.57 [1.30; 1.88] | turns A 82 R 143 geo x1.69 [1.39; 2.08]
+K luna    n=8 A 120648 R 166497 (x1.38) geo x1.41 [1.04; 1.86] | turns A 43 R 61 geo x1.39 [1.11; 1.87]
+K sonnet  n=8 A 76796 R 136430 (x1.78) geo x1.76 [1.45; 2.15] | turns A 39 R 82 geo x2.05 [1.62; 2.65]
+C all     n=16 A 59571 R 41247 (x0.69) geo x0.81 [0.59; 1.02] | turns A 16 R 16 geo x1.00 [1.00; 1.00]
+C luna    n=8 A 36466 R 16528 (x0.45) geo x0.61 [0.36; 0.94] | turns A 8 R 8 geo x1.00 [1.00; 1.00]
+C sonnet  n=8 A 23105 R 24719 (x1.07) geo x1.07 [1.03; 1.13] | turns A 8 R 8 geo x1.00 [1.00; 1.00]
+
+== creative: win-rate of R over A
+all: R wins 15/32 = 0.47
+luna authors: R wins 9/16 = 0.56
+sonnet authors: R wins 6/16 = 0.38
+cross-only: R wins 7/16 = 0.44
+pairs: R 6 / A 7 / tie 3, p=1.00
+  C1: R wins 4/8
+  C2: R wins 5/8
+  C3: R wins 4/8
+  C4: R wins 2/8
+
+contamination flags: 20 of 127

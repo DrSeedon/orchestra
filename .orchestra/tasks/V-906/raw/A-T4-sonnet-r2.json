@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T4-sonnet-r2",
+ "task": "T4",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 18974,
+ "output_tokens": 1555,
+ "input_tokens": 4,
+ "cache_read_tokens": 9930,
+ "cache_create_tokens": 17415,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.087204,
+ "seconds": 18.6,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The reload does fire. The re-read value is then ignored, because the process environment that systemd injects from `EnvironmentFile` takes precedence over `.env`. Your teammate's mtime guess is wrong.\n\nEvidence (`app/quota_gate.py`):\n- `_startup_quota_env` (line 143) snapshots `os.environ` for all `QUOTA_*` names at import time. Under systemd, `EnvironmentFile` has already put the old `QUOTA_GATED_LANES` (for example `claude,sol`) into the process environment before Python starts.\n- `_live_quota_env()` (lines 173-200) does check `_DOTENV_PATH.stat().st_mtime_ns` and re-parses with `dotenv_values`. That matches the debug log, which shows a new mtime and new values.\n- The merge then decides each name in this order: `_startup_quota_env[name]` if it is not None, else the `.env` value, else `_UNSET`. The startup snapshot always wins, so the freshly parsed `.env` value for `QUOTA_GATED_LANES` is discarded.\n- `quota_policy()` then calls `_parse_lanes` on the stale startup value, so `gated_lanes` never changes until the service restarts.\n- In a plain local shell the variable is not in `os.environ`, so `_startup_quota_env[name]` is `None`. The `.env` value is used and the edit applies immediately. That is why local and production differ.\n- The empty value itself is not the problem. `\"\"` is not `None`, and `_parse_lanes(\"\")` correctly returns `frozenset()`. I read the code but did not run it or open the production `.env`.\n\nSide issue: the module-level `GATED_LANES`, `CURVED_LANES` and `HARD_STOP_PCT` constants (lines 108-126, 245-246) are computed once at import. They never reload, and `QuotaDecision.hard_limit_pct` takes its default from the import-time `HARD_STOP_PCT`. Any code that reads those constants instead of `quota_policy()` will also stay stale.\n\nRecommended fix:\n1. Decide which source is authoritative. Because the owner edits `.env` and expects hot reload, `.env` should win over the startup environment.\n2. In `_live_quota_env`, prefer the `.env` value when the key is present in `_dotenv_quota_keys`. Fall back to the startup environment only when the key is absent from `.env`. Put the `name in _dotenv_quota_keys` branch before the `_startup_quota_env` branch.\n3. If a real shell or CI override must still beat `.env`, take the snapshot only for variables that did not come from the unit's `EnvironmentFile`. For example, remove `QUOTA_*` from the unit's `EnvironmentFile`, or have the service read `.env` itself.\n4. Make sure no callers use the import-time constants. Have them call `quota_policy()` instead.\n5. Add a test that sets `os.environ[\"QUOTA_GATED_LANES\"]=\"claude,sol\"` before import, edits the `.env` file to an empty value, and asserts `quota_policy().gated_lanes == frozenset()`.\n\nUntil the fix ships, restarting the service is the workaround. Alternatively, remove `QUOTA_GATED_LANES` from the environment the unit passes in."
+}

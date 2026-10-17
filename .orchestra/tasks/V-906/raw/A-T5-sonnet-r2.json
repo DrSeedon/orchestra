@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T5-sonnet-r2",
+ "task": "T5",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16594,
+ "output_tokens": 2956,
+ "input_tokens": 14,
+ "cache_read_tokens": 71090,
+ "cache_create_tokens": 13624,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.09830200000000001,
+ "seconds": 31.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The `listen task exited` verdict is false, and a race in `_on_task_done` produces it. The teammate's guess, that the Codex listener crashes when quota runs out, is not supported. I read the code but did not run a reproduction.\n\nMechanism:\n1. The turn's `_turn_event_loop` task is still alive. It calls `_handle_event` for `turn_end` or a failed turn such as `rate_limit`. That reaches `finish_turn_status()` and then `after_turn_idle_actions()` (app/session_turns.py:486-487, 511).\n2. If the mailbox has rows, `after_turn_idle_actions` logs \"mailbox: N — продолжаю ход\" and spawns `_deliver_mailbox` as a background task (session_turns.py:547-553). That task calls `s.send()`.\n3. `send()` calls `_start_turn_state()`, which sets `status = RUNNING` (session.py:1160). The new `_turn_event_loop` task is created and assigned to `_listen_task` only later, after the backend dispatch awaits (session.py:1682-1686).\n4. In that gap, the old loop's `async for backend.events()` ends normally. Its done-callback `_on_task_done` runs with the old task still equal to `self._listen_task`, so the identity guard at session.py:2879 passes. The status is already RUNNING, so it takes the \"silent death\" branch (session.py:2894-2896). That calls `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")`.\n5. `_finish_failed_running_turn` (session.py:2296-2321) forces IDLE and logs the error. It then sends `report_abnormal_end`, which is the \"Turn failed before an explicit report (no output)\" message to the orchestrator. It also claims the mailbox again.\n6. The new turn starts anyway (`codex turn=… started`). The worker is alive, but the state is now wrong: IDLE while a turn runs, plus a bogus failure report.\n\nEvidence from the excerpts: both show \"mailbox: N — продолжаю ход\" a few milliseconds before the error row. In the second excerpt the error row (557156) is logged before the `user_message` row (557157), and its timestamp is earlier than the row before it, so the two tasks interleaved. The 14 cases are turn endings with queued mailbox messages. The quota cases fit because a `rate_limit` or failed turn also passes through `finish_turn_status` and the mailbox claim, and quota exhaustion produces more queued mail.\n\nRecommended fix:\n- In `_on_task_done`, treat RUNNING as a silent death only if the task's own turn is still the current one. Capture `self._turn_gen` when the loop starts and compare it in the callback, or pass the generation into the loop. A stale generation means a newer turn has begun, so skip the failure.\n- Alternatively, have `_deliver_mailbox` and `_flush_pending` await the old `_listen_task` before calling `send()`. Or set `_listen_task` before `_start_turn_state()` makes the status RUNNING.\n- The `finally` block in `_turn_event_loop` (session.py:2466) has the same hazard and should use the same generation check.\n- Add a test: `turn_end` with a queued mailbox row, where the old task finishes before the new task is assigned. It should assert there is no error row and no `report_abnormal_end`."
+}

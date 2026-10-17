@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T3-sonnet-r1",
+ "task": "T3",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 14932,
+ "output_tokens": 2936,
+ "input_tokens": 14,
+ "cache_read_tokens": 76669,
+ "cache_create_tokens": 11982,
+ "turns": 14,
+ "cost_usd_api_equiv": 0.0926498,
+ "seconds": 32.1,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The teammate's guess is wrong. The live database is fine. The MCP server is opening a different database file, and that file is not at the current schema version.\n\n**How it happens**\n- `app/mcp_stdio.py` (~line 4023–4025) calls `init_db()` inside the `codex_review` tool path. That call runs in the MCP stdio subprocess, not in the live server.\n- `app/db.py` `_resolve_db_path()` reads `ORCHESTRA_DB_PATH`. If it is unset, it falls back to `_DEFAULT_DB_PATH`, which is the checkout's `data/orchestra.db`.\n- `app/runtime_env.py` builds `MCP_BASE_ENV` with only `PYTHONPATH`, plus the proxy variables and `INTERNAL_TOKEN` when they are set. `ORCHESTRA_DB_PATH` is not forwarded.\n- `app/manager.py` `_make_mcp_config` builds the MCP subprocess env from that plus `ORCHESTRA_URL`, scope, role and similar. It does not forward `ORCHESTRA_DB_PATH` either.\n- So the MCP process never sees the live server's override. It opens the stale default `data/orchestra.db`.\n- `init_db()` sees `user_version != SCHEMA_VERSION` (1), or an existing table with `user_version` 0. It then raises `database schema needs offline migration before starting Orchestra`, at `app/db.py:73`.\n\n**What I could not check**\n- I couldn't run commands, so I haven't inspected `data/orchestra.db` or its `user_version`. My Glob for `data/*` returned nothing, which may just mean the file is hidden from it.\n- Because of that, I don't know why the default file is stale, or whether a recent change made the MCP process start using it. That is consistent with \"nothing in the review code changed\". The 12 September trigger is not explained by the code I read.\n- `app/main.py:387` also calls `init_db()`. The live server reached it with its own `ORCHESTRA_DB_PATH`, so it passed.\n\n**Why all projects fail**\n- `codex_review` needs the database for its review receipt, and every MCP process takes the same default path. So every project hits the same error.\n\n**Recommended fix**\n1. Check `PRAGMA user_version` and the tables in `data/orchestra.db`. This confirms it is the stale or legacy file.\n2. In code, propagate `ORCHESTRA_DB_PATH` into the MCP env. The simplest change is to add it to `MCP_BASE_ENV` in `app/runtime_env.py` when it is set. Better still, have the MCP process call the live server over HTTP for receipts instead of opening SQLite itself.\n3. As a stopgap, set `ORCHESTRA_DB_PATH` in the environment that launches the agents.\n4. Don't run the offline migration against the live database. It is already at the right version. Migrate or retire the stale default file only if you actually need it.\n5. Add a regression test that `_make_mcp_config` env carries the DB path."
+}

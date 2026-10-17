@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C4-sonnet-r1",
+ "task": "C4",
+ "group": "C",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 2697,
+ "output_tokens": 365,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2330,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0136918,
+ "seconds": 8.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "Imagine you hire a metal detector to check whether anyone is smuggling keys into a building. Every day it stays silent, and every day you're told \"all clear.\" That silence feels reassuring, but it only means something if the detector *would* have beeped when keys walked through.\n\nSuppose its battery is dead. It would stay silent every single day, and your \"all clear\" would be worthless. It would look identical to a working detector on a day when nobody carried keys.\n\nA test in programming is the same kind of checker. \"Green\" means it stayed silent: no problem reported. But a test can be written so loosely that it would stay green no matter what the program does. For example, it might check something that's always true, or it might never actually look at the part it's supposed to guard.\n\n\"Checking that the test can fail\" means deliberately walking a set of keys past the detector. You break the program on purpose, in exactly the way the test is meant to catch, and watch for the beep (a red result). If the test beeps, you've learned it's paying attention, so its green means something. If it stays quiet, you've found a dead battery before it fooled you.\n\nA green light only counts as evidence if you've seen the same light turn red."
+}

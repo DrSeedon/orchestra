@@ -1,0 +1,26 @@
+{
+ "run_id": "R-T7-sonnet-r2",
+ "task": "T7",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 46075,
+ "output_tokens": 7049,
+ "input_tokens": 32,
+ "cache_read_tokens": 375527,
+ "cache_create_tokens": 38994,
+ "turns": 23,
+ "cost_usd_api_equiv": 0.30163540000000005,
+ "seconds": 71.5,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/fake_claude.py",
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Not reproduced. I can only name the failing code path, not the exact exception or why retries keep failing.\n\n**What the code shows**\n- The error comes from `Session._change_runtime_chat_locked` (app/session.py:3394-3413). That is the model-switch path taken when the runtime changes.\n- Inside its `try:`, only `await self._drain_persist()` and `await self._disconnect_backend()` can raise. Any `Exception` there becomes `text_tail_source_release_failed`, which the UI shows as \"dialog switch blocked; source retained\" (app.js:2618).\n- `_drain_persist` (app/session.py:4125) uses `gather(..., return_exceptions=True)`, so it can't raise. That leaves `_disconnect_backend` (app/session.py:4054-4081).\n- `_disconnect_backend` calls `backend.disconnect()` first. `ClaudeBackend.disconnect` (app/backend_claude.py:1160-1172) awaits `client.disconnect()` on the SDK client and re-raises any failure (`raise` at line 1167).\n- The most likely trigger is that `client.disconnect()` fails when its CLI process is already dead. That is a hypothesis. I couldn't read the SDK source (it's outside this directory) and Bash is disabled, so I couldn't run a fake-CLI repro.\n- Because the exception escapes `_disconnect_backend`, `self._backend = None` (line 4062) never runs. The dead backend stays attached to the session. The listen and heartbeat task cleanup after it is also skipped.\n- The switch then returns `ok: False` without changing the model or any state.\n\n**What doesn't match**\n- `ClaudeBackend.disconnect` sets `self._client = None` in `finally`, so a second call should be a no-op.\n- That contradicts \"retrying always fails\". Something else must make the failure persistent: another exception source, a different backend type, or SDK behavior I couldn't observe.\n\n**Comparison with a sibling path**\n- The same-runtime switch (app/session.py:3818-3850) catches a disconnect failure as \"ambiguous\". It cancels the listen and heartbeat tasks and cleans up the target. The text-tail and fresh-switch paths (3314-3323) treat the same failure as fatal.\n\n**Recommended fix (unverified, since I couldn't reproduce)**\n1. In `_disconnect_backend`, clear `self._backend`, `_listen_task` and `_heartbeat_task` in a `finally`. Then re-raise only if the process is still alive.\n2. In `_change_runtime_chat_locked` and `_change_model_fresh_locked`, treat a disconnect failure on a backend whose process is already gone as a successful release. Log a warning and continue, as the same-runtime path does.\n3. Before changing code, get the real exception. Check the server log for `ClaudeBackend disconnect failed: ...` (backend_claude.py:1166), and for `listen task failed on disconnect` / `heartbeat task failed on disconnect`. Then reproduce with a killed CLI.\n\nI didn't modify any existing file. The scratch files `scratch/fake_claude.py` and `scratch/repro.py` are an unrun repro attempt."
+}

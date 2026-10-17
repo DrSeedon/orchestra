@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T1-sonnet-r2",
+ "task": "T1",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 29768,
+ "output_tokens": 4857,
+ "input_tokens": 20,
+ "cache_read_tokens": 164353,
+ "cache_create_tokens": 24891,
+ "turns": 16,
+ "cost_usd_api_equiv": 0.18104460000000003,
+ "seconds": 65.1,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: I can't name the single underlying failure, and I couldn't reproduce this. What I can establish from the code is that `NO_COMMITS_MERGED` was probably not a real \"nothing to merge\" result. It is a label that the code puts on other failures.\n\n**Evidence (code reading only)**\n- The returned message \"merge produced no new commits\" comes from two places. One is `app/workspace.py` `merge_worktree_to_main`, around lines 1723-1732. It applies only when `ok` is true but the target didn't move, and that can't happen if the commit was made. The other is `app/merge_operations.py` `normalize_merge_result`, lines 1020-1036. The wording of the response matches that second place.\n- `normalize_merge_result` overwrites `raw` with `ok=False`, `code=NO_COMMITS_MERGED` and `error=\"merge produced no new commits\"`. It does this whenever `target_before` is set, `target_before == target_after` and `int(commits_merged or 0) == 0`. It never checks `raw[\"ok\"]`.\n- `merge_worktree_to_main` fills in `target_before` and `target_after` for every failure after the target ref is read (about line 1346). Failures never set `commits_merged`, except the `target == worker` guard.\n- So each of these failures matches the overwrite condition and has its message replaced:\n  - a dirty target worktree (`_clean_worktree_error(target_wt, \"target\")`)\n  - a merge-tree conflict or precheck failure\n  - a failed `git checkout` of the target\n  - a `prepare()` journal failure\n  - a failed squash that gets rolled back\n- The original message, and the classification in `_classify_failure` (`TARGET_DIRTY`, `CONFLICT`, and so on), is discarded. `_classify_failure` is also skipped, because the overwritten `code` takes the `NO_COMMITS_MERGED` branch first (line 941). The `next_action` \"verify the worker branch\" then points at the wrong thing.\n- The worker commit is a plain new file, so a real \"no changes\" outcome is unlikely.\n\n**What I could not do**\n- I couldn't run anything: Bash is disabled in this session. I wrote `scratch/repro.py`, which builds a repo with a linked worktree and a worker commit and calls `merge_worktree_to_main` with a clean and a dirty target. It was never executed, so I haven't reproduced the exact response.\n- I don't know which underlying failure happened. The most likely candidate is a dirty main checkout, such as an untracked or modified file, but that is a guess.\n\n**Recommendation**\n1. To find the real reason now, read the stored raw result for the operation, or run `git status --porcelain` in the main checkout. Then run `git merge-tree --write-tree main task-416/worker` there and check for conflicts.\n2. Fix `normalize_merge_result`: apply the override only when `raw.get(\"ok\")` is true, as the comment above it intends. Failures with their own message or `conflicts` would then keep their classification. Also fix the `workspace.py` guard at line 1347 so it doesn't hide errors either.\n3. Add a regression test for a dirty target that expects `TARGET_DIRTY`, not `NO_COMMITS_MERGED`."
+}

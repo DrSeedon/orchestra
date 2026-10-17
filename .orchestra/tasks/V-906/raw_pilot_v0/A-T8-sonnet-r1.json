@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T8-sonnet-r1",
+ "task": "T8",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 20743,
+ "output_tokens": 1970,
+ "input_tokens": 8,
+ "cache_read_tokens": 47990,
+ "cache_create_tokens": 18765,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.104374,
+ "seconds": 21.1,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: After a timeout, `bash()` waits with no limit for the output pipe to reach EOF. A descendant that escaped the killed process group still holds that pipe, so the wait never ends.\n\nEvidence (read from the code; I did not run a reproduction):\n- `app/harness/tools.py`, `bash()`:\n  - The command's output is read by `reader = asyncio.create_task(proc.communicate())`.\n  - On `asyncio.TimeoutError` it calls `await _kill_proc(proc)`. That returns at about 30 s, which is the \"harness timeout ... killed\" message.\n  - It then runs `out, _ = await reader` with no timeout. `communicate()` only finishes when the pipe hits EOF, and that needs every holder of the write end to be gone. The leader's exit is not enough.\n  - The `finally` block does `await reader` again, also with no timeout.\n- `app/bg_jobs.py`:\n  - `_spawn_bg_process` starts the shell with `start_new_session=True` through the pidfd shim.\n  - `_kill_proc` calls `_cleanup_pidfd_group`. That sends SIGTERM, then SIGKILL, through `pidfd_send_group` to the leader's process group only. It then waits for `proc.wait()`, which watches the leader process, not the pipe.\n- Commands that return on time: they finish, or every process in the group is killed, so the pipe closes and the partial output comes back.\n- Commands that hang: anything that leaves a descendant outside the group while the tool still holds the pipe. Examples are `setsid cmd &`, a daemonizing double-fork, or `su`/`sudo` helpers that start a new session. Another example is a backgrounded server started without redirecting stdout and stderr. That descendant keeps the inherited stdout/stderr pipe open. The group kill never reaches it, so `await reader` blocks until the descendant exits. That can be many minutes, or never. The agent loop is awaiting `dispatch`, so it looks frozen.\n- The `wait_for(timeout)` is bypassed because the code deliberately shields the reader (\"so a timeout doesn't discard bytes\"). The timeout therefore bounds only the first wait, not the drain after the kill.\n\nRecommended fix, in `bash()`:\n1. After `_kill_proc`, bound the drain: `out, _ = await asyncio.wait_for(asyncio.shield(reader), timeout=2)`. Wrap it in `except asyncio.TimeoutError`.\n2. On that second timeout, cancel `reader` and take what was already read. `communicate()` discards its buffer when cancelled. So read the stdout stream yourself in a small loop that appends to a buffer, or use `proc.stdout.read` with a size limit. Then the partial output survives.\n3. Make the `finally` block's `await reader` bounded too. Cancel the task and then await it with a short timeout.\n4. Optionally close the parent's pipe end (`proc.stdout._transport.close()`) so a lingering descendant cannot block the harness.\n5. For stronger containment, put the command in a cgroup or PID namespace, or use `prctl(PR_SET_CHILD_SUBREAPER)`. Then the kill also catches setsid escapees."
+}

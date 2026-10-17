@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C1-sonnet-r2",
+ "task": "C1",
+ "group": "C",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 3065,
+ "output_tokens": 654,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2409,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0168978,
+ "seconds": 9.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "**Why an AI Agent Forgets After a Long Session, and What a Summary Does About It**\n\n**Scene 1 – A person at a desk, handing a helper a growing stack of notes and tasks.**\nImagine you hire a helper for a big project. All day, you talk. You share goals, decisions, and small details. The helper remembers it all, and the work goes well.\n\n**Scene 2 – The stack of paper climbs until it tips over the edge of a small desk.**\nAn AI agent works like this too. It handles long jobs in one running conversation. But the model reading that conversation has a limit, called its window. It can only hold so much at once.\n\n**Scene 3 – The desk is full. A hand sweeps the pile toward the edge.**\nWhen the conversation grows too big for that window, something has to give. The agent can't simply keep everything.\n\n**Scene 4 – The long pile is squeezed into a single neat page, labeled \"Summary.\"**\nSo the conversation is compressed into a summary. The agent puts the long history aside and keeps working from that short page.\n\n**Scene 5 – Close-up: a sticky note with a detail slips off the pile and vanishes.**\nHere's the catch. Any detail that didn't make it into the summary is gone. The agent won't know it ever existed. That's why a long session can seem to forget a choice you made hours ago.\n\n**Scene 6 – A reviewer holds up the summary and asks the agent questions, ticking boxes.**\nSo how do we know a summary is good? We test it. We ask the agent questions about the old work: What did we decide? Why? What's left to do? If it answers correctly, the summary kept what mattered.\n\n**Scene 7 – The helper smiles at a tidy desk, one clear page in front of them.**\nA good summary lets the agent keep going without losing the thread. A weak one leaves holes.\n\n**Closing card – Title text fades in: \"Check the summary, keep the memory.\"**\nLong memory isn't magic. It's a summary, and it's only as good as what it keeps."
+}

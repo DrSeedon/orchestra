@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K4-sonnet-r2",
+ "task": "K4",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 8410,
+ "output_tokens": 1389,
+ "input_tokens": 6,
+ "cache_read_tokens": 16892,
+ "cache_create_tokens": 7015,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.0453404,
+ "seconds": 14.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The send-message handler in `app/routes/sessions.py` (around lines 903–927) decides whether the sender is an operator only by checking for a valid login cookie. With dashboard auth off, no one can ever have one, so every dashboard message is rejected. I only read the code and did not run it.\n\nEvidence:\n- The handler builds provenance in this order. If `req.sender` is set, the origin is \"agent\". Otherwise it calls `validate_session(request.cookies.get(\"session\", \"\"))`. If that returns false, it returns 403 `SOURCE_PROVENANCE_REQUIRED` (sessions.py:914–924). If it returns true, the origin is \"user\".\n- The dashboard frontend sends only `{message, scope}`, so `req.sender` is empty and the code takes the cookie branch.\n- `validate_session` in `app/auth.py` (lines 55–62) returns False when the token is empty. It also returns False when `DASHBOARD_USER` or `DASHBOARD_PASSWORD` is empty (lines 58–61).\n- With the credentials empty, the login flow cannot issue a session: `check_credentials` returns False (auth.py:31–32), and `_make_token` would sign with an empty secret. So the cookie is always missing or invalid, and `validate_session` is always False.\n- The handler never consults `is_auth_enabled()`. The rest of the app treats auth-off as an open, trusted dashboard. `requires_auth` gates routes, and `is_owner_mode` is based on `is_auth_enabled()`. The handler is the one place that treats \"no auth configured\" as \"no operator\".\n- This is not the same as `require_operator_session` (auth.py:65–73). That function deliberately refuses when auth is off, because it protects quota and control-plane changes. The send path appears to have copied that strictness without that rationale.\n\nRecommended fix: in the sessions.py `else` branch, treat the request as an operator when auth is disabled. For example:\n\n```python\nfrom app.auth import validate_session, is_auth_enabled\noperator = (not is_auth_enabled()) or bool(\n    request is not None and validate_session(request.cookies.get(\"session\", \"\"))\n)\n```\n\nWhen auth is enabled, behavior stays the same: a valid cookie is required, and unauthenticated callers with no sender still get 403. When it is disabled, the middleware's `requires_auth` path doesn't challenge anyone, so `origin=\"user\"` is the right provenance.\n\nTwo checks before shipping:\n- Confirm the instance is not reachable by untrusted clients while auth is off. Otherwise this opens user-origin messaging to them. That is the same exposure the dashboard already has in that mode.\n- Add a regression test for the auth-off case with no sender, expecting 200 and `origin=\"user\"`. Also add a test that auth-on with no cookie still returns 403."
+}

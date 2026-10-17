@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T3-sonnet-r1",
+ "task": "T3",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 23651,
+ "output_tokens": 4211,
+ "input_tokens": 24,
+ "cache_read_tokens": 171266,
+ "cache_create_tokens": 19416,
+ "turns": 18,
+ "cost_usd_api_equiv": 0.1540752,
+ "seconds": 60.0,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Most likely the MCP server opens the wrong database, not the live one. I could not run the reproduction, so this is not confirmed.\n\n**Why the teammate's guess doesn't fit**\n- The live database was migrated on 11 September and the live server is healthy, so it is not behind on schema.\n- `init_db` in `app/db.py:67-80` raises the error only when `PRAGMA user_version != 1` and the file already has tables, or `user_version` is non-zero. It doesn't look at a \"live\" database at all.\n\n**What I traced**\n- The `codex_review` handler in `app/mcp_stdio.py` (~line 4023) calls `init_db()` in-process, with no path argument. It uses `db.DB_PATH`, which is set once at import from `ORCHESTRA_DB_PATH`, or `data/orchestra.db` if that is unset (`_resolve_db_path`, `app/db.py:21-34`).\n- The MCP server is built in `_make_mcp_config` (`app/manager.py:356-388`). Its env comes from `MCP_BASE_ENV` (`app/runtime_env.py:17-20`), which carries only `PYTHONPATH`, the proxy variables and `INTERNAL_TOKEN`, plus the `ORCHESTRA_*` scope, role and session keys.\n- `ORCHESTRA_DB_PATH` is never forwarded.\n- For Codex, the MCP env is written into `config.toml` from that same dict (`_mcp_servers_toml`, `app/backend_codex.py:2094-2134`).\n- So the MCP process falls back to the checkout's `data/orchestra.db`, not the live server's database.\n\nThat default file is probably stale or has a different `user_version`. That would produce exactly this error for every project, and the review code itself doesn't need to have changed.\n\n**What I could not establish**\n- `data/` is absent from this snapshot, so I couldn't read the default file's `user_version` or its tables.\n- Bash was disabled, so I couldn't run `scratch/repro.py`. I wrote it to show the error on a legacy file and a clean pass on a v1 file, but it hasn't run.\n- Nothing here explains why it started on 12 September. A plausible trigger is that the default file changed that day or the server was restarted with a new environment, but I have no evidence for either.\n- I haven't excluded the case where the live process also sees an unset variable.\n\n**How to check**\n1. Run `PRAGMA user_version` and list the tables in `data/orchestra.db`. A mismatch with `SCHEMA_VERSION = 1` confirms the cause.\n2. Compare `ORCHESTRA_DB_PATH` in the live server's environment with the MCP process's `/proc/<pid>/environ`.\n\n**Recommended fix**\n- Add `ORCHESTRA_DB_PATH` to `MCP_BASE_ENV` in `app/runtime_env.py`, so MCP servers use the same database as the server. Alternatively, have the review tool call the server's API instead of opening the database itself.\n- Don't run the offline migration on the live database. It's already current.\n- Separately, retire or migrate the stray default file."
+}

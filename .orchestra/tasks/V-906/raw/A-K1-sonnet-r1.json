@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K1-sonnet-r1",
+ "task": "K1",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 6813,
+ "output_tokens": 1359,
+ "input_tokens": 4,
+ "cache_read_tokens": 9817,
+ "cache_create_tokens": 5450,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.0373614,
+ "seconds": 15.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `run_pytest` in `app/merge_test_gate.py` concatenates `exc.stdout` and `exc.stderr` before it normalizes their types. On a timeout, `subprocess.TimeoutExpired` can carry those attributes as `bytes` even though the call used `text=True`. I did not run a reproduction; this comes from reading the code and from how CPython's `subprocess` behaves.\n\nEvidence:\n- `run_pytest` (lines 110-118) calls `subprocess.run(..., capture_output=True, text=True, timeout=budget)`. The normal path (line 137) concatenates `proc.stdout + proc.stderr`, which are always `str`. That is why it never fails when pytest finishes.\n- On timeout, `subprocess.run` catches the expiry inside `communicate()`. It then builds `TimeoutExpired` from the partially read raw buffers. These are not decoded, so `exc.stdout` and `exc.stderr` are `bytes` or `None`. This is a long-standing CPython quirk, and the exact behavior varies by Python version and platform.\n- Line 125 is `out = (exc.stdout or \"\") + (exc.stderr or \"\")`. The `or \"\"` fallback is a `str`, so the types mix:\n  - If pytest wrote only to stdout, the result is `bytes + \"\"`, which raises \"can only concatenate bytes (not \"str\") to bytes\".\n  - If it wrote only to stderr, the result is `\"\" + bytes`, which raises \"can only concatenate str (not \"bytes\") to str\".\n  - Only when both streams are `bytes`, or both are empty, does it work.\n- The defensive code at lines 126-127 (`if isinstance(out, bytes): out.decode(...)`) is never reached when the types are mixed, because the `TypeError` is raised on line 125 first. It also doesn't handle a `str` result that was built partly from `bytes`.\n- `merge_worker` doesn't catch the `TypeError`, so the worker crashes instead of recording the intended `INCONCLUSIVE` / `timeout` result.\n\nRecommended fix: decode each stream on its own before joining. Add a small helper in `app/merge_test_gate.py`, for example:\n\n```python\ndef _text(v) -> str:\n    if v is None:\n        return \"\"\n    if isinstance(v, bytes):\n        return v.decode(\"utf-8\", \"replace\")\n    return v\n```\n\nThen use `out = _text(exc.stdout) + _text(exc.stderr)` at line 125, and drop the now-redundant `isinstance` block. Also add a regression test in `tests/` that monkeypatches `subprocess.run` to raise `TimeoutExpired(cmd, 1, output=b\"x\", stderr=None)`, plus the str/bytes variants. It should assert `status == INCONCLUSIVE` and `reason == \"timeout\"`.\n\nOptionally, `merge_worker` could wrap the gate call so any unexpected gate error becomes `INCONCLUSIVE` instead of killing the worker."
+}

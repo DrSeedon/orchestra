@@ -1,0 +1,29 @@
+{
+ "run_id": "A-T6-luna-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 25678,
+ "output_tokens": 901,
+ "input_tokens": 160073,
+ "cache_read_tokens": 135296,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00428116,
+ "seconds": 19.8,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'rg -n \"worktree already exists|worktree|dynamic_workflow|wf_run\" scripts app'",
+  "/bin/bash -lc \"sed -n '1,180p' scripts/wf_run.py; sed -n '360,420p' scripts/wf_run.py; sed -n '540,610p' app/workspace.py; sed -n '3110,3285p' app/mcp_stdio.py\"",
+  "/bin/bash -lc 'rg -n \"_prepare_workspace|workspace|name =|slug|task_index|task_id|gather|Semaphore|concurrency\" scripts/wf_run.py'",
+  "/bin/bash -lc \"sed -n '600,735p' scripts/wf_run.py; sed -n '800,925p' scripts/wf_run.py; sed -n '925,970p' scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '490,610p' scripts/wf_run.py; rg -n \\\"call_key|sha256|key=\\\" scripts/wf_run.py tests\""
+ ],
+ "final_text": "CAUSE: Identical calls get distinct workflow call keys, but their workspace names discard the part that distinguishes them.\n\nEvidence: `WorkflowEngine._call_key()` hashes the canonical call payload and appends an occurrence number, producing keys like `<same SHA-256>:0`, `:1`, and `:2`. In `_run_attempt()`, `name` uses only `call_key[:12]`, so all three calls get the same worktree name for the same attempt. At concurrency 3, `app.workspace.create_worktree()` serializes creation under `repo_mutation_lock`; after the first creates that path, the next raises `ValueError(\"worktree already exists\")`. Different prompts usually have different hash prefixes, so their names differ.\n\nRecommended fix: include the occurrence component in the worktree name (or another unique per-call identifier), while keeping names within Git’s branch and filesystem limits. The path must uniquely identify each full `call_key` and attempt."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T1-sonnet-r2",
+ "task": "T1",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19316,
+ "output_tokens": 2642,
+ "input_tokens": 12,
+ "cache_read_tokens": 61282,
+ "cache_create_tokens": 16662,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.10534840000000001,
+ "seconds": 43.6,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "I've read through the merge code and I'm about to write up the answer. I haven't run anything, and there's no repo in this directory to inspect.\n\nCAUSE: `NO_COMMITS_MERGED` here is a mislabel. The merge never ran, and the real failure is hidden. Nothing in this snapshot shows which failure it was, so the specific one below is a hypothesis.\n\nEvidence:\n- `app/merge_operations.py`, around lines 1020-1036, in the function that normalizes the raw merge outcome:\n  - `no_commits_merged` is true whenever `target_before == target_after` and `commits_merged` is 0.\n  - It doesn't check `raw[\"ok\"]`.\n  - In that case it overwrites `ok`, `state`, `commit_point` and `code`, and sets `error` to \"merge produced no new commits\".\n  - That is the exact message you received.\n- `app/workspace.py`, the merge function around lines 1264-1792, returns `commits_merged` as 0 for every pre-mutation failure. Those failures leave the target untouched, so `target_before == target_after`. They include:\n  - \"worker HEAD changed\" or \"worker branch changed\";\n  - the diff budget error;\n  - `_clean_worktree_error` (dirty worker or target worktree, line 1332 or 1429);\n  - `_branch_worktree_path` errors (prunable target worktree, line 798);\n  - \"target checkout moved\";\n  - the `merge-tree` precheck conflict or failure;\n  - the `prepare` journal failure;\n  - the task-ref or squash-message validation failures (`_validated_squash_message`).\n- Every one of these hits the override in `merge_operations.py`. The real `error`, `conflicts` or dirty-tree detail is replaced.\n- The route in `app/routes/sessions.py:2113` appears to repeat the same invariant.\n- Retrying gives the same answer because the underlying condition persists and is masked the same way.\n\nLikely real reason in your setup: `main` is checked out in the main checkout and the worker is a linked worktree. The merge runs in the main checkout, so `_clean_worktree_error(target_wt, \"target\")` fails if that checkout has uncommitted or untracked changes. Dirty-state errors are the most common failure of this kind, and they are exactly what the override swallows. A prunable or missing worktree entry for `main` would also fail, via `_branch_worktree_path`. I'm only inferring this from the code.\n\nTo confirm, run these by hand:\n- `git -C <main checkout> status --porcelain`\n- `git worktree list --porcelain`\n- `git merge-tree --write-tree main task-416/worker`\n- `git rev-list --count main..task-416/worker`, which should be 1.\n\nFix to recommend:\n1. In `merge_operations.py`, apply the `no_commits_merged` override only when `raw.get(\"ok\")` is true, or when `raw.get(\"code\")` is already `NO_COMMITS_MERGED`. Otherwise keep the original `error`, `conflicts` and `state`. That would have surfaced the dirty-tree message (and `git_status` DIRTY via the \"working tree is dirty\" check).\n2. Check the same condition in `routes/sessions.py:2113`.\n3. For this incident, clean or commit the changes in the main checkout (or fix the worktree registry), then retry as a new operation."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T1-sonnet-r1",
+ "task": "T1",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 32254,
+ "output_tokens": 4048,
+ "input_tokens": 20,
+ "cache_read_tokens": 164888,
+ "cache_create_tokens": 28186,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.1862416,
+ "seconds": 46.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `NO_COMMITS_MERGED` is a generic label that hides the real failure. The code overwrites the specific error, so I can't name the exact failure from the code alone. It is most likely a dirty `main` checkout or a merge conflict, and I haven't confirmed which.\n\nEvidence:\n- `merge_worktree_to_main` in `app/workspace.py` reads `target_before` early (around line 1337). From that point on, every failure it returns has no `commits_merged` key and leaves `main` unmoved.\n- Those failures include:\n  - a dirty target checkout: `_clean_worktree_error(target_wt, \"target\")`, line 1429;\n  - the `merge-tree` conflict precheck, around lines 1497-1520;\n  - `prepare` journal failures, `git merge --squash` failures, and `TARGET_HEAD_CHANGED`;\n  - the check at line 1347 that the worker HEAD already equals the target.\n- Each of these carries its own specific error text, such as \"target working tree is dirty (N file(s): …)\" or a list of conflict paths.\n- `normalize_merge_result` in `app/merge_operations.py` (lines 1020-1036) treats any result as \"no commits merged\" when `target_before == target_after` and `int(commits_merged or 0) == 0`. The check doesn't test `ok`. It then replaces `ok`, `state`, `code` and `error` with `NO_COMMITS_MERGED` and \"merge produced no new commits\".\n- The real error text and code are lost at that point. The same is true of any `TARGET_HEAD_CHANGED` result, because the rewrite runs before `_classify_failure` is called. The route in `app/routes/sessions.py:2102-2115` does a similar rewrite, but only when `ok` is true.\n- That is why repeating the call gives the same answer. The normalizer produces the same label every time, whatever the underlying failure is.\n- The `next_action` text, \"verify the worker branch\", points at the wrong place. The worker branch is fine, since `git log main..task-416/worker` shows the commit.\n\nI could not look at the live repository. This snapshot has no git data, and I was told not to touch the live service.\n\nRecommended fix:\n1. Diagnose now. Run `git status --porcelain` in the main checkout that holds `main`. Untracked files count as dirty there, so any stray or untracked file blocks the merge. Also run `git merge-tree --write-tree --name-only main task-416/worker` to check for conflicts. Then clean or commit the main checkout, or resolve the conflict on the worker branch, and start a new merge operation.\n2. Fix the code in `app/merge_operations.py`.\n   - Apply the `no_commits_merged` rewrite only when `raw.get(\"ok\")` is true and `raw.get(\"code\")` is unset, as `app/routes/sessions.py` already does. Never override a result that already has an `error`, `code` or `conflicts`.\n   - Keep the original `error` in `details`, for example as `upstream_error`.\n   - Then `_classify_failure` can return `TARGET_DIRTY`, `CONFLICT` or `TARGET_HEAD_CHANGED` with the right `next_action`."
+}

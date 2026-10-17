@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C3-luna-r1",
+ "task": "C3",
+ "group": "C",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 4427,
+ "output_tokens": 183,
+ "input_tokens": 15892,
+ "cache_read_tokens": 11648,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00063238,
+ "seconds": 6.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "We tested the prompt trick that rewrites each task before the agent acts. Across 48 runs, it did not increase the share of accepted answers and more than doubled paid token use.\n\nThe result is weak evidence: the tasks were too easy to show whether the trick helps on harder work. So we can’t conclude it never helps, only that this test didn’t show a benefit.\n\nRecommendation: don’t roll it out yet. We can either stop here and save the extra cost, or run a better test on harder tasks before deciding."
+}

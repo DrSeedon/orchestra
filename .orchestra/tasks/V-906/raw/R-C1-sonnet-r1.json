@@ -1,0 +1,23 @@
+{
+ "run_id": "R-C1-sonnet-r1",
+ "task": "C1",
+ "group": "C",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 3104,
+ "output_tokens": 590,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2512,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0166698,
+ "seconds": 9.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "**Title: Why an AI Agent Forgets After a Long Session, and What a Summary Does About It**\n\n**Scene 1 (0:00–0:12): A friendly robot at a desk, sorting papers, with a growing pile of notes.**\nMeet an AI agent. Give it a big job, and it works through a long conversation: reading, writing, fixing, trying again. Hour after hour, the pile of conversation keeps growing.\n\n**Scene 2 (0:12–0:27): The pile reaches the edge of a small glowing window; the top pages spill out.**\nBut the model can only see so much at once. That limit is called its window. When the conversation grows too big to fit, the agent can't simply keep everything in view.\n\n**Scene 3 (0:27–0:42): Pages are squeezed into one short page labeled \"Summary.\" The robot picks it up and carries on.**\nSo the conversation is compressed into a summary. The agent then continues its work from that summary, instead of the full history.\n\n**Scene 4 (0:42–0:55): The robot reaches for a detail on the old pages. The spot is blank, and its face looks puzzled.**\nHere's the catch. Any detail that didn't make it into the summary is gone. The agent doesn't quietly remember it. It simply no longer has it.\n\n**Scene 5 (0:55–1:07): A person holds up a clipboard and quizzes the robot. Green ticks and red crosses appear.**\nSo how do we know a summary is good? We test it. We ask the agent questions about the old work. If it answers correctly, the important things survived. If not, the summary missed something.\n\n**Scene 6 (1:07–1:15): The robot, with a tidy summary page, gives a thumbs up. Title card fades in.**\nA good summary keeps the agent on track, even in the longest sessions."
+}

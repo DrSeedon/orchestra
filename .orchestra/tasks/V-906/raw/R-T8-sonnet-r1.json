@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T8-sonnet-r1",
+ "task": "T8",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 24687,
+ "output_tokens": 2584,
+ "input_tokens": 14,
+ "cache_read_tokens": 115627,
+ "cache_create_tokens": 22089,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.1373494,
+ "seconds": 30.8,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The timeout is enforced. The hang comes after it, in the `except asyncio.TimeoutError` branch of `bash()` (app/harness/tools.py, lines 157-159). That branch calls `await _kill_proc(proc)` and then `out, _ = await reader`. `reader` is `proc.communicate()`, which only finishes when the pipe reaches EOF, and the code has no timeout on that wait. Killing the shell does not guarantee EOF. If a descendant of the command has left the killed process group, it still holds the stdout/stderr pipe, so `communicate()` never returns.\n\nEvidence from reading the code:\n- `wait_for(asyncio.shield(reader), timeout)` (line 152) works as intended. It raises TimeoutError at about 30 s, and the shield only keeps `reader` alive. So the teammate's guess is not the cause. That also matches commands that return at about 30 s with \"harness timeout ... killed\".\n- `_kill_proc` (app/bg_jobs.py:270) calls `_cleanup_pidfd_group`, which signals only the shell's process group through `pidfd_send_group`. That function uses `pidfd_send_signal` or `os.killpg` (app/pidfd_exec.py:78-110). The shell was started with `start_new_session=True` (bg_jobs.py:205). A grandchild that makes its own session, such as `setsid cmd &`, `nohup setsid ...` or a daemonizing server, is not in that group and survives SIGKILL.\n- The surviving grandchild inherited the pipe write end, so `await reader` blocks until it exits. That would explain \"many minutes\". The `finally` block (lines 168-179) would also hang on `await reader`, but it is never reached.\n- Why only some commands hang: the ones that finish at about 30 s have no process outside the group holding the pipe.\n\nNot reproduced: Bash was disabled in this session, so I could not run the command. I wrote scratch/repro.py but never ran it. I did not observe the multi-minute stall. The mechanism is inferred from the code, not shown to match the observed delay. The planned test was `setsid sleep 40 >/dev/null 2>&1 & sleep 100` with `timeout=3`, wrapped in an outer `wait_for`. The hypothesis predicts a return only after the 40 s sleep ends. A variant without `setsid` should return at about 3 s.\n\nRecommended fix:\n1. After `_kill_proc`, bound the drain with a short timeout, for example `await asyncio.wait_for(asyncio.shield(reader), 2)`. On TimeoutError, cancel `reader` and return the partial output.\n2. Keep the partial output yourself, with a manual read loop that appends to a buffer. `communicate()` loses what it has already read when it is cancelled.\n3. Optionally close the pipe's read end, or have the shim redirect stdio, so orphaned processes cannot block the tool.\n4. Apply the same bound in the `finally` block, which also awaits `reader`."
+}

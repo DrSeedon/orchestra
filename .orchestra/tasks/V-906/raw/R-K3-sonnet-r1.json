@@ -1,0 +1,25 @@
+{
+ "run_id": "R-K3-sonnet-r1",
+ "task": "K3",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16768,
+ "output_tokens": 3468,
+ "input_tokens": 16,
+ "cache_read_tokens": 86446,
+ "cache_create_tokens": 13284,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.1051372,
+ "seconds": 38.8,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Timer jobs get an `expires_at` that is capped below their trigger time. A 10-day timer is therefore marked `expired` about 2 days before it was due to fire. I worked this out by reading the code. I could not run anything, so the behavior is not reproduced.\n\nEvidence, in `app/bg_jobs.py`:\n- `MAX_TIMER_TIMEOUT = 8 * 86400` (line 36).\n- `BgJobManager.create` (lines 386-394) first sets `timeout_seconds = max(timeout_seconds, delay_seconds + 3600)`. For a 10-day delay that is 10 days + 1 hour.\n- The next line clamps it: `timeout_seconds = max(1, min(timeout_seconds, max_timeout))`. For timers `max_timeout` is `MAX_TIMER_TIMEOUT`, so the value drops to 8 days.\n- `expires_at` is then set to now + 8 days. `trigger_at` (line 399) is still now + 10 days, so the job expires before its trigger time.\n- The row is saved as `active`, and `_start_task` starts `_run_timer`, which does `asyncio.sleep(delay)` and then calls `_trigger`. The sleep itself is not capped.\n- `bg_expire_overdue` (`app/db.py:2101`) runs `UPDATE ... SET status='expired' WHERE status='active' AND expires_at < now`. Once 8 days pass, it flips the row to `expired` and the manager cancels its task. The restore path at lines 527-531 and 558-560 does the same on restart. The trigger never happens, so no wake is sent. This matches the \"expired\" status you see.\n\nThis fits the symptom. A delay of up to about 8 days minus 1 hour keeps `expires_at` after `trigger_at`, so those timers fire normally. Anything longer cannot. Your report says delays up to 3 days work, which is consistent but does not test the boundary.\n\nNot verified: I wrote `scratch/repro.py`, a harness that calls `create` with 3, 7 and 10-day delays and prints `expires_at` minus `trigger_at`. It should be negative for 10 days. I could not run it because Bash is disabled in this session. I also could not confirm the 8-day mark against a live job. The explanation is therefore inferred from the code, not reproduced.\n\nOne lookup by mistake went outside this directory. A grep for `bg_expire_overdue` also searched `/home/kesha/bench906`, and it returned matches from sibling directories. I did not use any of them.\n\nRecommended fix:\n- Don't let the clamp cut a timer's expiry below its trigger time. Compute the cap as `max(MAX_TIMER_TIMEOUT, delay + 3600)`.\n- Alternatively, reject delays above the maximum in `_validate_config` (line 73) with a clear error instead of accepting them silently.\n- Add a regression test that creates a 10-day timer and asserts `expires_at > trigger_at`."
+}

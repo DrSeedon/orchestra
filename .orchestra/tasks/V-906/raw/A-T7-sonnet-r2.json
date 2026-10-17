@@ -1,0 +1,25 @@
+{
+ "run_id": "A-T7-sonnet-r2",
+ "task": "T7",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 45915,
+ "output_tokens": 8843,
+ "input_tokens": 50,
+ "cache_read_tokens": 576730,
+ "cache_create_tokens": 37022,
+ "turns": 28,
+ "cost_usd_api_equiv": 0.351964,
+ "seconds": 105.1,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Probably `ClaudeBackend.disconnect()` raising on the dead Claude CLI, which `_disconnect_backend` doesn't recover from. I couldn't run anything (Bash is disabled here), so this comes from reading the code. It explains the first failure but not why every retry fails.\n\nEvidence:\n- The error comes from `_change_runtime_chat_locked` (app/session.py:3394-3413). It wraps `_drain_persist()` and `_disconnect_backend()` in one `try/except Exception`. Any exception from them becomes `text_tail_source_release_failed` with \"source retained\".\n- `_drain_persist` (session.py:4125) uses `gather(..., return_exceptions=True)`, so it can't raise.\n- That leaves `_disconnect_backend` (session.py:4054) as the source. It calls `backend.disconnect()` first, with no try/except.\n- `ClaudeBackend.disconnect` (app/backend_claude.py:1160-1172) logs \"ClaudeBackend disconnect failed\" and re-raises any SDK `client.disconnect()` error. With the CLI pid gone, that call should fail.\n- Because the raise happens before the cleanup lines, the session is left half-torn-down:\n  - `self._backend = None` is never reached, so the dead backend stays attached (session.py:4061-4062).\n  - The heartbeat and listener cancellation at session.py:4063-4081 is skipped, so both tasks keep running.\n- `_change_model_locked` returns the failure without clearing anything, so each retry starts from the same stuck state.\n- I couldn't confirm why a retry would fail again. The code suggests a second `backend.disconnect()` should find `_client` already `None` and succeed. The live listener is a candidate: `_persistent_event_loop` and `_reconnect_backend` (session.py:2149-2236) can keep rebuilding clients against the dead transport.\n- Adjacent bug: `_change_model_fresh_locked` (session.py:3314) has the same unguarded teardown.\n\nFix I recommend:\n1. Make `_disconnect_backend` best-effort. Wrap `backend.disconnect()` in try/except and log the error. Then, in a `finally`, set `self._backend = None` and cancel the heartbeat and listener tasks. A dead source process is already released, so the failure shouldn't block the switch.\n2. Alternatively, in the text-tail and fresh switch paths, treat a disconnect error as non-fatal when the backend process is already dead. Keep blocking only if the process is still alive.\n3. Add a regression test: a backend whose `disconnect` raises, then `change_model` to another runtime, expecting `ok: True`. Check the stuck session's logs for \"ClaudeBackend disconnect failed: …\" to confirm the exception type."
+}

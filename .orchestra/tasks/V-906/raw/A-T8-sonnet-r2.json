@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T8-sonnet-r2",
+ "task": "T8",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 20733,
+ "output_tokens": 1818,
+ "input_tokens": 8,
+ "cache_read_tokens": 48097,
+ "cache_create_tokens": 18907,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.10344340000000002,
+ "seconds": 23.1,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The timeout does fire. The hang comes after it, in the cleanup. `bash()` in `app/harness/tools.py` waits for pipe EOF with `await reader`, and a surviving descendant can keep that pipe open indefinitely. I read the code but did not run a reproduction.\n\nEvidence:\n\n1. **The timeout works.** `asyncio.wait_for(asyncio.shield(reader), timeout)` raises `TimeoutError` at about 30 s. The `wait_for` and `shield` combination is fine. This is the intended pattern for keeping partial output.\n\n2. **The timeout handler waits on the reader.** After the timeout, `except asyncio.TimeoutError` calls `_kill_proc(proc)`. It then runs `out, _ = await reader` with no timeout. `reader` is `proc.communicate()`, which only finishes when the stdout/stderr pipe reaches EOF, not when the shell exits. EOF needs every process holding the write end to close it or die.\n\n3. **The kill only reaches the shell's own process group.**\n   - `_spawn_bg_process` in `app/bg_jobs.py` uses `start_new_session=True`.\n   - `_cleanup_pidfd_group` signals only that group through `pidfd_send_group`.\n   - It then polls `pidfd_send_group(pidfd, 0)` and waits for the leader with `proc.wait()`.\n   - A descendant that left the group (`setsid`, `nohup setsid`, a double-fork daemon, or `su`/`sudo` under `ORCHESTRA_AGENT_UID`) is not signalled. If it inherited stdout/stderr, it still holds the pipe.\n\n4. **Why only some commands hang.** Commands that only run a long foreground process, such as `sleep 100`, die with the group and return at about 30 s. Commands that start a detached child with inherited stdout (`setsid sleep 300 &`, a daemon, a server) keep the pipe open. `await reader` then blocks until that child exits, which is the \"many minutes\" you saw. The `finally` block can't help, because it also runs `await reader` after the cancel and only reaches it once the handler has finished.\n\n5. **A second hang path.** The `except asyncio.CancelledError` around the spawn does `await shield(spawn)`, which is also unbounded. It is not the cause of the timeout symptom.\n\nRecommended fix:\n\n- In the timeout handler, don't wait indefinitely for EOF. Use `out, _ = await asyncio.wait_for(reader, 2)` after the kill. On a second `TimeoutError`, cancel `reader` and return the partial output with a note that a detached process is holding the pipe.\n- To keep the partial output, read the pipes incrementally into a buffer with a `StreamReader` loop instead of `communicate()`. Then the timeout path can return the buffer without waiting for EOF.\n- Optionally, close the transport (`proc._transport.close()`) after the kill so the pipe is dropped.\n- To reduce the number of leaked processes, use a cgroup or `PR_SET_CHILD_SUBREAPER` so descendants that escaped the group can still be killed.\n- Add a test: `setsid sleep 300 &` with `timeout=2` must return in under about 5 s."
+}

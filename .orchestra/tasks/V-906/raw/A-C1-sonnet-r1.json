@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C1-sonnet-r1",
+ "task": "C1",
+ "group": "C",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 3023,
+ "output_tokens": 612,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2409,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0164778,
+ "seconds": 10.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "**Why an AI agent forgets after a long session, and what a summary does about it**\n\n**Scene 1: A friendly cartoon robot at a desk, sticky notes piling up around it as a chat scrolls past.**\nMeet an AI agent. Give it a big job, and it works through a long conversation with you: reading, planning, trying things, fixing mistakes.\n\n**Scene 2: The chat scroll keeps growing. A glowing window frame around the robot fills up and stops fitting new lines.**\nBut the model can only hold so much at once. Think of it as a window. Once the conversation grows too big for that window, something has to give.\n\n**Scene 3: The long scroll is squeezed by a pair of hands into one short page labeled \"Summary.\" The robot continues from that page.**\nSo the conversation is compressed into a summary. The agent then carries on its work from that short page, not from the whole story.\n\n**Scene 4: Close-up of the summary page. A few sticky notes ride along; others drift off the edge and fade out.**\nHere's the catch. Any detail that didn't make it into the summary is gone. Maybe a rule you mentioned early on, or a small decision made hours ago. The agent won't remember it, because to the agent, it never happened.\n\n**Scene 5: A person holds up a quiz card in front of the robot; the robot answers, and checkmarks appear next to the old work.**\nSo how do we know a summary is good? We test it. We ask the agent questions about the old work. Can it say what was decided, and why? Can it recall what's still unfinished?\n\n**Scene 6: Checkmarks turn into a solid, tidy page. The robot gives a thumbs up as the window clears.**\nIf the answers are right, the summary kept what mattered. If not, we improve it.\n\n**Scene 7: Title card on a calm background.**\nLong sessions don't mean perfect memory. They mean a good summary."
+}

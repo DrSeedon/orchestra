@@ -1,0 +1,25 @@
+{
+ "run_id": "R-K3-sonnet-r2",
+ "task": "K3",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16588,
+ "output_tokens": 3298,
+ "input_tokens": 16,
+ "cache_read_tokens": 87132,
+ "cache_create_tokens": 13274,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.10353440000000003,
+ "seconds": 32.3,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/calc.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: `bg_create` caps a timer's lifetime at 8 days (`MAX_TIMER_TIMEOUT = 8 * 86400`, `app/bg_jobs.py:36`). A 10-day timer therefore gets an `expires_at` two days before its `trigger_at`. This is from reading the code. I could not run anything, because Bash was disabled in this session, so I have not reproduced the `expired` status end to end.\n\nEvidence (`app/bg_jobs.py`, `bg_create`):\n- Lines 388-394: for a timer, `timeout_seconds = max(timeout_seconds, delay_seconds + 3600)`. The next line clamps it with `min(timeout_seconds, max_timeout)`, and `max_timeout` is `MAX_TIMER_TIMEOUT` (8 days). For `delay_seconds=864000` the timeout becomes 691200, so `expires_at = now + 8d`.\n- Line 399: `trigger_at = now + delay_seconds`, which is now + 10d. Nothing checks that `trigger_at < expires_at`, and `_validate_config` (lines 73-76) only checks that the delay is positive.\n- `_run_timer` and `_run_wake_timer` (lines 808-822) just call `asyncio.sleep(delay)` and then trigger. They never see the expiry, so `bg_create` returns a normal active job.\n- `bg_expire_overdue` (`app/db.py:2101`) marks any active job with `expires_at < now` as `expired`. `restore_from_db` (`app/bg_jobs.py:527` and `558-560`) does the same by calling `bg_expire_job` on restart.\n- Once a job is `expired`, `bg_claim_trigger` (`app/db.py:1991`) only moves jobs with `status='active'` to `triggering`. After day 8 the timer can no longer fire, and a restart cancels its task. This matches the symptom, and I did not check the trigger path in `_trigger` itself.\n\nThe 3-day timers are consistent with this. Their expiry, delay + 1h, is under the 8-day cap, so they expire after they fire. The code implies any timer with a delay above 8 days minus 1 hour (about 7d 23h) hits the cap and fails the same way. I did not run a timer near that boundary.\n\nUnverified: I did not confirm what actually flips the job to `expired` at runtime. `bg_expire_overdue` is called from `restore_from_db`, which I only saw at startup. I did not find a periodic caller, so the flip may happen at a restart or in a caller I did not search for. The \"later shows expired\" timing depends on that.\n\nFix I recommend:\n- For timers, don't clamp the lifetime below the delay. Compute `timeout_seconds = delay_seconds + 3600` and apply the cap only to non-timer types, or raise `MAX_TIMER_TIMEOUT` above the largest allowed delay.\n- If long delays should stay limited, reject them in `_validate_config` with a clear error such as \"delay_seconds must be <= N\". That way the failure is loud instead of silent.\n- Add a test that creates a 10-day timer and asserts `expires_at > trigger_at`, or that the call returns an error.\n\nI left a scratch script at `scratch/calc.py` that prints the cap arithmetic for several delays, but I could not run it."
+}
