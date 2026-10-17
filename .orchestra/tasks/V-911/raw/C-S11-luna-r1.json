@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S11-luna-r1",
+ "task": "S11",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 60001,
+ "output_tokens": 2246,
+ "input_tokens": 464795,
+ "cache_read_tokens": 407040,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.0109689,
+ "seconds": 94.7,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe normal `turn_end` path in `TurnManager.handle_turn_end` calls `after_turn_idle_actions`, which can call `fire_auto_report`. This covers ordinary successful or failed turns when the worker is parented and eligible to report. It is not a durable guarantee: `fire_auto_report` starts an in-memory task, while `_do_report` only logs delivery exceptions and does not retry or persist a pending report. A process exit can also discard that task.\n\nListener failure has a concrete gap. `Session._finish_failed_running_turn` moves the worker to IDLE, persists, publishes the finished event, and schedules hibernation, but never triggers `fire_auto_report`. The listener exhaustion, reconnect failure, and per-turn listener cleanup paths in `_persistent_event_loop`, `_turn_event_loop`, and `_on_task_done` call this helper. The parent can therefore miss a failed turn unless it already has an idle watcher.\n\nRestart has the same gap. `Manager.auto_resume_all` resets persisted RUNNING/INTERRUPTED/WAITING sessions to IDLE and resumes workers, but does not create a terminal report for work interrupted by restart. A resumed worker may eventually report after another turn; the interrupted turn itself has no notification. Manual interruption also explicitly cancels auto-report in `Session.interrupt`, so it requires a separate watcher or report path.\n\nThere are intentional filters too: `fire_auto_report` returns for unparented workers, workers without `on_idle`, workers that already reported, and successful silent turns. These are safe only if another durable mechanism covers each case. `idle_watch.check` can notify the orchestrator when a watched tree becomes idle, but it is a requested background job, not an automatic fallback for every parented worker.\n\nRecommendation: persist a terminal-turn record and an idempotent parent-notification outbox entry keyed by worker and turn before treating the turn as finished. A retrying dispatcher should deliver and mark acknowledgements, and startup recovery should synthesize or enqueue terminal records for turns interrupted by listener death or restart. Treat idle watching as a fallback signal, not the source of truth.\n\nIndependent check applied: `pytest -q tests/test_fan_terminal_kind.py tests/test_session.py::test_auto_report_passes_failed_turn_state tests/test_session.py::test_auto_report_fires_after_idle_timeout` passed (`9 passed`). These tests verify normal reporting behavior; they do not cover the listener-failure and restart gaps above."
+}

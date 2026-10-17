@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S11-luna-r2",
+ "task": "S11",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 44483,
+ "output_tokens": 1717,
+ "input_tokens": 287886,
+ "cache_read_tokens": 245120,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.007586300000000001,
+ "seconds": 28.3,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n- Ordinary success and provider-reported failure reach `TurnManager.handle_turn_end()` → `after_turn_idle_actions()` → `fire_auto_report()` in [app/session_turns.py](/home/kesha/bench911/runs/A-S11-luna-r2/app/session_turns.py:195). But `fire_auto_report()` deliberately returns for successful silent turns and when `_did_report` is set. A silent turn sends no parent notification; an attempted `send_message` sets `_did_report` in `AgentSession._handle_event()` even if delivery fails. Either case leaves the parent uninformed unless it has an idle watcher.\n\n- Listener loss has several terminal paths that do not report: `AgentSession._finish_failed_running_turn()` sets IDLE and publishes a local completion event, but never invokes auto-report. It is called by `_persistent_event_loop()`, `_turn_event_loop()`, and `_on_task_done()` after listener or runtime failures. `SessionHibernateManager` also changes dead-runtime or failed-reconnect workers to IDLE and publishes completion without notifying the parent. These completion events wake local waiters; they are not parent reports.\n\n- Restart can strand an interrupted turn. `AgentSession.stop()` marks a running worker INTERRUPTED and cancels its auto-report task. `Manager.auto_resume_all()` later resets it to IDLE and injects a restart notice, but does not report the interrupted turn’s outcome to its parent. If the worker resumes and finishes, a later turn may report, but the interrupted turn itself has no durable terminal record for the parent.\n\n- Normal auto-reports are best effort. `TurnManager.fire_auto_report()` creates an in-memory task; `Manager._make_idle_callback()` calls `manager.send()`. On failure, `_record_undelivered_auto_report()` writes history and tries a separate notification, but explicitly has no retry. A process restart can also lose an in-flight report task before it records either outcome. The audit trail helps a person find the problem, but does not guarantee parent delivery.\n\nRecommendation: represent each worker turn’s terminal outcome as a durable, idempotent record keyed by worker and turn. Persist it before acknowledging completion, then have a retryable delivery queue deliver it to the parent and mark it delivered only after acceptance. Record interrupted and listener-failure outcomes through the same path; distinguish those from successful silent turns and from explicit reports whose delivery was actually accepted. Idle watch should remain a fallback prompt to inspect state, not the mechanism that makes completion durable."
+}

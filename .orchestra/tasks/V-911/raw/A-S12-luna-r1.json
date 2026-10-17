@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S12-luna-r1",
+ "task": "S12",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 40168,
+ "output_tokens": 1812,
+ "input_tokens": 281940,
+ "cache_read_tokens": 243584,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00717744,
+ "seconds": 25.7,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n1. Spawn can orphan a worktree. In Manager.create_session, the DB row is saved before create_worktree; the BaseException handler deletes the row and removes the worktree only if session.worktree_path was assigned. Cancellation during the thread call can leave Git creating a worktree after the coroutine has been cancelled, before that assignment, so cleanup misses it. A crash in the same interval leaves the provisional row. Concurrent spawns also lack a scope/name reservation lock: both can pass the initial existence check and do worktree setup; SQLite uniqueness prevents duplicate rows, but a losing request can leave a worktree/branch. Recommendation: reserve the session name transactionally, make worktree creation cancellation-safe and discoverable, and reconcile incomplete reservations at startup. Preserve the row until cleanup outcome is known.\n\n2. Spawn then initial send is intentionally two operations. mcp_stdio.spawn_worker creates the session through POST /api/sessions, then POSTs the initial task. If delivery fails or the caller is cancelled between calls, the worker remains created but idle; the tool reports delivery failure when it receives an error. This is a real partial completion, not a hidden rollback. Recommendation: expose a durable “created, task not delivered” state or make create-with-initial-message idempotent and transactional at the orchestration level.\n\n3. Sending during needs_switch has a real race and partial state. routes.sessions.send_message checks needs_switch without manager’s session lock or _lifecycle_lock, then performs a forced Git switch, persists lifecycle, and sends. Concurrent sends can choose the same timestamp-derived adhoc branch; concurrent merge/switch can interleave. If persistence or send fails after Git changes, DB/session state or delivery diverges. Recommendation: use the same per-session lock and lifecycle lock across check, switch, persistence, and delivery; use unique/idempotent branch naming.\n\n4. Merge and switch serialize with each other per session and repo, so the obvious merge-vs-switch race is prevented. routes.sessions.merge_session and switch_branch take manager.get_session_lock and, for loaded sessions, _lifecycle_lock; workspace helpers also use a repository flock. However, Git changes precede persist_lifecycle. A DB error or cancellation after merge leaves merge committed but needs_switch stale; after switch it leaves Git on the new branch while session metadata still describes the old one. Cancellation during asyncio.to_thread does not stop the Git operation. In merge-with-next-task, the first lifecycle snapshot (needs_switch=True) is persisted before switching, which correctly leaves a recoverable state if that switch fails.\n\n5. Switch helper has a concrete partial-failure hazard. workspace.switch_worktree_branch resets the old branch to from_ref before acquiring the repo flock or checking out/creating the new branch. A later branch conflict/failure returns with Git reset but DB metadata unchanged. Recommendation: acquire the repo lock before any mutation, validate first, and use rollback or a journaled lifecycle intent spanning Git and DB. Locking principle: one per-session lock for the whole lifecycle transition plus a shared repo lock for every Git mutation, with durable intent/recovery because DB and Git cannot share an atomic transaction."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S11-luna-r1",
+ "task": "S11",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 28725,
+ "output_tokens": 1562,
+ "input_tokens": 172571,
+ "cache_read_tokens": 145408,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00495138,
+ "seconds": 23.9,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nWorker completion is reported only through `TurnManager.after_turn_idle_actions()` → `_idle_tail()` → `fire_auto_report()` (or an explicit `send_message`). Several terminal paths bypass that chain:\n\n- **Listener failure or death:** `AgentSession._finish_failed_running_turn()` marks the worker idle, persists, publishes turn-finished and schedules flush/hibernate, but never calls `fire_auto_report()` or `after_turn_idle_actions()`. The reconnect failure, repeated listener failure and missing-active-turn branches in `_persistent_event_loop()` use this path. A parent can wait indefinitely if it has no idle watcher.\n- **Per-turn stream ends without a `turn_end`:** `AgentSession._turn_event_loop()`’s `finally` block can set a still-running session to idle and persist it without recording a failed turn or running idle actions. `_on_task_done()` then sees the worker is already idle, so it does not call `_finish_failed_running_turn()`. For non-Codex backends, even the Codex-specific missing-turn check does not apply.\n- **Listener task exceptions:** `_on_task_done()` routes exceptions to `_finish_failed_running_turn()`, which has the same missing parent report.\n- **Restart interruption:** `Manager` startup converts `running`/`interrupted` sessions to idle and `_inject_restart_notice()` starts a new turn. The interrupted turn itself has no durable terminal report; if the notice cannot be delivered, `_inject_restart_notice()` only logs a warning. A parent may never learn that the previous turn was interrupted.\n- **Explicit report suppression:** `_handle_event()` sets `_did_report` on `tool_use` when it sees `send_message`, before the tool result confirms successful delivery. `TurnManager.fire_auto_report()` skips workers with `_did_report`; a failed or lost send can therefore suppress the fallback.\n- **Report delivery failure:** `Manager._make_idle_callback()` catches send errors and calls `_record_undelivered_auto_report()`, but this is a separate recovery record; the parent is not notified at that point. Delivery depends on later recovery or an idle watcher.\n\nNormal `turn_end` events reach `TurnManager.handle_turn_end()` and the idle actions, including failed turns that produce a `turn_end`. Auto-continue intentionally returns before reporting because the logical task continues.\n\nRecommendation: represent each logical worker turn’s terminal outcome in durable state, then deliver a uniquely identified completion event through a retryable outbox. Record success only after the parent accepts it; cover normal completion, failure, listener loss and restart through the same terminal transition. Treat explicit reports as complete only after confirmed delivery, and use idle watchers as reconciliation, not the sole backup."
+}

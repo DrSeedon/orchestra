@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S10-luna-r2",
+ "task": "S10",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 15433,
+ "output_tokens": 909,
+ "input_tokens": 131004,
+ "cache_read_tokens": 116480,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0030716999999999997,
+ "seconds": 17.8,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe warning has one production emit site: `Session._on_task_done()` in `app/session.py`. It runs when an asyncio task registered with that callback finishes without an exception. The callback is attached to three listener starts: the persistent event loop in `_activate_backend_tasks()`, and the per-turn event loop after a backend send in `send()` and `_flush_pending()`.\n\nThe warning does not by itself mean a turn was lost. For a per-turn listener, `_turn_event_loop()` can finish normally after receiving the backend’s terminal event; it updates the session state before the callback runs. A listener can also be cancelled during shutdown, disconnect, or compaction; cancellation is explicitly ignored by `_on_task_done()`. For persistent listeners, `_persistent_event_loop()` can return normally when the backend is absent or the session is idle. Those cases do not establish that a user turn was lost.\n\nThe callback has one explicit recovery path: if the session is still `RUNNING` when the listener exits, `_finish_failed_running_turn()` marks the turn failed, persists `IDLE`, publishes turn-finished, and flushes pending messages or schedules hibernation. That indicates an interrupted or uncertain turn requiring recovery; it does not prove whether the provider completed work or whether a user message was lost. Determining delivery requires evidence from the backend and message-delivery state.\n\nThe printed `status` is only the session’s state at callback time. `IDLE` means the callback saw the session as idle; it does not reveal why the listener ended, whether a terminal event arrived, whether cancellation or shutdown was intended, or whether a submitted turn completed. The warning calls every exception-free exit a “silent death,” which overstates what the status tells us.\n\nRecommendation: log listener exits with task kind (persistent or per-turn), exit reason (normal stream completion, cancellation, backend absent, or unexpected exhaustion), whether a terminal turn event was observed, and the session/turn identifiers. Emit a warning only for unexpected exits while `RUNNING`; record expected idle completion and cancellation at info/debug level. This makes the real risk—an unfinished or delivery-uncertain turn—visible without treating routine listener cleanup as evidence of lost turns."
+}

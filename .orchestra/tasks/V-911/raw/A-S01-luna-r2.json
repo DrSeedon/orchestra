@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S01-luna-r2",
+ "task": "S01",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 15633,
+ "output_tokens": 1428,
+ "input_tokens": 86269,
+ "cache_read_tokens": 72064,
+ "cache_create_tokens": 0,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.00285514,
+ "seconds": 39.0,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe failure happens before delivery: `SessionManager.send()` calls `_auto_switch_before_delivery(session)` before `session.send(message)`. A refusal raises, so the message is not queued or delivered.\n\nAffected paths:\n\n- HTTP send route — `app/routes/sessions.py:send_message`: catches `RuntimeError` and returns HTTP 400 with the error; other exceptions return 500. The API caller learns delivery failed. MCP `app/mcp_stdio.py:send_message` uses that route and returns “Send failed: …”, so the calling agent also learns. The browser’s send UI can show the failure. Low risk of silent loss.\n- CI webhook — `app/routes/system.py`’s CI failure handler: catches send errors, logs them, and returns HTTP 500. The webhook caller learns the request failed, though delivery is not retried here. Low silent-loss risk; operationally the CI alert is missed unless the webhook is retried or logs are checked.\n- Limit-wake job — `app/limit_wake.py`: removes the delivery claim, persists “delivery failed,” then re-raises. `app/bg_jobs.py:_run_wake_timer` marks the job failed. The worker does not receive the wake message; the job state records failure, but there is no direct notice to the owner in this path. Medium to high risk: it can look like the worker stayed idle unless someone checks job status.\n- Background job completion, timeout, failure, cron, and cron-command notifications — `app/bg_jobs.py:_trigger`, `_expire_notify`, `_fail_notify`, `_fire_cron`, `_fire_cron_command`: exceptions are caught and logged; jobs may be marked failed, expired, or remain unrecorded as fired. The job creator generally gets no direct delivery-failure message. High risk for completion/timeout/failure notifications, since the owner can believe a worker was notified when it was not.\n- Worker auto-report — `app/manager.py`’s `_on_worker_idle` sends a report to the orchestrator via `self.send()`. A failure propagates into the idle callback; the report is lost, and the orchestrator may not learn that the worker finished. Medium risk.\n- Restart notice — `app/manager.py:_inject_restart_notice` catches and logs failure. The worker gets no notice, but this is an internal recovery hint rather than a user message. Low to medium risk.\n- Telegram bridge — `app/tg_bridge.py:_flush_batch` sends buffered user messages via `_manager.send()`. The debounce task has no visible sender-facing failure handling around that call; Telegram input is already accepted and there is no delivery-failure reply in this path. High risk: this is the clearest case of silent loss to the human sender.\n\nRecommendation: keep the refusal in `SessionManager.send()` as a delivery error, and make each caller handle it according to its sender. Prioritize Telegram: catch flush failures and reply in the originating chat with a clear “not delivered” message, preserving the batch for retry if appropriate. For background jobs and limit-wake, persist a visible delivery-failed state and surface it to the job owner. Keep HTTP/MCP error propagation; ensure auto-report failures are visible in orchestrator logs or status. Direct `AgentSession.send()` calls in `app/session.py` are internal retries/continuations and bypass this auto-switch check, so they are not affected by this specific refusal."
+}

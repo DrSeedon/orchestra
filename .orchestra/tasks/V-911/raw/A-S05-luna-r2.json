@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S05-luna-r2",
+ "task": "S05",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 36202,
+ "output_tokens": 2191,
+ "input_tokens": 267355,
+ "cache_read_tokens": 233344,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.006830040000000001,
+ "seconds": 28.0,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe first message is submitted immediately. `POST /api/sessions/{name}/send` awaits `manager.send()`, and `AgentSession.send()` calls `CodexBackend.send()`, which issues `turn/start` while the session is IDLE. Only after that call returns does it start `_turn_event_loop()` for Codex’s per-turn event stream. Codex notifications arriving before the listener starts are put in the backend’s queue and then consumed by that listener; the code does not intentionally defer the message until the next send.\n\nA transition to IDLE requires a terminal path: normally Codex emits `turn/completed`, `CodexBackend` converts it to `turn_end`, and `TurnManager.handle_turn_end()` calls `finish_turn_status()`. The listener’s `finally` block also sets IDLE if it exits while RUNNING. The turn-start response alone does not set IDLE.\n\nThe listed explanations do not fit the normal path:\n\n- Stale dashboard: `GET /api/sessions/{name}` returns the loaded session’s current `to_dict()` state. That could make a display stale, but does not explain the underlying state becoming IDLE or logs being absent.\n- Lifecycle lock held: `send()` holds the lock only while starting the new turn; it awaits backend submission and creates the listener before releasing it. A blocked lock would delay the HTTP response, not produce a successful response followed by IDLE.\n- Hibernate: Codex is configured with `hibernate=False`; hibernation is scheduled after turn completion, not as the cause of an immediate idle transition.\n- Pending-message queue: the initial send from IDLE goes straight to `backend.send()`. Queuing applies to an already-running turn or compacting session. Codex steering/settling failures can queue a later message, but that does not explain the first send being deferred.\n\nThe notable design difference is event timing: Claude uses a persistent listener started during backend initialization, while Codex uses a per-turn listener created only after `turn/start` returns. This leaves Codex notifications temporarily queued, but the queue should preserve them. If IDLE is being published within milliseconds, inspect the actual `turn/completed`/`_process/exited` notification or listener exception/exit: those are the code paths that can explain it. Recommendation: capture timestamped Codex notifications and listener state around the first `turn/start`, then fix the specific terminal/exit path observed; the inspected code alone does not support a general one-message-behind delivery bug."
+}

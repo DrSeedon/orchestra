@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S09-luna-r2",
+ "task": "S09",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 27555,
+ "output_tokens": 1132,
+ "input_tokens": 167223,
+ "cache_read_tokens": 140800,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0046163,
+ "seconds": 24.1,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n1. Task 5 stays open after a continue merge by design. `tm.prepare_merge_finalization()` sets the terminal session binding to the same task for `outcome == \"continue\"`. In `tm.finalize_merge_outcome()`, only `outcome == \"complete\"` finishes the current task-run receipt and clears its worker binding. A continue merge therefore lands the code but leaves task 5 in progress, bound to the worker session, with its task-run receipt still `requested`.\n\n2. Task 6 cannot be assigned while that provenance remains open. `switch_worker_branch` reaches the branch-switch endpoint, which attempts to update the task binding. In `tm.py`, the in-progress assignment path calls `_open_task_run_for_task()`. That calls `db.task_run_receipt_open()`, which permits replay only when the existing open receipt matches the new assignment’s session, task, and provenance. Task 5’s still-open receipt does not match task 6, so it raises `open task run conflicts with current assignment provenance`. `force=True` only bypasses branch-content checks; it does not bypass this receipt integrity check.\n\n3. `merge_worker(task_outcome='complete', next_task_id=6)` is a lifecycle transition for the merge it is making, not a repair for a merge already finalized as continue. It again sees task 5 as the current bound task. The prepare/finalize logic can close that assignment and bind task 6, but the described failure suggests the existing receipt’s provenance no longer matches the assignment that this merge path expects. The specific guard is `task_run_receipt_open()` in `app/db.py`; relevant lifecycle paths are `prepare_merge_finalization()` and `finalize_merge_outcome()` in `app/tm.py`, plus request validation in `app/routes/sessions.py`.\n\nOptions:\n\n- **Repair the current binding and receipt explicitly.** Add a narrowly scoped recovery path that validates the worker session, task 5, and its current binding, then finishes or reconciles the stale open receipt before assigning task 6. This preserves receipt auditability, but needs careful idempotency and mismatch checks.\n- **Change continue semantics to close and reopen the run.** Finish the old task-run receipt after a continue merge, then open a new receipt for the same task and session. This makes a later switch possible while preserving task 5’s in-progress binding, but changes the meaning of a continue merge and adds a receipt transition on every continue.\n- **Allow assignment replacement to supersede the receipt.** Have the assignment path interrupt the prior open run before opening task 6’s receipt. This is simpler, but risks concealing invalid or concurrent assignment changes unless tightly constrained.\n\nRecommendation: implement the first option as a recovery operation for this specific state, with explicit checks and an auditable terminal receipt status. For the normal workflow, use `task_outcome='complete', next_task_id=6` in the merge that finishes task 5; `continue` intentionally keeps task 5 open and bound. No files were changed."
+}

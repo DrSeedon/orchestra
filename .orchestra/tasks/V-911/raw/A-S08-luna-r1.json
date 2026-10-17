@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S08-luna-r1",
+ "task": "S08",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 28433,
+ "output_tokens": 1343,
+ "input_tokens": 245714,
+ "cache_read_tokens": 218624,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.00556674,
+ "seconds": 21.3,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe 409 comes from a HEAD mismatch during admission, before the merge executor runs. In `app/merge_operations.py`, `accept_merge_operation` calls `_session_snapshot`, which reads the current Git branch and `HEAD` with `inspect_worktree_identity`. For task-bound work, it compares that snapshot’s `worker_head` with the request’s `expected_head` and returns `WORK_HEAD_CHANGED` if they differ.\n\nThe two values have different sources and different timing. `expected_head` comes from the client request; `worker_wip` reads Git `HEAD` when called and presents it for acceptance. Admission independently snapshots `HEAD` when the merge request arrives. Any commit between those observations makes them differ, even if nobody changed anything after submitting the request. A fresh `operation_id` repeats the same comparison against the same submitted pin, so it cannot help. `execute_merge_session` later pins the admitted branch and head and checks for drift before merging to preserve the accepted-work safety guarantee.\n\nThe suggested refresh path can loop because `worker_wip` only includes `worker_head` when a task assignment exists. Its text tells the caller to accept that exact head, but if the resulting 409 reflects a mismatch between the supplied pin and the admission snapshot, repeating the same instruction can resubmit the same stale value. The generic `REFRESH_WORKER_THEN_NEW_OPERATION` action also does not identify the two compared heads or tell the caller to use the head from the refusal.\n\nRecommendation: make the refusal diagnostic actionable by returning both the submitted and admission `expected_head` values, and have the client refresh `worker_wip` after a `WORK_HEAD_CHANGED` response, then submit the newly reported head with a fresh operation ID. Keep admission’s equality check and the executor’s pinned-head drift check: together they ensure only the explicitly accepted snapshot is merged. This assessment is based on `accept_merge_operation`, `_session_snapshot`, `session_wip`, and `execute_merge_session`; no files were changed."
+}

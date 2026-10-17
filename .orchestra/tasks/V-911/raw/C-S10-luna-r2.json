@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S10-luna-r2",
+ "task": "S10",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 26384,
+ "output_tokens": 1872,
+ "input_tokens": 183360,
+ "cache_read_tokens": 158848,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.0049756800000000006,
+ "seconds": 56.2,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe warning is emitted only by `Session._on_task_done()` in `app/session.py`. It means the listener task finished without an uncaught exception. It does not, by itself, mean a turn was lost.\n\nPaths that produce it:\n\n- `_turn_event_loop()` is started for per-turn event streams after `send()` or pending-message delivery. It can finish after handling a normal `turn_end`; its `finally` block then usually leaves the session IDLE. It also catches listener exceptions and returns normally. For Codex, if the turn is still RUNNING and no active backend turn remains, it marks the turn failed; otherwise the callback handles a still-RUNNING session as failed.\n- `_persistent_event_loop()` is started for persistent streams. It returns normally when the backend is absent, or when the stream ends while the session is IDLE. Those completions also reach the warning. While RUNNING, ordinary stream exhaustion generally triggers reconnect logic; repeated or unrecoverable failure has separate error handling.\n\nCancelled tasks are excluded: `_on_task_done()` returns when `task.exception()` raises `CancelledError`.\n\nThe printed status is only the session status when the callback runs. IDLE is consistent with a normal completed turn, but does not prove that a `turn_end` event was received or that the turn succeeded. RUNNING tells the callback to mark the turn failed. Neither status identifies why the listener ended or whether it processed a terminal event.\n\nThe real risk is an event stream ending without a terminal turn event while the backend may still be working. In particular, `_turn_event_loop()`’s `finally` block sets non-Codex sessions to IDLE when they remain RUNNING, which can hide that case from the callback’s RUNNING check. The warning count alone cannot establish how many such cases occurred.\n\nLog listener termination reason and kind, whether `turn_end` was seen, session/turn generation, last event, and backend active-turn state. Treat expected completion or cancellation as routine; log an actionable error when a listener ends without a terminal event while work may still be active.\n\nIndependent check applied: `pytest -q tests/test_error_watch.py::test_normal_listener_end_is_noise_but_running_failure_is_actionable` passed. It verifies that IDLE/WAITING warnings are classified as normal listener completion and a RUNNING failure remains actionable. No files were changed."
+}

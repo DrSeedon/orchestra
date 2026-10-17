@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S07-luna-r1",
+ "task": "S07",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 35838,
+ "output_tokens": 1144,
+ "input_tokens": 141958,
+ "cache_read_tokens": 107264,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00511404,
+ "seconds": 18.4,
+ "contamination_flag": true,
+ "final_text": "FINDINGS: POST /api/report_bug writes a durable report, but does not notify anyone. Seven reports can therefore sit unread without a UI badge or other alert.\n\nEvidence: mcp_stdio.report_bug sends title, description, reporter, and SCOPE to app/routes/system.py’s report_bug_endpoint. The endpoint formats those fields into a Markdown entry and calls _publish_bug_record; it returns a record_id and view_url. GET /api/report_bug streams the stored reports. There is no notification step after publishing.\n\nThere is enough data to look up the addressee: the report stores scope, and app/notify.py’s orchestrator_for_scope(scope) resolves a non-archived orchestrator in that scope. app/manager.py also has _find_orchestrator_name(scope). The MCP tool does not accept a caller-supplied scope; it uses its configured SCOPE, which is the right scope to route by if that value is reliable.\n\nReusable delivery patterns include app/notify.py’s report_undelivered, which looks up the scope orchestrator and sends through session_manager.send while logging missing recipients and delivery failures; and /api/sessions/{name}/send, which loads a session and calls manager.send. The CI failure handler in app/routes/system.py shows a route-local pattern using _find_orchestrator_name, ensure_loaded, then manager.send. report_undelivered is semantically a mismatch for successful bug filing, but its lookup and failure-accounting behavior are reusable.\n\nDesign options:\n- After a successful write, notify the scope orchestrator directly from report_bug_endpoint. Include title, reporter, scope, record_id, and /api/report_bug link; keep the stored report as the source of full details.\n- Keep the write path focused and enqueue a durable notification for a background worker. This can handle temporary send failures and retries, but needs delivery state, retry limits, and duplicate protection.\n- Return the record ID as today and have the MCP caller send a second message. This is simpler but makes notification dependent on every caller remembering the follow-up.\n\nRecommendation: notify from the server after _publish_bug_record succeeds, since the server owns the authoritative scope and can cover all callers. Reuse orchestrator_for_scope and the existing manager send path. Treat persistence success and notification success separately: never report filing failure after the record is committed; return/log an explicit notification outcome, and avoid claiming delivery when lookup or send fails. For stronger guarantees against unread reports during outages, add a durable retry queue rather than silently relying on a one-shot send.\n\nRisks and edge cases for the plan: no orchestrator in scope; archived, unloaded, or unavailable orchestrators; send exceptions or timeouts; multiple orchestrators matching a scope (the current helper returns the first match); trailing-slash normalization; empty or stale scope; duplicate notifications on client retries; large or untrusted report text in messages; and notification failure after a successful write. Keep the existing safe file publication behavior and avoid placing the full report body in the notification."
+}

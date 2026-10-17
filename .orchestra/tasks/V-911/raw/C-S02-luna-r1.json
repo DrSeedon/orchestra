@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S02-luna-r1",
+ "task": "S02",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 42867,
+ "output_tokens": 4779,
+ "input_tokens": 594248,
+ "cache_read_tokens": 556160,
+ "cache_create_tokens": 0,
+ "turns": 19,
+ "cost_usd_api_equiv": 0.011759900000000002,
+ "seconds": 103.8,
+ "contamination_flag": false,
+ "final_text": "FINDINGS: `switch_worktree_branch` can fail for two different reasons. With a clean worktree and the default `force=False`, it calls `branch_content_status` before switching. That check rejects work whose prospective merge into `from_ref` conflicts or changes the base tree, returning “merge_worker first or pass force=True.” If the squash has already incorporated the worker’s content and the prospective merge is a no-op, the check passes, and the function can create the new branch from the base. `tests/test_workspace.py::test_squash_merged_content_switches_after_base_advances` covers that successful case.\n\n`force=True` skips only that content check. It does not force Git to resolve conflicts or discard changes in the later switch procedure. If the requested branch name already exists, `switch_worktree_branch` checks it out and runs an ordinary `git merge from_ref`; a conflict there still fails and triggers rollback. If the target name does not exist, it resets the worktree to `from_ref` and creates the branch there, so force can discard the old committed branch content. The reported conflict is therefore possible when reusing an existing target branch; it is not inevitable after every squash. `tests/test_workspace.py::test_force_merge_conflict_rolls_back_all_git_state` covers the force-path conflict.\n\n`branch_content_status` is a useful content signal: it compares a prospective `git merge-tree` result tree with the base tree. A squash breaks ancestry as evidence: the worker commit is still ahead and is not an ancestor of the base even when the squash has incorporated all its changes. An independent disposable Git reproduction confirmed `worker_is_ancestor_of_main=False`, `commits_ahead=1`, while `merge_tree_equals_base_tree=True`. Thus commit counts or ancestry alone would misclassify this case; the tree comparison handles it.\n\nRecommendation: use a reliable “content already in base” signal, such as the existing `branch_content_status` check against the exact base, to decide when recreating the branch from that base is safe. For the recurring-task case, preferably create a fresh branch from the base instead of reusing a stale existing task branch; otherwise its ordinary merge can still conflict. The external check was a disposable Git command sequence using `merge-base --is-ancestor`, `rev-list`, and `merge-tree`, alongside the existing tests cited above."
+}

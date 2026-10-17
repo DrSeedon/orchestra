@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S08-luna-r1",
+ "task": "S08",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 42363,
+ "output_tokens": 2063,
+ "input_tokens": 394220,
+ "cache_read_tokens": 353920,
+ "cache_create_tokens": 0,
+ "turns": 14,
+ "cost_usd_api_equiv": 0.008600700000000001,
+ "seconds": 93.3,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n`execute_merge_session` can reject a merge before it inspects the worktree. `accept_merge_operation` takes the accepted branch from `_session_snapshot()`, which calls `inspect_worktree_identity()` and reads the branch from Git. It then stores that value as `accepted_worker_branch` and passes it as `expected_branch`.\n\nAt the start of `execute_merge_session`, the route compares `expected_branch` with `row_branch` from the durable session row (`get_session`). If they differ, it returns HTTP 409: “session branch changed before merge.” Later checks compare Git’s actual branch and HEAD with the pin, including `classify_head_drift()` and `merge_worktree_to_main()`’s `expected_worker_branch` guard.\n\nIf the Git worktree branch and stored row branch are already out of sync, a fresh operation snapshots the same Git branch and hits the same row comparison. `worker_wip` can report the Git state, but inspecting it does not update the row, so the suggested refresh/retry repeats the mismatch. This explains a persistent refusal without anyone changing the branch during the retry loop. The exact stale-row cause should be confirmed against the reported error and current row/worktree values; other 409 checks have different messages.\n\n**Recommendation:** Treat the durable row’s branch as metadata that may lag Git, rather than as the branch pin. Keep the pin from the accepted Git snapshot, and validate that pin against the actual worktree branch and HEAD under the existing locks before mutation. Continue checking stable session identity fields such as name, scope, and worktree path. Alternatively, ensure every branch switch atomically persists the row branch, while retaining the under-lock Git checks to protect against subsequent movement.\n\nIndependent criterion applied: `pytest -q tests/test_workspace.py::TestMergeTarget::test_expected_worker_identity_mismatch_is_not_reached` passed (`1 passed`). It confirms that a genuine pinned worker identity mismatch still fails before merge and leaves the target unchanged; it does not reproduce the stale-row retry loop."
+}

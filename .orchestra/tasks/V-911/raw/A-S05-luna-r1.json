@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S05-luna-r1",
+ "task": "S05",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 32407,
+ "output_tokens": 1290,
+ "input_tokens": 330893,
+ "cache_read_tokens": 299776,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.006754460000000001,
+ "seconds": 34.4,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe mechanism is a startup race between Codex’s turn lifecycle and Orchestra’s per-turn listener.\n\nIn `AgentSession.send()` (`app/session.py`), an idle session is marked RUNNING and persisted before it awaits `backend.send()`. For Codex, `CodexBackend.send()` (`app/backend_codex.py`) waits for the `turn/start` RPC response, then records the returned turn ID. Only after that call returns does `send()` create `_turn_event_loop()`.\n\nMeanwhile, `_read_stdout()` puts Codex notifications into a queue. If the turn completes before the listener starts, its `turn/completed` notification waits in that queue. Once the listener consumes it, `_handle_event()` processes `turn_end`; `TurnManager.handle_turn_end()` (`app/session_turns.py`) sets the session to IDLE and persists it. Thus a quick transition from RUNNING to IDLE can be real, and the completion event can be handled after the POST returns. The code supports this timing explanation; it does not establish that a particular turn completed before its work appeared in the logs.\n\nThe obvious explanations do not fit this sequence:\n\n- Stale dashboard: status is persisted as RUNNING before `turn/start`, and later set to IDLE when the queued completion is handled. The brief IDLE state can be the persisted lifecycle state, not just a stale display.\n- Lifecycle lock held: the first send holds `_lifecycle_lock` while submitting the turn; the POST awaits `manager.send()`. The lock does not explain why the per-turn listener starts only after submission returns.\n- Hibernate: Codex has `hibernate=False` in `runtime_registry.py`; hibernation is not the cause of an immediate idle transition.\n- Pending-message queue: `session.send()` queues messages only during compaction, for runtimes without mid-turn injection, or on a race/injection failure. Codex supports mid-turn injection. Queued-message flushing happens after a turn ends and does not explain the initial submission/listener gap.\n\nRecommendation: make the Codex per-turn listener active before or atomically with `turn/start`, so completion notifications are consumed as the turn starts and status reflects the actual turn lifecycle promptly."
+}

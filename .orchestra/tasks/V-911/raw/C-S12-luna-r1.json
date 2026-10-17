@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S12-luna-r1",
+ "task": "S12",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 48057,
+ "output_tokens": 1762,
+ "input_tokens": 315351,
+ "cache_read_tokens": 269056,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.00820106,
+ "seconds": 27.0,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n1. **Spawn can expose a session without a usable worker, and cancellation can leave an orphan.** In `SessionManager.create_session`, the DB row is saved before `create_worktree` and `session.start`; cleanup catches `BaseException` and deletes the row, but only removes the worktree if `session.worktree_path` was assigned. If `create_worktree` creates the Git worktree and then raises before returning, the worktree can remain with no recorded path. Cancellation during worktree creation has the same risk because the `to_thread` operation may keep running after the coroutine is cancelled. If cleanup itself fails, the row is still deleted. The initial-task send in `mcp_stdio.spawn_worker` is a separate API request: failure is reported as “worker created,” so the worker without its task is intentional and inspectable, not an invisible partial success. **Recommendation:** serialize name reservation and creation; make Git creation/cleanup recoverable by deterministic path and durable operation state; shield or join threaded work before cleanup.\n\n2. **Concurrent spawns can pass the duplicate check together.** `create_session` checks `get_session_by_name` before the eventual insert. The DB unique constraint prevents duplicate rows, but does not make the check/worktree sequence atomic. One request can create the worktree while another fails, or cleanup from the losing request can affect the shared path. The insert constraint prevents two same-name session rows; it does not make the full spawn atomic. **Real race.** Reserve the name transactionally before Git side effects and hold a per-repo/name lock through completion or rollback.\n\n3. **Merge and branch switch can leave Git and session state inconsistent on failure/cancellation.** `merge_session` merges Git first, then persists `needs_switch=True`; `switch_worker_branch` changes Git first, then persists the new branch/task and clears `needs_switch`. A DB failure or cancellation between these steps leaves stale DB/session metadata. Merge with `next_task_id` has another interval after setting `needs_switch=True` and before switching/persisting the next branch; failure there leaves Git on the merged branch and the flag set. Also, `asyncio.to_thread` work may continue after cancellation even though the async locks are released. **Real.** Use a durable lifecycle operation record/state machine, retain locks until threaded work finishes, and make recovery reconcile Git HEAD with the DB before accepting sends or retries.\n\n4. **Some apparent races are already prevented.** Merge and switch acquire `manager.get_session_lock(session_id)` and, for loaded sessions, `_lifecycle_lock`, then recheck idle status; merge and switch also share a repo-level `flock` in `workspace.py`. This serializes those route operations and repository Git mutations. However, `send_message`’s auto-switch on `needs_switch` does not acquire those locks, so it can race with merge/switch. `manager.get_session_lock` also does not protect spawn, and the repo flock does not cover `create_worktree`. **Recommendation:** adopt one lock order across lifecycle operations, and have send acquire the same session lifecycle lock before Git changes and message delivery.\n\nIndependent check applied: inspected the existing tests with `rg` for spawn cancellation/failure and lifecycle divergence coverage. I found workspace merge rollback tests, but no tests covering these cross-step DB/Git cancellation windows."
+}

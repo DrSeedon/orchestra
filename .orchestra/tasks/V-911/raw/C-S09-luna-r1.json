@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S09-luna-r1",
+ "task": "S09",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 33492,
+ "output_tokens": 2035,
+ "input_tokens": 519393,
+ "cache_read_tokens": 487936,
+ "cache_create_tokens": 0,
+ "turns": 18,
+ "cost_usd_api_equiv": 0.00904256,
+ "seconds": 97.8,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe conflict comes from how `continue` and task switching handle the worker’s open task-run receipt:\n\n- In schema 2, `execute_merge_session()` rejects `continue` with `next_task_id`. A valid `continue` finalization preserves the current task binding.\n- `task_run_receipt_open()` in `app/db.py` permits only one open task-run receipt per session. If a receipt exists with different assignment provenance, it raises `open task run conflicts with current assignment provenance`.\n- The switch path in `app/routes/sessions.py` updates the new task to `in_progress`. `api_update_task_if_current()` in `app/tm.py` then calls `_open_task_run_for_task()`, which tries to open task 6’s receipt while task 5’s receipt is still open. That is the provenance conflict. `force=True` concerns unverified committed content in the branch switch path; it does not bypass receipt integrity checks.\n- For a task handoff, `merge_worker(task_outcome='complete', next_task_id=6)` is the intended route: `finalize_merge_outcome()` completes task 5 and finishes its receipt, then assigns task 6. `continue` means task 5 remains assigned to the worker.\n\nFix options and trade-offs:\n\n1. **Operational fix (recommended):** use `complete` with `next_task_id=6` when task 5 is finished. This preserves the one-open-receipt invariant and makes the task handoff part of merge finalization.\n2. **Explicitly interrupt/unassign task 5 before switching:** this can close its receipt, but adds a separate lifecycle step and risks leaving task status, worker binding, and branch state out of sync.\n3. **Change the receipt lifecycle:** allow switching to close the prior receipt as interrupted when opening a new assignment. This supports manual handoffs, but weakens the guarantee that task completion is recorded through merge finalization and needs clear interruption semantics.\n4. **Allow multiple open receipts:** not recommended; it removes the invariant that prevents one session from accumulating conflicting active assignments.\n\nIndependent check: `python -m pytest -q tests/test_task_tracker_integration.py -k 't3_continue or t3_complete_and_next_transition'` passed (3 tests). These tests confirm that `continue` retains the task and that `complete` with a next task closes the old assignment and binds the next. No files were changed."
+}

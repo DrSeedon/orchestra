@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S04-luna-r1",
+ "task": "S04",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 30468,
+ "output_tokens": 2305,
+ "input_tokens": 385027,
+ "cache_read_tokens": 356864,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00753744,
+ "seconds": 97.6,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\nThe main payload bloat comes from the inactive-session path. In `app/routes/system.py:list_orchestrators`, active orchestrators are serialized with `AgentSession.to_dict()`, which limits `system_prompt` to 500 characters. Inactive orchestrators come from `get_all_sessions()` in `app/db.py`, which uses `SELECT *`; those rows can include full `system_prompt` and other stored fields such as `last_summary`, `runtime_handoff`, and `mcp_servers_custom`. The endpoint then adds status flags, `last_turn_ts`, and runtime cache policy. That makes full prompts in DB fallback rows the likely source of the large response. The exact byte contribution should be confirmed against a representative response; the reported size alone cannot identify it conclusively.\n\nThe browser consumers of `GET /api/orchestrators` are:\n\n- `loadOrchestrators()` in `app/static/js/app.js`: reads `parent_name` to filter the tab list; `scope`, `id`, and `name` for picker and selection; `name`, `scope`, `status`, `any_running`, `any_waiting`, and cache-policy fields plus `last_turn_ts` when rendering tabs/cache indicators.\n- `refreshSessions()` in the same file: matches by `name`; compares `status`; uses `scope` and `any_running`; updates `cost_usd`.\n- The endpoint’s Python code also reads `id`, `scope`, `last_turn_ts`, and runtime identity fields needed by `runtime_for_record()` / `cache_policy_for_runtime()`.\n\nNeither browser consumer reads `system_prompt`, `last_summary`, `runtime_handoff`, or `mcp_servers_custom`. The direct MCP tool is separate; these references do not establish that it consumes this HTTP response.\n\nThe cut belongs in `list_orchestrators()`: project the inactive DB rows to the fields the route and browser need before combining them with active rows, or use a dedicated response serializer. Keep the runtime identity fields required to calculate cache policy, along with the fields listed above. This avoids sending database-only state without changing `get_all_sessions()` for its other callers.\n\nThe initial duplicate is explained by two independent startup paths in `app/static/js/app.js`: `DOMContentLoaded` calls `loadOrchestrators()` directly, and `scheduleRefresh()` calls `refreshSessions()` after three seconds; with a selected scope, `refreshSessions()` fetches `/api/orchestrators` on its first pass. A further `loadOrchestrators()` is scheduled after startup recovery, but is conditional on recovery.\n\nRecommendation: trim inactive rows at the route boundary, then check representative inactive rows to confirm the response falls below the ~15 KB failure threshold. Consider avoiding the startup refresh fetch when `loadOrchestrators()` has just populated the same data.\n\nIndependent check: `pytest -q tests/test_api.py -k list_orchestrators` is the existing route test command. I attempted it, but it produced no result within 30 seconds, so I could not apply that check. The test only asserts successful JSON/list behavior and cache-policy fields; it does not verify payload size."
+}

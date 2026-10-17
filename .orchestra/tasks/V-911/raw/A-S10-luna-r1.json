@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S10-luna-r1",
+ "task": "S10",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 15695,
+ "output_tokens": 1047,
+ "input_tokens": 131512,
+ "cache_read_tokens": 116864,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0031569400000000004,
+ "seconds": 17.4,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n- The warning is emitted when the `asyncio.Task` in `Session._listen_task` finishes without an exception. `Session._on_task_done()` is its only production source. The task gets this callback in three paths: `_ensure_backend()` starts the persistent event loop for persistent-stream runtimes; `send()` starts a per-turn event loop for per-turn runtimes; and `_flush_pending()` also starts a per-turn event loop after sending queued messages.\n\n- A normal per-turn stream ending is expected: `_turn_event_loop()` exits after consuming the turn’s events and performs end-of-turn cleanup. Its task then finishes successfully, so `_on_task_done()` logs “silent death.” With IDLE or WAITING status, the callback does not mark the turn failed. It publishes turn completion when applicable. These warnings alone do not mean turns were lost.\n\n- Persistent-stream endings are handled inside `_persistent_event_loop()`: an idle stream end is logged as normal; unexpected exhaustion or exceptions trigger reconnect attempts; repeated failures or reconnect failure can finish a RUNNING turn as failed. Those paths generally return normally after handling the problem, so the callback may also emit the warning. Cancellation is ignored by the callback. There is no indication in this warning itself that a user turn was lost.\n\n- The printed status is only the session’s `AgentStatus` when the callback runs. IDLE or WAITING means the session was not marked RUNNING at that instant; it does not explain why the listener ended or independently prove that a turn completed successfully. RUNNING causes `_on_task_done()` to call `_finish_failed_running_turn()`, which sets the session IDLE, records an error, persists the change, and publishes completion.\n\n- The real risk is a listener ending while a turn is still RUNNING: event handling may have stopped before the turn’s completion was observed. The code treats that as a failed turn, but this log line lacks the task type, termination cause, turn identity, and recovery outcome needed to assess impact.\n\n- Evidence: `app/session.py`, especially `_ensure_backend()`, `send()`, `_flush_pending()`, `_persistent_event_loop()`, `_turn_event_loop()`, `_on_task_done()`, and `_finish_failed_running_turn()`. `app/error_watch.py` and `tests/test_error_watch.py` classify IDLE/WAITING messages as normal per-turn listener completion, consistent with this lifecycle.\n\nRecommendation: replace “silent death” with lifecycle-specific logging. Log normal per-turn stream completion at INFO (or omit it); for abnormal termination, include listener mode, session and turn identifiers, prior status, exception or end reason, and whether the turn was failed, reconnected, or recovered. Keep RUNNING termination actionable."
+}

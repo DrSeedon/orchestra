@@ -1,0 +1,1 @@
+{"run_id": "C-S05-sonnet-r2", "judge": "sonnet", "ok": false, "scores": null, "raw": "{\"scores\": [0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5]}\n\nWait, the checklist has six findings. Corrected:\n\n{\"scores\": [0.5, 0.5, 0.5, 0.5, 1, 1]}"}

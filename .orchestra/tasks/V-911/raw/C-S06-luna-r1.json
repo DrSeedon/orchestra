@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S06-luna-r1",
+ "task": "S06",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "1",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 20546,
+ "output_tokens": 1660,
+ "input_tokens": 263494,
+ "cache_read_tokens": 244608,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.0051646800000000005,
+ "seconds": 115.0,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\nThe checkout theory is unsupported by the reported outcome. The checkout failure path in `workspace.merge_worktree_to_main` returns `cannot checkout …` with Git’s stderr. That would be classified as a legacy upstream error, not `NO_COMMITS_MERGED`.\n\nThe reported code means the merge reached a no-op outcome. After `git merge --squash <worker_head>` succeeds, the workspace checks `git diff --cached --quiet`. If there is no staged diff, it returns `ok=True`, `commits_merged=0`, and no new commit. The later target-ref snapshot finds `target_before == target_after`, so the workspace layer changes that result to `ok=False`, `state=failed`, `commit_point=not_reached`, `code=NO_COMMITS_MERGED`, and `error=\"merge produced no new commits\"`. The separate same-tip guard emits the same code earlier, but includes a different error naming both branches.\n\nThus the target ref did not change in this outcome: the workspace explicitly compares its before and after OIDs, and only reports `merged` when they differ. The worker having a commit does not prove that commit would add a diff to the target; the squash can be empty when the target already contains equivalent changes.\n\n`merge_operations.normalize_merge_result` preserves this as a failed Git result and assigns `CHECK_WORKER_THEN_NEW_OPERATION`, explaining “No commits reached the target branch; verify the worker branch before retrying.” That action follows the code, even if the worker’s branch has advanced: the outcome only establishes that this attempt transferred no commits.\n\nSafe fix boundary: investigate or adjust the no-op detection/handling while preserving the invariant that an unchanged target with zero transferred commits cannot be reported as a successful merge or close/finalize a task. Keep target-ref before/after evidence, commit-point accuracy, and the distinct checkout/Git-error path intact.\n\nIndependent check applied: ran the focused normalizer and same-tip workspace tests; both passed (`2 passed`). These confirm the normalization and one no-op refusal path, but do not reproduce the reported empty-squash case."
+}

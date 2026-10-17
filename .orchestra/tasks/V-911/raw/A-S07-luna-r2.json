@@ -1,0 +1,23 @@
+{
+ "run_id": "A-S07-luna-r2",
+ "task": "S07",
+ "kind": "research",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 28571,
+ "output_tokens": 1181,
+ "input_tokens": 212734,
+ "cache_read_tokens": 185344,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.0051829400000000005,
+ "seconds": 20.2,
+ "contamination_flag": true,
+ "final_text": "FINDINGS:\n\n`POST /api/report_bug` writes the report as a private Markdown record using `_publish_bug_record` in `app/routes/system.py`. The response returns its record ID and read URL. There is no notification step: reports remain in the inbox until someone reads `GET /api/report_bug`. The existing test, `test_publish_read_and_private_modes` in `tests/test_api.py`, verifies this write-and-read flow.\n\nThe addressee is usually findable. The MCP `report_bug` tool in `app/mcp_stdio.py` sends `reporter` and `SCOPE` with every request; the endpoint records both. But the HTTP endpoint allows either field to be absent, and `SCOPE` is an environment value, so empty, stale, or incorrect scope must be handled. The report itself is stored under a shared inbox, not a scope-specific location.\n\nReusable pieces exist in `app/notify.py`: `orchestrator_for_scope(scope)` finds a non-archived orchestrator for a scope, and `report_undelivered(...)` demonstrates sending through `session_manager.send`, logging lookup or delivery failures, and reporting when no orchestrator exists. `app/routes/sessions.py` shows the normal send endpoint path; `app/manager.py` has scope-specific lookup logic too. Reuse the lookup and send behavior, but avoid treating an unavailable recipient as successful notification.\n\nOptions include notifying immediately after the report is durably published; recording a pending notification for later delivery; or adding a notification marker to the report/inbox UI. The owner intentionally removed the UI badge, so restoring a badge would conflict with that decision. Recommend a direct message to the scope’s orchestrator after publication, with explicit logging and an observable failure outcome. A durable pending-delivery mechanism is safer if notification loss during process failure is unacceptable, but adds state and retry behavior.\n\nThe plan should cover missing or unknown scope, no orchestrator, multiple orchestrators in a scope, archived or unloaded orchestrators, send failures, and whether retries could create duplicate messages. It should also avoid losing the report if notification fails, avoid recursive notifications, and distinguish “report saved” from “orchestrator notified” in the response or logs. Since the HTTP endpoint accepts caller-provided scope and reporter, treat them as routing metadata rather than trusted identity; validate or resolve scope where possible."
+}

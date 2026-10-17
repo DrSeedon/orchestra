@@ -1,0 +1,23 @@
+{
+ "run_id": "C-S12-luna-r2",
+ "task": "S12",
+ "kind": "research",
+ "arm": "C",
+ "model": "luna",
+ "rep": "2",
+ "stage": "exec",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "note": "",
+ "paid_tokens": 35892,
+ "output_tokens": 1616,
+ "input_tokens": 326500,
+ "cache_read_tokens": 292224,
+ "cache_create_tokens": 0,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.00715784,
+ "seconds": 54.3,
+ "contamination_flag": false,
+ "final_text": "FINDINGS:\n\n- **Real: spawn can leave an orphaned worktree.** `SessionManager.create_session` in `app/manager.py` saves the session row before `create_worktree` returns and before `session.worktree_path` is set. If cancellation or failure occurs after Git creates the worktree but before that path is assigned (including cancellation while awaiting `asyncio.to_thread`), the `BaseException` cleanup may not know what to remove; it then deletes the row. The worktree can be left untracked by the session row. Concurrent spawns also race on the name check and worktree path; the SQLite uniqueness check prevents two rows, but does not prevent both tasks reaching Git setup. **Recommendation:** serialize reservation by session identity and repository/branch, record the worktree path as soon as it is created, and make cleanup/reconciliation cover partial creation. Do not treat cancellation of the awaiting coroutine as proof that the thread stopped.\n\n- **Real: spawn and initial task delivery are separate operations.** `app/mcp_stdio.py:spawn_worker` creates the worker through `/api/sessions`, then separately calls `/send`. Its response correctly reports delivery failure and tells the caller to use `send_message`, so this is not hidden, but a crash or retry between calls leaves a created worker with no initial task. **Recommendation:** make initial task delivery part of an idempotent spawn operation, or persist a pending-delivery state that can be reconciled.\n\n- **Real: `/send` can race lifecycle transitions.** `app/routes/sessions.py:send_message` checks `needs_switch`, switches the branch and persists lifecycle fields without `get_session_lock` or `_lifecycle_lock`. A concurrent merge/switch can operate on the same worktree, or another send can observe stale `needs_switch` and also switch. `AgentSession.send` only acquires the lifecycle lock after this branch operation. **Recommendation:** acquire the same per-session lock and lifecycle lock before checking `needs_switch`, and hold them through git mutation and persistence; use that serialization for sends as well.\n\n- **Merge/switch partial states are real, but their main race is already prevented.** `merge_session` and `switch_branch` in `app/routes/sessions.py` serialize per session and hold `_lifecycle_lock` across Git and `persist_lifecycle`; `test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup` checks the loaded-session wakeup case. However, Git changes precede DB persistence. A persistence exception or cancellation after Git succeeds can leave branch/task/`needs_switch` stale; merge with `next_task_id` can also complete the merge and initial `needs_switch=True` persistence, then fail or cancel during the follow-up switch. `asyncio.to_thread` work may continue after cancellation releases the locks. **Recommendation:** treat these as recoverable multi-step transitions: persist an intent/phase before Git, run the Git operation to completion under a cancellation-safe critical section, then commit final metadata; reconcile interrupted phases on restart. Keep the existing per-session lock plus lifecycle lock ordering consistent.\n\n**Independent check:** the existing lock test above is the observable check for the merge/switch locking claim. I attempted it alongside the send and spawn delivery tests with `pytest -q`; the command produced no output before the 30-second tool limit, so I cannot report a test result. The workspace has no Git metadata, so I could not independently verify file modifications with `git status`."
+}
