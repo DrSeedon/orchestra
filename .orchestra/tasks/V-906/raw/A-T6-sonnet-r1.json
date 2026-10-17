@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T6-sonnet-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 13262,
+ "output_tokens": 1709,
+ "input_tokens": 8,
+ "cache_read_tokens": 34147,
+ "cache_create_tokens": 11545,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0701154,
+ "seconds": 20.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The worktree name drops the per-call occurrence counter. Byte-identical calls therefore get the same worktree path, and concurrent ones collide. Stale directories from earlier runs are not the cause. I read the code and did not run the batch.\n\nEvidence:\n- `WorkflowRuntime._call_key` in `scripts/wf_run.py` (around line 517) returns `f\"{digest}:{occurrence}\"`. The digest is the sha256 of the canonical payload. The occurrence is a per-digest counter that tells apart identical calls, which is how the resume journal tells them apart.\n- In `agent()`, around line 818, the workspace name is `name = f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. `call_key[:12]` is only the first 12 hex characters of the digest. The `:N` occurrence suffix sits after the 64-character digest, so it is cut off.\n- Ten identical calls have the same run_id, the same digest prefix and the same attempt number. They all get the same name, for example `wf-<run>-<digest12>-a0`.\n- `create_worktree` in `app/workspace.py` (lines 573-582) builds `wt_path = WORKTREE_ROOT/<repo_slug>/<name>` and raises `ValueError(\"worktree already exists: …\")` if that path exists. The first call creates the directory. The next call to reach `create_worktree` finds it and aborts the stage. The `repo_mutation_lock` only serializes creation, so it doesn't prevent this. With concurrency 3, the second and third calls hit the first one's live worktree, which `_cleanup_workspace_sync` has not yet discarded.\n- Batches with different prompts have different digests, so their names differ and they work. The \"no leftover worktrees\" and \"not a resume\" observations fit this: the collision happens between sibling calls within the same run.\n\nFix:\n1. Put the occurrence in the name. Take the call key's full suffix, for example `ck = call_key.replace(\":\", \"-\")`, then `name = f\"wf-{self.run_id[:24]}-{ck[:12]}-{occurrence}-a{attempt}\"`. Alternatively, derive a short hash of the whole call_key, `hashlib.sha256(call_key.encode()).hexdigest()[:12]`, so the occurrence is included. Use the same full-key convention as the scratch directory at line 655, which uses `call_key.replace(\":\", \"-\")` and is already unique.\n2. Optionally, make `create_worktree` callers robust by checking for a unique path. The `wt_path.exists()` check is correct as a guard and should stay. The bug is the non-unique name from the caller.\n3. Add a regression test that runs several identical `agent()` calls with `tools=\"all\"` and a workspace repo at concurrency greater than 1, and asserts that the worktree names are distinct."
+}

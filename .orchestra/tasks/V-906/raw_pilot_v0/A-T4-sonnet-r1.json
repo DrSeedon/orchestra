@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T4-sonnet-r1",
+ "task": "T4",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19710,
+ "output_tokens": 1639,
+ "input_tokens": 6,
+ "cache_read_tokens": 30894,
+ "cache_create_tokens": 18065,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0948408,
+ "seconds": 17.8,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `_live_quota_env()` in app/quota_gate.py gives the process environment from startup priority over `.env`. Under systemd that environment already holds the old `QUOTA_GATED_LANES` value, so edits to `.env` are re-read but never used. I found this by reading the code. I did not run the service or reproduce it.\n\nEvidence:\n- At import, `_startup_quota_env = {name: os.environ.get(name) ...}` (line 143) snapshots every `QUOTA_*` variable.\n- In `_live_quota_env()` (lines 191-200), the order of precedence is:\n  1. `_startup_quota_env[name]` if it is not None.\n  2. The `.env` value, only if the startup value is None.\n  3. `_UNSET`.\n- The mtime check does re-parse `.env` into `_dotenv_values` and `_dotenv_quota_keys`. That matches the debug log showing a new mtime and new values. But that parsed data is only a fallback and never reaches the result.\n- Production runs as a systemd unit with `EnvironmentFile=.env`. systemd loads `.env` into the process environment before Python starts, so `QUOTA_GATED_LANES=claude,sol` (or whatever the old value was) is in `os.environ` at import. It is not None, so it wins permanently, and only a restart (which re-reads `EnvironmentFile`) changes it.\n- In a plain local shell the variable is not in `os.environ`, so the startup value is None. The `.env` branch is used and the edit takes effect at once.\n- `app/main.py:381` also calls `load_dotenv()`. It does not override existing variables by default, so it makes no difference here.\n- Related, but not the cause: the module-level constants `GATED_LANES` and `CURVED_LANES` (lines 245-246) are frozen at import. Any caller that uses them instead of `quota_policy().gated_lanes` would also keep the old value after an edit. Other values in `.env` are affected the same way as `QUOTA_GATED_LANES`, because they go through the same precedence.\n\nEmpty-value handling is not the problem. `_parse_lanes(\"\")` correctly returns `frozenset()`, and an empty startup string is not None, so it also takes precedence.\n\nFix:\n1. Make `.env` win over the startup snapshot for the keys the file defines. In `_live_quota_env()`, check `name in _dotenv_quota_keys` first and use `_dotenv_values[name]`. Fall back to `_startup_quota_env`, then `_UNSET`. This keeps the rule that a real override from outside `.env` still works when `.env` does not define the key.\n2. If an explicit environment variable should still beat `.env`, record at startup which values came from the `EnvironmentFile`. For example, drop `QUOTA_*` from the systemd `EnvironmentFile`, or use a separate file for the quota settings that the app reads directly.\n3. Delete or replace the frozen `GATED_LANES` and `CURVED_LANES` constants, or make every caller use `quota_policy()`.\n4. Add a test that sets `os.environ[\"QUOTA_GATED_LANES\"]` before import, edits `.env`, and expects the new value. The existing tests/test_quota_gate.py appears to clear these variables, so it would not catch this.\n\nShort-term workaround: restart the service after editing `.env`."
+}

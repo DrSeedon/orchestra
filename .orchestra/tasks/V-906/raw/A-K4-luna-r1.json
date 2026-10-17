@@ -1,0 +1,26 @@
+{
+ "run_id": "A-K4-luna-r1",
+ "task": "K4",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 10349,
+ "output_tokens": 427,
+ "input_tokens": 60354,
+ "cache_read_tokens": 50432,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.00171002,
+ "seconds": 9.6,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'rg -n \"SOURCE_PROVENANCE_REQUIRED|dashboard|sender|operator|scope|message\" app/routes/sessions.py app/auth.py'",
+  "/bin/bash -lc \"sed -n '1,115p' app/auth.py; sed -n '165,205p' app/routes/sessions.py; sed -n '680,740p' app/routes/sessions.py; sed -n '895,940p' app/routes/sessions.py; rg -n \\\"DASHBOARD_USER|DASHBOARD_PASSWORD|operator_session|dashboard auth|dashboard.*auth\\\" app/auth.py app\""
+ ],
+ "final_text": "CAUSE: `/api/sessions/{name}/send` treats a dashboard operator as authenticated only when `validate_session()` accepts the session cookie. With both dashboard credentials empty, `app/auth.py:is_auth_enabled()` says authorization is off, but `validate_session()` returns `False` whenever either credential is empty. The frontend sends `{message, scope}` with no `sender` or session cookie, so `app/routes/sessions.py:send_message` rejects the request with `SOURCE_PROVENANCE_REQUIRED`.\n\nRecommended fix: in `send_message`, recognize an unauthenticated dashboard operator when `is_auth_enabled()` is false, while preserving sender and valid-session checks when authorization is enabled. This aligns chat provenance with the configured no-auth mode."
+}

@@ -1,0 +1,33 @@
+{
+ "run_id": "R-T5-luna-r2",
+ "task": "T5",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 29691,
+ "output_tokens": 2688,
+ "input_tokens": 296443,
+ "cache_read_tokens": 269440,
+ "cache_create_tokens": 0,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.006738700000000001,
+ "seconds": 31.4,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"listen task exited unexpectedly|Turn failed before an explicit report|while RUNNING|listener\" app/session.py app/session_turns.py'",
+  "/bin/bash -lc \"sed -n '2280,2505p' app/session.py && sed -n '2840,2920p' app/session.py && rg -n \\\"finish_failed_running_turn|listen_task|listener_task|_listen\\\" app/session.py app/session_turns.py\"",
+  "/bin/bash -lc \"rg -n \\\"report_abnormal_end|Turn failed before an explicit report|publish_turn_finished|turn_end|rate_limit|auto_continue\\\" app/session_turns.py app/session.py && sed -n '1,260p' app/session_turns.py && sed -n '2480,2660p' app/session.py\"",
+  "/bin/bash -lc \"sed -n '2600,2755p' app/session.py && sed -n '285,325p' app/session_turns.py && sed -n '380,465p' app/session_turns.py && sed -n '3610,3745p' app/session.py && rg -n \\\"class .*Codex|active_turn_id|async def events\\\" app\"",
+  "/bin/bash -lc \"sed -n '1560,1705p' app/session.py && sed -n '2160,2220p' app/session.py && sed -n '480,550p' app/session_turns.py && sed -n '826,880p' app/backend_codex.py\"",
+  "/bin/bash -lc 'rg -n \"listen task exited unexpectedly|on_task_done|turn_event_loop|mailbox: .*продолжаю|Codex listener\" tests app'",
+  "/bin/bash -lc \"cat tests/test_listen_task_done_648.py && sed -n '1660,1715p' tests/test_message_delivery_receipts_380.py && sed -n '530,580p' app/session_turns.py && rg -n \\\"_deliver_mailbox\\\" app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '573,650p' app/session_turns.py && sed -n '1340,1370p' app/session.py && sed -n '1,90p' app/session_state.py &&\"",
+  "/bin/bash -lc \"sed -n '573,650p' app/session_turns.py; sed -n '1340,1370p' app/session.py;\""
+ ],
+ "final_text": "CAUSE: The false verdict is a listener-task callback race, not evidence that Codex crashed when quota ran out.\n\nIn app/session.py, _on_task_done treats a completed listener as a silent death whenever it is still self._listen_task and the shared session status is RUNNING. But RUNNING can already describe the next turn. After a normal turn_end, app/session_turns.py handles the end, claims mailbox messages, and starts _deliver_mailbox in the background. That path calls send() to continue work. send() sets the session RUNNING before its awaited provider submission finishes and before it assigns the new listener task. If the old listener’s done callback runs in that interval, its identity check still passes and it falsely fails the new turn.\n\nThe resulting _finish_failed_running_turn call logs the verdict, changes the worker to IDLE, and calls report_abnormal_end(), which explains the automatic “Turn failed before an explicit report” message. A subsequent mailbox event can start a new turn, matching the observed recovery. Quota exhaustion may coincide with this sequence, but the callback’s decision depends on shared status and task identity, not quota state.\n\nI did not reproduce the exact observed row sequence from this snapshot. The code supports the race explanation, but that specific sequence remains unverified.\n\nRecommended fix: associate each listener task with the turn generation or provider turn ID it serves. In _on_task_done, only fail the session if that listener still belongs to the current turn; do not infer that from RUNNING alone. Keep the existing task identity check as a stale-task guard."
+}

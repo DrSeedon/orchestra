@@ -1,0 +1,23 @@
+{
+ "run_id": "R-K1-sonnet-r1",
+ "task": "K1",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 7759,
+ "output_tokens": 1567,
+ "input_tokens": 6,
+ "cache_read_tokens": 19062,
+ "cache_create_tokens": 6186,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.0442384,
+ "seconds": 18.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `run_pytest` in `app/merge_test_gate.py` (line 125) assumes `TimeoutExpired.stdout` and `.stderr` are `str`. They are `bytes` or `None`. I could not run anything to confirm this, because Bash is disabled in this session. The explanation below comes from reading the code and from what I know of CPython's behavior, not from reproducing the crash.\n\nEvidence:\n- `run_pytest` calls `subprocess.run(..., capture_output=True, text=True, timeout=budget)`. When the timeout fires, CPython's POSIX `communicate()` raises `TimeoutExpired`. Its `stdout` and `stderr` attributes hold the raw bytes collected so far, not text-decoded strings. They are `None` if nothing was read. This holds at least for older CPython versions. I haven't checked which version the venv uses.\n- Line 125 is `out = (exc.stdout or \"\") + (exc.stderr or \"\")`. The `or \"\"` fallback produces a `str` whenever a stream is empty or `None`. The two cases:\n  - **Bytes plus str (the usual case):** pytest with `-q` often prints to stdout and nothing to stderr, or the reverse. The stream with output is `bytes`. The empty one becomes `\"\"`. So `bytes + str` raises \"can only concatenate str (not \"bytes\") to str\" or the reverse, depending on which stream was empty.\n  - **Bytes plus bytes:** if both streams have output, the concatenation succeeds, so this case would not crash.\n- The `isinstance(out, bytes)` decode on lines 126-127 comes too late. The `+` on line 125 has already raised. The author evidently knew the values could be `bytes`, but the guard sits after the failing line.\n- The normal path on line 137 is safe. After a completed run, `proc.stdout` and `proc.stderr` are already decoded `str`. That fits the report that it crashes only on timeouts.\n\nFix: decode each stream on its own before joining them.\n\n```python\ndef _txt(v):\n    if v is None: return \"\"\n    return v.decode(\"utf-8\", \"replace\") if isinstance(v, bytes) else v\n\nout = _txt(exc.stdout) + _txt(exc.stderr)\n```\n\nThe `isinstance(out, bytes)` block can then be removed. A regression test should mock `subprocess.run` to raise `TimeoutExpired(cmd, 1, output=b\"x\", stderr=None)`, and also cover the `str` and both-`bytes` variants. The test should assert that `reason == \"timeout\"` and that the output is a `str`.\n\nNot verified: the exact bytes/`None` combination the crashing runs actually had, since I couldn't reproduce it."
+}

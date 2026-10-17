@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T6-sonnet-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 15887,
+ "output_tokens": 2069,
+ "input_tokens": 8,
+ "cache_read_tokens": 31210,
+ "cache_create_tokens": 13810,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.08218800000000001,
+ "seconds": 20.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The workspace name for each agent call is built from `call_key[:12]`. That slice cuts off the occurrence suffix, so byte-identical calls get the same worktree name and path.\n\nEvidence:\n- `WorkflowRuntime._call_key` in `scripts/wf_run.py:517-523` builds the key as `f\"{sha256(payload)}:{occurrence}\"`. The occurrence counter is what tells identical calls apart (`:0`, `:1`, ... `:9`).\n- `_run_attempt` (`scripts/wf_run.py:818`) builds the name as `f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. A sha256 hex digest is 64 characters, so `call_key[:12]` is only the first 12 hex characters of the digest. The `:occurrence` part is never included.\n- For 10 identical prompts, `run_id`, the 12-character digest prefix and the attempt are all the same, so all 10 calls produce the same name, for example `wf-<run>-<digest12>-a0`.\n- `_prepare_workspace_sync` passes that name to `app.workspace.create_worktree`. That function sets `wt_path = WORKTREE_ROOT/<repo_slug>/<name>`. When `wt_path.exists()` is true it raises `ValueError(\"worktree already exists: ... Remove session first.\")` (`app/workspace.py:573-582`). The branch is `feat/<slug>/<name>`, so it collides in the same way.\n- Prompts that differ give different digests and so different names. That matches your observation.\n- Concurrency 3 means calls 2 and 3 start while call 1's worktree is still live, so they hit the existing path. The tool's `repo_mutation_lock` serialises creation but doesn't stop the second creation from seeing the first one's directory.\n- A fresh run directory and an empty `git worktree list` don't matter. The collision is between calls inside the same run, not leftovers from an earlier one.\n- Nothing catches the `ValueError`. It escapes `_prepare_workspace_sync` and the `except BaseException` branch in `_run_attempt` re-raises it, so the whole stage aborts.\n- The archive path at `scripts/wf_run.py:857` uses the full `call_key` (with `:` replaced by `-`). That is why only the worktree name collides and the archive path doesn't.\n\nI read the code but did not run a reproduction.\n\nRecommended fix:\n1. Make the name unique per call. Include the occurrence, for example `ck = call_key.replace(\":\", \"-\")` and `name = f\"wf-{self.run_id[:24]}-{ck[:12]}-o{occurrence}-a{attempt}\"`. Alternatively, use a short hash of the entire `call_key`, such as `sha256(call_key)[:16]`. The name must be a pure function of the full `call_key` plus the attempt, so a resume stays deterministic.\n2. Optionally add a regression test: launch 10 identical `agent()` calls at concurrency 3 with a fake adapter and assert that the worktree names are distinct.\n3. Leave `create_worktree`'s existence check as it is. It is a correct guard, and the bug is that the caller supplies a non-unique name."
+}

@@ -1,0 +1,28 @@
+{
+ "run_id": "A-T5-luna-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 22703,
+ "output_tokens": 713,
+ "input_tokens": 109158,
+ "cache_read_tokens": 87168,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00342718,
+ "seconds": 11.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"listen task exited unexpectedly|Turn failed before an explicit report|listen task|RUNNING\" app/session.py app/session_turns.py'",
+  "/bin/bash -lc \"sed -n '2260,2435p' app/session.py && sed -n '2820,2970p' app/session.py && rg -n \\\"listen|turn ended|explicit report|failed before|session_turn\\\" app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '1,220p' app/session_turns.py && sed -n '2430,2580p' app/session.py && rg -n \\\"publish_turn_finished|status = AgentStatus.IDLE|turn FAILED|rate_limit|report_abnormal_end\\\" app/session_turns.py app/session.py\"",
+  "/bin/bash -lc \"sed -n '385,525p' app/session_turns.py && sed -n '2600,2765p' app/session.py && rg -n \\\"_on_task_done|turn_event_loop|per_turn|end_turn\\\" tests app\""
+ ],
+ "final_text": "CAUSE: `_on_task_done` in `app/session.py` treats every per-turn listener task that returns while `status == RUNNING` as a silent death. That assumes the session stays RUNNING until the callback runs.\n\nBut `TurnManager.handle_turn_end()` in `app/session_turns.py` logs `turn ended` and calls `finish_turn_status()`, which sets IDLE and publishes completion. A queued message can start another turn before the old task’s done callback runs. The callback then sees the *new* turn’s RUNNING status and falsely calls `_finish_failed_running_turn()`. That marks the worker IDLE and triggers `report_abnormal_end()`, explaining the automatic failure report and why the worker can start again immediately.\n\nThe ordering in the second excerpt, where the listener error appears before the user-message row despite its later timestamp, is consistent with asynchronous logging and does not establish which turn the callback belongs to. Quota exhaustion can produce failed `turn_end` events, but it does not explain this false verdict.\n\nRecommended fix: bind each listener task to the turn generation it serves, and only classify its return as unexpected if that same generation is still active and RUNNING. Alternatively, finalize the turn synchronously in the listener loop before it returns, while ensuring queued turns cannot be mistaken for the completed listener’s turn."
+}

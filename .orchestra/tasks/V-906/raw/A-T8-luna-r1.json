@@ -1,0 +1,28 @@
+{
+ "run_id": "A-T8-luna-r1",
+ "task": "T8",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 18153,
+ "output_tokens": 935,
+ "input_tokens": 101954,
+ "cache_read_tokens": 84736,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0030366600000000005,
+ "seconds": 20.8,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"wait_for|shield|timeout|subprocess|bash\" app/harness/tools.py app/harness'",
+  "/bin/bash -lc \"sed -n '1,210p' app/harness/tools.py && rg -n \\\"bash\\\\(|dispatch_tool|wait_for\\\\(.*shield|shield\\\\(\\\" tests app\"",
+  "/bin/bash -lc \"sed -n '180,290p' app/bg_jobs.py && sed -n '300,370p' app/bg_jobs.py && sed -n '1,100p' tests/test_bash_completion.py\"",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport asyncio, tempfile, time\nfrom app.harness.tools import bash\nasync def main():\n  t=time.monotonic()\n  try:\n    r=await asyncio.wait_for(bash(\\\"setsid sleep 20 & echo ready\\\", tempfile.gettempdir(), timeout=1), timeout=5"
+ ],
+ "final_text": "CAUSE: The hang occurs after the timeout, when `bash()` waits for `reader` to finish. `asyncio.wait_for(asyncio.shield(reader), timeout=...)` does enforce the timeout; shielding keeps `proc.communicate()` running after the timeout. In `app/harness/tools.py`, the timeout handler calls `_kill_proc(proc)` and then unconditionally awaits `reader`. If a child escapes the process group but inherits stdout, killing the group does not close the pipe, so `communicate()` never finishes and the harness call hangs.\n\nEvidence: I reproduced it with `setsid sleep 20 & echo ready` and a one-second tool timeout; the call was still pending after five seconds. The cleanup path is in `app/bg_jobs.py`: `_cleanup_pidfd_group()` signals the owned process group, which cannot kill a child that has moved to another session.\n\nRecommended fix: bound the post-kill drain, then cancel and reap the reader if the pipe remains open. Also ensure cancellation cleanup cannot wait indefinitely on inherited pipe handles."
+}

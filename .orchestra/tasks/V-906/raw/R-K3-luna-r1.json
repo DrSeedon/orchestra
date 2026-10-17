@@ -1,0 +1,29 @@
+{
+ "run_id": "R-K3-luna-r1",
+ "task": "K3",
+ "group": "K",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16985,
+ "output_tokens": 1193,
+ "input_tokens": 134320,
+ "cache_read_tokens": 118528,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.00336098,
+ "seconds": 16.6,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"sed -n '1,260p' app/bg_jobs.py && rg -n \\\"timer|expired|delay_seconds|bg_create\\\" tests app\"",
+  "/bin/bash -lc \"rg -n \\\"MAX_TIMER_TIMEOUT|delay_seconds|sleep\\\\(|timeout_seconds|expires_at|_timer\\\" app/bg_jobs.py\"",
+  "/bin/bash -lc \"sed -n '320,475p' app/bg_jobs.py; sed -n '530,580p' app/bg_jobs.py; sed -n '800,830p' app/bg_jobs.py; rg -n \\\"MAX_TIMER_TIMEOUT|8 \\\\* 86400|864000|delay_seconds.*3|timer.*8\\\" tests/test_bg_jobs.py\"",
+  "/bin/bash -lc \"rg -n \\\"_expire\\\\(|bg_expire_overdue|expire_overdue|_cleanup|expires_at\\\" app/bg_jobs.py tests/test_bg_jobs.py\"",
+  "/bin/bash -lc \"sed -n '510,535p' app/bg_jobs.py; sed -n '660,680p' app/bg_jobs.py; sed -n '80,145p' tests/test_bg_jobs.py\""
+ ],
+ "final_text": "CAUSE: Таймеры ограничены сроком жизни в 8 дней. Для задержки 864000 секунд (10 дней) `BgJobManager.create` сначала вычисляет таймаут как минимум `delay_seconds + 3600`, затем ограничивает его через `min(timeout_seconds, MAX_TIMER_TIMEOUT)`; `MAX_TIMER_TIMEOUT` в `app/bg_jobs.py` равен `8 * 86400`. Поэтому срок жизни задачи — 691200 секунд, а срабатывание запланировано на 864000 секунд.\n\nВ `BgJobManager._start_task` таймер продолжает ждать до исходной задержки. Но при восстановлении `restore_from_db` истёкший срок приводит к `bg_expire_job`, а активная задача может быть отменена при очистке просроченных задач. Значит, задача истекает за два дня до своего срабатывания и не будит адресата. Задержки до трёх дней укладываются в восьмидневный предел.\n\nВоспроизведение расчёта по логике `create`: при `delay_seconds=864000` получаются `expires_at = now + 691200 секунд` и `trigger_at = now + 864000 секунд`. Это подтверждает причину несовпадением сроков; полного ожидания десяти дней в реальном цикле я не запускал.\n\nРекомендация: для таймеров гарантировать срок жизни не меньше задержки плюс запас — например, убрать восьмидневное ограничение для `timer` либо увеличить `MAX_TIMER_TIMEOUT` так, чтобы он покрывал допустимые задержки."
+}

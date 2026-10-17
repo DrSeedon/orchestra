@@ -1,0 +1,29 @@
+{
+ "run_id": "R-T8-luna-r2",
+ "task": "T8",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16888,
+ "output_tokens": 1071,
+ "input_tokens": 147017,
+ "cache_read_tokens": 131200,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0034292,
+ "seconds": 24.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"wait_for|shield|timeout|subprocess|create_subprocess\" app/harness/tools.py app/harness tests'",
+  "/bin/bash -lc \"sed -n '1,210p' app/harness/tools.py && rg -n \\\"async def bash|BASH_MAX_TIMEOUT|TERM_GRACE|communicate\\\\(\\\" tests/test* harness\"",
+  "/bin/bash -lc 'rg -n \"def _spawn_bg_process|def _kill_proc|pidfd|start_new_session|process_group\" app/bg_jobs.py tests/test_bg_jobs.py'",
+  "/bin/bash -lc \"sed -n '180,310p' app/bg_jobs.py && sed -n '300,470p' tests/test_bg_jobs.py\"",
+  "/bin/bash -lc \"mkdir -p scratch && PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport asyncio, time\nfrom app.harness.tools import bash\nasync def main():\n    t=time.monotonic()\n    try:\n        result=await asyncio.wait_for(bash(\\\"setsid sh -c 'sleep 60' & sleep 60\\\", '.', timeout=1)"
+ ],
+ "final_text": "CAUSE: The hang occurs when a command starts a detached descendant that inherits the captured stdout pipe. The timeout itself fires; the hang is afterward, while `bash()` waits for `proc.communicate()` to reach EOF.\n\nEvidence: `app/harness/tools.py`, `bash()`, wraps `reader = proc.communicate()` in `wait_for(shield(reader), ...)`. On timeout it kills the process group with `_kill_proc(proc)`, then awaits `reader` without a deadline. In `app/bg_jobs.py`, `_spawn_bg_process()` starts a new session, and `_kill_proc()` cleans up that session’s process group. A descendant that calls `setsid()` escapes that group but can keep the inherited pipe open.\n\nI reproduced the hang with `setsid sh -c 'sleep 60' & sleep 60` and a one-second harness timeout: `bash()` had not returned after eight seconds. The teammate’s `wait_for`/`shield` guess is therefore incomplete: that combination does not prevent the timeout from firing; the unbounded post-kill `await reader` causes the observed hang.\n\nRecommended fix: make post-timeout pipe draining bounded. After killing the owned group, wait briefly for `reader`; if EOF does not arrive, cancel the reader and close the subprocess pipe/transport so the tool returns."
+}

@@ -1,0 +1,30 @@
+{
+ "run_id": "A-T6-luna-r2",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 21701,
+ "output_tokens": 981,
+ "input_tokens": 186864,
+ "cache_read_tokens": 166144,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.004223940000000001,
+ "seconds": 17.6,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"worktree|dynamic_workflow|wf_run|workspace|ValueError\" scripts app'",
+  "/bin/bash -lc \"sed -n '1,260p' scripts/wf_run.py; rg -n \\\"def create_worktree|worktree already exists|already exists|slugify|prompt.*hash|hash.*prompt\\\" app\"",
+  "/bin/bash -lc \"sed -n '520,630p' app/workspace.py; rg -n \\\"create_worktree|workspace.*name|task_id|run_id|value_id|agent.*call|fan.?out|concurrency\\\" scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '320,435p' scripts/wf_run.py; sed -n '740,925p' scripts/wf_run.py; rg -n \\\"def _call_key|call_key|call_id|prompt_hash|sha256\\\" scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '510,610p' scripts/wf_run.py; sed -n '580,750p' scripts/wf_run.py\"",
+  "/bin/bash -lc \"nl -ba scripts/wf_run.py | sed -n '517,528p;810,824p'; nl -ba app/workspace.py | sed -n '561,584p';\""
+ ],
+ "final_text": "CAUSE: `wf_run.py` removes the part that distinguishes identical calls when it names their worktrees. `_call_key()` gives each identical payload the same SHA-256 digest plus a different occurrence number (`digest:0`, `digest:1`, etc.; lines 517–523). But `_run_attempt()` names worktrees using only `call_key[:12]` (line 818). For identical calls, that prefix is the same, so concurrent attempts try to create the same worktree path. In `app/workspace.py`, `create_worktree()` raises `ValueError` when that path already exists (lines 561–582). Different prompts produce different digests, so their names differ.\n\nThe cause is a name collision within the new batch, not stale worktrees from earlier runs. Recommend including the occurrence number in the worktree name, or deriving the name from the full unique call key, while keeping it within any branch-name length limits."
+}

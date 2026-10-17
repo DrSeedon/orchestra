@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T3-sonnet-r2",
+ "task": "T3",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 14669,
+ "output_tokens": 2649,
+ "input_tokens": 16,
+ "cache_read_tokens": 82285,
+ "cache_create_tokens": 12004,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.09099499999999999,
+ "seconds": 31.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The teammate's guess is wrong. The live database doesn't need a migration. The `codex_review` MCP subprocess opens a different database from the live server's, and that other file is the one that's out of date.\n\n**Evidence**\n- `app/db.py`: `DB_PATH = _resolve_db_path()` is evaluated at import time. It uses `ORCHESTRA_DB_PATH` if that variable is set. Otherwise it falls back to `data/orchestra.db` in the checkout.\n- `app/db.py:init_db()` reads `PRAGMA user_version`. It raises `database schema needs offline migration before starting Orchestra` if the version isn't `SCHEMA_VERSION` (1) and the file already has tables, or has a nonzero version. This is a check on whichever file `DB_PATH` points to.\n- `app/mcp_stdio.py`, in the `codex_review` tool (~line 4023), calls `init_db()` inside the `mcp_stdio.py` subprocess. That is where the exception comes from.\n- `app/runtime_env.py`: `MCP_BASE_ENV` forwards only `PYTHONPATH`, `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` and `INTERNAL_TOKEN`. It does not forward `ORCHESTRA_DB_PATH`.\n- `app/manager.py:_make_mcp_config` (~line 363) builds the subprocess env from `MCP_BASE_ENV` plus `ORCHESTRA_*` keys. `ORCHESTRA_DB_PATH` isn't among them.\n- Together, these mean the live server uses its own migrated database (migrated 11 Sept). The MCP child never receives that variable, so it resolves to the checkout's `data/orchestra.db`. That file has tables but a `user_version` that doesn't match, so `init_db()` raises.\n\nI did not open `data/orchestra.db` to confirm its `user_version`. The Read tool refused the binary file, and I made no other attempt to inspect it. The conclusion rests on the code path.\n\n**Why it started on 12 September**\nNothing in the review code changed. The most likely trigger is that the `init_db()` call (or the schema-version check) became reachable in the MCP process around then. Another is that the service was restarted with `ORCHESTRA_DB_PATH` set in its environment. I can't tell which from this snapshot, because it has no history. It also affects every project because the env is built the same way for all of them.\n\n**Recommended fix**\n1. Add `ORCHESTRA_DB_PATH` to the forwarded keys in `app/runtime_env.py`, next to `INTERNAL_TOKEN`. The MCP child then opens the same database as the server.\n2. Better still, have `codex_review` stop calling `init_db()` in the child. The server owns the schema, and the child could reach it through the API.\n3. Don't run the offline migration on the live database. As a separate cleanup, migrate or retire the stale `data/orchestra.db` so a missing env var can't silently point at it again.\n4. As a quick workaround, set `ORCHESTRA_DB_PATH` in the service environment and make sure it reaches the MCP config. Then restart the sessions, since old `mcp_stdio` processes keep running until they reconnect."
+}

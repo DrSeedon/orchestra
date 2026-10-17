@@ -1,0 +1,23 @@
+{
+ "run_id": "R-K1-sonnet-r2",
+ "task": "K1",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 7858,
+ "output_tokens": 1844,
+ "input_tokens": 6,
+ "cache_read_tokens": 19062,
+ "cache_create_tokens": 6008,
+ "turns": 3,
+ "cost_usd_api_equiv": 0.0462964,
+ "seconds": 20.3,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `run_pytest` assumes `TimeoutExpired.stdout` and `.stderr` are `str`. When `text=True` is set, CPython can still give `bytes` on a timeout. The code then concatenates a `bytes` value with the `\"\"` fallback. I could not run anything, so I have not reproduced this.\n\nEvidence (read from the code only):\n- `app/merge_test_gate.py`, `run_pytest`, lines 110-118: `subprocess.run(..., capture_output=True, text=True, timeout=budget)`.\n- Line 125, in the `except subprocess.TimeoutExpired as exc:` branch: `out = (exc.stdout or \"\") + (exc.stderr or \"\")`.\n- On a normal finish, `run()` returns `proc.stdout` and `proc.stderr` already decoded to `str`. That is why the crash happens only on timeouts.\n- On a timeout, my understanding of CPython is that `communicate()` raises `TimeoutExpired` with the raw collected pipe data. On POSIX that data is `bytes` (`b\"\".join(chunks)`), even with `text=True`. I'm going from memory of CPython here and haven't checked the interpreter's source or behaviour. The type can also be `None`, or differ between Python versions.\n- The `or \"\"` fallback turns an empty or `None` stream into a `str`. pytest `-q` normally writes only to stdout, so stderr is usually empty. That gives `bytes + \"\"`, which raises `can't concat str to bytes`. If stdout is empty (killed before any output) and stderr has data, you get `\"\" + bytes`. That is the traceback you quoted: `can only concatenate str (not \"bytes\") to str`. If both streams hold bytes, the concatenation works and no crash occurs. So the crash depends on which stream is empty, which fits \"bytes + str or the reverse\".\n- The `isinstance(out, bytes)` decode at lines 126-127 comes after the failing line, so it never runs. It only helps if both streams are non-empty bytes.\n\nI did not reproduce this because Bash is disabled here. I could not run a short sleeping child process with `text=True, timeout=1` to check the exception attribute types on the venv's Python. Treat the exact types per stream and Python version as a hypothesis that fits the traceback, not a confirmed result.\n\nRecommended fix: normalize each stream separately before concatenating.\n\n```python\ndef _s(v):\n    if v is None: return \"\"\n    return v.decode(\"utf-8\", \"replace\") if isinstance(v, bytes) else v\nout = _s(exc.stdout) + _s(exc.stderr)\n```\n\nAdd a regression test in `tests/` that monkeypatches `subprocess.run` to raise `TimeoutExpired` with `output=b\"x\"` and `stderr=None` (or `b\"\"`), and the reverse. Then run a real short timeout with a sleeping child process to confirm the types."
+}

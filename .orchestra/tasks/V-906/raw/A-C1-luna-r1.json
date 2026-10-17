@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C1-luna-r1",
+ "task": "C1",
+ "group": "C",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 2074,
+ "output_tokens": 249,
+ "input_tokens": 15905,
+ "cache_read_tokens": 14080,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0004478,
+ "seconds": 6.7,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "[Opening: Show an AI agent chatting as the conversation grows into a long scroll.]\nAn AI agent can work with you through a long conversation, building up context as it goes.\n\n[Show the scroll pressing against the edge of a frame.]\nBut the model can only take in so much conversation at once. That limit is called its window.\n\n[Show the long scroll folding into a short note.]\nWhen the conversation gets too big, it’s compressed into a summary. The agent carries on using that summary as its starting point.\n\n[Show a few details fading away as the note is written.]\nThat helps the work continue, but there’s a catch: details that don’t make it into the summary are gone. The agent may forget a decision, a reason, or a small detail you expected it to remember.\n\n[Show someone asking the agent about earlier work, then checking its answer.]\nSo a good summary needs a check. Ask the agent questions about the earlier work. If it can answer accurately, the summary is carrying the important details forward.\n\n[Closing: The agent continues with the summary beside it.]\nA summary is how an agent keeps going after a long session. Checking it helps make sure the right things came along."
+}

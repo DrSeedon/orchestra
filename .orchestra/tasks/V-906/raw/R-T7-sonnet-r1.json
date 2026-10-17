@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T7-sonnet-r1",
+ "task": "T7",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 55381,
+ "output_tokens": 9914,
+ "input_tokens": 46,
+ "cache_read_tokens": 636722,
+ "cache_create_tokens": 45421,
+ "turns": 30,
+ "cost_usd_api_equiv": 0.4082604,
+ "seconds": 102.8,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Not fully established. I located the failing call but could not reproduce the \"retry always fails\" part.\n\n**Where the error comes from (confirmed by reading the code)**\n- `AgentSession._change_runtime_chat_locked` (app/session.py:3394-3413) wraps `_drain_persist()` and `_disconnect_backend()` in one `try`. Any exception from them becomes `error_code: text_tail_source_release_failed`. The UI then shows \"dialog switch blocked; source retained\" (app/static/js/app.js:2618).\n- `_drain_persist` (session.py:4125) uses `gather(..., return_exceptions=True)`, so it can't raise. The exception must come from `_disconnect_backend` (session.py:4054).\n- `_disconnect_backend` awaits `backend.disconnect()` first. If that raises, it never clears `self._backend`, and it skips cancelling the heartbeat and listen tasks. This is deliberate fail-closed behaviour, pinned by `test_disconnect_failure_retains_backend_and_lifecycle_tasks` (tests/test_session.py:4093).\n- For a Claude orchestrator, `ClaudeBackend.disconnect` (app/backend_claude.py:1160-1172) calls `client.disconnect()` on the SDK client. It logs and re-raises any exception, and `finally` clears `_client` and the MCP config. `test_disconnect_failure_propagates_after_local_cleanup` (tests/test_backend_claude.py:314) pins this too.\n- Most likely, `client.disconnect()` raises because the CLI process is already dead, so the transport or query teardown fails. I couldn't confirm the exception type or message: Bash is disabled, so I couldn't run anything, and I did not read the SDK source.\n\n**What I couldn't explain**\n- By my reading, a second call should not fail the same way. After the first failure `ClaudeBackend._client` is `None`, so a second `disconnect()` would do nothing and the switch would proceed.\n- Since you say retries always fail, something must be putting a client back or making teardown raise each time. My best guess is the retained listen task, `_persistent_event_loop`. It keeps running on the dead backend and calls `_reconnect_backend` → `ClaudeBackend.reconnect`, which builds a new client. A later `disconnect()` on that half-connected client could raise again.\n- That guess is untested. I also found no code that checks whether the Claude process is alive. `is_alive` and `process_liveness` exist only for Codex and Grok (runtime_registry.py:348, 363).\n- I wrote a repro at scratch/repro.py (real `ClaudeBackend` with a failing mock client, three consecutive `change_model` calls). It has never been run.\n\n**Recommended fix**\n1. In `_disconnect_backend` and the switch paths, treat a backend whose process is already gone as released. Catch the teardown error, log it, and drop `self._backend` and the tasks instead of leaving them retained. Add an `is_alive` check for Claude. Keep fail-closed behaviour only when the process is still alive.\n2. Cancel and await the listen and heartbeat tasks before calling `backend.disconnect()`, so a listener can't recreate a client mid-teardown.\n3. Run scratch/repro.py to confirm which of these actually makes the retry fail."
+}

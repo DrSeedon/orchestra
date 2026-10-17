@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T6-sonnet-r2",
+ "task": "T6",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 17515,
+ "output_tokens": 1996,
+ "input_tokens": 12,
+ "cache_read_tokens": 64015,
+ "cache_create_tokens": 15507,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.09481500000000001,
+ "seconds": 24.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: Identical calls get the same worktree name. The name is built from a truncated call key that drops the part that tells identical calls apart. Stale worktrees from earlier runs are not the cause. I found this by reading the code. I did not run the batch.\n\nEvidence:\n- `WorkflowRuntime._call_key` in scripts/wf_run.py (around line 517) returns `f\"{sha256(payload)}:{occurrence}\"`. The occurrence counter is the only thing that separates byte-identical calls.\n- `_run_attempt` (around line 818) builds the workspace name as `f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. The `[:12]` slice keeps only the first 12 characters of the sha256 hex digest. The `:N` occurrence suffix is cut off.\n- With the same prompt and options, all 10 calls produce the same digest prefix. They also share the run id and attempt number, so they get the same name, such as `wf-<run>-<digest12>-a1`.\n- `create_worktree` in app/workspace.py (lines 573 and 581-582) sets `wt_path = WORKTREE_ROOT/<repo_slug>/<name>`. If that path exists, it raises `ValueError(\"worktree already exists: ...\")`.\n- Concurrency 3 makes the collision happen. The first three calls start together. The first creates the worktree and the next two hit the existing path. `repo_mutation_lock` only serializes them. It does not give them different names.\n- Prompts that differ give different digests, so the names differ and no batch fails. That matches what you saw.\n- The scratch directory is not affected. It uses `call_key.replace(\":\", \"-\")`, which keeps the occurrence, so that part already separates identical calls.\n\nWhy the teammate's guess doesn't fit: `git worktree list` was clean and the run directory was fresh. The collision is among the new worktrees of this one batch. Any stale directory would need the same run id as well, and that doesn't apply to a fresh run.\n\nRecommended fix:\n1. In `_run_attempt`, build the name from the full call key with the occurrence kept. For example, use `call_key.replace(\":\", \"-\")` with a hash, or `f\"{digest[:12]}-o{occurrence}\"`. Keep it short enough for path and branch length limits. The branch is `feat/<slug>/<name>`.\n2. Do not rely on `create_worktree` raising to detect duplicates. Journal the full call key next to the name so resume still maps a call to its workspace. A resumed run must regenerate the same name for the same call, and the occurrence counter is already deterministic.\n3. Add a regression test that runs 10 identical `agent()` calls at concurrency 3 with a workspace and asserts that all worktree names are unique."
+}

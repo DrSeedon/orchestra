@@ -1,0 +1,30 @@
+{
+ "run_id": "R-T8-luna-r1",
+ "task": "T8",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 12082,
+ "output_tokens": 1160,
+ "input_tokens": 144298,
+ "cache_read_tokens": 133376,
+ "cache_create_tokens": 0,
+ "turns": 10,
+ "cost_usd_api_equiv": 0.0030059600000000002,
+ "seconds": 25.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"pwd && rg -n \\\"wait_for|shield|timeout|create_subprocess|communicate|kill\\\\(\\\" app/harness\"",
+  "/bin/bash -lc \"sed -n '90,195p' app/harness/tools.py && sed -n '1,110p' app/harness/tools.py && rg -n \\\"bash\\\\(|harness timeout|BASH_MAX_TIMEOUT|setsid|start_new_session|killpg\\\" tests app\"",
+  "/bin/bash -lc \"sed -n '1,150p' app/pidfd_exec.py && sed -n '1,90p' tests/test_bash_completion.py && rg -n \\\"_spawn_bg_process|_kill_proc|orchestra_pidfd\\\" app/bg_jobs.py\"",
+  "/bin/bash -lc \"sed -n '180,295p' app/bg_jobs.py &&\"",
+  "/bin/bash -lc \"sed -n '180,295p' app/bg_jobs.py\"",
+  "/bin/bash -lc \"mkdir -p scratch && PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport asyncio, tempfile, time\nfrom app.harness.tools import bash\n\nasync def main():\n    with tempfile.TemporaryDirectory(dir='.') as d:\n        cases = [\n            (\\\"sleep 30\\\", \\\"ordinary\\\"),\n       "
+ ],
+ "final_text": "CAUSE: `timeout` is enforced, but `bash()` can hang afterward while cleaning up the process group and waiting for captured output. The `wait_for(shield(reader))` guess is not the root cause.\n\nEvidence: `app/harness/tools.py::bash` awaits `_kill_proc(proc)` on timeout, then awaits `reader`. `_kill_proc` delegates to `app/bg_jobs.py::_cleanup_pidfd_group`, which sends SIGTERM and only sends SIGKILL if its liveness probe still reports the group alive. I reproduced the reported split locally: `sleep 30` returned the timeout result in about 1.2 seconds, while a child that ignored SIGTERM and kept stdout open caused `bash()` to remain stuck past a 5-second outer deadline.\n\nRecommended fix: make group cleanup guarantee SIGKILL after the TERM grace period when members remain, and bound the post-timeout wait for `reader` so a surviving pipe holder cannot hang the tool indefinitely."
+}

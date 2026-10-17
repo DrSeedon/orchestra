@@ -1,0 +1,36 @@
+{
+ "run_id": "R-T7-luna-r1",
+ "task": "T7",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 35818,
+ "output_tokens": 1865,
+ "input_tokens": 261281,
+ "cache_read_tokens": 227328,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00660108,
+ "seconds": 32.3,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"text_tail_source_release_failed|dialog switch blocked|source_release|text_tail\" .'",
+  "/bin/bash -lc \"sed -n '3300,3495p' app/session.py && sed -n '4470,4570p' tests/test_session.py\"",
+  "/bin/bash -lc \"rg -n \\\"async def _disconnect_backend|def _disconnect_backend|change_model\\\\(|_change_runtime_chat_locked|backend_type.*runtime\\\" app/session.py\"",
+  "/bin/bash -lc \"sed -n '3255,3308p' app/session.py && sed -n '3630,3690p' app/session.py && sed -n '4040,4080p' app/session.py && rg -n \\\"class .*Backend|def disconnect|async def disconnect|subprocess|process.*poll|returncode|terminate\\\" app\"",
+  "/bin/bash -lc \"rg -n \\\"class Claude|async def disconnect\\\" app/backend_claude.py && sed -n '4300,4355p' tests/test_session.py\"",
+  "/bin/bash -lc \"sed -n '1120,1195p' app/backend_claude.py && rg -n \\\"text_tail_source_release_failed|disconnect.*failed|returncode.*claude|ClaudeBackend\\\" tests/test_session.py tests\"",
+  "/bin/bash -lc \"sed -n '3915,3980p' tests/test_session.py && sed -n '504,555p' app/backend_claude.py\"",
+  "/bin/bash -lc \"mkdir -p scratch && cat > scratch/repro.py <<'PY'\nimport asyncio\nfrom unittest.mock import AsyncMock, MagicMock\nfrom app.session import Session, AgentStatus\n\nasync def main():\n    s = Session.__new__(Session)\n    s._lifecycle_lock = asyncio.Lock()\n    s._compacting = False\n    s.model",
+  "/bin/bash -lc \"rg -n '\"'^class .*Session'\"' app/session.py | head\"",
+  "/bin/bash -lc \"sed -i 's/from app.session import Session, AgentStatus/from app.session import AgentSession, AgentStatus/; s/Session.__new__(Session)/AgentSession.__new__(AgentSession)/' scratch/repro.py && PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python scratch/repro.py\""
+ ],
+ "final_text": "CAUSE: Смена блокируется, потому что отключение исходного Claude backend выбрасывает исключение, а обработчик считает это невозможностью освободить источник.\n\nВ `app/session.py`, `AgentSession._change_runtime_chat_locked`, перед сменой модели вызываются `_drain_persist()` и `_disconnect_backend()`. Любое исключение из этой пары возвращается как `error_code: text_tail_source_release_failed`; модель, runtime и session ID при этом остаются прежними. В `app/backend_claude.py`, `ClaudeBackend.disconnect`, исключение `client.disconnect()` пробрасывается дальше, хотя `_client` и MCP-конфиг очищаются в `finally`.\n\nВоспроизвёл этот точный путь в scratch: `change_model()` с отключением, выбрасывающим ошибку закрытого SDK-транспорта, вернул указанный код, сохранил модель `claude-sonnet-5[1m]`, runtime `claude` и session ID. Это подтверждает механизм ошибки. Снимок не доказывает, что именно завершение CLI вызвало сбой SDK disconnect в живом сеансе: фактический процесс и исключение здесь недоступны.\n\nРекомендация: для уже завершившегося CLI считать disconnect успешным, если backend может надёжно подтвердить отсутствие процесса; иначе сохранять текущую блокировку. Не подавлять произвольные ошибки disconnect, пока живой процесс или его состояние неизвестны."
+}

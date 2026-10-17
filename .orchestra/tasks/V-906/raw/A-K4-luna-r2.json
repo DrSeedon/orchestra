@@ -1,0 +1,28 @@
+{
+ "run_id": "A-K4-luna-r2",
+ "task": "K4",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 12349,
+ "output_tokens": 780,
+ "input_tokens": 104113,
+ "cache_read_tokens": 92544,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.00247234,
+ "seconds": 13.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"sed -n '1,260p' app/routes/sessions.py && sed -n '1,280p' app/auth.py\"",
+  "/bin/bash -lc 'rg -n \"SOURCE_PROVENANCE_REQUIRED|MessageProvenance|sender|@router.*send|SendRequest|is_auth_enabled|validate_session\" app/routes/sessions.py app/auth.py'",
+  "/bin/bash -lc \"sed -n '650,790p' app/routes/sessions.py; sed -n '875,945p' app/routes/sessions.py; rg -n \\\"sessions/.*/send|fetch\\\\(|scope.*message|sendMessage\\\" app/static app/templates\"",
+  "/bin/bash -lc \"sed -n '1,70p' app/static/js/chat.js; sed -n '790,885p' app/routes/sessions.py; sed -n '1180,1225p' app/routes/sessions.py; rg -n \\\"api\\\\s*=|function api|requestOpts|session\\\" app/static/js/connection.js\""
+ ],
+ "final_text": "CAUSE: Dashboard chat is rejected because the send route requires provenance, but the unauthenticated dashboard request provides none.\n\nIn `app/static/js/chat.js`, `sendChat()` posts only `{message, scope}`. In `app/routes/sessions.py`, `SendRequest.sender` is optional, and `send_message()` returns `SOURCE_PROVENANCE_REQUIRED` when it is absent and `validate_session()` is false. In `app/auth.py`, `validate_session()` always returns false when either dashboard credential is empty. So disabling dashboard authorization lets the request through the auth layer, but does not make it count as an operator for provenance.\n\nRecommend treating a request as an operator when dashboard auth is disabled, or when it has a valid session if auth is enabled. Use that same predicate in `send_message()` to assign user provenance. This preserves the authenticated-operator requirement when credentials are configured."
+}

@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T5-sonnet-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 26045,
+ "output_tokens": 5370,
+ "input_tokens": 24,
+ "cache_read_tokens": 180931,
+ "cache_create_tokens": 20651,
+ "turns": 18,
+ "cost_usd_api_equiv": 0.17253819999999997,
+ "seconds": 54.6,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The \"listen task exited unexpectedly while RUNNING\" error is a false verdict from a race. It isn't a Codex listener crash. I could not run anything: Bash is disabled in this session, so I did not reproduce it. `scratch/repro.py` is written but unrun. The mechanism below comes from reading the code, so treat it as a strongly supported hypothesis, not a confirmed cause.\n\nMechanism:\n1. Codex is a `per_turn` runtime (`runtime_registry.py:345`). Each turn has its own `_turn_event_loop` task, with `_on_task_done` as its done-callback.\n2. When a turn ends, `_handle_event` calls `finish_turn_status()`, which sets IDLE. `after_turn_idle_actions` (`session_turns.py:537-553`) then claims the mailbox, logs \"mailbox: N — продолжаю ход\" and spawns `_deliver_mailbox` with `_spawn_bg`. That is a separate task.\n3. The old listener returns right after that, so its task finishes and `_on_task_done` is queued.\n4. The spawned `_deliver_mailbox` task is queued first, so it runs before the callback. It calls `s.send()`, and `_start_turn_state` (`session.py:1160`) sets `status = RUNNING` and logs the `[from:…]` user_message. `send()` then awaits `provider_send`.\n5. The new listener task is only created and assigned to `_listen_task` after that await (`session.py:1683`). During this window `_listen_task` still points at the old, finished task.\n6. `_on_task_done` runs now. The stale-task guard at `session.py:2879` (`task is not self._listen_task`) passes, because the old task is still the registered one. Status is RUNNING and there is no exception, so the code takes the \"silent death\" branch (`session.py:2894-2896`).\n7. `_finish_failed_running_turn` (`session.py:2296`) then logs the error, sets IDLE, and calls `report_abnormal_end`. That is the \"Turn failed before an explicit report (no output)\" message to the orchestrator.\n8. The new turn is actually alive, so the next row is \"codex turn=… started\".\n\nYour two excerpts fit this ordering: the \"mailbox: N — продолжаю ход\" row, then the `user_message`, then the error, then the new turn start. The timestamps are ms apart and the error row in the second excerpt has a later time than the user_message row.\n\nQuota: the teammate's guess (the Codex listener really crashes when quota runs out) is not supported. Quota exhaustion only makes the trigger more likely. A rate-limit-failed turn ends normally with `turn FAILED: rate_limit`, and the orchestrator and others have queued mail waiting. That makes the mailbox hand-off at turn end more frequent. The listener itself never raised.\n\n`tests/test_listen_task_done_648.py` covers the guard only after the new task is assigned (`test_stale_listener_end_does_not_fail_a_new_running_turn`). It does not cover this window.\n\nRecommended fix, any one of these:\n- In `_on_task_done`, treat the exit as silent death only if the task being finalised is the live turn. Keep a turn-generation counter (`_turn_gen`) captured when the listener is created, and ignore the callback if the generation has moved on since then.\n- Have `_turn_event_loop` mark itself as finished normally after a `turn_end`, and have `_on_task_done` skip the verdict in that case.\n- Set `_listen_task` before the status flips to RUNNING, or create the task before the `provider_send` await.\n\nI'd take the first one. A regression test would drive a mailbox hand-off and assert that `_finish_failed_running_turn` is not called."
+}

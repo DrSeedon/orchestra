@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K3-sonnet-r1",
+ "task": "K3",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 6695,
+ "output_tokens": 1382,
+ "input_tokens": 6,
+ "cache_read_tokens": 17215,
+ "cache_create_tokens": 5307,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.038503,
+ "seconds": 18.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: In `BackgroundJobManager.create` (app/bg_jobs.py, lines ~386-394), a timer's `expires_at` is clamped to `MAX_TIMER_TIMEOUT`, which is 8 days (`8 * 86400`, line 36). The timer's `trigger_at` and sleep delay are not clamped. A 10-day delay therefore gets a trigger time later than the job's expiry. I haven't run this; the diagnosis comes from reading the code.\n\nEvidence:\n- For `job_type == \"timer\"`, the code first sets `timeout_seconds = max(timeout_seconds, delay_seconds + 3600)`. For a 10-day delay that is 10 days + 1 hour.\n- The next line, `timeout_seconds = max(1, min(timeout_seconds, max_timeout))`, caps it at 8 days. The `delay_seconds + 3600` margin is lost.\n- `expires_at` is therefore now+8d. `trigger_at` (line 399) is still now+10d, and `_run_timer` / `_run_wake_timer` (lines ~808-820) still `asyncio.sleep(delay)` for the full 10 days.\n- The expiry sweep is `bg_expire_overdue()`, called during restore (line ~527) and by the periodic sweeps. It marks any active job past `expires_at` as `expired`. After day 8 the job is marked `expired` while the timer is still sleeping. The sweep or restore also drops it (restore at line ~558 calls `bg_expire_job` for overdue rows). The timer never reaches `_trigger` or `run_wake_job`, so nothing is woken.\n- The validator (line ~73-76) only checks that `delay_seconds > 0`, so it doesn't reject the oversized delay.\n- Delays up to 3 days work because delay + 1h is under the 8-day cap, so the margin survives. Any delay of about 8 days minus 1 hour or more would hit the same problem. The 10-day case is just the one reported.\n\nRecommended fix:\n1. For timers, don't let the cap cut below the delay. Compute the cap as `max(MAX_TIMER_TIMEOUT, delay + 3600)`, or skip the cap for timers and use `timeout_seconds = int(delay) + 3600`.\n2. Alternatively, reject delays above the maximum in the validator (near line 75) with a clear error, such as \"delay_seconds must be <= N\". This is better if long timers are meant to be unsupported. Silently accepting the job and returning an id is the misleading part.\n3. Add a regression test: create a timer with a 10-day delay and assert that `expires_at` is later than `trigger_at`.\n\nSeparately, `asyncio.sleep` for very long delays depends on the process staying up. Restore at line ~440 recomputes the remaining delay from `trigger_at`, so that part is fine."
+}

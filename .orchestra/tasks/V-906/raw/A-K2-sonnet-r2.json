@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K2-sonnet-r2",
+ "task": "K2",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19684,
+ "output_tokens": 3723,
+ "input_tokens": 16,
+ "cache_read_tokens": 93073,
+ "cache_create_tokens": 15945,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.11965660000000002,
+ "seconds": 36.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `_git_cmd` in app/workspace.py (line 130) runs every git command with `text=True` and no `encoding` or `errors`. Python then strictly decodes git's raw output bytes with the locale codec (UTF-8 here). Git output isn't guaranteed to be valid UTF-8, so one stray byte makes `subprocess.run` raise `UnicodeDecodeError`. I couldn't run anything (no shell tool), so this is from reading the code. I didn't reproduce the error or find which exact command emitted byte 0x80.\n\nEvidence:\n- `_git_cmd` is a thin wrapper over `subprocess.run(args, **kwargs)`. About 150 call sites pass `capture_output=True, text=True` and nothing else.\n- Decoding happens inside `subprocess.run`, in `communicate()`. The exception therefore comes out of the call itself. Git has already finished and succeeded, which matches \"Git itself had no error.\"\n- The failing call sits in the squash block of merge_worktree, roughly lines 1687–1735:\n  - `git merge --squash` (line 1687) stages the tree.\n  - `git diff --cached --quiet` and `git commit -m` (lines 1717–1735) run after it.\n  - `_parse_merged_commits` (line 1887) runs `git log` after the commit.\n  - Any of these can raise. There is no try/except around the block, so the code never reaches the success result or the reset or rollback path. The caller's generic handler then reports state UNKNOWN, with the index already staged.\n- Why a lone 0x80 appears with Cyrillic names. 0x80 is a UTF-8 continuation byte and can't start a character, so something cut a multibyte character in the middle, or a non-UTF-8 byte got through. The likely source is human-readable git output that embeds file names:\n  - the `merge --squash` and `commit` summaries and diffstat (`create mode ... <name>`), where git shortens long names by bytes;\n  - raw paths when `core.quotepath=false`;\n  - commit messages stored in a legacy encoding.\n  The position 4021 suggests a large diffstat or summary. The `-z` calls (`_conflict_paths`, merge-tree) are less likely, but they use the same strict decoding.\n- Nothing in the file sets `errors=`, `encoding=`, `LC_ALL` or `core.quotepath` (grep found none).\n\nRecommended fix:\n1. In `_git_cmd`, default to `kwargs.setdefault(\"encoding\", \"utf-8\")` and `kwargs.setdefault(\"errors\", \"replace\")` whenever `text` is true. Use `surrogateescape` instead where paths must round-trip, such as `-z` path lists. Set these only when `text` or `universal_newlines` is requested, so binary callers aren't broken.\n2. Pass `-c core.quotepath=false` and `-c i18n.logOutputEncoding=UTF-8` on read commands, and set `LC_ALL=C.UTF-8` in the environment, so output is predictably UTF-8.\n3. In merge_worktree, wrap the post-`merge --squash` steps in a guard. Any exception after `mutation_started = True` should run the existing reset or rollback path and return a definite failure, not leave the state UNKNOWN.\n4. Add a regression test: a repo with long Cyrillic file names and a cp1251 commit message, merged through merge_worktree."
+}

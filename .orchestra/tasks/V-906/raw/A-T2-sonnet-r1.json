@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T2-sonnet-r1",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 6804,
+ "output_tokens": 1404,
+ "input_tokens": 8,
+ "cache_read_tokens": 30284,
+ "cache_create_tokens": 5392,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.041680800000000004,
+ "seconds": 19.8,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: The 15-second timeout in `_git()` fires on the large diff. That makes `changed_paths()` return `None`, which `_prepare_admission_snapshot()` reports as \"cannot derive target-relative merge paths\". Your teammate's guess (merge base not found) is not the cause. I found this by reading the code. I did not run it against the real branch.\n\nEvidence:\n- `app/merge_operations.py:857-864`, `_prepare_admission_snapshot`: it calls `merge_test_gate.changed_paths(worktree, target_ref, target_sha)`. If the result is `None`, it raises `ValueError(\"cannot derive target-relative merge paths\")`.\n- `app/merge_test_gate.py:150-164`, `_git`: it runs `subprocess.run(..., timeout=15)`. It returns `None` on `TimeoutExpired`, `OSError` or any non-zero exit code. All of those look the same to the caller.\n- `app/merge_test_gate.py:167-199`, `changed_paths`: it returns `None` whenever any `_git` call returns `None`. The expensive call is `git diff --name-only <base>...HEAD` at line 189. The three-dot form must compute the merge base. With 2402 files, about 1900 of them PNGs, and about 60 renames, it can exceed 15 seconds. The diff walks a large tree, and rename detection plus reading blobs is costly. If `diff.renames` is on, it is quadratic in the unmatched adds and deletes. Small branches finish well within 15 seconds, and a large one times out every time. That matches \"fails identically on every retry\".\n- A missing merge base would not give an empty list. `git diff A...B` exits with status 128 and prints \"no merge base\". That also returns `None`, and it would be a different failure from the one you see.\n- The `None` return is the same value for \"git failed\", \"timed out\" and \"not a repo\". The caller therefore cannot tell a slow diff from a missing base, and the error message names no cause.\n\nFix:\n1. In `changed_paths`, run the diff with `--no-renames` (or `--name-only --no-renames -z`) and `--no-ext-diff`. Add `--diff-filter=ACDMRTUXB` if needed. A name-only listing does not need rename detection. Alternatively, use `git diff-tree` or `git diff --name-status -M0`.\n2. Give the diff call a larger, configurable timeout (for example 120 s) instead of the 15 s shared by every call.\n3. Make `_git` distinguish timeouts and non-zero exits, for example by raising or logging stderr and the reason. `_prepare_admission_snapshot` should then surface the real reason, such as \"git diff timed out after 15s\" or \"no merge base\".\n4. Add a regression test that builds a branch with thousands of files and renames, or monkeypatches the timeout, and checks that `changed_paths` returns a list.\n\nTo confirm, time `git diff --name-only main...HEAD` in the branch worktree. Compare it with `--no-renames`."
+}

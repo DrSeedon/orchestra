@@ -1,0 +1,30 @@
+{
+ "run_id": "A-T5-luna-r1",
+ "task": "T5",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 22745,
+ "output_tokens": 1103,
+ "input_tokens": 172042,
+ "cache_read_tokens": 150400,
+ "cache_create_tokens": 0,
+ "turns": 9,
+ "cost_usd_api_equiv": 0.004219700000000001,
+ "seconds": 16.3,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"listen task exited|Turn failed before an explicit report|listener|listen|rate_limit|RUNNING\" app/session.py app/session_turns.py'",
+  "/bin/bash -lc \"sed -n '1000,1075p' app/session.py && sed -n '2260,2495p' app/session.py && sed -n '2850,2910p' app/session.py && sed -n '380,455p' app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '455,570p' app/session_turns.py && sed -n '570,760p' app/session_turns.py && rg -n \\\"_turn_event_loop|per_turn|_on_task_done|report_abnormal_end|publish_turn_finished|active_turn_id|CodexBackend|events\\\\(\\\" app/session.py app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '160,325p' app/session_turns.py && rg -n \\\"turn_end|_handle_event|turn ended|finish_turn_status|subscription_limited|_session_limit_hit\\\" app/session.py app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '2510,2690p' app/session.py && sed -n '1350,1385p' app/session.py && sed -n '2825,2880p' app/session.py\"",
+  "/bin/bash -lc \"sed -n '2670,2750p' app/session.py && rg -n \\\"_auto_report_task|Turn failed before|no output|report_abnormal_end\\\" app/session.py app/session_turns.py\""
+ ],
+ "final_text": "CAUSE: The false verdict is caused by a lifecycle race, not by evidence that quota exhaustion crashes the Codex listener.\n\nEvidence: In `app/session.py`, `_turn_event_loop()` passes each event to `_handle_event()`. For `turn_end`, `_handle_event()` calls `TurnManager.handle_turn_end()`, which sets the session to IDLE and schedules the normal auto-report in `app/session_turns.py`. But when mailbox items are queued, `after_turn_idle_actions()` launches `_deliver_mailbox()` as a background task and returns. That task calls `send()`, which can set the session back to RUNNING and install the next `_listen_task` before the old listener task has fully returned.\n\nThe old task’s done callback then sees `status == RUNNING` and calls `_finish_failed_running_turn()`, logging `listen task exited unexpectedly while RUNNING` and scheduling an abnormal report. The excerpts fit this ordering: the mailbox continuation log appears before the verdict, while the next-turn status appears just after it. Quota exhaustion can precede this race, but it is not required to trigger it.\n\nFix: Make `_on_task_done()` verify that the completed listener still owns the active turn before treating RUNNING as a failure. Capture the turn generation (and, if useful, task identity) when creating each listener; ignore completion from a stale generation. Alternatively, defer mailbox continuation until the old listener’s done callback has run. Ensure the stale task cannot set the session IDLE or send an abnormal report for the new turn."
+}

@@ -1,0 +1,25 @@
+{
+ "run_id": "R-K2-sonnet-r2",
+ "task": "K2",
+ "group": "K",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 30988,
+ "output_tokens": 5594,
+ "input_tokens": 20,
+ "cache_read_tokens": 168662,
+ "cache_create_tokens": 25374,
+ "turns": 15,
+ "cost_usd_api_equiv": 0.1912084,
+ "seconds": 51.4,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.sh"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Не доказано. Воспроизвести ошибку не удалось, поэтому ниже гипотеза, а не подтверждённая причина.\n\nBash в этой сессии отключён. Я не смог запустить ни git, ни Python и не проверил, какая команда выдаёт байт 0x80 на позиции 4021. Я написал скрипт `scratch/repro.sh` (60 кириллических файлов, squash и commit), но не запускал его. Точного совпадения с `position 4021` и `0x80` у меня нет.\n\nГипотеза. Корень в обёртке `_git_cmd` (`app/workspace.py:130-138`). Она вызывает `subprocess.run(args, **kwargs)`, а почти все вызовы передают `capture_output=True, text=True`. В итоге весь stdout и stderr git декодируются как строгий UTF-8 по кодировке локали, без `encoding=` и без `errors=`. Я не нашёл в `app/` ни `errors=\"replace\"`, ни `surrogateescape` для этих вызовов.\n\nКогда вывод git не является чистым UTF-8, `subprocess` бросает `UnicodeDecodeError` уже после завершения процесса git. Байт 0x80 как начальный байт символа бывает, например, в `cp1251` (там это «Ђ»). Тогда имена файлов или сообщения коммитов в старой кодировке попадают в вывод в сыром виде.\n\nЭто объясняет, почему git ошибки не видел: он отработал, упал только Python при декодировании.\n\nПочему ошибка приходит после squash. В `merge_worktree` (`app/workspace.py:1687-1752`) `git merge --squash` уже изменил индекс, а следующие вызовы тоже идут с `text=True`:\n- `git diff --cached --quiet`;\n- `git commit`, его вывод может содержать «create mode <имя>», если у git отключено экранирование путей;\n- `_parse_merged_commits` (`:1887-1937`), то есть `git log --format=%H%x00%s%x00%ad` и `git diff-tree --numstat`.\n\nИсключение вылетает из одного из них. Откат не выполняется (его делают только `_commit_failure_result` и `_rollback_merge_target`, а они ждут нормального returncode). Итоговый блок (`:1804-1838`) видит `mutation_started` без подтверждённого отката и ставит `partial` / `commit_point=\"unknown\"`. Какой именно из этих вызовов упал, я не установил.\n\nОтдельно: `_conflict_paths` (`:154-163`) и `_inspect_candidate_commits` (`:958`) читают вывод с `-z`, но тоже с `text=True`.\n\nРекомендуемое исправление:\n1. В `_git_cmd` по умолчанию подставлять `kwargs.setdefault(\"encoding\", \"utf-8\")` и `kwargs.setdefault(\"errors\", \"surrogateescape\")` (или `\"replace\"`, если не нужны исходные байты) и убрать `text=True` там, где он дублирует это.\n2. Заключить цепочку после `git merge --squash` (`:1687-1752`) в `try/except`, чтобы при любом исключении выполнялся `_rollback_merge_target`. Иначе индекс останется в промежуточном состоянии.\n3. Для путей использовать `-z` и `-c core.quotepath=off` и сравнивать их как байты.\n4. Проверить на репозитории с именами файлов в `cp1251` и коммитом в `cp1251`, чтобы убедиться, что гипотеза верна."
+}

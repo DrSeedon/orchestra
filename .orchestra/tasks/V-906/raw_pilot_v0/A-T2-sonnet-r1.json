@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T2-sonnet-r1",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 7926,
+ "output_tokens": 1481,
+ "input_tokens": 8,
+ "cache_read_tokens": 27497,
+ "cache_create_tokens": 6437,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0460734,
+ "seconds": 20.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `changed_paths()` in `app/merge_test_gate.py` returns `None` because one of its git calls hits the hard-coded 15-second timeout in `_git()`. `_prepare_admission_snapshot()` in `app/merge_operations.py` (~line 863) then turns that `None` into \"cannot derive target-relative merge paths\". I read the code but did not run it against the branch, so the timeout is inferred rather than observed.\n\nEvidence:\n- `_git()` (merge_test_gate.py:150-164) runs `subprocess.run(..., timeout=15)`. It maps `TimeoutExpired`, `OSError` and any non-zero exit to `None`, so a timeout looks the same as \"git failed\". No reason is logged.\n- `changed_paths()` (167-199) returns `None` whenever `_git` returns `None`. Its main call is `git diff --name-only <base>...HEAD` (line 189). It also runs `git ls-files --others --exclude-standard` (line 193).\n- `_prepare_admission_snapshot()` (merge_operations.py:857-864) treats `None` as fatal and raises `ValueError`.\n\nWhy this branch fails:\n- The branch has 2402 changed files, about 1900 of them PNGs, and about 60 renames. A plain `git diff --name-only` has rename detection on by default, so git reads the blobs of the added and deleted files to pair them up. With that many binary files this is slow. The three-dot `base...HEAD` form also needs a merge-base computation first.\n- `ls-files --others` walks the whole worktree. A worktree with thousands of images makes that slower.\n- Small branches finish well inside 15 seconds, which fits \"small merges work\".\n- The inputs don't change between retries, so the same call times out and the failure is identical every time.\n- The oracle and test-gate selection logic is not involved. This runs before the oracle is pinned, which fits \"oracle code unchanged\".\n\nRecommended fix:\n1. In `changed_paths`, pass `--no-renames` to `git diff --name-only`. It then lists names only, with no content comparison. If renames matter, use `--name-status -M` with a rename limit. Add `--no-ext-diff` and `--diff-filter` as appropriate.\n2. Raise or parameterize the timeout for these two calls (for example 60–120 seconds). Keep 15 seconds for the cheap `rev-parse` calls.\n3. Make `_git` distinguish a timeout from a non-zero exit, and log or raise it. The error should then say \"git diff timed out\" rather than a generic \"cannot derive paths\".\n4. Optionally, use `git diff -z --name-only` and `git ls-files -z`, so paths with odd characters don't break the parsing.\n5. Add a regression test with a few thousand binary files and renames.\n\nTo confirm, time `git diff --name-only main...HEAD` in the branch's worktree. If it takes more than 15 seconds, that is the cause. Compare with `--no-renames`."
+}

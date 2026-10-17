@@ -1,0 +1,1 @@
+{"run_id": "R-K1-luna-r1", "judge": "sonnet", "ok": false, "grade": null, "raw": "{\"primary\": 1, \"supporting\": [0, 0][0:1], \"decoy_main\": false, \"reproduction\": \"ran\"}\n\nCorrection to format, valid JSON:\n\n{\"primary\": 1, \"supporting\": [0], \"decoy_main\": false, \"reproduction\": \"ran\"}"}

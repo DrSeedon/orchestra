@@ -1,0 +1,30 @@
+{
+ "run_id": "R-K1-luna-r1",
+ "task": "K1",
+ "group": "K",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 21532,
+ "output_tokens": 1456,
+ "input_tokens": 104556,
+ "cache_read_tokens": 84480,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0035804,
+ "seconds": 22.2,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/test_hang.py"
+ ],
+ "commands": [
+  "/bin/bash -lc \"pwd && rg -n \\\"def run_pytest|TimeoutExpired|subprocess\\\\.run|merge_test_gate\\\" .\"",
+  "/bin/bash -lc \"sed -n '1,210p' app/merge_test_gate.py && rg -n \\\"run_pytest\\\" tests app\"",
+  "/bin/bash -lc \"mkdir -p scratch && cat > scratch/test_hang.py <<'PY'\nimport sys, time\nprint('stdout-before-timeout', flush=True)\nprint('stderr-before-timeout', file=sys.stderr, flush=True)\ntime.sleep(2)\ndef test_never_reached():\n    assert True\nPY\nPYTHONPATH=. /home/kesha/orchestra/.venv/bin/python ",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport subprocess, sys\nfor code in [\\\"import sys,time; print('x',flush=True); time.sleep(2)\\\", \\\"import sys,time; print('x',file=sys.stderr,flush=True); time.sleep(2)\\\"]:\n    try: subprocess.run([sys.executable,'-c',code], c"
+ ],
+ "final_text": "CAUSE: `subprocess.run(..., capture_output=True, text=True, timeout=...)` in `run_pytest` does not guarantee text output on timeout. `subprocess.TimeoutExpired.stdout` and `.stderr` can be bytes even with `text=True`; when one stream is empty, `(exc.stdout or \"\") + (exc.stderr or \"\")` mixes bytes and str and raises `TypeError` before the gate can return its timeout result.\n\nEvidence: the timeout handler is in `app/merge_test_gate.py`, `run_pytest`. I reproduced both failure directions with timed-out Python subprocesses using the same `capture_output=True, text=True` settings: stdout-only produced `bytes + \"\"`; stderr-only produced `\"\" + bytes`, matching the reported error exactly. A direct `run_pytest` attempt timed out during pytest startup and returned normally, so I did not reproduce the crash through pytest itself.\n\nFix recommendation: normalize each captured stream independently before concatenating—for example, decode bytes with UTF-8 and `errors=\"replace\"`, while leaving strings unchanged. This handles either stream being absent or bytes and preserves the intended inconclusive timeout result."
+}

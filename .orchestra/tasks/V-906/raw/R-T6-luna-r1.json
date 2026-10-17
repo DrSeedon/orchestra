@@ -1,0 +1,33 @@
+{
+ "run_id": "R-T6-luna-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 25624,
+ "output_tokens": 1706,
+ "input_tokens": 294382,
+ "cache_read_tokens": 270464,
+ "cache_create_tokens": 0,
+ "turns": 13,
+ "cost_usd_api_equiv": 0.00594944,
+ "seconds": 30.2,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"worktree already exists|worktree|dynamic_workflow|wf_run\" scripts app'",
+  "/bin/bash -lc \"sed -n '1,180p' scripts/wf_run.py && sed -n '350,415p' scripts/wf_run.py && rg -n \\\"def create_worktree|create_worktree\\\\(\\\" app/workspace.py scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '530,700p' app/workspace.py && rg -n \\\"_prepare_workspace|workspace|value_id|hashlib|task_id\\\" scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '485,545p' scripts/wf_run.py && sed -n '630,930p' scripts/wf_run.py && sed -n '1,120p' tests/test_wf_run.py\"",
+  "/bin/bash -lc \"rg -n \\\"create_task|gather|_call_key\\\\(|async def agent|Semaphore|_occurrences|_state_lock\\\" scripts/wf_run.py && sed -n '545,640p' scripts/wf_run.py && rg -n \\\"concurr|identical|duplicate|same prompt|occurrence\\\" tests/test_wf_run.py\"",
+  "/bin/bash -lc \"sed -n '920,970p' scripts/wf_run.py && sed -n '650,725p' tests/test_wf_run.py && sed -n '420,480p' scripts/wf_run.py\"",
+  "/bin/bash -lc \"sed -n '1,35p' app/workspace.py && rg -n \\\"WORKTREE_ROOT|ORCHESTRA_WORKTREE\\\" app/workspace.py\"",
+  "/bin/bash -lc \"sed -n '300,365p' scripts/wf_run.py\"",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport asyncio, tempfile, subprocess\nfrom pathlib import Path\nimport scripts.wf_run as wf\nfrom scripts.wf_adapters import AdapterResult\nfrom tests.test_wf_run import _git_repo, _result\n\nasync def main():\n  with tempfile.Temp"
+ ],
+ "final_text": "CAUSE: воспроизвести точное поведение удалось: **10 вызовов с одинаковым prompt при concurrency 3 приводят к `ValueError: worktree already exists`**. Причина — гонка в `scripts/wf_run.py`: параллельные вызовы `agent()` с одинаковым payload получают один `call_key`, потому что `_call_key()` увеличивает счётчик occurrence только после await захвата `_state_lock`. Первые три вызова успевают получить один ключ, а в `_run_attempt()` имя worktree строится как `wf-{run_id}-{call_key[:12]}-a{attempt}`. Они сталкиваются на одном пути.\n\nПроверил в отдельном временном git-репозитории: адаптер запустился лишь для 3 вызовов, остальные 7 получили именно эту ошибку. Это не остатки от прошлых запусков: сбой возник и в свежем временном каталоге.\n\nРекомендую защитить полный разбор одинаковых вызовов от дублирования: например, атомарно резервировать уникальный `call_key` до первого await в `agent()` и сохранять семантику occurrence при восстановлении запуска. Простое расширение хеша не устранит причину, поскольку у столкнувшихся вызовов совпадает полный `call_key`."
+}

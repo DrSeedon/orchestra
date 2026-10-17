@@ -1,0 +1,29 @@
+{
+ "run_id": "A-K2-luna-r2",
+ "task": "K2",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 24636,
+ "output_tokens": 760,
+ "input_tokens": 153796,
+ "cache_read_tokens": 129920,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.0040668,
+ "seconds": 14.9,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"rg -n \\\"subprocess|merge --squash|UnicodeDecodeError|text=True|encoding=|decode\\\\(\\\" app/workspace.py tests\"",
+  "/bin/bash -lc \"sed -n '1,260p' app/workspace.py\"",
+  "/bin/bash -lc \"rg -n \\\"def .*merge|merge --squash|_git_cmd\\\\(|capture_output=True|text=True\\\" app/workspace.py\"",
+  "/bin/bash -lc \"sed -n '1500,1810p' app/workspace.py; rg -n \\\"squash|surrogateescape|0x80|name-only.*-z|nul\\\" tests/test*workspace* tests\"",
+  "/bin/bash -lc \"sed -n '1880,1935p' app/workspace.py; sed -n '1,130p' tests/test_workspace.py; rg -n \\\"_parse_merged_commits|merged_commits|merge_worktree_to_main\\\" tests/test_workspace.py\""
+ ],
+ "final_text": "CAUSE: `app.workspace._git_cmd()` passes Git subprocess output through unchanged, and its callers commonly request `text=True`. In the squash path, `merge_worktree_to_main()` runs `git merge --squash` with `capture_output=True, text=True`. Python then decodes both stdout and stderr as UTF-8. Git may include repository paths in that output; a filename containing a byte sequence such as `0x80` makes decoding raise `UnicodeDecodeError`.\n\nBecause the exception happens while `subprocess.run()` is decoding output, Git can already have staged the squash when control leaves before the helper records a result or cleans up. That explains the unknown merge state even though Git itself succeeded.\n\nRecommended fix: make `_git_cmd()` capture subprocess streams as bytes, then decode text where needed with an explicit robust policy. For Git output containing paths, prefer Git’s `-z` output and `os.fsdecode()`/filesystem decoding with `surrogateescape`; for human-readable diagnostics, decode with `errors=\"replace\"`. This prevents invalid filename bytes from turning a completed Git mutation into an uncaught decoding failure."
+}

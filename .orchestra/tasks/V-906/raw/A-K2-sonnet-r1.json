@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K2-sonnet-r1",
+ "task": "K2",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 14730,
+ "output_tokens": 2100,
+ "input_tokens": 10,
+ "cache_read_tokens": 44874,
+ "cache_create_tokens": 12620,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0804748,
+ "seconds": 25.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `_git_cmd` in `app/workspace.py` (line 130) passes `text=True` to `subprocess.run` with no `encoding` or `errors` argument. Python therefore decodes git's raw output bytes strictly, using the process locale encoding (UTF-8 in the service). Git does not guarantee UTF-8 output. When the output contains a byte like 0x80 that isn't valid UTF-8, Python raises `UnicodeDecodeError` after git has already finished.\n\nI traced this by reading the code. I did not reproduce it.\n\nEvidence:\n- `_git_cmd` (`workspace.py:130-138`) is a thin wrapper around `subprocess.run(args, **kwargs)`. Almost every call site passes `capture_output=True, text=True`, and none passes `errors=`.\n- In `merge_worktree`, the squash is run at `workspace.py:1687-1692` as `_git_cmd([\"git\",\"merge\",\"--squash\",worker_head], cwd=merge_cwd, capture_output=True, text=True)`. `mutation_started = True` is set just before it, at line 1686.\n- The decode happens inside `subprocess.run`, in `communicate()`, so the exception comes out of `_git_cmd` itself. The index already holds the staged squash by then.\n- The exception skips the `merge.returncode` handling, the `git diff --cached --quiet` check and the commit. Those lines never run, so no result dict is built and no reset or rollback happens.\n- Because `mutation_started` is already true, the outer error handling reports the state as UNKNOWN. Git itself reported no error.\n- Cyrillic names are the trigger. Git's `Auto-merging <path>` and `CONFLICT (...)` messages can include path bytes unquoted when `core.quotepath=false` is set. Paths from a non-UTF-8 source, such as cp1251 names, make this worse. Either way the output can contain bytes UTF-8 can't decode.\n- The `-z` calls (`_conflict_paths` at line 156, `ls-files` at line 448) are not the failing call. They avoid quoting but still use `text=True`, so they have the same weakness.\n\nRecommended fix:\n1. In `_git_cmd`, handle text mode centrally. If the caller passes `text=True` or `universal_newlines`, remove it and set `encoding=\"utf-8\"` and `errors=\"surrogateescape\"` (or `\"replace\"`) with `kwargs.setdefault`. Every one of the ~150 call sites is then covered with no other edits. `surrogateescape` also lets paths round-trip back to git.\n2. Many call sites call `subprocess.run` directly (e.g. lines 1541-1575 and 2114), so route them through the same helper.\n3. Pass `-c core.quotepath=false` or use `-z` for path lists, and set `LC_ALL=C.UTF-8` in git's environment.\n4. Make the `merge_worktree` squash section catch exceptions after `mutation_started` and run `git reset --merge` or `git merge --abort`. A wrapper failure then rolls back cleanly and is reported instead of leaving a staged squash with state UNKNOWN."
+}

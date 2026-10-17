@@ -1,0 +1,28 @@
+{
+ "run_id": "A-T5-luna-r2",
+ "task": "T5",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19806,
+ "output_tokens": 1231,
+ "input_tokens": 114447,
+ "cache_read_tokens": 95872,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.00343172,
+ "seconds": 18.3,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"sed -n '1,260p' app/session.py && sed -n '1,300p' app/session_turns.py\"",
+  "/bin/bash -lc 'rg -n \"listen task exited|report_abnormal_end|RUNNING|listen_task|_listen|turn FAILED|turn failed before|fire_auto_report|handle_turn_end\" app/session.py app/session_turns.py'",
+  "/bin/bash -lc \"sed -n '1020,1075p' app/session.py; sed -n '2270,2320p' app/session.py; sed -n '2430,2500p' app/session.py; sed -n '2860,2910p' app/session.py; sed -n '390,455p' app/session_turns.py; sed -n '510,580p' app/session_turns.py\"",
+  "/bin/bash -lc \"sed -n '298,390p' app/session_turns.py; sed -n '430,540p' app/session_turns.py; sed -n '2820,2870p' app/session.py; sed -n '2288,2345p' app/session.py\""
+ ],
+ "final_text": "CAUSE: `_on_task_done` mistakes a completed listener for a crashed one when a new turn starts before its done callback runs.\n\nEvidence: `TurnManager.handle_turn_end()` calls `finish_turn_status()`, setting the session to IDLE, then `after_turn_idle_actions()` may schedule mailbox delivery. That delivery can start another turn and set the session to RUNNING. In `session.py`, `_on_task_done()` checks whether the session is RUNNING when the callback executes; it does not check which turn the finished task belonged to. If the old listener task is still `self._listen_task`, the callback logs `listen task exited unexpectedly while RUNNING` and `_finish_failed_running_turn()` reports a false failure. The mailbox and immediate new-turn sequence in the excerpts fits this race.\n\nThe quota failure is a separate, explicit turn result: `handle_turn_end()` logs `turn FAILED: rate_limit` and finishes the turn. It does not establish that the listener crashed.\n\nRecommended fix: associate each listener task with the turn generation it serves, and have `_on_task_done()` compare that generation with the finished turn’s outcome before declaring failure. A completed turn must not be judged from the session’s later, mutable status alone."
+}

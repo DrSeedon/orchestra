@@ -1,0 +1,1 @@
+{"run_id": "R-K1-luna-r2", "judge": "sonnet", "ok": false, "grade": null, "raw": "{\"primary\": 1, \"supporting\": [0, 0], \"decoy_main\": false, \"reproduction\": \"ran\"}\n\nWait \u2014 supporting has one item; correcting:\n\n{\"primary\": 1, \"supporting\": [0], \"decoy_main\": false, \"reproduction\": \"ran\"}"}

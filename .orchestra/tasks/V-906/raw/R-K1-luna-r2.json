@@ -1,0 +1,27 @@
+{
+ "run_id": "R-K1-luna-r2",
+ "task": "K1",
+ "group": "K",
+ "arm": "R",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 23717,
+ "output_tokens": 901,
+ "input_tokens": 84896,
+ "cache_read_tokens": 62080,
+ "cache_create_tokens": 0,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.0033529000000000002,
+ "seconds": 16.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"pwd && rg -n \\\"def run_pytest|TimeoutExpired|subprocess\\\\.run|merge_test_gate\\\" .\"",
+  "/bin/bash -lc \"sed -n '1,190p' app/merge_test_gate.py && sed -n '1,180p' tests/test_merge_test_gate.py\"",
+  "/bin/bash -lc \"PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python - <<'PY'\nimport subprocess, sys\nfor code in [\n    \\\"import sys,time; print('OUT', flush=True); time.sleep(2)\\\",\n    \\\"import sys,time; print('ERR', file=sys.stderr, flush=True); time.sleep(2)\\\",\n    \\\"import sys,time; print('OUT', fl"
+ ],
+ "final_text": "CAUSE: `subprocess.run(..., capture_output=True, text=True, timeout=...)` in `app/merge_test_gate.py::run_pytest` gets `TimeoutExpired` output as bytes, even with `text=True`. The handler concatenates `exc.stdout` and `exc.stderr` with string defaults before checking whether the result is bytes. If only one stream produced output, that mixes bytes and str and raises `TypeError`; when both produced output, concatenation succeeds and the later decode runs.\n\nI reproduced both reported error directions using the project’s Python: stdout-only timed out with `TypeError: can't concat str to bytes`; stderr-only timed out with `TypeError: can only concatenate str (not \"bytes\") to str`. With output on both streams, the handler succeeded.\n\nRecommended fix: normalize each stream separately before concatenating, decoding bytes with UTF-8 and replacement, then join the resulting strings."
+}

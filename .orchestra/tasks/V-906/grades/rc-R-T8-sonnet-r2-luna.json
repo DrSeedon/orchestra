@@ -1,0 +1,1 @@
+{"run_id": "R-T8-sonnet-r2", "judge": "luna", "ok": true, "grade": {"primary": 0.5, "supporting": [1, 0.5], "decoy_main": true, "reproduction": "not_reproduced"}, "raw": "{\"primary\": 0.5, \"supporting\": [1, 0.5], \"decoy_main\": true, \"reproduction\": \"not_reproduced\"}"}

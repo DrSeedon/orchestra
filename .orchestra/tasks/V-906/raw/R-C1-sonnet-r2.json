@@ -1,0 +1,23 @@
+{
+ "run_id": "R-C1-sonnet-r2",
+ "task": "C1",
+ "group": "C",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 3049,
+ "output_tokens": 535,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2512,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0161198,
+ "seconds": 9.1,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "**Why an AI Agent Forgets After a Long Session, and What a Summary Does About It**\n\n**Scene 1 (0:00–0:10): A person at a desk, chatting with a friendly robot, messages piling up.**\nMeet an AI agent. You give it a big job, and it works through it with you, message after message, hour after hour.\n\n**Scene 2 (0:10–0:25): The chat scrolls upward. A glowing frame around the latest messages fills up.**\nBut the model can only hold so much at once. Think of it as a window. When the conversation grows too big for that window, the agent can't keep everything in view.\n\n**Scene 3 (0:25–0:40): The long conversation is squeezed into a short page of notes.**\nSo the conversation is compressed into a summary. The agent puts the old messages aside and carries on from those notes.\n\n**Scene 4 (0:40–0:52): The robot reaches for a detail. The note page is blank where it should be. The detail fades.**\nHere's the catch. Any detail that didn't make it into the summary is gone. The agent won't remember it. It isn't being careless. That information is simply no longer there.\n\n**Scene 5 (0:52–1:07): A reviewer holds up question cards. The robot answers, and checkmarks appear.**\nSo how do we make a good summary? We test it. We ask the agent questions about the old work. If it answers correctly, the summary kept what mattered. If not, something important was lost.\n\n**Scene 6 (1:07–1:15): The robot and person smile, a short clear page of notes between them.**\nA good summary lets long work continue smoothly. And a tested one is one you can trust."
+}

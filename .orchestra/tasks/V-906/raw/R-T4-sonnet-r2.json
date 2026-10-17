@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T4-sonnet-r2",
+ "task": "T4",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 21819,
+ "output_tokens": 2228,
+ "input_tokens": 10,
+ "cache_read_tokens": 76665,
+ "cache_create_tokens": 19581,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.115957,
+ "seconds": 28.4,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The reload works, but its result is ignored in production. `_live_quota_env()` in app/quota_gate.py gives the process environment captured at import time priority over `.env`. I could not run my reproduction, so this is derived from reading the code and is not confirmed by a run.\n\nEvidence:\n- Line 143 sets `_startup_quota_env = {name: os.environ.get(name) ...}` when the module is imported.\n- In `_live_quota_env()` (lines 191-199), a name's value is `_startup_quota_env[name]` whenever that is not None. The `.env` value from `_dotenv_values` is used only when the startup value is None.\n- `dotenv_values()` only parses the file. It does not write to `os.environ`.\n- Under systemd, `EnvironmentFile=.env` exports `QUOTA_GATED_LANES=claude,sol` (or whatever the old value was) into the process before Python starts. The startup snapshot therefore holds the old non-None string, and it wins permanently.\n- The mtime check, the re-parse and the debug log all work. They update `_dotenv_values` to `\"\"`, but that value is never selected. This matches the symptom that the log shows the new mtime and new values while the gate keeps the old value.\n- In a plain local shell the variable is not in `os.environ`. The startup snapshot is None, so the `.env` value is used and the edit takes effect at once.\n- Even if `.env` did win, an empty value has a second problem. `_parse_lanes(\"\")` returns `frozenset()`. But systemd may pass `QUOTA_GATED_LANES=` as an empty string, which is also not None and so also wins.\n\nThe teammate's guess is not supported. The mtime comparison on lines 179-182 is straightforward, and the log shows the re-read happened. The module-level `GATED_LANES` and `CURVED_LANES` constants (lines 245-246) are frozen at import, but nothing in app/ reads them. Gating goes through `quota_policy().gated_lanes`, so they are not the cause.\n\nReproduction: I wrote scratch/repro.py. It optionally pre-sets `QUOTA_GATED_LANES=claude,sol` in `os.environ`, points `_DOTENV_PATH` at a temp `.env`, rewrites that file to `QUOTA_GATED_LANES=` with a bumped mtime, and prints `quota_policy().gated_lanes`. My prediction is that it prints `{}` in shell mode and `{claude, sol}` in systemd mode. Bash was disabled in this session, so I never ran it. The mechanism is therefore unverified by execution.\n\nFix I recommend: decide which source should win and make the code say so.\n1. If `.env` is meant to be live-editable, make it win for names it defines. Select `_dotenv_values[name]` when `name in _dotenv_quota_keys`, and fall back to the startup environment otherwise.\n2. Or drop `EnvironmentFile` for these `QUOTA_*` keys in the unit, so the process has no startup copy.\n3. As a stopgap, restart the service after editing `.env`.\n\nAdd a test that sets `os.environ` before import, edits `.env`, and asserts that `quota_policy()` follows the edit."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "R-C2-sonnet-r1",
+ "task": "C2",
+ "group": "C",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 3299,
+ "output_tokens": 807,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2490,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0187518,
+ "seconds": 12.4,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "**Concept: \"Agent Pulse Board\", a ten-tile status wall that classifies each agent as Progressing, Waiting, or Stuck from what it does, not from what it says.**\n\n**What the owner sees.** The dashboard shows ten tiles in one screen. Each tile has:\n- A color: green for progressing, amber for waiting (on a human, a tool, or another agent), red for stuck.\n- A one-line plain-language summary, such as \"Fixing 3 failing tests in auth module, 12 min\".\n- A sparkline of activity over the last 30 minutes. It counts file diffs, passing tests, and commits.\n- A \"since\" timer that shows how long the agent has been in its current state.\n\nRed tiles sort to the top. The signals behind the color are objective. Stuck means the same command or error has repeated three or more times, or there has been no file change or new test result for N minutes while the agent keeps spending tokens. Waiting means the agent is blocked on an approval, a question, or a pending dependency.\n\n**What the owner does.** They scan the wall in about five seconds. They click a red tile to open a drawer with the last meaningful event and the repeated error. Three buttons sit in the drawer: *Nudge* (send a hint), *Reassign*, and *Pause*. A waiting-on-you tile has an inline *Approve* or *Answer* button. They can also set a per-agent stuck threshold and get a notification when a tile turns red.\n\n**Why it beats a log list.** A log list shows what each agent said, in order, and the owner has to read all of it to infer the state. With ten agents the lists interleave and the one important line is buried. The wall reverses this. The state is computed once, so attention goes to the few agents that need it. Because the signals are measured outcomes (diffs, test results, repeated errors), they are harder to fool than an agent's own claims of progress. The raw log stays one click away for verification.\n\n**Main risk.** Misclassification. A false \"progressing\" gives an agent that is busy but looping in circles, and the owner trusts it too much. A false \"stuck\" causes alert fatigue. The mitigation is to show the evidence behind every color, tune the thresholds on historical runs, and label low-confidence tiles \"uncertain\" instead of forcing a color.\n\n**Reproduction note.** I did not trace any observed behavior, error, or number to a source, so no hypothesis needed testing here. The thresholds above, including \"N minutes\", are unvalidated placeholders."
+}

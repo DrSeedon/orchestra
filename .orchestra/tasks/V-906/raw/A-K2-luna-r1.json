@@ -1,0 +1,28 @@
+{
+ "run_id": "A-K2-luna-r1",
+ "task": "K2",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19819,
+ "output_tokens": 1186,
+ "input_tokens": 113353,
+ "cache_read_tokens": 94720,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0034035,
+ "seconds": 18.3,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"subprocess|decode|encoding|merge|git\" app/workspace.py'",
+  "/bin/bash -lc \"sed -n '120,145p' app/workspace.py && rg -n \\\"def merge_worker|merge --squash|--squash|capture_output=True, text=True\\\" app/workspace.py\"",
+  "/bin/bash -lc \"sed -n '1490,1820p' app/workspace.py\"",
+  "/bin/bash -lc \"rg -n \\\"UnicodeDecodeError|encoding=|errors=|_git_cmd\\\" tests app | head -100 && sed -n '1,80p' app/workspace.py && sed -n '1100,1178p' app/workspace.py\""
+ ],
+ "final_text": "CAUSE: `_git_cmd` in `app/workspace.py` calls `subprocess.run` with `text=True` but no explicit decoding policy. Python therefore decodes Git’s stdout and stderr as UTF-8. Git filenames are byte sequences and can include bytes that are not valid UTF-8; with raw path output, decoding raises `UnicodeDecodeError`.\n\nThe timing fits the merge flow: `merge_worker` sets `mutation_started = True`, then runs `git merge --squash` through `_git_cmd` at the squash step. Git can stage the changes successfully, but Python can raise while decoding its output, before `_git_cmd` returns. The caller then cannot complete its normal result and recovery checks, leaving the merge state unknown. Cyrillic names are the trigger context; the relevant issue is arbitrary filename bytes in Git output, not Cyrillic text itself.\n\nRecommended fix: make `_git_cmd` decode subprocess output with `errors=\"surrogateescape\"` (or retain bytes and decode explicitly where needed). `surrogateescape` preserves undecodable filename bytes without throwing, so the merge result and recovery logic can proceed."
+}

@@ -1,0 +1,23 @@
+{
+ "run_id": "R-T2-sonnet-r1",
+ "task": "T2",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 15273,
+ "output_tokens": 2781,
+ "input_tokens": 16,
+ "cache_read_tokens": 78805,
+ "cache_create_tokens": 12476,
+ "turns": 8,
+ "cost_usd_api_equiv": 0.093507,
+ "seconds": 47.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: I could not reproduce this, so the root cause below is unconfirmed. The best-supported candidate is that `_git()` in `app/merge_test_gate.py` gives up after 15 seconds on this branch's large diff. Bash is disabled in this session, so I could only read code.\n\n**The teammate's guess doesn't fit the code.**\n- `app/merge_operations.py:_prepare_admission_snapshot` (line 863) raises only when `changed_paths()` returns `None`.\n- An empty path list is `[]`, not `None`, so it would not raise this error.\n- `_prepare_admission_snapshot` passes `target_sha` from `_target_head()`, so `changed_paths` diffs against that sha. A missing merge base would make `git diff <sha>...HEAD` exit non-zero. That would also return `None`, so the guess can't be fully excluded. It also doesn't explain why only this branch fails.\n\n**Where `None` can come from** (`app/merge_test_gate.py:changed_paths`, lines 167-199):\n- The worktree is not a directory.\n- `rev-parse --is-inside-work-tree` fails.\n- The target sha does not resolve.\n- `git diff --name-only <sha>...HEAD` returns `None` from `_git()` (line 189).\n\n`_git()` (lines 150-164) returns `None` on any non-zero exit. It also returns `None` on `subprocess.TimeoutExpired`, because it has a hard `timeout=15` and swallows the exception. The caller can't tell a timeout from a real failure.\n\n**Why this branch.**\n- The first three checks are cheap, and small branches pass them. So the diff call is the likely culprit.\n- `git diff A...B` does a merge-base computation and then rename detection. Rename detection is quadratic in the number of added and deleted files. With 2402 files, about 1900 binary PNGs and about 60 renames, that can exceed 15 seconds on a loaded host.\n- The timeout would explain why identical retries fail identically, why only this large branch fails, and why unchanged oracle code still shows the error.\n- The message is misleading. It reads as a path-derivation problem when it may be a timeout.\n\n**What I could not do.** I did not time `git diff --name-only main...HEAD` on a branch of this shape, so the 15-second timeout is inferred, not observed. The same command with a non-zero exit would look identical from the outside.\n\n**Recommended fix**\n1. Distinguish timeout from git failure in `_git()`. Log or raise stderr and the exit code instead of returning `None`, so the real cause shows up.\n2. Make `changed_paths` robust for big diffs:\n   - Raise the timeout for the diff call.\n   - Use `git diff --name-only --no-renames -z <sha>...HEAD`. Skipping rename detection removes the quadratic cost. Nothing here needs rename pairing, though without it a rename lists the old path as well as the new one, which could select extra tests.\n3. To confirm, run that diff by hand on the `task-56/voice-astra` worktree with `time`, once with and once without `--no-renames`. Also run `git merge-base <target_sha> HEAD` to rule out the teammate's guess."
+}

@@ -1,0 +1,12 @@
+T1: 1 failed in 13.20s
+T2: 1 failed, 1 passed in 10.26s
+T3: 1 failed in 8.19s
+T4: 1 failed, 4 passed in 8.72s
+T5: 1 failed, 4 passed in 8.58s
+T6: 1 failed, 25 passed in 9.71s
+T7: 1 failed in 9.28s
+T8: 1 failed, 6 passed in 12.67s
+K1: 1 failed, 1 passed in 8.68s
+K2: 1 failed, 118 passed in 42.02s
+K3: 1 failed, 7 passed in 6.56s
+K4: 1 failed in 5.61s

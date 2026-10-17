@@ -1,0 +1,26 @@
+{
+ "run_id": "A-K3-luna-r2",
+ "task": "K3",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 14493,
+ "output_tokens": 558,
+ "input_tokens": 61551,
+ "cache_read_tokens": 47616,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.0021486599999999997,
+ "seconds": 12.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"sed -n '1,260p' app/bg_jobs.py && rg -n \\\"timer|delay_seconds|expired\\\" tests app/bg_jobs.py\"",
+  "/bin/bash -lc \"sed -n '350,470p' app/bg_jobs.py; sed -n '500,585p' app/bg_jobs.py; sed -n '790,835p' app/bg_jobs.py; sed -n '70,120p' tests/test_bg_jobs.py; sed -n '860,930p' tests/test_bg_jobs.py; sed -n '1260,1310p' tests/test_bg_jobs.py\""
+ ],
+ "final_text": "CAUSE: `BgJobManager.create()` in `app/bg_jobs.py` raises a timer’s timeout to at least `delay_seconds + 3600`, then clamps it to `MAX_TIMER_TIMEOUT`, which is 8 days. For a 10-day delay, the job therefore expires after 8 days, before `_run_timer()`’s `asyncio.sleep(delay)` finishes. Expiration prevents the timer from triggering and waking its target.\n\nTimers up to 3 days work because their requested lifetime fits within the 8-day cap. Recommend increasing or removing `MAX_TIMER_TIMEOUT` so it exceeds supported delays plus the grace period; alternatively, reject delays that exceed the cap."
+}

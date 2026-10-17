@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T6-sonnet-r1",
+ "task": "T6",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 16497,
+ "output_tokens": 2615,
+ "input_tokens": 14,
+ "cache_read_tokens": 78026,
+ "cache_create_tokens": 13868,
+ "turns": 11,
+ "cost_usd_api_equiv": 0.09725519999999999,
+ "seconds": 32.6,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/names.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Identical calls get the same worktree name, because the per-call `:occurrence` counter is cut off when the name is built. This is a name collision between concurrent calls in the same run. It is not stale directories from earlier runs.\n\nEvidence (read from the code; I couldn't run anything, since I had no shell tool):\n- `scripts/wf_run.py`, `_call_key()` (~line 517) returns `f\"{sha256_hex}:{occurrence}\"`. The counter in `_occurrences` is what separates byte-identical calls, so it is the only part that differs between them. The hash is 64 hex characters, and the counter comes after it.\n- `scripts/wf_run.py`, `_run_attempt()` (~line 818) builds the worktree name as `f\"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}\"`. `call_key[:12]` is the first 12 characters of the digest, so the `:N` suffix is always dropped.\n- With the same prompt and options, the digest is the same. `run_id` and `attempt` are also the same, so all 10 calls get the name `wf-<run>-<digest12>-a1`.\n- `_prepare_workspace_sync()` calls `app/workspace.py:create_worktree()`. That derives `wt_path = WORKTREE_ROOT/<repo_slug>/<name>` and raises `ValueError(\"worktree already exists: …\")` at line 582 if the path exists (`if wt_path.exists()`).\n- At concurrency 3, a second call starts while the first still holds its worktree, so it hits that check. The branch name `feat/<slug>/<name>` collides in the same way. Calls that run one after another would not collide, because the earlier worktree is discarded first. That matches the \"10 at concurrency 3\" symptom.\n- Batches with different prompts have different digests, so they don't collide. The writable workspace option only matters because the worktree is created when `tools == \"all\"` and `workspace_repo` is set.\n- The stale-directory guess doesn't fit. The run directory is fresh, `git worktree list` is empty, and the collision is between sibling calls of the same run.\n\nReproduction status: I did not run the process, so this is not confirmed by an actual failure. I wrote `scratch/names.py`, which computes `f\"wf-RUN-{k[:12]}-a1\"` for keys `<digest>:0..2` and should print one name. I didn't execute it. Next step: run that script, then run a batch of 3 identical writable calls and check that it raises the same `ValueError`.\n\nFix I recommend: put the occurrence into the name, for example by deriving the name from `call_key.replace(\":\", \"-\")` with a hash or truncation that keeps the counter (`digest[:12]-o{occurrence}`). Keep `-a{attempt}`. The archive path already uses the full `call_key`, so it doesn't collide. Add a test with 10 identical calls at concurrency 3 to `tests/test_wf_run.py`."
+}

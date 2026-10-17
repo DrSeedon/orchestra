@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C4-luna-r1",
+ "task": "C4",
+ "group": "C",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 1979,
+ "output_tokens": 220,
+ "input_tokens": 15839,
+ "cache_read_tokens": 14080,
+ "cache_create_tokens": 0,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.00042670000000000007,
+ "seconds": 6.2,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "A green test is like a delivery app saying, “Your package arrived.” That message is reassuring, but it doesn’t prove the box is at your door. Maybe the app checks only that the driver started the trip, or it shows “delivered” no matter what happened.\n\nA test can turn green for the same reason: it might check the wrong thing, or pass even when the feature is broken. Green tells you the test’s check passed; it doesn’t tell you the check was meaningful.\n\n“Checking that the test can fail” means deliberately changing the thing being tested so it should be wrong, then seeing whether the test turns red. For example, if a test checks that a price includes tax, temporarily make the code leave out the tax. The test should fail. If it stays green, the test may not be checking the tax at all.\n\nOnce you’ve seen it catch a real mistake, restore the correct code and run the test again. A green result is then stronger evidence: the test passed when the behavior was right and failed when it was wrong."
+}

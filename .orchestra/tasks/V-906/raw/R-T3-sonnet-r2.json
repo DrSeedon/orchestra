@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T3-sonnet-r2",
+ "task": "T3",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 19465,
+ "output_tokens": 3792,
+ "input_tokens": 18,
+ "cache_read_tokens": 115271,
+ "cache_create_tokens": 15655,
+ "turns": 17,
+ "cost_usd_api_equiv": 0.1236302,
+ "seconds": 46.8,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/probe.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Most likely the MCP child process opens a different database than the live server does. I could not reproduce the error, so this is not confirmed. The teammate's guess (the live DB is behind on schema) is not supported by the evidence.\n\nEvidence from the code:\n- `app/db.py` `_resolve_db_path()` reads `ORCHESTRA_DB_PATH` once, at import time. If it is unset, it falls back to `_DEFAULT_DB_PATH`, which is `data/orchestra.db`.\n- `init_db()` in `app/db.py:67-73` raises the reported error if `PRAGMA user_version` is not 1, or if the file has tables but a different version. The check applies to whatever file `DB_PATH` points at.\n- `codex_review` in `app/mcp_stdio.py:4023-4025` imports `app.db` and calls `init_db()` in the MCP subprocess. Nothing in `app/mcp_stdio.py` sets `ORCHESTRA_DB_PATH`.\n- The subprocess env is built in `app/runtime_env.py:17-20` (`MCP_BASE_ENV`) and `app/manager.py:363-375` (`_make_mcp_config`). `MCP_BASE_ENV` passes only `PYTHONPATH`, the proxy variables and `INTERNAL_TOKEN`. `_make_mcp_config` adds the `ORCHESTRA_*` and worker variables, but not `ORCHESTRA_DB_PATH`.\n- So the live server runs on its own migrated DB, while the MCP child falls back to `data/orchestra.db`. That file exists in the checkout, according to the task description, and was not migrated.\n\nThis also explains \"healthy server, failing tool, nothing changed in review code\". The failing check is `init_db()`'s version guard, and it runs against a different file from the one that was migrated on 11 September. I did not find what changed on 12 September. My guess is that the live server was restarted with `ORCHESTRA_DB_PATH` set after the migration. Before that, server and child shared the default file.\n\nWhat I could not do:\n- I had no shell tool, so I could not run `PRAGMA user_version` on `data/orchestra.db`. A glob for `data/*` found nothing in this snapshot, so the default DB file isn't visible to me.\n- I could not run the MCP server or the tests.\n- The hypothesis predicts that `data/orchestra.db` has `user_version` 0 with tables, or a version other than 1. I did not check that.\n\nRecommended fix:\n1. Confirm first. Run `PRAGMA user_version` read-only on `data/orchestra.db`, and check `/proc/<live pid>/environ` for `ORCHESTRA_DB_PATH`.\n2. In `app/runtime_env.py`, propagate `ORCHESTRA_DB_PATH` into `MCP_BASE_ENV`, the same way as the proxy variables. Resolve it to an absolute path so the child and server always share one DB.\n3. Don't run the offline migration on the live DB, because it is already migrated. Leave `data/orchestra.db` alone, or migrate or archive it deliberately.\n4. Add a test that `_make_mcp_config`'s env carries `ORCHESTRA_DB_PATH` when it is set.\n\nI left a scratch probe script at `scratch/probe.py`. I did not run it."
+}

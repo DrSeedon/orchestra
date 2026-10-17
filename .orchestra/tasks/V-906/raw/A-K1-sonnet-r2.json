@@ -1,0 +1,23 @@
+{
+ "run_id": "A-K1-sonnet-r2",
+ "task": "K1",
+ "group": "K",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 5097,
+ "output_tokens": 1114,
+ "input_tokens": 4,
+ "cache_read_tokens": 9817,
+ "cache_create_tokens": 3979,
+ "turns": 2,
+ "cost_usd_api_equiv": 0.0290274,
+ "seconds": 14.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: In `run_pytest` (app/merge_test_gate.py, around lines 109–127), `subprocess.run(..., capture_output=True, text=True, timeout=budget)` raises `subprocess.TimeoutExpired` when pytest times out. The handler then joins `exc.stdout` and `exc.stderr` with `+`. On timeout, those attributes don't have the type that `text=True` implies. `subprocess.run` calls `process.communicate(timeout=...)`, which raises `TimeoutExpired` with the partial output it has read so far. On POSIX, that partial output is raw **bytes**. It is not decoded, because decoding to str happens only on the normal completion path. `run()` then re-raises with `exc.stdout = process.stdout` and `exc.stderr = process.stderr` (the bytes captured so far). The same applies on CPython versions where `stderr` is not populated: `stderr` can be `None`, which `or \"\"` turns into a `str`.\n\nThe result is a mix of types:\n- Typically `exc.stdout` is bytes, and `exc.stderr` is either bytes or `None`. `None` becomes `\"\"`, a str.\n- That gives `bytes + str`, which raises \"can only concatenate…\". If the types are the other way round, you get `str + bytes`.\n- When both streams hold bytes, the concatenation works. This is why the crash is intermittent and depends on what each stream had emitted at the kill.\n\nIt never happens when pytest finishes, because the normal path at line 137 (`proc.stdout`/`proc.stderr` from a completed `CompletedProcess`) is always str under `text=True`. This matches \"only on timeouts, never when pytest finishes\".\n\nThe code has a bytes-decode guard at lines 126–127. It runs after the failing concatenation, so it never gets the chance to help. The `isinstance(out, bytes)` check is dead code for the mixed case.\n\nI did not run a reproduction. The diagnosis comes from reading the code and from how `subprocess.run` and `TimeoutExpired` behave.\n\nFIX: Decode each stream on its own before joining. For example, add a small helper:\n\n```python\ndef _as_text(v):\n    if v is None:\n        return \"\"\n    if isinstance(v, bytes):\n        return v.decode(\"utf-8\", \"replace\")\n    return v\n```\n\nThen use `out = _as_text(exc.stdout) + _as_text(exc.stderr)` in the `TimeoutExpired` handler, and drop the later `isinstance` block. Add a regression test that monkeypatches `subprocess.run` to raise `TimeoutExpired(cmd, 1, output=b\"x\", stderr=None)`. Add a second case with str/bytes swapped. Assert that `run_pytest` returns `status == INCONCLUSIVE` and `reason == \"timeout\"`.\n\nOptionally, also kill the whole pytest process group on timeout, so that child processes don't linger. That is a separate issue from this crash."
+}

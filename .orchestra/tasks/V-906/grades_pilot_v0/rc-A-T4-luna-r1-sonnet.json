@@ -1,0 +1,1 @@
+{"run_id": "A-T4-luna-r1", "judge": "sonnet", "ok": false, "grade": null, "raw": "{\"primary\": 1, \"supporting\": [1, 0.5, ], \"decoy_main\": false, \"reproduction\": \"none\"}\n\nCorrection, the JSON must be valid:\n\n{\"primary\": 1, \"supporting\": [1, 0.5], \"decoy_main\": false, \"reproduction\": \"none\"}"}

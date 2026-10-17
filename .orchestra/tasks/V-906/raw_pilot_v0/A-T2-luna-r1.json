@@ -1,0 +1,28 @@
+{
+ "run_id": "A-T2-luna-r1",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 18804,
+ "output_tokens": 746,
+ "input_tokens": 124938,
+ "cache_read_tokens": 106880,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0032476000000000002,
+ "seconds": 16.2,
+ "contamination_flag": true,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"cannot derive target-relative merge paths|target-relative merge paths|merge_worker|merge-gate|oracle\" app'",
+  "/bin/bash -lc \"sed -n '780,890p' app/merge_operations.py && sed -n '1,130p' app/merge_operations.py && rg -n \\\"derive.*path|changed.*path|rename|diff-tree|merge-base|name-status\\\" app/merge_operations.py app\"",
+  "/bin/bash -lc \"cat app/merge_test_gate.py && rg -n \\\"changed_paths\\\\(\\\" tests app\"",
+  "/bin/bash -lc \"sed -n '145,235p' app/merge_test_gate.py\""
+ ],
+ "final_text": "CAUSE: `merge_worker` fails because `changed_paths()` treats a timed-out Git diff as “paths unavailable.” In `app/merge_test_gate.py`, `_git()` gives every Git command a fixed 15-second timeout and returns `None` on `TimeoutExpired`. `changed_paths()` runs `git diff --name-only <target>...HEAD` with Git’s default rename detection enabled. On this branch’s large diff, rename similarity checks can exceed that timeout; `changed_paths()` then returns `None`, and `_prepare_admission_snapshot()` in `app/merge_operations.py` raises “cannot derive target-relative merge paths.”\n\nThe refusal happens before oracle evaluation, so the unchanged test-gate selection or pytest run is not the cause. Retries repeat the same timed-out diff.\n\nRecommended fix: use `--no-renames` for this changed-path inventory, since it only needs paths for admission and test selection, not rename classification. Alternatively, increase the timeout, but that leaves runtime dependent on diff size."
+}

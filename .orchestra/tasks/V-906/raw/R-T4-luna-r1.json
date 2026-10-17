@@ -1,0 +1,29 @@
+{
+ "run_id": "R-T4-luna-r1",
+ "task": "T4",
+ "group": "T",
+ "arm": "R",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 18785,
+ "output_tokens": 973,
+ "input_tokens": 143252,
+ "cache_read_tokens": 125440,
+ "cache_create_tokens": 0,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.0035221000000000002,
+ "seconds": 17.1,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc \"rg --files -g '\"'!*'\"' .\"",
+  "/bin/bash -lc \"pwd && rg --files --hidden -g '\"'!**/.git/**'\"' .\"",
+  "/bin/bash -lc \"sed -n '1,260p' app/quota_gate.py && rg -n \\\"QUOTA_GATED_LANES|quota_gate|load_dotenv|dotenv|EnvironmentFile|environ\\\" app tests | head -240\"",
+  "/bin/bash -lc \"sed -n '360,410p' app/main.py && rg -n \\\"GATED_LANES|gated_lanes\\\" app/quota_gate.py\"",
+  "/bin/bash -lc \"sed -n '120,165p' tests/test_quota_gate.py && sed -n '1,18p' .env 2>/dev/null || true\""
+ ],
+ "final_text": "CAUSE: systemd’s `EnvironmentFile` puts `QUOTA_GATED_LANES` in the service process environment at startup. In `app/quota_gate.py`, `_startup_quota_env` captures that value at import time, and `_live_quota_env()` gives it precedence over the freshly parsed `.env` value. So the mtime check can fire and the new value can be parsed, yet the policy still uses the old startup value. In a local shell where the variable is absent from `os.environ`, the `.env` value takes effect.\n\nThe code supports this diagnosis: `_live_quota_env()` refreshes on mtime changes, then selects `_startup_quota_env[name]` before `_dotenv_values[name]`. `app/main.py` also calls `load_dotenv()` with its default `override=False`, so it does not replace an existing systemd-provided value. The existing test `test_dotenv_quota_changes_are_applied_without_module_reload` clears the variable from the environment, so it covers the local-shell case but not this systemd case.\n\nThe recommended fix is to make quota settings in `.env` authoritative during live reload, falling back to the startup environment only when the key is absent from `.env`. Alternatively, remove this setting from the service’s `EnvironmentFile` so the live `.env` value is used. Add a regression test with the old value in the startup environment and an edited `.env`.\n\nI did not reproduce the production service behavior directly; this diagnosis follows the precedence in the code and the stated observations."
+}

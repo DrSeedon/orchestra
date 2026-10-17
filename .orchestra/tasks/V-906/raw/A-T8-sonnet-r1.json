@@ -1,0 +1,25 @@
+{
+ "run_id": "A-T8-sonnet-r1",
+ "task": "T8",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 20424,
+ "output_tokens": 2314,
+ "input_tokens": 10,
+ "cache_read_tokens": 72281,
+ "cache_create_tokens": 18100,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.1100162,
+ "seconds": 26.0,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The timeout is enforced. The hang comes after it fires. On timeout, `bash()` in `app/harness/tools.py` kills the process group and then waits for the output pipe to reach EOF. A descendant that left the group still holds that pipe open, so the wait blocks until the descendant exits. I could not run anything, because the Bash tool is disabled here. I did write `scratch/repro.py`, but it has not been run, so this comes from reading the code only.\n\nEvidence:\n- The teammate's guess does not hold. `asyncio.wait_for(asyncio.shield(reader), timeout)` (tools.py:152) is a standard pattern. When the timeout fires, `wait_for` cancels only the shield wrapper and raises `TimeoutError`. That is why most commands return at about 30 s with \"harness timeout ... killed\" and partial output.\n- The hang is in the `except asyncio.TimeoutError` branch, at tools.py:158-159. It calls `await _kill_proc(proc)` and then `out, _ = await reader`. `reader` is `proc.communicate()`, which only finishes when the stdout/stderr pipe hits EOF, not when the shell exits.\n- `_kill_proc` calls `_cleanup_pidfd_group` (app/bg_jobs.py:242-267). That sends SIGTERM and then SIGKILL to the shell's own process group only. `_spawn_bg_process` starts the shell with `start_new_session=True` and holds a pidfd for that group.\n- A command that starts a background daemon in a different session or group keeps the write end of the pipe open after the group is killed. Examples are `setsid cmd &`, `daemonize`, or `sleep 600 & disown` under `su`, which can start its own session. Nothing kills that process, so `await reader` waits until it exits on its own.\n- Nothing bounds that wait. The `finally` block (tools.py:176-179) also does `await reader` after the cancel, so it adds no protection. `su -s /bin/sh user -c` (tools.py:131) can add another session boundary.\n\nFix I recommend:\n1. In the timeout branch, never wait unboundedly for the pipe. Use `await asyncio.wait_for(asyncio.shield(reader), 2)` (or a short constant), and on `TimeoutError` cancel `reader` and return what has been read. For partial output to survive, read the pipe incrementally into a buffer instead of relying on `communicate()` returning it. For example, use a reader task that appends `proc.stdout.read(n)` chunks to a bytearray.\n2. After the kill, close the transport (`proc._transport.close()`) so the pipe is abandoned.\n3. Optionally, kill the whole session, not just the process group, for example by walking `/proc` for the session ID the way `_orphan_session_stats` does. Do this on a best-effort basis.\n4. Apply the same bound to the `finally` block, and to the cancellation path at tools.py:142-145.\n\nTo confirm, run `scratch/repro.py` with the commands `\"sleep 100\"` and `\"setsid sleep 15 >/dev/null 2>&1 & sleep 100\"`. I expect the first to return at about 3 s and the second to take about 15 s, which is the lifetime of the escaped child."
+}

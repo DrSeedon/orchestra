@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C4-sonnet-r2",
+ "task": "C4",
+ "group": "C",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 2680,
+ "output_tokens": 348,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2330,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0135218,
+ "seconds": 6.5,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "Imagine you hire a night watchman and ask him to check that the shop's back door is locked. Every morning he leaves a note: \"Back door checked. All good.\" Green light, every day.\n\nBut what if he's been checking the *front* door? Or just writing the note without checking anything? The note says \"good\" no matter what. It never could have said anything else, so it tells you nothing.\n\nA software test is that note. It's a small program that checks whether another program behaves correctly, and it reports \"pass\" (green) or \"fail\" (red). A test can go green for the wrong reasons: it checks the wrong thing, or it's written so loosely that nothing could make it fail.\n\n\"Checking that the test can fail\" means deliberately making the thing it guards go wrong, then seeing whether the test notices. For the watchman, you'd unlock the back door one night. If the note still says \"all good,\" you've learned his checking is worthless. If he reports \"door unlocked!\", you can trust his green notes.\n\nA green result only means something if red was possible. So before trusting a pass, break the thing on purpose and make sure the alarm actually goes off."
+}

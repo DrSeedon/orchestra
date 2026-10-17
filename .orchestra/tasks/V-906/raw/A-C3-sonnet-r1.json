@@ -1,0 +1,23 @@
+{
+ "run_id": "A-C3-sonnet-r1",
+ "task": "C3",
+ "group": "C",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 2634,
+ "output_tokens": 227,
+ "input_tokens": 2,
+ "cache_read_tokens": 3589,
+ "cache_create_tokens": 2405,
+ "turns": 1,
+ "cost_usd_api_equiv": 0.0126118,
+ "seconds": 5.8,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "Result: the task-rewriting trick didn't help, and it costs a lot more.\n\nWe ran 48 tests. The share of accepted answers didn't go up. Paid tokens more than doubled, so the same work costs over 2x.\n\nBig caveat: our test tasks were too easy. Even without the trick, the agent mostly succeeds, so there was little room for any gain to show. This means we haven't shown the trick is useless. We just haven't shown it works.\n\nMy recommendation: don't roll it out now. If you think it's worth a fair test, approve one more round on harder tasks, and I'll report the cost too. Otherwise, drop it.\n\nWhich do you want: retest on harder tasks, or drop it?"
+}

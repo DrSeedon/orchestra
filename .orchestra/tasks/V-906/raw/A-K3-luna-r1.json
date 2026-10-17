@@ -1,0 +1,27 @@
+{
+ "run_id": "A-K3-luna-r1",
+ "task": "K3",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 13017,
+ "output_tokens": 680,
+ "input_tokens": 86705,
+ "cache_read_tokens": 74368,
+ "cache_create_tokens": 0,
+ "turns": 5,
+ "cost_usd_api_equiv": 0.00231738,
+ "seconds": 11.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'pwd && rg -n \"timer|delay_seconds|expired|bg_create\" app/bg_jobs.py tests'",
+  "/bin/bash -lc \"sed -n '1,130p' app/bg_jobs.py && sed -n '340,470p' app/bg_jobs.py && sed -n '490,590p' app/bg_jobs.py && sed -n '780,845p' app/bg_jobs.py\"",
+  "/bin/bash -lc \"sed -n '870,930p' tests/test_bg_jobs.py && sed -n '1270,1300p' tests/test_bg_jobs.py && rg -n \\\"MAX_TIMER_TIMEOUT|timeout_seconds.*delay_seconds|expires_at\\\" tests/test_bg_jobs.py app/bg_jobs.py\""
+ ],
+ "final_text": "CAUSE: `BgJobManager.create()` gives timers an expiration deadline that can be earlier than their trigger time. It first raises `timeout_seconds` to at least `delay_seconds + 3600`, then clamps it to `MAX_TIMER_TIMEOUT` (8 days). For a 10-day delay, the timer task sleeps for 10 days in `_run_timer()`, but the job expires after 8 days. Expiration can mark the job `expired` before the task wakes, so it cannot trigger its target. Delays up to 3 days fit within the cap.\n\nEvidence: `MAX_TIMER_TIMEOUT` is set to `8 * 86400` in `app/bg_jobs.py`; the clamp and `expires_at` calculation are in `BgJobManager.create()`. `_run_timer()` sleeps for the requested delay, while `restore_from_db()` also expires jobs whose `expires_at` has passed.\n\nFix: Ensure timer expiry is always later than its trigger. For example, derive the timer’s maximum timeout from `delay_seconds + buffer` instead of applying a fixed 8-day cap."
+}

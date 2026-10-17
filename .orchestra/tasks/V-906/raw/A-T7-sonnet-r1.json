@@ -1,0 +1,25 @@
+{
+ "run_id": "A-T7-sonnet-r1",
+ "task": "T7",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 50615,
+ "output_tokens": 9705,
+ "input_tokens": 48,
+ "cache_read_tokens": 636347,
+ "cache_create_tokens": 40862,
+ "turns": 32,
+ "cost_usd_api_equiv": 0.3878633999999999,
+ "seconds": 93.4,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: I traced the error to its source in the code, but I could not confirm why retries keep failing. Bash is disabled here, so my scratch repro (`scratch/repro.py`) was never run.\n\n**What I can show**\n- The error code comes from `Session._change_runtime_chat_locked` (`app/session.py:3394-3413`). It wraps `_drain_persist()` and `_disconnect_backend()` in one `try/except Exception`. Any exception in releasing the old runtime becomes `text_tail_source_release_failed` with `history_transfer.mode=\"blocked\"`. The real error is only in the `error` field, which the UI drops. `app/static/js/app.js:2618` prints just the code.\n- `_drain_persist` (`app/session.py:4125`) uses `gather(..., return_exceptions=True)`, so it can't be the source.\n- The source is therefore `_disconnect_backend` (`app/session.py:4054`). Its first step is `await backend.disconnect()`, and that call is unguarded.\n- `ClaudeBackend.disconnect` (`app/backend_claude.py:1160-1172`) calls the SDK's `client.disconnect()`, logs any failure, and re-raises it. The orchestrator's Claude CLI process is dead, so this teardown is the step that raises.\n- The re-raise is deliberate. `tests/test_session.py:4093` (`test_disconnect_failure_retains_backend_and_lifecycle_tasks`) and `tests/test_backend_claude.py:314` assert that `_backend` and the heartbeat and listener tasks are retained on failure. That design is meant to avoid orphaning a live process, but here it blocks the switch for a process that is already dead.\n- Because the exception propagates, `self._backend = None` and the heartbeat/listener cancellation (`session.py:4061-4081`) never run. The dead backend stays attached and the switch is aborted before anything is saved.\n\n**What I could not explain**\n`ClaudeBackend.disconnect` sets `_client = None` in its `finally`, so a second call should be a no-op and the retry should succeed. That contradicts \"always fails\". The likely explanations are:\n- The SDK's disconnect raises on every call for a dead transport, or the orchestrator's backend holds some other state.\n- The still-running listener (`_persistent_event_loop`, `session.py:2149`) keeps reconnecting the dead client between attempts.\n\nI could not tell which of these it is.\n\n**Recommended fix**\n1. In `_disconnect_backend`, or in a \"release source\" step before the model switch, treat a backend whose process is already gone as released. Do this when `backend.disconnect()` raises and the process is verifiably dead: log a warning, then still set `self._backend = None`, cancel the heartbeat, listener and hibernate tasks, and continue. Keep the strict retain-on-failure behaviour only when the process is still alive.\n2. In `_change_runtime_chat_locked`, put `err_text(error)` and the exception type into the user-facing message so the real error is visible.\n3. To confirm, run `scratch/repro.py` (`PYTHONPATH=. /home/kesha/orchestra/.venv/bin/python scratch/repro.py`) or check the server log for \"ClaudeBackend disconnect failed: …\". That line names the actual exception."
+}

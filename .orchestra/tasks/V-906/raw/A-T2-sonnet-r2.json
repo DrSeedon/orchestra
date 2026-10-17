@@ -1,0 +1,23 @@
+{
+ "run_id": "A-T2-sonnet-r2",
+ "task": "T2",
+ "group": "T",
+ "arm": "A",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 7940,
+ "output_tokens": 1835,
+ "input_tokens": 10,
+ "cache_read_tokens": 33426,
+ "cache_create_tokens": 6095,
+ "turns": 6,
+ "cost_usd_api_equiv": 0.0494352,
+ "seconds": 39.9,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [],
+ "final_text": "CAUSE: `changed_paths()` in `app/merge_test_gate.py` most likely times out on this large branch. The 15-second timeout in `_git()` is the probable trigger. I did not run it against the real branch, so this comes from reading the code. I did not check how `_git` behaves with the real worktree or how long the diff takes.\n\nEvidence:\n- The error is raised in `app/merge_operations.py`, in `_prepare_admission_snapshot` (around line 864). It is raised when `changed_paths(worktree, target_ref=..., target_sha=...)` returns `None`.\n- In `app/merge_test_gate.py`, `changed_paths` (line 167) returns `None` only when a `_git(...)` call returns `None`. It never returns `None` for an empty list.\n- `_git` (line 150) runs git with `timeout=15`. It turns both `subprocess.TimeoutExpired` and any non-zero exit code into `None`. The caller cannot tell a timeout from a real failure, and nothing is logged.\n- The failing step is probably `git diff --name-only <base>...HEAD` (line 189). Git's default rename detection runs on that diff, and the branch has about 60 renames among 2402 files, about 1900 of them PNGs. Rename detection is expensive at that size, and the `...` form also has to compute the merge base first.\n- `git ls-files --others --exclude-standard` (line 193) also scans the whole worktree under the same 15-second limit.\n- Small branches finish inside the limit. The large branch exceeds it every time, so every retry fails the same way. That fits \"fails identically on every retry\".\n\nThe teammate's guess doesn't fit the code. A missing merge base makes git exit non-zero, and `_git` turns that into `None` too, so it would raise the same error. But it would not produce an \"empty path list\". It also would not explain why only large branches fail. It can only be ruled out by running `git merge-base <target_sha> HEAD` in the worktree. If that succeeds, the guess is wrong.\n\nRecommended fix:\n1. In `changed_paths`, add `--no-renames` to the diff and `--no-ext-diff`. Add `-z` to the `ls-files` call if you want it robust to odd filenames. Use `--name-only` with `--diff-filter` as needed.\n2. Give `_git` a larger, per-call timeout, such as 60–120 seconds for diff and `ls-files`. Better, make `_git` raise or return a distinct error that includes the git command, the timeout or return code, and stderr. Then `_prepare_admission_snapshot` can report \"git diff timed out after 15s\" instead of the generic message.\n3. Add a regression test with a few thousand files, binaries and renames included. It would exercise the timeout path.\n\nTo confirm, run `time git diff --name-only <target_sha>...HEAD` in the task-56 worktree. Run it once with default settings and once with `--no-renames`. Also check `git merge-base`."
+}

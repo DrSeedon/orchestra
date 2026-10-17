@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T5-sonnet-r2",
+ "task": "T5",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 26645,
+ "output_tokens": 4273,
+ "input_tokens": 14,
+ "cache_read_tokens": 90801,
+ "cache_create_tokens": 22358,
+ "turns": 12,
+ "cost_usd_api_equiv": 0.1503502,
+ "seconds": 42.9,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: Not reproduced. I couldn't run anything because Bash is disabled here. What follows comes from reading the code, and the mechanism is untested.\n\n**Teammate's guess:** The code gives no support for it. In the excerpts the worker is alive and starts a new turn within about 100 ms. A real crash would reach `_on_task_done` through `task.exception()` and log \"listen task died\", not \"exited unexpectedly\".\n\n**Suspected root cause:** a race between the old per-turn listener's done-callback and the mailbox-continuation `send()`.\n- Codex uses `event_stream=\"per_turn\"` (`runtime_registry.py`).\n- The old `_turn_event_loop` handles `turn_end` inside its `async for`.\n  - `finish_turn_status` sets the status to IDLE.\n  - `after_turn_idle_actions` (`session_turns.py:548`) finds a mailbox entry, logs \"продолжаю ход\" and spawns `_deliver_mailbox` as a background task. This also covers the rate_limit case, where the turn is marked FAILED and ends the same way.\n- `_deliver_mailbox` calls `s.send()`.\n  - `send()` sets RUNNING via `_start_turn_state` (`session.py:1575`) and logs `user_message`.\n  - It then awaits `_ensure_backend` and `provider_send`.\n  - Only at `session.py:1683` does it replace `self._listen_task` with a new task.\n- The old task finishes its stream in that window, so its done-callback runs while `self._listen_task` is still the old task and `status == RUNNING`.\n  - The stale-task guard (`session.py:2879`) passes.\n  - `_on_task_done` takes the `else` branch (`session.py:2894-2896`) and calls `_finish_failed_running_turn(\"listen task exited unexpectedly while RUNNING\")`.\n- That function (`session.py:2296`) logs the error row, sets IDLE and sends `report_abnormal_end` (\"Turn failed before an explicit report (no output)\"). It then claims the mailbox again.\n- The new turn is already being submitted, so \"codex turn started\" follows.\n\n**What fits the evidence:**\n- The error row comes right after `user_message`, which matches the excerpts.\n- It only hits turns that end with mailbox mail queued, which would explain why there are only 14 in a month.\n- The quota link is probably indirect. Quota exhaustion makes failed turns and queued orchestrator mail more likely, so the window gets hit more often.\n\n**Gaps in this explanation:**\n- In the second excerpt the error row (id 557156) has a later timestamp than the `user_message` (id 557157, .830). I haven't explained that ordering.\n- I wrote `scratch/repro.py` to model the ordering with the real `_on_task_done`. It uses stubs, so it would only show the callback logic, not the full session. It has not been run.\n\n**Recommended fix:** make the stale check ownership-based, not identity-based.\n- Option 1: in `send()`, set `_listen_task = None` (or bump a turn generation) when the turn starts, before the first await. The old task's callback then exits at the `task is not self._listen_task` guard.\n- Option 2: in `_on_task_done`, treat a finished per-turn task as a failure only if it belongs to the current turn. Compare a turn-generation token captured at task creation with `_turn_gen`.\n- Add a test in `tests/test_listen_task_done_648.py` where the old task finishes while a mailbox `send()` is between `_start_turn_state` and task creation."
+}

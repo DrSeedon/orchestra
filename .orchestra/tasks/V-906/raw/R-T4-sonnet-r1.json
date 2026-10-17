@@ -1,0 +1,25 @@
+{
+ "run_id": "R-T4-sonnet-r1",
+ "task": "T4",
+ "group": "T",
+ "arm": "R",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 21539,
+ "output_tokens": 2419,
+ "input_tokens": 10,
+ "cache_read_tokens": 75592,
+ "cache_create_tokens": 19110,
+ "turns": 7,
+ "cost_usd_api_equiv": 0.1157684,
+ "seconds": 30.1,
+ "contamination_flag": false,
+ "files_created": [
+  "scratch/repro.py"
+ ],
+ "commands": [],
+ "final_text": "CAUSE: The reload does work, but it can't override a value that is already in the process environment. `_live_quota_env()` in `app/quota_gate.py` gives priority to the environment captured at import time. I could not run my repro (the Bash tool is disabled here), so this comes from reading the code and is not reproduced.\n\nEvidence:\n- `app/quota_gate.py:143` sets `_startup_quota_env = {name: os.environ.get(name) ...}` once at import. It does this for every name in `_QUOTA_ENV_NAMES`, including `QUOTA_GATED_LANES`.\n- `_live_quota_env()` (lines 191-200) returns the startup value whenever it is not None. The reloaded `.env` value is used only if the process had no such variable at startup:\n  `_startup_quota_env[name] if _startup_quota_env.get(name) is not None else _dotenv_values[name] if name in _dotenv_quota_keys else _UNSET`\n- The mtime check (lines 179-190) works as written. It re-parses `.env` and updates `_dotenv_values`, which matches the debug log showing a new mtime and new values. The teammate's guess is therefore not the cause. The parsed value is then discarded by the precedence above.\n- In production, systemd's `EnvironmentFile=` puts `QUOTA_GATED_LANES=claude,sol` into `os.environ` before Python starts. The startup snapshot is therefore non-None, and it permanently shadows `.env`. Only a restart changes it, because systemd re-reads the file then.\n- Even `QUOTA_GATED_LANES=` in the file (empty string) is not None, so it also counts as set in the environment.\n- In a plain local shell, `.env` is not exported into `os.environ`. The snapshot is None, so the `.env` value wins and the edit takes effect at once. This explains the difference between the two setups.\n\nNot the cause:\n- The module constants `GATED_LANES` and `CURVED_LANES` (lines 245-246) are frozen at import. Nothing outside the module uses them, and `quota_policy()` is what the gate actually reads.\n- `load_dotenv()` in `app/main.py:382` and `app/tg_bridge.py:4048` does not override existing variables, so it doesn't change this.\n\nNot checked:\n- Whether the production unit really exports the variable. I couldn't see the unit file or run a repro.\n- To confirm, `scratch/repro.py` simulates the two cases. Run it as `PYTHONPATH=. python scratch/repro.py shell` and again with `systemd`. I expect the `shell` run to show `after []` and the `systemd` run to still show `['claude','sol']`, even though the re-parse flag is True. Please run both.\n\nFix (recommended):\n- Make the live `.env` win over the startup snapshot. In `_live_quota_env()`, use the `.env` value first when `name in _dotenv_quota_keys`. Fall back to the startup or process environment only if `.env` doesn't define the key.\n- This changes precedence for anyone who currently relies on an explicit environment override. If that matters, keep the override for variables set outside `.env`. One way is to compare the startup value against the value `.env` had at startup, and treat a matching startup value as coming from `.env`, so it is not an override.\n- Alternative with no code change: drop `EnvironmentFile=` for these keys so the app is the only reader. Otherwise restart the service after every edit.\n- Add a test that sets `os.environ` to the old value, edits `.env`, and asserts the new policy."
+}

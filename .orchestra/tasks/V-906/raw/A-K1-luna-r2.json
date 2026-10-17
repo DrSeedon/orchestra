@@ -1,0 +1,26 @@
+{
+ "run_id": "A-K1-luna-r2",
+ "task": "K1",
+ "group": "K",
+ "arm": "A",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "paid_tokens": 11978,
+ "output_tokens": 348,
+ "input_tokens": 57582,
+ "cache_read_tokens": 45952,
+ "cache_create_tokens": 0,
+ "turns": 4,
+ "cost_usd_api_equiv": 0.00179652,
+ "seconds": 9.0,
+ "contamination_flag": false,
+ "files_created": [],
+ "commands": [
+  "/bin/bash -lc 'rg -n \"def run_pytest|TimeoutExpired|subprocess.run|merge_test_gate\" .'",
+  "/bin/bash -lc \"sed -n '1,160p' app/merge_test_gate.py && sed -n '1,180p' tests/test_merge_test_gate.py && sed -n '50,90p' app/acceptance.py\""
+ ],
+ "final_text": "CAUSE: `subprocess.run(..., text=True, capture_output=True)` in `app.merge_test_gate.run_pytest` normally returns decoded strings, but `subprocess.TimeoutExpired.stdout` and `.stderr` may still be bytes. The timeout handler concatenates them before checking their type, so mixed `str` and `bytes` raise `TypeError`; the later decode is never reached. This also occurs in `app.acceptance`’s timeout handler.\n\nFix: normalize each captured stream to text before concatenating, decoding bytes with `errors=\"replace\"`, then truncate the result."
+}
