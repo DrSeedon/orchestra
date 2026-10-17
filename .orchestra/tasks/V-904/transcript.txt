@@ -1,0 +1,21 @@
+[00:00] 08/15/1997, 09:52PM. Someone starts a run that will produce the seed of p two fifty six, a curve NIST later made standard. Each random curve has a published seed, 20 bytes long. Hashing the seed with SHA-one determines the curve's constant, b. NIST has 10 such curves, five prime and five binary.
+
+[00:28] Jerry Salinas of the NSA recalled making the seeds with a colleague, but not exactly how. Years later, Salinas remembered computing the SHA-one hash of a joke. Something like give Bob and Jerry a raise, but not the exact words. Ever since, people have tried to guess what message was hashed to get the seeds. We asked Claude to give it a go.
+
+[00:53] Claude set the sentences aside and asked what else could have produced the seeds. Random number generators of the nineteen nineties leave fingerprints. So it scanned the curve's base points against the common ones and added the seeds on the off chance. What if a seed was generator output, not a hash? One match came back.
+
+[01:16] It was in the seed of a binary curve. In fact, Claude then noticed that four of the five binary seeds share a pattern you can see by eye. Split these four seeds into 32 bit words and look at the first hex digit of each. It is never above seven. So the top bit is zero in all 20 words.
+
+[01:38] A hash would do that about once in a million tries. One old unix function, l rand 48, returns numbers of exactly 31 bits, so the top bit is always zero. If these four seeds were built from those 31 bit numbers, one per 32 bit word, that would explain the pattern. That function keeps a state of 48 bits. Each call multiplies the state by a constant, adds 11, and keeps the low 48 bits.
+
+[02:10] The caller sees the top 31. The bottom 17 stay hidden. 17 bits is only a 131,000 possibilities, so Claude tries them all. Guess the hidden bits of the first word, run one step, and compare with the second word. Every guess fails, except one.
+
+[02:33] From that state, the seed's other three words follow exactly. The prime curve seeds don't show that pattern. The same generator could be read another way, one byte per call, so no bit would be fixed, and nothing would show by eye. Here is the seed of P two fifty six. Suppose each byte is the top eight bits of one state.
+
+[02:57] Now 40 bits are hidden at every step. The generator is linear, so finding the state is a lattice problem with 19 dimensions. A standard algorithm LLL, solves it in milliseconds. Seven bytes pin down a single state. The other 13 bytes all agree with it.
+
+[03:20] The generator also runs backwards, so Claude rewinds the generator from this seed. Each candidate is 20 bytes. The UNIX call that starts this generator, SRAND 48, always sets the low 16 bits to one fixed pattern. That pattern marks the start. Counting forward from there, P two fifty six was candidate 1,842.
+
+[03:47] The upper 32 bits of that first state are the argument the program passed in. As a UNIX timestamp, that number is 08/16/1997 in UTC. All five NIST prime curves come out the same way, with dates from May 1997 to April 1998. Some questions remain. In the p two fifty six run, candidate 876 also gives a curve of prime order, and why it was not used is still unexplained.
+
+[04:20] And the smallest binary curve, b one sixty three, fits none of this. So the five prime seeds are not hashes of sentences. They are the output of a random number generator started from a time stamp. It took Claude under half an hour to make this discovery. We all came to look and asked Claude to make this video.
