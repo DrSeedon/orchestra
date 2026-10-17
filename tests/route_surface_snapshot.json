@@ -547,6 +547,30 @@
   ]
  ],
  [
+  "/api/temp-rules",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/temp-rules",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/temp-rules/{rule_id}",
+  [
+   "DELETE"
+  ]
+ ],
+ [
+  "/api/temp-rules/{rule_id}",
+  [
+   "PUT"
+  ]
+ ],
+ [
   "/api/test-lock",
   [
    "GET"

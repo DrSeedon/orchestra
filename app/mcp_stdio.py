@@ -1887,6 +1887,44 @@ async def compact_worker(name: str) -> str:
 
 
 @mcp.tool()
+async def temp_rule_set(
+    text: str, targets: list[str], expires_at: str,
+    project: str = "", on_expire: str = "remove",
+) -> str:
+    """Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. targets: "all", "orchestrators", "workers", a role name, or "agent:<name>". expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z. project: empty = your own project (scope); "*" = every project, allowed only for the Orchestra project orchestrator. on_expire: "remove" drops the rule at the deadline; "notify" keeps it in force and tells you once, then you extend (temp_rule_update expires_at), keep (keep=true) or remove it."""
+    result = await _api("POST", "/api/temp-rules", json={
+        "text": text, "targets": targets, "expires_at": expires_at,
+        "project": project, "on_expire": on_expire})
+    return f"Rule {result['id']} set until {result['expires_at']} ({result['on_expire']}) for {result['targets']} in {result['project']}"
+
+
+@mcp.tool()
+async def temp_rule_list(include_inactive: bool = False) -> str:
+    """Orchestrators only. List temporary rules of your project plus all-project rules (the Orchestra orchestrator sees all)."""
+    result = await _api("GET", "/api/temp-rules", params={"include_inactive": include_inactive})
+    if not result:
+        return "No temporary rules"
+    return "\n".join(
+        f"{r['id']} [{'active' if r['active'] else 'ended'}] project={r['project']} targets={r['targets']} "
+        f"until={r['expires_at'] or 'none'} on_expire={r['on_expire']} by={r['author_name']}: {r['text']}"
+        for r in result)
+
+
+@mcp.tool()
+async def temp_rule_update(rule_id: str, expires_at: str = "", keep: bool = False) -> str:
+    """Orchestrators only. Extend a temporary rule to a new expires_at (ISO UTC), or keep=true to keep it with no deadline."""
+    result = await _api("PUT", f"/api/temp-rules/{rule_id}", json={"expires_at": expires_at, "keep": keep})
+    return f"Rule {result['id']} now until {result['expires_at'] or 'no deadline'}"
+
+
+@mcp.tool()
+async def temp_rule_remove(rule_id: str) -> str:
+    """Orchestrators only. Remove a temporary rule at once; it leaves the targeted agents' prompts from their next turn."""
+    result = await _api("DELETE", f"/api/temp-rules/{rule_id}")
+    return f"Rule {rule_id} removed"
+
+
+@mcp.tool()
 async def kill_worker(name: str, force: bool = False) -> str:
     """Stop and archive a worker. Blocked if worker has uncommitted changes or unmerged commits — pass force=True to override."""
     result = await _api("DELETE", f"/api/sessions/{name}", params={"scope": SCOPE, "force": str(force).lower()})

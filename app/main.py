@@ -604,6 +604,7 @@ from app.routes.subagent import router as subagent_router
 from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
 from app.routes.attention import router as attention_router
+from app.routes.temp_rules import router as temp_rules_router
 from app.routes.owner_activity import router as owner_activity_router
 app.include_router(tm_router)
 app.include_router(bg_router)
@@ -614,6 +615,7 @@ app.include_router(subagent_router)
 app.include_router(merge_operations_router)
 app.include_router(artifacts_router)
 app.include_router(attention_router)
+app.include_router(temp_rules_router)
 app.include_router(owner_activity_router)
 
 
