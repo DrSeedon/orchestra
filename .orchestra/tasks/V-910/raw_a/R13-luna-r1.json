@@ -1,0 +1,30 @@
+{
+ "run_id": "R13-luna-r1",
+ "qid": "R13",
+ "kind": "D",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 2,
+ "files": [
+  ".orchestra/tasks/V-673/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-673/report.md\nANSWER: Миллион входных токенов GPT-6.1 Sol стоит **$2** по API. В таблице Codex указано **50 кредитов за миллион входных токенов**.",
+ "paid_tokens": 11255,
+ "output_tokens": 503,
+ "input_tokens": 103424,
+ "cache_read_tokens": 92672,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00225342,
+ "seconds": 13.3,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'GPT-6.1 Sol' -e '6.1 Sol' -e 'входных токенов' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,45p' .orchestra/tasks/V-739/report.md && sed -n '610,655p' .orchestra/kb/models-and-quotas.md\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'Sol 20×' -e '20×' -e 'кредит' .orchestra/kb/models-and-quotas.md .orchestra/tasks/V-813/report.md .orchestra/tasks/V-673/report.md\"",
+  "/bin/bash -lc \"sed -n '19,43p' .orchestra/tasks/V-673/report.md\""
+ ]
+}

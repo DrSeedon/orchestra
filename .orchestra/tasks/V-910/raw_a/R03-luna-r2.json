@@ -1,0 +1,30 @@
+{
+ "run_id": "R03-luna-r2",
+ "qid": "R03",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/515/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/515/report.md\nANSWER: 14 тестов упирались в необходимость проприетарного Codex CLI и живого `auth.json`. 13 сделали герметичными через `codex_bin_stub`, а один перевели в `live_probe`.",
+ "paid_tokens": 14277,
+ "output_tokens": 558,
+ "input_tokens": 98967,
+ "cache_read_tokens": 85248,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00250338,
+ "seconds": 13.8,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e '57 красных' -e 'боевой авторизац' -e 'закрытый клиент' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e '57.*(red|fail|тест)' -e '(closed|private).*client' -e 'live auth|production auth|боев.*авторизац' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'закрыт.*клиент' -e 'клиент.*закрыт' -e 'боев.*(ключ|токен|auth|авторизац)' -e '57.*пад' .orchestra/tasks .orchestra/kb\"",
+  "/bin/bash -lc \"sed -n '1,110p' .orchestra/tasks/515/report.md\""
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "run_id": "S02-sonnet-r2",
+ "qid": "S02",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 2,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "Файл: models-and-quotas.md. Недельный пул Codex считает расход по-разному для разных моделей. Курс в кредитах свой для каждой модели и для каждого типа токенов (вход, кешированный вход, выход), а `cost_usd` в нашей телеметрии совпадает с этой кредитной моделью. Из 11.09 остался вывод по официальному rate card. Утверждение «84× против 1.6×», что пул считает только объём, отозвано, и экспериментально это не закрыто.\n\nFILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, не одним курсом: по официальному rate card (проверено 11.09.2026) Codex считает кредиты по отдельному курсу для каждой модели и типа токенов, а наш `cost_usd` воспроизводит эту модель. Вывод 11.09 «пул — счётчик объёма, Astra дороже Luna лишь в 1.6×» отозван. Прямого эмпирического подтверждения на приросте пула нет: по 16 окнам кредиты объясняют расход лишь чуть лучше сырых токенов, а один парный замер сдвинул пул только на 1 п.п.",
+ "paid_tokens": 8272,
+ "output_tokens": 840,
+ "input_tokens": 6,
+ "cache_read_tokens": 17436,
+ "cache_create_tokens": 7426,
+ "cost_usd_api_equiv": 0.0416032,
+ "seconds": 14.3,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"11\\\\.09|недельн\\\\w+ пул\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-i\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S02-sonnet-r2/.orchestra/kb/models-and-quotas.md\", \"offset\": 136, \"limit\": 50}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S02-sonnet-r2/.orchestra/kb/models-and-quotas.md\", \"offset\": 250, \"limit\": 20}"
+ ]
+}

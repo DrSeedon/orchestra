@@ -1,0 +1,28 @@
+{
+ "run_id": "R05-luna-r2",
+ "qid": "R05",
+ "kind": "D",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/61/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/61/report.md\nANSWER: `force=True` позволяет пересоздать ветку, если человек явно принимает на себя ответственность; без него это допустимо только при подтверждённой записью о мерже голове. При исходе BENIGN запись о мерже совпадает с текущей головой ветки, поэтому её можно заново создать от базы. При FATAL запись указывает на другую голову: пересоздание могло бы уничтожить работу, поэтому система отказывает с 409.",
+ "paid_tokens": 8956,
+ "output_tokens": 329,
+ "input_tokens": 53299,
+ "cache_read_tokens": 44672,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00147392,
+ "seconds": 17.5,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'force=True' -e 'BENIGN' -e 'FATAL' -e 'пересоздании целевой ветки' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,24p' .orchestra/tasks/61/report.md\""
+ ]
+}

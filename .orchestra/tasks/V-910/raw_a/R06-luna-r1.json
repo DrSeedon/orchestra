@@ -1,0 +1,27 @@
+{
+ "run_id": "R06-luna-r1",
+ "qid": "R06",
+ "kind": "D",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/tasks/V-693/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-693/report.md\nANSWER: На седьмой попытке упал `tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry`. Тест ожидал два вызова `_fetchHistory`, но получил три: фоновый опрос истории продолжал работать во время проверки.",
+ "paid_tokens": 9202,
+ "output_tokens": 214,
+ "input_tokens": 37148,
+ "cache_read_tokens": 28160,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0012874000000000002,
+ "seconds": 7.7,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'седьмой' -e '7-й' -e 'истории картинок' -e 'картинок' -e 'Actions' .orchestra/kb .orchestra/tasks\""
+ ]
+}

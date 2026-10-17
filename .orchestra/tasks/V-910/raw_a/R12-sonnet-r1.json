@@ -1,0 +1,28 @@
+{
+ "run_id": "R12-sonnet-r1",
+ "qid": "R12",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, на этих задачах высокий уровень не окупается. Для Opus 5.5 на пяти трудных задачах средний балл за два раунда был 3,6 на medium и 3,9 на high, а на low 4,2. Эти различия лежат внутри разброса одного прогона. Выход токенов на законченную задачу: Opus medium 35К, Opus high 56К, Opus low 16,6К. Уровни выше low поднимают цену в 1,2–4 раза без измеримого прироста качества. На max оба семейства (Opus и Sonnet) не довели ни одной задачи: все 10 прогонов оборвал недельный лимит. Это один стенд и небольшая выборка.",
+ "paid_tokens": 8222,
+ "output_tokens": 538,
+ "input_tokens": 6,
+ "cache_read_tokens": 18255,
+ "cache_create_tokens": 7678,
+ "cost_usd_api_equiv": 0.039755,
+ "seconds": 16.1,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"V-656|V-661\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-C\": 6}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R12-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 708, \"limit\": 40}"
+ ]
+}

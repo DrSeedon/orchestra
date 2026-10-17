@@ -1,0 +1,28 @@
+{
+ "run_id": "S04-sonnet-r2",
+ "qid": "S04",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, это не подтверждено. Вывод «Sol дороже Astra на 29%» был опубликован и в тот же час отозван: он получился только по самой грубой из трёх оценок, а при других оценках порядок Sol и Astra переворачивается. Причина в том, что `quota_primary_pct` целочислен, и один ход обычно не двигает счётчик. Устойчиво подтверждается только то, что Astra вдвое дороже за миллион токенов (0.060–0.065 п.п. против 0.022–0.034). Раздел относится к GPT-5.6 Sol, GPT-6 Sol в нём не измерялся. В долларах ход Astra дороже хода Sol на 7%: $3.419 против $3.199. Для честного сравнения расхода пула нужен парный прогон одной задачи.",
+ "paid_tokens": 7948,
+ "output_tokens": 576,
+ "input_tokens": 6,
+ "cache_read_tokens": 18447,
+ "cache_create_tokens": 7366,
+ "cost_usd_api_equiv": 0.0389254,
+ "seconds": 16.5,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"Sol\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-n\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S04-sonnet-r2/.orchestra/kb/models-and-quotas.md\", \"offset\": 428, \"limit\": 40}"
+ ]
+}

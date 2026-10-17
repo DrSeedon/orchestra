@@ -1,0 +1,29 @@
+{
+ "run_id": "R11-luna-r2",
+ "qid": "R11",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-713/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-713/report.md\nANSWER: Sparse checkout уменьшил рабочую копию Katya с 2,040 GB до 2,27 MB (−99,89%), а Seedon — с 1,263 GB до 47,3 MB (−96,26%). Платим отсутствием файлов вне выбранного профиля: у Katya ломается проверенный рендерер без артефакта из `artifacts/`, у Seedon падает тест без fixture из `.orchestra/tasks/`; нужны профили под задачи и догрузка нужных каталогов.",
+ "paid_tokens": 17735,
+ "output_tokens": 469,
+ "input_tokens": 91762,
+ "cache_read_tokens": 74496,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0027060600000000006,
+ "seconds": 16.0,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'частичн' -e 'Katya' -e 'Seedon' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'рабочая копия' -e 'выгрузк' -e 'sparse.checkout' -e 'sparse-checkout' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc 'cat .orchestra/tasks/V-713/report.md'"
+ ]
+}

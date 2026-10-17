@@ -1,0 +1,29 @@
+{
+ "run_id": "R15-sonnet-r2",
+ "qid": "R15",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-680/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-680/report.md\nANSWER: Каждый конец хода пишется в SQLite-таблицу `turn_signals` с уникальным `signal_key` (`сессия:boot:turn_gen`), так что на ход приходится один сигнал. Если доставка сразу не удалась, строка остаётся `pending` и повторяется с backoff от 30 с до 15 мин. Sweeper, который стартует после `auto_resume_all`, доставляет оставшиеся строки и после рестарта: он заново находит и догружает родителя, а перед отправкой проверяет в логе родителя `turn_signal[id]`, чтобы не было дубля. Ходы, убитые рестартом, фиксирует `record_interrupted_by_restart`. Если родителя нет, сигнал получает статус `dropped`.",
+ "paid_tokens": 10284,
+ "output_tokens": 748,
+ "input_tokens": 8,
+ "cache_read_tokens": 26843,
+ "cache_create_tokens": 9528,
+ "cost_usd_api_equiv": 0.0509766,
+ "seconds": 23.9,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"дочерн.*(закончил|завершил|ход)|child.*(turn|notif)|уведомлен.*родител|outbox|перезапуск\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"count\"}",
+  "Grep {\"pattern\": \"(родител|parent).{0,80}(уведомлен|notif|wake|доставк)|durable|переживает перезапуск|после перезапуска\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"content\", \"head_limit\": 25}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R15-sonnet-r2/.orchestra/tasks/V-680/report.md\"}"
+ ]
+}

@@ -1,0 +1,122 @@
+[
+ {
+  "run_id": "S01-luna-r1",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says a lone AGENTS.md is picked up by Claude workers through the system CLI, which matches the reference. It also keeps CLAUDE.md as a symlink to AGENTS.md, which matches the reference too. It doesn't present the withdrawn 07.10 conclusion as current. The justificat"
+ },
+ {
+  "run_id": "S01-luna-r2",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says yes: Claude workers use the system CLI, which reads a lone AGENTS.md. This matches the reference. It also keeps CLAUDE.md as a symlink to AGENTS.md, as the reference does. It does not present the withdrawn 07.10 conclusion as current. The 08.10 check date and t"
+ },
+ {
+  "run_id": "S01-sonnet-r1",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"Согласуется с действующим выводом: системная CLI читает одиночный AGENTS.md, заключение от 07.10 отозвано, CLAUDE.md остаётся симлинком на AGENTS.md.\"}"
+ },
+ {
+  "run_id": "S01-sonnet-r2",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"It states that workers read a lone AGENTS.md and that the 07.10 conclusion was wrong; it also says the CLAUDE.md symlink is still kept, consistent with the reference.\"}"
+ },
+ {
+  "run_id": "S02-luna-r1",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says the pool counts credits at per-model rates (rate card) and that the 11.09 conclusion (pool doesn't distinguish models) was withdrawn due to a methodological error. This matches the reference. It adds that the experimental question is still open, but it does not"
+ },
+ {
+  "run_id": "S02-luna-r2",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says the pool charges credits at a per-model rate and that the 11.09 claim (the pool barely distinguishes models, 1.6x) was withdrawn. That matches the reference and does not present the old conclusion as current. The answer's 94× figure doesn't match the reference'"
+ },
+ {
+  "run_id": "S02-sonnet-r1",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"The answer states that the pool counts credits at different model-specific rates and explicitly withdraws the old 1.6× claim. Its caveat about the lack of a direct pool measurement does not present the withdrawn conclusion as current.\"}"
+ },
+ {
+  "run_id": "S02-sonnet-r2",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"It says the pool uses per-model rates and explicitly withdraws the claim that it counts only volume, matching the reference.\"}"
+ },
+ {
+  "run_id": "S03-luna-r1",
+  "judge": "sonnet",
+  "correct": 0,
+  "text": "{\"correct\": 0, \"why\": \"The answer presents Fable as having its own separate scope limit, with a weekly bar that shows only Fable spend. That is the withdrawn first reading. The reference says weekly_scoped is only a ceiling (at most 50%) inside the shared weekly pool, and Fable spend also raises wee"
+ },
+ {
+  "run_id": "S03-luna-r2",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says Fable has no separate weekly capacity and that its spend counts toward the shared weekly pool (weekly_all), with a ceiling of up to 50%. This matches the reference. It does not present the withdrawn reading as current.\"}"
+ },
+ {
+  "run_id": "S03-sonnet-r1",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"It correctly says Fable’s limit is part of the shared weekly pool, capped at about 50%, and that Fable spend uses that shared pool.\"}"
+ },
+ {
+  "run_id": "S03-sonnet-r2",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"Согласуется: weekly_scoped — потолок до 50% внутри общего недельного пула, траты Fable увеличивают оба счётчика, а прежняя версия отозвана.\"}"
+ },
+ {
+  "run_id": "S04-luna-r1",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says the claim is not established: pool-percentage comparison is unreliable and no paired measurement exists. That matches the reference's 'not established' and does not present the withdrawn 29% claim as current. It omits the robust points (Luna cheaper, Astra's pe"
+ },
+ {
+  "run_id": "S04-luna-r2",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says there is no reliable confirmation that Sol is costlier than Astra. It says the 29% claim was withdrawn and the order flips with the estimation method, and it calls for a paired run. That matches the reference's current conclusion. It omits that Luna is cheaper "
+ },
+ {
+  "run_id": "S04-sonnet-r1",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"It says the 29% claim was withdrawn and the pool comparison is not confirmed, consistent with the current reference.\"}"
+ },
+ {
+  "run_id": "S04-sonnet-r2",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\":1,\"why\":\"Ответ верно говорит, что преимущество Sol по расходу не подтверждено, а утверждение о 29% было отозвано; вывод соответствует reference.\"}"
+ },
+ {
+  "run_id": "S05-luna-r1",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says No: fix the goal and acceptance criteria and leave the method to the worker, because a prescribed method can distort the measurement. This matches the reference and does not present the withdrawn advice to fix the method as current.\"}"
+ },
+ {
+  "run_id": "S05-luna-r2",
+  "judge": "sonnet",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"The answer says No: specify an identical verifiable outcome and acceptance criteria, and leave the method to the workers. This matches the reference's current conclusion, and it doesn't present the withdrawn advice to fix the method as current.\"}"
+ },
+ {
+  "run_id": "S05-sonnet-r1",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"It says the prescribed method distorts the measurement and recommends leaving the method to the worker, consistent with the current reference.\"}"
+ },
+ {
+  "run_id": "S05-sonnet-r2",
+  "judge": "luna",
+  "correct": 1,
+  "text": "{\"correct\": 1, \"why\": \"It says not to prescribe a method and to leave it to the worker, consistent with the current conclusion.\"}"
+ }
+]

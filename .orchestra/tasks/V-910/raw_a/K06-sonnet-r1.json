@@ -1,0 +1,27 @@
+{
+ "run_id": "K06-sonnet-r1",
+ "qid": "K06",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: У Anthropic (Claude) `cache_read` лежит вне `input_tokens`, а у OpenAI (Codex) он вложен в `input_tokens`. Поэтому для Claude объём хода равен `input + output + cache_read + cache_create`. Для Codex такая сумма даёт двойной счёт (16.8М вместо 8.5М токенов), и там нужно считать `input + output`.",
+ "paid_tokens": 6036,
+ "output_tokens": 302,
+ "input_tokens": 4,
+ "cache_read_tokens": 9599,
+ "cache_create_tokens": 5730,
+ "cost_usd_api_equiv": 0.027867800000000005,
+ "seconds": 11.9,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"cache_read\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-C\": 2}"
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "run_id": "R10-luna-r1",
+ "qid": "R10",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-898/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-898/report.md\nANSWER: В отчёте V-898 такого замера нет: у Orchestra векторного поиска нет, а предложенное сравнение `rg` с векторным RAG обозначено как ещё не проведённое. Поэтому контроль повторного прогона не показал результата по размеру пачки; отчёт лишь отмечает, что повторные сиды в исследовании Hy Memory оставлены на будущую работу.",
+ "paid_tokens": 15782,
+ "output_tokens": 596,
+ "input_tokens": 116178,
+ "cache_read_tokens": 100992,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0028265200000000003,
+ "seconds": 19.1,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'размер пачки' -e 'повторного прогона' -e 'векторов' -e 'batch' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i 'пачк|batch.?size|эмбеддинг|embedding|вектор|повторн.*прогон|контроль.*повтор' .orchestra/tasks .orchestra/kb\"",
+  "/bin/bash -lc \"rg -n -i 'размер пачки|пачк|batch|повтор|контроль|search|поиск' .orchestra/tasks/V-898/report.md .orchestra/kb/knowledge-base.md\"",
+  "/bin/bash -lc \"sed -n '45,100p' .orchestra/tasks/V-898/report.md\""
+ ]
+}

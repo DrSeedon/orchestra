@@ -1,0 +1,28 @@
+{
+ "run_id": "S01-luna-r2",
+ "qid": "S01",
+ "kind": "S",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/agent-control.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/agent-control.md\nANSWER: Да: по проверке от 08.10.2026, Claude-воркеры Orchestra используют системную CLI через SDK, и она читает корневой `AGENTS.md` даже без `CLAUDE.md`. Текущий практический вывод: всё равно держать `CLAUDE.md` симлинком на `AGENTS.md` — так правила гарантированно доходят через разные пути запуска и не расходятся.",
+ "paid_tokens": 9016,
+ "output_tokens": 332,
+ "input_tokens": 59372,
+ "cache_read_tokens": 50688,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0015412800000000001,
+ "seconds": 14.5,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'CLAUDE\\\\.md' -e 'AGENTS\\\\.md' -e 'правил.*Claude|Claude.*правил' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '45,140p' .orchestra/kb/agent-control.md\""
+ ]
+}

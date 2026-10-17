@@ -1,0 +1,28 @@
+{
+ "run_id": "K01-sonnet-r1",
+ "qid": "K01",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Смену тарифа видно в `usage_snapshots.provider_usage`, в поле `['codex']['plan_type']`. 16.09 в 07:17 UTC там стояло `pro`, а в 11:03 уже `free`, и недельное окно стало 30-дневным (`30d`, 43200 минут). На `free` провайдер отказывает по модели, а не по квоте. Поэтому `gpt-6-astra` отвечает 400 «not supported when using Codex with a ChatGPT account», и это выглядит как поломка маршрутизации, пока не посмотришь `plan_type`.",
+ "paid_tokens": 9227,
+ "output_tokens": 542,
+ "input_tokens": 6,
+ "cache_read_tokens": 19645,
+ "cache_create_tokens": 8679,
+ "cost_usd_api_equiv": 0.04435190000000001,
+ "seconds": 12.7,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"free|бесплатн\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"content\", \"glob\": \"**/*.md\", \"head_limit\": 40}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K01-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 298, \"limit\": 30}"
+ ]
+}

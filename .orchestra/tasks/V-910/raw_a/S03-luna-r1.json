@@ -1,0 +1,28 @@
+{
+ "run_id": "S03-luna-r1",
+ "qid": "S03",
+ "kind": "S",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md  \nANSWER: У Fable есть отдельный scope-лимит `weekly_scoped`, поэтому его недельная полоска показывает расход только Fable. Общий процент пула по-прежнему складывается из ходов всех моделей и проектов.",
+ "paid_tokens": 13584,
+ "output_tokens": 300,
+ "input_tokens": 57956,
+ "cache_read_tokens": 44672,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0019251200000000002,
+ "seconds": 11.2,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'Fable' -e 'недельн' -e 'weekly' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '265,290p' .orchestra/kb/models-and-quotas.md && sed -n '365,390p' .orchestra/kb/models-and-quotas.md && sed -n '1,55p' .orchestra/tasks/V-865/report.md\""
+ ]
+}

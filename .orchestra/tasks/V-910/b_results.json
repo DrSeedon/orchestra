@@ -1,0 +1,2362 @@
+{
+ "K01": {
+  "hybrid5": [
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-892/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-811/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-662/report.md",
+   ".orchestra/tasks/V-582/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/422/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-892/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-811/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-559/report.md"
+  ]
+ },
+ "K02": {
+  "hybrid5": [
+   ".orchestra/kb/tasks-and-projects.md",
+   ".orchestra/tasks/V-705/report.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/V-906/report.md",
+   ".orchestra/tasks/V-764/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/tasks-and-projects.md",
+   ".orchestra/tasks/V-705/report.md",
+   ".orchestra/tasks/V-906/report.md",
+   ".orchestra/tasks/V-825/report.md",
+   ".orchestra/tasks/V-643/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/tasks-and-projects.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-839/report.md",
+   ".orchestra/tasks/V-839/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/tasks-and-projects.md",
+   ".orchestra/tasks/V-577/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-705/report.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/V-906/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-825/report.md",
+   ".orchestra/tasks/V-839/report.md",
+   ".orchestra/tasks/V-643/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/tasks-and-projects.md",
+   ".orchestra/tasks/V-705/report.md",
+   ".orchestra/tasks/V-906/report.md",
+   ".orchestra/tasks/V-825/report.md",
+   ".orchestra/tasks/V-643/report.md",
+   ".orchestra/tasks/V-577/report.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/432/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-847/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/tasks-and-projects.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-839/report.md",
+   ".orchestra/tasks/V-839/report.md",
+   ".orchestra/tasks/V-839/report.md",
+   ".orchestra/tasks/V-808/report.md",
+   ".orchestra/tasks/V-823/report.md",
+   ".orchestra/tasks/V-712/report.md",
+   ".orchestra/tasks/V-764/report.md"
+  ]
+ },
+ "K03": {
+  "hybrid5": [
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-903/report.md",
+   ".orchestra/tasks/V-891/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-903/report.md",
+   ".orchestra/tasks/V-896/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-895/report.md",
+   ".orchestra/tasks/65/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-677/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-903/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-896/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-895/report.md",
+   ".orchestra/tasks/65/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-903/report.md",
+   ".orchestra/tasks/V-896/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-895/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-666/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-565/report.md",
+   ".orchestra/tasks/V-667/report.md",
+   ".orchestra/tasks/V-643/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ]
+ },
+ "K04": {
+  "hybrid5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-831/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-844/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-831/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-566/report.md",
+   ".orchestra/tasks/V-757/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-659/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-831/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/V-566/report.md",
+   ".orchestra/kb/agent-control.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-831/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-566/report.md",
+   ".orchestra/tasks/V-757/report.md",
+   ".orchestra/tasks/V-770/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-650/report.md",
+   ".orchestra/tasks/V-898/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-857/report.md",
+   ".orchestra/tasks/V-710/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/53/report.md"
+  ]
+ },
+ "K05": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-822/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-731/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-832/report.md",
+   ".orchestra/tasks/V-864/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-822/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-685/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-684/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-891/report.md"
+  ]
+ },
+ "K06": {
+  "hybrid5": [
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-674/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-657/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-667/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-806/report.md",
+   ".orchestra/tasks/V-662/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-803/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-761/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-802/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-667/report.md",
+   ".orchestra/tasks/150/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-806/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-811/report.md"
+  ]
+ },
+ "K07": {
+  "hybrid5": [
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-882/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-882/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-882/report.md",
+   ".orchestra/tasks/V-756/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-626/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-896/report.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/tasks/V-677/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-882/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-882/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-756/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-896/report.md",
+   ".orchestra/tasks/V-807/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-882/report.md",
+   ".orchestra/tasks/V-756/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-670/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/161/report.md",
+   ".orchestra/tasks/30/report.md",
+   ".orchestra/tasks/V-810/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-896/report.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-882/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/56/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-683/report.md"
+  ]
+ },
+ "K08": {
+  "hybrid5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-712/report.md",
+   ".orchestra/tasks/52/report.md",
+   ".orchestra/tasks/V-610/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-712/report.md",
+   ".orchestra/tasks/V-610/report.md",
+   ".orchestra/tasks/V-769/report.md",
+   ".orchestra/tasks/V-879/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/52/report.md",
+   ".orchestra/tasks/V-655/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-823/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/V-712/report.md",
+   ".orchestra/tasks/52/report.md",
+   ".orchestra/tasks/V-610/report.md",
+   ".orchestra/tasks/V-655/report.md",
+   ".orchestra/tasks/V-769/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-712/report.md",
+   ".orchestra/tasks/V-610/report.md",
+   ".orchestra/tasks/V-769/report.md",
+   ".orchestra/tasks/V-879/report.md",
+   ".orchestra/tasks/72/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-610/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/52/report.md",
+   ".orchestra/tasks/V-655/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-823/report.md",
+   ".orchestra/tasks/V-765/report.md"
+  ]
+ },
+ "K09": {
+  "hybrid5": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/V-648/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/523/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-787/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/V-667/report.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-787/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/30/report.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/tasks/V-828/report.md",
+   ".orchestra/tasks/126/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-787/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-680/report.md",
+   ".orchestra/kb/evidence-methods.md",
+   ".orchestra/tasks/V-761/report.md",
+   ".orchestra/tasks/V-657/report.md"
+  ]
+ },
+ "K10": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-893/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-893/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-683/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/127/report.md",
+   ".orchestra/tasks/V-813/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/515/report.md"
+  ]
+ },
+ "K11": {
+  "hybrid5": [
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-861/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-659/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-758/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-758/report.md",
+   ".orchestra/tasks/V-674/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-775/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/127/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-758/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/V-580/report.md"
+  ]
+ },
+ "K12": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-813/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-559/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/tasks/luna-probe/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-813/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-807/report.md"
+  ]
+ },
+ "K13": {
+  "hybrid5": [
+   ".orchestra/tasks/126/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-681/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/126/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-543/report.md",
+   ".orchestra/tasks/V-661/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-681/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/137/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/126/report.md",
+   ".orchestra/tasks/137/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-681/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-543/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/126/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-543/report.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/tasks/58/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-599/report.md",
+   ".orchestra/tasks/162/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-681/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/137/report.md",
+   ".orchestra/tasks/V-903/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/58/report.md"
+  ]
+ },
+ "K14": {
+  "hybrid5": [
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-664/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ]
+ },
+ "K15": {
+  "hybrid5": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/runtimes.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-811/report.md",
+   ".orchestra/tasks/V-837/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-599/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-899/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/108/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-599/report.md",
+   ".orchestra/tasks/V-811/report.md",
+   ".orchestra/tasks/V-641/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-811/report.md",
+   ".orchestra/tasks/V-837/report.md",
+   ".orchestra/tasks/V-575/report.md",
+   ".orchestra/tasks/108/report.md",
+   ".orchestra/tasks/V-871/report.md",
+   ".orchestra/tasks/V-781/report.md",
+   ".orchestra/tasks/V-636/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-599/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-575/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/V-864/report.md"
+  ]
+ },
+ "R01": {
+  "hybrid5": [
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-866/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-625/report.md",
+   ".orchestra/tasks/V-819/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-866/report.md",
+   ".orchestra/tasks/V-625/report.md",
+   ".orchestra/tasks/V-632/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-557/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-704/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-866/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-625/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-632/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/kb/agent-control.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-866/report.md",
+   ".orchestra/tasks/V-625/report.md",
+   ".orchestra/tasks/V-632/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-557/report.md",
+   ".orchestra/tasks/V-632/report.md",
+   ".orchestra/tasks/V-629/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-629/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-704/report.md",
+   ".orchestra/tasks/V-614/report.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-855/report.md",
+   ".orchestra/tasks/127/report.md"
+  ]
+ },
+ "R02": {
+  "hybrid5": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/69/report.md",
+   ".orchestra/tasks/61/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-821/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/69/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-659/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/69/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-557/report.md",
+   ".orchestra/tasks/V-844/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-557/report.md",
+   ".orchestra/tasks/V-902/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-649/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/69/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/90/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-621/report.md"
+  ]
+ },
+ "R03": {
+  "hybrid5": [
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-650/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/515/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/tasks/62/report.md",
+   ".orchestra/tasks/30/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-650/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-699/report.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/V-695/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-585/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-650/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/tasks/V-699/report.md",
+   ".orchestra/tasks/62/report.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/30/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/tasks/62/report.md",
+   ".orchestra/tasks/30/report.md",
+   ".orchestra/tasks/515/report.md",
+   ".orchestra/tasks/V-610/report.md",
+   ".orchestra/tasks/V-670/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-636/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-650/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-699/report.md",
+   ".orchestra/tasks/V-789/report.md",
+   ".orchestra/tasks/V-695/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-585/report.md",
+   ".orchestra/tasks/V-544/report.md"
+  ]
+ },
+ "R04": {
+  "hybrid5": [
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-683/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/422/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-612/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-758/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-626/report.md"
+  ]
+ },
+ "R05": {
+  "hybrid5": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-736/report.md",
+   ".orchestra/tasks/V-659/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/tasks/90/report.md",
+   ".orchestra/tasks/523/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/136/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-736/report.md",
+   ".orchestra/tasks/V-737/report.md",
+   ".orchestra/tasks/V-737/report.md",
+   ".orchestra/tasks/V-575/report.md",
+   ".orchestra/tasks/V-620/report.md",
+   ".orchestra/tasks/V-620/report.md",
+   ".orchestra/tasks/V-659/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/tasks/90/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-737/report.md",
+   ".orchestra/tasks/V-736/report.md",
+   ".orchestra/tasks/V-865/report.md",
+   ".orchestra/tasks/V-737/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/136/report.md",
+   ".orchestra/tasks/V-575/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-847/report.md",
+   ".orchestra/tasks/V-625/report.md"
+  ]
+ },
+ "R06": {
+  "hybrid5": [
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-837/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-693/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/V-805/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-837/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-670/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-639/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/94/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-837/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-670/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-805/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/V-805/report.md",
+   ".orchestra/tasks/V-736/report.md",
+   ".orchestra/tasks/V-779/report.md",
+   ".orchestra/tasks/V-741/report.md",
+   ".orchestra/tasks/V-693/report.md",
+   ".orchestra/tasks/V-693/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-837/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-670/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-639/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-585/report.md",
+   ".orchestra/tasks/V-634/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-543/report.md"
+  ]
+ },
+ "R07": {
+  "hybrid5": [
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-801/report.md",
+   ".orchestra/tasks/V-651/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-752/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-898/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-801/report.md",
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-651/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-662/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/kb/runtimes.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-759/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-639/report.md",
+   ".orchestra/tasks/V-651/report.md"
+  ]
+ },
+ "R08": {
+  "hybrid5": [
+   ".orchestra/tasks/V-624/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-805/report.md",
+   ".orchestra/tasks/94/report.md",
+   ".orchestra/tasks/V-621/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-624/report.md",
+   ".orchestra/tasks/V-805/report.md",
+   ".orchestra/tasks/V-621/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-765/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/94/report.md",
+   ".orchestra/tasks/V-828/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-557/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-705/report.md",
+   ".orchestra/tasks/V-828/report.md",
+   ".orchestra/tasks/V-624/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-805/report.md",
+   ".orchestra/tasks/94/report.md",
+   ".orchestra/tasks/V-621/report.md",
+   ".orchestra/tasks/V-828/report.md",
+   ".orchestra/tasks/419/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-624/report.md",
+   ".orchestra/tasks/V-805/report.md",
+   ".orchestra/tasks/V-621/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-701/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-804/report.md",
+   ".orchestra/tasks/V-736/report.md",
+   ".orchestra/tasks/V-614/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/94/report.md",
+   ".orchestra/tasks/V-828/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-557/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-895/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-892/report.md",
+   ".orchestra/tasks/V-557/report.md"
+  ]
+ },
+ "R09": {
+  "hybrid5": [
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-775/report.md",
+   ".orchestra/tasks/V-905/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-582/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-775/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/128/report.md",
+   ".orchestra/tasks/V-706/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/128/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-546/report.md",
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-775/report.md",
+   ".orchestra/tasks/V-893/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-893/report.md",
+   ".orchestra/tasks/V-582/report.md",
+   ".orchestra/tasks/V-811/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/tasks/V-811/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-861/report.md",
+   ".orchestra/tasks/V-775/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/128/report.md",
+   ".orchestra/tasks/V-706/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-905/report.md",
+   ".orchestra/tasks/V-852/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-899/report.md"
+  ]
+ },
+ "R10": {
+  "hybrid5": [
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-806/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/432/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-806/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-714/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/137/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/V-806/report.md",
+   ".orchestra/tasks/65/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/432/report.md",
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/V-714/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-806/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/tasks/V-714/report.md",
+   ".orchestra/kb/evidence-methods.md",
+   ".orchestra/tasks/V-844/report.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/tasks/V-852/report.md",
+   ".orchestra/tasks/V-806/report.md"
+  ]
+ },
+ "R11": {
+  "hybrid5": [
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-836/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-713/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-836/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-764/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-764/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-836/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/V-819/report.md",
+   ".orchestra/tasks/V-836/report.md",
+   ".orchestra/tasks/362/report.md",
+   ".orchestra/tasks/V-576/report.md",
+   ".orchestra/tasks/V-840/report.md"
+  ]
+ },
+ "R12": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-802/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/432/report.md",
+   ".orchestra/tasks/V-558/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-758/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-656/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-661/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-758/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/432/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-721/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-905/report.md"
+  ]
+ },
+ "R13": {
+  "hybrid5": [
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-739/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-660/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-813/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-807/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-726/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-739/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-739/report.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-726/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-664/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-813/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-807/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md"
+  ]
+ },
+ "R14": {
+  "hybrid5": [
+   ".orchestra/tasks/V-672/report.md",
+   ".orchestra/tasks/V-643/report.md",
+   ".orchestra/tasks/V-788/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-648/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-788/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/137/report.md",
+   ".orchestra/tasks/V-672/report.md",
+   ".orchestra/kb/agent-control.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-643/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-672/report.md",
+   ".orchestra/tasks/V-643/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-788/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/137/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-788/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/137/report.md",
+   ".orchestra/tasks/V-672/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-677/report.md",
+   ".orchestra/tasks/V-770/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/523/report.md",
+   ".orchestra/tasks/V-643/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-643/report.md",
+   ".orchestra/tasks/V-643/report.md",
+   ".orchestra/tasks/V-672/report.md",
+   ".orchestra/tasks/V-646/report.md",
+   ".orchestra/tasks/V-860/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ]
+ },
+ "R15": {
+  "hybrid5": [
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-667/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-797/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-797/report.md",
+   ".orchestra/tasks/V-740/report.md",
+   ".orchestra/tasks/V-680/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-740/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-857/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-840/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-667/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-857/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-797/report.md",
+   ".orchestra/tasks/V-740/report.md",
+   ".orchestra/tasks/V-648/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-797/report.md",
+   ".orchestra/tasks/V-740/report.md",
+   ".orchestra/tasks/V-680/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-740/report.md",
+   ".orchestra/tasks/V-857/report.md",
+   ".orchestra/tasks/V-797/report.md",
+   ".orchestra/tasks/V-667/report.md",
+   ".orchestra/tasks/V-797/report.md",
+   ".orchestra/tasks/V-899/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-857/report.md",
+   ".orchestra/tasks/V-641/report.md",
+   ".orchestra/tasks/V-840/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-636/report.md",
+   ".orchestra/tasks/V-906/report.md",
+   ".orchestra/tasks/V-680/report.md",
+   ".orchestra/tasks/V-661/report.md"
+  ]
+ },
+ "R16": {
+  "hybrid5": [
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-654/report.md",
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-747/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-747/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-818/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-654/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-685/report.md",
+   ".orchestra/tasks/V-811/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-654/report.md",
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-747/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-685/report.md",
+   ".orchestra/tasks/V-818/report.md",
+   ".orchestra/tasks/V-811/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-707/report.md",
+   ".orchestra/tasks/V-747/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-818/report.md",
+   ".orchestra/tasks/V-665/report.md",
+   ".orchestra/tasks/V-626/report.md",
+   ".orchestra/tasks/V-614/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-626/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-654/report.md",
+   ".orchestra/tasks/V-899/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-685/report.md",
+   ".orchestra/tasks/V-811/report.md",
+   ".orchestra/tasks/V-648/report.md",
+   ".orchestra/tasks/V-634/report.md",
+   ".orchestra/tasks/419/report.md",
+   ".orchestra/tasks/V-634/report.md",
+   ".orchestra/tasks/V-544/report.md"
+  ]
+ },
+ "R17": {
+  "hybrid5": [
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/64/report.md",
+   ".orchestra/tasks/59/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/58/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/64/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/30/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/64/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/30/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-636/report.md",
+   ".orchestra/tasks/V-905/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/58/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/72/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/64/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/30/report.md",
+   ".orchestra/tasks/V-902/report.md",
+   ".orchestra/tasks/V-796/report.md",
+   ".orchestra/tasks/59/report.md",
+   ".orchestra/tasks/V-637/report.md",
+   ".orchestra/tasks/V-904/report.md"
+  ]
+ },
+ "R18": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-657/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-674/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-683/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-670/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-758/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-758/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-670/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-657/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-775/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-656/report.md",
+   ".orchestra/tasks/V-657/report.md"
+  ]
+ },
+ "R19": {
+  "hybrid5": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-802/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-639/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-803/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-802/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/tasks/V-639/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-694/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/65/report.md",
+   ".orchestra/tasks/V-803/report.md",
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-802/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/128/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-802/report.md"
+  ]
+ },
+ "R20": {
+  "hybrid5": [
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-694/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-690/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-694/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-666/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-690/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-690/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-757/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-904/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-822/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-891/report.md",
+   ".orchestra/tasks/V-882/report.md"
+  ]
+ },
+ "S01": {
+  "hybrid5": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-902/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-838/report.md",
+   ".orchestra/kb/agent-control.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-570/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-902/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/tasks/V-577/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-838/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-704/report.md",
+   ".orchestra/tasks/V-683/report.md",
+   ".orchestra/tasks/V-838/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-570/report.md",
+   ".orchestra/tasks/V-898/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-825/report.md",
+   ".orchestra/tasks/V-651/report.md",
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-639/report.md",
+   ".orchestra/tasks/V-557/report.md"
+  ]
+ },
+ "S02": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-544/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/108/report.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-767/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ]
+ },
+ "S03": {
+  "hybrid5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-734/report.md"
+  ],
+  "vec5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-664/report.md"
+  ],
+  "fts5": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "hybrid10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-734/report.md"
+  ],
+  "vec10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/tasks/V-664/report.md"
+  ],
+  "fts10": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-559/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-694/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-734/report.md"
+  ]
+ },
+ "S04": {
+  "hybrid5": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-673/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-660/report.md",
+   ".orchestra/tasks/V-673/report.md"
+  ]
+ },
+ "S05": {
+  "hybrid5": [
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-674/report.md"
+  ],
+  "vec5": [
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/490/report.md"
+  ],
+  "fts5": [
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-659/report.md"
+  ],
+  "hybrid10": [
+   ".orchestra/tasks/V-821/report.md",
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/490/report.md"
+  ],
+  "vec10": [
+   ".orchestra/tasks/V-752/report.md",
+   ".orchestra/tasks/V-558/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/490/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-903/report.md",
+   ".orchestra/tasks/V-666/report.md"
+  ],
+  "fts10": [
+   ".orchestra/tasks/V-580/report.md",
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-573/report.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-674/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-847/report.md",
+   ".orchestra/tasks/V-713/report.md",
+   ".orchestra/tasks/V-674/report.md"
+  ]
+ }
+}

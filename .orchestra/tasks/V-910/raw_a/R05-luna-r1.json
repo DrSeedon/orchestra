@@ -1,0 +1,28 @@
+{
+ "run_id": "R05-luna-r1",
+ "qid": "R05",
+ "kind": "D",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/61/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/61/report.md  \nANSWER: `force=True` позволяет человеку явно разрешить пересоздание целевой ветки, даже если запись о мерже не доказывает, что её текущая голова безопасна для удаления. **BENIGN** — голова совпадает с записанной как смерженная: ветку пересоздают от базы. **FATAL** — головы расходятся: без force возвращают 409, поскольку пересоздание могло бы уничтожить работу.",
+ "paid_tokens": 7516,
+ "output_tokens": 317,
+ "input_tokens": 53279,
+ "cache_read_tokens": 46080,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0013392,
+ "seconds": 9.4,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'force=True' -e 'BENIGN' -e 'FATAL' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,24p' .orchestra/tasks/61/report.md\""
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "run_id": "K04-luna-r1",
+ "qid": "K04",
+ "kind": "D",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/runtimes.md",
+  ".orchestra/tasks/V-831/report.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/runtimes.md, .orchestra/tasks/V-831/report.md\nANSWER: Да. С `--include-partial-messages` Claude CLI передаёт аргументы инструмента частями через `input_json_delta`. Мелкозернистый стриминг включает `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING=1`.",
+ "paid_tokens": 9376,
+ "output_tokens": 283,
+ "input_tokens": 55301,
+ "cache_read_tokens": 46208,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00151288,
+ "seconds": 8.4,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'input_json_delta' -e 'Claude CLI' -e 'переменная окружения' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '150,175p' .orchestra/kb/runtimes.md && sed -n '1,24p' .orchestra/tasks/V-831/report.md\""
+ ]
+}

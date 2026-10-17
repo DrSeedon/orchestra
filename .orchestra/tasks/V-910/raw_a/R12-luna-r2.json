@@ -1,0 +1,28 @@
+{
+ "run_id": "R12-luna-r2",
+ "qid": "R12",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: По нашим прогонам, Opus 5.5 на максимальном effort не показал измеримого прироста качества над low, а цена выросла в 1,2–4 раза; на пяти трудных задачах средний балл был 4,2 на low против 3,6–3,9 на medium/high, но разброс одного прогона велик. На ограниченных задачах качество вышло на плато уже на low. Для Opus отдельно цена в долларах по уровням здесь не приведена.",
+ "paid_tokens": 10016,
+ "output_tokens": 344,
+ "input_tokens": 61640,
+ "cache_read_tokens": 51968,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0016588800000000002,
+ "seconds": 13.0,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'Opus 5.5' -e 'effort' -e 'max' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '703,760p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

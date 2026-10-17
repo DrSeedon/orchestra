@@ -1,0 +1,28 @@
+{
+ "run_id": "R10-sonnet-r1",
+ "qid": "R10",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/113/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/113/report.md\nANSWER: Да, размер пачки влияет. Переход с batch 64 на batch 16 детерминированно меняет эмбеддинги: max |Δ| было 0,028–0,030, а минимальный косинус около 0,972. На 20 запросах это сдвигает и гибридную выдачу: у полного batch16 точный порядок top-5 совпал только в 3 из 20 случаев. Контрольный повторный прогон (batch64 против batch64 и batch16 против batch16) дал Δ=0 и косинус ≈1,0. Значит, расхождение вызвано размером пачки, а не недетерминизмом, и default остался 64.",
+ "paid_tokens": 8987,
+ "output_tokens": 497,
+ "input_tokens": 6,
+ "cache_read_tokens": 17464,
+ "cache_create_tokens": 8484,
+ "cost_usd_api_equiv": 0.0424108,
+ "seconds": 15.2,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"размер пачки|batch size|batch_size|embedding.*batch|пачк\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"content\", \"head_limit\": 30}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R10-sonnet-r1/.orchestra/tasks/113/report.md\"}"
+ ]
+}

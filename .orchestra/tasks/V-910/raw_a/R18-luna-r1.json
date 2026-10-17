@@ -1,0 +1,31 @@
+{
+ "run_id": "R18-luna-r1",
+ "qid": "R18",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-670/report.md",
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-670/report.md, .orchestra/kb/models-and-quotas.md\nANSWER: Да. В сравнении по шести задачам Opus 5.5 на low набрал не меньше Sonnet 5.5 на medium во всех 6: на трёх задачах сравнялся, на трёх был выше. Это результат сохранённых прогонов, а не общий вывод о моделях.",
+ "paid_tokens": 17126,
+ "output_tokens": 476,
+ "input_tokens": 115210,
+ "cache_read_tokens": 98560,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0028886,
+ "seconds": 14.4,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'Opus' -e 'Sonnet' -e 'six tasks' -e '6 задач' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -l -i -F -e 'Opus 5.5 low' -e 'Sonnet 5.5 medium' -e 'six tasks' -e 'шести задач' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'шести' -e '6 задач' -e 'Opus low' -e 'Sonnet medium' -e '6/6' -e 'V-656' .orchestra/tasks/V-656/report.md .orchestra/tasks/V-670/report.md .orchestra/kb/models-and-quotas.md\"",
+  "/bin/bash -lc \"sed -n '60,76p' .orchestra/tasks/V-670/report.md; sed -n '703,760p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

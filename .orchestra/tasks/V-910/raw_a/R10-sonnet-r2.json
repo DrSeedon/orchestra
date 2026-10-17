@@ -1,0 +1,29 @@
+{
+ "run_id": "R10-sonnet-r2",
+ "qid": "R10",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/tasks/113/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/113/report.md\nANSWER: Да, размер пачки влияет. Batch 64 и batch 16 дают разные векторы: max |Δ| ≈ 0,028, минимальный cosine ≈ 0,972. Это заметно меняет гибридную выдачу: при полном batch16 точный top-5 совпал только у 3 из 20 запросов, top-1 — у 17 из 20. Контрольный повторный прогон дал нулевое расхождение (max |Δ| = 0, cosine = 1,0) и для batch64, и для batch16. Значит, расхождение вызвано размером пачки, а не недетерминизмом. Поэтому batch оставили равным 64.",
+ "paid_tokens": 7275,
+ "output_tokens": 681,
+ "input_tokens": 8,
+ "cache_read_tokens": 25029,
+ "cache_create_tokens": 6586,
+ "cost_usd_api_equiv": 0.038175799999999996,
+ "seconds": 22.8,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"размер пачки|batch size|batch_size|размер батча|эмбеддинг|embedding\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"count\"}",
+  "Grep {\"pattern\": \"размер пачки|batch size|batch_size|размер батча|эмбеддинг|embedding\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"content\"}",
+  "Grep {\"pattern\": \"batch|повтор\", \"path\": \".orchestra/tasks/113/report.md\", \"output_mode\": \"content\", \"-C\": 2}"
+ ]
+}

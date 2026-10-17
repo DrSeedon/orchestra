@@ -1,0 +1,28 @@
+{
+ "run_id": "S01-sonnet-r2",
+ "qid": "S01",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/agent-control.md"
+ ],
+ "final_text": "Воркеры Orchestra на Claude сейчас подхватывают одиночный `AGENTS.md`. Это следует из поправки от 08.10: Orchestra запускает системную CLI (`cli_path=shutil.which(\"claude\")`, сейчас 2.1.293), а не встроенную. Раньше вывод от 07.10 «не читают» был неверным, потому что проверка шла на встроенной CLI 2.1.205. Всё равно оставляйте `CLAUDE.md` в корне как симлинк на `AGENTS.md`: тогда результат не зависит ни от мода, ни от версии CLI. Неясно, что именно даёт чтение `AGENTS.md`: мод `agents-md` или новая версия CLI.\n\nFILES: .orchestra/kb/agent-control.md\nANSWER: Да, на текущей системной CLI (2.1.293) воркеры читают одиночный `AGENTS.md`, и вывод 07.10 «не читают» отменён поправкой 08.10. Рекомендуемая форма всё равно такая: `AGENTS.md` плюс `CLAUDE.md` симлинком на него, потому что вклад мода и версии CLI не разделён.",
+ "paid_tokens": 8563,
+ "output_tokens": 695,
+ "input_tokens": 6,
+ "cache_read_tokens": 17284,
+ "cache_create_tokens": 7862,
+ "cost_usd_api_equiv": 0.0418668,
+ "seconds": 16.5,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"CLAUDE\\\\.md\", \"path\": \".orchestra/kb\", \"output_mode\": \"content\", \"-i\": true, \"head_limit\": 40}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S01-sonnet-r2/.orchestra/kb/agent-control.md\", \"offset\": 50, \"limit\": 90}"
+ ]
+}

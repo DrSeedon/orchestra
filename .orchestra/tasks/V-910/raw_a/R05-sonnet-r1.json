@@ -1,0 +1,28 @@
+{
+ "run_id": "R05-sonnet-r1",
+ "qid": "R05",
+ "kind": "D",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/61/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/61/report.md\nANSWER: `force=True` разрешает пересоздать целевую ветку (`git checkout -B <branch> <base>`) и без записи о мерже, совпадающей с головой ветки. Без `force` ветка пересоздаётся только если это доказано нашей записью о мерже, а с `force` ответственность берёт на себя человек. Раньше `force=True` в эту ветку кода не заходил. BENIGN означает, что ветка есть, запись о мерже (`SUCCEEDED`/`REACHED`) есть, и её голова совпадает с текущей головой ветки. Тогда ветка тихо начинается заново от базы. FATAL означает, что запись указывает на другую голову. Тогда возвращается отказ 409 с обеими головами и id операции, потому что пересоздание уничтожило бы работу.",
+ "paid_tokens": 5746,
+ "output_tokens": 534,
+ "input_tokens": 6,
+ "cache_read_tokens": 16639,
+ "cache_create_tokens": 5206,
+ "cost_usd_api_equiv": 0.0295038,
+ "seconds": 15.5,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"BENIGN\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"head_limit\": 30}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R05-sonnet-r1/.orchestra/tasks/61/report.md\", \"limit\": 40}"
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "run_id": "K12-luna-r1",
+ "qid": "K12",
+ "kind": "D",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: GPT-6 Luna стоил $0.26 (API-эквивалент); у него было 72 720 выходных токенов.",
+ "paid_tokens": 6030,
+ "output_tokens": 248,
+ "input_tokens": 54934,
+ "cache_read_tokens": 49152,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0011937200000000001,
+ "seconds": 11.5,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'V-616' -e 'V-624' -e 'GPT-6 Luna' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '655,682p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

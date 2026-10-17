@@ -1,0 +1,28 @@
+{
+ "run_id": "S02-sonnet-r1",
+ "qid": "S02",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Пул считает по-разному. Расход идёт в кредитах, и у каждой модели свой курс за входные, кешированные и выходные токены. По официальной таблице курсов Codex Luna по входу в 50 раз дешевле Astra, а пересчёт наших ходов даёт около 94×, и он совпадает с `cost_usd`. Вывод от 11.09 «пул смотрит только на объём, разница всего 1.6×» отозван. В силе остаётся только сама разница цен за токен. Прямого замера на пуле нет: в окне 12.09 счётчик сдвинулся на 1 п.п. сразу от всех плеч, поэтому вопрос «объём или кредиты» экспериментально не закрыт, хотя документ и совпадение с `cost_usd` говорят за кредиты.",
+ "paid_tokens": 9338,
+ "output_tokens": 695,
+ "input_tokens": 6,
+ "cache_read_tokens": 17045,
+ "cache_create_tokens": 8637,
+ "cost_usd_api_equiv": 0.044919,
+ "seconds": 18.0,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"11\\\\.09|недельн.*Codex|Codex.*недельн\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-n\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S02-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 136, \"limit\": 125}"
+ ]
+}

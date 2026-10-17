@@ -1,0 +1,28 @@
+{
+ "run_id": "K09-sonnet-r2",
+ "qid": "K09",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/chat-and-telegram.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/chat-and-telegram.md\nANSWER: Конечная SSE-заглушка (`route.fulfill` с `text/event-stream`) закрывала соединение, и клиент переподключался и получал ту же пачку. Без дедупликации в опыте вышло 8 уведомлений вместо 1. Проверка одного успешного события не покрывает поведение после реконнекта. Чтобы отличить работающую дедупликацию от прекратившейся доставки, на каждое подключение отдавали свою пачку из последовательности.",
+ "paid_tokens": 4922,
+ "output_tokens": 463,
+ "input_tokens": 6,
+ "cache_read_tokens": 16553,
+ "cache_create_tokens": 4453,
+ "cost_usd_api_equiv": 0.0257646,
+ "seconds": 13.9,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"SSE\", \"path\": \".orchestra/kb/chat-and-telegram.md\", \"output_mode\": \"content\", \"-n\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K09-sonnet-r2/.orchestra/kb/chat-and-telegram.md\", \"offset\": 20, \"limit\": 9}"
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "run_id": "R15-luna-r1",
+ "qid": "R15",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-680/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-680/report.md\nANSWER: Уведомление записывается в таблицу `turn_signals` с уникальным ключом на ход. Если немедленная доставка не удаётся, запись остаётся `pending`, а фоновый обработчик повторяет отправку с увеличивающейся задержкой; после перезапуска он подхватывает её и заново загружает родителя. Доставка отмечается в логе родителя, чтобы сбой после приёма не приводил к повторному уведомлению.",
+ "paid_tokens": 13807,
+ "output_tokens": 505,
+ "input_tokens": 89206,
+ "cache_read_tokens": 75904,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0023417399999999997,
+ "seconds": 13.2,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'достав' -e 'родител' -e 'перезапуск' -e 'дочерн' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'родител' -e 'завершил ход' -e 'turn заверш' -e 'turn_complete' -e 'child.*complete' -e 'completion.*parent' -e 'restart.*notif' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,52p' .orchestra/tasks/V-680/report.md\""
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "run_id": "R12-luna-r1",
+ "qid": "R12",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: По замерам Opus 5.5 на наших задачах самый высокий уровень рассуждения не окупается: high дал 3,9 балла против 3,6 у medium, разница внутри разброса прогонов. Low набрал в среднем 4,2 балла, а уровни выше low увеличивали цену в 1,2–4 раза без измеримого прироста качества.",
+ "paid_tokens": 10232,
+ "output_tokens": 355,
+ "input_tokens": 61461,
+ "cache_read_tokens": 51584,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00168104,
+ "seconds": 9.7,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'Opus' -e 'effort low' -e 'самый высокий уровень рассуждения' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '703,770p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

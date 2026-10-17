@@ -1,0 +1,28 @@
+{
+ "run_id": "R16-luna-r1",
+ "qid": "R16",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-707/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-707/report.md  \nANSWER: События сохраняются с точными числовыми значениями: Claude переводит долю окна в процент умножением на 100 без округления, Codex оставляет `usedPercent` без округления. Сырые события и окна хранятся в `usage_snapshots.provider_usage`, полный ответ Codex — также в `raw_payload`; дробные поля `turn_usage` имеют тип SQLite `REAL`.",
+ "paid_tokens": 8426,
+ "output_tokens": 318,
+ "input_tokens": 59052,
+ "cache_read_tokens": 50944,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00147924,
+ "seconds": 12.7,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'quota_primary_pct' -e 'процент' -e 'provider limit' -e 'лимит провайдера' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,30p' .orchestra/tasks/V-707/report.md\""
+ ]
+}

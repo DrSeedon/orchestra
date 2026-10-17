@@ -1,0 +1,81 @@
+runs used 160, excluded (failed/contaminated): []
+
+== kind P (n=28)
+A pooled: strict 0.812  lenient(file only) 0.830  (questions with runs: 28)
+A luna: strict 0.804  lenient(file only) 0.804  (questions with runs: 28)
+A sonnet: strict 0.821  lenient(file only) 0.857  (questions with runs: 28)
+B hybrid5: 0.607
+B vec5: 0.714
+B fts5: 0.500
+B hybrid10: 0.786
+B hybrid MRR@10: 0.516; top-1: 0.429
+
+== kind D (n=7)
+A pooled: strict 0.964  lenient(file only) 0.964  (questions with runs: 7)
+A luna: strict 0.929  lenient(file only) 0.929  (questions with runs: 7)
+A sonnet: strict 1.000  lenient(file only) 1.000  (questions with runs: 7)
+B hybrid5: 1.000
+B vec5: 1.000
+B fts5: 0.857
+B hybrid10: 1.000
+B hybrid MRR@10: 0.857; top-1: 0.857
+
+== kind S (n=5)
+A pooled: strict 0.900  lenient(file only) 0.900  (questions with runs: 5)
+A luna: strict 0.800  lenient(file only) 0.800  (questions with runs: 5)
+A sonnet: strict 1.000  lenient(file only) 1.000  (questions with runs: 5)
+B hybrid5: 1.000
+B vec5: 0.600
+B fts5: 1.000
+B hybrid10: 1.000
+B hybrid MRR@10: 0.740; top-1: 0.600
+
+PRIMARY (pooled) n=28: mean d = B5 - A_strict = -0.205  CI95 [-0.411, +0.000]  one-sided sign-flip p = 0.9710  threshold +0.20: NOT met
+   sensitivity vs A lenient (ignore budget): mean d = -0.223  p = 0.9814
+   stratum A misses (A<1) n=12: A = 0.562, B5 = 0.583
+
+PRIMARY (luna) n=28: mean d = B5 - A_strict = -0.196  CI95 [-0.393, +0.000]  one-sided sign-flip p = 0.9803  threshold +0.20: NOT met
+   sensitivity vs A lenient (ignore budget): mean d = -0.196  p = 0.9803
+   stratum A misses (A<1) n=9: A = 0.389, B5 = 0.444
+
+PRIMARY (sonnet) n=28: mean d = B5 - A_strict = -0.214  CI95 [-0.446, +0.036]  one-sided sign-flip p = 0.9629  threshold +0.20: NOT met
+   sensitivity vs A lenient (ignore budget): mean d = -0.250  p = 0.9890
+   stratum A misses (A<1) n=6: A = 0.167, B5 = 0.833
+
+per P question: A_pooled strict / B5 / B-vec5 / B-fts5
+K01 1.00 1 1 1
+K03 1.00 1 1 1
+K05 0.75 1 1 1
+K06 0.75 0 1 0
+K07 1.00 0 1 0
+K08 1.00 1 1 1
+K09 1.00 1 1 1
+K11 0.75 0 0 0
+K13 1.00 1 1 0
+K14 1.00 1 1 1
+K15 1.00 1 1 1
+R01 1.00 0 1 0
+R02 1.00 1 1 1
+R03 0.25 1 1 0
+R04 1.00 1 1 1
+R07 1.00 1 1 1
+R08 1.00 0 0 0
+R09 1.00 0 0 0
+R10 0.75 0 0 0
+R11 0.75 0 1 0
+R12 0.00 0 0 0
+R14 1.00 0 0 0
+R15 0.75 1 1 1
+R16 0.50 1 1 0
+R17 0.25 1 1 1
+R18 1.00 0 0 0
+R19 0.75 1 1 1
+R20 0.50 1 0 1
+
+cost per run (paid tokens; cache read excluded) and calls
+luna n 80 paid mean 11366 median 10811 search calls mean 1.57 over budget >3: 2 seconds mean 16
+sonnet n 80 paid mean 8396 median 7978 search calls mean 1.7 over budget >3: 4 seconds mean 18
+
+P/KB n=11: A 0.932  B5 0.727
+
+P/reports n=17: A 0.735  B5 0.529
