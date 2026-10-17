@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import uuid
@@ -27,6 +28,7 @@ from app import sparse_worktree
 logger = logging.getLogger(__name__)
 
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
+WORKFLOW_RUN_ROOT = Path(__file__).parent.parent / "data" / "workflow-runs"
 # Files copied into each new worktree so workers get project config without
 # being on the main branch (CLAUDE.md = project rules, .env = secrets, .mcp.json = tools)
 PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
@@ -3088,11 +3090,9 @@ def cleanup_stale_worktrees() -> list[str]:
 
     if not alive_paths:
         logger.warning(
-            "worktree cleanup refused: not a single live session has a worktree path. "
-            "Deleting everything on that basis is how live work gets erased — "
-            f"leaving {WORKTREE_ROOT} untouched"
+            "worktree cleanup has no live session paths; non-workflow worktrees will be left "
+            f"untouched under {WORKTREE_ROOT}"
         )
-        return []
 
     removed: list[str] = []
     for repo_dir in WORKTREE_ROOT.iterdir():
@@ -3109,6 +3109,36 @@ def cleanup_stale_worktrees() -> list[str]:
                     "no session records this path. Paths disagree — that is a reason to look, "
                     "not to delete someone's work"
                 )
+                continue
+            if not alive_paths and not wt_dir.name.startswith("wf-"):
+                continue
+            if wt_dir.name.startswith("wf-"):
+                git_file = wt_dir / ".git"
+                if not (git_file.exists() and git_file.is_file()):
+                    continue
+                run_state = _lock_inactive_workflow_worktree_run(wt_dir.name)
+                if run_state is None:
+                    logger.warning(
+                        f"workflow worktree kept (run ownership unknown): {wt_dir}"
+                    )
+                    continue
+                run_dir, run_lock_fd = run_state
+                try:
+                    _snapshot_orphaned_worktree(
+                        wt_dir, run_dir / "orphaned-workspaces" / wt_dir.name
+                    )
+                    remove_worktree(str(wt_dir), str(wt_dir))
+                    if wt_dir.exists():
+                        logger.warning(
+                            f"stale workflow worktree cleanup left path in place: {wt_dir}"
+                        )
+                        continue
+                    removed.append(str(wt_dir))
+                    logger.warning(f"stale workflow worktree removed: {wt_dir}")
+                except Exception as e:
+                    logger.warning(f"stale workflow worktree cleanup failed for {wt_dir}: {e}")
+                finally:
+                    os.close(run_lock_fd)
                 continue
             git_file = wt_dir / ".git"
             if not (git_file.exists() and git_file.is_file()):
@@ -3153,6 +3183,123 @@ def cleanup_stale_worktrees() -> list[str]:
                 logger.warning(f"empty repo dir cleanup failed ({repo_dir}): {e}")
 
     return removed
+
+
+def _lock_inactive_workflow_worktree_run(
+    worktree_name: str,
+) -> tuple[Path, int] | None:
+    """Hold the matching run lock while removing an orphan; None means active or unknown."""
+    matching_runs: list[Path] = []
+    try:
+        for run_dir in WORKFLOW_RUN_ROOT.iterdir():
+            if run_dir.is_dir() and worktree_name.startswith(f"wf-{run_dir.name[:24]}-"):
+                matching_runs.append(run_dir)
+    except OSError:
+        return None
+    if len(matching_runs) != 1:
+        return None
+
+    run_dir = matching_runs[0]
+    try:
+        fd = os.open(run_dir / ".run.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    except OSError:
+        return None
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return None
+    except OSError:
+        os.close(fd)
+        return None
+    return run_dir, fd
+
+
+def _snapshot_orphaned_worktree(worktree: Path, archive: Path) -> None:
+    changed = _git_cmd(
+        ["git", "diff", "--name-only", "-z", "HEAD", "--"],
+        cwd=str(worktree), capture_output=True,
+    )
+    untracked = _git_cmd(
+        ["git", "ls-files", "-m", "-o", "--exclude-standard", "-z"],
+        cwd=str(worktree), capture_output=True,
+    )
+    ignored = _git_cmd(
+        ["git", "ls-files", "-o", "-i", "--exclude-standard", "-z"],
+        cwd=str(worktree), capture_output=True,
+    )
+    if changed.returncode != 0 or untracked.returncode != 0 or ignored.returncode != 0:
+        raise RuntimeError("could not enumerate orphaned workflow changes")
+    private = {
+        ".git", ".env", ".mcp.json", ".claude", ".codex", ".wf-mcp.json",
+        ".pytest_cache", "__pycache__",
+    }
+    rebuildable = {
+        ".venv", "venv", "node_modules", ".cache", ".mypy_cache", ".ruff_cache",
+    }
+    names: set[str] = set()
+    excluded: set[str] = set()
+    checked_pyvenv: dict[Path, bool] = {}
+    root = worktree.resolve()
+    for raw_name in (
+        changed.stdout.split(b"\0")
+        + untracked.stdout.split(b"\0")
+        + ignored.stdout.split(b"\0")
+    ):
+        if not raw_name:
+            continue
+        name = os.fsdecode(raw_name)
+        if name == "AGENTS.md" or any(part in private for part in Path(name).parts):
+            continue
+        parts = Path(name).parts
+        rebuildable_prefix = next(
+            (
+                Path(*parts[:index + 1]).as_posix()
+                for index, part in enumerate(parts)
+                if part in rebuildable
+            ),
+            None,
+        )
+        if rebuildable_prefix is not None:
+            excluded.add(rebuildable_prefix)
+            continue
+        for depth in range(len(parts)):
+            relative_dir = Path(*parts[:depth])
+            directory = root / relative_dir
+            has_pyvenv = checked_pyvenv.get(directory)
+            if has_pyvenv is None:
+                has_pyvenv = (directory / "pyvenv.cfg").is_file()
+                checked_pyvenv[directory] = has_pyvenv
+            if has_pyvenv:
+                excluded.add(relative_dir.as_posix() or ".")
+                break
+        else:
+            names.add(name)
+    names = sorted(names)
+    excluded = sorted(excluded)
+    if not names and not excluded:
+        return
+    archive.mkdir(parents=True, exist_ok=True)
+    copied: list[str] = []
+    deleted: list[str] = []
+    root = worktree.resolve()
+    for name in names:
+        source = (worktree / name).resolve()
+        if source != root and root not in source.parents:
+            raise ValueError(f"workflow output escapes worktree: {name}")
+        if not source.is_file():
+            deleted.append(name)
+            continue
+        target = archive / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        copied.append(name)
+    (archive / "workspace.json").write_text(
+        json.dumps(
+            {"copied": copied, "deleted": deleted, "excluded": excluded},
+            ensure_ascii=False,
+        )
+    )
 
 
 def parse_owned_dirs(raw) -> list[str]:

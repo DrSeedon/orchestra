@@ -2053,6 +2053,78 @@ class TestCleanupStaleWorktrees:
         assert len(removed) == 0
         assert Path(wt.path).exists()
 
+    def test_removes_dirty_orphan_workflow_but_keeps_active_workflow(
+        self, git_repo, wt_root, tmp_path, monkeypatch,
+    ):
+        import fcntl
+        import json
+        from app.workspace import create_worktree, cleanup_stale_worktrees
+
+        (git_repo / ".gitignore").write_text("*.log\n.venv/\nnode_modules/\n")
+        subprocess.run(["git", "add", ".gitignore"], cwd=git_repo, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "ignore workflow logs"],
+            cwd=git_repo, check=True, capture_output=True,
+        )
+        stale_run = "V-920-stale"
+        active_run = "V-920-active"
+        stale = create_worktree(str(git_repo), f"wf-{stale_run}-call-a1")
+        active = create_worktree(str(git_repo), f"wf-{active_run}-call-a1")
+        (Path(stale.path) / ".wf-mcp.json").write_text("transient tool config")
+        (Path(stale.path) / "answer.txt").write_text("workflow output")
+        (Path(stale.path) / "ignored.log").write_text("ignored workflow output")
+        (Path(stale.path) / ".venv" / "lib").mkdir(parents=True)
+        (Path(stale.path) / ".venv" / "lib" / "package.py").write_text("rebuildable")
+        (Path(stale.path) / "runtime-env" / "bin").mkdir(parents=True)
+        (Path(stale.path) / "runtime-env" / "pyvenv.cfg").write_text("home = python")
+        (Path(stale.path) / "runtime-env" / "bin" / "python").write_text("rebuildable")
+        rebuildable = ("venv", "node_modules", ".cache", ".mypy_cache", ".ruff_cache")
+        for name in rebuildable:
+            directory = Path(stale.path) / name
+            directory.mkdir()
+            (directory / "package.dat").write_text("rebuildable")
+        (Path(active.path) / ".wf-mcp.json").write_text("transient tool config")
+
+        runs_root = tmp_path / "workflow-runs"
+        stale_dir = runs_root / stale_run
+        active_dir = runs_root / active_run
+        stale_dir.mkdir(parents=True)
+        active_dir.mkdir()
+        active_fd = os.open(active_dir / ".run.lock", os.O_CREAT | os.O_RDWR, 0o600)
+        fcntl.flock(active_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        monkeypatch.setattr("app.workspace.WORKFLOW_RUN_ROOT", runs_root)
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+
+        try:
+            removed = cleanup_stale_worktrees()
+        finally:
+            os.close(active_fd)
+
+        assert removed == [stale.path]
+        assert not Path(stale.path).exists()
+        assert Path(active.path).exists()
+        orphaned = stale_dir / "orphaned-workspaces" / Path(stale.path).name
+        assert (orphaned / "answer.txt").read_text() == "workflow output"
+        assert (orphaned / "ignored.log").read_text() == "ignored workflow output"
+        assert not (orphaned / ".wf-mcp.json").exists()
+        assert not (orphaned / "AGENTS.md").exists()
+        assert not (orphaned / ".venv").exists()
+        assert not (orphaned / "runtime-env").exists()
+        assert all(not (orphaned / name).exists() for name in rebuildable)
+        assert json.loads((orphaned / "workspace.json").read_text()) == {
+            "copied": ["answer.txt", "ignored.log"], "deleted": [],
+            "excluded": [
+                ".cache", ".mypy_cache", ".ruff_cache", ".venv", "node_modules",
+                "runtime-env", "venv",
+            ],
+        }
+        listed = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"], cwd=git_repo,
+            check=True, capture_output=True, text=True,
+        ).stdout
+        assert stale.path not in listed
+        assert active.path in listed
+
     def test_failed_removal_is_not_reported(self, git_repo, wt_root, monkeypatch):
         from app.workspace import create_worktree, cleanup_stale_worktrees
 
