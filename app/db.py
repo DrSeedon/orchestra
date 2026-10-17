@@ -2119,6 +2119,17 @@ def bg_update_config(job_id: str, config: dict, output: str = "") -> bool:
         return cur.rowcount > 0
 
 
+def bg_record_process(job_id: str, process: dict) -> bool:
+    """Remember which OS process group an active run job started (V-915)."""
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET config=json_set(config,'$._process',json(?)) "
+            "WHERE id=? AND status='active'",
+            (json.dumps(process), job_id),
+        )
+        return cur.rowcount > 0
+
+
 def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
                 active_only: bool = False) -> list[dict]:
     with _conn() as c:

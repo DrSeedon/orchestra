@@ -24,7 +24,7 @@ from app.db import (
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire, bg_cron_record_fire,
     bg_get_jobs, bg_get_job, bg_fail_job_if_active, bg_replace_job,
-    bg_reset_wake_triggering,
+    bg_reset_wake_triggering, bg_record_process,
 )
 from app.pidfd_exec import pidfd_send_group
 from app.session_state import AgentStatus
@@ -232,6 +232,59 @@ async def _spawn_bg_process(
     finally:
         child.close()
         parent.close()
+
+
+def _process_start_ticks(pid: int) -> str:
+    """Kernel start time of `pid` (field 22 of /proc/<pid>/stat); "" when it is gone."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+    except OSError:
+        return ""
+    return stat.rpartition(")")[2].split()[19]
+
+
+async def _reap_orphan_run(process: dict | None) -> str:
+    """Stop the process group a previous Orchestra generation left behind (V-915).
+
+    systemd runs us with KillMode=process, so when the old process dies without reaching
+    `BgJobManager.shutdown` (SIGKILL after a stalled stop) its run jobs' children live on
+    with their stdout pipe cut. Their result can never be collected, so the only honest
+    state for the job is "interrupted" with the process gone, not a second copy racing a
+    restarted command. Identity is checked first: the leader must be the same process
+    (start time) or gone with its group still alive (a pid is never reused while it is
+    still a pgid).
+    """
+    if not process:
+        return "процесс не был записан (задание создано старой версией)"
+    pid = int(process.get("pid") or 0)
+    if pid <= 1:
+        return "процесс не был записан"
+    ticks = _process_start_ticks(pid)
+    if ticks and ticks != process.get("start"):
+        return f"pid {pid} уже принадлежит другому процессу — не трогали"
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return f"процесса (pid {pid}) уже нет"
+    except PermissionError:
+        return f"pid {pid}: нет прав остановить группу"
+    for sig, grace in ((signal.SIGTERM, _PIDFD_TERM_GRACE), (signal.SIGKILL, _PIDFD_KILL_GRACE)):
+        try:
+            os.killpg(pid, sig)
+        except ProcessLookupError:
+            break
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            await asyncio.sleep(_PIDFD_POLL_INTERVAL)
+            try:
+                os.killpg(pid, 0)
+            except ProcessLookupError:
+                return f"осиротевший процесс (pid {pid}) найден живым и остановлен"
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return f"осиротевший процесс (pid {pid}) найден живым и остановлен"
+    return f"осиротевший процесс (pid {pid}) НЕ удалось остановить"
 
 
 async def _cleanup_pidfd_group(proc: asyncio.subprocess.Process) -> None:
@@ -558,6 +611,7 @@ class BgJobManager:
             if row and row.get("type") != "run":
                 await self._job_ended(jid, "expired")
             if row and row.get("type") == "run":
+                await _reap_orphan_run(json.loads(row["config"]).get("_process"))
                 timeout = max(
                     1,
                     (datetime.fromisoformat(row["expires_at"])
@@ -589,8 +643,10 @@ class BgJobManager:
                         row["target_scope"], row["last_output"],
                     )
                     continue
+                fate = await _reap_orphan_run(config.get("_process"))
                 await self._interrupt_run_notify(
                     row["id"], row["message"], row["target_name"], row["target_scope"],
+                    reason=f"Прерван рестартом сервиса, повторный запуск не выполнялся; {fate}.",
                 )
                 continue
             remaining = (datetime.fromisoformat(row["expires_at"]) - datetime.now(timezone.utc)).total_seconds()
@@ -1147,6 +1203,9 @@ class BgJobManager:
                     limit=_STREAM_LIMIT, cwd=cwd,
                 )
             self._procs[job_id] = proc
+            bg_record_process(job_id, {
+                "pid": proc.pid, "start": _process_start_ticks(proc.pid),
+            })
             where = host or "local"
             logger.info(f"bg_job {job_id}: run started pid={proc.pid} on={where} "
                         f"timeout={timeout}s cmd_len={len(command)}")
