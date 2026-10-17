@@ -234,10 +234,14 @@ async def test_owner_override_accepts_zoned_absolute_expiry(env):
     from app.routes.system import quota_override
 
     until = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=3)
+    before = time.time()
     response = await quota_override({"expires_at": until.isoformat()})
+    after = time.time()
 
     assert response["override_until"] == until.isoformat()
-    assert response["override_seconds_left"] == pytest.approx(3 * 3600, abs=1)
+    # The remainder is measured at some instant inside the call, so it is bracketed by the
+    # clock readings around it; a fixed tolerance flaked on a slow CI runner (V-941).
+    assert until.timestamp() - after <= response["override_seconds_left"] <= until.timestamp() - before
     assert quota_gate.gate_override_remaining() > 0
 
 
