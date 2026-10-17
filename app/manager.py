@@ -22,6 +22,7 @@ from app.tool_scoping import parse_disabled_tools
 from app.session_state import ACTIVE_SESSION_STATUSES
 from app.events import InjectedMessage, MessageProvenance
 from app.kb_index import kb_index_block
+from app import temp_rules
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree,
@@ -544,6 +545,8 @@ class SessionManager:
             self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
         if not getattr(self, '_rules_link_task', None) or self._rules_link_task.done():
             self._rules_link_task = asyncio.create_task(self._periodic_rules_link())
+        if not getattr(self, '_temp_rules_task', None) or self._temp_rules_task.done():
+            self._temp_rules_task = asyncio.create_task(self._periodic_temp_rules())
 
     @staticmethod
     def _ownership_prompt(owned_dirs: list[str]) -> str:
@@ -567,7 +570,7 @@ class SessionManager:
     ) -> tuple[str, str | None]:
         """Build a prompt with only the ownership block for the new task."""
         old_prompt = session._current_prompt or session.system_prompt or ""
-        prompt_without_memory = strip_worker_memory(old_prompt)
+        prompt_without_memory = temp_rules.strip_block(strip_worker_memory(old_prompt))
         new_ownership = self._ownership_prompt(owned_dirs)
         prompt = self._without_ownership_prompt(prompt_without_memory) + new_ownership
         if session.prompt_overlay is None:
@@ -1914,7 +1917,7 @@ class SessionManager:
                 scope=scope, branch=branch,
             )
         if stored_overlay is None:
-            old_without_memory = strip_worker_memory(old_prompt)
+            old_without_memory = temp_rules.strip_block(strip_worker_memory(old_prompt))
             if not old_without_memory:
                 prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
                 prompt_without_memory = current_base + prompt_overlay
@@ -1949,11 +1952,14 @@ class SessionManager:
             areas = parse_owned_dirs(owned_dirs)
             prompt_overlay, _ = replace_ownership_block(prompt_overlay, areas, areas)
             prompt_without_memory = current_base + prompt_overlay
-        return refresh_worker_memory(
+        refreshed = refresh_worker_memory(
             prompt_without_memory, name, role, scope, repository_path,
             allow_absent_project=True,
             allow_missing_layout=allow_missing_layout,
-        ), prompt_overlay
+        )
+        # Last on purpose: the volatile block must not invalidate the cached stable prefix.
+        return temp_rules.with_block(
+            refreshed, role=role, is_orch=is_orch, scope=scope, name=name), prompt_overlay
 
     async def _load_from_db(
         self,
@@ -2477,6 +2483,16 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"rules_link sweep failed: {e}")
             await asyncio.sleep(rules_link.SWEEP_SECONDS)
+
+    async def _periodic_temp_rules(self) -> None:
+        while True:
+            try:
+                await temp_rules.notify_due(self)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"temp rules notice sweep failed: {e}")
+            await asyncio.sleep(60)
 
     async def drain_restart_persistence(self) -> dict:
         """Flush every current session's queued persistence before restart signalling."""

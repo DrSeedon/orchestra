@@ -21,7 +21,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app import agentic_compact
+from app import agentic_compact, temp_rules
 from app.events import AgentEvent, InjectedMessage, MessageProvenance
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
@@ -493,6 +493,7 @@ class AgentSession:
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
     _template_hash: str = field(default="", repr=False)
+    _temp_rules_fp: str | None = field(default=None, repr=False)
     _turn_start: float = field(default=0.0, repr=False)
     _last_msg_time: float = field(default=0.0, repr=False)
     _last_event: str = field(default="", repr=False)
@@ -1513,13 +1514,20 @@ class AgentSession:
             pending_th = ""
             templates_changed = False
             prompt_started = time.monotonic()
-            if self.session_id and self._current_prompt and not self._prompt_injected:
+            rules_now = temp_rules.fingerprint(
+                role=self.role, is_orch=self.is_orchestrator, scope=self.scope, name=self.name)
+            if self._temp_rules_fp is None:
+                self._temp_rules_fp = temp_rules.block_fingerprint(self._current_prompt or "")
+            rules_changed = rules_now != self._temp_rules_fp
+            if self.session_id and self._current_prompt and (
+                not self._prompt_injected or rules_changed
+            ):
                 # Inject updated system prompt once per session — workers list, role
                 # catalog, and template content drift as other agents spawn/die.
                 # Only on first message after resume; subsequent turns use cached prompt.
                 current_th = prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
-                templates_changed = old_th != current_th
+                templates_changed = old_th != current_th or rules_changed
                 pending_th = current_th
                 # Personal memory is re-read here, not reused from the assembled string:
                 # the prompt is built at spawn / _load_from_db, so anything the agent
@@ -1568,6 +1576,9 @@ class AgentSession:
                             allow_absent_project=True,
                             allow_missing_layout=delivery is not None,
                         )
+                self._current_prompt = temp_rules.with_block(
+                    self._current_prompt, role=self.role, is_orch=self.is_orchestrator,
+                    scope=self.scope, name=self.name)
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True
             self._log_codex_connect_stage("prompt_assembly", prompt_started)
@@ -1681,6 +1692,7 @@ class AgentSession:
                 if templates_changed:
                     self._log("status", f"prompt updated → {pending_th}")
                 self._template_hash = pending_th
+                self._temp_rules_fp = temp_rules.block_fingerprint(self._current_prompt)
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
 
