@@ -16,15 +16,28 @@ honestly. Omit linter noise, development-only changes and cosmetic style refacto
 Use patch increments for fixes, minor increments for features, major for breaking changes;
 sections are Added / Fixed / Changed / Removed / Known tradeoff / Reasoning.
 
-An owner's decision that should outlive this conversation goes into the project's rules file
-(AGENTS.md/CLAUDE.md) in the same turn: the date, his words verbatim and what prompted it, plus
-one line of the resulting rule. Paraphrases get lost in compaction and handoffs; a dated quote
-does not (seedon and katya-work, V-683, 2026-10-03). The exception is Orchestra's own shared
-prompts (`.orchestra/pipelines/**`): they are public product text, so write them in English and
-record an owner decision there as "owner decision, <date>" with an English summary and reason,
-never as a verbatim quote (owner decision, 2026-10-05). Keep undated rules in the rules file and
-dated state in a separate state file with only current statuses; do not grow a chronicle there.
-If the rule is already written, fix that entry instead of appending another version.
+An owner's decision that should outlive this conversation goes into the project's rules,
+in the same turn, with the date, his words verbatim and what prompted it (a paraphrase gets
+lost in compaction and handoffs; a dated quote does not). The exception is Orchestra's own
+shared prompts (`.orchestra/pipelines/**`): they are public product text, so write them in
+English and record an owner decision there as "owner decision, <date>" with an English summary
+and reason, never as a verbatim quote. Keep undated rules in the rules files and dated state in
+a separate state file with only current statuses; do not grow a chronicle there. If the rule is
+already written, fix that entry instead of appending another version.
+
+Structure of a project's rules (owner decision, 2026-10-17). The root file (CLAUDE.md /
+AGENTS.md) is a core: only what almost every turn needs, plus a registry of lines
+"topic → file → when to read". Details live in topic Markdown files of the project, which
+agents read when the registry line says so and extend when a rule changes. A new rule or an
+owner decision with its date and quote goes into its topic file; the core gets one registry
+line, or one line with the conclusion and a link. The core is sent on every turn of every
+agent, so it has a size ceiling: 16 KiB, half of the 32 KiB at which the harness silently
+truncates project instructions. When the core outgrows the ceiling, move content into topic
+files; do not raise the ceiling. AGENTS.md and CLAUDE.md are one file and a symlink to it,
+never two copies: Codex reads AGENTS.md, the Claude SDK reads CLAUDE.md, and the harness
+prefers AGENTS.md, so a stale copy silently gives part of the agents old rules. Triggering
+cases: one project's core, compressed to about 64 KB, grew back to about 139 KB; in three
+projects of one installation AGENTS.md had drifted into a separate copy.
 
 Update an existing architecture.md after significant changes to modules, structure or
 dependencies. Do not create that document on your own.
