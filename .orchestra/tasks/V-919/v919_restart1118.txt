@@ -1,0 +1,150 @@
+Oct 17 11:16:31.669817 vmi3407579 python[3114402]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:16:33.920706 vmi3407579 python[3114402]: INFO:aiogram.event:Update id=811128650 is handled. Duration 4 ms by bot id=8748210717
+Oct 17 11:16:35.326253 vmi3407579 python[3114402]: 'CLAUDE.md' is tracked by /home/kesha/orchestra — copy skipped
+Oct 17 11:16:35.326253 vmi3407579 python[3114402]: INFO:app.workspace:'CLAUDE.md' is tracked by /home/kesha/orchestra — copy skipped
+Oct 17 11:16:35.341115 vmi3407579 python[3114402]: AGENTS.md is tracked by the repo at /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-lossless-restart — mirror skipped
+Oct 17 11:16:35.341115 vmi3407579 python[3114402]: INFO:app.workspace:AGENTS.md is tracked by the repo at /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-lossless-restart — mirror skipped
+Oct 17 11:16:35.385254 vmi3407579 python[3114402]: Refreshed 3 skill entrypoints into /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-lossless-restart/.claude/skills/
+Oct 17 11:16:35.385254 vmi3407579 python[3114402]: INFO:app.prompting:Refreshed 3 skill entrypoints into /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-lossless-restart/.claude/skills/
+Oct 17 11:16:35.838835 vmi3407579 python[3114402]: INFO:     127.0.0.1:45804 - "POST /api/sessions HTTP/1.1" 201 Created
+Oct 17 11:16:35.898251 vmi3407579 python[3114402]: INFO:     127.0.0.1:45820 - "POST /api/sessions/feat-lossless-restart/initial-deliveries HTTP/1.1" 202 Accepted
+Oct 17 11:16:37.024915 vmi3407579 python[3114402]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:16:37.441843 vmi3407579 python[3114402]: [feat-lossless-restart] claude persistent event loop started
+Oct 17 11:16:37.441843 vmi3407579 python[3114402]: INFO:app.session:[feat-lossless-restart] claude persistent event loop started
+Oct 17 11:16:37.442286 vmi3407579 python[3114402]: [feat-lossless-restart] heartbeat started
+Oct 17 11:16:37.442286 vmi3407579 python[3114402]: INFO:app.session:[feat-lossless-restart] heartbeat started
+Oct 17 11:16:44.096599 vmi3407579 python[3114402]: INFO:     127.0.0.1:47956 - "POST /api/sessions/feat-lossless-restart/checklist HTTP/1.1" 200 OK
+Oct 17 11:16:45.415411 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3353999, but reception only permitted for main PID 3114402
+Oct 17 11:16:45.584135 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3354001, but reception only permitted for main PID 3114402
+Oct 17 11:16:46.408882 vmi3407579 python[3114402]: 'CLAUDE.md' is tracked by /home/kesha/orchestra — copy skipped
+Oct 17 11:16:46.408882 vmi3407579 python[3114402]: INFO:app.workspace:'CLAUDE.md' is tracked by /home/kesha/orchestra — copy skipped
+Oct 17 11:16:46.422148 vmi3407579 python[3114402]: AGENTS.md is tracked by the repo at /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-review-big — mirror skipped
+Oct 17 11:16:46.422148 vmi3407579 python[3114402]: INFO:app.workspace:AGENTS.md is tracked by the repo at /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-review-big — mirror skipped
+Oct 17 11:16:46.466509 vmi3407579 python[3114402]: Refreshed 3 skill entrypoints into /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-review-big/.claude/skills/
+Oct 17 11:16:46.466509 vmi3407579 python[3114402]: INFO:app.prompting:Refreshed 3 skill entrypoints into /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-review-big/.claude/skills/
+Oct 17 11:16:46.887040 vmi3407579 python[3114402]: INFO:     127.0.0.1:47972 - "POST /api/sessions HTTP/1.1" 201 Created
+Oct 17 11:16:46.926890 vmi3407579 python[3114402]: INFO:     127.0.0.1:47988 - "POST /api/sessions/bench-review-big/initial-deliveries HTTP/1.1" 202 Accepted
+Oct 17 11:16:48.548111 vmi3407579 python[3114402]: [bench-review-big] claude persistent event loop started
+Oct 17 11:16:48.548111 vmi3407579 python[3114402]: INFO:app.session:[bench-review-big] claude persistent event loop started
+Oct 17 11:16:48.548698 vmi3407579 python[3114402]: [bench-review-big] heartbeat started
+Oct 17 11:16:48.548698 vmi3407579 python[3114402]: INFO:app.session:[bench-review-big] heartbeat started
+Oct 17 11:16:51.043510 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3354186, but reception only permitted for main PID 3114402
+Oct 17 11:16:51.051528 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3354189, but reception only permitted for main PID 3114402
+Oct 17 11:16:51.062014 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3354190, but reception only permitted for main PID 3114402
+Oct 17 11:16:52.148168 vmi3407579 python[3114402]: INFO:     127.0.0.1:34500 - "POST /api/sessions/kesha-tg-bot-orchestrator/send HTTP/1.1" 202 Accepted
+Oct 17 11:16:52.219695 vmi3407579 python[3114402]: Refreshed 1 skill entrypoints into /home/kesha/projects/kesha-tg-bot/.claude/skills/
+Oct 17 11:16:52.219695 vmi3407579 python[3114402]: INFO:app.prompting:Refreshed 1 skill entrypoints into /home/kesha/projects/kesha-tg-bot/.claude/skills/
+Oct 17 11:16:52.292283 vmi3407579 python[3114402]: TG edit_message dropped: rate slot unavailable
+Oct 17 11:16:52.292283 vmi3407579 python[3114402]: WARNING:tg-bridge:TG edit_message dropped: rate slot unavailable
+Oct 17 11:16:53.444082 vmi3407579 python[3114402]: quota gate open: released 2 waiting deliveries
+Oct 17 11:16:53.444082 vmi3407579 python[3114402]: INFO:orchestra.quota_queue:quota gate open: released 2 waiting deliveries
+Oct 17 11:16:53.474390 vmi3407579 python[3114402]: Loaded worker memory: /home/kesha/orchestra/worktrees/home-kesha-projects-seedon/gamelab/.orchestra/workers/gamelab.md (980 chars)
+Oct 17 11:16:53.474390 vmi3407579 python[3114402]: INFO:app.prompting:Loaded worker memory: /home/kesha/orchestra/worktrees/home-kesha-projects-seedon/gamelab/.orchestra/workers/gamelab.md (980 chars)
+Oct 17 11:16:53.783238 vmi3407579 python[3114402]: [kesha-tg-bot-orchestrator] claude persistent event loop started
+Oct 17 11:16:53.783238 vmi3407579 python[3114402]: INFO:app.session:[kesha-tg-bot-orchestrator] claude persistent event loop started
+Oct 17 11:16:53.783477 vmi3407579 python[3114402]: [kesha-tg-bot-orchestrator] heartbeat started
+Oct 17 11:16:53.783477 vmi3407579 python[3114402]: INFO:app.session:[kesha-tg-bot-orchestrator] heartbeat started
+Oct 17 11:16:55.005575 vmi3407579 python[3114402]: TG incoming: chat=-1003760207564 thread=82134 from=Maxim text=
+Oct 17 11:16:55.005575 vmi3407579 python[3114402]: DEBUG:tg-bridge:TG incoming: chat=-1003760207564 thread=82134 from=Maxim text=
+Oct 17 11:16:55.397052 vmi3407579 python[3114402]: download voice_20261017_091654_248850.oga: local copy in 179ms (/home/kesha/orchestra/data/tg-bot-api/8748210717:AAEOe6URMauyMnwQMMKbWJ1gkrGW_ducV6g/voice/file_2794.oga)
+Oct 17 11:16:55.397052 vmi3407579 python[3114402]: INFO:tg-bridge:download voice_20261017_091654_248850.oga: local copy in 179ms (/home/kesha/orchestra/data/tg-bot-api/8748210717:AAEOe6URMauyMnwQMMKbWJ1gkrGW_ducV6g/voice/file_2794.oga)
+Oct 17 11:16:55.537512 vmi3407579 python[3114402]: [gamelab] claude persistent event loop started
+Oct 17 11:16:55.537512 vmi3407579 python[3114402]: INFO:app.session:[gamelab] claude persistent event loop started
+Oct 17 11:16:55.537845 vmi3407579 python[3114402]: [gamelab] heartbeat started
+Oct 17 11:16:55.537845 vmi3407579 python[3114402]: INFO:app.session:[gamelab] heartbeat started
+Oct 17 11:16:55.994850 vmi3407579 python[3114402]: INFO:httpx:HTTP Request: POST https://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&profanity_filter=false "HTTP/1.1 200 OK"
+Oct 17 11:16:55.995877 vmi3407579 python[3114402]: Deepgram: audio=9.8s size=194KB transcribe=596ms
+Oct 17 11:16:55.996502 vmi3407579 python[3114402]: INFO:orchestra.transcription:Deepgram: audio=9.8s size=194KB transcribe=596ms
+Oct 17 11:16:56.007793 vmi3407579 python[3114402]: handle_voice total=1002ms duration=9s
+Oct 17 11:16:56.007793 vmi3407579 python[3114402]: INFO:tg-bridge:handle_voice total=1002ms duration=9s
+Oct 17 11:16:56.008695 vmi3407579 python[3114402]: INFO:aiogram.event:Update id=811128651 is handled. Duration 1003 ms by bot id=8748210717
+Oct 17 11:17:01.268382 vmi3407579 python[3114402]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:17:01.643929 vmi3407579 python[3114402]: INFO:     127.0.0.1:49450 - "DELETE /api/bg/jobs/bg-0d361fb665 HTTP/1.1" 200 OK
+Oct 17 11:17:02.246898 vmi3407579 python[3114402]: Grok usage unavailable: no OAuth credentials
+Oct 17 11:17:02.246898 vmi3407579 python[3114402]: WARNING:orchestra.system:Grok usage unavailable: no OAuth credentials
+Oct 17 11:17:02.671687 vmi3407579 python[3114402]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
+Oct 17 11:17:10.120737 vmi3407579 python[3114402]: INFO:     127.0.0.1:47646 - "POST /api/sessions/feat-lossless-restart/send HTTP/1.1" 202 Accepted
+Oct 17 11:17:14.177347 vmi3407579 python[3114402]: TG edit_message dropped: rate slot unavailable
+Oct 17 11:17:14.177347 vmi3407579 python[3114402]: WARNING:tg-bridge:TG edit_message dropped: rate slot unavailable
+Oct 17 11:17:14.227136 vmi3407579 python[3114402]: bg_job created: bg-108b05c292 type=timer target=Orchestra-orchestrator
+Oct 17 11:17:14.227136 vmi3407579 python[3114402]: INFO:app.bg_jobs:bg_job created: bg-108b05c292 type=timer target=Orchestra-orchestrator
+Oct 17 11:17:14.228110 vmi3407579 python[3114402]: INFO:     127.0.0.1:47702 - "POST /api/bg/jobs HTTP/1.1" 200 OK
+Oct 17 11:17:18.646484 vmi3407579 python[3114402]: INFO:     127.0.0.1:42328 - "POST /api/sessions/gamelab/checklist HTTP/1.1" 200 OK
+Oct 17 11:17:24.586500 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3355239, but reception only permitted for main PID 3114402
+Oct 17 11:17:29.516934 vmi3407579 python[3114402]: No proxy configured, using 30 hardcoded models
+Oct 17 11:17:29.516934 vmi3407579 python[3114402]: INFO:app.models:No proxy configured, using 30 hardcoded models
+Oct 17 11:17:29.909995 vmi3407579 systemd[1]: Stopping orchestra.service - Orchestra AI Agent Orchestrator...
+Oct 17 11:17:29.924601 vmi3407579 python[3114402]: INFO:     Shutting down
+Oct 17 11:17:30.025116 vmi3407579 python[3114402]: INFO:     Waiting for connections to close. (CTRL+C to force quit)
+Oct 17 11:17:32.877278 vmi3407579 systemd[1]: orchestra.service: Got notification message from PID 3358101, but reception only permitted for main PID 3114402
+Oct 17 11:17:35.024697 vmi3407579 python[3114402]: ERROR:    Cancel 2 running task(s), timeout graceful shutdown exceeded
+Oct 17 11:17:35.025386 vmi3407579 python[3114402]: INFO:     Waiting for application shutdown.
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: ERROR:    Exception in ASGI application
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 117, in receive
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     return self.receive_nowait()
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 112, in receive_nowait
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     raise WouldBlock
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: anyio.WouldBlock
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: During handling of the above exception, another exception occurred:
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 421, in run_asgi
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     result = await app(  # type: ignore[func-returns-value]
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     return await self.app(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/fastapi/applications.py", line 1159, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await self.middleware_stack(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await self.app(scope, receive, _send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 29, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await responder(scope, receive, send)
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 130, in __call__
+Oct 17 11:17:35.038425 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/gzip.py", line 46, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await self.app(scope, receive, self.send_with_compression)
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 192, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     async with anyio.create_task_group() as task_group:
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 803, in __aexit__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     raise exc_val
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 194, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await response(scope, wrapped_receive, send)
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 232, in __call__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     async for chunk in self.body_iterator:
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/base.py", line 174, in body_stream
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     async for message in recv_stream:
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/abc/_streams.py", line 35, in __anext__
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     return await self.receive()
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 125, in receive
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await receive_event.wait()
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1804, in wait
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await self._event.wait()
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:   File "/usr/lib/python3.12/asyncio/locks.py", line 212, in wait
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]:     await fut
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]: asyncio.exceptions.CancelledError: Task cancelled, timeout graceful shutdown exceeded
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]: ERROR:    Exception in ASGI application
+Oct 17 11:17:35.040494 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 117, in receive
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     return self.receive_nowait()
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/anyio/streams/memory.py", line 112, in receive_nowait
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     raise WouldBlock
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]: anyio.WouldBlock
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]: During handling of the above exception, another exception occurred:
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]: Traceback (most recent call last):
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py", line 421, in run_asgi
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     result = await app(  # type: ignore[func-returns-value]
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     return await self.app(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/fastapi/applications.py", line 1159, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await super().__call__(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:     await self.middleware_stack(scope, receive, send)
+Oct 17 11:17:35.041063 vmi3407579 python[3114402]:   File "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__

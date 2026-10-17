@@ -287,6 +287,59 @@ async def _reap_orphan_run(process: dict | None) -> str:
     return f"осиротевший процесс (pid {pid}) НЕ удалось остановить"
 
 
+# V-919: a run job writes its output and exit code to files, so its process outlives an
+# Orchestra restart (KillMode=process) and the next generation adopts it instead of
+# reporting INTERRUPTED. The outer shell records the inner command's code and exits with it.
+_RUN_WRAPPER = (
+    'rc_file=$1; shift; "$@"; rc=$?; '
+    'printf "%s\\n" "$rc" > "$rc_file.tmp" && mv -f "$rc_file.tmp" "$rc_file"; exit $rc'
+)
+_RUN_TAIL_BYTES = 256 * 1024
+_RUN_TAIL_LINES = 300
+_ADOPT_POLL_INTERVAL = 0.5
+
+
+def _run_files(job_id: str) -> tuple[Path, Path]:
+    from app import db
+    root = Path(db.DB_PATH).parent / "bg_runs"
+    return root / f"{job_id}.out", root / f"{job_id}.rc"
+
+
+def _unlink_run_files(process: dict | None) -> None:
+    for key in ("out", "rc"):
+        if process and process.get(key):
+            Path(process[key]).unlink(missing_ok=True)
+
+
+def _read_run_tail(path: Path) -> str:
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(max(0, os.fstat(fh.fileno()).st_size - _RUN_TAIL_BYTES))
+            data = fh.read()
+    except OSError:
+        return ""
+    return "".join(data.decode(errors="replace").splitlines(True)[-_RUN_TAIL_LINES:])
+
+
+def _read_run_rc(path: Path) -> int | None:
+    try:
+        return int(path.read_text().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _run_leader_alive(process: dict) -> bool:
+    """The recorded leader still runs: same start time and not a zombie."""
+    pid = int(process.get("pid") or 0)
+    if pid <= 1:
+        return False
+    try:
+        fields = Path(f"/proc/{pid}/stat").read_text().rpartition(")")[2].split()
+    except OSError:
+        return False
+    return fields[19] == process.get("start") and fields[0] not in ("Z", "X")
+
+
 async def _cleanup_pidfd_group(proc: asyncio.subprocess.Process) -> None:
     pidfd = getattr(proc, "_orchestra_pidfd", None)
     if pidfd is None:
@@ -390,6 +443,7 @@ class BgJobManager:
         self._tasks: dict[str, asyncio.Task] = {}
         self._procs: dict[str, asyncio.subprocess.Process] = {}
         self._session_manager = None
+        self._shutting_down = False
 
     def set_session_manager(self, mgr) -> None:
         self._session_manager = mgr
@@ -517,6 +571,11 @@ class BgJobManager:
             coro = self._run_ssh_watch(job_id, config["host"], config["command"],
                                        config["pattern"], message, target_name, target_scope,
                                        watch_timeout)
+        elif job_type == "run" and (config.get("_process") or {}).get("rc"):
+            coro = self._adopt_run(job_id, config["_process"], message, target_name,
+                                   target_scope, timeout,
+                                   success_file=config.get("success_file"),
+                                   success_pattern=config.get("success_pattern", ""))
         elif job_type == "run":
             host = config.get("host")
             coro = self._run_exec(job_id, config["command"], message, target_name,
@@ -611,7 +670,9 @@ class BgJobManager:
             if row and row.get("type") != "run":
                 await self._job_ended(jid, "expired")
             if row and row.get("type") == "run":
-                await _reap_orphan_run(json.loads(row["config"]).get("_process"))
+                process = json.loads(row["config"]).get("_process")
+                await _reap_orphan_run(process)
+                _unlink_run_files(process)
                 timeout = max(
                     1,
                     (datetime.fromisoformat(row["expires_at"])
@@ -633,7 +694,16 @@ class BgJobManager:
             if row["status"] != "active":
                 continue
             config = json.loads(row["config"])
-            if row["type"] == "run":
+            if row["type"] == "run" and (config.get("_process") or {}).get("rc"):
+                if row["id"] in interrupted_delivery:
+                    await self._trigger(
+                        row["id"], row["message"], row["target_name"],
+                        row["target_scope"], row["last_output"],
+                    )
+                    _unlink_run_files(config["_process"])
+                    continue
+                # Fall through to _start_task: it adopts the surviving process (V-919).
+            elif row["type"] == "run":
                 if row["id"] in interrupted_delivery:
                     # 'triggering' у run значит, что команда УЖЕ вышла и рестарт убил
                     # ДОСТАВКУ её результата: «повторный запуск не выполнялся» здесь ложь,
@@ -663,9 +733,12 @@ class BgJobManager:
         logger.info(f"bg_jobs: restored {restored} jobs, expired {len(expired_ids)}")
 
     async def shutdown(self) -> None:
+        self._shutting_down = True
         for jid, task in list(self._tasks.items()):
             task.cancel()
         for jid, proc in list(self._procs.items()):
+            if getattr(proc, "_orchestra_survives_restart", False):
+                continue
             try:
                 await _kill_proc(proc)
             except Exception as e:
@@ -1181,66 +1254,34 @@ class BgJobManager:
                         target_scope, timeout, host=None, success_file=None,
                         success_pattern="", cwd=None, agent_workload=False):
         proc = None
-        reader_task = None
-        output_buf = []
+        out_path, rc_path = _run_files(job_id)
+        process = {"out": str(out_path), "rc": str(rc_path)}
+        detached = False
         try:
-            # 16MB readline limit: Codex JSONL contains base64 images / long JSON lines
-            # that exceed asyncio's default 64KB StreamReader limit → ValueError
-            _STREAM_LIMIT = 16 * 1024 * 1024
-            if host:
+            inner = ["ssh", *_SSH_OPTS, host, command] if host else ["/bin/sh", "-c", command]
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            rc_path.unlink(missing_ok=True)
+            with open(out_path, "wb") as out:
                 proc = await self._spawn_managed_process(
-                    job_id, ["ssh", *_SSH_OPTS, host, command],
+                    job_id,
+                    ["/bin/sh", "-c", _RUN_WRAPPER, "orchestra-run", str(rc_path), *inner],
                     shell=False,
                     agent_workload=agent_workload,
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    limit=_STREAM_LIMIT,
+                    stdout=out, stderr=asyncio.subprocess.STDOUT,
+                    cwd=None if host else cwd,
                 )
-            else:
-                proc = await self._spawn_managed_process(
-                    job_id, command, shell=True,
-                    agent_workload=agent_workload,
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    limit=_STREAM_LIMIT, cwd=cwd,
-                )
+            proc._orchestra_survives_restart = True
             self._procs[job_id] = proc
-            bg_record_process(job_id, {
-                "pid": proc.pid, "start": _process_start_ticks(proc.pid),
-            })
+            process.update(pid=proc.pid, start=_process_start_ticks(proc.pid))
+            bg_record_process(job_id, process)
             where = host or "local"
             logger.info(f"bg_job {job_id}: run started pid={proc.pid} on={where} "
                         f"timeout={timeout}s cmd_len={len(command)}")
-            last_progress = time.time()
-
-            async def read_output():
-                nonlocal last_progress, output_buf
-                async for line in proc.stdout:
-                    output_buf.append(line.decode(errors="replace"))
-                    if len(output_buf) > 500:
-                        output_buf = output_buf[-300:]
-                    now = time.time()
-                    if now - last_progress > OUTPUT_PROGRESS_INTERVAL:
-                        bg_update_output(job_id, "".join(output_buf))
-                        last_progress = now
 
             async with asyncio.timeout(timeout):
-                reader_task = asyncio.create_task(read_output())
-                # asyncio Process.wait() itself waits for pipe EOF. A grandchild that
-                # inherited stdout can therefore keep it blocked after the command
-                # leader has exited. Observe the leader's returncode independently.
-                while proc.returncode is None:
-                    await asyncio.sleep(0.05)
-                try:
-                    await asyncio.wait_for(asyncio.shield(reader_task), timeout=2)
-                except asyncio.TimeoutError:
-                    logger.warning(
-                        f"bg_job {job_id}: stdout still open after pid={proc.pid} exited; "
-                        "detaching reader without signaling descendants"
-                    )
-                    reader_task.cancel()
-                    await asyncio.gather(reader_task, return_exceptions=True)
-                    transport = getattr(proc, "_transport", None)
-                    if transport:
-                        transport.close()
+                await self._wait_run(
+                    job_id, lambda: proc.returncode is not None, out_path, _PIDFD_POLL_INTERVAL,
+                )
                 orphan_count, oldest_age = await asyncio.to_thread(
                     _orphan_session_stats, proc.pid,
                 )
@@ -1250,41 +1291,11 @@ class BgJobManager:
                         "oldest_process_age_seconds=%.1f observation_only=true",
                         job_id, proc.pid, orphan_count, oldest_age,
                     )
-            full_output = "".join(output_buf)
-            exit_code = proc.returncode
-            logger.info(f"bg_job {job_id}: run done pid={proc.pid} exit={exit_code} "
-                        f"lines={len(output_buf)}")
-            if exit_code != 0:
-                await self._fail_notify(
-                    job_id, message, target_name, target_scope,
-                    f"Process exited with exit code {exit_code}", full_output,
-                )
-                return
-
-            validation_error = ""
-            if success_file:
-                try:
-                    if not os.path.isfile(success_file) or os.path.getsize(success_file) == 0:
-                        validation_error = f"Required output artifact is missing or empty: {success_file}"
-                    else:
-                        with open(success_file, encoding="utf-8", errors="replace") as fh:
-                            artifact = fh.read()
-                        if success_pattern and re.search(success_pattern, artifact) is None:
-                            validation_error = (
-                                f"Required output artifact does not match success pattern: "
-                                f"{success_file}"
-                            )
-                except OSError as e:
-                    validation_error = f"Cannot validate output artifact {success_file}: {e}"
-            if validation_error:
-                await self._fail_notify(
-                    job_id, message, target_name, target_scope,
-                    validation_error, full_output,
-                )
-                return
-
-            trigger_msg = f"{message}\nExit code: 0"
-            await self._trigger(job_id, trigger_msg, target_name, target_scope, full_output)
+            logger.info(f"bg_job {job_id}: run done pid={proc.pid} exit={proc.returncode}")
+            await self._finish_run(
+                job_id, proc.returncode, _read_run_tail(out_path), message,
+                target_name, target_scope, success_file, success_pattern,
+            )
         except asyncio.TimeoutError:
             kill_error = ""
             if proc:
@@ -1292,7 +1303,7 @@ class BgJobManager:
                     await _kill_proc(proc)
                 except Exception as error:
                     kill_error = f"; process kill failed: {type(error).__name__}: {error}"
-            output = "".join(output_buf)
+            output = _read_run_tail(out_path)
             if kill_error:
                 output += f"\n{kill_error}"
             await self._expire_notify(
@@ -1302,22 +1313,110 @@ class BgJobManager:
             if kill_error:
                 logger.error("bg_job %s: %s", job_id, kill_error.lstrip("; "))
         except asyncio.CancelledError:
-            pass
+            # Shutdown leaves the command running for the next generation to adopt;
+            # bg_cancel and session stop still kill it below.
+            detached = bool(self._shutting_down and proc and proc.returncode is None)
         except Exception as e:
             await self._fail_notify(
                 job_id, message, target_name, target_scope,
-                f"{type(e).__name__}: {e}", "".join(output_buf),
+                f"{type(e).__name__}: {e}", _read_run_tail(out_path),
             )
         finally:
-            if reader_task and not reader_task.done():
-                reader_task.cancel()
-                await asyncio.gather(reader_task, return_exceptions=True)
             self._procs.pop(job_id, None)
-            if proc:
+            if proc and not detached:
                 await _kill_proc(proc)
                 transport = getattr(proc, "_transport", None)
                 if proc.returncode is not None and transport:
                     transport.close()
+            if detached:
+                logger.info(f"bg_job {job_id}: left running across shutdown pid={proc.pid}")
+            else:
+                _unlink_run_files(process)
 
+    async def _adopt_run(self, job_id, process, message, target_name, target_scope,
+                         timeout, success_file=None, success_pattern=""):
+        """Finish a run job whose process a previous Orchestra generation started (V-919)."""
+        out_path, rc_path = Path(process["out"]), Path(process["rc"])
+        detached = False
+        try:
+            logger.info(f"bg_job {job_id}: adopting run pid={process.get('pid')}")
+            async with asyncio.timeout(timeout):
+                await self._wait_run(
+                    job_id, lambda: not _run_leader_alive(process), out_path,
+                    _ADOPT_POLL_INTERVAL,
+                )
+            exit_code = _read_run_rc(rc_path)
+            output = _read_run_tail(out_path)
+            if exit_code is None:
+                await self._interrupt_run_notify(
+                    job_id, message, target_name, target_scope,
+                    reason="Процесс завершился во время рестарта, не записав код выхода "
+                           "(убит извне); повторный запуск не выполнялся.",
+                    output=output,
+                )
+                return
+            await self._finish_run(
+                job_id, exit_code, output, message, target_name, target_scope,
+                success_file, success_pattern,
+            )
+        except asyncio.TimeoutError:
+            await _reap_orphan_run(process)
+            await self._expire_notify(
+                job_id, message, target_name, target_scope, timeout, _read_run_tail(out_path),
+            )
+        except asyncio.CancelledError:
+            detached = self._shutting_down
+        except Exception as e:
+            await self._fail_notify(
+                job_id, message, target_name, target_scope,
+                f"{type(e).__name__}: {e}", _read_run_tail(out_path),
+            )
+        finally:
+            if not detached:
+                await _reap_orphan_run(process)
+                _unlink_run_files(process)
+
+    async def _wait_run(self, job_id, finished, out_path: Path, interval: float) -> None:
+        last_progress = time.time()
+        while not finished():
+            await asyncio.sleep(interval)
+            now = time.time()
+            if now - last_progress > OUTPUT_PROGRESS_INTERVAL:
+                bg_update_output(job_id, _read_run_tail(out_path))
+                last_progress = now
+
+    async def _finish_run(self, job_id, exit_code, full_output, message, target_name,
+                          target_scope, success_file, success_pattern) -> None:
+        if exit_code != 0:
+            await self._fail_notify(
+                job_id, message, target_name, target_scope,
+                f"Process exited with exit code {exit_code}", full_output,
+            )
+            return
+
+        validation_error = ""
+        if success_file:
+            try:
+                if not os.path.isfile(success_file) or os.path.getsize(success_file) == 0:
+                    validation_error = f"Required output artifact is missing or empty: {success_file}"
+                else:
+                    with open(success_file, encoding="utf-8", errors="replace") as fh:
+                        artifact = fh.read()
+                    if success_pattern and re.search(success_pattern, artifact) is None:
+                        validation_error = (
+                            f"Required output artifact does not match success pattern: "
+                            f"{success_file}"
+                        )
+            except OSError as e:
+                validation_error = f"Cannot validate output artifact {success_file}: {e}"
+        if validation_error:
+            await self._fail_notify(
+                job_id, message, target_name, target_scope,
+                validation_error, full_output,
+            )
+            return
+
+        trigger_msg = f"{message}\nExit code: 0"
+        await self._trigger(job_id, trigger_msg, target_name, target_scope, full_output)
 
 bg_manager = BgJobManager()

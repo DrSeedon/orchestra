@@ -25,6 +25,19 @@ class CostTracker:
     def __init__(self, s: "AgentSession") -> None:
         self.s = s
 
+    def adopt_session_id(self, sid: str | None) -> bool:
+        """Switch to the native session id; True when it changed."""
+        s = self.s
+        if not sid or sid == s.session_id:
+            return False
+        # SDK reports cost_usd cumulative per session_id — reset baseline
+        # when a new session starts (e.g. after compact creates a fresh session)
+        s._last_cost = 0.0
+        s._last_cost_cached = 0.0
+        s._context_cost = 0.0
+        s.session_id = sid
+        return True
+
     def apply_turn_result(
         self, meta: dict, usage: TurnUsage | None = None,
     ) -> tuple[bool, str, int]:
@@ -36,15 +49,7 @@ class CostTracker:
         s._last_turn_ok = ok
         s._last_stop_reason = sr
 
-        sid = meta.get("session_id")
-        if sid and sid != s.session_id:
-            # SDK reports cost_usd cumulative per session_id — reset baseline
-            # when a new session starts (e.g. after compact creates a fresh session)
-            s._last_cost = 0.0
-            s._last_cost_cached = 0.0
-            s._context_cost = 0.0
-        if sid:
-            s.session_id = sid
+        self.adopt_session_id(meta.get("session_id"))
         new_cost = meta.get("cost_usd", 0)
         is_delta = bool(meta.get("cost_is_delta"))
         # Claude SDK reports cumulative session cost; CodexBackend normalizes its own

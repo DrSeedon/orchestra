@@ -2446,12 +2446,6 @@ class AgentSession:
             async for event in backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
                 self._last_event = describe_event(event)
-                # thread.started is emitted before turn.completed. Store it now so an
-                # interrupted long turn can resume instead of silently starting fresh.
-                early_session_id = event.metadata.get("session_id") if event.type == "status" else None
-                if early_session_id and early_session_id != self.session_id:
-                    self.session_id = early_session_id
-                    self._persist()
                 if (
                     event.type == "turn_end"
                     and event.metadata.get("reader_failure")
@@ -2755,6 +2749,10 @@ class AgentSession:
             self._persist_subagent(event.metadata, ended=True)
         elif event.type == "status":
             self._log("status", event.content)
+            # Codex thread.started and Claude init precede the turn end. Store the id now so
+            # a turn cut by a restart resumes its transcript instead of being skipped (V-919).
+            if self._cost.adopt_session_id(event.metadata.get("session_id")):
+                self._persist()
 
     async def _flush_pending(self) -> None:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)

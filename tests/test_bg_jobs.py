@@ -1817,6 +1817,14 @@ async def test_v915_restart_stops_orphaned_run_process_and_reports_honestly(db):
     group = f"/proc/{pid}"
     assert os.path.exists(group)
 
+    # V-919 adopts file-backed runs; a row recorded by a pre-V-919 generation has only the
+    # process identity (its output went to a pipe that died) and keeps the V-915 verdict.
+    from app.db import _conn
+    with _conn() as connection:
+        connection.execute(
+            "UPDATE bg_jobs SET config=json_remove(config,'$._process.out','$._process.rc') "
+            "WHERE id=?", (job_id,),
+        )
     # "crash": the old generation never runs shutdown; a fresh manager restores from the DB.
     old._tasks.pop(job_id).cancel = lambda *a, **k: None  # keep the orphan alive
     new = BgJobManager()

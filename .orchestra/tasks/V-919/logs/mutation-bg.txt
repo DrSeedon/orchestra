@@ -1,0 +1,4 @@
+FAILED tests/test_bg_run_adoption_919.py::test_graceful_restart_leaves_run_alive_and_next_generation_delivers_its_result
+FAILED tests/test_bg_run_adoption_919.py::test_sigkilled_generation_run_is_adopted_with_its_exit_code[0]
+FAILED tests/test_bg_run_adoption_919.py::test_sigkilled_generation_run_is_adopted_with_its_exit_code[7]
+3 failed, 2 passed in 4.95s
