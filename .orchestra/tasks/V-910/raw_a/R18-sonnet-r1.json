@@ -1,0 +1,32 @@
+{
+ "run_id": "R18-sonnet-r1",
+ "qid": "R18",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 3,
+ "files": [
+  ".orchestra/tasks/V-670/report.md",
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "Да, в замерах V-670 это подтвердилось: Opus 5.5 на low оказался не ниже Sonnet 5.5 на medium на всех шести задачах из шести. Баллы равны на pidfd, steer и costbase и выше у Opus на stall (5 против 4/5), ident (4 против 3/3) и switch (4 против 3). Это сравнение баллов по одному прогону на ячейку, а разброс одного прогона — ±1–3 балла. Общим выводом о моделях это считать нельзя.\n\nFILES: .orchestra/tasks/V-670/report.md, .orchestra/kb/models-and-quotas.md\nANSWER: Да, на всех шести из шести: Opus low не ниже Sonnet medium (равен на 3 задачах, выше на 3). Это по одному прогону на ячейку, поэтому общим выводом о моделях это не является.",
+ "paid_tokens": 9790,
+ "output_tokens": 1117,
+ "input_tokens": 10,
+ "cache_read_tokens": 39491,
+ "cache_create_tokens": 8663,
+ "cost_usd_api_equiv": 0.0537402,
+ "seconds": 21.4,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"V-656|V-661\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-C\": 6}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R18-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 709, \"limit\": 12}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R18-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 729, \"limit\": 14}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R18-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 742, \"limit\": 12}",
+  "Grep {\"pattern\": \"Opus low.{0,80}Sonnet medium|из шести|6 из 6|на \\\\d из 6\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"-i\": true, \"head_limit\": 15}"
+ ]
+}

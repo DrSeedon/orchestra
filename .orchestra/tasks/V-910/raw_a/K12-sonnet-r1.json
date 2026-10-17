@@ -1,0 +1,28 @@
+{
+ "run_id": "K12-sonnet-r1",
+ "qid": "K12",
+ "kind": "D",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: В замере 1 (правка lifecycle платформы, V-616…V-624) GPT-6 Luna стоил $0.26 по API-эквиваленту. Выходных токенов у неё было 72 720. Цены GPT-6 в `turn_usage` первых прогонов пустые, поэтому доллары досчитаны по официальным ставкам.",
+ "paid_tokens": 6312,
+ "output_tokens": 410,
+ "input_tokens": 6,
+ "cache_read_tokens": 16860,
+ "cache_create_tokens": 5896,
+ "cost_usd_api_equiv": 0.031068,
+ "seconds": 12.3,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"V-616|V-624\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"head_limit\": 30}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K12-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 655, \"limit\": 40}"
+ ]
+}

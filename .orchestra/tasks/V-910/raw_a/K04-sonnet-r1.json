@@ -1,0 +1,29 @@
+{
+ "run_id": "K04-sonnet-r1",
+ "qid": "K04",
+ "kind": "D",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/runtimes.md",
+  ".orchestra/tasks/V-831/report.md"
+ ],
+ "final_text": "Да. Claude CLI 2.1.293 стримит аргументы вызова инструмента по частям: при запуске с `--include-partial-messages` приходят события `input_json_delta`. В замере на один Bash-heredoc их было 1 207, и склейка совпала с финальным `input`. Мелкозернистый стрим включает переменная окружения `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING=1`. Без неё его включает удалённый флаг `tengu_fgts`, но при `DISABLE_TELEMETRY=1` и `DISABLE_NON_ESSENTIAL_MODEL_CALLS=1`, которые Orchestra ставит агентам, этот флаг остаётся выключенным, и аргументы приходят целыми JSON-значениями.\n\nFILES: .orchestra/kb/runtimes.md, .orchestra/tasks/V-831/report.md\nANSWER: Да, Claude CLI стримит аргументы вызова инструмента через `input_json_delta` при запуске с `--include-partial-messages`. Мелкозернистый стрим включает переменная `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING=1`. Без неё его включает удалённый флаг `tengu_fgts`, но он выключен при `DISABLE_TELEMETRY=1` и `DISABLE_NON_ESSENTIAL_MODEL_CALLS=1`, которые Orchestra ставит агентам.",
+ "paid_tokens": 7651,
+ "output_tokens": 865,
+ "input_tokens": 6,
+ "cache_read_tokens": 18311,
+ "cache_create_tokens": 6780,
+ "cost_usd_api_equiv": 0.0394442,
+ "seconds": 15.8,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"input_json_delta\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"-C\": 3}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K04-sonnet-r1/.orchestra/kb/runtimes.md\", \"offset\": 157, \"limit\": 20}"
+ ]
+}

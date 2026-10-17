@@ -1,0 +1,30 @@
+{
+ "run_id": "S04-luna-r1",
+ "qid": "S04",
+ "kind": "S",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 2,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Данных, подтверждающих, что GPT-6 Sol расходует подписочный пул дороже Astra, нет: сравнение процентов пула ненадёжно, а прямого парного замера на одной задаче не было. Есть оценка API-эквивалента, но её нельзя переводить в разницу расхода пула.",
+ "paid_tokens": 14369,
+ "output_tokens": 638,
+ "input_tokens": 113187,
+ "cache_read_tokens": 99456,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0026866600000000004,
+ "seconds": 21.9,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'цена хода Astra' -e 'цена хода Sol' -e 'GPT-6 Sol' -e 'Astra' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '640,700p' .orchestra/kb/models-and-quotas.md; sed -n '428,460p' .orchestra/kb/models-and-quotas.md\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'GPT-6 Sol' -e 'quota_primary_pct' -e 'пул' .orchestra/tasks/V-620 .orchestra/kb/models-and-quotas.md\"",
+  "/bin/bash -lc \"sed -n '1,180p' .orchestra/tasks/V-620/bench-models.md; sed -n '210,265p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

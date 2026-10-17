@@ -1,0 +1,28 @@
+{
+ "run_id": "R12-sonnet-r2",
+ "qid": "R12",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, на наших задачах высокий effort у Opus 5.5 не окупается. Средний балл по двум раундам: Opus medium 3,6, high 3,9, low 4,2 — это разброс одного прогона. Выход на задачу растёт с 16,6К (low) до 35К (medium) и 56К (high), время растёт с 9,4 до 18 мин. Выше low цена вырастает в 1,2–4 раза без измеримого прироста качества. Максимальный effort (max) ни одной задачи не довёл: все 10 прогонов оборвал недельный лимит. Отдельная оговорка: у Artificial Analysis качество Opus 5.5 растёт с effort (low 42, max 58), но цена при этом тоже растёт.",
+ "paid_tokens": 7735,
+ "output_tokens": 561,
+ "input_tokens": 6,
+ "cache_read_tokens": 17101,
+ "cache_create_tokens": 7168,
+ "cost_usd_api_equiv": 0.0377142,
+ "seconds": 18.5,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"effort|V-656|V-661\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-n\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R12-sonnet-r2/.orchestra/kb/models-and-quotas.md\", \"offset\": 703, \"limit\": 55}"
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "run_id": "K10-sonnet-r2",
+ "qid": "K10",
+ "kind": "D",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "Нет, диалог не теряется. Astra и Luna работают в одном рантайме (codex). Смена модели идёт на месте (`_change_model_in_place_locked`) или через нативный resume, и история сохраняется. Новый диалог начинается только при смене рантайма. Раньше MCP-вызов всегда передавал `fresh=True` и обнулял сессию, а описание тула утверждало то же самое. Задача V-633 убрала эту ветку.\n\nFILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет. Внутри одного рантайма (Astra→Luna, оба codex) история сохраняется: смена идёт на месте или через нативный resume. Новый диалог бывает только при смене рантайма, а прежний сброс через `fresh=True` в MCP-вызове убрала V-633.",
+ "paid_tokens": 8859,
+ "output_tokens": 588,
+ "input_tokens": 6,
+ "cache_read_tokens": 19661,
+ "cache_create_tokens": 8265,
+ "cost_usd_api_equiv": 0.042884200000000004,
+ "seconds": 15.3,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"Astra.{0,80}Luna|Luna.{0,80}Astra\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"-i\": true, \"head_limit\": 40}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K10-sonnet-r2/.orchestra/kb/models-and-quotas.md\", \"offset\": 530, \"limit\": 30}"
+ ]
+}

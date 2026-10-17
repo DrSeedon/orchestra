@@ -1,0 +1,29 @@
+{
+ "run_id": "K05-luna-r1",
+ "qid": "K05",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md",
+  ".orchestra/tasks/V-731/report.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md, .orchestra/tasks/V-731/report.md\nANSWER: Лучшим признали Opus 5.5: Sonnet тоже оценили хорошо, но для роликов выбрали Opus с настроенным пайплайном. Автоматические проверки оценивали речь, кадры и файл через ffprobe, но не смысл геометрии 3D-сцены; поэтому они прошли и у ролика Luna, где корабли сталкивались, а урок о расхождении был искажён.",
+ "paid_tokens": 9605,
+ "output_tokens": 396,
+ "input_tokens": 59513,
+ "cache_read_tokens": 50304,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00162194,
+ "seconds": 9.8,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'расхождени.*корабл|корабл.*расхожд|учебн.*ролик|автоматическ.*провер|ролик' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '767,780p' .orchestra/kb/models-and-quotas.md && sed -n '1,220p' .orchestra/tasks/V-731/report.md\""
+ ]
+}

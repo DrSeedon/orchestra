@@ -1,0 +1,28 @@
+{
+ "run_id": "S03-sonnet-r2",
+ "qid": "S03",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "Отдельной нетронутой недельной ёмкости у Fable нет. Его `weekly_scoped` — это потолок внутри общего недельного пула: Fable можно тратить не больше 50% недельного лимита. Расход Fable увеличивает и `weekly_all`, и `weekly_scoped`. Ноль в scoped значит только, что долю ещё не начали тратить. Первоначальное прочтение «отдельная нетронутая ёмкость» отозвано после поправки владельца 11.09.2026.\n\nFILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, это часть общего недельного лимита. У Fable есть потолок до 50% недели внутри общего пула, и его расход увеличивает и `weekly_all`, и `weekly_scoped`. Версия про «отдельную нетронутую ёмкость» была ошибочной и отозвана 11.09.2026.",
+ "paid_tokens": 7669,
+ "output_tokens": 596,
+ "input_tokens": 6,
+ "cache_read_tokens": 18796,
+ "cache_create_tokens": 7067,
+ "cost_usd_api_equiv": 0.037999200000000004,
+ "seconds": 16.3,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"Fable\", \"path\": \".orchestra/kb\", \"output_mode\": \"content\", \"-i\": true, \"head_limit\": 40}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S03-sonnet-r2/.orchestra/kb/models-and-quotas.md\", \"offset\": 411, \"limit\": 18}"
+ ]
+}

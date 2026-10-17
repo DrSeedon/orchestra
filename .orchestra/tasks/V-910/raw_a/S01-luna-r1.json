@@ -1,0 +1,28 @@
+{
+ "run_id": "S01-luna-r1",
+ "qid": "S01",
+ "kind": "S",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/agent-control.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/agent-control.md\nANSWER: Сама по себе одиночная `AGENTS.md` у Claude-воркеров Orchestra подхватывается через системную CLI, которую запускает SDK. Но действующий вывод — оставлять в корне `CLAUDE.md` как симлинк на `AGENTS.md`: так оба механизма получают одни и те же правила, и работа не зависит от версии CLI или настроек.",
+ "paid_tokens": 8980,
+ "output_tokens": 324,
+ "input_tokens": 59344,
+ "cache_read_tokens": 50688,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00153448,
+ "seconds": 10.1,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'CLAUDE.md' -e 'AGENTS.md' -e 'воркеры Orchestra' -e 'правила проекта' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '45,140p' .orchestra/kb/agent-control.md\""
+ ]
+}

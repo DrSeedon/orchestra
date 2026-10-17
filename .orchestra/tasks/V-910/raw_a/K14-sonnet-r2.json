@@ -1,0 +1,27 @@
+{
+ "run_id": "K14-sonnet-r2",
+ "qid": "K14",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Не полностью. Независимая оценка даёт Claude выгоднее ChatGPT за $20 в 5,6 раза, а наш нижний замер — не менее чем в 4,3 раза. Наши числа — нижние границы, потому что ноутбук делит счётчик и в `turn_usage` не виден. Ещё одно расхождение: внешняя оценка «150 млрд токенов Luna в месяц» на нашем профиле не воспроизводится, разница примерно в 40 раз, причина не установлена.",
+ "paid_tokens": 5504,
+ "output_tokens": 354,
+ "input_tokens": 4,
+ "cache_read_tokens": 9621,
+ "cache_create_tokens": 5146,
+ "cost_usd_api_equiv": 0.0260562,
+ "seconds": 14.0,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"V-664|bulk-probe|ChatGPT\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-C\": 3}"
+ ]
+}

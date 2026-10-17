@@ -1,0 +1,30 @@
+{
+ "run_id": "R11-sonnet-r2",
+ "qid": "R11",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-713/report.md"
+ ],
+ "final_text": "Источник — отчёт V-713. Измерения сделаны 05.10.2026 на отдельных временных клонах.\n\nFILES: .orchestra/tasks/V-713/report.md\nANSWER: Sparse checkout уменьшает рабочую копию Katya с 2.040 GB до 2.27 MB (−99.89%). Копия Seedon уменьшается с 1.263 GB до 47.3 MB (−96.26%). Платим тем, что файлов вне выбранного профиля физически нет. У Katya пропадают `artifacts/`, `reference/` и `.orchestra/`, поэтому рендерер PDF остановится на отсутствующем `libreoffice-runner.sh`. У Seedon нет fixture из `.orchestra/tasks/V-35/sources`, поэтому тест `test_saved_source_fixture_is_parseable` упадёт с `FileNotFoundError`. Сам тест не запускали, потому что в системном Python нет `pytest`. Из-за этого нужны профили по ролям и полный checkout для задач с документами и данными.",
+ "paid_tokens": 9691,
+ "output_tokens": 874,
+ "input_tokens": 8,
+ "cache_read_tokens": 25364,
+ "cache_create_tokens": 8809,
+ "cost_usd_api_equiv": 0.049064800000000006,
+ "seconds": 27.5,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"sparse|частичн\\\\w+ выгрузк|partial checkout|partial clone\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"count\"}",
+  "Grep {\"pattern\": \"Seedon\", \"path\": \".orchestra\", \"output_mode\": \"count\"}",
+  "Grep {\"pattern\": \"sparse|Seedon|Katya\", \"path\": \".orchestra/tasks/V-713/report.md\", \"-i\": true, \"output_mode\": \"content\"}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R11-sonnet-r2/.orchestra/tasks/V-713/report.md\", \"limit\": 24}"
+ ]
+}

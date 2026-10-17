@@ -1,0 +1,27 @@
+{
+ "run_id": "K11-sonnet-r2",
+ "qid": "K11",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/evidence-methods.md"
+ ],
+ "final_text": "Ответ нашёлся в одном файле.\n\nFILES: .orchestra/kb/evidence-methods.md\nANSWER: ONNX Runtime отпускает GIL во время `InferenceSession.run`. Поэтому `py-spy record --gil` показывал только Python-обвязку и не учитывал нативный inference, то есть самую дорогую работу. Низкая доля RAG/эмбеддингов в таком профиле не означает, что работа дешёвая. Это выяснили измерением вокруг `InferenceSession.run` и профилем нативного стека.",
+ "paid_tokens": 4753,
+ "output_tokens": 335,
+ "input_tokens": 4,
+ "cache_read_tokens": 9604,
+ "cache_create_tokens": 4414,
+ "cost_usd_api_equiv": 0.022934799999999998,
+ "seconds": 12.2,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"GIL|эмбеддинг\", \"path\": \".orchestra/kb/evidence-methods.md\", \"output_mode\": \"content\", \"-C\": 3}"
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "run_id": "K09-luna-r2",
+ "qid": "K09",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/chat-and-telegram.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/chat-and-telegram.md  \nANSWER: `route.fulfill` закрывал SSE-соединение, клиент подключался заново и получал ту же пачку. Без дедупликации одно событие породило 8 уведомлений вместо 1. Значит, проверка только успешной доставки не выявляет поведение при реконнекте: нужно проверять дедупликацию и повторную доставку.",
+ "paid_tokens": 9549,
+ "output_tokens": 306,
+ "input_tokens": 51483,
+ "cache_read_tokens": 42240,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0014997,
+ "seconds": 14.5,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'обрыв соединения' -e 'ту же пачку' -e 'эмуляцией потока' -e 'браузерном тесте' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,65p' .orchestra/kb/chat-and-telegram.md\""
+ ]
+}

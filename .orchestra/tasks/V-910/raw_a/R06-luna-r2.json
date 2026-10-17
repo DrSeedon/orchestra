@@ -1,0 +1,28 @@
+{
+ "run_id": "R06-luna-r2",
+ "qid": "R06",
+ "kind": "D",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-693/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-693/report.md\nANSWER: Упало `tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry`. Оно насчитало три вызова `_fetchHistory` вместо двух: фоновый опрос дашборда добавил лишний вызов.",
+ "paid_tokens": 8939,
+ "output_tokens": 307,
+ "input_tokens": 59448,
+ "cache_read_tokens": 50816,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00152486,
+ "seconds": 16.1,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'седьмой попыт' -e 'истории картинок' -e 'фоновый опрос' -e 'Actions' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '310,355p' .orchestra/tasks/V-693/report.md\""
+ ]
+}

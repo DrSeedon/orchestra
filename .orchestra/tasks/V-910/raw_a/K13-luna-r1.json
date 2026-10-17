@@ -1,0 +1,28 @@
+{
+ "run_id": "K13-luna-r1",
+ "qid": "K13",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет. В замере сменился ровно один байт в USER-инъекции роли (`ctx:9%` → `ctx:8%`), а следующий запрос всё равно прочитал из кеша 230 890 токенов. Значит, эта смена не обнулила кеш при продолжении сессии.",
+ "paid_tokens": 6467,
+ "output_tokens": 338,
+ "input_tokens": 49393,
+ "cache_read_tokens": 43264,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00121454,
+ "seconds": 8.7,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'цифр состояния' -e 'побайтов' -e 'обнуляет кеш' -e 'вставки роли' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,45p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

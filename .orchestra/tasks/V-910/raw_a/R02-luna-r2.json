@@ -1,0 +1,29 @@
+{
+ "run_id": "R02-luna-r2",
+ "qid": "R02",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-821/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-821/report.md  \nANSWER: Да. Сравнили слияния в sparse и полном клоне: результат совпал в **45 из 45 случаев** по коду возврата, списку конфликтных файлов и итоговому дереву. Ограничение: использовали уже влитые коммиты, а не реальную гонку двух воркеров.",
+ "paid_tokens": 20227,
+ "output_tokens": 444,
+ "input_tokens": 88391,
+ "cache_read_tokens": 68608,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00288638,
+ "seconds": 18.6,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'урезанн.*клона|клоне репозитор|слияни.*ветк|совпад.*случа|shallow clone|reduced clone|merge.*branch' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'sparse|урезан|клон|совпад|образц|слияни' .orchestra/tasks/V-821 .orchestra/tasks/V-836 .orchestra/kb\"",
+  "/bin/bash -lc \"sed -n '120,139p' .orchestra/tasks/V-821/report.md\""
+ ]
+}

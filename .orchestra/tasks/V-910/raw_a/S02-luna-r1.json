@@ -1,0 +1,28 @@
+{
+ "run_id": "S02-luna-r1",
+ "qid": "S02",
+ "kind": "S",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md  \nANSWER: Официальный тариф считает Codex расход кредитами по разным ставкам для моделей: более сильные модели дороже за токен, а кешированный вход стоит примерно десятую часть обычного. Вывод 11.09 о том, что недельный пул почти не различает модели и считает в основном объём, отозван: он возник из методической ошибки. Экспериментально вопрос «объём или кредиты» остаётся открытым; данные лишь косвенно поддерживают учёт кредитов.",
+ "paid_tokens": 13389,
+ "output_tokens": 348,
+ "input_tokens": 63217,
+ "cache_read_tokens": 50176,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00197986,
+ "seconds": 14.4,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'недельн' -e '11.09' -e 'Codex' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '130,190p' .orchestra/kb/models-and-quotas.md && sed -n '235,265p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

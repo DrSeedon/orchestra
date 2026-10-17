@@ -1,0 +1,27 @@
+{
+ "run_id": "K03-sonnet-r2",
+ "qid": "K03",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/prompt-engineering.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/prompt-engineering.md\nANSWER: Это только дороже и выигрыша нет. По V-666 (preregistered, ~4,6 тыс. запусков) просьба «сравни несколько подходов» увеличивает reasoning в 2,4–7,4 раза, а успех почти не меняется: 95,2% против 96,5% без неё. «Думай глубоко» стоит ×1,6–2,2 токенов и тоже ничего не даёт. В V-895 переписывание задания «deeper» дало ×2,07 токенов без прироста принятого. Поэтому в проекте такие глобальные фразы не добавляют.",
+ "paid_tokens": 4548,
+ "output_tokens": 367,
+ "input_tokens": 4,
+ "cache_read_tokens": 9203,
+ "cache_create_tokens": 4177,
+ "cost_usd_api_equiv": 0.0224945,
+ "seconds": 9.8,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"V-666|V-895\", \"path\": \".orchestra/kb/prompt-engineering.md\", \"output_mode\": \"content\", \"-C\": 4}"
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "run_id": "R10-luna-r2",
+ "qid": "R10",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/113/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/113/report.md  \nANSWER: Да. Пачка 64 против 16 детерминированно меняла векторы и гибридную выдачу: полный batch16 сохранил точный top‑5 лишь для 3 из 20 запросов. Контрольный повтор показал нулевое расхождение при повторе с тем же размером пачки, но одинаковый сдвиг между 64 и 16 в обоих прогонах — это подтвердило эффект размера пачки, а не случайную недетерминированность.",
+ "paid_tokens": 11921,
+ "output_tokens": 460,
+ "input_tokens": 82629,
+ "cache_read_tokens": 71168,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00208778,
+ "seconds": 15.0,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'размер пачки' -e 'пачки' -e 'повторного прогона' -e 'векторов' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i 'embedding|эмбеддинг|векторн|batch|батч|повторн|контроль|memory|памят' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,90p' .orchestra/tasks/113/report.md\""
+ ]
+}

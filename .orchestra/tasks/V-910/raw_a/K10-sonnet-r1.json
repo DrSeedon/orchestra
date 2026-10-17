@@ -1,0 +1,28 @@
+{
+ "run_id": "K10-sonnet-r1",
+ "qid": "K10",
+ "kind": "D",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, диалог не теряется. Astra→Luna идёт внутри одного рантайма (codex), поэтому смена модели происходит на месте (`_change_model_in_place_locked`) или через нативный resume, и история сохраняется. Раньше MCP-вызов всегда передавал `fresh=True` и обнулял сессию. Ветку `fresh` удалили в V-633.",
+ "paid_tokens": 8945,
+ "output_tokens": 466,
+ "input_tokens": 6,
+ "cache_read_tokens": 20130,
+ "cache_create_tokens": 8473,
+ "cost_usd_api_equiv": 0.04259,
+ "seconds": 10.7,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"Astra.*Luna|Luna.*Astra|смен[аеуы] модели\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"-i\": true, \"head_limit\": 40}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K10-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 535, \"limit\": 22}"
+ ]
+}

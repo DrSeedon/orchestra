@@ -1,0 +1,28 @@
+{
+ "run_id": "R05-luna-r0",
+ "qid": "R05",
+ "kind": "D",
+ "model": "luna",
+ "rep": "0",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/61/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/61/report.md  \nANSWER: `force=True` позволяет пересоздать целевую ветку от базы, когда запись о слиянии доказывает, что текущая голова ветки — та, что была слита; без force пересоздание ограничено этим доказанным случаем, а с force человек принимает ответственность. При исходе **BENIGN** головы совпадают, и ветку пересоздают. При **FATAL** запись о слиянии указывает на другую голову: операция завершается отказом 409, чтобы не уничтожить работу.",
+ "paid_tokens": 5099,
+ "output_tokens": 334,
+ "input_tokens": 53277,
+ "cache_read_tokens": 48512,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0011286199999999999,
+ "seconds": 11.4,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'force=True' -e 'BENIGN' -e 'FATAL' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,24p' .orchestra/tasks/61/report.md\""
+ ]
+}

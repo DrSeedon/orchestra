@@ -1,0 +1,30 @@
+{
+ "run_id": "K11-luna-r2",
+ "qid": "K11",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 2,
+ "files": [
+  ".orchestra/kb/evidence-methods.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/evidence-methods.md\nANSWER: `py-spy record --gil` показывал Python-обвязку, но исключал нативный ONNX inference: `InferenceSession.run` отпускает GIL. Поэтому низкая доля RAG в таком профиле не опровергает его стоимость; её выясняли замером вокруг inference и профилем нативного стека.",
+ "paid_tokens": 13321,
+ "output_tokens": 660,
+ "input_tokens": 107125,
+ "cache_read_tokens": 94464,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00254074,
+ "seconds": 18.7,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'эмбеддинг' -e 'embeddings' -e 'доля работы нейросети' -e 'дешёвая' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '65,110p' .orchestra/kb/runtimes.md && sed -n '1,65p' .orchestra/tasks/419/report.md\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'нейросет' -e 'доля' -e 'стоимост' -e 'cheap' -e 'дешев' .orchestra/kb/evidence-methods.md .orchestra/tasks/113/report.md .orchestra/tasks/419/report.md .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,28p' .orchestra/kb/evidence-methods.md\""
+ ]
+}

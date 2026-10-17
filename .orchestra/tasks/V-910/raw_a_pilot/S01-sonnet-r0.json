@@ -1,0 +1,28 @@
+{
+ "run_id": "S01-sonnet-r0",
+ "qid": "S01",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "0",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/agent-control.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/agent-control.md\nANSWER: По действующей поправке от 08.10 воркеры Orchestra одиночный `AGENTS.md` читают. Orchestra запускает системную CLI (`cli_path=shutil.which(\"claude\")`, сейчас 2.1.293), а не встроенную CLI SDK. Прежний вывод от 07.10, что не читают, был неверен: тот замер шёл через другой бинарь. Вклад версии CLI и мода `agents-md` не разделён. Поэтому `CLAUDE.md` из корня удалять нельзя, а безопасная форма — `AGENTS.md` плюс `CLAUDE.md` симлинком на него.",
+ "paid_tokens": 7074,
+ "output_tokens": 526,
+ "input_tokens": 6,
+ "cache_read_tokens": 22251,
+ "cache_create_tokens": 6542,
+ "cost_usd_api_equiv": 0.0361604,
+ "seconds": 14.0,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"AGENTS\\\\.md.*CLAUDE\\\\.md|CLAUDE\\\\.md\", \"path\": \".orchestra\", \"output_mode\": \"content\", \"head_limit\": 40}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S01-sonnet-r0/.orchestra/kb/agent-control.md\", \"offset\": 48, \"limit\": 92}"
+ ]
+}

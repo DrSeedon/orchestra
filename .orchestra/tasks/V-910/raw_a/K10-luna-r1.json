@@ -1,0 +1,28 @@
+{
+ "run_id": "K10-luna-r1",
+ "qid": "K10",
+ "kind": "D",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет. При смене Astra→Luna внутри одного рантайма история сохраняется: используется перенаправление модели на месте или нативное продолжение сессии. Раньше MCP мог сбрасывать сессию из-за `fresh=True`, но эту ветку удалили в V-633.",
+ "paid_tokens": 10730,
+ "output_tokens": 329,
+ "input_tokens": 59425,
+ "cache_read_tokens": 49024,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0016948400000000002,
+ "seconds": 8.3,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'Astra.*Luna' -e 'Luna.*Astra' -e 'смен.*модел' -e 'диалог.*воркер' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '530,558p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

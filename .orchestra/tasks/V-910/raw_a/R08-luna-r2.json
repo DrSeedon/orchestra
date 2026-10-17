@@ -1,0 +1,30 @@
+{
+ "run_id": "R08-luna-r2",
+ "qid": "R08",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-753/report.md",
+  ".orchestra/tasks/V-895/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-753/report.md, .orchestra/tasks/V-895/report.md\nANSWER: Это была открытая задача O1 из оценки V-895, взятая из V-753. Дублирующий PATCH-обработчик вызывал `save_session(found.to_dict())` без обязательной привязки `session_id`, из-за чего сервер возвращал HTTP 500.",
+ "paid_tokens": 11650,
+ "output_tokens": 393,
+ "input_tokens": 74617,
+ "cache_read_tokens": 63360,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0019558,
+ "seconds": 17.0,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'ошибк.*500' -e 'переключени.*топик' -e 'открытого поиска' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'topic.*500' -e 'чат.*500' -e 'switch.*topic' -e 'переключ.*чат' -e 'messenger' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc 'cat .orchestra/tasks/V-895/report.md && cat .orchestra/tasks/V-753/report.md'"
+ ]
+}

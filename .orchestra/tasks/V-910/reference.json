@@ -1,0 +1,327 @@
+{
+ "K01": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K02": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/kb/tasks-and-projects.md"
+  ],
+  "shared_rare_max": [
+   "репет"
+  ]
+ },
+ "K03": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/prompt-engineering.md",
+   ".orchestra/tasks/V-659/report.md",
+   ".orchestra/tasks/V-666/report.md",
+   ".orchestra/tasks/V-864/report.md",
+   ".orchestra/tasks/V-893/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K04": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/kb/runtimes.md"
+  ],
+  "shared_rare_max": [
+   "стрим"
+  ]
+ },
+ "K05": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-731/report.md"
+  ],
+  "shared_rare_max": [
+   "учебн"
+  ]
+ },
+ "K06": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K07": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/chat-and-telegram.md",
+   ".orchestra/tasks/59/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K08": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/runtimes.md",
+   ".orchestra/tasks/V-624/report.md",
+   ".orchestra/tasks/V-765/report.md",
+   ".orchestra/tasks/V-840/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K09": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/chat-and-telegram.md"
+  ],
+  "shared_rare_max": [
+   "пачку"
+  ]
+ },
+ "K10": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-633/report.md"
+  ],
+  "shared_rare_max": [
+   "смене"
+  ]
+ },
+ "K11": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/evidence-methods.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K12": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K13": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K14": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-664/report.md",
+   ".orchestra/tasks/V-734/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "K15": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/kb/runtimes.md"
+  ],
+  "shared_rare_max": [
+   "тупик"
+  ]
+ },
+ "R01": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-629/report.md",
+   ".orchestra/tasks/V-632/report.md",
+   ".orchestra/tasks/V-634/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R02": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-821/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R03": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/515/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R04": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-683/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R05": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/tasks/61/report.md",
+   ".orchestra/tasks/V-575/report.md"
+  ],
+  "shared_rare_max": [
+   "benig",
+   "fatal"
+  ]
+ },
+ "R06": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/tasks/V-693/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R07": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-759/report.md"
+  ],
+  "shared_rare_max": [
+   "релиз"
+  ]
+ },
+ "R08": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-895/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R09": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/506/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R10": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/113/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R11": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-713/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R12": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-767/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R13": {
+  "kind": "D",
+  "acceptable": [
+   ".orchestra/tasks/V-673/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R14": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/126/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R15": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-680/report.md",
+   ".orchestra/tasks/V-740/report.md",
+   ".orchestra/tasks/V-741/report.md",
+   ".orchestra/tasks/V-796/report.md",
+   ".orchestra/tasks/V-899/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R16": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-707/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R17": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/59/report.md"
+  ],
+  "shared_rare_max": [
+   "вверх"
+  ]
+ },
+ "R18": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-670/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R19": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-802/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "R20": {
+  "kind": "P",
+  "acceptable": [
+   ".orchestra/tasks/V-904/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "S01": {
+  "kind": "S",
+  "acceptable": [
+   ".orchestra/kb/agent-control.md",
+   ".orchestra/tasks/V-757/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "S02": {
+  "kind": "S",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": [
+   "курсо"
+  ]
+ },
+ "S03": {
+  "kind": "S",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": [
+   "нетро",
+   "ёмкос"
+  ]
+ },
+ "S04": {
+  "kind": "S",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md",
+   ".orchestra/tasks/V-864/report.md"
+  ],
+  "shared_rare_max": []
+ },
+ "S05": {
+  "kind": "S",
+  "acceptable": [
+   ".orchestra/kb/models-and-quotas.md"
+  ],
+  "shared_rare_max": []
+ }
+}

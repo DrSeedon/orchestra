@@ -1,0 +1,28 @@
+{
+ "run_id": "K13-sonnet-r1",
+ "qid": "K13",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, это неверно для наблюдавшегося resume в Claude. Побайтовый замер показал, что изменился ровно один байт в USER-инъекции роли: смещение 80076, `0x39`→`0x38` (`ctx:9%`→`ctx:8%`). Следующий запрос всё равно прочитал из кеша 230 890 токенов и записал 35 399, то есть префикс уцелел. Две побайтово одинаковые инъекции при этом сопровождались записью 33 492 токенов, так что стабильный блок сам по себе не даёт нулевой записи. Крупные записи шли после пауз больше часа. Вероятная причина — истечение TTL, но строго это не доказано.",
+ "paid_tokens": 6697,
+ "output_tokens": 567,
+ "input_tokens": 6,
+ "cache_read_tokens": 17198,
+ "cache_create_tokens": 6124,
+ "cost_usd_api_equiv": 0.0336176,
+ "seconds": 10.8,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"побайтов|byte-for-byte|вставк\\\\w* роли\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"content\", \"head_limit\": 30}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/K13-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 1, \"limit\": 40}"
+ ]
+}

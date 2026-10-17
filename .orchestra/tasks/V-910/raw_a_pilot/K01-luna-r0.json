@@ -1,0 +1,30 @@
+{
+ "run_id": "K01-luna-r0",
+ "qid": "K01",
+ "kind": "P",
+ "model": "luna",
+ "rep": "0",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md  \nANSWER: В телеметрии `usage_snapshots.provider_usage` поле `codex.plan_type` меняется с `pro` на `free`; рядом недельное окно квоты становится окном `30d`. На бесплатном плане `gpt-6-astra` получает HTTP 400 «not supported when using Codex with a ChatGPT account» — это отказ по модели, а не по квоте.",
+ "paid_tokens": 13088,
+ "output_tokens": 507,
+ "input_tokens": 111397,
+ "cache_read_tokens": 98816,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00249976,
+ "seconds": 16.6,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'free account' -e 'платный аккаунт' -e '400' -e 'OpenAI' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'free tier|free plan|бесплатн|account.*tier|subscription.*openai|entitlement|400.*model|model.*400' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'платн.*бесплатн' -e '400' -e 'tier' -e 'entitlement' .orchestra/tasks/V-8*/report.md .orchestra/tasks/V-9*/report.md .orchestra/kb/runtimes.md .orchestra/kb/models-and-quotas.md\"",
+  "/bin/bash -lc \"sed -n '295,335p' .orchestra/kb/models-and-quotas.md; sed -n '1,90p' .orchestra/tasks/V-541/report.md\""
+ ]
+}

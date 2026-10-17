@@ -1,0 +1,28 @@
+{
+ "run_id": "S04-sonnet-r1",
+ "qid": "S04",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "Нет, это не подтверждено. Вывод «Sol дороже Astra на 29%» был опубликован и в тот же час отозван. Он держался только на самой грубой оценке: счётчик `quota_primary_pct` целочисленный, и порядок Sol и Astra меняется в зависимости от способа оценки. По трём оценкам на ход выходит 0.425 / 0.443 / 0.336 п.п. у Sol и 0.330 / 0.333 / 0.411 п.п. у Astra. В долларах ход Astra на 7% дороже хода Sol: 3.419 $ против 3.199 $. Парных прогонов одной задачи на обеих моделях нет, поэтому надёжной разницы по подписочному пулу тоже нет.\n\nВ записях сравнивались gpt-5.6-sol и gpt-6-astra. Для «GPT-6 Sol» отдельного сравнения с Astra по пулу я не нашёл.\n\nFILES: .orchestra/kb/models-and-quotas.md\nANSWER: Нет, утверждение не подтверждено. Вывод «Sol дороже Astra на 29%» отозван: он держался на квантованном счётчике пула, и порядок моделей меняется от оценки. Надёжно известно только, что ход Astra на 7% дороже хода Sol в долларах (3.419 $ против 3.199 $).",
+ "paid_tokens": 8058,
+ "output_tokens": 736,
+ "input_tokens": 6,
+ "cache_read_tokens": 18447,
+ "cache_create_tokens": 7316,
+ "cost_usd_api_equiv": 0.0403254,
+ "seconds": 15.9,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"Sol\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-n\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/S04-sonnet-r1/.orchestra/kb/models-and-quotas.md\", \"offset\": 426, \"limit\": 40}"
+ ]
+}

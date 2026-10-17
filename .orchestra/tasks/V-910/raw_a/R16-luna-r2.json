@@ -1,0 +1,29 @@
+{
+ "run_id": "R16-luna-r2",
+ "qid": "R16",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-707/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-707/report.md\nANSWER: Claude’s `rate_limit_event` сохраняется как полный `raw` payload; `utilization` из долей переводится в проценты умножением на 100 без округления. Точные окна, время сброса и исходный payload лежат в журнале событий и `usage_snapshots.provider_usage`; поля Codex `usedPercent` также сохраняются числом без округления.",
+ "paid_tokens": 10083,
+ "output_tokens": 514,
+ "input_tokens": 80353,
+ "cache_read_tokens": 70784,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0019217400000000003,
+ "seconds": 16.1,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'процент' -e 'stream' -e 'provider' -e 'лимит' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'quota_primary_pct' -e 'input_json_delta' -e 'limit.*event' -e 'percent.*round' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,90p' .orchestra/tasks/V-707/report.md && sed -n '425,475p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

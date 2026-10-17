@@ -1,0 +1,28 @@
+{
+ "run_id": "S03-luna-r2",
+ "qid": "S03",
+ "kind": "S",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Fable не имеет отдельной нетронутой недельной ёмкости: его расход входит в общий недельный пул (`weekly_all`). Для Fable действует потолок до 50% этого общего лимита; нулевой `weekly_scoped` означает, что эту долю ещё не расходовали.",
+ "paid_tokens": 9458,
+ "output_tokens": 362,
+ "input_tokens": 60936,
+ "cache_read_tokens": 51840,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.001609,
+ "seconds": 15.3,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'Fable' -e 'недельн.*ёмкост' -e 'weekly.*capacity' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '405,425p' .orchestra/kb/models-and-quotas.md && sed -n '15,22p' .orchestra/tasks/V-734/report.md && sed -n '104,112p' .orchestra/tasks/V-559/report.md\""
+ ]
+}

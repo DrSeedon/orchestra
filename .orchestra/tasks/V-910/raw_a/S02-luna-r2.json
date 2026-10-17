@@ -1,0 +1,29 @@
+{
+ "run_id": "S02-luna-r2",
+ "qid": "S02",
+ "kind": "S",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Да. Недельный пул Codex расходуется кредитами по курсу модели и отдельно учитывает входные, кешированные входные и выходные токены; Astra и Luna отличаются по ставкам. Вывод 11.09, что пул почти не различает модели и Astra дороже Luna лишь в 1,6 раза по расходу пула, отозван: подтверждённый вывод — `cost_usd` воспроизводит модель кредитов, а по пересчёту ходов разница Astra/Luna составляет 94×.",
+ "paid_tokens": 13359,
+ "output_tokens": 521,
+ "input_tokens": 88742,
+ "cache_read_tokens": 75904,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00230334,
+ "seconds": 14.1,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e '11.09' -e 'недельн' -e 'Codex' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e '11.09' -e 'недельн' -e 'модел' -e 'по-разному' .orchestra/kb/models-and-quotas.md .orchestra/tasks/V-734/report.md\"",
+  "/bin/bash -lc \"sed -n '35,58p' .orchestra/kb/models-and-quotas.md && sed -n '125,190p' .orchestra/kb/models-and-quotas.md\""
+ ]
+}

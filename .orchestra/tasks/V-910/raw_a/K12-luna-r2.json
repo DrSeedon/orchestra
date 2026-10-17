@@ -1,0 +1,32 @@
+{
+ "run_id": "K12-luna-r2",
+ "qid": "K12",
+ "kind": "D",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 4,
+ "read_calls": 2,
+ "files": [
+  ".orchestra/tasks/V-660/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-660/report.md  \nANSWER: В отчёте указано, что GPT-6 Luna в V-620 стоил **$0,26** по API-эквиваленту. Число выходных токенов в найденном фрагменте не приведено.",
+ "paid_tokens": 15443,
+ "output_tokens": 929,
+ "input_tokens": 159410,
+ "cache_read_tokens": 144896,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0033648600000000003,
+ "seconds": 17.3,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'V-616' -e 'V-624' -e 'lifecycle' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'V-616' -e 'V-617' -e 'V-618' -e 'V-619' -e 'V-620' -e 'V-621' -e 'V-622' -e 'V-623' -e 'V-624' .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'Luna' -e 'GPT-6' -e 'cost_usd' -e 'output_tokens' .orchestra/tasks/V-616 .orchestra/tasks/V-617 .orchestra/tasks/V-618 .orchestra/tasks/V-619 .orchestra/tasks/V-620 .orchestra/tasks/V-621 .orchestra/tasks/V-622 .orchestra/tasks/V-623 .orchestra/tasks/V-624\"",
+  "/bin/bash -lc \"sed -n '1,220p' .orchestra/tasks/V-656/report.md && sed -n '1,220p' .orchestra/tasks/V-660/report.md\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'GPT-6 Luna' -e 'output' .orchestra/tasks/V-620/bench-models.md\"",
+  "/bin/bash -lc \"sed -n '175,198p' .orchestra/tasks/V-660/report.md\""
+ ]
+}

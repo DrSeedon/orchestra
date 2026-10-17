@@ -1,0 +1,27 @@
+{
+ "run_id": "S01-sonnet-r1",
+ "qid": "S01",
+ "kind": "S",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/agent-control.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/agent-control.md\nANSWER: Да, при текущей системной CLI подхватывают. Поправка от 08.10 говорит, что Orchestra вызывает системную `claude` (`cli_path=shutil.which(\"claude\")`, сейчас 2.1.293), и она читает одиночный `AGENTS.md`. Вывод от 07.10, что воркеры не читают его, был неверен, потому что проверяли встроенный бинарь SDK. Всё равно действует правило: не удалять `CLAUDE.md`, а держать `AGENTS.md` и `CLAUDE.md` симлинком на него.",
+ "paid_tokens": 6787,
+ "output_tokens": 353,
+ "input_tokens": 4,
+ "cache_read_tokens": 9625,
+ "cache_create_tokens": 6430,
+ "cost_usd_api_equiv": 0.031183000000000002,
+ "seconds": 13.0,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"CLAUDE\\\\.md\", \"path\": \".orchestra/kb\", \"output_mode\": \"content\", \"-C\": 2}"
+ ]
+}

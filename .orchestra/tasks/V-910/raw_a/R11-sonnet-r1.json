@@ -1,0 +1,30 @@
+{
+ "run_id": "R11-sonnet-r1",
+ "qid": "R11",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-713/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-713/report.md\nANSWER: Sparse checkout уменьшает рабочую копию Katya с 2.040 GB до 2.27 MB (−99.89%), а Seedon — с 1.263 GB до 47.3 MB (−96.26%). Платим тем, что файлов вне выбранного профиля физически нет. У Katya пропадают `artifacts/`, `reference/` и `.orchestra/`, и рендерер документов упадёт на отсутствующем `libreoffice-runner.sh`. У Seedon тест `test_saved_source_fixture_is_parseable` не найдёт fixture из `.orchestra/tasks/V-35/sources`. Поэтому нужны профили по ролям и полный checkout для задач с документами, данными и доказательствами.",
+ "paid_tokens": 9527,
+ "output_tokens": 778,
+ "input_tokens": 8,
+ "cache_read_tokens": 25169,
+ "cache_create_tokens": 8741,
+ "cost_usd_api_equiv": 0.0477938,
+ "seconds": 19.5,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"Seedon\", \"path\": \".orchestra\", \"output_mode\": \"count\"}",
+  "Grep {\"pattern\": \"sparse|частичн\\\\w+ выгрузк|partial checkout\", \"path\": \".orchestra\", \"-i\": true, \"output_mode\": \"count\"}",
+  "Grep {\"pattern\": \"sparse|Seedon\", \"path\": \".orchestra/tasks/V-713/report.md\", \"output_mode\": \"content\", \"-i\": true}",
+  "Read {\"file_path\": \"/home/kesha/bench910/runs/R11-sonnet-r1/.orchestra/tasks/V-713/report.md\", \"limit\": 28}"
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "run_id": "R15-luna-r2",
+ "qid": "R15",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-680/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-680/report.md  \nANSWER: Конец хода записывается в постоянную таблицу `turn_signals` с уникальным ключом на сессию, запуск и ход. Если родитель не принял уведомление сразу, оно остаётся `pending` и повторно доставляется с нарастающей задержкой; фоновый доставщик восстанавливает такие отправки после перезапуска. Проверки подтвердили, что ожидающий сигнал переживает рестарт и доходит родителю один раз.",
+ "paid_tokens": 8661,
+ "output_tokens": 343,
+ "input_tokens": 58750,
+ "cache_read_tokens": 50432,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00150762,
+ "seconds": 12.2,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'доставка' -e 'перезапуск' -e 'родителю' -e 'дочерний агент' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,120p' .orchestra/tasks/V-680/report.md\""
+ ]
+}

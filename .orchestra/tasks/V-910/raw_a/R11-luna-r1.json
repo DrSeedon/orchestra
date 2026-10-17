@@ -1,0 +1,28 @@
+{
+ "run_id": "R11-luna-r1",
+ "qid": "R11",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-836/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-836/report.md\nANSWER: Частичная выгрузка уменьшает рабочую копию Katya примерно на 3 ГБ на копию (13 копий — около 39 ГБ суммарно), а Seedon — примерно на 1,0 ГБ на копию (около 9 ГБ для 9 копий). Платим риском, что тесты или приёмка обратятся к исключённым файлам, а также ограничениями sparse checkout: например, `git add` вне включённых путей требует отдельного режима; оценка для Katya не проверялась автором отчёта.",
+ "paid_tokens": 8533,
+ "output_tokens": 333,
+ "input_tokens": 58376,
+ "cache_read_tokens": 50176,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00148826,
+ "seconds": 11.4,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'Katya' -e 'Seedon' -e 'частичн' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '35,75p' .orchestra/tasks/V-836/report.md\""
+ ]
+}

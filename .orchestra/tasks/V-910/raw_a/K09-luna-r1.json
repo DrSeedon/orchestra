@@ -1,0 +1,30 @@
+{
+ "run_id": "K09-luna-r1",
+ "qid": "K09",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/kb/chat-and-telegram.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/chat-and-telegram.md\nANSWER: Конечная SSE-заглушка закрывала соединение, и клиент при реконнекте получал ту же пачку повторно. Без дедупликации одно событие дало 8 уведомлений, показав, что тест одного успешного события не проверяет поведение при повторной доставке.",
+ "paid_tokens": 13280,
+ "output_tokens": 533,
+ "input_tokens": 110539,
+ "cache_read_tokens": 97792,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0025191199999999997,
+ "seconds": 12.9,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e 'обрыв соединения' -e 'ту же пачку' -e 'эмуляц' -e 'повторн' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'page.route' -e 'SSE' -e 'scroll anchoring' -e 'coalescing' -e 'дроп' .orchestra/kb/chat-and-telegram.md .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -F -e 'same batch' -e 'same.*batch' -e 'reconnect' -e 'duplicate' -e 'соединен' .orchestra/kb/chat-and-telegram.md .orchestra/tasks/V-*/report.md\"",
+  "/bin/bash -lc \"sed -n '1,55p' .orchestra/kb/chat-and-telegram.md\""
+ ]
+}

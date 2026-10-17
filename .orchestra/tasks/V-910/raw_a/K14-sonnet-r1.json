@@ -1,0 +1,27 @@
+{
+ "run_id": "K14-sonnet-r1",
+ "qid": "K14",
+ "kind": "P",
+ "model": "sonnet",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 1,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: Не совпадают, но порядок величины тот же. По внешней оценке Claude выгоднее ChatGPT за $20 в 5,6 раза, а по нашим замерам — минимум в 4,3 раза. Наши числа — нижние границы, потому что часть ходов (ноутбук) в `turn_usage` не видна. По Claude внешняя оценка даёт $57–63 API на $1 подписки, у нас ≥ $39,7.",
+ "paid_tokens": 5481,
+ "output_tokens": 331,
+ "input_tokens": 4,
+ "cache_read_tokens": 9621,
+ "cache_create_tokens": 5146,
+ "cost_usd_api_equiv": 0.0258262,
+ "seconds": 9.4,
+ "contamination_flag": false,
+ "commands": [
+  "Grep {\"pattern\": \"V-664|bulk-probe|ChatGPT\", \"path\": \".orchestra/kb/models-and-quotas.md\", \"output_mode\": \"content\", \"-C\": 3}"
+ ]
+}

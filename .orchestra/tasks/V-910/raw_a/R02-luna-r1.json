@@ -1,0 +1,29 @@
+{
+ "run_id": "R02-luna-r1",
+ "qid": "R02",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 1,
+ "files": [
+  ".orchestra/tasks/V-821/report.md"
+ ],
+ "final_text": "FILES: .orchestra/tasks/V-821/report.md\nANSWER: Да. В отчёте V-821 сравнили слияние веток из sparse-клона с полным: совпадение зафиксировано в 331 из 349 коммитов.",
+ "paid_tokens": 9231,
+ "output_tokens": 321,
+ "input_tokens": 75470,
+ "cache_read_tokens": 66560,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0017170999999999998,
+ "seconds": 12.2,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e 'урезанн.*клон' -e 'слияни.*ветк' -e 'совпад.*случа' -e 'shallow clone' -e 'merge.*clone' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e 'урезанн' -e 'полный клон' -e 'слиян.*клон' -e 'merge.*full' -e 'cloned repo' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '1,220p' .orchestra/tasks/V-821/report.md\""
+ ]
+}

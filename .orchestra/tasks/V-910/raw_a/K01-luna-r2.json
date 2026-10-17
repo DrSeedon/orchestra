@@ -1,0 +1,28 @@
+{
+ "run_id": "K01-luna-r2",
+ "qid": "K01",
+ "kind": "P",
+ "model": "luna",
+ "rep": "2",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 2,
+ "read_calls": 0,
+ "files": [
+  ".orchestra/kb/models-and-quotas.md"
+ ],
+ "final_text": "FILES: .orchestra/kb/models-and-quotas.md\nANSWER: В `usage_snapshots.provider_usage` поле `codex.plan_type` показывает тариф: переход `pro` → `free` виден по снимку; одновременно недельное окно сменилось на `30d`. На бесплатном тарифе `gpt-6-astra` может отвечать 400 с сообщением «not supported when using Codex with a ChatGPT account»: провайдер отказывает по модели, а не по квоте.",
+ "paid_tokens": 12108,
+ "output_tokens": 409,
+ "input_tokens": 59955,
+ "cache_read_tokens": 48256,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.00185696,
+ "seconds": 84.2,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -F -e '400' -e 'бесплатн' -e 'платн' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"sed -n '290,325p' .orchestra/kb/models-and-quotas.md; rg -n -i 'аккаунт.*(free|бесплат)|бесплатн.*аккаунт|subscription.*(free|tier)|400.*gpt-6-astra|gpt-6-astra.*400' .orchestra/kb .orchestra/tasks\""
+ ]
+}

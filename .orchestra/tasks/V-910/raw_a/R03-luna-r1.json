@@ -1,0 +1,30 @@
+{
+ "run_id": "R03-luna-r1",
+ "qid": "R03",
+ "kind": "P",
+ "model": "luna",
+ "rep": "1",
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "search_calls": 3,
+ "read_calls": 0,
+ "files": [
+  "не",
+  "найдено"
+ ],
+ "final_text": "FILES: не найдено\nANSWER: За три разрешённых поиска точную запись обнаружить не удалось. Среди совпадений нет подтверждения ни количества тестов, ни способа исправления; не буду угадывать.",
+ "paid_tokens": 12750,
+ "output_tokens": 650,
+ "input_tokens": 76740,
+ "cache_read_tokens": 64640,
+ "cache_create_tokens": 0,
+ "cost_usd_api_equiv": 0.0021814,
+ "seconds": 13.8,
+ "contamination_flag": false,
+ "commands": [
+  "/bin/bash -lc \"rg -n -i -e '57 красн' -e 'закрыт.*клиент' -e 'боев.*авторизац' -e '57.*тест' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e '57.*красн' -e 'боев.*клиент' -e 'закрыт.*провайд' -e 'боев.*auth' -e 'live auth' -e 'closed client' .orchestra/kb .orchestra/tasks\"",
+  "/bin/bash -lc \"rg -n -i -e '57 (failed|failures|ошибок|падени)' -e '57.*провайдер' -e 'авторизац.*тест' -e 'клиент.*(закрыт|заглуш|mock)' .orchestra/tasks .orchestra/kb\""
+ ]
+}
