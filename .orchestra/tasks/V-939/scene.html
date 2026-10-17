@@ -1,0 +1,225 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Нехватка памяти — V-939</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mv{max-width:980px;margin:16px auto;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px #0000000d,0 6px 20px #0000000a}
+.mv h1{font-size:21px;margin:0 0 8px;letter-spacing:-.01em}.stg{overflow-x:auto}.stg>svg{width:100%;min-width:680px;height:auto;display:block}
+.cap{position:relative;min-height:4.4em;margin:8px 0}.cap b{display:block;font-size:16px}#capB{position:absolute;inset:0 0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:#f5f5f7;color:#1d1d1f;cursor:pointer;transition:transform .25s cubic-bezier(.3,1.5,.5,1),background-color .2s}
+.bar button:hover{background:#e8e8ed}.bar button:active{transform:scale(.88)}.bar svg{width:14px;height:14px;fill:currentColor}
+#bPlay{width:40px;height:40px;background:#007aff;color:#fff}#bPlay:hover{background:#0071e3}#bPlay svg{width:16px;height:16px}
+#bPlay path{transition:opacity .2s,transform .3s cubic-bezier(.3,1.5,.5,1);transform-box:fill-box;transform-origin:center}#bPlay .i2,#bPlay.on .i1{opacity:0;transform:scale(.4)}#bPlay.on .i2{opacity:1;transform:none}
+#seek{flex:1;min-width:140px;-webkit-appearance:none;appearance:none;height:4px;margin:0 4px;border-radius:2px;background:linear-gradient(#007aff 0 0) 0/var(--p,0%) 100% no-repeat,#e5e5ea;cursor:pointer}
+#seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek:hover::-webkit-slider-thumb{transform:scale(1.2)}#seek:hover::-moz-range-thumb{transform:scale(1.2)}
+#clock{font-variant-numeric:tabular-nums;min-width:92px;text-align:right;color:#6e6e73}.bar select{border:0;background:#f5f5f7;border-radius:8px;padding:6px 8px;font:inherit;cursor:pointer}
+.ch{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none}
+.ch li{--o:0;padding:3px 10px;border-radius:8px;cursor:pointer;background:color-mix(in srgb,#007aff calc(var(--o)*100%),#f5f5f7);color:color-mix(in srgb,#fff calc(var(--o)*100%),#1d1d1f)}.ch li:hover{filter:brightness(.96)}
+@media print{.bar{display:none}}@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="mv">
+<h1>Title: what we explain</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1280 590" role="img" aria-labelledby="st"><title id="st">Нехватка памяти: кого убивает ядро</title>
+<g id="room"></g>
+<g id="roomEnd" opacity="0"></g>
+<g id="memLayer" opacity="0">
+ <g id="mem">
+  <rect x="120" y="20" width="1040" height="460" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+  <text x="150" y="80" font-size="30" fill="#6b7280">память сервера · 24 ГБ</text>
+  <rect x="150" y="100" width="980" height="100" rx="6" fill="#eef0f3"/>
+  <rect id="ff0" x="150.0" y="100" width="0" height="100" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><rect id="ff1" x="455.0" y="100" width="0" height="100" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><rect id="ff2" x="614.7" y="100" width="0" height="100" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><rect id="ff3" x="772.3" y="100" width="0" height="100" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/>
+  <text id="ffT" x="150" y="262" font-size="30" fill="#c9551b" opacity="0">4 видеорендера ffmpeg:</text>
+  <text id="ffN" x="525" y="264" font-size="40" class="mono" fill="#c9551b"></text>
+  <text x="150" y="350" font-size="30" fill="#6b7280">своп на диске · 16 ГБ</text>
+  <rect x="150" y="370" width="653" height="70" rx="6" fill="#eef0f3"/>
+  <rect id="swapF" x="150" y="370" width="0" height="70" rx="6" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/>
+  <text id="swapT" x="833" y="420" font-size="34" class="mono" fill="#c9551b" opacity="0">✗ свободно 0</text>
+ </g>
+</g>
+<g id="scoreLayer" opacity="0">
+ <g id="score">
+  <text x="640" y="80" text-anchor="middle" font-size="42" font-weight="600">очки = память + надбавка</text>
+  <text id="note" x="640" y="140" text-anchor="middle" font-size="30" fill="#c9551b" opacity="0">надбавка 800 = будто съел 80 % всей памяти</text>
+  <g id="rowR" opacity="1"><text x="110" y="248" font-size="28">рендер · 9,6 ГБ</text><rect x="400" y="210" width="125" height="56" rx="4" fill="#9aa1ad"/><rect id="adjR" x="525" y="210" width="0" height="56" rx="4" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><text id="adjTR" x="539" y="249" font-size="28" class="mono" fill="#c9551b" opacity="0">0</text></g><g id="rowO" opacity="1"><text x="110" y="338" font-size="28">Orchestra · 0,5 ГБ</text><rect x="400" y="300" width="7" height="56" rx="4" fill="#9aa1ad"/><rect id="adjO" x="407" y="300" width="0" height="56" rx="4" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><text id="adjTO" x="421" y="339" font-size="28" class="mono" fill="#c9551b" opacity="0">800</text></g><g id="rowA" opacity="0"><text x="110" y="428" font-size="28">агент · 0,3 ГБ</text><rect x="400" y="390" width="4" height="56" rx="4" fill="#9aa1ad"/><rect id="adjA" x="404" y="390" width="416" height="56" rx="4" fill="#fde4d0" stroke="#c9551b" stroke-width="2"/><text id="adjTA" x="418" y="429" font-size="28" class="mono" fill="#c9551b" opacity="0">800</text></g>
+  <text id="vO" x="1060" y="339" font-size="28" fill="#c9551b" opacity="0">✗ убита 3 из 3</text>
+  <text id="vA" x="1060" y="429" font-size="28" fill="#c9551b" opacity="0">✗ ещё 4 убиты</text>
+  <text id="vR" x="1060" y="249" font-size="28" fill="#0e5e9c" opacity="0">✓ первый</text>
+ </g>
+</g>
+<g id="cmdLayer" opacity="0">
+ <rect x="110" y="40" width="1060" height="440" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+ <text x="150" y="105" font-size="30" fill="#6b7280">запуск в обход — вход на тот же сервер</text>
+ <text id="cmd1" x="150" y="195" font-size="32" class="mono"></text>
+ <text id="no1" x="150" y="255" font-size="30" fill="#c9551b" opacity="0">✗ отклонено: нет пометки «убивать первым»</text>
+ <text id="cmd2" x="150" y="360" font-size="32" class="mono" fill="#0e5e9c"></text>
+ <text id="ok2" x="150" y="420" font-size="30" fill="#0e5e9c" opacity="0">✓ пропущено: надбавка 1000</text>
+</g>
+<g id="groupLayer" opacity="0">
+ <rect x="110" y="30" width="1060" height="450" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+ <text x="150" y="88" font-size="30" fill="#6b7280">Orchestra на сервере · потолок 16 ГБ</text>
+ <rect id="agBox" x="150" y="120" width="660" height="320" rx="14" fill="#d6e8f4" stroke="#0e5e9c" stroke-width="2" opacity="0"/>
+ <g id="agTxt" opacity="0">
+  <text x="190" y="185" font-size="36" font-weight="600" fill="#0e5e9c">агенты</text>
+  <text x="190" y="265" font-size="36" class="mono">память ≤ 14 ГБ</text>
+  <text x="190" y="335" font-size="36" class="mono">своп   ≤ 1 ГБ</text>
+  <text x="190" y="405" font-size="30" fill="#6b7280">надбавка 1000</text>
+ </g>
+ <rect x="840" y="120" width="290" height="320" rx="14" fill="#eef0f3"/>
+ <text x="985" y="185" text-anchor="middle" font-size="32" font-weight="600">платформа</text>
+ <text x="985" y="275" text-anchor="middle" font-size="30" fill="#6b7280">надбавка</text>
+ <text x="985" y="330" text-anchor="middle" font-size="40" class="mono">800</text>
+</g>
+<g id="liveLayer" opacity="0">
+ <rect x="190" y="50" width="900" height="400" rx="16" fill="#fff" stroke="#d9dce3" stroke-width="2"/>
+ <text x="240" y="115" font-size="30" fill="#6b7280">живая проверка 17.10 · новый процесс агента</text>
+ <text id="lv1" x="240" y="215" font-size="36" class="mono"></text>
+ <text id="lv2" x="240" y="295" font-size="36" class="mono"></text>
+ <text id="lv3" x="240" y="390" font-size="30" class="mono" fill="#6b7280"></text>
+</g>
+<g id="minusLayer" opacity="0">
+ <text x="130" y="110" font-size="34" font-weight="600">честный минус</text>
+ <text id="m1" x="130" y="200" font-size="32" fill="#c9551b" opacity="0">✗ под нож идёт работа агента:</text>
+ <text id="m1b" x="172" y="250" font-size="32" fill="#c9551b" opacity="0">рендер придётся запускать заново</text>
+ <text id="m2" x="130" y="350" font-size="32" fill="#c9551b" opacity="0">✗ запуск в обход помечен, но не ограничен:</text>
+ <text id="m2b" x="172" y="400" font-size="32" fill="#c9551b" opacity="0">память всё ещё может кончиться</text>
+</g>
+</svg></div>
+<div class="cap"><div id="capA" aria-live="polite"><b id="capT"></b><span id="capX"></span></div><div id="capB" aria-hidden="true"><b></b><span></span></div></div>
+<div class="bar"><button id="bPrev" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Play or pause"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Time"><span id="clock"></span>
+ <select id="rate" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+<ol class="ch" id="chap"></ol>
+</div>
+<script>
+// ── SCENE ──
+Paper.install();
+const BOX = {x: 96, y: 18, w: 1088, h: 556};
+const PIC = Paper.picture('room', BOX, {scene: 'cafe'});
+const VIEW = Paper.view('cafe', {to: [640, 250], width: 1100});
+const MINI = Paper.mini(PIC, 'mem', VIEW);
+MINI.setAttribute('opacity', 0);
+const END = Paper.picture('roomEnd', BOX, {scene: 'board'});
+Paper.mini(END, 'score', Paper.view('board', {to: [640, 250], width: 1100}));
+const FF = [7.47, 3.91, 3.86, 2.03], PX = 980 / 24;
+const STEPS = [
+ {t: 'Утро 17 октября', say: 'Семнадцатое октября, утро. За двадцать шесть минут сервер трижды остался без памяти.',
+  sub: '17 октября, утро. За 26 минут сервер трижды остался без памяти.'},
+ {t: 'Рендеры', say: 'Её съели видеорендеры агентов: четыре процесса, семнадцать гигабайт из двадцати четырёх.',
+  sub: 'Её съели видеорендеры агентов: четыре процесса ffmpeg, 17,3 ГБ из 24.',
+  set: Object.fromEntries(FF.map((v, k) => ['ff' + k, {width: +(v * PX).toFixed(1)}]).concat([['ffT', {opacity: 1}]])),
+  w: {ff0: [.2, .4], ff1: [.35, .5], ff2: [.45, .6], ff3: [.55, .7], ffT: [.2, .3]}},
+ {t: 'Своп', say: 'Своп на диске, шестнадцать гигабайт, тоже кончился.', sub: 'Своп на диске, 16 ГБ, тоже кончился.',
+  set: {swapF: {width: 653}, swapT: {opacity: 1}}, w: {swapF: [.1, .7], swapT: [.7, .85]}},
+ {t: 'Очки', say: 'Тогда ядро убивает процесс с наибольшими очками: это его память плюс надбавка.',
+  set: {scoreLayer: {opacity: 1}}, w: {scoreLayer: [.08, .2]}},
+ {t: 'Надбавка', say: 'Надбавка восемьсот, это как будто процесс съел восемьдесят процентов всей памяти.',
+  sub: 'Надбавка 800 — как будто процесс съел 80 % всей памяти.',
+  set: {note: {opacity: 1}, adjO: {width: 416}}, w: {note: [.05, .2], adjO: [.4, .8]}},
+ {t: 'Кто первый', say: 'У рендеров надбавка ноль, а у Оркестры восемьсот. И три раза из трёх первой погибала платформа.',
+  sub: 'У рендеров надбавка 0, а у Orchestra — 800. И три раза из трёх первой погибала платформа.',
+  set: {adjTR: {opacity: 1}, adjTO: {opacity: 1}, vO: {opacity: 1}}, w: {adjTR: [.1, .2], adjTO: [.3, .4], vO: [.65, .8]}},
+ {t: 'Агенты', say: 'Во второй раз ядро убило и четыре процесса агентов, а рендеры жили дальше.',
+  sub: 'Во второй раз ядро убило и 4 процесса агентов, а рендеры жили дальше.',
+  set: {rowA: {opacity: 1}, adjTA: {opacity: 1}, vA: {opacity: 1}}, w: {rowA: [.1, .25], adjTA: [.1, .25], vA: [.3, .5]}},
+ {t: 'Теперь', say: 'Теперь каждый процесс агента до запуска получает надбавку тысяча, максимум.',
+  sub: 'Теперь каждый процесс агента до запуска получает надбавку 1000 — максимум.',
+  set: {note: {opacity: 0}, vO: {opacity: 0}, vA: {opacity: 0}, adjA: {width: 520}, adjTA: {text: '1000'}},
+  w: {note: [0, .1], vO: [0, .1], vA: [0, .1], adjA: [.4, .75], adjTA: [.6, .7]}},
+ {t: 'В обход', say: 'Рендеры шли в обход, через вход на тот же сервер. Без пометки «убивать первым» платформа такую команду отклоняет.',
+  sub: 'Рендеры шли в обход, через ssh на тот же сервер. Без пометки «убивать первым» платформа такую команду отклоняет.',
+  set: {scoreLayer: {opacity: 0}, cmdLayer: {opacity: 1}, no1: {opacity: 1}, ok2: {opacity: 1}},
+  w: {scoreLayer: [0, .06], cmdLayer: [.04, .12], no1: [.62, .7], ok2: [.92, .98]}},
+ {t: 'Рендер первым', say: 'Так у рендера тоже тысяча плюс память, и первым под нож идёт он.',
+  sub: 'Так у рендера тоже 1000 плюс память, и первым под нож идёт он.',
+  set: {cmdLayer: {opacity: 0}, scoreLayer: {opacity: 1}, adjR: {width: 520}, adjTR: {text: '1000'}, vR: {opacity: 1}},
+  w: {cmdLayer: [0, .08], scoreLayer: [.06, .14], adjR: [.15, .5], adjTR: [.35, .45], vR: [.7, .85]}},
+ {t: 'Своя группа', say: 'А агенты сидят в своей группе: четырнадцать гигабайт памяти и один гигабайт свопа.',
+  sub: 'А агенты сидят в своей группе: 14 ГБ памяти и 1 ГБ свопа.',
+  set: {scoreLayer: {opacity: 0}, groupLayer: {opacity: 1}, agBox: {opacity: 1}, agTxt: {opacity: 1}},
+  w: {scoreLayer: [0, .08], groupLayer: [.06, .14], agBox: [.25, .4], agTxt: [.35, .5]}},
+ {t: 'Проверка', say: 'Живая проверка: у нового процесса агента надбавка тысяча, и сидит он в группе агентов.',
+  sub: 'Живая проверка 17.10: у нового процесса агента надбавка 1000, и сидит он в группе agents/workers.',
+  set: {groupLayer: {opacity: 0}, liveLayer: {opacity: 1}}, w: {groupLayer: [0, .08], liveLayer: [.06, .14]}},
+ {t: 'Минус', say: 'Честный минус: под нож теперь идёт работа агента, и рендер придётся запускать заново.',
+  set: {liveLayer: {opacity: 0}, minusLayer: {opacity: 1}, m1: {opacity: 1}, m1b: {opacity: 1}},
+  w: {liveLayer: [0, .08], minusLayer: [.06, .14], m1: [.2, .3], m1b: [.55, .65]}},
+ {t: 'Не предел', say: 'А запуск в обход только помечен, но не ограничен: память всё ещё может кончиться.',
+  set: {m2: {opacity: 1}, m2b: {opacity: 1}}, w: {m2: [.05, .15], m2b: [.55, .65]}},
+ {t: 'Итог', say: 'Зато первым теперь падает рендер, а не сама Оркестра.', sub: 'Зато первым теперь падает рендер, а не сама Orchestra.',
+  hold: 1.4, set: {minusLayer: {opacity: 0}}, w: {minusLayer: [0, .15]}},
+];
+STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);
+STEPS.forEach(s => s.d ??= Math.max(3, s.say.length / 14));  // браузерный просмотр без озвучки
+function draw(i, p, t) {
+  const st = []; let at = 0; for (const s of STEPS) { st.push(at); at += s.d; }
+  const last = st.length - 1, d0 = STEPS[0].d;
+  Paper.brush(PIC, t, 0, 1.2); Paper.live(PIC, t);
+  Paper.camera(PIC, t, {...VIEW, t0: .4 * d0, t1: st[1] - .15});
+  MINI.setAttribute('opacity', Paper.fade(t, .25 * d0, .4).toFixed(3));
+  $('room').setAttribute('opacity', (1 - Paper.fade(t, st[1] - .1)).toFixed(3));
+  $('memLayer').setAttribute('opacity', (Paper.fade(t, st[1] - .15) - Paper.fade(t, st[3], .3)).toFixed(3));
+  $('roomEnd').setAttribute('opacity', t >= st[last] ? 1 : 0);
+  Paper.brush(END, t, st[last], 1.4); Paper.live(END, t);
+  // счётчик идёт по реальным размерам четырёх процессов
+  const s1 = st[1], d1 = STEPS[1].d, q = Math.min(1, Math.max(0, (t - s1 - .2 * d1) / (.5 * d1)));
+  $('ffN').textContent = t < s1 + .2 * d1 ? '' : (FF.reduce((a, b) => a + b) * q).toFixed(1).replace('.', ',') + ' ГБ';
+  const s8 = st[8], d8 = STEPS[8].d;
+  Paper.type($('cmd1'), "ssh kesha@localhost 'ffmpeg …'", t, s8 + .14 * d8, s8 + .4 * d8, {cursor: false});
+  Paper.type($('cmd2'), "ssh kesha@localhost 'choom -n 1000 -- ffmpeg …'", t, s8 + .7 * d8, s8 + .92 * d8, {cursor: t < st[9]});
+  const s11 = st[11], d11 = STEPS[11].d;
+  Paper.type($('lv1'), 'oom_score_adj   1000  ✓', t, s11 + .15 * d11, s11 + .45 * d11, {cursor: false});
+  Paper.type($('lv2'), 'группа   agents/workers  ✓', t, s11 + .55 * d11, s11 + .85 * d11, {cursor: false});
+  Paper.type($('lv3'), 'платформа         800', t, s11 + .86 * d11, s11 + .98 * d11, {cursor: t < st[12]});
+}
+// ── PLAYER ──
+function $(id){return document.getElementById(id)} // function declaration is hoisted; scenes may call $ before the player
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),SK=7;
+const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // critically damped spring
+const hex=/^#[0-9a-f]{6}$/i,mix=(a,b,p)=>typeof a=='number'&&typeof b=='number'?a+(b-a)*p:hex.test(a)&&hex.test(b)?'#'+[1,3,5].map(k=>Math.round(parseInt(a.substr(k,2),16)*(1-p)+parseInt(b.substr(k,2),16)*p).toString(16).padStart(2,'0')).join(''):p>0?b:a;
+const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-motion: reduce)').matches,FADE=.5,sp=EASE.spring;let T=0,t=0,on=false,last=0,ci=-1,gl=null;
+ const get=(e,a)=>{const v=a=='text'?e.textContent:e.getAttribute(a);return v!==null&&v!==''&&!isNaN(v)?+v:v};
+ // each attribute has its own segment list {t0,t1,a,b}; value holds between segments
+ for(const s of STEPS){for(const[id,o]of Object.entries(s.set||{}))for(const[a,v]of Object.entries(o)){const e=E[id]??=$(id),L=(TL[id]??={})[a]??=Object.assign([],{v0:get(e,a)}),
+   to=Array.isArray(v)?v[1]:v,st=a=='text'||/opacity/.test(a)||typeof to=='string',w=s.w?.[id];
+   L.push({t0:T+(w?w[0]*s.d:0),t1:T+(w?w[1]*s.d:st?Math.min(s.d,FADE):s.d),a:Array.isArray(v)?v[0]:(L.length?L.at(-1).b:L.v0)??to,b:to,e:s.e,st,m0:0,m1:0})}
+  S.push(T);T+=s.d}
+ // same-direction motion joins with shared velocity (monotone Fritsch–Butland spline)
+ for(const id in TL)for(const a in TL[id]){const L=TL[id][a];for(let k=1;k<L.length;k++){const x=L[k-1],y=L[k],h0=x.t1-x.t0,h1=y.t1-y.t0,d0=(x.b-x.a)/h0,d1=(y.b-y.a)/h1;
+   if(!x.st&&!y.st&&!x.e&&!y.e&&Math.abs(x.t1-y.t0)<1e-9&&x.b===y.a&&d0*d1>0)x.m1=y.m0=3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1)}}
+ for(const id in TL){const e=E[id],o=TL[id];if(o.along||!(o.text||o.opacity))continue;FX[id]=1;
+  if(o.text){const g=G[id]=e.cloneNode(true);g.removeAttribute('id');g.setAttribute('aria-hidden','true');e.after(g)}
+  for(const x of[e,G[id]])if(x)Object.assign(x.style,{transformBox:'fill-box',transformOrigin:'center'})}
+ const val=(L,t)=>{let g=null;for(const s of L)if(s.t0<t||s.t0<=0&&t<=0)g=s;if(!g)return[L.v0,1,L.v0,L.v0];
+  const h=g.t1-g.t0,p=h>0?clamp((t-g.t0)/h):1;if(p>=1)return[g.b,1,g.a,g.b];
+  if(g.m0||g.m1){const p2=p*p,p3=p2*p;return[(2*p3-3*p2+1)*g.a+(p3-2*p2+p)*h*g.m0+(3*p2-2*p3)*g.b+(p3-p2)*h*g.m1,p,g.a,g.b]}
+  const q=(EASE[g.e]||sp)(p);return[mix(g.a,g.b,q),q,g.a,g.b]};
+ const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // text change: old leaves before new appears, so letters do not overlap
+ const put=(e,a,v)=>{const c=e._c??={};if(c[a]===v)return;c[a]=v;a=='text'?e.textContent=v:a=='css'?e.style.transform=v:a[0]=='-'?e.style.setProperty(a,v):e.setAttribute(a,v)};
+ function frame(te){for(const id in TL){const e=E[id],o=TL[id],g=G[id],v={};for(const a in o)v[a]=val(o[a],te);let dy=0,gy=0,k=0;
+   for(const a in v)if(a!='text'&&a!='along'&&a!='at'&&v[a][0]!=null)put(e,a,v[a][0]);
+   if(v.opacity){const[,q,f,b]=v.opacity;k=f==0&&b!=0?1-q:b==0&&f!=0?q:0}
+   if(v.text&&!g)put(e,'text',v.text[0]);
+   if(g){const[x,q,f,b]=v.text,x2=f!==b&&q<1;put(e,'text',x2?b:x);put(g,'text',f);put(e,'fill-opacity',x2?xin(q):1);put(g,'fill-opacity',x2?xout(q):0);
+    if(x2){dy=(1-q)*6;gy=-q*6}for(const a in v)if(a!='text'&&a!='along'&&a!='at')put(g,a,e.getAttribute(a));if(v.along)put(g,'transform',e.getAttribute('transform'))}
+   if(FX[id]){const tf=d=>`translateY(${(d+k*6).toFixed(2)}px) scale(${(1-.03*k).toFixed(4)})`;put(e,'css',tf(dy));if(g)put(g,'css',tf(gy))}
+   if(v.along){const p=$(v.along[0]),pt=p.getPointAtLength(clamp(v.at?.[0]??0)*p.getTotalLength());put(e,'transform',`translate(${pt.x.toFixed(2)},${pt.y.toFixed(2)})`)}}}
+ const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
+ function seek(v){t=clamp(v,0,T);const i=at(t);frame(rm?end(i):t);if(typeof draw=='function')draw(i,rm?1:clamp((t-S[i])/STEPS[i].d),t);
+  if(i!==ci){ci=i;$('capT').textContent=(i+1)+'. '+STEPS[i].t;$('capX').textContent=STEPS[i].x;const B=$('capB').children;B[0].textContent=i?i+'. '+STEPS[i-1].t:'';B[1].textContent=i?STEPS[i-1].x:'';
+   [...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}
+  const q=rm||!i?1:sp(clamp((t-S[i])/FADE));[...$('chap').children].forEach((li,k)=>put(li,'--o',k==i?q:k==i-1?1-q:0));$('capA').style.cssText=`opacity:${xin(q)};transform:translateY(${(1-q)*6}px)`;$('capB').style.cssText=`opacity:${xout(q)};transform:translateY(${-q*6}px)`;
+  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' s'}
+ function tick(now){if(!on)return;seek(t+Math.max(0,now-last)/1000*$('rate').value);last=now;t>=T?pause():requestAnimationFrame(tick)}
+ function play(){gl=null;if(t>=T)t=0;on=true;last=performance.now();$('bPlay').classList.add('on');requestAnimationFrame(tick)}
+ function pause(){on=false;gl=null;$('bPlay').classList.remove('on')}
+ function glide(to){pause();if(rm)return seek(to);const a=t,t0=performance.now(),g=gl={to},f=now=>{if(gl!==g)return;const q=clamp((now-t0)/400);seek(q<1?a+(to-a)*EASE.out(q):to);if(q<1)requestAnimationFrame(f);else gl=null};requestAnimationFrame(f)}
+ const toggle=()=>on?pause():play(),next=()=>{const c=gl?gl.to:t,i=at(c);glide(c<end(i)-1e-3?end(i):end(Math.min(i+1,S.length-1)))},prev=()=>{const c=gl?gl.to:t,i=at(c);glide(i?end(i-1):0)};
+ $('seek').max=T;$('seek').oninput=e=>{pause();seek(+e.target.value)};$('bPlay').onclick=toggle;$('bNext').onclick=next;$('bPrev').onclick=prev;
+ STEPS.forEach((s,k)=>{const li=document.createElement('li');li.textContent=(k+1)+'. '+s.t;li.onclick=()=>{seek(S[k]);play()};$('chap').append(li)});
+ addEventListener('keydown',e=>{const f={' ':toggle,ArrowRight:next,ArrowLeft:prev,Home:()=>{pause();seek(0)},End:()=>{pause();seek(T)}}[e.key];if(f&&e.target.tagName!='SELECT'){e.preventDefault();f()}});
+ seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return t},T,S}})();
+</script></body></html>
