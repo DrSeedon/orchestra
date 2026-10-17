@@ -62,6 +62,8 @@ TYPES = {
     "zap":        dict(kind="tonal",     win=(0.06, 1.50), hp=120, lp=15000, noise_ok=True, hi_max=0.6, designed_end=True, about="sci-fi laser, power-up, phaser"),
     "chime":      dict(kind="tonal",     win=(0.25, 2.50), hp=200, lp=14000, hi_max=0.6, about="bell, ding, glass ping"),
     "shimmer":    dict(kind="tonal",     win=(0.40, 3.50), hp=300, lp=16000, hi_max=0.75, noise_ok=True, about="sparkle, magic, twinkle on a reveal"),
+    # a whole recording, never cut to one event: make.py loops it quietly under the voice
+    "bed":        dict(kind="bed",       win=(20.0, 900.0), hp=30, lp=16000, allow_low=True, about="calm music bed under the voice (pad, drone)"),
 }
 
 
@@ -198,6 +200,11 @@ def measure(x, t):
 
 def judge(m, t):
     why = []
+    if t["kind"] == "bed":
+        # a bed that fades in leaves silence at the start of every video (qa.py fails it); trim it via trim_s
+        if m["start_db"] < -20: why.append("fades in (set trim_s)")
+        if m["dur_s"] < t["win"][0]: why.append("too short to loop under a video")
+        return why
     if m["below150"] > 0.5 and not t.get("allow_low"): why.append("boomy")
     if m["below150"] > 0.85 and not t.get("allow_sub"): why.append("no body above 150 Hz (inaudible on phones)")
     if m["above6k"] > t.get("hi_max", 0.4): why.append("hissy")
@@ -234,7 +241,11 @@ def prepare_audio(y, typ, dst, meta=None):
 def prepare(src, typ, out_dir, name=None, meta=None, k=1):
     """Prepare up to k events of one file. Returns one sidecar per event."""
     name = name or slug(os.path.splitext(os.path.basename(src))[0])
-    evs = cut_events(load(src), TYPES[typ], k)
+    if TYPES[typ]["kind"] == "bed":
+        y = load(src)
+        evs = [(0, y[int(float((meta or {}).get("trim_s", 0)) * SR):])]
+    else:
+        evs = cut_events(load(src), TYPES[typ], k)
     sides = []
     for i, (_, y) in enumerate(evs):
         nm = name if len(evs) == 1 and k == 1 else f"{name}-{i + 1}"

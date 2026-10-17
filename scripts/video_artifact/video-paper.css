@@ -1,0 +1,13 @@
+/* Кадр ролика 16:9, тема «бумага» (V-917, по умолчанию): светлый фон, без кнопок и заголовков шагов,
+   одна строка субтитра под волосяной линией; полосу прогресса и размытие субтитра ставит Paper.chrome. */
+:root{color-scheme:light}
+/* Только классы каркаса плеера: сцена со своей вёрсткой (без .mv) сохраняет свой вид. */
+.mv{color:#16171b;font-family:Manrope,system-ui,sans-serif;max-width:none;margin:0;height:100vh;box-sizing:border-box;padding:18px 0 0;border-radius:0;box-shadow:none;background:#f6f7f9;display:flex;flex-direction:column}
+.mv h1{display:none}
+.stg{flex:1;min-height:0;overflow:hidden}.stg>svg{min-width:0;width:100%;height:100%}
+#stage{fill:#16171b;font-family:Manrope,system-ui,sans-serif}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+.cap{position:relative;margin:0 56px;min-height:0;height:96px;border-top:1px solid #e3e5e9;display:flex;align-items:center;justify-content:center;text-align:center;font-size:27px;line-height:1.25;color:#1d1e20;font-weight:500}
+.cap b{display:none}#capA,#capB{width:100%}#capB{position:absolute;left:0;top:24px}
+#paper-progress{position:fixed;left:0;bottom:0;height:3px;background:#cdd0d9;width:0}
+.bar,.ch{display:none!important}

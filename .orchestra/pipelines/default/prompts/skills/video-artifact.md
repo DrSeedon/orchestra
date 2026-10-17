@@ -1,6 +1,6 @@
 ---
 name: video-artifact
-description: "Create and deliver a 30–90 s MP4 explainer in the style of 3Blue1Brown, using an animated HTML scene or Manim with local Russian or English voice-over, phrase synchronization, and checks."
+description: "Create and deliver a 30–90 s MP4 explainer in the light paper style (painted opening/closing pictures, large real numbers on flat diagrams, a quiet music bed), using an animated HTML scene or Manim with local Russian or English voice-over, phrase synchronization, and checks."
 ---
 
 # Explainer Video
@@ -26,14 +26,15 @@ for all phrases because `construct()` needs the complete timing plan.
   Immediately after `STEPS`, include `STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);` — without it the tool stops. The video label is subtitles (Telegram's feed plays without sound): use `say`; if it contains transliteration or numbers written as words, use `sub` with the screen form (for example "Together", "7 680"); `t` is a short step heading.
 - For `along` with a `w` window, also set the markup attribute (`<circle along="path">`): before
   the window the scaffold uses the initial value and otherwise falls back to `getPointAtLength`.
-- **The tool sets frame and style:** dark `#0b0e14` background, no buttons, Manrope and JetBrains
-  Mono, 1920×1080. SVG text without `fill` is light. Palette: panel `#151a24`, lines `#2a3142`,
-  muted `#8b93a7`, blue `#58c4dd`, green `#83c167`, red `#fc6255`, gold `#f0ac5f`. Scene font
-  size is at least 15 because the video is watched on phones.
-- **As in 3Blue1Brown:** one step, one idea; objects persist, then build and recolor; a number
-  appears when spoken; highlight with color and borders, not a new paragraph; the final frame is
-  a silent-readable conclusion. Build repeated structures (grid, bar row) with a JS loop up to
-  `STEPS`, and generate steps.
+- **The tool sets frame and theme:** 1920×1080 (scene CSS 1280×720), no buttons, no step
+  headings, Manrope and JetBrains Mono (`class="mono"`). The default theme is `paper` (below);
+  `--theme dark` restores the former dark frame (`#0b0e14`, 3Blue1Brown palette) for old scenes.
+  Do not override the theme with your own `!important` CSS. The theme styles only the scaffold
+  (`.mv`, `.cap`, `#stage`): a scene with its own layout keeps its colors and gets only the
+  progress bar; a scaffold scene drawn for the dark frame stays readable on paper but looks
+  mixed, so build it with `--theme dark` or recolor it.
+- Build repeated structures (grid, byte row) with a JS loop up to `STEPS`, and generate steps.
+
 - **`say` phrase:** speak in Russian and write Latin names as Cyrillic pronunciation (for example
   «Дип Инфра», «опен роутер»); keep original names and digits in the screen subtitle. Tera expands
   numeric literals, but does not infer their grammatical case (`в 2026 году` becomes an uninflected
@@ -48,6 +49,57 @@ for all phrases because `construct()` needs the complete timing plan.
   `language=en`. English `say` may contain digits, names, and `#2`; Kokoro reads them, rejecting
   only Cyrillic. Voice `--voice af_heart` (default, female) or `am_michael` (male); five tested
   voices were recognized verbatim by Deepgram (V-686). `--rate 1.1` sounds more natural than 1.25.
+
+## Paper style (default)
+
+Owner decision, 2026-10-17: after comparing the NIST-curves video with our demos (V-904, V-912)
+the owner chose its light paper look as our standard style instead of the dark one. Source
+analysis and before/after frames: `.orchestra/tasks/V-904/report.md`.
+
+- **Two registers.** A painted picture opens and closes the story (a room, a desk, people:
+  the human situation); everything in between is a flat diagram on the light background. The
+  opening picture ends by pushing the camera into the object the diagram starts from (a
+  monitor, a sheet), and the diagram appears at exactly that place: a match cut, not a jump.
+- **Few objects, large.** Two or three objects in a frame. Data in JetBrains Mono at 32–40
+  scene units (≈48–60 px in the video), labels at least 30 units; the caption is one line.
+  Shorten rows instead of shrinking type: 8 bytes, not 16; one hex word, not a paragraph.
+  When a new idea needs room, fade or move the previous block away first.
+- **Two meaning colors only.** Blue `#0e5e9c` (tint `#d6e8f4`) = known, matched, confirmed;
+  orange `#c9551b` (tint `#fde4d0`) = hidden, wrong, unexplained. Everything else is ink
+  `#16171b`, muted `#6b7280`, cells `#eef0f3`, lines `#d9dce3` on background `#f6f7f9`.
+  No green/red pair. The palette is also in `Paper.BLUE`, `Paper.ORANGE`, … .
+- **Only real numbers.** Every value on screen comes from the source: real bytes, real sizes,
+  real counts. A counter ticks through the real range in `draw`; never round for looks.
+- **Order of presenting data:** show the raw value → split it into parts → highlight the one
+  part that matters → verdict mark ✓ (blue) or ✗ (orange) → the next step reuses the
+  marked part. Text appears by typing with a block cursor when a person or program "writes" it.
+- **Motion is quiet.** Appearances fade (the caption blurs in by itself); objects move to
+  their next place with the scaffold's spring; no bounces, spins or flying in.
+
+**Paper kit** (`scripts/video_artifact/paper.js`, injected by `make.py`; pure functions of `t`,
+call them from `draw(i, p, t)`):
+
+```js
+Paper.install();                                   // filters, gradients, markers #paper-arrow, #paper-arrow-orange
+const pic = Paper.picture('room', {x: 96, y: 18, w: 1088, h: 556});   // torn edge, grain, vignette, wobble
+const VIEW = {from: [640, 252], to: [640, 170], scale: 4.2};          // monitor centre → diagram centre
+function draw(i, p, t) {
+  const st = []; let at = 0; for (const s of STEPS) { st.push(at); at += s.d; }
+  Paper.brush(pic, t, 0, 1.2);                                         // roller-stroke reveal
+  Paper.camera(pic, t, {...VIEW, t0: .5 * STEPS[0].d, t1: st[1] - .15}); // push-in, done before step 2
+  $('room').setAttribute('opacity', 1 - Paper.fade(t, st[1] - .1));    // crossfade into the diagram
+  $('dia').setAttribute('opacity', Paper.fade(t, st[1] - .15));
+  Paper.type($('alarm'), 'тревога → оркестратору', t, st[3] + .4, st[3] + 2.6);  // typing, block cursor
+}
+```
+
+Call `Paper.install()` and `Paper.picture()` in the scene script after the SVG, before
+`STEPS`; compute step starts in `draw` from `STEPS[k].d` as above (`P` does not exist yet
+during the first `draw`). For the match cut, place a `<use href="#cards"
+transform="${Paper.miniature(VIEW)}">` copy of the diagram inside the picture: after the zoom it
+lands exactly on the original. Keep text inside that copy as large as the diagram's; small text
+in the zoomed monitor is unreadable. The progress bar and caption blur are added by the tool. A
+working scene with every technique: `.orchestra/tasks/V-917/demo/scene.html`.
 
 ## Second engine: Manim
 
@@ -68,7 +120,9 @@ HTML scene: `STEPS` with `t`/`say`/`sub`/`hold`, and the same `say` rules. Each 
 fractions of the remaining step, `run_time=self.left() * 0.4`, so phrase and rate changes stay
 synchronized; overrunning a step stops the build with a clear error. `VoiceScene` draws heading
 and subtitles; style comes from its constants and `text()` (`BLUE_`, `GOLD_`, `PANEL`). `VoiceScene`
-uses `MovingCameraScene`, bundled CMU Serif (OFL, `fonts/`) and a black background by default; captions wrap by measured width and an unknown font name fails the build; subclasses may override
+uses `MovingCameraScene`; its palette and font follow `--theme` (paper: Manrope on `#f6f7f9`
+with the paper colors in `BLUE_`/`GOLD_`/`FG`; dark: CMU Serif on black, OFL fonts in `fonts/`);
+captions wrap by measured width and an unknown font name fails the build; subclasses may override
 `TEXT_FONT` and `BACKGROUND_COLOR`, or call `self.text(..., font="CMU Serif")`. Minimal example:
 
 ```python
@@ -166,13 +220,16 @@ Output: `<name>.mp4`, `<name>.timing.json`, `<name>-contact.png` (last frame of 
 
 ## Sound layer
 
-Sound is optional; scenes without `events` keep the voice-only mux. For a sound-enabled step,
+**A quiet music bed plays under the voice by default**: the first `bed` default of the sound
+kit (`bed/fs-254856-long-ambient-pad`, "Long Ambient Pad" by indigo.cloud, CC0, Freesound
+254856, first 2 s trimmed because it fades in). It loops with a crossfade and ducks during
+speech. `--music path` uses another CC0 or owner-provided bed; `--no-music` builds voice only
+(then without events). For a sound-enabled step,
 declare real actions in `STEPS` as `events: [{id, at, sound, weight, visual}]`. `at` is seconds
 from that step's start; `sound` is a picked kit id or layer expression, `weight` is `support` or
 `hero`, and `visual` is `cut`, `move`, `land`, or `appear` only when the picture has that motion.
 `make.py` maps the event through `timing.json` to its exact frame/time; never type frame numbers.
-Pass a CC0 or owner-provided music bed with `--music path`; it loops under voice and effects and
-ducks during speech. A declared event without a bed is rejected.
+Events play over the bed; `--no-music` with events is rejected.
 
 Install the kit only at `~/.local/share/orchestra-sfx/` with `uv run --script
 scripts/video_artifact/sound/sfx.py kit`. Review candidates with `sfx.py browse --type <type>

@@ -1,0 +1,47 @@
+жду сборку scene (pid 3454226)
+stage 1/4: scene and speech plan
+синтез 4 фраз (Kokoro, af_heart)…
+озвучка: 1/4, осталось ~34 с
+озвучка: 2/4, осталось ~11 с
+озвучка: 3/4, осталось ~4 с
+озвучка: 4/4, осталось ~0 с
+stage 2/4: timing plan ready
+кадры HTML: 1/4, осталось ~190 с
+кадры HTML: 2/4, осталось ~63 с
+кадры HTML: 3/4, осталось ~24 с
+кадры HTML: 4/4, осталось ~0 с
+    0.35–  3.33  шаг  3.88 с  The marker moves across the timeline at a steady speed.
+    4.23–  7.75  шаг  5.86 с  Near the boundary, the marker speeds up, stops, and a thump lands.
+   10.10– 13.25  шаг  4.06 с  The cue time comes from the same step timing as the picture.
+   14.15– 17.72  шаг  5.11 с  Voice, effects, and a quiet music bed share one measured mix.
+длина ролика 20.9 с
+stage 3/4: rendering frames
+/home/kesha/v904-work/v917old/sound-demo-contact.png
+stage 4/4: mix, mux, and checks
+mix.wav  -18.0 LUFS  TP -2.0 dBTP  events 2
+  marker-motion whoosh/fs-147285-fh-paper-swipe-surface2-shor-1 support peak   1.830s  gain  -21.6 dB  (best-band target)
+  marker-land  thump/fs-389999-thump-cloth-1 support peak   7.783s  gain  -10.6 dB  (best-band target)
+pass  offset                 encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]
+pass  loudness               integrated -18.01 LUFS, target -18
+pass  true peak              -2.02 dBTP (limit -1.0)
+warn  picture marker-motion  move at frame 55: motion peak at frame 55
+pass  picture marker-land    land at frame 233: motion stops at frame 235
+pass  sync marker-motion     peak 0.00 frames from its cue
+pass  audible marker-motion  stands out by 1.9 dB in 2000-4000 Hz over music+voice
+pass  sync marker-land       peak 0.00 frames from its cue
+pass  audible marker-land    stands out by 1.9 dB in 250-500 Hz over music+voice
+pass  voice                  music sits 14.7 LU under the voice (median while speaking)
+pass  music                  median -29.1 LUFS short-term; unplanned dips at []
+pass  silence                none
+
+PASSED: 0 failed, 1 warnings. Picture: /home/kesha/v904-work/v917old/sound-demo.sound/qa.png
+/home/kesha/v904-work/v917old/sound-demo.mp4 0.9 МБ
+  recall 1.00  сдвиг слова -0.19  звука 0.02  The marker moves across the timeline at a steady speed.
+      слышно: the marker moves across timeline at a steady speed
+  recall 1.00  сдвиг слова -0.07  звука 0.03  Near the boundary, the marker speeds up, stops, and a thump lands.
+      слышно: near the boundary marker speeds up stops and a thump lands
+  recall 1.00  сдвиг слова -0.18  звука 0.02  The cue time comes from the same step timing as the picture.
+      слышно: the cue time comes from same step timing as picture
+  recall 1.00  сдвиг слова -0.0  звука 0.02  Voice, effects, and a quiet music bed share one measured mix.
+      слышно: voice effects and a quiet music bed share one measured mix
+минимальная дословность 1.0, наибольший сдвиг: первого слова 0.19 с, начала звука 0.03 с

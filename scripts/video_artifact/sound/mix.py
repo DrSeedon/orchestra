@@ -295,7 +295,13 @@ def main():
     if C.get("music"):
         m = C["music"]; y = load(m["file"], 2); s = int(m.get("start_s", 0) * SR)
         need = N - s
-        if m.get("loop", False) and len(y) < need: y = np.tile(y, (need // len(y) + 1, 1))
+        if m.get("loop", False) and len(y) < need:
+            # 1 s crossfade at every seam: a plain repeat clicks where the recording restarts
+            xf = min(SR, len(y) // 4); ramp = np.linspace(0, 1, xf)[:, None]; z = y.copy()
+            while len(z) < need:
+                z[-xf:] = z[-xf:] * (1 - ramp) + y[:xf] * ramp
+                z = np.concatenate([z, y[xf:]])
+            y = z
         y = y[:need].copy(); music[s:s + len(y)] = y
         fi = int(0.005 * SR); music[s:s + fi] *= np.linspace(0, 1, fi)[:, None]
         fo = int(m.get("fade_out_s", 1.0) * SR)

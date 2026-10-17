@@ -1,0 +1,279 @@
+{
+ "transcript": "the marker moves across the timeline at a steady speed near the boundary the marker speeds up stops and a thump lands the cue time comes from the same step timing as the picture voice effects and a quiet music bed share one measured mix",
+ "recall_min": 1.0,
+ "offset_max_abs_s": 0.19,
+ "onset_offset_max_abs_s": 0.03,
+ "phrases": [
+  {
+   "say": "The marker moves across the timeline at a steady speed.",
+   "heard": "the marker moves across timeline at a steady speed",
+   "recall": 1.0,
+   "numeric_recall": 1.0,
+   "numeric_total": 0,
+   "planned_start": 0.75,
+   "heard_start": 0.56,
+   "offset_s": -0.19,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "Near the boundary, the marker speeds up, stops, and a thump lands.",
+   "heard": "near the boundary marker speeds up stops and a thump lands",
+   "recall": 1.0,
+   "numeric_recall": 1.0,
+   "numeric_total": 0,
+   "planned_start": 4.63,
+   "heard_start": 4.56,
+   "offset_s": -0.07,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "The cue time comes from the same step timing as the picture.",
+   "heard": "the cue time comes from same step timing as picture",
+   "recall": 1.0,
+   "numeric_recall": 1.0,
+   "numeric_total": 0,
+   "planned_start": 10.5,
+   "heard_start": 10.32,
+   "offset_s": -0.18,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "Voice, effects, and a quiet music bed share one measured mix.",
+   "heard": "voice effects and a quiet music bed share one measured mix",
+   "recall": 1.0,
+   "numeric_recall": 1.0,
+   "numeric_total": 1,
+   "planned_start": 14.55,
+   "heard_start": 14.5529375,
+   "offset_s": -0.0,
+   "onset_offset_s": 0.02
+  }
+ ],
+ "words": [
+  [
+   "the",
+   0.56,
+   0.79999995
+  ],
+  [
+   "marker",
+   0.79999995,
+   1.1999999
+  ],
+  [
+   "moves",
+   1.1999999,
+   1.52
+  ],
+  [
+   "across",
+   1.52,
+   1.8399999
+  ],
+  [
+   "the",
+   1.8399999,
+   2.0
+  ],
+  [
+   "timeline",
+   2.0,
+   2.5
+  ],
+  [
+   "at",
+   2.72,
+   2.8799999
+  ],
+  [
+   "a",
+   2.8799999,
+   2.96
+  ],
+  [
+   "steady",
+   2.96,
+   3.36
+  ],
+  [
+   "speed",
+   3.36,
+   3.86
+  ],
+  [
+   "near",
+   4.56,
+   4.7999997
+  ],
+  [
+   "the",
+   4.7999997,
+   4.96
+  ],
+  [
+   "boundary",
+   4.96,
+   5.44
+  ],
+  [
+   "the",
+   5.44,
+   5.6
+  ],
+  [
+   "marker",
+   5.6,
+   6.0
+  ],
+  [
+   "speeds",
+   6.0,
+   6.3999996
+  ],
+  [
+   "up",
+   6.3999996,
+   6.7999997
+  ],
+  [
+   "stops",
+   6.7999997,
+   7.12
+  ],
+  [
+   "and",
+   7.12,
+   7.3599997
+  ],
+  [
+   "a",
+   7.3599997,
+   7.44
+  ],
+  [
+   "thump",
+   7.44,
+   7.7599998
+  ],
+  [
+   "lands",
+   7.7599998,
+   8.26
+  ],
+  [
+   "the",
+   10.32,
+   10.559999
+  ],
+  [
+   "cue",
+   10.559999,
+   10.8
+  ],
+  [
+   "time",
+   10.8,
+   11.12
+  ],
+  [
+   "comes",
+   11.12,
+   11.44
+  ],
+  [
+   "from",
+   11.44,
+   11.599999
+  ],
+  [
+   "the",
+   11.599999,
+   11.759999
+  ],
+  [
+   "same",
+   11.759999,
+   12.0
+  ],
+  [
+   "step",
+   12.0,
+   12.392938
+  ],
+  [
+   "timing",
+   12.5529375,
+   12.872937
+  ],
+  [
+   "as",
+   12.872937,
+   12.952938
+  ],
+  [
+   "the",
+   12.952938,
+   13.272938
+  ],
+  [
+   "picture",
+   13.272938,
+   13.772938
+  ],
+  [
+   "voice",
+   14.5529375,
+   15.0529375
+  ],
+  [
+   "effects",
+   15.112938,
+   15.592937
+  ],
+  [
+   "and",
+   15.592937,
+   15.832937
+  ],
+  [
+   "a",
+   15.832937,
+   15.912937
+  ],
+  [
+   "quiet",
+   15.912937,
+   16.232937
+  ],
+  [
+   "music",
+   16.232937,
+   16.552937
+  ],
+  [
+   "bed",
+   16.552937,
+   16.872938
+  ],
+  [
+   "share",
+   16.872938,
+   17.112938
+  ],
+  [
+   "one",
+   17.112938,
+   17.352938
+  ],
+  [
+   "measured",
+   17.352938,
+   17.752937
+  ],
+  [
+   "mix",
+   17.752937,
+   18.252937
+  ]
+ ]
+}

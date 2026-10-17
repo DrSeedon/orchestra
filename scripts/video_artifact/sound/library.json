@@ -11000,6 +11000,22 @@
    "tags": [
     "classic"
    ]
+  },
+  {
+   "id": "254856",
+   "type": "bed",
+   "title": "Long Ambient Pad",
+   "creator": "indigo.cloud",
+   "license": "cc0",
+   "url": "https://cdn.freesound.org/previews/254/254856_4680767-hq.mp3",
+   "landing": "https://freesound.org/people/indigo.cloud/sounds/254856",
+   "trim_s": 2,
+   "tags": [
+    "ambient",
+    "pad",
+    "calm",
+    "music"
+   ]
   }
  ],
  "defaults": [
@@ -11064,6 +11080,7 @@
   "reverse/fs-710864-metal-pole-hit-reverse-3",
   "reverse/fs-198389-ani-cocktail-glass-hard-reve-1",
   "reverse/fs-503803-reverse-fx-13-wav-1",
-  "hit/fs-337831-long-metal-hit-02-wav-1"
+  "hit/fs-337831-long-metal-hit-02-wav-1",
+  "bed/fs-254856-long-ambient-pad"
  ]
 }
