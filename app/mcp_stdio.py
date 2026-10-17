@@ -1888,14 +1888,15 @@ async def compact_worker(name: str) -> str:
 
 @mcp.tool()
 async def temp_rule_set(
-    text: str, targets: list[str], expires_at: str,
-    project: str = "", on_expire: str = "remove",
+    text: str, reason: str, targets: list[str], mode: str,
+    expires_at: str = "", project: str = "",
 ) -> str:
-    """Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. targets: "all", "orchestrators", "workers", a role name, or "agent:<name>". expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z. project: empty = your own project (scope); "*" = every project, allowed only for the Orchestra project orchestrator. on_expire: "remove" drops the rule at the deadline; "notify" keeps it in force and tells you once, then you extend (temp_rule_update expires_at), keep (keep=true) or remove it."""
+    """Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. reason (required): why the rule exists and what caused it; the agents see it. targets: "all", "orchestrators", "workers", a role name, or "agent:<name>". mode: "expires" (the rule drops out by itself at expires_at), "review" (it stays in force and you are told once at expires_at that it is time to review it; then extend with temp_rule_update expires_at, make it permanent with keep=true, or remove it), "permanent" (no date, stays until removed). expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z; required for expires and review, forbidden for permanent. project: empty = your own project (scope); "*" = every project, allowed only for the Orchestra project orchestrator."""
     result = await _api("POST", "/api/temp-rules", json={
-        "text": text, "targets": targets, "expires_at": expires_at,
-        "project": project, "on_expire": on_expire})
-    return f"Rule {result['id']} set until {result['expires_at']} ({result['on_expire']}) for {result['targets']} in {result['project']}"
+        "text": text, "reason": reason, "targets": targets, "mode": mode,
+        "expires_at": expires_at, "project": project})
+    return (f"Rule {result['id']} set ({result['mode']}, {result['expires_at'] or 'no date'}) "
+            f"for {result['targets']} in {result['project']}")
 
 
 @mcp.tool()
@@ -1906,7 +1907,7 @@ async def temp_rule_list(include_inactive: bool = False) -> str:
         return "No temporary rules"
     return "\n".join(
         f"{r['id']} [{'active' if r['active'] else 'ended'}] project={r['project']} targets={r['targets']} "
-        f"until={r['expires_at'] or 'none'} on_expire={r['on_expire']} by={r['author_name']}: {r['text']}"
+        f"mode={r['mode']} date={r['expires_at'] or 'none'} by={r['author_name']}: {r['text']} (reason: {r['reason'] or '-'})"
         for r in result)
 
 

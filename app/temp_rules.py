@@ -29,7 +29,11 @@ ORCHESTRA_SCOPE = str(db._REPO_ROOT)
 ORCHESTRA_ORCHESTRATOR = "Orchestra-orchestrator"
 GLOBAL = "*"
 GROUP_TARGETS = frozenset({"all", "orchestrators", "workers"})
-ON_EXPIRE = frozenset({"remove", "notify"})
+# mode → what the stored (on_expire, expires_at) pair means
+#   expires   : on_expire=remove, deadline set — the rule drops out by itself
+#   review    : on_expire=notify, deadline set — stays in force, the author is told once
+#   permanent : on_expire=notify, no deadline — stays until removed
+MODES = ("expires", "review", "permanent")
 _BLOCK = re.compile(r"\n*(<temporary-rules>.*?</temporary-rules>)", re.DOTALL)
 
 
@@ -67,9 +71,13 @@ def _schema(conn: sqlite3.Connection) -> None:
             author_name TEXT NOT NULL,
             created_at TEXT NOT NULL,
             removed_at TEXT,
-            notified_at TEXT
+            notified_at TEXT,
+            reason TEXT NOT NULL DEFAULT ''
         )"""
     )
+    # Tables created before `reason` existed keep working; the column is added in place.
+    if "reason" not in {r[1] for r in conn.execute("PRAGMA table_info(temp_rules)")}:
+        conn.execute("ALTER TABLE temp_rules ADD COLUMN reason TEXT NOT NULL DEFAULT ''")
 
 
 def _is_orchestra_orchestrator(actor: dict) -> bool:
@@ -104,8 +112,14 @@ def _row(conn: sqlite3.Connection, rule_id: str) -> dict:
     return dict(found)
 
 
+def _mode(row: dict) -> str:
+    if not row["expires_at"]:
+        return "permanent"
+    return "review" if row["on_expire"] == "notify" else "expires"
+
+
 def _view(row: dict) -> dict:
-    return {**row, "targets": json.loads(row["targets"])}
+    return {**row, "targets": json.loads(row["targets"]), "mode": _mode(row)}
 
 
 def _check_targets(targets: list[str]) -> list[str]:
@@ -116,8 +130,8 @@ def _check_targets(targets: list[str]) -> list[str]:
 
 
 def add_rule(
-    actor: dict | None, text: str, targets: list[str], expires_at: str,
-    *, project: str = "", on_expire: str = "remove",
+    actor: dict | None, text: str, reason: str, targets: list[str], mode: str,
+    expires_at: str = "", *, project: str = "",
 ) -> dict:
     actor = _require_orchestrator(actor)
     text = (text or "").strip()
@@ -125,26 +139,39 @@ def add_rule(
         raise RuleError(422, "rule text is required")
     if "</temporary-rules>" in text or "<temporary-rules>" in text:
         raise RuleError(422, "rule text must not contain the temporary-rules tag")
-    if on_expire not in ON_EXPIRE:
-        raise RuleError(422, f"on_expire must be {'|'.join(sorted(ON_EXPIRE))}")
-    deadline = _parse_utc(expires_at)
-    if deadline <= _now():
-        raise RuleError(422, "expires_at is already in the past")
+    reason = (reason or "").strip()
+    if not reason:
+        raise RuleError(422, "reason is required: why the rule exists and what caused it")
+    if mode not in MODES:
+        raise RuleError(422, f"mode must be {'|'.join(MODES)}")
+    if mode == "permanent":
+        if expires_at:
+            raise RuleError(422, "a permanent rule has no expires_at")
+        deadline = None
+    else:
+        if not expires_at:
+            raise RuleError(422, f"expires_at is required for mode {mode}")
+        deadline = _parse_utc(expires_at)
+        if deadline <= _now():
+            raise RuleError(422, "expires_at is already in the past")
     project = (project or actor.get("scope") or "").strip()
     _authorize_project(actor, project)
     rule = {
         "id": f"rule-{hashlib.sha1(f'{_now().isoformat()}{text}'.encode()).hexdigest()[:10]}",
-        "text": text, "project": project if project == GLOBAL else project.rstrip("/"),
+        "text": text, "reason": reason, "project": project if project == GLOBAL else project.rstrip("/"),
         "targets": json.dumps(_check_targets(targets), ensure_ascii=False),
-        "expires_at": deadline.isoformat(), "on_expire": on_expire,
+        "expires_at": deadline.isoformat() if deadline else None,
+        "on_expire": "remove" if mode == "expires" else "notify",
         "author_session_id": actor["id"], "author_name": actor["name"],
         "created_at": _now().isoformat(), "removed_at": None, "notified_at": None,
     }
     with db._conn() as conn:
         _schema(conn)
         conn.execute(
-            "INSERT INTO temp_rules VALUES(:id,:text,:project,:targets,:expires_at,:on_expire,"
-            ":author_session_id,:author_name,:created_at,:removed_at,:notified_at)", rule,
+            "INSERT INTO temp_rules(id,text,project,targets,expires_at,on_expire,author_session_id,"
+            "author_name,created_at,removed_at,notified_at,reason) VALUES(:id,:text,:project,:targets,"
+            ":expires_at,:on_expire,:author_session_id,:author_name,:created_at,:removed_at,"
+            ":notified_at,:reason)", rule,
         )
     return _view(rule)
 
@@ -236,13 +263,17 @@ def active_block(*, role: str, is_orch: bool, scope: str, name: str) -> str:
     lines = []
     for row in rows:
         if _is_active(row, now) and _applies(row, role=role, is_orch=is_orch, scope=scope, name=name):
-            until = f"until {row['expires_at']}" if row["expires_at"] else "no deadline"
-            lines.append(f"- ({until}, set by {row['author_name']}) {row['text']}")
+            mode = _mode(row)
+            when = {"expires": f"expires {row['expires_at']}", "review": f"review due {row['expires_at']}",
+                    "permanent": "permanent"}[mode]
+            why = f" Reason: {row['reason']}." if row["reason"] else ""
+            lines.append(
+                f"- {row['text']}{why} [{when}; set by {row['author_name']} on {row['created_at'][:10]}]")
     if not lines:
         return ""
     return (
-        "<temporary-rules>\nTemporary rules currently in force; they drop out of this prompt "
-        "by themselves when they end.\n" + "\n".join(lines) + "\n</temporary-rules>"
+        "<temporary-rules>\nTemporary rules currently in force; a rule marked "
+        "expires drops out of this prompt by itself; the others stay until their author changes them.\n" + "\n".join(lines) + "\n</temporary-rules>"
     )
 
 
