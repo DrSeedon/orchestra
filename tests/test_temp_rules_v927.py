@@ -273,3 +273,52 @@ def test_orchestrator_module_reaches_orchestrators_not_workers():
         assert "temp_rule_set" in prompt, role
         # the static text must never contain the runtime block tag, or strip_block would eat it
         assert "<temporary-rules>" not in prompt, role
+
+
+def _due_review_rule(env, monkeypatch, **kw):
+    rule = temp_rules.add_rule(env["orch"], "R", "why", ["all"], "review", iso(1), **kw)
+    monkeypatch.setattr(temp_rules, "_now", lambda: datetime.now(timezone.utc) + timedelta(hours=2))
+    return rule
+
+
+def _archive(db, row):
+    db.save_session({**row, "status": "archived"})
+
+
+def test_archived_author_notice_goes_to_live_project_orchestrator(env, monkeypatch):
+    from app import db
+    rule = _due_review_rule(env, monkeypatch)
+    db.save_session(session_row("orch-a2", role="sub-orchestrator"))
+    _archive(db, env["orch"])
+    sender = MagicMock(send=AsyncMock())
+    assert asyncio.run(temp_rules.notify_due(sender)) == 1
+    assert sender.send.await_args.args[0] == "id-orch-a2"
+    assert rule["id"] in sender.send.await_args.args[1]
+    assert asyncio.run(temp_rules.notify_due(sender)) == 0
+
+
+def test_global_rule_notice_of_gone_author_goes_to_orchestra_project_orchestrator(env, monkeypatch):
+    from app import db
+    temp_rules.add_rule(env["root"], "G", "why", ["all"], "review", iso(1), project="*")
+    db.save_session(session_row("root-successor", scope=ROOT))
+    monkeypatch.setattr(temp_rules, "_now", lambda: datetime.now(timezone.utc) + timedelta(hours=2))
+    _archive(db, env["root"])
+    sender = MagicMock(send=AsyncMock())
+    assert asyncio.run(temp_rules.notify_due(sender)) == 1
+    assert sender.send.await_args.args[0] == "id-root-successor"
+
+
+def test_no_live_recipient_keeps_notice_pending_and_warns_once(env, monkeypatch, caplog):
+    from app import db
+    rule = _due_review_rule(env, monkeypatch)
+    _archive(db, env["orch"])
+    temp_rules._warned_no_recipient.clear()
+    sender = MagicMock(send=AsyncMock())
+    with caplog.at_level("WARNING", logger="app.temp_rules"):
+        for _ in range(3):
+            assert asyncio.run(temp_rules.notify_due(sender)) == 0
+    assert sum(rule["id"] in r.getMessage() for r in caplog.records) == 1
+    assert not sender.send.await_args_list
+    # an orchestrator appears later → the same notice is delivered, not lost
+    db.save_session(session_row("orch-new"))
+    assert asyncio.run(temp_rules.notify_due(sender)) == 1

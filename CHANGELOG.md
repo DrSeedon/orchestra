@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **A review notice for a temporary rule no longer vanishes when its author is gone** (`app/temp_rules.py` `notify_due`/`_recipient`; V-933). If the author's session was archived or missing, the rule was marked as notified and nobody was told, so a `review` rule stayed in force forever. Now the notice goes to the live orchestrator of the rule's project (the Orchestra project's orchestrator for a rule on all projects); with no live recipient at all the rule is not marked and is retried on the next sweep, and one warning per rule is logged instead of one every 60 s. Trigger: found while auditing permanent rules in V-931. Python change: takes effect after a restart.
+
 ### Changed
 - **Temporary rules have a mandatory reason and three explicit modes** (`app/temp_rules.py` `add_rule`/`active_block`, `temp_rule_set`, `app/routes/temp_rules.py`, `orchestration.md`; V-927). `temp_rule_set(text, reason, targets, mode, expires_at, project)` replaces `on_expire`: `expires` drops out by itself at the date, `review` stays in force and tells the author once that it is time to review it, `permanent` has no date and is set explicitly (the date is required for the first two and refused for `permanent`). An empty `reason` is refused in every mode. The prompt block shows each rule's text, reason, mode with date (or "permanent"), author and creation date. A `reason` column is added to an existing `temp_rules` table with `ALTER`; older rows keep working (they simply show no reason). The orchestrator-only module `orchestration.md` now tells orchestrators when and how to use the tools; workers do not receive it. Trigger: the owner required every temporary rule to carry its cause and a deliberate lifetime. Known tradeoff: `on_expire` is gone from the tool and route (in-repo callers only; the earlier version was never used on live data).
 

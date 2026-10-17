@@ -326,25 +326,51 @@ def notice_text(row: dict) -> str:
     )
 
 
+def _recipient(row: dict) -> tuple[dict | None, bool]:
+    """The live author, else the live orchestrator of the rule's project (Orchestra's for "*")."""
+    from app.notify import orchestrator_for_scope
+
+    author = db.get_session(row["author_session_id"])
+    if author and author.get("status") != "archived":
+        return author, False
+    scope = ORCHESTRA_SCOPE if row["project"] == GLOBAL else row["project"]
+    return orchestrator_for_scope(scope), True
+
+
+# Rules already warned about, so the 60 s sweep does not repeat the warning.
+_warned_no_recipient: set[str] = set()
+
+
 async def notify_due(session_manager) -> int:
-    """Send each due notice once; the DB mark survives a restart. Returns notices sent."""
+    """Send each due notice once; the DB mark survives a restart. Returns notices sent.
+
+    A notice nobody can receive is not marked as sent: it waits for the next sweep.
+    """
     from app.events import MessageProvenance
 
     sent = 0
     for row in claim_due_notices():
-        author = db.get_session(row["author_session_id"])
-        if author and author.get("status") != "archived":
-            try:
-                await session_manager.send(
-                    author["id"], notice_text(row),
-                    provenance=MessageProvenance(
-                        origin="platform", senders=("Orchestra",), subtype="temp_rule", ref=row["id"]),
-                )
-            except Exception as error:
-                logger.warning("temp rule %s: notice failed, will retry: %s", row["id"], error)
-                continue
-            sent += 1
-        else:
-            logger.warning("temp rule %s: author %s is gone, no one to notify", row["id"], row["author_name"])
+        recipient, fallback = _recipient(row)
+        if recipient is None:
+            if row["id"] not in _warned_no_recipient:
+                _warned_no_recipient.add(row["id"])
+                logger.warning(
+                    "temp rule %s: author %s is gone and project %s has no live orchestrator; "
+                    "the review notice waits until one exists", row["id"], row["author_name"], row["project"])
+            continue
+        text = notice_text(row)
+        if fallback:
+            text = f"(Author {row['author_name']} is no longer active, so you receive this.) {text}"
+        try:
+            await session_manager.send(
+                recipient["id"], text,
+                provenance=MessageProvenance(
+                    origin="platform", senders=("Orchestra",), subtype="temp_rule", ref=row["id"]),
+            )
+        except Exception as error:
+            logger.warning("temp rule %s: notice failed, will retry: %s", row["id"], error)
+            continue
+        _warned_no_recipient.discard(row["id"])
         mark_notified(row["id"])
+        sent += 1
     return sent
