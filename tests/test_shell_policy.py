@@ -5,7 +5,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.backend_claude import _classify_bash_payload, _pretool_output
+from app.backend_claude import (
+    _classify_bash_payload, _make_pretooluse_hooks, _pretool_output,
+)
 from app.backend_codex import CodexBackend
 from app.backend_grok import GrokBackend
 from app.events import AgentEvent
@@ -102,6 +104,29 @@ def test_claude_pretooluse_denies_policy_violations(command, rule, rg_available)
 ])
 def test_claude_pretooluse_allows_permitted_commands(command):
     assert _classify_bash_payload({"command": command}) is None
+
+
+@pytest.mark.asyncio
+async def test_localhost_ssh_requires_oom_priority_and_shows_corrected_command():
+    hook = _make_pretooluse_hooks(_classify_bash_payload)[0].hooks[0]
+    remote_command = "ffmpeg -i input.mp4 -f null -"
+    unsafe = f"ssh -o BatchMode=yes kesha@localhost '{remote_command}'"
+    safe = (
+        "ssh -o BatchMode=yes kesha@localhost "
+        f"'choom -n 1000 -- {remote_command}'"
+    )
+    other_host = "ssh -o BatchMode=yes kesha@render-host 'ffmpeg -version'"
+
+    blocked = await hook({"tool_input": {"command": unsafe}})
+    allowed = await hook({"tool_input": {"command": safe}})
+    remote_host_allowed = await hook({"tool_input": {"command": other_host}})
+
+    output = blocked["hookSpecificOutput"]
+    assert output["permissionDecision"] == "deny"
+    assert "POLICY VIOLATION [ssh_agent_oom_priority]" in output["permissionDecisionReason"]
+    assert f"Corrected command: `{safe}`" in output["permissionDecisionReason"]
+    assert allowed["hookSpecificOutput"].get("permissionDecision") is None
+    assert remote_host_allowed["hookSpecificOutput"].get("permissionDecision") is None
 
 
 def test_codex_managed_home_installs_path_policy_wrappers(tmp_path, monkeypatch):

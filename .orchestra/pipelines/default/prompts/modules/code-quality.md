@@ -52,8 +52,9 @@ the platform already used 8.5 GB. The mistaken diagnosis cost seven successive r
 approximate counting, and deleting 23 GB), none of which addressed the cause. Diagnose with
 `cat /proc/self/cgroup` and your cgroup's `memory.max`. Run heavy work (datasets, builds, or
 anything needing several GB) outside the platform cgroup:
-`ssh -o BatchMode=yes kesha@localhost '<command>'` enters the user slice where `memory.max = max`;
-the same script that failed seven times completed there in 47 seconds. Agents must not change
+`ssh -o BatchMode=yes kesha@localhost 'choom -n 1000 -- <command>'` enters the user slice where
+`memory.max = max`; `choom` makes the heavy workload an earlier OOM victim than Orchestra.
+The same script that failed seven times completed there in 47 seconds. Agents must not change
 `orchestra.service` limits: that infrastructure ceiling protects the platform from agent processes.
 
 **Route code intelligence by question.**

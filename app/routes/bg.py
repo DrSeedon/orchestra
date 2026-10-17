@@ -331,8 +331,10 @@ async def bg_job_create(req: BgJobCreateRequest, request: Request = None):
     config = dict(req.config)
     if req.type == "run" and not config.get("host"):
         caller_session_id = request.headers.get("x-orchestra-session-id", "") if request else ""
-        caller = get_session(caller_session_id) if caller_session_id else None
-        caller = caller or target
+        caller_session = get_session(caller_session_id) if caller_session_id else None
+        caller = caller_session or target
+        if caller_session and not caller_session.get("is_orchestrator"):
+            config["agent_workload"] = True
         candidates = (caller.get("worktree_path"), caller.get("cwd"), caller.get("scope"))
         cwd = next((Path(path) for path in candidates if path and Path(path).is_dir()), None)
         if cwd is None:

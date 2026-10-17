@@ -8,6 +8,11 @@ import socket
 import sys
 from pathlib import Path
 
+if __package__:
+    from .agent_cgroups import set_agent_oom_score_adj
+else:
+    from agent_cgroups import set_agent_oom_score_adj
+
 
 PIDFD_SIGNAL_PROCESS_GROUP = 1 << 2
 
@@ -126,9 +131,11 @@ def main() -> int:
     control = socket.socket(fileno=int(sys.argv[1]))
     try:
         try:
-            cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
-            if cgroup:
-                (Path(cgroup) / "cgroup.procs").write_text(str(os.getpid()))
+            if os.environ.get("ORCHESTRA_AGENT_WORKLOAD") == "1":
+                set_agent_oom_score_adj()
+                cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
+                if cgroup:
+                    (Path(cgroup) / "cgroup.procs").write_text(str(os.getpid()))
         except OSError as exc:
             control.send((f"E{exc.errno}:{exc.strerror}").encode())
             return 70

@@ -971,7 +971,7 @@ class GrokBackend(JsonRpcStdioTransport):
             )
             tool_id = str(tool_call.get("toolCallId") or tool_call.get("id") or "")
             if rule:
-                refusal = violation_message(rule)
+                refusal = violation_message(rule, command)
                 if tool_id:
                     self._shell_policy_violations[tool_id] = refusal
                 self._notifications.put_nowait({

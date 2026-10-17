@@ -195,6 +195,7 @@ _BASH_CLASSIFICATIONS = {
     "long_sleep",
     "recursive_find",
     "recursive_grep",
+    "ssh_agent_oom_priority",
 }
 _BASH_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
 _BASH_PUNCTUATION = set("();<>|&\n")
@@ -528,7 +529,7 @@ def _classify_unparsed_bash(command: str, cwd: str | None = None) -> str | None:
     return None
 
 
-def _pretool_output(classification: str | None = None) -> dict:
+def _pretool_output(classification: str | None = None, *, command: str | None = None) -> dict:
     decision: dict = {"hookEventName": "PreToolUse"}
     reasons = {
         "background": "run_in_background is blocked; use bg_create(type=run) instead.",
@@ -555,9 +556,11 @@ def _pretool_output(classification: str | None = None) -> dict:
         ),
         "command_too_large": "Bash command exceeds the managed classifier size limit (1 MiB).",
     }
-    if classification in {"long_sleep", "recursive_find", "recursive_grep"}:
+    if classification in {
+        "long_sleep", "recursive_find", "recursive_grep", "ssh_agent_oom_priority",
+    }:
         from app.shell_policy import violation_message
-        reasons[classification] = violation_message(classification)
+        reasons[classification] = violation_message(classification, command)
     if classification in reasons:
         decision["permissionDecision"] = "deny"
         decision["permissionDecisionReason"] = reasons[classification]
@@ -595,7 +598,7 @@ def _make_pretooluse_hooks(classifier, *, cwd: str | None = None):
                 not isinstance(result, str) or result not in _BASH_CLASSIFICATIONS
             ):
                 raise _InvalidBashClassification
-            return _pretool_output(result)
+            return _pretool_output(result, command=command if isinstance(command, str) else None)
         except _InvalidBashClassification:
             logger.error("managed Bash PreToolUse returned invalid classification")
             command = tool_input.get("command") if isinstance(tool_input, dict) else None
@@ -1091,7 +1094,7 @@ class ClaudeBackend:
         if self._config_dir:
             env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
         cli_path = cli
-        if os.environ.get("ORCHESTRA_AGENT_CGROUP") and not self._is_orchestrator:
+        if not self._is_orchestrator:
             cli_path = str(Path(__file__).with_name("agent_cli_exec.py"))
             env["ORCHESTRA_AGENT_CLI"] = cli
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
@@ -1171,7 +1174,7 @@ class ClaudeBackend:
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                **agent_process_options(),
+                **agent_process_options(self._is_orchestrator),
             )
         except OSError as error:
             raise NativeHistoryUnsupported(
