@@ -1,0 +1,39 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P14/app/main.py /home/kesha/bench914/runs/P14/app/main.py
+--- /home/kesha/bench914/fx/P14/app/main.py	2026-08-13 18:32:33.000000000 +0200
++++ /home/kesha/bench914/runs/P14/app/main.py	2026-10-17 11:27:02.735098216 +0200
+@@ -204,6 +204,30 @@
+                 _inflight_streams -= 1
+ 
+ 
++class RestartStatusHeaderMiddleware:
++    """Expose the current mutating-admission state on every HTTP response."""
++
++    def __init__(self, app):
++        self.app = app
++
++    async def __call__(self, scope, receive, send):
++        if scope["type"] != "http":
++            await self.app(scope, receive, send)
++            return
++
++        async def send_with_restart_status(message):
++            if message["type"] == "http.response.start":
++                headers = list(message.get("headers") or [])
++                headers = [(name, value) for name, value in headers
++                           if name.lower() != b"x-orchestra-restarting"]
++                value = b"0" if _mutating_admission_open else b"1"
++                headers.append((b"x-orchestra-restarting", value))
++                message = {**message, "headers": headers}
++            await send(message)
++
++        await self.app(scope, receive, send_with_restart_status)
++
++
+ async def drain_mutating_requests(budget_s: float = MUTATING_DRAIN_BUDGET_S) -> bool:
+     """Wait for accepted mutating calls. False = budget expired, so refuse the restart.
+ 
+@@ -399,3 +423,4 @@
+ 
+ app.add_middleware(RequestCensusMiddleware)
+ app.add_middleware(AuthMiddleware)
++app.add_middleware(RestartStatusHeaderMiddleware)

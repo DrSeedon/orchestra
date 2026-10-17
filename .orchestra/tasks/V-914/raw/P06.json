@@ -1,0 +1,21 @@
+{
+ "task": "P06",
+ "commit": "f1eafe04",
+ "name_req": false,
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "test_tail": ".......                                                                  [100%]\n=============================== warnings summary ===============================\ntests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema\n  /tmp/v914/venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__get for function open_artifact at /home/kesha/bench914/score/P06/app/routes/artifacts.py\n    warnings.warn(message, stacklevel=1)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n7 passed, 1 warning in 8.79s\n",
+ "paid_tokens": 6635,
+ "output_tokens": 396,
+ "input_tokens": 66655,
+ "cache_read_tokens": 60416,
+ "cache_create_tokens": 0,
+ "turns": 6,
+ "patch_lines": 14,
+ "seconds": 11.4,
+ "contamination_flag": false,
+ "cost_usd_api_equiv": 0.00142606,
+ "final_text": "Updated [app/auth.py](/home/kesha/bench914/runs/P06/app/auth.py) so `/docs`, `/redoc`, and `/openapi.json` require authentication when dashboard auth is enabled. A valid session still passes the existing auth check, allowing `/openapi.json` to return the schema."
+}

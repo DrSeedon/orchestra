@@ -1,0 +1,16 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P04/app/tg_bridge.py /home/kesha/bench914/runs/P04/app/tg_bridge.py
+--- /home/kesha/bench914/fx/P04/app/tg_bridge.py	2026-10-05 13:44:10.000000000 +0200
++++ /home/kesha/bench914/runs/P04/app/tg_bridge.py	2026-10-17 11:26:14.718249530 +0200
+@@ -371,12 +371,6 @@
+                 msg.chat.id,
+                 thread_id,
+             )
+-            await _tg_send_safe(
+-                config["group_id"],
+-                "❌ Сообщение не доставлено: эта тема Telegram не привязана к агенту.",
+-                thread_id,
+-                important=True,
+-            )
+         return None, None
+     session = await _manager.ensure_loaded_any(orch_name)
+     if not session:

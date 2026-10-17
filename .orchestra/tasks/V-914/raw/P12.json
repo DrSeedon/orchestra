@@ -1,0 +1,21 @@
+{
+ "task": "P12",
+ "commit": "69a88105",
+ "name_req": false,
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": false,
+ "test_tail": "s[find . -name '*.py'-recursive_find]\nFAILED tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[grep -R TODO .-recursive_grep]\nFAILED tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[kill -TERM 12; sleep 1; ps -p 12]\nFAILED tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[printf x | grep x]\nFAILED tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[rg -n TODO app]\nFAILED tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[find . -name '*.py' | head -3-recursive_find]\nFAILED tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[grep -R TODO .-recursive_grep]\nFAILED tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[sleep 100; tail log-long_sleep]\nFAILED tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[find . -name '*.py'-recursive_find]\nFAILED tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[grep -R TODO .-recursive_grep]\nFAILED tests/test_shell_policy.py::test_grok_permitted_shell_uses_one_time_approval_only\nFAILED tests/test_shell_policy.py::test_harness_blocks_recursive_search[find . -name '*.py'-recursive_find]\nFAILED tests/test_shell_policy.py::test_harness_blocks_recursive_search[grep -R TODO .-recursive_grep]\nFAILED tests/test_shell_policy.py::test_harness_allows_find_when_rg_is_unavailable\n37 failed, 21 passed in 18.40s\n",
+ "paid_tokens": 10627,
+ "output_tokens": 763,
+ "input_tokens": 112776,
+ "cache_read_tokens": 102912,
+ "cache_create_tokens": 0,
+ "turns": 8,
+ "patch_lines": 44,
+ "seconds": 13.7,
+ "contamination_flag": false,
+ "cost_usd_api_equiv": 0.0023970200000000006,
+ "final_text": "Updated [app/shell_policy.py](/home/kesha/bench914/runs/P12/app/shell_policy.py) so recursive `find` and `grep` commands are blocked only when `rg` is available on `PATH`, including the malformed-command fallback. When `rg` is unavailable, those commands pass through the policy."
+}

@@ -1,0 +1,61 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P19/app/codex_review_artifact.py /home/kesha/bench914/runs/P19/app/codex_review_artifact.py
+--- /home/kesha/bench914/fx/P19/app/codex_review_artifact.py	2026-08-12 08:21:48.000000000 +0200
++++ /home/kesha/bench914/runs/P19/app/codex_review_artifact.py	2026-10-17 11:27:17.854050554 +0200
+@@ -115,16 +115,6 @@
+     thread_id = _last_thread_id(jsonl_file) or previous.get("uuid", "")
+     if not thread_id:
+         raise ValueError(f"Codex thread UUID is missing from {jsonl_file}")
+-    if usage_event_id:
+-        _record_usage(
+-            jsonl_file=jsonl_file,
+-            event_id=usage_event_id,
+-            session_id=usage_session_id,
+-            scope=usage_scope,
+-            task_id=usage_task_id,
+-            model=usage_model,
+-        )
+-
+     output.parent.mkdir(parents=True, exist_ok=True)
+     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+     if resume and output.exists():
+@@ -152,6 +142,25 @@
+     except FileNotFoundError:
+         pass
+ 
++    # Persist the review first: accounting failures must never discard it.
++    try:
++        if not usage_event_id or not usage_session_id or not usage_model:
++            raise ValueError("usage attribution arguments are missing")
++        _record_usage(
++            jsonl_file=jsonl_file,
++            event_id=usage_event_id,
++            session_id=usage_session_id,
++            scope=usage_scope,
++            task_id=usage_task_id,
++            model=usage_model,
++        )
++    except Exception as e:
++        reason = str(e) or type(e).__name__
++        line = f"Codex usage unaccounted: {reason}"
++        with output.open("a", encoding="utf-8") as fh:
++            fh.write(line + "\n")
++        print(line, file=sys.stderr)
++
+ 
+ def main() -> int:
+     parser = argparse.ArgumentParser()
+@@ -162,11 +171,11 @@
+     parser.add_argument("--jsonl-file", type=Path, required=True)
+     parser.add_argument("--resume", action="store_true")
+     parser.add_argument("--require-verdict", action="store_true")
+-    parser.add_argument("--usage-event-id", required=True)
+-    parser.add_argument("--usage-session-id", required=True)
++    parser.add_argument("--usage-event-id", default="")
++    parser.add_argument("--usage-session-id", default="")
+     parser.add_argument("--usage-scope", default="")
+     parser.add_argument("--usage-task-id", default="")
+-    parser.add_argument("--usage-model", required=True)
++    parser.add_argument("--usage-model", default="")
+     args = parser.parse_args()
+     try:
+         finalize_review_artifact(

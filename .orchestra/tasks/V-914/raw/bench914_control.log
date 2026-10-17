@@ -1,0 +1,24 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 98ms
+CONTROL P02 baseline_fail ref_pass
+CONTROL P03 baseline_fail ref_pass
+CONTROL P06 baseline_fail ref_pass
+CONTROL P01 baseline_fail ref_pass
+CONTROL P04 baseline_fail ref_pass
+CONTROL P05 baseline_fail ref_pass
+CONTROL P08 baseline_fail ref_pass
+CONTROL P07 baseline_fail ref_pass
+CONTROL P10 baseline_fail ref_pass
+CONTROL P13 baseline_fail ref_pass
+CONTROL P11 baseline_fail ref_pass
+CONTROL P09 baseline_fail ref_pass
+CONTROL P16 baseline_fail ref_pass
+CONTROL P12 baseline_fail ref_pass
+CONTROL P14 baseline_fail ref_pass
+CONTROL P19 baseline_fail ref_pass
+CONTROL P17 baseline_fail ref_pass
+CONTROL P15 baseline_fail ref_pass
+CONTROL P18 baseline_fail ref_pass
+CONTROL P20 baseline_fail ref_pass
+EXIT=0

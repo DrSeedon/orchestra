@@ -1,0 +1,20 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P08/app/tg_bridge.py /home/kesha/bench914/runs/P08/app/tg_bridge.py
+--- /home/kesha/bench914/fx/P08/app/tg_bridge.py	2026-08-11 16:46:48.000000000 +0200
++++ /home/kesha/bench914/runs/P08/app/tg_bridge.py	2026-10-17 11:26:35.228184907 +0200
+@@ -514,6 +514,7 @@
+ _PROGRESS_MAX_LINES = 40         # сколько последних действий видно в свёртке
+ _PROGRESS_MAX_CHARS = 3500
+ _ANCHOR_MAX_CHARS = 300
++_ANCHOR_BAR_WIDTH = 19
+ _ACTION_LINE_MAX = 70
+ _BASH_WRAPPER = re.compile(r"""^/bin/bash\s+-lc\s+""")
+ 
+@@ -682,7 +683,7 @@
+     cost = re.search(r"\$[\d.]+ turn", status)
+     if cost:
+         parts.append(cost.group(0).replace(" turn", ""))
+-    return _shorten("━━━━━━━━━━━━━━━━━━━━\n" + " · ".join(parts),
++    return _shorten("━" * _ANCHOR_BAR_WIDTH + "\n" + " · ".join(parts),
+                     _ANCHOR_MAX_CHARS).replace("━ ", "━\n", 1)
+ 
+ 

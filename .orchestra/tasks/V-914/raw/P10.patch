@@ -1,0 +1,28 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P10/app/tm.py /home/kesha/bench914/runs/P10/app/tm.py
+--- /home/kesha/bench914/fx/P10/app/tm.py	2026-07-28 13:12:33.000000000 +0200
++++ /home/kesha/bench914/runs/P10/app/tm.py	2026-10-17 11:26:39.743170680 +0200
+@@ -9,6 +9,7 @@
+ import logging
+ import sqlite3
+ from datetime import datetime, date, timezone
++from pathlib import Path
+ 
+ logger = logging.getLogger("tm")
+ 
+@@ -56,7 +57,15 @@
+         "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
+         (project_id,),
+     ).fetchone()
+-    return row[0]
++    next_number = row[0]
++    project = conn.execute(
++        "SELECT scope FROM tm_projects WHERE id = ?", (project_id,)
++    ).fetchone()
++    if project and project[0]:
++        tasks_dir = Path(project[0]) / "docs" / "tasks"
++        while (tasks_dir / str(next_number)).is_dir():
++            next_number += 1
++    return next_number
+ 
+ 
+ # --- Projects ---

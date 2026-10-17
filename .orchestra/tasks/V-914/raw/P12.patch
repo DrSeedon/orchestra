@@ -1,0 +1,44 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P12/app/shell_policy.py /home/kesha/bench914/runs/P12/app/shell_policy.py
+--- /home/kesha/bench914/fx/P12/app/shell_policy.py	2026-10-14 13:31:14.000000000 +0200
++++ /home/kesha/bench914/runs/P12/app/shell_policy.py	2026-10-17 11:26:51.233134470 +0200
+@@ -55,6 +55,9 @@
+     """Return the one policy rule violated, or None for permitted commands."""
+     if not isinstance(command, str) or not command.strip():
+         return None
++    # These rules direct users to rg. If it is unavailable, do not block the
++    # fallback commands that remain usable on the host.
++    rg_available = shutil.which("rg") is not None
+     command = _without_heredoc_bodies(command)
+     try:
+         lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()\n")
+@@ -73,11 +76,11 @@
+             duration = _sleep_duration(duration_args)
+             if duration is None or duration > MAX_SHORT_SLEEP_SECONDS:
+                 return "long_sleep"
+-        if re.search(r"\bfind\b[^\n;&|]*", command) and not any(
++        if rg_available and re.search(r"\bfind\b[^\n;&|]*", command) and not any(
+             option in command for option in _FIND_SEMANTIC_OPTIONS
+         ):
+             return "recursive_find"
+-        if re.search(r"\bgrep\b[^\n;&|]*\s-(?:[^\s]*[rR]|[rR])(?:\s|$)", command):
++        if rg_available and re.search(r"\bgrep\b[^\n;&|]*\s-(?:[^\s]*[rR]|[rR])(?:\s|$)", command):
+             return "recursive_grep"
+         return None
+ 
+@@ -191,14 +194,14 @@
+             if rule:
+                 return rule
+ 
+-    if name == "find" and not any(
++    if rg_available and name == "find" and not any(
+         token in _FIND_SEMANTIC_OPTIONS
+         or any(token.startswith(option + "=") for option in ("-mtime", "-mmin", "-newer"))
+         for token in args
+     ):
+         return "recursive_find"
+ 
+-    if name in {"grep", "egrep", "fgrep"}:
++    if rg_available and name in {"grep", "egrep", "fgrep"}:
+         for token in args:
+             if token == "--":
+                 break

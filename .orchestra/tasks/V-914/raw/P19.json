@@ -1,0 +1,21 @@
+{
+ "task": "P19",
+ "commit": "88682bef",
+ "name_req": true,
+ "ok": true,
+ "stop_reason": "end_turn",
+ "error": "",
+ "accepted": true,
+ "test_tail": ".......                                                                  [100%]\n7 passed in 9.87s\n",
+ "paid_tokens": 5734,
+ "output_tokens": 826,
+ "input_tokens": 68268,
+ "cache_read_tokens": 63360,
+ "cache_create_tokens": 0,
+ "turns": 5,
+ "patch_lines": 61,
+ "seconds": 13.4,
+ "contamination_flag": false,
+ "cost_usd_api_equiv": 0.0015374000000000002,
+ "final_text": "В [app/codex_review_artifact.py](/home/kesha/bench914/runs/P19/app/codex_review_artifact.py) результат ревью теперь записывается до попытки учёта usage. Если аргументы учёта отсутствуют или учёт завершается ошибкой, скрипт дописывает в файл строку `Codex usage unaccounted: …`, печатает её в stderr и сохраняет код завершения 0."
+}

@@ -1,0 +1,38 @@
+diff -ru '--exclude=__pycache__' /home/kesha/bench914/fx/P20/app/backend_claude.py /home/kesha/bench914/runs/P20/app/backend_claude.py
+--- /home/kesha/bench914/fx/P20/app/backend_claude.py	2026-08-19 14:05:04.000000000 +0200
++++ /home/kesha/bench914/runs/P20/app/backend_claude.py	2026-10-17 11:27:28.116018201 +0200
+@@ -164,9 +164,12 @@
+     return _auto_approve
+ 
+ 
+-_BASH_CLASSIFICATIONS = {"recursive_rm", "world_writable", "curl_pipe_shell"}
++_BASH_CLASSIFICATIONS = {"recursive_rm", "world_writable", "curl_pipe_shell", "regex_blowup"}
+ _BASH_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
+ _BASH_PUNCTUATION = set("();<>|&\n")
++_WIDE_BOUNDED_REPEAT = re.compile(
++    r"(?:\.|\\[dDsSwW]|\[(?:\\.|[^\]\\])+\])\{\d+,\s*(\d+)\}"
++)
+ 
+ 
+ class _InvalidBashClassification(Exception):
+@@ -330,6 +333,12 @@
+ 
+     for segment in segments:
+         name = _command_basename(segment)
++        if name in {"grep", "egrep", "ugrep", "rg"}:
++            if any(
++                (match := _WIDE_BOUNDED_REPEAT.search(token)) and int(match.group(1)) >= 20
++                for token in segment[1:]
++            ):
++                return "regex_blowup"
+         if name == "rm":
+             for token in segment[1:]:
+                 if token == "--":
+@@ -371,6 +380,7 @@
+         "recursive_rm": "Recursive rm is blocked; move targets to trash instead.",
+         "world_writable": "World-writable chmod is blocked; use a least-privilege mode.",
+         "curl_pipe_shell": "Direct curl-to-shell is blocked; inspect downloaded content first.",
++        "regex_blowup": "Grep patterns with bounded repetitions of 20 or more are blocked because they can exhaust memory.",
+     }
+     if classification in reasons:
+         decision["permissionDecision"] = "deny"
