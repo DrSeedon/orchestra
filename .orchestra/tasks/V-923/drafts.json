@@ -1,0 +1,1788 @@
+{
+ "0c3c0fcb": {
+  "commit": "0c3c0fcb",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "could not be inspected",
+   "worker_wip",
+   "not_reached",
+   "sessions.branch value in error text",
+   "branch names and HEADs inside the error message"
+  ]
+ },
+ "0cdc5d56": {
+  "commit": "0cdc5d56",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "quota_gate_override_until",
+   "initialize_gate_override",
+   "set_gate_override_until",
+   "override duration",
+   "override_until",
+   "expires_at",
+   "14 * 24 * 3600",
+   "quota-gate-until",
+   "quota-gate-submit",
+   "datetime-local",
+   "override_seconds_left"
+  ]
+ },
+ "102fd30f": {
+  "commit": "102fd30f",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "The background-job type that watches an orchestrator's worker tree for quiescence (implemented around app/idle_watch.py) is being retired, because the platform now tells a parent itself when a worker's turn ends without a report. Today, asking for a job of that type still goes through its special validation and starts a polling runner. Remove the type completely: creating one must be refused with an error that says the type was removed. It must no longer count toward whether a session has active jobs, no longer have a runner, and no longer be offered in the tool description. Rows of that type left in the database from before must not keep waking anyone. When the job manager restores jobs on startup, it should cancel those leftover active or in-progress rows, record an error that mentions the type, and never start a task for them. Other job types, such as timers, must be restored and started as before.",
+  "hidden_literals": [
+   "removed",
+   "idle",
+   "cancelled",
+   "active"
+  ]
+ },
+ "180f78bd": {
+  "commit": "180f78bd",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "session id is required",
+   "sessions.id must be non-empty",
+   "changed 0 rows",
+   "has no id",
+   "sessions_id_required_insert",
+   "sessions_id_required_update",
+   "ValueError",
+   "sqlite3.IntegrityError",
+   "400"
+  ]
+ },
+ "18fa3a83": {
+  "commit": "18fa3a83",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "RATE_LIMIT_RAW ",
+   "status",
+   "RateLimitEvent",
+   "0.16327272727272726"
+  ]
+ },
+ "20acdab5": {
+  "commit": "20acdab5",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_exclude_worktree_artifacts",
+   "_exclude_claude_dir",
+   "tracked_paths"
+  ]
+ },
+ "2dcbfba9": {
+  "commit": "2dcbfba9",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "provider_cost_baseline_usd",
+   "native_session_id",
+   "provider_cost_usd",
+   "turn_usage_add keyword arguments",
+   "sessions row key for the persisted baseline"
+  ]
+ },
+ "3582eea6": {
+  "commit": "3582eea6",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "tool_timeout_sec",
+   "360",
+   "300",
+   "SPAWN_TASK_MISMATCH",
+   "SPAWN_DELIVERY_ID_MISMATCH",
+   "original exact task text",
+   "another delivery_id"
+  ]
+ },
+ "36326164": {
+  "commit": "36326164",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "operation_created_target_commit",
+   "worker commit contains reserved Orchestra-Operation: trailer",
+   "REACHED",
+   "target_after",
+   "git"
+  ]
+ },
+ "382660ab": {
+  "commit": "382660ab",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "stages (parameter name)",
+   "mode='stages'",
+   "--spec (runner flag)",
+   "execute_stages (engine method)",
+   "stage dict keys: tasks, prompt, items, schema",
+   "{item} placeholder substitution with JSON-dumped items",
+   "spec JSON layout: {'mode': 'stages', 'stages': [{'tasks': [...]}]}",
+   "resume command containing --spec path",
+   "removal of --tasks-b64",
+   "model id gpt-6-luna"
+  ]
+ },
+ "396af3bd": {
+  "commit": "396af3bd",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_injected",
+   "_drain_injected",
+   "drain_injected",
+   "mid_turn_inject",
+   "AgentLoop(... drain_injected=...)",
+   "_one_round",
+   "_fit_context",
+   "{'role': 'user', 'content': ...}"
+  ]
+ },
+ "3b2e4c9e": {
+  "commit": "3b2e4c9e",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "/scope::w1 (composite task key format)",
+   "response shape {\"ok\": True, \"status\": \"accepted\", \"index\": {...}}",
+   "schedule_backfill(scope, session_name=...) signature",
+   "backfill_scope(scope, session_name=None) call signature",
+   "accepted",
+   "coalesced",
+   "indexing"
+  ]
+ },
+ "3cf265e4": {
+  "commit": "3cf265e4",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "absent",
+   "pending",
+   "migrated",
+   "skipped"
+  ]
+ },
+ "41d7182d": {
+  "commit": "41d7182d",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/merge_operations.py, a merge whose Git commit has already landed on the target branch can still be reported badly when a later finalization step (task status/lifecycle work) fails. In that case the overall result is marked not-ok and partial, and the Git stage is shown as failed even though the commit is on the target. The per-task commit-link outcomes also go missing from the normalized result, even though those links were durably written before the failing step. Expected: once the commit point has been reached, the Git stage must stay reported as succeeded whatever happens afterwards. Link results recorded before a late finalizer failure must survive and appear in the result's task-link summary. This should hold both when a result is normalized and when an interrupted finalization is resumed.",
+  "hidden_literals": [
+   "REACHED",
+   "SUCCEEDED",
+   "target_committed",
+   "task_links",
+   "git",
+   "status",
+   "items",
+   "links",
+   "finalization",
+   "PENDING",
+   "merge finalization failed: status stage exploded"
+  ]
+ },
+ "427d9271": {
+  "commit": "427d9271",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/prompting.py, the helper that returns per-role display icons (used when listing agents, e.g. through the MCP agent listing) comes back empty, so every role, including the orchestrator, falls back to a generic gear icon. The role markdown files no longer carry any frontmatter, so the directory scan that the helper does finds nothing. The icon for each role now lives in the default pipeline's manifest, under the role's Telegram display settings. Make the helper return the icons from there. It should skip roles that have no icon configured. It should ignore any icon written in role .md files. Against the real default pipeline, every role should get its own distinct icon. Also remove the dead role-level spawn-permission lookup that reads a whitelist from role frontmatter, because the manifest alone decides spawn rights.",
+  "hidden_literals": [
+   "get_role_icons",
+   "role_can_spawn",
+   "👑",
+   "🚫",
+   "tg.emoji",
+   "can_spawn",
+   "orchestrator"
+  ]
+ },
+ "4321ff7a": {
+  "commit": "4321ff7a",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "window.JobsView",
+   "cronNext",
+   "describe",
+   "stale",
+   "app/static/js/jobs-timeline.js",
+   "stale levels 0/1/2",
+   "UTC cron next-run semantics returning null for invalid cron"
+  ]
+ },
+ "43455e2b": {
+  "commit": "43455e2b",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "record_claude_rate_limit_event",
+   "_latest_claude_data",
+   "raw_payload",
+   "rate_limit_event",
+   "metadata[\"raw\"]",
+   "unifiedWindows",
+   "seven_day_opus",
+   "seven_day_sonnet",
+   "12.3456789",
+   "27.18281828459045"
+  ]
+ },
+ "43a96ed3": {
+  "commit": "43a96ed3",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "NO_COMMITS_MERGED",
+   "target branch 'main'",
+   "worker branch '<branch>'",
+   "not_reached",
+   "FAILED",
+   "NOT_REACHED",
+   "commits_merged == 0"
+  ]
+ },
+ "470206e1": {
+  "commit": "470206e1",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "потолок",
+   "platform",
+   "30",
+   "45",
+   "120",
+   "x-ratelimit-*",
+   "RuntimeError message text",
+   "upstream"
+  ]
+ },
+ "4bd1a536": {
+  "commit": "4bd1a536",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "worker_in_other_scope",
+   "worker_not_found",
+   "code",
+   "worker",
+   "scopes",
+   "config",
+   "timeout_seconds",
+   "expires_at",
+   "trigger_at",
+   "Background job created: <JSON receipt>",
+   "3605"
+  ]
+ },
+ "507b63d8": {
+  "commit": "507b63d8",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "When an agent sends a message to an idle worker session through the direct message path in app/session.py and the worker's model is currently blocked by the usage quota (for example, its weekly window is nearly used up), the sender gets no refusal. The delivery is accepted as a durable receipt and queued, and a user message appears in the target's log as if the turn had been delivered. The quota refusal only shows up later, when the queue is drained. Fix this so a quota refusal known up front is returned to the caller immediately, using the same quota error and status the project already uses elsewhere for blocked sessions. In that case no delivery receipt and no user-log entry should remain. A retry of a delivery that earlier failed before submission because of the quota gate should be checked the same way. It should not leave a stale user message behind in the log. A message that would be injected into a turn that is already running should not be gated.",
+  "hidden_literals": [
+   "429",
+   "weekly_quota_blocked",
+   "Claude",
+   "95%",
+   "line limit",
+   "55.5",
+   "claude-sonnet-5[1m]",
+   "FAILED_BEFORE_SUBMIT",
+   "DELIVERY_UNKNOWN"
+  ]
+ },
+ "588c7817": {
+  "commit": "588c7817",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In the Telegram bridge (app/tg_bridge.py), when an agent ends a turn with nothing to say, it emits the project's special \"silent turn\" placeholder text. That text currently shows up in the Telegram topic as an ordinary agent message, is mirrored elsewhere, and can trigger the end-of-turn owner mention. Make the log streaming treat an agent text entry that is exactly that placeholder as non-deliverable: nothing is sent to Telegram, nothing is mirrored, and no mention is raised for the turn. The match must be strict. Text with extra characters, such as trailing whitespace, a prefix, or following explanation, and other placeholder-like text must still be delivered normally. The suppression applies only to agent text. The same string appearing in user messages or error entries must still be shown as before. The stored log entry itself must not be modified.",
+  "hidden_literals": [
+   "[[ORCHESTRA:SILENT_TURN]]",
+   "TG_SILENT_TURN_MARKER",
+   "💬",
+   "👤",
+   "❌",
+   "_",
+   "@DrSeedon"
+  ]
+ },
+ "607d566e": {
+  "commit": "607d566e",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "0.160.0",
+   "codex-cli 0.160.0"
+  ]
+ },
+ "63fd7ac2": {
+  "commit": "63fd7ac2",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "task_id (new merge_worker parameter and request key)",
+   "held by live session 'live-holder'",
+   "unfinished work in live session 'unfinished-holder'",
+   "task_outcome",
+   "complete",
+   "not_reached"
+  ]
+ },
+ "66604dcd": {
+  "commit": "66604dcd",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_provider_case",
+   "_cache_ttl_case",
+   "_PROVIDERS",
+   "grok",
+   "codex",
+   "claude",
+   "ELSE 'claude' END",
+   "cache_ttl_approximate",
+   "cache_policy_for_runtime"
+  ]
+ },
+ "6712fdcf": {
+  "commit": "6712fdcf",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "app.fan_barrier module name",
+   "open_fan",
+   "should_buffer",
+   "record_terminal",
+   "on_child_killed",
+   "is_released",
+   "release_expired",
+   "manifest",
+   "manifest_text",
+   "deadline",
+   "timeout",
+   "out_of_scope",
+   "false_premise",
+   "blocked",
+   "partial_reason",
+   "complete",
+   "members",
+   "Order a **schema** — the exact columns — not a subject area.",
+   "Give the **counting rule verbatim**",
+   "**Forbid conclusions and recommendations.**",
+   "**The join and the verdict are yours.**",
+   "modules/worker-lifecycle.md",
+   "until the question is exhausted"
+  ]
+ },
+ "6c279201": {
+  "commit": "6c279201",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "The session listing in app/manager.py is polled every few seconds by the dashboard. Its response has become very large, because every session entry carries big free-text fields. Some of these are long persisted blobs that are never read from the list view. A user behind a flaky intermediary proxy sees the dashboard hang, since large responses often fail to arrive. With about ten agents that have long prompts, the compressed JSON of the list should stay well under roughly 15 KB. This should also hold when the sessions are rebuilt from stored database rows and not held in memory. Find which per-session fields make the listing heavy and are not needed by list consumers, and stop returning them. Other uses of that data, such as server-side logic and separate per-session endpoints, must keep working.",
+  "hidden_literals": [
+   "system_prompt",
+   "last_summary",
+   "15 * 1024 byte ceiling",
+   "10 agents",
+   "gzip level 6"
+  ]
+ },
+ "6c95039b": {
+  "commit": "6c95039b",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "orchestra-agents",
+   "inject_skills_to_worktree return value (count of files written)",
+   "codex-debate",
+   "html-artifacts",
+   ".claude/skills/<name>/SKILL.md"
+  ]
+ },
+ "759b3be6": {
+  "commit": "759b3be6",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_expandable_message",
+   "полный текст",
+   "_send_expandable",
+   "_utf16_len",
+   "TG_MSG_LIMIT",
+   "expandable_blockquote",
+   "⚙ platform",
+   "📨",
+   "👤"
+  ]
+ },
+ "7e49195e": {
+  "commit": "7e49195e",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "task_superseded",
+   "interrupted",
+   "requested",
+   "task_run",
+   "legacy"
+  ]
+ },
+ "80eefd5b": {
+  "commit": "80eefd5b",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "SELECTABLE_MODEL_SPECS",
+   "MODEL_PROVIDERS",
+   "COMPAT_MODEL_SPECS",
+   "claude-opus-4-6",
+   "claude-opus-4-6[1m]",
+   "Opus 4.6",
+   "200000",
+   "1000000",
+   "5.0",
+   "25.0"
+  ]
+ },
+ "85b6174e": {
+  "commit": "85b6174e",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "project 'orchestra' is not registered; allowed project scopes: /lower, /upper",
+   "project id 'selector' conflicts with scope of project 'by-scope'",
+   "Ambiguous project",
+   "status 400 for unregistered project",
+   "resolve_project_selector"
+  ]
+ },
+ "8a733269": {
+  "commit": "8a733269",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "A task can be marked done in the canonical task store while having no completion timestamp. This happens when the task was already done and the status update then does nothing. The shadow-drift repair of the legacy task table runs against such a task and reports failure (not ok, nothing changed). The legacy copy of the task does have a completion time. The repair should fill in the canonical record's missing completion time from the legacy one. It should then report the task as repaired, with the canonical state afterwards showing that same timestamp. Separately, in app/ia/task_store.py, a plain update that sets status to done on an already-done task with an empty completion time should also fill the timestamp in. It should not leave the field empty. A caller should also be able to supply a specific completion time for the update to record.",
+  "hidden_literals": [
+   "completed_at",
+   "task_update",
+   "repair_shadow_task_drift",
+   "expected_refs",
+   "changed",
+   "items",
+   "after",
+   "canonical",
+   "ok",
+   "done",
+   "412",
+   "315"
+  ]
+ },
+ "8d80c052": {
+  "commit": "8d80c052",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/routes/system.py the models listing endpoint answers a normal GET and attaches a build-identifying response header, which a periodic heartbeat client uses to show an \"update available\" banner. The heartbeat only needs the status and that header and discards the body, so it issues a HEAD request to the same path. Right now HEAD on that path does not succeed (the route only handles GET), so the build header never reaches the client and the banner would silently stop working. Make a HEAD request to the models path return a success status with the same build header value that GET returns, and an empty body. The behaviour must hold under the normal app setup without dashboard credentials configured.",
+  "hidden_literals": [
+   "X-Orchestra-Build",
+   "/api/models",
+   "200",
+   "b\"\" empty body"
+  ]
+ },
+ "8dc3d098": {
+  "commit": "8dc3d098",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "idx_turn_usage_day",
+   "idx_logs_turn_end_day",
+   "idx_logs_last_turn",
+   "idx_subagents_started_day",
+   "idx_tool_errors_day",
+   "idx_voice_costs_day",
+   "_ANALYTICS_EXECUTOR",
+   "total_logs removed from stats"
+  ]
+ },
+ "8ef18517": {
+  "commit": "8ef18517",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "The roles catalog that the manager builds from a pipeline manifest (see app/manager.py) lists each role with its description, when to use it and when not to, and its skills. It never says which other roles a given role is allowed to spawn. A reader of the catalog, such as an orchestrator choosing whom to delegate to, can't tell which roles may start sub-roles. Each catalog entry should also state which roles that role may spawn. This must come from the role's spawn permissions in the manifest. Changing the manifest should change the catalog. Roles that can spawn nothing, roles that can spawn only certain roles, and roles that can spawn anything should each read differently, and the specific allowed roles should be named in the entry.",
+  "hidden_literals": [
+   "🌱 **Can spawn**:",
+   "any role",
+   "none (cannot spawn)",
+   "backtick-quoted role names joined by ', '"
+  ]
+ },
+ "94c38aba": {
+  "commit": "94c38aba",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "defer",
+   "state=QUEUED",
+   "state=WAITING_QUOTA",
+   "WAIT_FOR_DELIVERY",
+   "WAITING_QUOTA"
+  ]
+ },
+ "9e92823b": {
+  "commit": "9e92823b",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "Requesting a session with the short model names \"sol\" or \"luna\" fails with an \"unknown model\" error that lists the registered models. The longer forms such as \"gpt5.6sol\" and \"gpt5.6luna\" already work, but the bare short names are not recognised. Both the model-resolution helper in app/models.py and session creation, which takes a model name in its request, reject these names. Make the bare names resolve to the same models as the existing longer aliases of the same family, so that resolving them directly and creating a session with them both succeed.",
+  "hidden_literals": [
+   "sol",
+   "luna",
+   "gpt-5.6-sol",
+   "gpt-5.6-luna"
+  ]
+ },
+ "9f946a60": {
+  "commit": "9f946a60",
+  "verdict": "reject",
+  "reason": "OTHER",
+  "statement": "",
+  "hidden_literals": [
+   "tunnel_started",
+   "payment_receive",
+   "payment_status",
+   "execute_merge_session"
+  ]
+ },
+ "9fa965ca": {
+  "commit": "9fa965ca",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "A worker's git worktree can be left in the old project layout (state under `docs/`) after its base checkout has already been migrated to the `.orchestra` layout. This happens when the worker's branch was created before the migration. When such a worker is resumed, auto-switched, or sent its first message, prompt assembly fails with a layout-missing error, and someone has to migrate the worktree by hand. Make bringing a worker up fix this itself. A clean old-layout worktree whose base checkout is current should be migrated automatically, the same way the base was, with its branch and history kept and the tree left clean. A worktree with uncommitted changes must not be migrated, stashed or altered. It should raise a layout error that names the worktree and gives a repair command. Running that command should leave the worktree migrated with the user's edits preserved. If the base checkout itself is still in the old layout, keep the existing error that points at the base. Worktrees already in the new layout must not be touched or get new commits. The entry point is `app/orchestra_layout.py`; the worker-memory loading is where the problem shows up.",
+  "hidden_literals": [
+   "ORCHESTRA_LAYOUT_DIRTY",
+   "ORCHESTRA_LAYOUT_MISSING",
+   "Orchestra: migrate project state to .orchestra",
+   "repair_command attribute",
+   "migrate_worker_worktree"
+  ]
+ },
+ "a2c45a48": {
+  "commit": "a2c45a48",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "Недели хватит на",
+   ">0.9</span> окна",
+   "их помещается 7.6",
+   "свободно на 96%",
+   "только 91%",
+   "заперто неделей 5%",
+   "Курс не измерен",
+   "quota_headroom",
+   "_quota_headroom",
+   "_get_limits_usage",
+   "окна</div>"
+  ]
+ },
+ "a3508f7a": {
+  "commit": "a3508f7a",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/quota_gate.py, the weekly pacing line for the Claude lane is too strict. The allowed-usage threshold follows the elapsed fraction of the weekly window exactly, so Claude workers get blocked while usage is still reasonable. The Claude weekly line should behave as if the window were a fixed number of hours further along than it really is. That number should be a configurable policy setting, and the default should be a working-day-sized offset of less than a day. This shift should apply only to Claude. Other lanes, and calls that don't name a lane, should keep their current line. The predicted time until a blocked Claude lane reopens must use the same shifted line. That prediction should treat usage that already exceeds the line at the end of the window as never reopening by that line, and usage below the shifted line's starting level as already open. Reaching the hard stop must still mean waiting for the window reset.",
+  "hidden_literals": [
+   "8.0 hours shift default",
+   "claude_weekly_shift_hours",
+   "91.0 tolerance span",
+   "168 hours per week",
+   "line_release_progress",
+   "_line_release_in_seconds",
+   "open / opens_in / at_reset statuses",
+   "55.5 + 91*8/168 limit"
+  ]
+ },
+ "a376b2d7": {
+  "commit": "a376b2d7",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "big-int tool arg",
+   ".ad_id",
+   ".batch[0].ids[1]",
+   "mcp__yandex-direct__update_text_ad",
+   "logger name app.backend_claude",
+   "2**53 threshold",
+   "path format with leading dot and [i] indices",
+   " = separator in message"
+  ]
+ },
+ "a41edae8": {
+  "commit": "a41edae8",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "priced_turns",
+   "unaccounted_turns",
+   "fully_costed_linked_tasks",
+   "cost_per_priced_turn",
+   "linked_priced_turns",
+   "linked_unaccounted_turns",
+   "priced_rows",
+   "unaccounted_rows"
+  ]
+ },
+ "b4b9c4ca": {
+  "commit": "b4b9c4ca",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "The quota panel's threshold curve for the Claude lane doesn't match the limit the server enforces for that lane. The server policy already shifts the Claude weekly window by some number of hours, but the rule constants the quota map endpoint sends to the panel leave that shift out. The chart code in app/static/js/quota-lines.js therefore draws the Claude limit as if there were no shift, and it can sit visibly below or above the server-computed limit at the same point in the week. Make the panel's Claude curve agree with the server's limit. Other lanes must be unchanged. If an older rule payload has no shift information, Claude should fall back to the unshifted behaviour without errors. The shift should travel with the rest of the rule constants, using the same names as the policy.",
+  "hidden_literals": [
+   "claude_weekly_shift_hours",
+   "8.0",
+   "168",
+   "55.5",
+   "limitAt"
+  ]
+ },
+ "b52b2aa0": {
+  "commit": "b52b2aa0",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING",
+   "1",
+   "LivePacer",
+   "push",
+   "step",
+   "include_partial_messages"
+  ]
+ },
+ "b6782ca8": {
+  "commit": "b6782ca8",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "budget_for",
+   "describe_progress",
+   "_partial_progress",
+   "failed_tests",
+   "passed_count",
+   "stopped_in",
+   "unreached",
+   "timeout_with_failures",
+   "pytest_argv output must print per-test lines",
+   "test_manager.py cost 283.0 vs budget_for(1)"
+  ]
+ },
+ "b941a955": {
+  "commit": "b941a955",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "get_log",
+   "cap",
+   "trunc",
+   "get_logs_before(..., cap=1024)",
+   "max_bytes",
+   "content length == 1024",
+   "trunc == 50000"
+  ]
+ },
+ "baa28b79": {
+  "commit": "baa28b79",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "HARNESS_BASH_DENY",
+   "HARNESS_OUTPUT_CAP",
+   "write to save it to a file",
+   "stay unexpanded",
+   "never ran it",
+   "Stop re-reading",
+   "[bash error] refused",
+   "[harness]",
+   "truncated",
+   "tools-off after 6 identical results",
+   "hint on the 3rd identical result",
+   "hint on the 4th re-read and 8 tool results in total"
+  ]
+ },
+ "cc15369d": {
+  "commit": "cc15369d",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "merge conflict in 1 file(s): tracked.txt",
+   "_conflict_paths",
+   "CONFLICT",
+   "RESOLVE_ON_WORKER_THEN_NEW_OPERATION",
+   "NO_COMMITS_MERGED",
+   "merge produced no new commits"
+  ]
+ },
+ "cd2e62e7": {
+  "commit": "cd2e62e7",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "window_minutes",
+   "window_start_at",
+   "claude_night_quota_share",
+   "claude_day_start_hour",
+   "0.057",
+   "8.0 (day start hour)",
+   "Asia/Krasnoyarsk",
+   "policy history third event with claude_night_quota_share",
+   "rule payload keys claude_day_start_hour and claude_night_quota_share",
+   "line_limit and line_release_progress keyword signature",
+   "_line_release_in_seconds window_start_at parameter"
+  ]
+ },
+ "d1109cef": {
+  "commit": "d1109cef",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "max_bytes",
+   "get_logs_before",
+   "get_logs_sync",
+   "tail=0"
+  ]
+ },
+ "d1bcb059": {
+  "commit": "d1bcb059",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "GigaChat-3-Ultra",
+   "gigachat-3-ultra",
+   "GigaChat-9-Imaginary",
+   "MODEL_SPECS",
+   "resolve_model",
+   "validate_harness_model_spec"
+  ]
+ },
+ "d6155f9d": {
+  "commit": "d6155f9d",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "gpt-6-astra",
+   "astra",
+   "gpt6astra",
+   "minimal",
+   "CODEX_REASONING_EFFORTS",
+   "CODEX_TOKEN_PRICES"
+  ]
+ },
+ "e22368b0": {
+  "commit": "e22368b0",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "File sent via legacy synchronous route",
+   "message_id=123",
+   "chat_id=-456",
+   "No durable event receipt exists",
+   "event_id={event_id}",
+   "file_delivery_status('{event_id}')",
+   "do not retry with a new id",
+   "next_action",
+   "/api/tg/send_file"
+  ]
+ },
+ "e439707c": {
+  "commit": "e439707c",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "app.diff_budget.may_waive_diff_budget",
+   "caller_role",
+   "cookie_ok",
+   "caller_is_orchestrator",
+   "waive_diff_budget",
+   "waived_by",
+   "diff_budget_waived",
+   "diff_budget_waived_by",
+   "diff_insertions",
+   "diff_budget_limit",
+   "2000",
+   "split",
+   "insertion",
+   "worker",
+   "full-cycle",
+   "orchestrator",
+   "sub-orchestrator"
+  ]
+ },
+ "ea016820": {
+  "commit": "ea016820",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "delivery_id must be a UUID",
+   "initial_delivery_id must be a UUID",
+   "invalid_argument",
+   "422"
+  ]
+ },
+ "ecfd16cb": {
+  "commit": "ecfd16cb",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/checklists.py, an agent's checklist can currently be saved with steps that have no time estimate, or with a zero or negative estimate, so the stored checklist ends up with unestimated steps. Saving should now require a usable estimate for every step that is new or whose text changed since the previous saved checklist. A usable estimate is a strictly positive number of minutes; booleans, zero, negative values, non-finite values and a missing estimates list all count as unusable. A step whose text is unchanged from the previous update should keep its stored estimate, so the caller may leave its estimate empty. Rejected saves should raise a ValueError. The message should say that a positive estimate is needed and mention the estimates parameter. When estimates are missing for particular steps, the message should also name those steps by their text so the caller knows what to resend. The tool description shown to the agent should also be updated to match the new rule.",
+  "hidden_literals": [
+   "positive",
+   "estimates_minutes",
+   "estimates_minutes[index] must be a positive number of minutes",
+   "every step needs a positive estimate in minutes; missing for new or changed steps",
+   "items[i] 'text' format in the missing-step list",
+   "step texts such as Second/Third appearing in the error message"
+  ]
+ },
+ "ede489b3": {
+  "commit": "ede489b3",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "step_minutes",
+   "rows",
+   "30",
+   "5",
+   "stroke=\"#38bdf8\"",
+   "usage_history(hours, step_minutes) signature",
+   "response changed from list to dict"
+  ]
+ },
+ "fabb50ed": {
+  "commit": "fabb50ed",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "data-binding-constraint",
+   "data-runway-blind",
+   "runway_deficit",
+   "static_pct",
+   "blind_no_pace",
+   "Вооружится",
+   "quota_controller.runway payload keys"
+  ]
+ },
+ "71240bd4": {
+  "commit": "71240bd4",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "Raw provider telemetry status rows (a structured status line such as a rate-limit dump) are saved in the session logs and then shown to users. They appear in the Telegram bridge output and in the dashboard chat, and they are noise there. They should stay in the stored logs but not reach user-facing channels. The Telegram half is derivable. The dashboard half is not: the hidden browser test passes a specific new payload key into the chat renderer, and that key name cannot be guessed from the code. The tests also need a browser.",
+  "hidden_literals": [
+   "status_hidden",
+   "RATE_LIMIT_RAW {\"utilization\":0.32}",
+   "RATE_LIMIT_RAW {\"utilization\":0.16327272727272726}",
+   "is_internal_telemetry_status",
+   "app/status_policy.py"
+  ]
+ },
+ "077a795c": {
+  "commit": "077a795c",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "app.mcp_proof module",
+   "issue_mcp_proof",
+   "check_mcp_proof",
+   "PROOF_ENV",
+   "ORCHESTRA_MCP_PROOF",
+   "x-orchestra-mcp-proof",
+   "request_may_waive_diff_budget",
+   "tm_create_task request argument",
+   "403 status",
+   "acceptance_command",
+   "MCP_BASE_ENV"
+  ]
+ },
+ "cebb03d0": {
+  "commit": "cebb03d0",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "app.file_delivery_ids",
+   "normalize_file_delivery_event_id",
+   "signature (event_id, scope, sender)",
+   "SCOPE",
+   "WORKER_NAME",
+   "uuid5 namespace derivation",
+   "lada-kp27-0810"
+  ]
+ },
+ "d5e33acf": {
+  "commit": "d5e33acf",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "Asking for a worker's recent logs through the MCP worker-log tool downloads the worker's whole history and only trims it on the client. On long-running workers this wastes a lot of data. The session logs endpoint in app/routes/sessions.py also doesn't treat the caller's row limit properly. When no limit is given it silently caps a plain fetch at a default number of rows, and it never returns the newest rows for a bounded request. Make the server bound the snapshot: when a caller passes a limit, it should get the most recent rows of that session, in chronological order. When no limit is passed on a normal full fetch, the complete history should still come back. Paging forward from a given log id must keep working. The MCP tool should pass its requested count to the server and show whatever the server returns, without slicing again itself.",
+  "hidden_literals": [
+   "params dict {\"scope\": SCOPE, \"after_id\": 0, \"limit\": 3}",
+   "limit=3",
+   "1200 rows",
+   "after_id=1197",
+   "ids [1198,1199,1200]",
+   "\"💬 row-N\" formatting",
+   "1000 cap",
+   "500 default for before_id"
+  ]
+ },
+ "4444697f": {
+  "commit": "4444697f",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "gated_lanes",
+   "data-ql-gate",
+   "data-ql-threshold",
+   "ql-gate-on",
+   "ql-gate-off",
+   "ql-gated-off",
+   "СНЯТ",
+   "порог Sol — снят",
+   "on",
+   "off"
+  ]
+ },
+ "b92be6ec": {
+  "commit": "b92be6ec",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "Managed Codex agents start with a weaker setup than Claude ones, and the problem shows up in `app/backend_codex.py` and the code that builds and starts Codex sessions. (1) The private Codex home built for an agent doesn't mark the agent's own working directory as trusted. Codex therefore ignores that checkout's project-local config, hooks and rules. The config must trust exactly that one canonical directory, and the path must be written correctly even when it contains characters such as quotes. It must not copy trust entries for unrelated checkouts from the user's base config. (2) The project's `.mcp.json` tool servers are not passed to Codex sessions. Only the Orchestra-managed server is, although the Claude and Grok paths already merge the project servers. Codex should get the project's servers too, but a project entry must never replace the managed server of the same name. (3) Codex orchestrators, which have a cwd but no worktree, never get their repository's rules file refreshed for Codex before the backend starts. Only worktree-based workers do. Make all three work.",
+  "hidden_literals": [
+   "trust_level",
+   "trusted",
+   "projects",
+   "orchestra",
+   "project-tool",
+   "/home/kesha/orchestra",
+   "sync_agents_md called once with session.cwd",
+   "order tuple (\"agents\", cwd) before skills/project-doc/build/connect"
+  ]
+ },
+ "344cc886": {
+  "commit": "344cc886",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "estimates_minutes",
+   "estimate_accuracy_report",
+   "reminder_delay_seconds",
+   "checklist_step_metrics",
+   "actual_seconds",
+   "active_since",
+   "estimate_minutes",
+   "by_model",
+   "median_actual_estimate_ratio",
+   "ratio_p25",
+   "ratio_p75",
+   "ratio_iqr",
+   "measured_steps",
+   "estimated_steps",
+   "unestimated_steps",
+   "unmeasured_steps",
+   "300 (fallback delay)",
+   "update_checklist MCP schema shape",
+   "data-estimate-minutes",
+   "data-checklist-elapsed"
+  ]
+ },
+ "9a1e2d10": {
+  "commit": "9a1e2d10",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "gpt-5.6-luna",
+   "Omitted means the server-owned gpt-5.6-luna Fast tier",
+   "analytics-quota-empty",
+   "analytics-quota-error",
+   "data-quota-controller",
+   "Сегодняшнюю волну Codex нельзя классифицировать",
+   "Статический гейт сохранён",
+   "Квоты и история решений",
+   "quota_controller",
+   "no_shadow_telemetry",
+   "quota_controller_error",
+   "data-decision-id"
+  ]
+ },
+ "18d80613": {
+  "commit": "18d80613",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_port_open",
+   "HEALTH_TIMEOUT",
+   "_parse_proxy_list",
+   "select_proxy",
+   "load_saved_proxy",
+   "refresh_loop",
+   "direct",
+   "contabo-de",
+   "list_proxies",
+   "_tunnel_loop",
+   "Tunnel"
+  ]
+ },
+ "aa33578e": {
+  "commit": "aa33578e",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In the web UI (app/static/js/app.js and the usage panel code), the usage bar issues its usage request and its quota-map request in parallel on every refresh. Both can reach the server at the same moment, and the quota-map side can then show a stale quota point. Also, when a refresh fails, the bar drops to an unavailable state even though a good reading was shown a moment earlier. Make a refresh load usage first and read the quota map only after the usage request has settled. Concurrent consumers that want the quota map should share one in-flight request. After a failed refresh the bar should keep showing the last good usage values, with the freshness indicator saying that the refresh failed and how old the data is. The server's quota-map builder should read cached data only and should not trigger a provider refresh itself. Quota lane badges and verdicts should also treat stale or no-data lanes as having no data. Finally, the number of simultaneous GET requests from the client should be capped, with the rest queued.",
+  "hidden_literals": [
+   "usageRequests counts of 3/4/5/6",
+   "ошибка обновления",
+   "данные от сейчас",
+   "Usage unavailable",
+   "обновлено сейчас",
+   "/api/usage/quota-map",
+   "usagePending ordering"
+  ]
+ },
+ "ef9c8057": {
+  "commit": "ef9c8057",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_display_status",
+   "broken",
+   "_wt_cleanup_task",
+   "start_background_tasks",
+   "cleanup_stale_worktrees"
+  ]
+ },
+ "6ed76f56": {
+  "commit": "6ed76f56",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "grok-4.6",
+   "grok4.6",
+   "Grok 4.6",
+   "x-ai",
+   "0.50",
+   "500000",
+   "GROK_TELEMETRY_ENABLED",
+   "GROK_TELEMETRY_TRACE_UPLOAD",
+   "GROK_TELEMETRY_MIXPANEL_ENABLED",
+   "GROK_FEEDBACK_ENABLED",
+   "GROK_EXTERNAL_OTEL",
+   "OTEL_METRICS_EXPORTER",
+   "OTEL_LOGS_EXPORTER",
+   "OTEL_TRACES_EXPORTER",
+   "SENTRY_DSN",
+   "telemetry = false",
+   "trace_upload = false",
+   "otel_enabled = false"
+  ]
+ },
+ "5a3912e3": {
+  "commit": "5a3912e3",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "reconcile_legacy_tasks",
+   "field_mismatch_counts",
+   "_RuntimeTaskStore",
+   "__row__",
+   "reconciled_count",
+   "task.updated"
+  ]
+ },
+ "d607f5fc": {
+  "commit": "d607f5fc",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "mutation_gate",
+   "guarded_source_change",
+   "tests_not_guarding_source",
+   "no_changed_sources",
+   "no regression is guarded",
+   "MUTATION_MAX_TIMEOUT_SECONDS",
+   "changed_test_paths",
+   "changed_source_paths",
+   "changed_test_nodes",
+   "run_pytest interpreter kwarg",
+   "ORCHESTRA_DB_PATH",
+   "ORCHESTRA_TASK_REPOSITORY",
+   "ORCHESTRA_TASK_PREFIX",
+   "QUOTA_GATED_LANES",
+   "TEST_MUTATION_GATE_FAILED"
+  ]
+ },
+ "3e4d8798": {
+  "commit": "3e4d8798",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "invalid_contract",
+   "bash -lc '<chain>'",
+   "Invalid quoting: No closing quotation",
+   "acceptance_command",
+   "ACCEPTANCE_INCONCLUSIVE",
+   "acceptance_command is orchestrator-only"
+  ]
+ },
+ "63760bf6": {
+  "commit": "63760bf6",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "REPEAT_SPAWN_SAME_ID",
+   "REPEAT_SAME_FILE_CALL",
+   "REPEAT_TASK_CREATE_SAME_KEY",
+   "REPEAT_SAME_SEND_MESSAGE",
+   "WAIT_FOR_DELIVERY",
+   "receipt_lookup_unavailable",
+   "delivery_status",
+   "message_delivery_status",
+   "file_delivery_status",
+   "next_action.delivery_id",
+   "next_action.event_id",
+   "request_key"
+  ]
+ },
+ "feff52e3": {
+  "commit": "feff52e3",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "When an operator resolves a stuck merge operation (one left in a partial or unknown state, e.g. after a server restart), the resolution is recorded and the worker is unblocked. The result still carries the old failure error at the top level, though. The MCP tool wrapper in app/mcp_stdio.py then reports the call as a failed tool call, even though the resolution succeeded. Make a successfully resolved operation read as a success to callers. The stored operation record should no longer present the old failure as its current error, but the original error should stay available in the resolution details. The tool result should be non-error and its text should say the operation was resolved. This must also hold when the backend delivers the resolved payload through the API error path with a 200 status. Resolving the same operation twice should stay idempotent. The core change is in app/merge_operations.py.",
+  "hidden_literals": [
+   "previous_error",
+   "SERVER_RESTARTED",
+   "UNKNOWN",
+   "operation_state",
+   "resolution",
+   "error",
+   "resolved",
+   "domain_error",
+   "ДРУГОЙ РЕПОЗИТОРИЙ",
+   "op-423",
+   "checked target branch"
+  ]
+ },
+ "d4a64f21": {
+  "commit": "d4a64f21",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_CODEX_SKILL_INDEX_ENABLED",
+   "ORCHESTRA_CODEX_SKILL_INDEX",
+   "third positional parameter of inject_skills_to_worktree taking '.codex'",
+   ".codex/",
+   "Available skills"
+  ]
+ },
+ "e5e0db83": {
+  "commit": "e5e0db83",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "The merge test gate in app/merge_test_gate.py picks the wrong Python interpreter in two situations. (1) When the code under test is a linked git worktree, the gate does not find the project's virtualenv in the main checkout and falls back to the system or orchestrator interpreter. Pytest is then reported as unavailable and the gate ends inconclusive. (2) When the project's virtualenv python is a symlink to a system python, the gate follows the symlink and runs the system binary. That binary loses the virtualenv's installed packages, so pytest cannot be imported. The gate should find the project's virtualenv from a linked worktree, run that venv's python at its own path without resolving the symlink, and report that path as the interpreter. Separately, the diagnostic output is capped at 4000 characters and is trimmed from the front. A long test output can therefore push the interpreter identification out of view. The identification should still be visible when the output is trimmed. It should appear at the start of the output and also at the very end, with the total length still within the cap.",
+  "hidden_literals": [
+   "--path-format=absolute",
+   "--git-common-dir",
+   "interpreter=<path> marker repeated as trailer at the end of output (no trailing newline)",
+   "4000",
+   "rev-parse"
+  ]
+ },
+ "38ace1f5": {
+  "commit": "38ace1f5",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/mcp_proof.py, the per-session proof that an MCP process presents to the server is kept only in the server process's memory. After a server restart or module reload, an MCP process that is still running (for example an adopted one) presents the proof it was originally given, and the server now rejects it as unknown. Change it so a session's proof stays valid across server generations without any stored state. It should be derived from a secret the server already has in its environment plus the session id. The same session must always get the same proof, and a proof from one session must not be accepted for another. Missing or empty input must still be refused. If the server's secret changes, proofs issued under the old secret must stop being accepted.",
+  "hidden_literals": [
+   "INTERNAL_TOKEN",
+   "mcp-proof-test-secret",
+   "server-secret-a",
+   "server-secret-b",
+   "adopted-session-539",
+   "rotating-session-539",
+   "other-session-539"
+  ]
+ },
+ "9248be4c": {
+  "commit": "9248be4c",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "harness",
+   "BUILTIN_RUNTIMES",
+   "_PROVIDERS",
+   "cache_policy_for_runtime"
+  ]
+ },
+ "3651919d": {
+  "commit": "3651919d",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/models.py, the choice of execution backend for a model is wrong for models from other providers. A model that isn't Claude or GPT (for example a provider-prefixed ID from the proxy for DeepSeek, Gemini, Llama, Mistral or Qwen) is sent to the Claude backend if it is not in the hardcoded registry. Registered models should keep the backend they already have. For unregistered models, the backend should be inferred from the model ID. GPT-style IDs go to the Codex backend and Claude-style IDs go to the Claude backend. Everything else should go to the OpenCode backend instead of silently defaulting to Claude. Also check that the OpenCode backend splits a provider/model ID correctly, with only the first slash separating provider from model.",
+  "hidden_literals": [
+   "opencode",
+   "codex",
+   "claude",
+   "deepseek/deepseek-v4-flash",
+   "gemini-2.5-flash",
+   "meta-llama/llama-4",
+   "mistral-large",
+   "qwen/qwen-3",
+   "gpt-9-future",
+   "claude-sonnet-4-6",
+   "claude-opus-4-8[1m]",
+   "gpt-5.5",
+   "provider_id",
+   "meta-llama/llama-4-maverick"
+  ]
+ },
+ "944a78c3": {
+  "commit": "944a78c3",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "target working tree is dirty",
+   "prunable worktree",
+   "local-wip.txt",
+   "dirty.txt",
+   "stash list must be empty"
+  ]
+ },
+ "df6d00c6": {
+  "commit": "df6d00c6",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "source_artifacts",
+   "control_failed_tests",
+   "control_passed_tests",
+   "unattributed_failed_tests",
+   "mutation_failed_tests",
+   "control_status",
+   "guarded_source_change"
+  ]
+ },
+ "d3a428cf": {
+  "commit": "d3a428cf",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "V-783",
+   "V-778",
+   "V-782",
+   "/usr/bin/python: No module named pytest",
+   "transport_timeout: Message delivery outcome is ambiguous: ReadTimeout",
+   "11 раз",
+   "baseline 10",
+   "No new error-watch findings"
+  ]
+ },
+ "9d552660": {
+  "commit": "9d552660",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In the Telegram bridge's log streaming (app/tg_bridge.py), an agent turn can consist solely of the special silent-turn marker text, meaning the agent deliberately says nothing. When such a turn ends and the agent did no actions (no tool calls) during it, the bridge still posts a bare divider/completion line to the chat and to the mirror. That is noise: the user sees an empty completion marker for a turn that was meant to be silent. Make a silent turn that performed no actions produce no visible output at all, without losing any owner mention that would otherwise be sent at turn end. A silent turn that did perform actions should still show its normal completion divider, and the silent state must not leak into later turns.",
+  "hidden_literals": [
+   "[[ORCHESTRA:SILENT_TURN]]",
+   "━",
+   "turn ended (end_turn, 1 turns, $0.01 turn)",
+   "Bash: {\"command\":\"ls\"}",
+   "@DrSeedon",
+   "19"
+  ]
+ },
+ "ecfcba98": {
+  "commit": "ecfcba98",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "spark",
+   "eligible_classes",
+   "normal_below_pct",
+   "unavailable_at_pct",
+   "must not contain 'review'",
+   "must not contain 'continuation'",
+   "unknown task class",
+   "spark thresholds require models.spark",
+   "normal_below_pct must be below",
+   "spark_not_eligible_for_worker_general",
+   "spark_not_eligible_for_review",
+   "spark_quota_normal",
+   "spark_weekly_reserve",
+   "spark_weekly_hard_stop",
+   "spark_terminal_limit"
+  ]
+ },
+ "af2446b6": {
+  "commit": "af2446b6",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "agent read of missing file",
+   "File does not exist. Note: your current working directory is"
+  ]
+ },
+ "8239760c": {
+  "commit": "8239760c",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "CLEAN_TARGET_THEN_NEW_OPERATION",
+   "Clean the target worktree, then start a new merge operation.",
+   "merge produced no new commits",
+   "NO_COMMITS_MERGED",
+   "target working tree is dirty (1 file(s): docs/tasks/49/) — commit or discard first"
+  ]
+ },
+ "57bd7e74": {
+  "commit": "57bd7e74",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "find_delete",
+   "xargs_recursive_rm",
+   "rmdir_parents",
+   "shred",
+   "git_clean",
+   "unparsed_rm",
+   "recursive_rm",
+   "_BASH_CLASSIFIER_MAX_BYTES",
+   "cwd keyword argument of _classify_bash_payload"
+  ]
+ },
+ "35ad7cbb": {
+  "commit": "35ad7cbb",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/models.py, the harness runtime only offers some of the chat models that the GigaChat API serves. An operator on the expert stand wants every GigaChat chat model available: the 2-series Pro variant and the 3-series Lightning and Pro variants are missing alongside the ones already offered. Looking one of them up in the model registry by its canonical GigaChat name fails, and harness validation rejects it as an unsupported GigaChat model. Make these missing chat models selectable harness models, set up like the existing GigaChat entries. They should pass harness-model validation, and the lowercase alias forms should resolve like the existing aliases do. Models that don't exist must still be rejected.",
+  "hidden_literals": [
+   "GigaChat-2-Pro",
+   "GigaChat-3-Lightning",
+   "GigaChat-3-Pro",
+   "GigaChat-2",
+   "GigaChat-2-Max",
+   "GigaChat-3-Ultra",
+   "MODEL_SPECS",
+   "validate_harness_model_spec"
+  ]
+ },
+ "425b83ee": {
+  "commit": "425b83ee",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/orchestra_layout.py, when a project has no migrated layout metadata, the raised layout error carries a repository path and a repair command. If the failing path is a linked git worktree (e.g. a worker's throwaway checkout created off the main branch), both point at that worktree. Running the suggested repair there only fixes a disposable branch. The next fresh worktree branched from the unmigrated base branch fails the same way, so the failure repeats. Change the missing-layout error so that, for a linked worktree, the repository and repair command target the base checkout that owns the shared git data, and repairing that checkout lets new worktrees pass the layout check. Behaviour for ordinary non-worktree repositories should stay the same.",
+  "hidden_literals": [
+   "ORCHESTRA_LAYOUT_MISSING",
+   "LayoutMigrationError",
+   "require_project_layout",
+   "migrate_project_layout",
+   "repair_command",
+   "repository"
+  ]
+ },
+ "6e4311fb": {
+  "commit": "6e4311fb",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "_cleanup_cli_home",
+   "app.manager.shutil.rmtree",
+   "app.backend_codex._CODEX_HOME_ROOT",
+   "_SAFE_HOME_KEY"
+  ]
+ },
+ "2cb31412": {
+  "commit": "2cb31412",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "In app/mcp_stdio.py, the Codex review tool's default review mode builds a command that the installed Codex CLI rejects, because the review target flag conflicts with the prompt that is piped in on stdin. The review should run without that conflict and its prompt should tell the reviewer to look at every kind of uncommitted change in the worktree. The hidden tests also check a specific phrase in the prompt, which the statement cannot reveal without giving the wording.",
+  "hidden_literals": [
+   "--uncommitted",
+   "staged, unstaged, and untracked",
+   "cannot be used with '[PROMPT]'",
+   "exec review"
+  ]
+ },
+ "915f3526": {
+  "commit": "915f3526",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "content_length",
+   "300",
+   "1_000",
+   "summary",
+   "record",
+   "evidence"
+  ]
+ },
+ "eeaf5b2e": {
+  "commit": "eeaf5b2e",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "changed_tests_excluded",
+   "changed_test_nodes_unresolved",
+   "no_changed_test_nodes",
+   "exclude_orchestra_markers",
+   "control_status",
+   "selected_nodes",
+   "fallback_files",
+   "tests_not_guarding_source"
+  ]
+ },
+ "4b0611cf": {
+  "commit": "4b0611cf",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/mcp_stdio.py, the task-creation tool accepts an optional acceptance-command parameter, which the system later runs to decide whether a task passes review. Right now any caller can fill it in, including an ordinary worker agent. A worker can therefore create a task whose pass check is a trivially succeeding command and mark its own item as accepted. Change the tool so the command is stored only when the caller is an orchestrator-level role. For any other role, the value must be ignored and the task saved with no acceptance command. Orchestrator and sub-orchestrator callers must keep working as before, with their command stored unchanged.",
+  "hidden_literals": [
+   "worker",
+   "orchestrator",
+   "true",
+   "uv run python -m pytest -q tests/x.py",
+   "from-worker",
+   "from-orch",
+   "acceptance_command",
+   "_ORCH_ROLES"
+  ]
+ },
+ "f5084420": {
+  "commit": "f5084420",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "test_artifacts",
+   "guarded_source_change",
+   "tests_not_guarding_source",
+   "tests/route_surface_snapshot.json",
+   "tests/test_route_snapshot.py"
+  ]
+ },
+ "61b99180": {
+  "commit": "61b99180",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "reconcile_live_colors",
+   "_pick_color(scope)",
+   "COLOR_PALETTE",
+   "#123456"
+  ]
+ },
+ "208c7fca": {
+  "commit": "208c7fca",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/bg_jobs.py, a background job that runs a review command and names an output artifact is marked as completed whenever the command exits with code 0 and the artifact file is non-empty. This is wrong for \"blind\" reviews. For example, the artifact may contain only an admission that the review could not be done because the sandbox failed before any file was read. It may also begin with sandbox-setup error output (the bubblewrap kind: namespace, uid-map or loopback failures) and then still carry an approving conclusion. Such jobs are reported to the session as successes. Make the job fail, and tell the session it failed, when the artifact shows the review never actually ran. Also fail it when the artifact has no verdict section at all. When it fails for being blind, the recorded error should describe the artifact as blind. A genuine review that has a verdict section should still complete normally. That includes a genuine review that merely mentions the word \"sandbox\" in its findings.",
+  "hidden_literals": [
+   "blind",
+   "verdict",
+   "unable",
+   "## Verdict",
+   "Unable to perform an evidence-backed review",
+   "bwrap:",
+   "failed",
+   "triggered",
+   "FAILED",
+   "completed"
+  ]
+ },
+ "ed266987": {
+  "commit": "ed266987",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/prompting.py, injecting skills into a worktree is supposed to clean up leftover copies of skills that have since been retired, but it misses several cases. First, a retired skill whose source file was later moved to a different directory loses its older revisions in the history lookup. A stale copy in the worktree that matches one of those older revisions is then not recognised as ours and is never removed. Second, when a skill write was interrupted, the temp file that the skill writer itself creates stays in a retired skill's directory. These orphaned temp files should be cleaned up, and the now-empty directory removed. Files that merely look similar but don't match what the writer produces, and anything tracked by the repository, must be left alone. Third, the cleanup must never act through a symlink. If a retired skill's directory is a symlink pointing elsewhere, the target's contents must not be touched. The same applies when the parent skills or home directories are symlinks. Make the cleanup behave this way.",
+  "hidden_literals": [
+   "codex-debate",
+   "pipelines/default/prompts/skills",
+   ".orchestra/pipelines/default/prompts/skills",
+   ".SKILL.md.12345.abcdef12.tmp",
+   ".SKILL.md.keep-this.tmp",
+   "retired-example",
+   "html-artifacts",
+   "_retired_skill_hashes",
+   "_REPO_ROOT",
+   "_SKILLS_DIR",
+   ".claude/skills"
+  ]
+ },
+ "e1b2ee6b": {
+  "commit": "e1b2ee6b",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "Voice recordings made in the dashboard with Chromium (chunked WebM audio) are rejected when posted for transcription. The audio duration check in app/routes/tg.py fails with a conversion error, because the container does not report a usable duration even though the audio is valid and decodable. The upload should be accepted and passed on to transcription like any other valid recording, and the audio duration helper should return the real length in seconds, about 3-4 seconds for a short sample. When the container gives no usable duration, the helper should get the length another way. Truly invalid or empty audio, and checks that hang, should still be rejected with an error.",
+  "hidden_literals": [
+   "dashboard_voice_chunked.webm",
+   "N/A",
+   "recorded speech",
+   "recording-agent",
+   "/repo",
+   "audio/webm",
+   "/api/transcribe",
+   "3.0 <= duration <= 4.0"
+  ]
+ },
+ "1ef306e2": {
+  "commit": "1ef306e2",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "stable_id.*project.*42",
+   "identity mismatch.*project.*42",
+   "canonical catalog unavailable",
+   "ValueError message text naming stable_id, project and task number",
+   "ValueError message containing 'identity mismatch'",
+   "merged identity dict without canonical_head"
+  ]
+ },
+ "b4504282": {
+  "commit": "b4504282",
+  "verdict": "reject",
+  "reason": "ENV",
+  "statement": "The orchestrator info panel in the dashboard (the info-panel route in app/routes/sessions.py feeds it) shows task-proposal cards and a summary of child workers, including workers that have no checklist. It should show only the child workers that have a checklist, with no proposal cards and no collapsible summary. The only added test is a Playwright browser test that checks a specific CSS class in the rendered panel. It needs a browser and cannot be satisfied without guessing that class name.",
+  "hidden_literals": [
+   ".info-worker-card",
+   "#info-panel",
+   "renderInfoPanel",
+   "details",
+   "worker-with-checklist",
+   "worker-without-checklist"
+  ]
+ },
+ "47ff8da4": {
+  "commit": "47ff8da4",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "On a host Python build that has no process-file-descriptor opening call in the `os` module, importing `app/restart_guard.py` fails outright. The module looks that call up when it is imported, so the whole module becomes unusable even for callers that never need that call. Importing the module should work on such a host. The failure should only show up when the guard is asked to pin a process without an injected opener. In that case it should raise the module's existing 'guard unavailable' error, and the message should name the missing OS capability. When a caller passes its own opener, identity verification and the success path should behave as they do now.",
+  "hidden_literals": [
+   "os.pidfd_open",
+   "RestartGuardUnavailable",
+   "pidfd_open",
+   "open_verified_pidfd",
+   "ProcessIdentityMismatch",
+   "read_starttime"
+  ]
+ },
+ "d0023db6": {
+  "commit": "d0023db6",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "• Spark — нет данных",
+   "• Grok — нет данных",
+   "❌ /limits: ReadTimeout: (без сообщения)",
+   ".png",
+   "is_photo",
+   "_tg_send_file_safe"
+  ]
+ },
+ "41af4d85": {
+  "commit": "41af4d85",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/merge_test_gate.py, when the mapped test subset is too large for one run and gets split into several batches that share one overall deadline, the scheduling is poorly behaved. The order in which batches run is just the original chunking order, so a small trailing batch waits behind a big one. The time budget is also fixed up front, so time left over from fast batches is never passed to later ones. Change it so that the shorter batches run first, and each batch's time allowance is an even share of the time still left on the overall deadline among the batches not yet run. A failing or inconclusive batch must still not stop the remaining batches from being attempted. The combined diagnostic output should still keep a readable slice from every batch within its overall size cap. The single-batch path should behave as before.",
+  "hidden_literals": [
+   "tests/test_{n:02d}.py",
+   "batch_failed",
+   "exit_nonzero",
+   "timeout",
+   "90.0",
+   "147.44",
+   "32.56",
+   "[2, 12]",
+   "[1, 12]",
+   "diag-"
+  ]
+ },
+ "a1917ce2": {
+  "commit": "a1917ce2",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/tm.py, finishing a merge whose task outcome is \"complete\" fails after the git commit has already been made. The operation ends in a partial post-commit failure instead of success, because the finalization step crashes with a NameError. It looks like the status-closing stage still calls helpers that no longer exist in the module, left over from an earlier removal of billing and external-sync functionality. Expected behaviour: a complete merge finalizes normally. The current task is marked done and its worker detached. Commit links are recorded and the handoff to the next task works. The call returns a successful result. Fix the finalization so it no longer depends on the removed functionality.",
+  "hidden_literals": []
+ },
+ "262b38b5": {
+  "commit": "262b38b5",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "The orchestrators listing endpoint in app/routes/system.py returns a very large response when several orchestrators exist. Most of its size comes from one bulky per-record text field that the list's consumers don't read. Fetching that field by itself through the existing per-session endpoint already works and must keep working. Change the listing so it no longer ships that heavy field for any record, whether the record comes from a live in-memory session or from a stored database row. The other fields of each record, including the running and waiting indicators, must stay unchanged. The per-session detail endpoints should still return the full data.",
+  "hidden_literals": [
+   "system_prompt",
+   "/api/orchestrators",
+   "/api/sessions/{name}/prompt",
+   "15 * 1024"
+  ]
+ },
+ "ed30d73c": {
+  "commit": "ed30d73c",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/user_message_display.py, the human-facing display of a stored user message sometimes shows a leading \"[HH:MM] \" time marker that the system itself added, and sometimes removes one that is real message text. Today the marker is removed only when its minute matches the minute of the row's write timestamp. A message that waited in a queue, such as one delivered after a restart, is written later than it was stamped. Its marker no longer matches, so the system-added marker leaks into the displayed text. The opposite case is a user message from some other source whose text happens to start with a similar \"[HH:MM] \" quote. If the minute matches, that real text is wrongly cut. Change the display logic to decide by where the message came from, using the origin details stored on the row. Strip a leading marker only for sources whose messages get a timestamp added on the way in. Look at which code paths call the stamping helper and which source labels they record. Leave the text of every other source untouched, whatever its timestamp.",
+  "hidden_literals": [
+   "http_send",
+   "telegram",
+   "telegram_fallback",
+   "tg_restart_inbox",
+   "imported",
+   "subtype",
+   "origin_detail",
+   "[17:38] вопрос",
+   "вопрос"
+  ]
+ },
+ "f04e662d": {
+  "commit": "f04e662d",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "In app/workspace.py, merging a worker's worktree branch into the target branch (squash merge) fails with a conflict when both the worker and the target branch have independently added different lines to the end of the repository's ignore file. Both sides only appended to the same base content, so this is not a real semantic conflict, yet the merge is reported as failed. Make the merge succeed in this case: the result should keep the shared base content, then the target side's new lines, then the worker's new lines, with a line added by both sides appearing only once. The tree handed to the pre-commit preparation callback must match the tree that ends up committed. Conflicts in any other file must still be reported as conflicts, and when an ordinary file conflicts together with the ignore file, only the ordinary file should be listed. A failed merge must leave the target's ignore file untouched.",
+  "hidden_literals": [
+   ".gitignore",
+   "base-entry",
+   "shared-entry",
+   "target-entry",
+   "worker-entry",
+   "tracked.txt",
+   "state",
+   "conflict",
+   "conflicts",
+   "ok"
+  ]
+ },
+ "9538e066": {
+  "commit": "9538e066",
+  "verdict": "ok",
+  "reason": "",
+  "statement": "When a user switches the model of a running Codex agent session, the session currently throws away its native Codex thread. It then starts a fresh thread and injects a provider-neutral handoff summary instead, so conversation continuity is lost and the model-change result reports that the native session was reset. Switching models within Codex should instead keep the existing native thread. The session should keep its current session id, record no handoff and no session-id history entry, and not build a handoff. The next backend it creates should resume that same thread with the newly selected model. The runtime capability declarations in app/runtime_registry.py should be consistent with this behaviour.",
+  "hidden_literals": [
+   "resume_across_models",
+   "native_session_reset",
+   "runtime_handoff",
+   "session_id_history",
+   "codex-native-session",
+   "gpt-5.6-sol",
+   "resume_session_id",
+   "_build_runtime_handoff"
+  ]
+ },
+ "c65fe53e": {
+  "commit": "c65fe53e",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "idx_logs_status",
+   "EXPLAIN QUERY PLAN output must contain the index name"
+  ]
+ },
+ "edfac435": {
+  "commit": "edfac435",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "app/static/js/theme.js",
+   "app/static/css/design-system.css",
+   "_PROVIDER_COLORS",
+   "--provider-<id>",
+   "stroke=\"#fb923c\"",
+   "theme.js script load order"
+  ]
+ },
+ "97547662": {
+  "commit": "97547662",
+  "verdict": "reject",
+  "reason": "LITERAL",
+  "statement": "",
+  "hidden_literals": [
+   "author_outcome_invalid",
+   "author_outcome_missing",
+   "review_receipt_missing",
+   "blocked",
+   "satisfied",
+   "legacy_typo"
+  ]
+ }
+}
