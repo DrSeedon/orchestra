@@ -92,3 +92,7 @@
 - `tests/test_t344_quota_lines_browser.py:686` при каждом прогоне перезаписывает отслеживаемый `.orchestra/tasks/V-862/quota-override-form.png` (так же голосовые тесты `tests/test_frontend.py` — `.orchestra/tasks/V-860/screenshots/*.png`) — рабочее дерево грязнеет после тестов; снимок надо писать во временный каталог (V-876).
 - Аналитика: подпись пула Codex «Sol · воркеры» (`_PROVIDER_META.codex.runtime` в `app/static/js/utils.js`) устарела — рабочий воркер по умолчанию Luna (V-876).
 - Дизайн-система: оставшиеся hex в объектах JS (`_orchSimple` карточек инструментов чата, опции Chart.js) и в голосовом блоке `chat.js`/`.voice-*` перевести на токены при следующей правке этих мест (V-876, `docs/design-system.md` «Что осталось на hex»).
+
+## При обновлении Claude CLI до ≥2.1.299 (V-908)
+- Явно выключить встроенный idle compaction (`"idleCompaction": false` в настройках профиля агентов или env подпроцесса в `backend_claude._make_client`), `autoCompactEnabled` не трогать. Иначе он сработает раньше нашего precompact (54 мин / 200K против 55 мин / 30%) и сожмёт хуже нашего AUDIT+FINAL.
+- После апгрейда проверить: на сессии, простоявшей 54+ мин, нет `compact_boundary` с `trigger:"auto"` и `preTokens` < 700K; повторить стрим-замер V-831.
