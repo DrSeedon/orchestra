@@ -7,6 +7,9 @@
 ## Unreleased
 
 ### Changed
+- **Project rules are a small core plus a topic registry; AGENTS.md and CLAUDE.md are one file** (`.orchestra/pipelines/default/prompts/modules/project-maintenance.md`; V-900). The shared maintenance rule now says the root rules file holds only what almost every turn needs plus a "topic → file → when to read" registry, new rules and dated owner decisions go to topic files with one line in the core, the core has a 16 KiB ceiling (half of the harness's 32 KiB truncation point) and shrinks by moving content out rather than raising the ceiling, and AGENTS.md/CLAUDE.md must be a file and a symlink, not two copies. The earlier owner-decision paragraph was merged into it, not duplicated. Trigger: one project's core grew from about 64 KB back to about 139 KB, and three projects had a diverged AGENTS.md copy. Owner decision, 2026-10-17.
+
+### Changed
 - **Candidate evaluation judges licenses by real use and requires real samples for media** (`.orchestra/pipelines/default/prompts/modules/code-quality.md`; V-894). A non-commercial license no longer rules out a candidate for personal or internal use; the restriction is recorded as a fact. The text lives in the module delivered to the orchestrator, sub-orchestrator, worker and full-cycle roles (not only the one doing research). Voice, image and video research must bring samples produced by the researcher plus public demos, not vendor scores. Trigger: a voice study discarded three candidates as non-commercial although the installation is used personally. Owner decision, 2026-10-16.
 
 ### Added
