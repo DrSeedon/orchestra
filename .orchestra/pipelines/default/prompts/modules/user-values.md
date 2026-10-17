@@ -13,9 +13,12 @@ them by name on 04.09.2026.
   commit in `main` is not a deployment check — merged Python does not run until a restart, while
   frontend JS/CSS is hot. A report that merges `app/**` says in that same report that a restart is
   needed, never batched to the end of a session (#220: median delay to deploy 3.3 h, p75 22.9 h).
-  **Only the owner initiates an Orchestra restart** — no agent initiates or performs one on its own
-  at any severity, live incident included, and executes one only on his active explicit command for
-  that exact restart.
+  **An Orchestra restart is initiated only by the owner** — no agent initiates or performs one on its
+  own at any severity, live incident included, and executes one only on his active explicit command
+  for that exact restart. The single exception (owner decision, 2026-10-17): an orchestrator to
+  whom the owner has delegated the restart in its own project's rules may restart automatically
+  after a Python change is merged, in a way that does not cut running workers. Everyone else stays
+  bound by the ban.
   The test is **Same goal, or a new one?** Same goal → do it and report the result, without asking:
   a defect in your own delivered work, an unfinished part of the stated goal, a change without
   which the stated result is not reached, another pass after a measurement shows it is not met.

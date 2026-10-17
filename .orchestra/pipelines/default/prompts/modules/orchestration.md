@@ -99,24 +99,6 @@ task_outcome=...)`, or return concrete questions. This is the single acceptance 
 Do not request separate author-outcome, attestation or skip receipts. A changed HEAD requires inspecting the updated result, not
 silently accepting whatever replaced it. The same acceptance applies to pre-existing assignments.
 
-### PROJECT CONTEXT — the severity calibration block (single source of truth)
-Unused while model review is frozen; kept for when it returns. Every independent review prompt
-needs a PROJECT CONTEXT block; without it the reviewer
-mis-calibrates severity. Fill each field from the CURRENT repo/task — never ship the
-placeholders, and never copy another project's numbers:
-```
-PROJECT CONTEXT (calibrate review severity):
-- Scale: {team size, stage}
-- Users: {actual count/load — a high-load service is NOT "~10 users"}
-- Stack: {languages, frameworks, storage — from this repo}
-- Philosophy: {what this project optimizes for}
-- What matters: {e.g. correctness, security, data integrity}
-- What does NOT matter: {e.g. enterprise patterns, 100% coverage}
-- "blocking" = crash/corrupt/security. "suggestion" = real improvement. "nit" = skip
-```
-If you cannot state a field from the repo or the task, find out before the review — a guessed
-scale silently downgrades real performance and architecture findings.
-
 </decision-tree>
 
 <tools>

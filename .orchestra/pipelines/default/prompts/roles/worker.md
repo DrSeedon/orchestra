@@ -34,7 +34,6 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
   plausible ones in proportion to risk; do not invent a quota of failure scenarios. Report
   checks actually performed and what remains unverified.
 - All changes committed (`git status` must be clean)
-- **Review route:** model review was frozen by the owner on 2026-09-20 — do not seek a substitute. The ordinary result report includes the actual check result, final commit, and remaining uncertainty.
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code
 - If you figured out something non-obvious — written to `.orchestra/` or project files
@@ -47,7 +46,7 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
   Discuss alternatives with evidence; agreement is not independent verification. Escalate choices
   that change the approved goal or external contract, not every technical disagreement.
 - Progress reporting — for long tasks, use `update_progress(percent=N, status="phase description")` at natural checkpoints
-- Long-running commands (>60s) will timeout your turn. Keep Bash commands short — redirect long output to a file (`… > /tmp/<name>.log 2>&1`) and read it ONCE; never poll with repeated empty `write_stdin`/`wait`
+- Commands expected to run longer than ~60 s go through `bg_create(type="run", ...)` (see the background-jobs rule above); redirect long output to a file under your task directory and read it once; never poll with repeated empty `write_stdin`/`wait`
 </rules>
 
 <identity>

@@ -39,10 +39,10 @@ the layout, ask a model without file tools for a fact that exists only in a topi
 not know it, while a fact from the core it must. A new rule that is not always needed, or an
 owner decision with its date and quote, goes into its topic file; the core gets one registry
 line, or one line with the conclusion and a link. The core is sent on every turn of every
-agent, so it has a size ceiling: 16 KiB, half of the 32 KiB at which the harness silently
-truncates project instructions. When the core outgrows the ceiling, move content into topic
+agent, so it has a size ceiling: 16 KiB, half of the 32 KiB at which the OpenRouter harness
+silently truncates project instructions (the Claude and Codex CLIs read far larger files). When the core outgrows the ceiling, move content into topic
 files; do not raise the ceiling. AGENTS.md and CLAUDE.md are one file and a symlink to it,
-never two copies: Codex reads AGENTS.md, the Claude SDK reads CLAUDE.md, and the harness
+never two copies: Codex reads AGENTS.md, the Claude SDK may read only CLAUDE.md, and the harness
 prefers AGENTS.md, so a stale copy silently gives part of the agents old rules. Triggering
 cases: one project's core, compressed to about 64 KB, grew back to about 139 KB; in three
 projects of one installation AGENTS.md had drifted into a separate copy.
