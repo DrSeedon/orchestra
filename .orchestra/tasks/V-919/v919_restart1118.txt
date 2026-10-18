@@ -46,8 +46,8 @@ Oct 17 11:16:53.783477 vmi3407579 python[3114402]: [kesha-tg-bot-orchestrator] h
 Oct 17 11:16:53.783477 vmi3407579 python[3114402]: INFO:app.session:[kesha-tg-bot-orchestrator] heartbeat started
 Oct 17 11:16:55.005575 vmi3407579 python[3114402]: TG incoming: chat=-1003760207564 thread=82134 from=Maxim text=
 Oct 17 11:16:55.005575 vmi3407579 python[3114402]: DEBUG:tg-bridge:TG incoming: chat=-1003760207564 thread=82134 from=Maxim text=
-Oct 17 11:16:55.397052 vmi3407579 python[3114402]: download voice_20261017_091654_248850.oga: local copy in 179ms (/home/kesha/orchestra/data/tg-bot-api/8748210717:AAEOe6URMauyMnwQMMKbWJ1gkrGW_ducV6g/voice/file_2794.oga)
-Oct 17 11:16:55.397052 vmi3407579 python[3114402]: INFO:tg-bridge:download voice_20261017_091654_248850.oga: local copy in 179ms (/home/kesha/orchestra/data/tg-bot-api/8748210717:AAEOe6URMauyMnwQMMKbWJ1gkrGW_ducV6g/voice/file_2794.oga)
+Oct 17 11:16:55.397052 vmi3407579 python[3114402]: download voice_20261017_091654_248850.oga: local copy in 179ms (/home/kesha/orchestra/data/tg-bot-api/87********:***REDACTED-V942***/voice/file_2794.oga)
+Oct 17 11:16:55.397052 vmi3407579 python[3114402]: INFO:tg-bridge:download voice_20261017_091654_248850.oga: local copy in 179ms (/home/kesha/orchestra/data/tg-bot-api/87********:***REDACTED-V942***/voice/file_2794.oga)
 Oct 17 11:16:55.537512 vmi3407579 python[3114402]: [gamelab] claude persistent event loop started
 Oct 17 11:16:55.537512 vmi3407579 python[3114402]: INFO:app.session:[gamelab] claude persistent event loop started
 Oct 17 11:16:55.537845 vmi3407579 python[3114402]: [gamelab] heartbeat started

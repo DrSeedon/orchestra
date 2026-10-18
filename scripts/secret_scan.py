@@ -45,6 +45,9 @@ RULES: tuple[tuple[str, re.Pattern[str], int, bool], ...] = tuple(
         ("github", r"(?<![A-Za-z0-9_])gh[pousr]_([A-Za-z0-9]{36})(?![A-Za-z0-9])", 1, False),
         ("github-pat", r"(?<![A-Za-z0-9_])github_pat_([A-Za-z0-9_]{70,})", 1, False),
         ("google-api-key", r"(?<![A-Za-z0-9_-])AIza([0-9A-Za-z_-]{35})(?![0-9A-Za-z_-])", 1, False),
+        # Telegram-бот: числовой id бота + ':' + ровно 35 знаков base64url. Префикс `bot` перед
+        # id допустим (так токен стоит в URL API), поэтому граница слева — только цифра.
+        ("telegram-bot", r"(?<![0-9])[0-9]{8,10}:([A-Za-z0-9_-]{35})(?![A-Za-z0-9_-])", 1, False),
         ("bearer", r"(?i:bearer)\s+([A-Za-z0-9._~+/=-]{25,})", 1, True),
         # Заголовок PEM без тела — упоминание: так он и написан в `tests/test_secret_mask.py`
         # и в `app/runtime_history.py`. Значение обязано нести тело base64.

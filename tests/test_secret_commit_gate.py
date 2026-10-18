@@ -41,6 +41,7 @@ SECRETS = {
     "google-oauth": "ya29." + _payload(_B64URL, 60, 4),
     "github": "ghp_" + _payload(_B62, 36, 5),
     "github-pat": "github_pat_" + _payload(_B62 + "_", 82, 9),
+    "telegram-bot": "bot" + _payload(string.digits, 10, 12) + ":" + _payload(_B64URL, 35, 13),
     "google-api-key": "AIza" + _payload(_B64URL, 35, 6),
     "bearer": "Authorization: Bearer " + _payload(_B62, 40, 7),
     "pem-private-key": (
@@ -80,9 +81,32 @@ def test_value_of_provider_format_is_caught(rule):
     assert any(rule in f for f in findings), f"{rule}: поймано другим правилом: {findings}"
 
 
+@pytest.mark.parametrize("fmt", ["{t}", "https://api.telegram.org/bot{t}/getMe"])
+def test_telegram_bot_token_is_caught(fmt):
+    token = _payload(string.digits, 10, 20) + ":" + _payload(_B64URL, 35, 21)
+    findings = scan_text(fmt.format(t=token), "probe.txt")
+    assert any("telegram-bot" in f for f in findings), findings
+
+
 @pytest.mark.parametrize("case", sorted(EVASIONS))
 def test_known_evasions_are_caught(case):
     assert scan_text(EVASIONS[case], "probe.txt"), f"{case}: обход не закрыт"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "https://api.telegram.org/bot<id>:<token>/getMe",
+        "bot1234567890:",
+        "bot1234567890: AAAA",
+        "12:34:56",
+        "1234567890:" + "a" * 34,
+        "1234567890:" + "a" * 36,
+        "1234567:" + _payload(_B64URL, 35, 14),
+    ],
+)
+def test_telegram_mention_or_wrong_shape_passes(text):
+    assert scan_text(text, "probe.txt") == []
 
 
 @pytest.mark.parametrize("relpath", MENTIONS)

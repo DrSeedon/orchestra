@@ -243,7 +243,7 @@ Oct 17 11:18:04.434981 vmi3407579 python[3358929]: systemd readiness published a
 Oct 17 11:18:05.012436 vmi3407579 python[3358929]: INFO:     Application startup complete.
 Oct 17 11:18:05.012825 vmi3407579 python[3358929]: INFO:     Uvicorn running on socket ('0.0.0.0', 8888) (Press CTRL+C to quit)
 Oct 17 11:18:05.502029 vmi3407579 python[3358929]: TG incoming: chat=-1003760207564 thread=82134 from=Maxim text=
-Oct 17 11:18:05.839176 vmi3407579 python[3358929]: download voice_20261017_091757_248857.oga: local copy in 267ms (/home/kesha/orchestra/data/tg-bot-api/8748210717:AAEOe6URMauyMnwQMMKbWJ1gkrGW_ducV6g/voice/file_2795.oga)
+Oct 17 11:18:05.839176 vmi3407579 python[3358929]: download voice_20261017_091757_248857.oga: local copy in 267ms (/home/kesha/orchestra/data/tg-bot-api/87********:***REDACTED-V942***/voice/file_2795.oga)
 Oct 17 11:18:05.935957 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
 Oct 17 11:18:05.942213 vmi3407579 python[3358929]: INFO:     89.23.102.244:0 - "POST /api/owner-activity/events HTTP/1.1" 200 OK
 Oct 17 11:18:06.538634 vmi3407579 python[3358929]: Deepgram: audio=8.7s size=172KB transcribe=697ms
