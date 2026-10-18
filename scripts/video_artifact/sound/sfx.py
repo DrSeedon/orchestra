@@ -15,8 +15,10 @@
       waveform + spectrogram sheet of the shortlist to audio/browse.png.
       Put the id you choose in a cue: "sound": "hit/kenney-impact-metal-heavy-2".
   sfx.py search "laptop key press" --type key [--n 6] [--out audio/candidates]
-      Nothing in the library fits: search CC0 recordings on Freesound
-      through Openverse (no key), download, prepare and judge them.
+      Nothing in the library fits: search Openverse (no key; any license, any
+      source, Jamendo included; narrow with --source freesound|jamendo and
+      --license cc0|by|...), download, prepare and judge them. Look in the
+      CC0 kit first.
   sfx.py add FILE [FILE ...] --type key [--tags "soft wood"] [--credit "..."]
       Add prepared or raw files (your own, or ones from search) to the
       library so mix.py, browse and CREDITS.md know them.
@@ -288,9 +290,11 @@ def fetch_all(jobs, workers=16):
     return errors
 
 
-def openverse(query, page=1, page_size=20):
-    q = urllib.parse.urlencode(dict(q=query, license="cc0", source="freesound",
-                                    page_size=page_size, page=page, filter_dead="true"))
+def openverse(query, page=1, page_size=20, license=None, source=None):
+    """Any license and any source unless narrowed (source e.g. freesound, jamendo)."""
+    params = dict(q=query, page_size=page_size, page=page, filter_dead="true")
+    params.update({k: v for k, v in (("license", license), ("source", source)) if v})
+    q = urllib.parse.urlencode(params)
     req = urllib.request.Request("https://api.openverse.org/v1/audio/?" + q, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=60) as r:
         return {"request_url": req.full_url, "response": json.load(r)}
@@ -497,6 +501,8 @@ def main():
     g = b.add_mutually_exclusive_group(); g.add_argument("--short", dest="length", action="store_const", const="short"); g.add_argument("--long", dest="length", action="store_const", const="long")
     g = b.add_mutually_exclusive_group(); g.add_argument("--bright", dest="tone", action="store_const", const="bright"); g.add_argument("--dark", dest="tone", action="store_const", const="dark")
     s = sub.add_parser("search"); s.add_argument("query"); s.add_argument("--type", required=True, choices=TYPES); s.add_argument("--n", type=int, default=6); s.add_argument("--out", default=os.path.join(SFX_HOME, "candidates"))
+    s.add_argument("--license", help="Openverse license filter, e.g. cc0, by; default any")
+    s.add_argument("--source", help="Openverse source filter, e.g. freesound, jamendo; default any")
     d = sub.add_parser("add"); d.add_argument("files", nargs="+"); d.add_argument("--type", required=True, choices=TYPES)
     d.add_argument("--tags", default=""); d.add_argument("--credit", default=""); d.add_argument("--kit", default=SFX_HOME)
     a = sub.add_parser("analyze"); a.add_argument("files", nargs="+"); a.add_argument("--type", required=True, choices=TYPES); a.add_argument("--out", default="audio/sfx")
@@ -515,7 +521,7 @@ def main():
         stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
         digest = hashlib.sha1(args.query.encode()).hexdigest()[:8]
         search_path = os.path.join(search_dir, f"{stamp}-{digest}.json")
-        saved = {"query": args.query, "requested": {"license": "cc0", "source": "freesound",
+        saved = {"query": args.query, "requested": {"license": args.license, "source": args.source,
                  "page_size": 20, "filter_dead": "true", "display_limit": args.n}, "pages": []}
         def save_search():
             tmp = search_path + ".part"
@@ -523,14 +529,14 @@ def main():
                 json.dump(saved, f, ensure_ascii=False, indent=1)
             os.replace(tmp, search_path)
 
-        first = openverse(args.query)
+        first = openverse(args.query, license=args.license, source=args.source)
         pages = [first]
         saved["pages"] = pages; save_search()
         for page in range(2, first["response"].get("page_count", 1) + 1):
-            pages.append(openverse(args.query, page=page))
+            pages.append(openverse(args.query, page=page, license=args.license, source=args.source))
             save_search()
         res = [item for page in pages for item in page["response"].get("results", [])]
-        if not res: print("no CC0 results; try other words"); return
+        if not res: print("no results; try other words"); return
         d = os.path.join(args.out, args.type, "_raw"); os.makedirs(d, exist_ok=True)
         for r in res[:args.n]:
             raw = os.path.join(d, f"ov-{r['id'][:8]}.mp3")

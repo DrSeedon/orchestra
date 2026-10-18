@@ -1046,19 +1046,21 @@ needs_sound_tools = pytest.mark.skipif(shutil.which("ffmpeg") is None or not Pat
 
 @needs_sound_tools
 @pytest.mark.timeout(600)
-def test_mixer_refuses_generated_sound(tmp_path):
+def test_mixer_builds_a_generated_synth_cue(tmp_path):
+    """Personal-use videos may carry generated sound (owner decision, 2026-10-18)."""
     cues = _sound_fixture(tmp_path, sound="synth:pluck")
     run = _uv_script("mix.py", cues, "--out", tmp_path / "audio")
-    assert run.returncode != 0 and "never generated" in run.stdout + run.stderr
-    assert not (tmp_path / "audio" / "mix.wav").exists()
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert (tmp_path / "audio" / "mix.wav").exists()
+    events = json.loads((tmp_path / "audio" / "mix-report.json").read_text())["events"]
+    assert events[0]["sound"] == "synth:pluck"
 
 
-def test_music_without_source_or_license_is_refused(tmp_path):
+def test_music_without_source_or_license_is_accepted_with_a_note(tmp_path):
     bed = tmp_path / "bed.wav"
-    for source, licence, missing in ((None, "CC0", "--music-source"), ("Author, title", "", "--music-license"), (None, None, "--music-source")):
-        with pytest.raises(SystemExit, match=missing):
-            make.music_credit_line(bed, source, licence, custom=True)
-    assert make.music_credit_line(bed, "Author, title, url", "CC0", custom=True) == "bed.wav: Author, title, url, CC0"
+    assert make.music_credit_line(bed, None, None, custom=True) == "bed.wav: source not recorded"
+    assert make.music_credit_line(bed, "Author, title", "", custom=True) == "bed.wav: Author, title"
+    assert make.music_credit_line(bed, "Author", "CC-BY", custom=True) == "bed.wav: Author, CC-BY"
 
 
 def test_credits_list_music_and_every_kit_recording_used(tmp_path):
@@ -1066,10 +1068,11 @@ def test_credits_list_music_and_every_kit_recording_used(tmp_path):
     (kit / "whoosh").mkdir(parents=True)
     (kit / "catalog.json").write_text(json.dumps({"sounds": [{"file": "whoosh/a.wav", "credit": '"Swipe" by Someone'}]}))
     report = tmp_path / "mix-report.json"
-    report.write_text(json.dumps({"events": [{"files": [str(kit / "whoosh/a.wav")]}, {"files": [str(tmp_path / "own.wav")]}]}))
+    report.write_text(json.dumps({"events": [{"files": [str(kit / "whoosh/a.wav")]}, {"files": [str(tmp_path / "own.wav")]}, {"files": ["synth:pluck"]}]}))
     credits = make.write_credits(tmp_path, "scene", "bed.wav: Author, CC0", report, kit).read_text()
     assert "Music: bed.wav: Author, CC0" in credits
     assert '"Swipe" by Someone, CC0' in credits and "own.wav: source not recorded" in credits
+    assert "generated: synth:pluck" in credits
 
 
 @needs_sound_tools

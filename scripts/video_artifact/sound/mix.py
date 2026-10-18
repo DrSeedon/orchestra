@@ -19,8 +19,8 @@ What it does, in order:
          a library type ("hit": rotates through that type's defaults), a
          library id you picked with `sfx.py browse` ("hit/kenney-impact-
          metal-heavy-2"), a path to any audio file you chose yourself,
-         "a+b" layers (peaks aligned, later layers -4 dB); sound is never
-         generated, "synth:" sounds are refused. "pitch" shifts a cue by semitones.
+         "a+b" layers (peaks aligned, later layers -4 dB), or synth:pluck /
+         synth:bell tuned by "note" (musical accents). "pitch" shifts a cue by semitones.
          ("align": "peak"; "end" ends on the cue; "start" starts on it).
          Repeats rotate through the kit's files with seeded +-2% pitch.
          Gain is solved per event against the music+voice bed, in the
@@ -64,7 +64,8 @@ SCHEMA = """{
     {"id": "push", "frame": 64, "sound": "whoosh", "weight": "support",
      "align": "peak", "pan": -0.3, "visual": "move"},
     {"id": "own", "t": 7.2, "sound": "audio/candidates/glitch/ov-1a2b3c4d.wav",
-     "pitch": -2}
+     "pitch": -2},
+    {"id": "accent", "t": 9.5, "sound": "synth:pluck", "note": 64}
   ]
 }
 sound: type | type/id from sfx.py browse | file path | "a+b" layers.
@@ -137,6 +138,26 @@ def peak_offset(x):
     return int(np.argmax(env))
 
 
+def synth(kind, note, seed):
+    f = 440.0 * 2 ** ((note - 69) / 12)
+    rng = np.random.default_rng(seed)
+    if kind == "pluck":          # Karplus-Strong string
+        n = int(0.9 * SR); d = max(2, int(round(SR / f)))
+        buf = rng.uniform(-1, 1, d); out = np.zeros(n)
+        for i in range(n):
+            out[i] = buf[i % d]
+            buf[i % d] = 0.996 * 0.5 * (buf[i % d] + buf[(i + 1) % d])
+        out = signal.sosfilt(signal.butter(2, 6000, "lowpass", fs=SR, output="sos"), out)
+    elif kind == "bell":         # two-operator FM bell
+        t = np.arange(int(1.6 * SR)) / SR
+        idx = 2.0 * np.exp(-t / 0.4)
+        out = np.sin(2 * np.pi * f * t + idx * np.sin(2 * np.pi * 3.5 * f * t)) * np.exp(-t / 0.55)
+    else:
+        raise SystemExit(f"unknown synth sound: {kind}")
+    out[:int(0.002 * SR)] *= np.linspace(0, 1, int(0.002 * SR))
+    return out / (np.max(np.abs(out)) + 1e-12) * undb(-3)
+
+
 class Kit:
     """Sounds from the library built by sfx.py. A cue's sound can be
     a type ("hit": rotates through that type's defaults in catalog.json, or
@@ -181,8 +202,7 @@ def build_event(cue, kit):
     seed = zlib.crc32(str(cue["id"]).encode())
     snd = cue["sound"]
     if snd.startswith("synth:"):
-        raise SystemExit(f"cue {cue['id']}: {snd} is refused, sound is never generated; "
-                         "pick a recording from the CC0 kit (sfx.py browse) or a file path")
+        x = synth(snd.split(":")[1], cue.get("note", 64), seed); return x, [snd]
     layers, used = [], []
     for i, typ in enumerate(snd.split("+")):
         y, f = kit.next(typ.strip(), seed + i)

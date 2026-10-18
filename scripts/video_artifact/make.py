@@ -547,13 +547,10 @@ def sound_cues(timing: dict, fps: int, voice: Path, music: Path | None, kit: Pat
 
 
 def music_credit_line(music: Path, source: str | None, licence: str | None, custom: bool, kit: Path = SOUND_HOME) -> str:
-    """Credit text for the music bed: a user's --music must name source and license, the kit bed carries its own."""
+    """Best-effort credit text for the music bed; missing details are noted, never refused."""
     if custom:
-        missing = [flag for flag, value in (("--music-source", source), ("--music-license", licence)) if not (value or "").strip()]
-        if missing:
-            fail(f"--music требует указать происхождение дорожки: не хватает {' и '.join(missing)}; "
-                 "звук без известных источника и лицензии в ролик не идёт")
-        return f"{music.name}: {source.strip()}, {licence.strip()}"
+        details = ", ".join(x.strip() for x in (source, licence) if (x or "").strip())
+        return f"{music.name}: {details or 'source not recorded'}"
     catalog = json.loads((kit / "catalog.json").read_text()) if (kit / "catalog.json").is_file() else {}
     entry = next((x for x in catalog.get("sounds", []) if x.get("file") == str(music.relative_to(kit))), None) \
         if music.is_relative_to(kit) else None
@@ -561,12 +558,15 @@ def music_credit_line(music: Path, source: str | None, licence: str | None, cust
 
 
 def write_credits(out: Path, name: str, music_line: str, report: Path, kit: Path = SOUND_HOME) -> Path:
-    """Credits next to the video: the music line plus every kit recording the mix used."""
+    """Side note next to the video: the music line plus every kit recording the mix used. Informational only."""
     catalog = json.loads((kit / "catalog.json").read_text()) if (kit / "catalog.json").is_file() else {}
     by_file = {x["file"]: x["credit"] for x in catalog.get("sounds", []) if x.get("credit")}
     used = []
     for event in json.loads(report.read_text()).get("events", []) if report.is_file() else []:
         for file in event.get("files", []):
+            if file.startswith("synth:"):
+                used.append(f"generated: {file}")
+                continue
             path = Path(file)
             used.append(f"{by_file[str(path.relative_to(kit))]}, CC0" if path.is_relative_to(kit) and str(path.relative_to(kit)) in by_file
                         else f"{path.name}: source not recorded")
@@ -1051,9 +1051,9 @@ def _main() -> None:
     ap.add_argument("--stress-only", action="store_true",
                     help="показать нормализованные фразы и ударения без генерации WAV")
     ap.add_argument("--fps", type=int, default=30)
-    ap.add_argument("--music", type=Path, help="своя CC0-подложка вместо подложки набора по умолчанию")
-    ap.add_argument("--music-source", help="откуда взята дорожка --music (автор, название, ссылка); пойдёт в титры ролика")
-    ap.add_argument("--music-license", help="лицензия дорожки --music (например CC0); пойдёт в титры ролика")
+    ap.add_argument("--music", type=Path, help="своя подложка (любой файл) вместо подложки набора по умолчанию")
+    ap.add_argument("--music-source", help="необязательно: откуда взята дорожка --music; попадёт в заметку об источниках")
+    ap.add_argument("--music-license", help="необязательно: лицензия дорожки --music; попадёт в заметку об источниках")
     ap.add_argument("--no-music", action="store_true", help="без подложки: только голос (и тогда без events)")
     ap.add_argument("--theme", choices=sorted(THEMES), default="paper",
                     help="paper — светлая «бумажная» тема (по умолчанию), dark — прежняя тёмная")
@@ -1192,7 +1192,10 @@ def _main() -> None:
         print("stage 4/4: mix, mux, and checks", flush=True)
         sound_mix(out, name, sheet)
         if sheet:
-            print(write_credits(out, name, music_line or "none", out / f"{name}.sound" / "mix-report.json"), flush=True)
+            try:
+                print(write_credits(out, name, music_line or "none", out / f"{name}.sound" / "mix-report.json"), flush=True)
+            except Exception as exc:
+                print(f"заметка об источниках звука не записана: {exc}", flush=True)
         mp4 = mux(out, name, sound=bool(sheet))
         print(mp4, f"{mp4.stat().st_size / 1e6:.1f} МБ")
     if sheet:

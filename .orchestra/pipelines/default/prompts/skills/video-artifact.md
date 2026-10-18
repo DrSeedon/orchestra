@@ -257,21 +257,24 @@ Output: `<name>.mp4`, `<name>.timing.json`, `<name>-contact.png` (last frame of 
 **A quiet music bed plays under the voice by default**: the first `bed` default of the sound
 kit (`bed/fs-254856-long-ambient-pad`, "Long Ambient Pad" by indigo.cloud, CC0, Freesound
 254856, first 2 s trimmed because it fades in). It loops with a crossfade and ducks during
-speech. `--music path` uses another bed and requires `--music-source "<author, title, url>"` and
-`--music-license "<license>"`; without both the run is refused, because sound of unknown origin does not
-ship. `--no-music` builds voice only (then without events). For a sound-enabled step,
+speech. `--music path` uses any audio file (yours, generated, or someone else's); `--music-source` and
+`--music-license` are optional notes for the credits side file. `--no-music` builds voice only
+(then without events). For a sound-enabled step,
 declare real actions in `STEPS` as `events: [{id, at, sound, weight, visual}]`. `at` is seconds
 from that step's start; `sound` is a picked kit id or layer expression, `weight` is `support` or
 `hero`, and `visual` is `cut`, `move`, `land`, or `appear` only when the picture has that motion.
 `make.py` maps the event through `timing.json` to its exact frame/time; never type frame numbers.
-Events play over the bed; `--no-music` with events is rejected. Sound is never generated: the
-mixer refuses `synth:` sounds, so every cue is a kit recording or a file you chose and can attribute.
-The video's credits are written next to it as `<name>.credits.md` (music line plus every kit recording used).
+Events play over the bed; `--no-music` with events is rejected. Cues may be kit recordings, any
+file you choose, or generated `synth:pluck` / `synth:bell` accents. Basis (owner decision,
+2026-10-18): our videos are personal use only and never shown publicly, so no license
+restriction applies to music or effects and nothing is credited on the video. A best-effort side
+note `<name>.credits.md` lists the music and the kit recordings used; it never blocks a build.
 
 Install the kit only at `~/.local/share/orchestra-sfx/` with `uv run --script
 scripts/video_artifact/sound/sfx.py kit`. Review candidates with `sfx.py browse --type <type>
---like "<material, weight, mood>"`; use `search`/`add` only for CC0 sources. Inspect the chosen
-recordings' waveform and spectrogram. Never synthesize any sound. Do not call a sound good: report
+--like "<material, weight, mood>"`; look in the CC0 kit first, then `search` Openverse (any
+license and source by default; `--source jamendo` for music, `--license cc0` to narrow) and `add`
+what you pick. Inspect the chosen recordings' waveform and spectrogram. Do not call a sound good: report
 the measured `qa.py` checks and leave the final ear check to a person. To make that check
 targeted, `qa.py` writes `<name>.sound/ear-check/` from the encoded MP4: a frame just before and
 just after every event (`<id>-before.png`, `<id>-after.png`) and `ear-check.md` with at most five
