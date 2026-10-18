@@ -303,3 +303,69 @@ def test_current_laptop_copy_skips_archive_integrity_and_hash_checks(
     assert "cat --" in ssh_calls[0]
     assert "sha256sum" not in ssh_calls[0]
     assert "zstd" not in ssh_calls[0]
+
+
+class _Listening:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+
+def _probe(monkeypatch: pytest.MonkeyPatch, *, stderr: str = "", returncode: int = 0, hang: bool = False):
+    """Tunnel port listens (as on the VPS while the laptop sleeps); ssh behaves as given."""
+    monkeypatch.setattr(backup.socket, "create_connection", lambda *_a, **_k: _Listening())
+
+    def run(cmd, **kwargs):
+        if hang:
+            raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+        return SimpleNamespace(returncode=returncode, stdout="", stderr=stderr)
+
+    monkeypatch.setattr(backup.subprocess, "run", run)
+    return backup._laptop_tunnel_available()
+
+
+@pytest.mark.parametrize("stderr", [
+    "Connection timed out during banner exchange",
+    "kex_exchange_identification: read: Connection reset by peer",
+    "ssh: connect to host 127.0.0.1 port 2222: Connection refused",
+])
+def test_sleeping_laptop_behind_listening_tunnel_is_unavailable(monkeypatch, stderr):
+    assert _probe(monkeypatch, stderr=stderr, returncode=255) is False
+
+
+def test_hanging_ssh_probe_is_unavailable(monkeypatch):
+    assert _probe(monkeypatch, hang=True) is False
+
+
+def test_reachable_laptop_is_available_and_auth_failure_stays_visible(monkeypatch):
+    assert _probe(monkeypatch) is True
+    assert _probe(monkeypatch, stderr="Permission denied (publickey).", returncode=255) is True
+
+
+@pytest.mark.parametrize("flag", ["--push-task-store", "--daily"])
+def test_banner_timeout_behind_open_port_exits_zero_silently(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], flag: str,
+):
+    """V-957: the hourly and daily jobs must not alarm while the laptop sleeps."""
+    db_path = tmp_path / "orchestra.db"
+    archive = tmp_path / "orchestra-db-2026-10-09.sqlite.zst"
+    manifest = tmp_path / "orchestra-db-2026-10-09.json"
+    archive.write_bytes(b"archive")
+    manifest.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["orchestra_backup.py", flag])
+    monkeypatch.setattr(backup, "_service_paths", lambda: (db_path, tmp_path / "tasks"))
+    monkeypatch.setattr(backup, "_scan_and_push_tasks", lambda _repo: None)
+    monkeypatch.setattr(backup, "_make_daily_backup", lambda *_args: (archive, manifest))
+    monkeypatch.setattr(backup, "_copy_to_laptop", lambda *_a: pytest.fail("laptop unreachable"))
+    monkeypatch.setattr(backup, "_ssh", lambda *_a: pytest.fail("laptop unreachable"))
+    monkeypatch.setattr(backup.socket, "create_connection", lambda *_a, **_k: _Listening())
+    monkeypatch.setattr(
+        backup.subprocess, "run",
+        lambda cmd, **_k: SimpleNamespace(
+            returncode=255, stdout="", stderr="Connection timed out during banner exchange"),
+    )
+
+    assert backup.main() == 0
+    assert capsys.readouterr().err == ""

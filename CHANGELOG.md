@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Backup no longer alarms while the laptop sleeps** (`scripts/orchestra_backup.py`, `_laptop_tunnel_available`; V-957). The probe was a bare TCP connect to the reverse-tunnel port, which the VPS keeps open even when the laptop is asleep, so the next ssh died with `Connection timed out during banner exchange` and the hourly `--push-task-store` job printed `BACKUP_FAILURE step=laptop` and exited 1 every hour. The probe now runs `ssh ... true` (ConnectTimeout 5, 10 s cap); a connection-level failure (timeout, banner/kex, refused, reset, no route) or a hanging probe means "laptop offline" and the laptop step is skipped with rc=0, like a missing listener. Auth failures, rsync errors, checksum mismatch and a copy older than 3 days still produce `BACKUP_FAILURE`. `--daily` shares the same function. Known tradeoff: a laptop that goes to sleep between the probe and the copy still fails that run once.
+
 ### Changed
 - **Knowledge-base entries about the effect of a change carry a verdict and a cue** (`.orchestra/pipelines/default/prompts/modules/knowledge.md`; V-956). An entry about a prompt, rule, mechanism or model-route change must say `helped`/`hurt`/`no observed effect`/`confounded` on the basis of a before/after or with/without contrast, plus when to apply the lesson; without a contrast it is `confounded` or not written. Other findings are unchanged: no format is required for them. Owner decision, 2026-10-18; no automatic experience-to-rules loop was added.
 ### Added

@@ -270,12 +270,36 @@ def _remote_size(path: Path) -> int:
         return 0
 
 
+_UNREACHABLE_MARKERS = (
+    "timed out", "connection refused", "connection closed", "connection reset",
+    "no route to host", "network is unreachable", "banner exchange", "kex_exchange_identification",
+)
+
+
 def _laptop_tunnel_available() -> bool:
+    """True when the laptop answers over SSH, not merely when the tunnel port listens.
+
+    The VPS keeps the reverse-tunnel port open while the laptop sleeps, so a TCP connect
+    passes and the next ssh dies in banner exchange (V-957). Connection-level failures mean
+    "laptop offline"; anything else (auth, remote shell) is a real fault that must surface.
+    """
     try:
         with socket.create_connection(("127.0.0.1", int(LAPTOP_PORT)), timeout=1):
-            return True
+            pass
     except OSError:
         return False
+    try:
+        result = subprocess.run(
+            ["ssh", "-i", LAPTOP_KEY, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
+             "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
+             "-p", LAPTOP_PORT, LAPTOP, "true"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        return False
+    if result.returncode == 255:
+        return not any(m in result.stderr.lower() for m in _UNREACHABLE_MARKERS)
+    return True
 
 
 def _latest_laptop_backup_created_at() -> datetime | None:
