@@ -1,0 +1,32 @@
+{
+ "559994_33044-hq": {
+  "known_bpm": 108,
+  "librosa_bpm": 143.6,
+  "beats": 84,
+  "loop_s": 8.89,
+  "low_peaks": 86,
+  "beat_minus_lowband_median_s": 0.029,
+  "beat_minus_lowband_p10_p90_s": [
+   -0.171,
+   0.186
+  ],
+  "within_50ms_pct": 34.5,
+  "beat_period_s": 0.418,
+  "true_period_s": 0.556
+ },
+ "160711_33044-hq": {
+  "known_bpm": 90,
+  "librosa_bpm": 89.1,
+  "beats": 43,
+  "loop_s": 10.67,
+  "low_peaks": 36,
+  "beat_minus_lowband_median_s": -0.0,
+  "beat_minus_lowband_p10_p90_s": [
+   -0.659,
+   0.58
+  ],
+  "within_50ms_pct": 25.6,
+  "beat_period_s": 0.673,
+  "true_period_s": 0.667
+ }
+}
