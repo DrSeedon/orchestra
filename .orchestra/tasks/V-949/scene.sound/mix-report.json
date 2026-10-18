@@ -1,0 +1,10 @@
+{
+ "cues_file": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.sound/cues.json",
+ "fps": 30,
+ "duration_s": 58.184,
+ "target_lufs": -18,
+ "master_lufs": -18.0,
+ "master_true_peak_db": -2.89,
+ "master_gain_db": -1.61,
+ "events": []
+}

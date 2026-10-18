@@ -1,0 +1,47 @@
+stage 1/4: scene and speech plan
+ударения: /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.stress.txt
+озвучка: 1/9, осталось ~0 с
+озвучка: 2/9, осталось ~0 с
+озвучка: 3/9, осталось ~0 с
+озвучка: 4/9, осталось ~0 с
+озвучка: 5/9, осталось ~0 с
+озвучка: 6/9, осталось ~0 с
+озвучка: 7/9, осталось ~0 с
+озвучка: 8/9, осталось ~0 с
+озвучка: 9/9, осталось ~0 с
+stage 2/4: timing plan ready
+кадры HTML: 1/9, осталось ~230 с
+кадры HTML: 2/9, осталось ~102 с
+кадры HTML: 3/9, осталось ~68 с
+кадры HTML: 4/9, осталось ~46 с
+кадры HTML: 5/9, осталось ~32 с
+кадры HTML: 6/9, осталось ~28 с
+кадры HTML: 7/9, осталось ~18 с
+кадры HTML: 8/9, осталось ~15 с
+кадры HTML: 9/9, осталось ~0 с
+    0.35–  6.48  шаг  7.03 с  Оркестра это команда ИИ-агентов: они часами работают сами и запускают долгие фоновые задания.
+    7.38– 11.12  шаг  4.65 с  Но иногда платформу надо перезапустить, чтобы включить новый код.
+   12.03– 18.73  шаг  7.60 с  Раньше перезапуск застал за работой пятерых агентов, и у двоих работа молча пропала: это сорок процентов.
+   19.62– 24.36  шаг  5.63 с  Фоновые задания, например длинный прогон тестов, обрывались, и всё запускали заново.
+   25.26– 31.58  шаг  7.22 с  Теперь номер разговора запоминается в начале х+ода, и агента поднимают словами: продолжай с м+еста остановки.
+   32.48– 38.16  шаг  6.58 с  А фоновое задание пишет вывод и код завершения в файл, и новый процесс отдаёт результат агенту.
+   39.06– 45.48  шаг  7.32 с  Проверка в тот же день: пауза сорок секунд, поднято двадцать пять заданий, два бежали прямо во время перезапуска.
+   46.38– 50.99  шаг  5.51 с  Честный минус: команды внутри х+ода обрываются, а на время рестарта агенты ждут.
+   51.90– 54.58  шаг  4.64 с  Рестарт теперь просто пауза, а не потеря работы.
+длина ролика 58.2 с
+stage 3/4: rendering frames
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene-contact.png
+stage 4/4: mix, mux, and checks
+mix.wav  -18.0 LUFS  TP -2.89 dBTP  events 0
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.credits.md
+pass  offset                 encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]
+pass  loudness               integrated -18.02 LUFS, target -18
+pass  true peak              -2.90 dBTP (limit -1.0)
+pass  voice                  music sits 16.0 LU under the voice (median while speaking)
+pass  music                  median -32.1 LUFS short-term; unplanned dips at []
+pass  silence                none
+
+PASSED: 0 failed, 0 warnings. Picture: /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.sound/qa.png  Ear check: /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.sound/ear-check
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.mp4 6.9 МБ
+проверка распознаванием пропущена: нет DEEPGRAM_API_KEY
+EXIT=0

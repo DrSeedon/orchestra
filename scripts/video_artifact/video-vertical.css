@@ -1,0 +1,9 @@
+/* Кадр 9:16 (V-949): 720×1280 CSS-пикселей → видео 1080×1920. Только раскладка; цвета берёт тема.
+   Сцена рисует схему под вертикальный холст (viewBox 0 0 720 720), а не обрезает 16:9.
+   Низ кадра занимает интерфейс Shorts/Reels/Клипов, поэтому субтитр поднят: нижний край 1048 CSS = 1572 px видео
+   при границе безопасной зоны 1580; боковые поля 80 CSS = 120 px видео (колонка кнопок справа). */
+html[data-format=vertical] .mv{padding:120px 0 0}
+html[data-format=vertical] .cap{margin:0 80px 232px;height:200px;font-size:38px;line-height:1.25;font-weight:600;border-top:0}
+html[data-format=vertical] .cap b{display:none}
+html[data-format=vertical] #capB{top:0;height:100%;display:flex;align-items:center;justify-content:center}
+html[data-format=vertical] #paper-hook{font-size:64px!important;left:80px!important;right:80px!important}

@@ -154,9 +154,34 @@
       el.textContent = text.slice(0, n) + (cursor && (n < text.length || blink) ? '▌' : '');
     },
 
+    /** Hook (V-949): make.py --hook "claim with a number" shows it over the first seconds, before the
+     *  voice carries the story. Numbers are tinted; it fades out over its last 0.4 s. Pure in t. */
+    hook(t) {
+      const h = window.__HOOK;
+      if (!h) return;
+      let el = document.getElementById('paper-hook');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'paper-hook';
+        el.style.cssText = 'position:fixed;left:8%;right:8%;top:30%;transform:translateY(-50%);text-align:center;' +
+          'font:800 56px/1.12 Manrope,system-ui,sans-serif;color:#16171b;background:rgba(246,247,249,.94);' +
+          'padding:28px 0;border-radius:24px;box-shadow:0 6px 30px rgba(22,23,27,.18)';
+        h.text.split(/(\d+(?:[.,]\d+)?\s?%?)/).forEach((part, i) => {
+          const span = document.createElement('span');
+          span.textContent = part;
+          if (i % 2) span.style.color = Paper.ORANGE;
+          el.append(span);
+        });
+        document.body.append(el);
+      }
+      el.style.opacity = (1 - ease((t - (h.until - .4)) / .4)).toFixed(3);
+      el.style.visibility = t >= h.until ? 'hidden' : 'visible';
+    },
+
     /** Video chrome of the paper theme, called by make.py after every P.seek(t):
      *  a thin progress bar at the bottom edge and a short blur when the caption changes. */
     chrome(t) {
+      Paper.hook(t);
       if (document.documentElement.dataset.theme !== 'paper' || typeof P === 'undefined') return;
       let bar = document.getElementById('paper-progress');
       if (!bar) { bar = document.createElement('div'); bar.id = 'paper-progress'; document.body.append(bar); }

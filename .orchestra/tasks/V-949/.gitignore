@@ -1,0 +1,4 @@
+.tts-cache/
+frames/
+*.wav
+scene.sound/stems/

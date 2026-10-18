@@ -7,7 +7,7 @@ description: "Create and deliver a 30–90 s MP4 explainer in the light paper st
 
 A video is a scene voiced step by step: load `html-artifacts` and read its
 `references/animation.md` for HTML diagrams, or use Manim for charts and mathematics in motion.
-This skill adds voice, the 16:9 frame,
+This skill adds voice, the 16:9 frame (or 9:16 with `--format vertical`),
 and video-specific checks. Numbers and facts come from a source (report, data, or code), as in
 every artifact.
 
@@ -198,6 +198,25 @@ dvi`, read the `!` line in the indicated `.log`: usually a missing package (`tlm
 <package>`, see Environment) or an unescaped `%`/`&` in `Tex`. Formula example:
 `.orchestra/tasks/V-685/compact55.py`. Frame is 14.2×8 units centered at (0, 0); subtitles use
 about one unit below and heading is upper-left: keep objects in y ∈ [−2.6, 3].
+
+## Vertical 9:16 (Shorts, Reels, VK Клипы), opt-in
+
+`make.py scene.html --out DIR --format vertical --hook "Claim with a number"` renders 1080×1920
+(CSS 720×1280); without `--format` nothing changes (1920×1080). Design the scene for the tall
+frame, do not crop a 16:9 one:
+- The stage gets about 720×728 CSS px and the caption sits above the platform UI, so stack
+  diagrams in a column (rows of full-width cards, vertical flows, big numbers left, labels right)
+  and write at font-size 30+ in SVG units. Keep `viewBox` 720 wide: `viewBox="0 0 720 720"`, or reuse
+  the painted scenes, which live in 1280-wide world coordinates, with `viewBox="280 0 720 720"`
+  (the strip around the monitor, x 280…1000; picture box `{x: 280, y: 20, w: 720, h: 600}`).
+- Captions are 38 px (57 px in the video), up to four lines. The build fails when any caption or
+  the hook leaves the safe area (x 120…960, y 250…1580 in video pixels), so shorten `sub` text.
+- `--hook` is a short on-screen claim with a digit (refused without one), shown over the first
+  2.6 s, before the voice has told the story: the first frame is the claim, not the painting.
+  Numbers are tinted. Prefer a statement with a number ("Night request answered in 40 seconds").
+- Aim for 45–60 s and 8–10 steps (V-947: best reach at that length). The contact sheet is six
+  frames per row. Manim: `--format vertical` renders `-r 1080,1920` (frame 4.5×8 Manim units), and
+  `wrap_caption` follows the narrow width; lay the scene out for that frame yourself.
 
 ## Build
 

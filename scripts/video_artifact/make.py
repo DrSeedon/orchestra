@@ -13,7 +13,7 @@
 на экране выглядит странно), иначе сама фраза. Сцена получает длительности через `window.voice?.(STEPS)` — строку сразу
 после массива STEPS; без неё ролик не собирается (проверяется).
 
-Результат в DIR: `<имя>.mp4` (1920×1080, H.264 + AAC), `<имя>.timing.json` (когда звучит
+Результат в DIR: `<имя>.mp4` (1920×1080, с `--format vertical` 1080×1920; H.264 + AAC), `<имя>.timing.json` (когда звучит
 каждая фраза), `<имя>-contact.png` (кадры конца шагов для просмотра глазами) и, если
 есть DEEPGRAM_API_KEY, `<имя>.check.json` — распознанный текст и сдвиг каждой фразы.
 
@@ -69,8 +69,12 @@ MANIM_HOME = Path(os.environ.get("ORCHESTRA_MANIM_HOME", Path.home() / ".local/s
 MANIM_BIN = MANIM_HOME / "env/bin"
 BUILD_LOCK_PATH = Path.home() / ".cache/orchestra-video-artifact/build.lock"
 SR = 48000
-VIEW = {"width": 1280, "height": 720}
-SCALE = 1.5  # 1280×720 CSS-пикселей → кадр 1920×1080
+FRAMES = {"landscape": {"width": 1280, "height": 720}, "vertical": {"width": 720, "height": 1280}}
+SCALE = 1.5  # 1280×720 CSS-пикселей → кадр 1920×1080; 720×1280 → 1080×1920
+# Безопасная зона вертикального кадра в пикселях видео (V-949): сверху и снизу интерфейс Shorts/Reels/Клипов
+# (заголовок, подпись автора, кнопки), справа колонка кнопок. Субтитр и хук держатся внутри.
+SAFE_VERTICAL = {"left": 120, "right": 960, "top": 250, "bottom": 1580}
+HOOK_SECONDS = 2.6  # тезис-хук держится на экране это время, последние 0.4 с гаснет
 LEAD = 0.35  # фраза вступает чуть позже смены состояния: глаз успевает за ухом
 GAP = 0.55  # пауза после фразы до следующего шага
 PRE, POST = 0.4, 1.6  # стоп-кадр до начала и после конца
@@ -144,26 +148,60 @@ def paper_scenes() -> dict:
     return {name: {**meta, "svg": (HERE / "scenes" / f"{name}.svg").read_text()} for name, meta in index.items()}
 
 
+def frame_format() -> str:
+    """Формат кадра сборки: как и тема, его в подпроцессы кадров передаёт окружение."""
+    return os.environ.get("VIDEO_ARTIFACT_FORMAT", "landscape")
+
+
 def open_scene(pw, scene: Path, voice: dict | None, theme: str = "paper"):
+    fmt = frame_format()
     browser = pw.chromium.launch()
-    page = browser.new_page(viewport=VIEW, device_scale_factor=SCALE)
+    page = browser.new_page(viewport=FRAMES[fmt], device_scale_factor=SCALE)
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.add_init_script(f"window.__PAPER_SCENES = {json.dumps(paper_scenes(), ensure_ascii=False)};")
     page.add_init_script((HERE / "paper.js").read_text())
+    if hook := os.environ.get("VIDEO_ARTIFACT_HOOK"):
+        page.add_init_script(f"window.__HOOK = {{text: {json.dumps(hook, ensure_ascii=False)}, until: {HOOK_SECONDS}}};")
     if voice is not None:
         page.add_init_script(VOICE_JS % json.dumps(voice, ensure_ascii=False))
     page.goto(scene.resolve().as_uri())
     if errors:
         fail(f"ошибки JS в сцене: {errors}")
-    page.add_style_tag(content=font_css() + "\n" + (HERE / THEMES[theme]).read_text())
-    page.evaluate("theme => { document.documentElement.dataset.theme = theme; }", theme)
+    page.add_style_tag(content=font_css() + "\n" + (HERE / THEMES[theme]).read_text() + "\n" + (HERE / "video-vertical.css").read_text())
+    page.evaluate("([theme, fmt]) => { document.documentElement.dataset.theme = theme; document.documentElement.dataset.format = fmt; }",
+                  [theme, fmt])
     page.evaluate("document.fonts.ready")
     page.evaluate(SEEK_JS, page.evaluate("P.t"))  # перерисовать подписи после смены шрифта и вёрстки
     if issues := page.evaluate("window.Paper ? Paper.supportIssues() : []"):
         fail("картина: предметы висят в воздухе или стоят мимо опоры — " + "; ".join(issues))
     return browser, page
+
+
+SAFE_JS = """() => {
+  const out = [];
+  const rect = el => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect(); };
+  for (const el of document.querySelectorAll('#capX, #paper-hook')) {
+    if (!el.offsetParent && getComputedStyle(el).position !== 'fixed') continue;
+    const r = rect(el), k = %s;
+    if (r.width) out.push({what: el.id, left: r.left * k, right: r.right * k, top: r.top * k, bottom: r.bottom * k});
+  }
+  return out;
+}"""
+
+
+def safe_area_issues(page, where: str) -> list[str]:
+    """Вертикальный кадр: текст субтитра и хука целиком внутри безопасной зоны площадок (пиксели видео)."""
+    if frame_format() != "vertical":
+        return []
+    box, issues = SAFE_VERTICAL, []
+    for r in page.evaluate(SAFE_JS % SCALE):
+        if r["left"] < box["left"] - 1 or r["right"] > box["right"] + 1 or r["top"] < box["top"] - 1 or r["bottom"] > box["bottom"] + 1:
+            issues.append(f"{where}: {'субтитр' if r['what'] == 'capX' else 'хук'} выходит за безопасную зону "
+                          f"{box['left']}…{box['right']}×{box['top']}…{box['bottom']}: "
+                          f"x {r['left']:.0f}…{r['right']:.0f}, y {r['top']:.0f}…{r['bottom']:.0f}")
+    return issues
 
 
 # ---------- озвучка ----------
@@ -616,16 +654,23 @@ def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: boo
         if not applied[0] or abs(applied[1] - timing["T"]) > 1e-6:
             fail("сцена не приняла длительности озвучки: после `const STEPS = [...]` нужна строка "
                  "`window.voice?.(STEPS);` до кода плеера")
-        stills = []
+        stills, issues = [], []
+        if frame_format() == "vertical":
+            page.evaluate(SEEK_JS, 0)
+            issues += safe_area_issues(page, "первый кадр")
         for i, row in enumerate(timing["steps"]):
             t = row["step_start"] + row["d"] - 0.05
             page.evaluate(SEEK_JS, t)
+            issues += safe_area_issues(page, f"шаг {i + 1}")
             path = frames_dir / f"step{i + 1:02d}.png"
             page.screenshot(path=str(path))
             stills.append(path)
-        tile = f"tile=3x{(len(stills) + 2) // 3}"
+        if issues:
+            fail("; ".join(issues) + ". Сократи `sub` или `--hook`")
+        wide = frame_format() == "landscape"
+        tile = f"tile={3 if wide else 6}x{(len(stills) + 2) // 3 if wide else (len(stills) + 5) // 6}"
         run("ffmpeg", "-v", "error", "-y", "-pattern_type", "glob", "-i", str(frames_dir / "step*.png"),
-            "-vf", f"scale=640:-1,{tile}", "-frames:v", "1", str(out / f"{name}-contact.png"))
+            "-vf", f"scale={640 if wide else 320}:-1,{tile}", "-frames:v", "1", str(out / f"{name}-contact.png"))
         browser.close()
     if not video:
         return
@@ -731,7 +776,8 @@ def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps:
     --stills тоже рендерит, но в 480p: кадр Manim нельзя снять без проигрыша сцены до него."""
     media = out / ".manim"
     fresh_text_cache(media)
-    quality = ["-r", "1920,1080", "--fps", str(fps)] if video else ["-ql"]
+    size = "1080,1920" if frame_format() == "vertical" else "1920,1080"
+    quality = ["-r", size, "--fps", str(fps)] if video else ["-ql"]
     voice = {"d": [row["d"] for row in timing["steps"]], "pre": PRE, "post": POST}
     run(str(MANIM_BIN / "manim"), "render", *quality, "--media_dir", str(media), "-o", name,
         str(scene.resolve()), cls,
@@ -1055,6 +1101,9 @@ def _main() -> None:
     ap.add_argument("--music-source", help="необязательно: откуда взята дорожка --music; попадёт в заметку об источниках")
     ap.add_argument("--music-license", help="необязательно: лицензия дорожки --music; попадёт в заметку об источниках")
     ap.add_argument("--no-music", action="store_true", help="без подложки: только голос (и тогда без events)")
+    ap.add_argument("--format", choices=sorted(FRAMES), default="landscape", dest="frame",
+                    help="vertical — 1080×1920 для Shorts/Reels/Клипов (сцена с вертикальной раскладкой); по умолчанию landscape 1920×1080")
+    ap.add_argument("--hook", help="тезис с цифрой поверх первых секунд ролика (вертикальный формат: до первой фразы, без озвучки)")
     ap.add_argument("--theme", choices=sorted(THEMES), default="paper",
                     help="paper — светлая «бумажная» тема (по умолчанию), dark — прежняя тёмная")
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
@@ -1067,6 +1116,12 @@ def _main() -> None:
     ap.add_argument("--no-check", action="store_true")
     ap.add_argument("--check-only", action="store_true", help="только проверить готовый MP4")
     args = ap.parse_args()
+    if args.hook is not None and not re.search(r"\d", args.hook):
+        fail("--hook — короткий тезис с цифрой («Рестарт без потерь: пауза 40 секунд»); цифры в нём нет")
+    os.environ["VIDEO_ARTIFACT_FORMAT"] = args.frame
+    os.environ.pop("VIDEO_ARTIFACT_HOOK", None)
+    if args.hook:
+        os.environ["VIDEO_ARTIFACT_HOOK"] = args.hook
     os.environ["VIDEO_ARTIFACT_THEME"] = args.theme  # Manim-подпроцессы (сборка, предпросмотр, тайминг) берут тему отсюда
     out, name = args.out, args.scene.stem
     out.mkdir(parents=True, exist_ok=True)

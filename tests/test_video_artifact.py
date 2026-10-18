@@ -1093,3 +1093,78 @@ def test_qa_writes_frames_around_events_and_at_most_five_timestamps(tmp_path):
     picks = json.loads((ear / "ear-check.json").read_text())["timestamps"]
     assert 1 <= len(picks) <= 5 and all(item["reason"].strip() for item in picks)
     assert [item["t"] for item in picks] == sorted(item["t"] for item in picks)
+
+
+_VERTICAL_SCENE = """<!doctype html><html><head><meta charset="utf-8"></head><body>
+<div class="mv"><h1>Title</h1><div class="stg"><svg id="stage" viewBox="0 0 720 720"></svg></div>
+<div class="cap"><div id="capA"><b></b><span id="capX">%s</span></div><div id="capB"><b></b><span></span></div></div></div>
+<script>
+const STEPS = [{t: 'a', say: 'x', d: 1}, {t: 'b', say: 'y', d: 1}];
+window.voice?.(STEPS);
+const P = {t: 0, T: 2, S: [0, 1], seek(t) { this.t = t; }};
+</script></body></html>"""
+
+
+def _vertical_probe(tmp_path, monkeypatch, caption="Рестарт теперь просто пауза, а не потеря работы агентов.", hook=None, t=0.0):
+    monkeypatch.setenv("VIDEO_ARTIFACT_FORMAT", "vertical")
+    if hook:
+        monkeypatch.setenv("VIDEO_ARTIFACT_HOOK", hook)
+    scene = tmp_path / "scene.html"
+    scene.write_text(_VERTICAL_SCENE % caption)
+    with make.sync_playwright() as playwright:
+        browser, page = make.open_scene(playwright, scene, {"d": [1, 1]})
+        page.evaluate(make.SEEK_JS, t)
+        size = page.screenshot()[16:24]
+        issues = make.safe_area_issues(page, "probe")
+        hook_state = page.evaluate("""() => { const h = document.getElementById('paper-hook');
+            return h && {opacity: h.style.opacity, visibility: h.style.visibility, text: h.textContent}; }""")
+        browser.close()
+    return int.from_bytes(size[:4], "big"), int.from_bytes(size[4:], "big"), issues, hook_state
+
+
+def test_vertical_format_renders_1080x1920_with_caption_in_safe_area_and_landscape_stays_default(tmp_path, monkeypatch):
+    width, height, issues, _ = _vertical_probe(tmp_path, monkeypatch)
+    assert (width, height) == (1080, 1920) and issues == []
+    monkeypatch.delenv("VIDEO_ARTIFACT_FORMAT")
+    assert make.frame_format() == "landscape"
+    scene = tmp_path / "scene.html"
+    with make.sync_playwright() as playwright:
+        browser, page = make.open_scene(playwright, scene, {"d": [1, 1]})
+        assert len(page.screenshot()) > 0 and page.evaluate("[innerWidth * devicePixelRatio, innerHeight * devicePixelRatio]") == [1920, 1080]
+        browser.close()
+
+
+def test_vertical_caption_too_long_for_the_safe_area_fails_the_build_check(tmp_path, monkeypatch):
+    _, _, issues, _ = _vertical_probe(tmp_path, monkeypatch, caption="очень длинная подпись " * 14)
+    assert issues and "субтитр" in issues[0]
+
+
+def test_hook_shows_in_the_first_frame_inside_the_safe_area_and_fades_out(tmp_path, monkeypatch):
+    hook = "Ночная заявка — ответ за 40 секунд"
+    _, _, issues, shown = _vertical_probe(tmp_path, monkeypatch, hook=hook, t=0.0)
+    assert issues == [] and shown["text"] == hook and float(shown["opacity"]) == 1 and shown["visibility"] == "visible"
+    _, _, _, gone = _vertical_probe(tmp_path, monkeypatch, hook=hook, t=make.HOOK_SECONDS + 0.1)
+    assert gone["visibility"] == "hidden"
+
+
+def test_hook_without_a_number_is_refused_before_any_work(tmp_path, monkeypatch):
+    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--format", "vertical", "--hook", "Рестарт без потерь"])
+    monkeypatch.setattr(make, "read_steps", lambda *_: pytest.fail("сборка началась до проверки хука"))
+    with pytest.raises(SystemExit, match="цифры"):
+        make.main()
+
+
+@pytest.mark.skipif(not MANIM_PY.exists(), reason="окружение Manim не установлено")
+def test_manim_caption_wraps_inside_the_narrow_vertical_frame(tmp_path):
+    run = _manim("""
+config.frame_size = (1080, 1920)
+config.frame_width = config.frame_height * config.aspect_ratio  # как делает разбор -r в CLI
+class S(VoiceScene):
+    STEPS = [{"t": "t", "say": "x"}]
+s = S(); s.setup()
+lines = s.wrap_caption("Перезапуск теперь просто пауза, а не потеря работы агентов и заданий")
+widest = max(s.text(l, 26).width for l in lines)
+assert config.frame_width == 4.5 and len(lines) >= 3 and widest <= 4.5 - 2 * s.CAPTION_MARGIN, (config.frame_width, lines, widest)
+print("ok")
+""", tmp_path)
+    assert run.returncode == 0 and "ok" in run.stdout, run.stderr

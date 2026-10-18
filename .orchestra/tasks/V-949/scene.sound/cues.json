@@ -1,0 +1,20 @@
+{
+ "fps": 30,
+ "duration_s": 58.184,
+ "energy": "calm",
+ "lufs": -18,
+ "kit": "/home/kesha/.local/share/orchestra-sfx",
+ "music": {
+  "file": "/home/kesha/.local/share/orchestra-sfx/bed/fs-254856-long-ambient-pad.wav",
+  "start_s": 0,
+  "loop": true,
+  "fade_out_s": 1.0
+ },
+ "voice": [
+  {
+   "file": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-949/scene.voice.wav",
+   "start_s": 0
+  }
+ ],
+ "cues": []
+}
