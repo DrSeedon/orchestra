@@ -34,6 +34,13 @@ and the reason for the conclusion. Distinguish measured behavior from interpreta
 untested hypotheses. "Failed in this experiment" does not mean "never works".
 Link to inspected evidence or a recorded experiment; do not make up missing provenance.
 There is no required card, status vocabulary, fact ID, receipt, section count or line format.
+One exception (owner decision, 2026-10-18): an entry about the effect of a change (a prompt,
+rule, mechanism or model route) states a verdict, `helped`, `hurt`, `no observed effect` or
+`confounded`, resting on a contrast between runs before/after or with/without the change, and a
+`cue`: the situation in which to apply the lesson. Without such a contrast write `confounded`, or
+no entry; an invented cause is worse. Other findings need neither. Reason: in a published
+agent-harness study (arXiv 2610.14224) editing the base harness directly, without contrasted
+runs, lowered the result, and its framework keeps a lesson only when runs can be contrasted.
 
 Search for an existing entry first. Another confirmation extends its conditions/evidence;
 a contradicting experiment qualifies or replaces the conclusion. Keep the decisive reason
