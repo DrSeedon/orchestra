@@ -84,3 +84,24 @@ async def test_slow_session_snapshot_does_not_block_the_event_loop(monkeypatch):
 
     assert heartbeat_at is not None
     assert heartbeat_at - started < 0.3
+
+
+@pytest.mark.asyncio
+async def test_v955_session_list_carries_limit_wake_mark_only_for_stopped_agents(monkeypatch):
+    import json
+
+    from app.routes import sessions as routes
+
+    monkeypatch.setattr(
+        routes.manager, "list_sessions",
+        lambda _scope: [{"id": "stopped", "name": "a"}, {"id": "fine", "name": "b"}],
+    )
+    monkeypatch.setattr("app.checklists.summaries_for_sessions", lambda _rows: {})
+    mark = {"state": "scheduled", "wake_at": "2026-10-18T12:00:00+00:00", "label": "⏳"}
+    monkeypatch.setattr("app.limit_wake.safe_limit_wake_marks", lambda: {"stopped": mark})
+
+    response = await routes.list_sessions(SimpleNamespace(headers={}), "/scope")
+
+    rows = {row["id"]: row for row in json.loads(response.body)}
+    assert rows["stopped"]["limit_wake"] == mark
+    assert "limit_wake" not in rows["fine"]

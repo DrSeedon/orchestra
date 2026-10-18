@@ -3357,3 +3357,32 @@ async def test_codex_review_rejects_invalid_non_codex_and_spark_before_api(
     assert caught.value.code == "invalid_argument"
     assert caught.value.details["field"] == "model"
     api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_v955_list_agents_and_orchestrators_show_the_limit_wake_mark(monkeypatch):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+    mark = {"state": "scheduled", "wake_at": "2026-10-18T12:00:00+00:00",
+            "label": "⏳ лимит, проснётся ~12:00 UTC"}
+    sessions = [
+        {"name": "orch-a", "scope": "/s", "role": "orchestrator", "parent_name": "", "status": "idle", "model": "opus", "limit_wake": mark},
+        {"name": "my-coder", "scope": "/s", "role": "worker", "parent_name": "orch-a", "status": "idle", "model": "sonnet"},
+    ]
+
+    async def fake_api(method, path, **kw):
+        if path == "/api/sessions":
+            return sessions
+        if path == "/api/orchestrators":
+            return [sessions[0]]
+        return {}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        agents = await m.list_agents()
+        orchestrators = await m.list_orchestrators()
+    lines = [line for line in agents.splitlines() if "**orch-a**" in line]
+    assert lines and "⏳ лимит, проснётся ~12:00 UTC" in lines[0]
+    assert "⏳" not in next(line for line in agents.splitlines() if "my-coder" in line)
+    assert "⏳ лимит, проснётся ~12:00 UTC" in orchestrators

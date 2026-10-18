@@ -3,7 +3,9 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+import threading
+import time
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from app.db import (
@@ -22,13 +24,18 @@ logger = logging.getLogger(__name__)
 
 WAKE_ACTION = "wake_subscription_limited"
 WAKE_JOB_PREFIX = "wake-limit-"
-WAKE_STAGGER_SECONDS = 30
+WAKE_STAGGER_SECONDS = 10
 MANUAL_ACTION_URL = "https://claude.ai/settings/usage"
 WAKE_MESSAGE_PREFIX = "[system wake:"
 ANTHROPIC_BASE_WINDOWS = ("five_hour", "seven_day")
 WAKE_AUTO_DEBOUNCE_SECONDS = 60
 WAKE_RETRY_DELAY_SECONDS = 120
 WAKE_RETRY_MAX_ATTEMPTS = 5
+LIMIT_MARK_TTL_SECONDS = 15
+TURN_WINDOW_ENDS = 4
+_marks_cache: tuple[float, dict] = (float('-inf'), {})
+_marks_lock = threading.Lock()
+_marks_refreshing = False
 _schedule_lock = asyncio.Lock()
 _last_auto_schedule: datetime | None = None
 
@@ -364,37 +371,43 @@ def build_wake_plan(
 
 
 def _load_limit_stopped_agents() -> list[dict]:
-    sessions = get_all_sessions()
+    """Candidates read through the per-session index, never the whole log table.
+
+    The previous window-function scan over every `turn ended` row took 27 s on a cold
+    page cache (V-955); a descending walk of `idx_logs_session` per eligible session
+    touches only the last few turns. Bodies are read only for the row types the
+    classifier actually inspects.
+    """
+    from app.quota_gate import quota_bucket_for_model
+
+    eligible = []
+    for session in get_all_sessions():
+        if session.get("status") in {"running", "starting", "archived"}:
+            continue
+        try:
+            if quota_bucket_for_model(session["model"]) is None:
+                continue
+        except ValueError:
+            continue
+        eligible.append(session)
     logs_by_session: dict[str, list[dict]] = {}
     with _conn() as connection:
-        rows = connection.execute(
-            """
-            WITH ranked_ends AS (
-                SELECT session_id, id, ts,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY session_id ORDER BY ts DESC, id DESC
-                    ) AS rank
-                FROM logs
-                WHERE type='status' AND content LIKE 'turn ended%'
-            ),
-            bounds AS (
-                SELECT session_id,
-                    MAX(CASE WHEN rank=4 THEN ts END) AS previous_ts
-                FROM ranked_ends
-                WHERE rank <= 4
-                GROUP BY session_id
-            )
-            SELECT logs.session_id, logs.id, logs.ts, logs.type, logs.content
-            FROM logs
-            JOIN bounds ON bounds.session_id=logs.session_id
-            WHERE bounds.previous_ts IS NULL OR logs.ts > bounds.previous_ts
-            ORDER BY logs.session_id, logs.ts, logs.id
-            """
-        ).fetchall()
-        for row in rows:
-            item = dict(row)
-            logs_by_session.setdefault(item.pop("session_id"), []).append(item)
-    return find_limit_stopped_agents(sessions, logs_by_session)
+        for session in eligible:
+            ends = connection.execute(
+                "SELECT id FROM logs WHERE session_id=? AND type='status' "
+                "AND content LIKE 'turn ended%' ORDER BY id DESC LIMIT ?",
+                (session["id"], TURN_WINDOW_ENDS),
+            ).fetchall()
+            if not ends:
+                continue
+            rows = connection.execute(
+                "SELECT id, ts, type, "
+                "CASE WHEN type IN ('provider_limit','error','status') THEN content ELSE '' END AS content "
+                "FROM logs WHERE session_id=? AND id >= ? ORDER BY ts, id",
+                (session["id"], ends[-1]["id"]),
+            ).fetchall()
+            logs_by_session[session["id"]] = [dict(row) for row in rows]
+    return find_limit_stopped_agents(eligible, logs_by_session)
 
 
 def _active_wake_jobs() -> list[dict]:
@@ -407,6 +420,94 @@ def _active_wake_jobs() -> list[dict]:
         if config.get("action") == WAKE_ACTION:
             result.append({**job, "config": config})
     return result
+
+
+def _mark_for(agent: dict, jobs: list[dict]) -> dict:
+    for job in jobs:
+        config = job["config"]
+        if config.get("provider") != agent["provider"]:
+            continue
+        targets = config.get("agents") or []
+        for position, target in enumerate(targets):
+            if (
+                target.get("id") == agent["id"]
+                and target.get("limit_turn_id") == agent["limit_turn_id"]
+            ):
+                base = _parse_reset(job.get("trigger_at"))
+                if base is None:
+                    break
+                wake_at = base + timedelta(seconds=position * WAKE_STAGGER_SECONDS)
+                return {
+                    "state": "scheduled",
+                    "wake_at": wake_at.isoformat(),
+                    "label": f"⏳ лимит, проснётся ~{wake_at:%H:%M} UTC",
+                }
+    if agent["limit_kind"] == "monthly":
+        reason = "месячный лимит, нужно ручное действие"
+    else:
+        reason = "таймер ещё не создан"
+    return {
+        "state": "no_timer",
+        "wake_at": None,
+        "label": f"⏳ лимит, сам не проснётся: {reason}",
+    }
+
+
+def _compute_marks() -> dict[str, dict]:
+    jobs = _active_wake_jobs()
+    return {
+        agent["id"]: _mark_for(agent, jobs) for agent in _load_limit_stopped_agents()
+    }
+
+
+def limit_wake_marks(*, fresh: bool = False) -> dict[str, dict]:
+    """session id -> wake mark for every agent a subscription limit stopped.
+
+    Read from the same candidate scan and the same wake timers the scheduler uses
+    (V-955), so the dashboard and list_agents cannot disagree with what will happen.
+    `fresh=True` computes inline. Otherwise this returns the last ready value at once and,
+    when it is stale, recomputes in a background thread: the listings are polled every
+    few seconds and must never wait for the scan (V-955 measurement: 27 s cold).
+    """
+    global _marks_cache
+    if fresh:
+        marks = _compute_marks()
+        _marks_cache = (time.monotonic(), marks)
+        return marks
+    request_marks_refresh()
+    return _marks_cache[1]
+
+
+def request_marks_refresh(*, force: bool = False) -> None:
+    """Start a background recomputation unless one runs or the value is still fresh."""
+    global _marks_refreshing
+    with _marks_lock:
+        stale = time.monotonic() - _marks_cache[0] >= LIMIT_MARK_TTL_SECONDS
+        if _marks_refreshing or not (stale or force):
+            return
+        _marks_refreshing = True
+
+    def work() -> None:
+        global _marks_cache, _marks_refreshing
+        try:
+            marks = _compute_marks()
+            _marks_cache = (time.monotonic(), marks)
+        except Exception as error:
+            logger.warning("limit wake marks refresh failed: %s", err_text(error))
+            _marks_cache = (time.monotonic(), _marks_cache[1])
+        finally:
+            _marks_refreshing = False
+
+    threading.Thread(target=work, name="limit-wake-marks", daemon=True).start()
+
+
+def safe_limit_wake_marks() -> dict[str, dict]:
+    """Listing decoration must never break or delay the listing itself."""
+    try:
+        return limit_wake_marks()
+    except Exception as error:
+        logger.warning("limit wake marks unavailable: %s", err_text(error))
+        return {}
 
 
 def wake_status() -> dict:

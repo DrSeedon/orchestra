@@ -1,0 +1,29 @@
+== mutation A
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v955_wake_stagger_is_ten_seconds - asse...
+FAILED tests/test_limit_wake.py::test_v955_default_stagger_spaces_wakes_by_ten_seconds
+FAILED tests/test_limit_wake.py::test_v955_marks_show_scheduled_time_unscheduled_reason_and_vanish_after_wake
+3 failed, 2 passed, 4808 deselected in 6.97s
+== mutation B
+
+tests/test_limit_wake.py:1610: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v955_marks_show_scheduled_time_unscheduled_reason_and_vanish_after_wake
+1 failed, 4 passed, 4808 deselected in 5.69s
+== mutation C
+
+tests/test_sessions_conditional.py:106: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_sessions_conditional.py::test_v955_session_list_carries_limit_wake_mark_only_for_stopped_agents
+1 failed, 4 passed, 4808 deselected in 5.05s
+== mutation D
+
+tests/test_mcp_stdio.py:3386: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_mcp_stdio.py::test_v955_list_agents_and_orchestrators_show_the_limit_wake_mark
+1 failed, 4 passed, 4808 deselected in 6.66s
+== mutation E (listing computes the scan inline)
+tests/test_limit_wake.py:1645: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v955_listing_never_waits_for_the_candidate_scan
+1 failed, 3 passed, 42 deselected in 7.96s

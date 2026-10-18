@@ -374,11 +374,16 @@ async def list_sessions(request: Request, scope: Optional[str] = None):
     def snapshot():
         from app.checklists import summaries_for_sessions
 
+        from app.limit_wake import safe_limit_wake_marks
+
         rows = manager.list_sessions(scope)
         summaries = summaries_for_sessions(rows)
+        marks = safe_limit_wake_marks()
         for row in rows:
             if row.get("id") in summaries:
                 row["checklist_progress"] = summaries[row["id"]]
+            if row.get("id") in marks:
+                row["limit_wake"] = marks[row["id"]]
         return rows
 
     payload = await asyncio.to_thread(snapshot)

@@ -2586,7 +2586,12 @@ async def list_orchestrators():
     running_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "running"}
     waiting_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "waiting"}
     turn_map = get_last_turn_map()
+    from app.limit_wake import safe_limit_wake_marks
+
+    marks = await asyncio.to_thread(safe_limit_wake_marks)
     for o in result:
+        if o.get("id") in marks:
+            o["limit_wake"] = marks[o["id"]]
         # Системный промпт — 92.8% веса этого ответа по проводу (19.8 КБ из 21.3 КБ на
         # пяти записях, замер в .orchestra/tasks/71/research.md), и в списке его не читает никто:
         # ни дашборд, ни MCP. За полным промптом ходят в GET /api/sessions/{name}/prompt.

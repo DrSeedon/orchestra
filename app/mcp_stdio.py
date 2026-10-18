@@ -1777,7 +1777,9 @@ async def list_agents() -> str:
                 f" | {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
                 f"{repair.get('call', lifecycle.get('message', 'repair required'))}"
             )
-        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}" + (f" | runtime error: {runtime_error}" if runtime_error else "")
+        limit_mark = s.get("limit_wake")
+        limit_str = f" | {limit_mark['label']}" if isinstance(limit_mark, dict) and limit_mark.get("label") else ""
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{limit_str}{desc_str}{owner_str}{lifecycle_str}" + (f" | runtime error: {runtime_error}" if runtime_error else "")
 
     is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []
@@ -1829,7 +1831,9 @@ async def list_orchestrators() -> str:
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
         desc = o.get('description', '')
         desc_str = f' | "{desc}"' if desc else ""
-        lines.append(f"🎯 **{o['name']}** | {o.get('status','?')} | {scope_short} | ${o.get('cost_usd',0):.4f}{ctx_str}{desc_str}")
+        limit_mark = o.get("limit_wake")
+        limit_str = f" | {limit_mark['label']}" if isinstance(limit_mark, dict) and limit_mark.get("label") else ""
+        lines.append(f"🎯 **{o['name']}** | {o.get('status','?')} | {scope_short} | ${o.get('cost_usd',0):.4f}{ctx_str}{limit_str}{desc_str}")
     return "\n".join(lines)
 
 

@@ -1549,3 +1549,144 @@ def test_v953_refusal_at_99_percent_still_waits_for_the_reset_the_provider_named
         agents, {"anthropic": _envelope(_anthropic_usage(0, 0))}, now=NOW + timedelta(minutes=21),
     )
     assert later["schedules"][0]["reason"] == "available_now"
+
+
+# ── V-955: stagger and the "who will wake when" mark ──
+
+def test_v955_wake_stagger_is_ten_seconds():
+    from app.limit_wake import WAKE_STAGGER_SECONDS
+
+    assert WAKE_STAGGER_SECONDS == 10
+
+
+@pytest.mark.asyncio
+async def test_v955_default_stagger_spaces_wakes_by_ten_seconds(wake_db, monkeypatch):
+    from app import limit_wake
+    from app.limit_wake import run_wake_job
+
+    usage = {"anthropic": _anthropic_usage(0, 0)}
+    targets, manager = _wake_fixture(monkeypatch, [usage, usage])
+    _wake_job_row("wake-v955", targets)
+    sleeps = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(limit_wake.asyncio, "sleep", fake_sleep)
+
+    await run_wake_job("wake-v955", {"provider": "anthropic", "agents": targets}, manager)
+
+    assert manager.send.await_count == 2
+    assert sleeps == [10]
+
+
+def test_v955_marks_show_scheduled_time_unscheduled_reason_and_vanish_after_wake(monkeypatch):
+    from app import limit_wake
+
+    trigger = NOW + timedelta(minutes=30)
+    candidates = [
+        _candidate("a", "worker-a", limit_turn_id=10),
+        _candidate("b", "worker-b", limit_turn_id=20),
+        _candidate("c", "worker-c", limit_turn_id=30),
+        _candidate("m", "worker-m", limit_kind="monthly", limit_turn_id=40),
+    ]
+    job = {
+        "id": "bg-1",
+        "trigger_at": trigger.isoformat(),
+        "config": {
+            "provider": "anthropic",
+            "agents": [
+                {"id": "a", "name": "worker-a", "limit_turn_id": 10},
+                {"id": "b", "name": "worker-b", "limit_turn_id": 20},
+            ],
+        },
+    }
+    monkeypatch.setattr(limit_wake, "_load_limit_stopped_agents", lambda: candidates)
+    monkeypatch.setattr(limit_wake, "_active_wake_jobs", lambda: [job])
+
+    marks = limit_wake.limit_wake_marks(fresh=True)
+
+    assert marks["a"]["wake_at"] == trigger.isoformat()
+    assert marks["b"]["wake_at"] == (trigger + timedelta(seconds=10)).isoformat()
+    assert marks["a"]["label"] == f"⏳ лимит, проснётся ~{trigger:%H:%M} UTC"
+    assert marks["c"]["state"] == "no_timer" and "таймер ещё не создан" in marks["c"]["label"]
+    assert marks["m"]["state"] == "no_timer" and "месячный" in marks["m"]["label"]
+    # An agent the limit did not stop (or that already woke up) is not a candidate: no mark.
+    assert "ordinary" not in marks
+
+    monkeypatch.setattr(limit_wake, "_load_limit_stopped_agents", lambda: candidates[2:])
+    assert "a" not in limit_wake.limit_wake_marks(fresh=True)
+
+
+def test_v955_listing_never_waits_for_the_candidate_scan(monkeypatch):
+    """The scan took 27 s on a cold cache: a listing must get the last ready value at once."""
+    import threading
+    import time
+
+    from app import limit_wake
+
+    release = threading.Event()
+    started = threading.Event()
+
+    def slow_scan():
+        started.set()
+        release.wait(5)
+        return [_candidate("a", "worker-a", limit_turn_id=10)]
+
+    monkeypatch.setattr(limit_wake, "_load_limit_stopped_agents", slow_scan)
+    monkeypatch.setattr(limit_wake, "_active_wake_jobs", lambda: [])
+    monkeypatch.setattr(limit_wake, "_marks_cache", (float("-inf"), {}))
+    monkeypatch.setattr(limit_wake, "_marks_refreshing", False)
+
+    before = time.monotonic()
+    first = limit_wake.safe_limit_wake_marks()
+    elapsed = time.monotonic() - before
+
+    assert first == {}
+    assert elapsed < 0.5
+    assert started.wait(2)
+    release.set()
+    for _ in range(100):
+        if limit_wake._marks_cache[1]:
+            break
+        time.sleep(0.02)
+    assert "a" in limit_wake.safe_limit_wake_marks()
+
+
+def test_v955_index_walk_loader_finds_limited_agents_and_skips_the_rest(wake_db):
+    """The per-session index walk replaced a whole-table scan: same answers on real rows."""
+    from app.db import _conn, save_session
+    from app.limit_wake import _load_limit_stopped_agents
+
+    from tests.test_merge_operations import _session_row
+
+    def row(session_id, name, status="idle", model="claude-sonnet-5-5[1m]"):
+        return {**_session_row(session_id), "name": name, "scope": "/project", "model": model, "status": status}
+
+    sessions = [row("lim", "limited"), row("dup", "duplicate-end"), row("fin", "finished"),
+                row("run", "running", status="running"), row("cod", "codex-agent", model="gpt-6.1-sol")]
+    for session in sessions:
+        save_session(session)
+    limited = json.dumps({"status": "rejected", "rate_limit_type": "five_hour", "resets_at": 1792319400})
+    script = {
+        "lim": [("status", "turn ended (end_turn, 2 turns)"), ("user_message", "work"),
+                ("provider_limit", limited), ("status", "turn ended (stop_sequence, 1 turns)")],
+        "dup": [("status", "turn ended (end_turn, 2 turns)"), ("user_message", "work"),
+                ("provider_limit", limited), ("status", "turn ended (stop_sequence, 1 turns)"),
+                ("status", "turn ended (stop_sequence, 1 turns)")],
+        "fin": [("text", "done"), ("status", "turn ended (end_turn, 1 turns)")],
+        "run": [("provider_limit", limited), ("status", "turn ended (stop_sequence, 1 turns)")],
+        "cod": [("provider_limit", limited), ("status", "turn ended (stop_sequence, 1 turns)")],
+    }
+    with _conn() as connection:
+        for session_id, entries in script.items():
+            for index, (kind, content) in enumerate(entries):
+                connection.execute(
+                    "INSERT INTO logs (session_id, ts, type, content) VALUES (?, ?, ?, ?)",
+                    (session_id, f"2026-10-18T10:00:{index:02d}+00:00", kind, content),
+                )
+
+    found = {agent["name"]: agent for agent in _load_limit_stopped_agents()}
+
+    assert sorted(found) == ["duplicate-end", "limited"]
+    assert found["limited"]["limit_reset_at"].startswith("2026-10-18T10:30:00")

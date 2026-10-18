@@ -545,6 +545,8 @@ async def lifespan(app: FastAPI):
         from app.bg_jobs import bg_manager
         bg_manager.set_session_manager(manager)
         await bg_manager.restore_from_db()
+        from app.limit_wake import request_marks_refresh
+        request_marks_refresh(force=True)  # warm the limit-wake marks off the request path (V-955)
         # TG-мост поднимаем фоном. Замер (.orchestra/tasks/15/research.md): один только импорт
         # app.tg_bridge стоит 4.05 с, из них 3.72 с — aiogram, и всё это время uvicorn не
         # принимает запросы, а nginx отдаёт 502. Старт сервиса был 4.3-13.9 с; для приёма

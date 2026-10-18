@@ -3234,6 +3234,18 @@ function createAgentItem(s) {
     }
 
     info.append(nameRow, meta);
+    if (s.limit_wake) {
+        const mark = document.createElement('div');
+        mark.className = 'agent-limit-wake text-xs mt-0.5';
+        mark.style.color = '#f59e0b';
+        const at = s.limit_wake.wake_at ? new Date(s.limit_wake.wake_at) : null;
+        mark.textContent = at && !Number.isNaN(at.getTime())
+            ? T('⏳ limit, wakes ~{time}', {time: at.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})})
+            : s.limit_wake.label;
+        mark.title = s.limit_wake.label;
+        mark.dataset.i18nSkip = '1';
+        info.appendChild(mark);
+    }
 
     const pct = s.context_pct || 0;
     if (pct > 0) {
