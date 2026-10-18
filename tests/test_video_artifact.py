@@ -1082,7 +1082,7 @@ def test_qa_writes_frames_around_events_and_at_most_five_timestamps(tmp_path):
     assert _uv_script("mix.py", cues, "--out", audio).returncode == 0
     video = tmp_path / "v.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=#f6f7f9:s=320x180:d=7:r=30", "-i",
-                    str(audio / "mix.wav"), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(video)], check=True)
+                    str(audio / "mix.wav"), "-c:v", "mpeg4", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(video)], check=True)
     _uv_script("qa.py", video, "--audio", audio)       # fixture checks may FAIL; the ear-check output is what is under test
     ear = audio / "ear-check"
     for event in ("hit1", "tick2"):
