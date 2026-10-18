@@ -1,0 +1,40 @@
+stage 1/4: scene and speech plan
+ударения: /tmp/v944/rb/out/sound-demo-ru.stress.txt
+синтез 4 фраз (TeraTTS f05ea799, ru_m1, один CPU sampler)…
+озвучка: 1/4, осталось ~31 с
+озвучка: 2/4, осталось ~11 с
+озвучка: 3/4, осталось ~4 с
+озвучка: 4/4, осталось ~0 с
+stage 2/4: timing plan ready
+кадры HTML: 1/4, осталось ~66 с
+кадры HTML: 2/4, осталось ~30 с
+кадры HTML: 3/4, осталось ~12 с
+кадры HTML: 4/4, осталось ~0 с
+    0.35–  2.85  шаг  3.40 с  Маркер движется по шкале с ровной скоростью.
+    3.75–  7.67  шаг  6.27 с  Возле границы маркер ускоряется, останавливается, и звучит удар.
+   10.03– 13.84  шаг  4.72 с  Время звука берётся из того же тайминга шага, что и картинка.
+   14.74– 18.87  шаг  5.68 с  Голос, эффекты и тихая подложка собраны в одно измеренное сведение.
+длина ролика 22.1 с
+stage 3/4: rendering frames
+/tmp/v944/rb/out/sound-demo-ru-contact.png
+stage 4/4: mix, mux, and checks
+mix.wav  -18.0 LUFS  TP -2.11 dBTP  events 2
+  marker-motion whoosh/fs-147285-fh-paper-swipe-surface2-shor-1 support peak   1.830s  gain  -24.2 dB  (best-band target)
+  marker-land  thump/fs-389999-thump-cloth-1 support peak   7.304s  gain   -9.9 dB  (best-band target)
+/tmp/v944/rb/out/sound-demo-ru.credits.md
+pass  offset                 encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]
+pass  loudness               integrated -18.02 LUFS, target -18
+pass  true peak              -2.32 dBTP (limit -1.0)
+warn  picture marker-motion  move at frame 55: motion peak at frame 53
+pass  picture marker-land    land at frame 219: motion stops at frame 220
+pass  sync marker-motion     peak 0.00 frames from its cue
+pass  audible marker-motion  stands out by 1.8 dB in 8000-16000 Hz over music+voice
+pass  sync marker-land       peak 0.00 frames from its cue
+pass  audible marker-land    stands out by 2.1 dB in 500-1000 Hz over music+voice
+pass  voice                  music sits 16.2 LU under the voice (median while speaking)
+pass  music                  median -29.3 LUFS short-term; unplanned dips at []
+pass  silence                none
+
+PASSED: 0 failed, 1 warnings. Picture: /tmp/v944/rb/out/sound-demo-ru.sound/qa.png  Ear check: /tmp/v944/rb/out/sound-demo-ru.sound/ear-check
+/tmp/v944/rb/out/sound-demo-ru.mp4 1.0 МБ
+проверка распознаванием пропущена: нет DEEPGRAM_API_KEY

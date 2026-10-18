@@ -6,6 +6,7 @@
 import importlib.util
 import json
 import os
+import shutil
 from pathlib import Path
 import sys
 import pytest
@@ -1004,3 +1005,88 @@ def test_support_check_reports_an_object_floating_beside_its_support(tmp_path):
         issues = page.evaluate("Paper.supportIssues()")
         browser.close()
     assert len(issues) == 1 and "desk" in issues[0]
+
+
+def _sound_fixture(tmp_path, sound="click.wav"):
+    """Voice, music bed and one click on disk, plus a cue sheet whose events use only files, so no kit is needed."""
+    import math
+    import random
+    import wave
+
+    rng = random.Random(3)
+
+    def write(name, seconds, sample):
+        with wave.open(str(tmp_path / name), "wb") as output:
+            output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+            output.writeframes(b"".join(int(max(-32768, min(32767, sample(i)))).to_bytes(2, "little", signed=True)
+                                        for i in range(int(seconds * make.SR))))
+
+    write("voice.wav", 6, lambda i: rng.gauss(0, 5000) if (i // 7200) % 4 != 3 and i > make.SR else 0)
+    write("music.wav", 8, lambda i: 2500 * math.sin(2 * math.pi * 220 * i / make.SR) + rng.gauss(0, 800))
+    write("click.wav", 0.3, lambda i: 22000 * math.exp(-i / 1500) * math.sin(2 * math.pi * 1800 * i / make.SR))
+    cues = {"fps": 30, "duration_s": 7.0, "energy": "calm", "lufs": -18, "kit": str(tmp_path),
+            "music": {"file": str(tmp_path / "music.wav"), "start_s": 0, "loop": True, "fade_out_s": 1.0},
+            "voice": [{"file": str(tmp_path / "voice.wav"), "start_s": 0}],
+            "cues": [{"id": "hit1", "t": 3.0, "frame": 90, "sound": sound if sound.startswith("synth:") else str(tmp_path / sound), "weight": "hero", "visual": "cut"},
+                     {"id": "tick2", "t": 5.0, "frame": 150, "sound": str(tmp_path / "click.wav"), "weight": "support"}]}
+    (tmp_path / "cues.json").write_text(json.dumps(cues))
+    return tmp_path / "cues.json"
+
+
+def _uv_script(script, *args):
+    import subprocess
+
+    return subprocess.run([make.UV_BIN, "run", "--script", str(make.SOUND_SCRIPTS / script), *map(str, args)],
+                          capture_output=True, text=True)
+
+
+needs_sound_tools = pytest.mark.skipif(shutil.which("ffmpeg") is None or not Path(make.UV_BIN).exists(),
+                                       reason="нужны ffmpeg и uv")
+
+
+@needs_sound_tools
+@pytest.mark.timeout(600)
+def test_mixer_refuses_generated_sound(tmp_path):
+    cues = _sound_fixture(tmp_path, sound="synth:pluck")
+    run = _uv_script("mix.py", cues, "--out", tmp_path / "audio")
+    assert run.returncode != 0 and "never generated" in run.stdout + run.stderr
+    assert not (tmp_path / "audio" / "mix.wav").exists()
+
+
+def test_music_without_source_or_license_is_refused(tmp_path):
+    bed = tmp_path / "bed.wav"
+    for source, licence, missing in ((None, "CC0", "--music-source"), ("Author, title", "", "--music-license"), (None, None, "--music-source")):
+        with pytest.raises(SystemExit, match=missing):
+            make.music_credit_line(bed, source, licence, custom=True)
+    assert make.music_credit_line(bed, "Author, title, url", "CC0", custom=True) == "bed.wav: Author, title, url, CC0"
+
+
+def test_credits_list_music_and_every_kit_recording_used(tmp_path):
+    kit = tmp_path / "kit"
+    (kit / "whoosh").mkdir(parents=True)
+    (kit / "catalog.json").write_text(json.dumps({"sounds": [{"file": "whoosh/a.wav", "credit": '"Swipe" by Someone'}]}))
+    report = tmp_path / "mix-report.json"
+    report.write_text(json.dumps({"events": [{"files": [str(kit / "whoosh/a.wav")]}, {"files": [str(tmp_path / "own.wav")]}]}))
+    credits = make.write_credits(tmp_path, "scene", "bed.wav: Author, CC0", report, kit).read_text()
+    assert "Music: bed.wav: Author, CC0" in credits
+    assert '"Swipe" by Someone, CC0' in credits and "own.wav: source not recorded" in credits
+
+
+@needs_sound_tools
+@pytest.mark.timeout(900)
+def test_qa_writes_frames_around_events_and_at_most_five_timestamps(tmp_path):
+    import subprocess
+
+    cues = _sound_fixture(tmp_path)
+    audio = tmp_path / "audio"
+    assert _uv_script("mix.py", cues, "--out", audio).returncode == 0
+    video = tmp_path / "v.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=#f6f7f9:s=320x180:d=7:r=30", "-i",
+                    str(audio / "mix.wav"), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(video)], check=True)
+    _uv_script("qa.py", video, "--audio", audio)       # fixture checks may FAIL; the ear-check output is what is under test
+    ear = audio / "ear-check"
+    for event in ("hit1", "tick2"):
+        assert (ear / f"{event}-before.png").stat().st_size > 0 and (ear / f"{event}-after.png").stat().st_size > 0
+    picks = json.loads((ear / "ear-check.json").read_text())["timestamps"]
+    assert 1 <= len(picks) <= 5 and all(item["reason"].strip() for item in picks)
+    assert [item["t"] for item in picks] == sorted(item["t"] for item in picks)

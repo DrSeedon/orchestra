@@ -25,6 +25,12 @@ Checks
   voice     music at least 8 LU under the voice while it speaks
   music     no dip 12 LU below the music's median, except planned stops
   silence   no silence of 0.5 s or more outside "silence_ok"
+
+Also writes audio/ear-check/: one frame just before and just after every
+sound event (cut from the encoded MP4), and ear-check.md with at most 5
+timestamps worth a listen in headphones, each with a one-line reason (hero
+events, the sharpest music duck under the voice). It lists what to listen
+for; nothing in it says the sound is good.
 """
 import argparse, json, os, re, subprocess, sys
 import numpy as np
@@ -90,6 +96,57 @@ def loud(x, meter):
     if len(x) < int(0.4 * SR): return -70.0
     v = meter.integrated_loudness(x)
     return float(v) if np.isfinite(v) else -70.0
+
+
+EAR_FRAMES = 2      # frames either side of the peak: the sync gate allows 1-2
+EAR_LIMIT = 5
+
+
+def duck_transition(music, voice, meter):
+    """(time, drop in LU) of the sharpest music dip at a voice onset, or None."""
+    step, blk = int(0.1 * SR), int(0.4 * SR)
+    active = [loud(voice[s:s + blk], meter) > -40 for s in range(0, len(voice) - blk, step)]
+    best = None
+    for i, on in enumerate(active):
+        if not on or any(active[max(0, i - 4):i]):
+            continue
+        t = i * step + int(0.3 * SR)                        # a 400 ms block that first holds speech: onset near its end
+        if t < SR or t + int(0.7 * SR) > len(music):
+            continue
+        before = loud(music[t - int(0.6 * SR):t - int(0.2 * SR)], meter)
+        after = loud(music[t + int(0.3 * SR):t + int(0.7 * SR)], meter)
+        if best is None or before - after > best[1]:
+            best = (t / SR, before - after)
+    return best if best and best[1] >= 3 else None
+
+
+def ear_check(video, events, fps, st, meter, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    frames = {}
+    for ev in events:
+        name = re.sub(r"[^\w.-]", "_", str(ev["id"]))
+        for side, t in (("before", ev["peak_s"] - EAR_FRAMES / fps), ("after", ev["peak_s"] + EAR_FRAMES / fps)):
+            path = os.path.join(out_dir, f"{name}-{side}.png")
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(t, 0):.3f}", "-i", video, "-frames:v", "1", path],
+                           check=True)
+            frames.setdefault(ev["id"], {})[side] = path
+    duck = duck_transition(st["music"], st["voice"], meter) if np.any(st["music"]) and np.any(st["voice"]) else None
+    heroes = sorted((e for e in events if e["weight"] == "hero"), key=lambda e: -e["gain_db"])
+    rest = sorted((e for e in events if e["weight"] != "hero"), key=lambda e: -e["gain_db"])
+    room = EAR_LIMIT - (1 if duck else 0)
+    picked = (heroes + rest)[:room]
+    picks = [(e["peak_s"], f"{e['weight']} event {e['id']} ({e['sound']}): does it land with the picture and stay clear of the voice?")
+             for e in picked]
+    if duck:
+        picks.append((duck[0], f"music ducks {duck[1]:.1f} LU as the voice starts: is the dip smooth, without pumping?"))
+    picks.sort()
+    lines = ["# Headphone check", "", "Targets for a listener; these are measurements and suggestions, not a verdict on the sound.", ""]
+    lines += [f"- {t:.2f} s: {why}" for t, why in picks] or ["- no sound events and no music duck to check"]
+    lines += ["", "Frames either side of each event are in this folder as `<id>-before.png` / `<id>-after.png`."]
+    open(os.path.join(out_dir, "ear-check.md"), "w").write("\n".join(lines) + "\n")
+    json.dump(dict(timestamps=[dict(t=round(t, 3), reason=w) for t, w in picks], frames=frames),
+              open(os.path.join(out_dir, "ear-check.json"), "w"), indent=1)
+    return out_dir
 
 
 def main():
@@ -200,10 +257,12 @@ def main():
         ax[0].text(ev["peak_s"], ax[0].get_ylim()[1], ev["id"], fontsize=6, rotation=90, va="top", ha="right")
     ax[2].set_xlabel("seconds"); fig.tight_layout(); png = os.path.join(A, "qa.png"); fig.savefig(png, dpi=80); plt.close(fig)
 
+    ear = ear_check(a.video, rep["events"], fps, st, meter, os.path.join(A, "ear-check"))
+
     fails = [r for r in res if r["status"] == "FAIL"]; warns = [r for r in res if r["status"] == "warn"]
     json.dump(dict(passed=not fails, results=res), open(os.path.join(A, "qa-report.json"), "w"), indent=1)
     for r in res: print(f"{r['status']:4s}  {r['check']:22s} {r['detail']}")
-    print(f"\n{'PASSED' if not fails else 'FAILED'}: {len(fails)} failed, {len(warns)} warnings. Picture: {png}")
+    print(f"\n{'PASSED' if not fails else 'FAILED'}: {len(fails)} failed, {len(warns)} warnings. Picture: {png}  Ear check: {ear}")
     sys.exit(1 if fails else 0)
 
 

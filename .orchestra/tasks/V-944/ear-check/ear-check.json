@@ -1,0 +1,26 @@
+{
+ "timestamps": [
+  {
+   "t": 1.83,
+   "reason": "support event marker-motion (whoosh/fs-147285-fh-paper-swipe-surface2-shor-1): does it land with the picture and stay clear of the voice?"
+  },
+  {
+   "t": 7.304,
+   "reason": "support event marker-land (thump/fs-389999-thump-cloth-1): does it land with the picture and stay clear of the voice?"
+  },
+  {
+   "t": 15.1,
+   "reason": "music ducks 9.0 LU as the voice starts: is the dip smooth, without pumping?"
+  }
+ ],
+ "frames": {
+  "marker-motion": {
+   "before": "/tmp/v944/rb/out/sound-demo-ru.sound/ear-check/marker-motion-before.png",
+   "after": "/tmp/v944/rb/out/sound-demo-ru.sound/ear-check/marker-motion-after.png"
+  },
+  "marker-land": {
+   "before": "/tmp/v944/rb/out/sound-demo-ru.sound/ear-check/marker-land-before.png",
+   "after": "/tmp/v944/rb/out/sound-demo-ru.sound/ear-check/marker-land-after.png"
+  }
+ }
+}

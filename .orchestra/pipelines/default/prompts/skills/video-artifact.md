@@ -257,19 +257,26 @@ Output: `<name>.mp4`, `<name>.timing.json`, `<name>-contact.png` (last frame of 
 **A quiet music bed plays under the voice by default**: the first `bed` default of the sound
 kit (`bed/fs-254856-long-ambient-pad`, "Long Ambient Pad" by indigo.cloud, CC0, Freesound
 254856, first 2 s trimmed because it fades in). It loops with a crossfade and ducks during
-speech. `--music path` uses another CC0 or owner-provided bed; `--no-music` builds voice only
-(then without events). For a sound-enabled step,
+speech. `--music path` uses another bed and requires `--music-source "<author, title, url>"` and
+`--music-license "<license>"`; without both the run is refused, because sound of unknown origin does not
+ship. `--no-music` builds voice only (then without events). For a sound-enabled step,
 declare real actions in `STEPS` as `events: [{id, at, sound, weight, visual}]`. `at` is seconds
 from that step's start; `sound` is a picked kit id or layer expression, `weight` is `support` or
 `hero`, and `visual` is `cut`, `move`, `land`, or `appear` only when the picture has that motion.
 `make.py` maps the event through `timing.json` to its exact frame/time; never type frame numbers.
-Events play over the bed; `--no-music` with events is rejected.
+Events play over the bed; `--no-music` with events is rejected. Sound is never generated: the
+mixer refuses `synth:` sounds, so every cue is a kit recording or a file you chose and can attribute.
+The video's credits are written next to it as `<name>.credits.md` (music line plus every kit recording used).
 
 Install the kit only at `~/.local/share/orchestra-sfx/` with `uv run --script
 scripts/video_artifact/sound/sfx.py kit`. Review candidates with `sfx.py browse --type <type>
 --like "<material, weight, mood>"`; use `search`/`add` only for CC0 sources. Inspect the chosen
-recordings' waveform and spectrogram. Never synthesize hits, clicks, or whooshes. Do not call a
-sound good: report the measured `qa.py` checks and leave the final ear check to a person. The
+recordings' waveform and spectrogram. Never synthesize any sound. Do not call a sound good: report
+the measured `qa.py` checks and leave the final ear check to a person. To make that check
+targeted, `qa.py` writes `<name>.sound/ear-check/` from the encoded MP4: a frame just before and
+just after every event (`<id>-before.png`, `<id>-after.png`) and `ear-check.md` with at most five
+timestamps for headphones (hero events and the sharpest music duck), each with a reason. Hand that
+folder to the owner with the video. The
 sound scripts and MIT attribution are in `scripts/video_artifact/sound/`; downloaded sounds and
 their `CREDITS.md` stay in the external kit directory. `make.py` runs sound QA automatically.
 

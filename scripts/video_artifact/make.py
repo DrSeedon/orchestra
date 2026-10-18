@@ -546,6 +546,37 @@ def sound_cues(timing: dict, fps: int, voice: Path, music: Path | None, kit: Pat
             "voice": [{"file": str(voice.resolve()), "start_s": 0}], "cues": cues}
 
 
+def music_credit_line(music: Path, source: str | None, licence: str | None, custom: bool, kit: Path = SOUND_HOME) -> str:
+    """Credit text for the music bed: a user's --music must name source and license, the kit bed carries its own."""
+    if custom:
+        missing = [flag for flag, value in (("--music-source", source), ("--music-license", licence)) if not (value or "").strip()]
+        if missing:
+            fail(f"--music требует указать происхождение дорожки: не хватает {' и '.join(missing)}; "
+                 "звук без известных источника и лицензии в ролик не идёт")
+        return f"{music.name}: {source.strip()}, {licence.strip()}"
+    catalog = json.loads((kit / "catalog.json").read_text()) if (kit / "catalog.json").is_file() else {}
+    entry = next((x for x in catalog.get("sounds", []) if x.get("file") == str(music.relative_to(kit))), None) \
+        if music.is_relative_to(kit) else None
+    return f"{entry['credit']}, CC0" if entry else f"{music.name}: source not recorded"
+
+
+def write_credits(out: Path, name: str, music_line: str, report: Path, kit: Path = SOUND_HOME) -> Path:
+    """Credits next to the video: the music line plus every kit recording the mix used."""
+    catalog = json.loads((kit / "catalog.json").read_text()) if (kit / "catalog.json").is_file() else {}
+    by_file = {x["file"]: x["credit"] for x in catalog.get("sounds", []) if x.get("credit")}
+    used = []
+    for event in json.loads(report.read_text()).get("events", []) if report.is_file() else []:
+        for file in event.get("files", []):
+            path = Path(file)
+            used.append(f"{by_file[str(path.relative_to(kit))]}, CC0" if path.is_relative_to(kit) and str(path.relative_to(kit)) in by_file
+                        else f"{path.name}: source not recorded")
+    lines = ["# Sound credits", "", f"Music: {music_line}", "", "Sound effects:"]
+    lines += [f"- {item}" for item in sorted(set(used))] or ["- none"]
+    path = out / f"{name}.credits.md"
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
 def sound_mix(out: Path, name: str, sheet: dict) -> None:
     if not sheet:
         return
@@ -1021,6 +1052,8 @@ def _main() -> None:
                     help="показать нормализованные фразы и ударения без генерации WAV")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--music", type=Path, help="своя CC0-подложка вместо подложки набора по умолчанию")
+    ap.add_argument("--music-source", help="откуда взята дорожка --music (автор, название, ссылка); пойдёт в титры ролика")
+    ap.add_argument("--music-license", help="лицензия дорожки --music (например CC0); пойдёт в титры ролика")
     ap.add_argument("--no-music", action="store_true", help="без подложки: только голос (и тогда без events)")
     ap.add_argument("--theme", choices=sorted(THEMES), default="paper",
                     help="paper — светлая «бумажная» тема (по умолчанию), dark — прежняя тёмная")
@@ -1087,12 +1120,15 @@ def _main() -> None:
     if has_events and args.no_music:
         fail("в STEPS заданы звуковые events: они слышны только поверх подложки, убери --no-music")
     music = None
+    music_line = None
     if args.music:
         if not args.music.is_file():
             fail(f"не найдена фоновая дорожка: {args.music}")
         music = args.music
+        music_line = music_credit_line(music, args.music_source, args.music_license, custom=True)
     elif not args.no_music and not (args.stills or args.timing_only):
         music = default_bed()
+        music_line = music_credit_line(music, None, None, custom=False)
     pipeline = None
     if not manim and not args.stills and not args.check_only:
         pipeline = HTMLRenderPipeline(args.scene, steps, out, name, args.fps, args.jobs, args.rate, args.theme)
@@ -1155,6 +1191,8 @@ def _main() -> None:
             return
         print("stage 4/4: mix, mux, and checks", flush=True)
         sound_mix(out, name, sheet)
+        if sheet:
+            print(write_credits(out, name, music_line or "none", out / f"{name}.sound" / "mix-report.json"), flush=True)
         mp4 = mux(out, name, sound=bool(sheet))
         print(mp4, f"{mp4.stat().st_size / 1e6:.1f} МБ")
     if sheet:
