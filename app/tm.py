@@ -22,7 +22,7 @@ VALID_STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled'
 
 from app.task_refs import task_ref as public_task_ref
 
-_TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{16,128}")
+_TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 
 
 
@@ -1942,7 +1942,7 @@ def normalize_task_create_request_key(value: str = "") -> str:
         raise TaskCreateRequestError(
             "INVALID_IDEMPOTENCY_KEY",
             request_key,
-            "idempotency key must be 16-128 ASCII letters, digits, '.', '_', ':', or '-'",
+            "idempotency key must be 1-128 ASCII letters, digits, '.', '_', ':', or '-'",
         )
     return request_key
 

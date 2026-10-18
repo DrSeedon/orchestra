@@ -371,3 +371,27 @@ def test_test_and_mutation_gate_durations_are_measured_separately(
 
     assert result["phase_durations_ms"]["test_gate"] >= 0
     assert result["phase_durations_ms"]["mutation_gate"] >= 0
+
+
+def test_v952_waiting_refusal_names_the_jobs_it_waits_on(merge_db):
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    import app.merge_operations as operations
+    from app.db import bg_save_job
+
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": "bg-952-run", "type": "run", "config": json.dumps({}), "message": "analogs build",
+        "target_session_id": "merge-session", "target_name": "worker", "target_scope": "/scope",
+        "created_by_name": "worker", "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(), "trigger_at": None,
+        "created_at": now.isoformat(), "last_output": "",
+    })
+    result, status = operations._busy_worker_result("op", "waiting", "merge-session")
+    assert status == 409
+    assert result["error"]["code"] == "WORKER_BUSY"
+    assert result["error"]["message"].startswith("Worker is waiting")
+    assert [j["id"] for j in result["error"]["details"]["waiting_on_jobs"]] == ["bg-952-run"]
+    running, _ = operations._busy_worker_result("op", "running", "merge-session")
+    assert "waiting_on_jobs" not in running["error"]["details"]

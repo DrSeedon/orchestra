@@ -238,3 +238,8 @@ def test_record_fix_persists_task_commit_and_process_start(tmp_path, capsys):
         "task": "V-636", "commit": "9035836a",
         "started_at": "2026-09-27T04:49:07+00:00", "window_hours": 168,
     }
+
+
+def test_v952_merge_refused_for_busy_worker_is_expected_noise():
+    message = "Merge operation x: FAILED — Worker is waiting; wait until it is idle, then start a new merge operation."
+    assert watch.classify_noise(watch.normalize_signature(message)) == "merge refused: worker not idle"

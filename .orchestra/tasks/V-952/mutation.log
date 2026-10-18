@@ -1,0 +1,14 @@
+        assert status == 409
+        assert result["error"]["code"] == "WORKER_BUSY"
+        assert result["error"]["message"].startswith("Worker is waiting")
+>       assert [j["id"] for j in result["error"]["details"]["waiting_on_jobs"]] == ["bg-952-run"]
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'waiting_on_jobs'
+
+tests/test_v848_merge_timings.py:395: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::test_v952_cron_reminder_alone_does_not_hold_agent_in_waiting
+FAILED tests/test_error_watch.py::test_v952_merge_refused_for_busy_worker_is_expected_noise
+FAILED tests/test_git_task_api.py::test_v952_short_readable_request_key_is_idempotent_not_rejected
+FAILED tests/test_v848_merge_timings.py::test_v952_waiting_refusal_names_the_jobs_it_waits_on
+4 failed, 10 passed, 4788 deselected in 12.91s

@@ -29,6 +29,7 @@ _NOISE = (
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
     ("expected command termination", re.compile(r"command exited with code", re.I)),
     ("merge gate refusal", re.compile(r"DIFF TOO LARGE", re.I)),
+    ("merge refused: worker not idle", re.compile(r"Worker is (?:waiting|running); wait until it is idle", re.I)),
     ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
     ("external app tool argument", re.compile(r"This app tool requires", re.I)),
     ("external app unknown tool", re.compile(r"codex_apps/.*Unknown tool", re.I)),

@@ -39,6 +39,17 @@ DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
 _CRON_COMMAND_TIMEOUT_SECONDS = 600
 _NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
+# A plain cron only sends the agent a recurring message and never completes, so it is a
+# reminder, not a pending result: it must not hold the agent in `waiting` (V-952).
+_RECURRING_REMINDER_TYPES = frozenset({"cron"})
+
+
+def jobs_holding_waiting(session_id: str) -> list[dict]:
+    """Active jobs whose completion the agent is still waiting for."""
+    return [
+        job for job in bg_get_jobs(session_id=session_id, active_only=True)
+        if job["type"] not in _RECURRING_REMINDER_TYPES
+    ]
 _PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
 _PIDFD_HANDSHAKE_TIMEOUT = 5
 _PIDFD_TERM_GRACE = 3
@@ -754,7 +765,7 @@ class BgJobManager:
         self._procs.clear()
 
     def has_active_jobs(self, session_id: str) -> bool:
-        return bool(bg_get_jobs(session_id=session_id, active_only=True))
+        return bool(jobs_holding_waiting(session_id))
 
     # ── Trigger ──
 

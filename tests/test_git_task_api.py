@@ -86,3 +86,19 @@ def test_http_creation_key_conflict_keeps_the_409_contract(runtime, monkeypatch)
     assert response.status_code == 409
     assert response.json()['reason'] == 'IDEMPOTENCY_FINGERPRINT_MISMATCH'
     assert len(runtime.store.list()) == 1
+
+
+def test_v952_short_readable_request_key_is_idempotent_not_rejected(runtime):
+    first = tm.api_create_task('local-project', 'Burn one', request_key='burn-1810-1')
+    replay = tm.api_create_task('local-project', 'Burn one', request_key='burn-1810-1')
+    assert replay['id'] == first['id']
+    with pytest.raises(Exception):
+        tm.api_create_task('local-project', 'A different task', request_key='burn-1810-1')
+    other = tm.api_create_task('local-project', 'Burn two', request_key='burn-1810-2')
+    assert other['id'] != first['id']
+
+
+@pytest.mark.parametrize('bad', ['has space', 'ключ-1', 'x' * 129, 'a/b'])
+def test_v952_malformed_request_key_is_still_refused(runtime, bad):
+    with pytest.raises(tm.TaskCreateRequestError):
+        tm.api_create_task('local-project', 'Task', request_key=bad)

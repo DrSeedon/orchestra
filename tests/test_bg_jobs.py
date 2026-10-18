@@ -1849,3 +1849,34 @@ async def test_v915_restart_stops_orphaned_run_process_and_reports_honestly(db):
             os.killpg(pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+
+
+# ── V-952: a recurring reminder is not a pending result ──
+
+def _v952_save(job_id, jtype, sid="s-952"):
+    from app.db import bg_save_job
+
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": job_id, "type": jtype, "config": json.dumps({}), "message": f"{jtype} job",
+        "target_session_id": sid, "target_name": "w952", "target_scope": "/scope-952",
+        "created_by_name": "w952", "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(), "trigger_at": None,
+        "created_at": now.isoformat(), "last_output": "",
+    })
+
+
+def test_v952_cron_reminder_alone_does_not_hold_agent_in_waiting(db):
+    from app.bg_jobs import BgJobManager
+
+    _v952_save("bg-952-cron", "cron")
+    assert BgJobManager().has_active_jobs("s-952") is False
+
+
+@pytest.mark.parametrize("jtype", ["run", "timer", "file", "command", "cron_command", "merge"])
+def test_v952_result_bearing_jobs_still_hold_agent_in_waiting(db, jtype):
+    from app.bg_jobs import BgJobManager
+
+    _v952_save("bg-952-cron", "cron")
+    _v952_save("bg-952-real", jtype)
+    assert BgJobManager().has_active_jobs("s-952") is True

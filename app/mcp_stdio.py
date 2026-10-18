@@ -3094,6 +3094,9 @@ async def task_create(title: str, project: str = "", price: int = 0,
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
     priority: 0=critical, 1=high, 2=medium (default), 3=low.
     status: lifecycle statuses (in_progress/done) are platform-owned and rejected.
+    request_key: optional idempotency key, 1-128 chars of A-Z a-z 0-9 . _ : -; any short readable key is fine.
+    The key is scoped to the project: the same key with the same inputs returns the existing task,
+    the same key with different inputs is refused, so use a new key for each distinct task.
     On an ambiguous outcome, repeat the same call with the same request_key and inputs."""
     _reject_lifecycle_status(status, "task_create")
     request_key = request_key.strip() or uuid.uuid4().hex

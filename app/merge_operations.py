@@ -475,14 +475,48 @@ def _active_operation_result(
     return result, status
 
 
-def _busy_worker_result(operation_id: str, status: str) -> tuple[dict[str, Any], int]:
+def _waiting_jobs(session_id: str) -> list[dict[str, Any]]:
+    """The active background jobs that keep a worker in `waiting` (best effort, bounded)."""
+    from app.bg_jobs import jobs_holding_waiting
+
+    try:
+        return [
+            {
+                "id": job["id"], "type": job["type"],
+                "message": str(job.get("message") or "")[:100],
+                "expires_at": job.get("expires_at"),
+            }
+            for job in jobs_holding_waiting(session_id)[:10]
+        ]
+    except Exception:
+        logger.warning("could not list background jobs of worker %s", session_id, exc_info=True)
+        return []
+
+
+def _busy_worker_result(
+    operation_id: str, status: str, session_id: str = "",
+) -> tuple[dict[str, Any], int]:
+    message = f"Worker is {status}; wait until it is idle, then start a new merge operation."
+    details: dict[str, Any] = {"worker_status": status}
+    if status == "waiting" and session_id:
+        jobs = _waiting_jobs(session_id)
+        if jobs:
+            details["waiting_on_jobs"] = jobs
+            listing = "; ".join(
+                f"{job['id']} ({job['type']}, until {job['expires_at']}): {job['message']}"
+                for job in jobs
+            )
+            message += (
+                f" It is waiting on {len(jobs)} background job(s): {listing}. "
+                "The worker returns to idle when they finish or are cancelled (bg_cancel by the worker)."
+            )
     error = _error(
         "WORKER_BUSY",
-        f"Worker is {status}; wait until it is idle, then start a new merge operation.",
+        message,
         operation_id=operation_id,
         status=409,
         retryable=True,
-        details={"worker_status": status},
+        details=details,
     )
     return _base_result(
         operation_id,
@@ -1866,7 +1900,9 @@ async def _run_operation(operation_id: str) -> None:
                     _verify_accepted_snapshot, record,
                 )
         if mismatch.startswith("worker_busy:"):
-            result, _ = _busy_worker_result(operation_id, mismatch.partition(":")[2])
+            result, _ = _busy_worker_result(
+                operation_id, mismatch.partition(":")[2], record["session_id"],
+            )
             await asyncio.to_thread(
                 record_phase_duration,
                 operation_id,
@@ -2329,7 +2365,7 @@ async def accept_merge_operation(
     busy_deadline = time.monotonic() + MERGE_BUSY_WAIT_SECONDS
     worker_status = await _wait_for_session_idle(row["id"], busy_deadline)
     if worker_status != "idle":
-        result, status = _busy_worker_result(canonical_id, worker_status)
+        result, status = _busy_worker_result(canonical_id, worker_status, row["id"])
         result["phase_durations_ms"] = {
             "pre_operation": _elapsed_ms(pre_operation_started),
         }
@@ -2400,7 +2436,7 @@ async def accept_merge_operation(
 
     worker_status = await _wait_for_session_idle(row["id"], busy_deadline)
     if worker_status != "idle":
-        result, status = _busy_worker_result(canonical_id, worker_status)
+        result, status = _busy_worker_result(canonical_id, worker_status, row["id"])
         result["phase_durations_ms"] = {
             **phase_durations,
             "pre_operation": _elapsed_ms(pre_operation_started),
