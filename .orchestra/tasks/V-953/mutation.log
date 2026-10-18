@@ -1,0 +1,26 @@
+== mutation A
+                ^^^^^^^^^^^
+ValueError: max() iterable argument is empty
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v953_exhausted_windows_past_their_reset_are_available_not_manual
+FAILED tests/test_limit_wake.py::test_v953_stale_snapshot_at_the_reset_moment_still_wakes_everyone
+2 failed, 3 passed, 36 deselected in 3.31s
+== mutation B
+E        +  where 0 = len([])
+
+tests/test_limit_wake.py:1493: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v953_closed_capacity_rearms_the_undelivered_cohort_instead_of_dropping_it
+1 failed, 4 passed, 36 deselected in 2.78s
+== mutation C
+E         Use -v to get more diff
+
+tests/test_limit_wake.py:1412: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v953_duplicate_empty_turn_end_keeps_the_limit_of_the_turn
+1 failed, 4 passed, 36 deselected in 2.89s
+== mutation D (floor from provider refusal ignored)
+tests/test_limit_wake.py:1543: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_v953_refusal_at_99_percent_still_waits_for_the_reset_the_provider_named
+1 failed, 5 passed, 36 deselected in 3.37s

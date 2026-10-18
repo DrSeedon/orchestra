@@ -1355,3 +1355,197 @@ def test_subscription_limit_never_takes_the_auto_continue_early_return():
     assert len(branch) == 2, "auto-continue branch shape changed — re-verify the seam"
     # The early return lives in that branch only; a stop_sequence turn cannot enter it.
     assert "stop_sequence" not in branch[0]
+
+
+# ── V-953: the 18.10 reset wake that never happened ──
+
+def test_v953_exhausted_windows_past_their_reset_are_available_not_manual():
+    from app.limit_wake import provider_readiness
+
+    stale = (NOW - timedelta(seconds=1)).isoformat()
+    readiness = provider_readiness(
+        _envelope(_anthropic_usage(100, 40, five_reset=stale, seven_reset=None)),
+        "anthropic",
+        now=NOW,
+    )
+    assert readiness["state"] == "available"
+
+    # A window with no reset moment at all still cannot be timed: that stays manual.
+    no_reset = provider_readiness(
+        _envelope(_anthropic_usage(100, 40, five_reset=None)), "anthropic", now=NOW,
+    )
+    assert no_reset["state"] == "manual"
+
+    # And an exhausted window whose reset is still ahead keeps waiting for it.
+    ahead = (NOW + timedelta(minutes=5)).isoformat()
+    waiting = provider_readiness(
+        _envelope(_anthropic_usage(100, 40, five_reset=ahead)), "anthropic", now=NOW,
+    )
+    assert (waiting["state"], waiting["reset_at"]) == ("reset", ahead)
+
+
+def test_v953_duplicate_empty_turn_end_keeps_the_limit_of_the_turn():
+    from app.limit_wake import find_limit_stopped_agents
+
+    limited = json.dumps({"status": "rejected", "rate_limit_type": "five_hour"})
+    sessions = [
+        _session("sales", "sales", "claude-sonnet-5-5[1m]", "waiting"),
+        _session("quiet", "quiet", "claude-sonnet-5-5[1m]", "waiting"),
+    ]
+    logs = {
+        "sales": [
+            _log(1, "status", "turn ended (end_turn, 2 turns)"),
+            _log(2, "user_message", "work"),
+            _log(3, "provider_limit", limited),
+            _log(4, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+            _log(5, "status", "turn ended (stop_sequence, 1 turns)"),
+            _log(6, "status", "turn ended (stop_sequence, 1 turns)"),
+        ],
+        # An ordinary finished turn followed by an empty duplicate end is not a limit.
+        "quiet": [
+            _log(7, "text", "done"),
+            _log(8, "status", "turn ended (end_turn, 1 turns)"),
+            _log(9, "status", "turn ended (end_turn, 1 turns)"),
+        ],
+    }
+    found = find_limit_stopped_agents(sessions, logs)
+    assert [(a["name"], a["limit_turn_id"]) for a in found] == [("sales", 6)]
+
+
+def _wake_job_row(job_id, targets, attempt=0):
+    from app.db import bg_save_job
+
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": job_id, "type": "timer",
+        "config": json.dumps({
+            "action": "wake_subscription_limited", "provider": "anthropic",
+            "agents": targets, "attempt": attempt,
+        }),
+        "message": "", "target_session_id": "__system__", "target_name": "__system__",
+        "target_scope": "__global__", "created_by_name": "dashboard", "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "trigger_at": now.isoformat(), "created_at": now.isoformat(), "last_output": "",
+    })
+
+
+def _wake_fixture(monkeypatch, usage_sequence):
+    from app.routes import system
+    from app.session_state import AgentStatus
+
+    targets = [
+        {"id": "a", "name": "worker-a", "scope": "/project", "limit_turn_id": 10},
+        {"id": "b", "name": "worker-b", "scope": "/project", "limit_turn_id": 20},
+    ]
+    candidates = [_candidate("a", "worker-a", limit_turn_id=10), _candidate("b", "worker-b", limit_turn_id=20)]
+    monkeypatch.setattr("app.limit_wake._load_limit_stopped_agents", lambda: candidates)
+    monkeypatch.setattr(system, "current_provider_usage", AsyncMock(side_effect=usage_sequence))
+    session = MagicMock(status=AgentStatus.IDLE)
+    manager = MagicMock()
+    manager.ensure_loaded = AsyncMock(return_value=session)
+    manager.send = AsyncMock()
+    return targets, manager
+
+
+@pytest.mark.asyncio
+async def test_v953_stale_snapshot_at_the_reset_moment_still_wakes_everyone(wake_db, monkeypatch):
+    from app.db import bg_get_jobs
+    from app.limit_wake import run_wake_job
+
+    just_passed = (datetime.now(timezone.utc) - timedelta(milliseconds=1)).isoformat()
+    stale = {"anthropic": _anthropic_usage(100, 30, five_reset=just_passed)}
+    targets, manager = _wake_fixture(monkeypatch, [stale, stale])
+    _wake_job_row("wake-v953", targets)
+
+    await run_wake_job(
+        "wake-v953", {"provider": "anthropic", "agents": targets}, manager, stagger_seconds=0,
+    )
+
+    assert manager.send.await_count == 2
+    row = next(job for job in bg_get_jobs() if job["id"] == "wake-v953")
+    assert row["last_output"] == "woke 2 agents"
+
+
+@pytest.mark.asyncio
+async def test_v953_closed_capacity_rearms_the_undelivered_cohort_instead_of_dropping_it(
+    wake_db, monkeypatch,
+):
+    from app.bg_jobs import bg_manager
+    from app.db import bg_get_jobs
+    from app.limit_wake import run_wake_job
+
+    closed = {"anthropic": _anthropic_usage(100, 30, five_reset=None)}
+    targets, manager = _wake_fixture(monkeypatch, [closed])
+    _wake_job_row("wake-v953b", targets)
+    created = []
+
+    async def fake_create(job_type, config, *args, **kwargs):
+        created.append((job_type, config, kwargs))
+        return {"id": "retry"}
+
+    monkeypatch.setattr(bg_manager, "create", fake_create)
+
+    await run_wake_job(
+        "wake-v953b", {"provider": "anthropic", "agents": targets}, manager, stagger_seconds=0,
+    )
+
+    manager.send.assert_not_awaited()
+    assert len(created) == 1
+    _, config, kwargs = created[0]
+    assert config["attempt"] == 1
+    assert [agent["id"] for agent in config["agents"]] == ["a", "b"]
+    assert kwargs["replace_key"] == "wake-limit-anthropic"
+    row = next(job for job in bg_get_jobs() if job["id"] == "wake-v953b")
+    assert "retry 1/" in row["last_output"]
+
+
+@pytest.mark.asyncio
+async def test_v953_rearming_gives_up_after_the_attempt_cap(wake_db, monkeypatch):
+    from app.bg_jobs import bg_manager
+    from app.limit_wake import WAKE_RETRY_MAX_ATTEMPTS, run_wake_job
+
+    closed = {"anthropic": _anthropic_usage(100, 30, five_reset=None)}
+    targets, manager = _wake_fixture(monkeypatch, [closed])
+    _wake_job_row("wake-v953c", targets, attempt=WAKE_RETRY_MAX_ATTEMPTS)
+    monkeypatch.setattr(
+        bg_manager, "create", AsyncMock(side_effect=AssertionError("must not re-arm")),
+    )
+
+    await run_wake_job(
+        "wake-v953c",
+        {"provider": "anthropic", "agents": targets, "attempt": WAKE_RETRY_MAX_ATTEMPTS},
+        manager,
+        stagger_seconds=0,
+    )
+    manager.send.assert_not_awaited()
+
+
+def test_v953_refusal_at_99_percent_still_waits_for_the_reset_the_provider_named():
+    from app.limit_wake import build_wake_plan, find_limit_stopped_agents
+
+    reset = int((NOW + timedelta(minutes=20)).timestamp())
+    limited = json.dumps({"status": "rejected", "rate_limit_type": "five_hour", "resets_at": reset})
+    sessions = [_session("a", "worker-a", "claude-opus-5-5[1m]")]
+    logs = {"a": [
+        _log(1, "user_message", "work"),
+        _log(2, "provider_limit", limited),
+        _log(3, "status", "turn ended (stop_sequence, 1 turns)"),
+    ]}
+    agents = find_limit_stopped_agents(sessions, logs)
+    assert agents[0]["limit_reset_at"] == (NOW + timedelta(minutes=20)).isoformat()
+
+    plan = build_wake_plan(
+        agents, {"anthropic": _envelope({"windows": [
+            {"id": "five_hour", "utilization": 99, "resets_at": (NOW + timedelta(minutes=20)).isoformat()},
+            {"id": "seven_day", "utilization": 30, "resets_at": None},
+        ]})}, now=NOW,
+    )
+    assert [(s["reason"], s["reset_at"]) for s in plan["schedules"]] == [
+        ("base_reset", (NOW + timedelta(minutes=20)).isoformat())
+    ]
+
+    # Once the named moment has passed, the same refusal wakes immediately.
+    later = build_wake_plan(
+        agents, {"anthropic": _envelope(_anthropic_usage(0, 0))}, now=NOW + timedelta(minutes=21),
+    )
+    assert later["schedules"][0]["reason"] == "available_now"

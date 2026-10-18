@@ -27,8 +27,13 @@ MANUAL_ACTION_URL = "https://claude.ai/settings/usage"
 WAKE_MESSAGE_PREFIX = "[system wake:"
 ANTHROPIC_BASE_WINDOWS = ("five_hour", "seven_day")
 WAKE_AUTO_DEBOUNCE_SECONDS = 60
+WAKE_RETRY_DELAY_SECONDS = 120
+WAKE_RETRY_MAX_ATTEMPTS = 5
 _schedule_lock = asyncio.Lock()
 _last_auto_schedule: datetime | None = None
+
+
+_TURN_CONTENT_TYPES = frozenset({"user_message", "text", "thinking", "tool", "tool_result"})
 
 
 def _is_limit_wake_log(row: dict) -> bool:
@@ -41,6 +46,12 @@ def _is_limit_wake_log(row: dict) -> bool:
 
 
 def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
+    info = _latest_limit_info(logs)
+    return info[:2] if info else None
+
+
+def _latest_limit_info(logs: list[dict]) -> tuple[str, int, str | None] | None:
+    """(kind, turn log id, reset moment the provider itself named in its refusal)."""
     use_timestamps = all(row.get("ts") for row in logs)
     key = (
         (lambda row: (row["ts"], row["id"]))
@@ -63,7 +74,17 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
         for row in ordered
     ):
         return None
-    previous_key = key(turn_ends[-2]) if len(turn_ends) > 1 else None
+    # A turn end repeated within moments with nothing of its own between the two ends
+    # (V-953: `sales` logged two ends 3 s apart, the limit rows sat before the first)
+    # belongs to the same turn: merge the empty windows backwards.
+    boundary = len(turn_ends) - 2
+    while boundary >= 0 and not any(
+        key(turn_ends[boundary]) < key(row) <= latest_key
+        and row["type"] in _TURN_CONTENT_TYPES | {"provider_limit"}
+        for row in ordered
+    ):
+        boundary -= 1
+    previous_key = key(turn_ends[boundary]) if boundary >= 0 else None
     turn_logs = [
         row for row in ordered
         if (previous_key is None or key(row) > previous_key)
@@ -75,7 +96,16 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
         rejected = next((limit for limit in reversed(limits) if limit.get("status") == "rejected"), None)
         if rejected is None:
             return None
-        return ("overage" if rejected.get("rate_limit_type") == "overage" else "timed", latest["id"])
+        reset = rejected.get("resets_at")
+        reset_at = (
+            datetime.fromtimestamp(reset, timezone.utc).isoformat()
+            if isinstance(reset, (int, float)) and reset > 0 else None
+        )
+        return (
+            "overage" if rejected.get("rate_limit_type") == "overage" else "timed",
+            latest["id"],
+            reset_at,
+        )
     # Old sessions have only platform-written error/status rows. Never reconstruct
     # a monthly limit from assistant text, even when a legacy banner looks exact.
     if "stop_sequence" not in latest["content"]:
@@ -91,7 +121,7 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
         "monthly spend limit" in row["content"].lower()
         for row in turn_logs
     )
-    return ("monthly" if monthly else "timed", latest["id"])
+    return ("monthly" if monthly else "timed", latest["id"], None)
 
 
 def find_limit_stopped_agents(
@@ -111,15 +141,16 @@ def find_limit_stopped_agents(
             continue
         if provider is None:
             continue
-        limit = _latest_limit_turn(logs_by_session.get(session["id"], []))
+        limit = _latest_limit_info(logs_by_session.get(session["id"], []))
         if not limit:
             continue
-        kind, turn_id = limit
+        kind, turn_id, reset_at = limit
         result.append({
             **session,
             "limit_kind": kind,
             "provider": provider,
             "limit_turn_id": turn_id,
+            **({"limit_reset_at": reset_at} if reset_at else {}),
         })
     return result
 
@@ -183,15 +214,24 @@ def provider_readiness(
             return {"state": "available", "reason": "base capacity is open"}
 
         resets = [_parse_reset(window.get("resets_at")) for window in exhausted]
-        if any(reset is None or reset <= now for reset in resets):
+        if any(reset is None for reset in resets):
             return {
                 "state": "manual",
                 "reason": "base capacity has no timed reset",
             }
+        # A window whose own reset moment has passed has rolled over even while the
+        # provider's usage snapshot still shows the old 100% (V-953: at 10:30:00.001
+        # the refresh was one tick stale and the whole cohort was dropped as "manual").
+        future = [reset for reset in resets if reset > now]
+        if not future:
+            return {
+                "state": "available",
+                "reason": "exhausted windows have passed their reset",
+            }
         return {
             "state": "reset",
             "reason": "base capacity is exhausted",
-            "reset_at": max(resets).isoformat(),
+            "reset_at": max(future).isoformat(),
         }
 
     observed = [
@@ -210,22 +250,22 @@ def provider_readiness(
     ]
     if not exhausted:
         return {"state": "available", "reason": "provider capacity is open"}
-    resets = [
-        reset
-        for reset in (
-            _parse_reset(window.get("resets_at")) for window in exhausted
-        )
-        if reset is not None and reset > now
-    ]
-    if not resets:
+    parsed = [_parse_reset(window.get("resets_at")) for window in exhausted]
+    future = [reset for reset in parsed if reset is not None and reset > now]
+    if future:
         return {
-            "state": "unavailable",
-            "reason": "exhausted windows have no future reset",
+            "state": "reset",
+            "reason": "provider capacity is exhausted",
+            "reset_at": max(future).isoformat(),
+        }
+    if any(reset is not None for reset in parsed):
+        return {
+            "state": "available",
+            "reason": "exhausted windows have passed their reset",
         }
     return {
-        "state": "reset",
-        "reason": "provider capacity is exhausted",
-        "reset_at": max(resets).isoformat(),
+        "state": "unavailable",
+        "reason": "exhausted windows have no future reset",
     }
 
 
@@ -265,6 +305,21 @@ def build_wake_plan(
         ]
         names = [agent["name"] for agent in provider_agents]
         if readiness["state"] in {"available", "reset"}:
+            # The provider's own refusal named a reset moment: it proves the limit even
+            # when usage reads 99% (V-953), so the wake never fires before that moment.
+            floors = [
+                reset for reset in (
+                    _parse_reset(agent.get("limit_reset_at")) for agent in provider_agents
+                ) if reset is not None and reset > now
+            ]
+            if floors:
+                latest = max(floors)
+                known = _parse_reset(readiness.get("reset_at"))
+                readiness = {
+                    **readiness,
+                    "state": "reset",
+                    "reset_at": max(latest, known or latest).isoformat(),
+                }
             schedules.append({
                 "provider": provider,
                 "reason": (
@@ -324,9 +379,9 @@ def _load_limit_stopped_agents() -> list[dict]:
             ),
             bounds AS (
                 SELECT session_id,
-                    MAX(CASE WHEN rank=2 THEN ts END) AS previous_ts
+                    MAX(CASE WHEN rank=4 THEN ts END) AS previous_ts
                 FROM ranked_ends
-                WHERE rank <= 2
+                WHERE rank <= 4
                 GROUP BY session_id
             )
             SELECT logs.session_id, logs.id, logs.ts, logs.type, logs.content
@@ -605,6 +660,46 @@ def _persist_deliveries(
         raise RuntimeError("wake job is no longer triggering")
 
 
+async def _rearm_wake(config: dict, provider: str, deliveries: dict) -> str:
+    """The cohort was not woken because capacity looked closed: try again, never drop it.
+
+    A one-shot job that gives up silently strands every agent that the limit cut off
+    (V-953); the attempts are bounded so a really dead provider cannot loop forever.
+    """
+    from app.bg_jobs import bg_manager
+
+    attempt = int(config.get("attempt") or 0) + 1
+    remaining = [
+        agent for agent in config.get("agents") or []
+        if (deliveries.get(agent["id"]) or {}).get("state") != "delivered"
+    ]
+    if not remaining:
+        return ""
+    if attempt > WAKE_RETRY_MAX_ATTEMPTS:
+        return f"; gave up after {WAKE_RETRY_MAX_ATTEMPTS} retries ({len(remaining)} agents not woken)"
+    result = await bg_manager.create(
+        "timer",
+        {
+            "delay_seconds": WAKE_RETRY_DELAY_SECONDS,
+            "action": WAKE_ACTION,
+            "provider": provider,
+            "reason": config.get("reason") or "base_reset",
+            "reset_at": config.get("reset_at"),
+            "attempt": attempt,
+            "agents": remaining,
+        },
+        "",
+        "__system__",
+        "__system__",
+        "__global__",
+        "dashboard",
+        replace_key=f"{WAKE_JOB_PREFIX}{provider}",
+    )
+    if result.get("error"):
+        return f"; retry could not be scheduled: {result['error']}"
+    return f"; retry {attempt}/{WAKE_RETRY_MAX_ATTEMPTS} in {WAKE_RETRY_DELAY_SECONDS}s for {len(remaining)} agents"
+
+
 async def run_wake_job(
     job_id: str,
     config: dict,
@@ -627,6 +722,7 @@ async def run_wake_job(
         if delivery.get("state") == "delivered"
     ]
     outcome = ""
+    capacity_closed = False
     try:
         targets = config.get("agents") or []
         for index, target in enumerate(targets):
@@ -658,6 +754,7 @@ async def run_wake_job(
                 )
             if readiness["state"] != "available":
                 outcome = f"stopped: {provider}: {readiness['reason']}"
+                capacity_closed = True
                 break
 
             current = {
@@ -759,5 +856,7 @@ async def run_wake_job(
         bg_fail_job(job_id, str(error)[:500])
         raise
     else:
+        if capacity_closed:
+            outcome += await _rearm_wake(config, provider, deliveries)
         summary = outcome or f"woke {len(sent)} agents"
         bg_finish_trigger(job_id, summary)
