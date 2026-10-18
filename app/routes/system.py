@@ -646,7 +646,7 @@ async def stats(scope: Optional[str] = None):
 # ── Usage (subscription limits) ──
 
 _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.json"
-_usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
+_usage_cache: dict = {"data": None, "ts": 0.0, "error": None}
 _codex_usage_cache: dict = {"data": None, "ts": 0.0}
 _grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
 
@@ -693,14 +693,34 @@ def _save_usage_cache():
 _load_usage_cache()
 
 
-def _read_oauth_credentials() -> tuple[str | None, str | None, str | None]:
-    """Read accessToken, refreshToken, and rateLimitTier from credentials file."""
+ANTHROPIC_TOKEN_STALE_REASON = (
+    "Anthropic access token expired; the Claude CLI refreshes it itself (its refresh "
+    "token is single-use and Orchestra never spends it), so the last cached limits are shown"
+)
+_stale_logged: set[str] = set()
+
+
+def _warn_once(key: str, message: str) -> None:
+    """Warn on the first occurrence of a standing condition, then stay quiet (debug)."""
+    if key in _stale_logged:
+        logger.debug(message)
+        return
+    _stale_logged.add(key)
+    logger.warning(message)
+
+
+def _read_oauth_credentials() -> tuple[str | None, str | None]:
+    """Read accessToken and rateLimitTier from the Claude CLI credentials file.
+
+    The refresh token is deliberately not read: it is single-use, and spending it here
+    invalidates the copy the CLI holds and logs the owner out (V-958).
+    """
     try:
         creds = json.loads(_CREDENTIALS_PATH.read_text())
         oauth = creds.get("claudeAiOauth", {})
-        return oauth.get("accessToken"), oauth.get("refreshToken"), oauth.get("rateLimitTier")
+        return oauth.get("accessToken"), oauth.get("rateLimitTier")
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        return None, None, None
+        return None, None
 
 
 def _read_grok_token() -> str | None:
@@ -1110,23 +1130,6 @@ async def _fetch_codex_usage() -> dict:
             await proc.wait()
 
 
-async def _refresh_oauth_token(refresh_token: str) -> str | None:
-    """Refresh expired OAuth token. Returns new access token or None."""
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                "https://platform.claude.com/v1/oauth/token",
-                json={"grant_type": "refresh_token", "refresh_token": refresh_token},
-                headers={"Content-Type": "application/json", "Accept": "application/json"},
-            )
-            if resp.status_code == 200:
-                return resp.json().get("access_token")
-    except Exception as e:
-        logger.warning(f"OAuth token refresh failed: {e}")
-    return None
-
-
 def _cost_cached_for(r) -> float:
     """Cached cost recomputed from RAW tokens + current TOKEN_PRICES, so a price
     change reprices history. Fallback to stored cost_usd_cached when we can't
@@ -1269,27 +1272,16 @@ async def _get_usage_data(
     ):
         anthropic_data = _usage_cache["data"]
     else:
-        token, refresh_token, _tier = _read_oauth_credentials()
+        token, _tier = _read_oauth_credentials()
         if token:
             try:
                 anthropic_data = await _fetch_anthropic_usage(token)
                 anthropic_fetched = True
+                _usage_cache["error"] = None
+                _stale_logged.discard("anthropic_token")
             except PermissionError:
-                if refresh_token:
-                    new_token = await _refresh_oauth_token(refresh_token)
-                    if new_token:
-                        try:
-                            anthropic_data = await _fetch_anthropic_usage(new_token)
-                            anthropic_fetched = True
-                            _usage_cache["token"] = new_token
-                        except Exception as error:
-                            logger.warning(
-                                f"Anthropic usage fetch after refresh failed: {error}"
-                            )
-                    else:
-                        logger.warning("Anthropic token refresh failed")
-                else:
-                    logger.warning("Anthropic token expired without refresh token")
+                _usage_cache["error"] = ANTHROPIC_TOKEN_STALE_REASON
+                _warn_once("anthropic_token", ANTHROPIC_TOKEN_STALE_REASON)
             except Exception as error:
                 logger.warning(f"Anthropic usage fetch failed: {error}")
         else:
@@ -1298,7 +1290,10 @@ async def _get_usage_data(
         if anthropic_data is None:
             anthropic_data = _usage_cache["data"]
         if required_provider == "anthropic" and not anthropic_fetched:
-            raise RuntimeError("fresh Anthropic usage is unavailable")
+            raise RuntimeError(
+                "fresh Anthropic usage is unavailable"
+                + (f": {_usage_cache['error']}" if _usage_cache.get("error") else "")
+            )
         if anthropic_fetched:
             _usage_cache["data"] = anthropic_data
             _usage_cache["ts"] = now
@@ -1386,6 +1381,7 @@ async def _get_usage_data(
         _usage_cache["data"] = anthropic_data
     return {
         "anthropic": anthropic_data,
+        "anthropic_error": _usage_cache.get("error"),
         "codex": codex_data,
         "grok": grok_data,
         "openrouter": _get_openrouter_usage(),
@@ -1574,19 +1570,15 @@ async def _collect_usage_snapshot() -> None:
     from app.db import usage_save_snapshot
     anthropic_data = None
     anthropic_error = ""
-    token, refresh_token, _tier = _read_oauth_credentials()
+    token, _tier = _read_oauth_credentials()
     if token:
         try:
             anthropic_data = await _fetch_anthropic_usage(token)
+            _usage_cache["error"] = None
+            _stale_logged.discard("anthropic_token")
         except PermissionError as e:
-            # Причину пишем СРАЗУ: если обновление токена не поможет, дальше её взять
-            # будет неоткуда и отказ станет безымянным.
-            anthropic_error = f"{type(e).__name__}: {e}"
-            if refresh_token:
-                new_token = await _refresh_oauth_token(refresh_token)
-                if new_token:
-                    anthropic_data = await _fetch_anthropic_usage(new_token)
-                    anthropic_error = ""
+            anthropic_error = f"{type(e).__name__}: {ANTHROPIC_TOKEN_STALE_REASON}"
+            _usage_cache["error"] = ANTHROPIC_TOKEN_STALE_REASON
         except Exception as e:
             anthropic_data = None
             anthropic_error = f"{type(e).__name__}: {e}"
@@ -1594,6 +1586,7 @@ async def _collect_usage_snapshot() -> None:
         _usage_cache["data"] = anthropic_data
         _usage_cache["ts"] = time.time()
         _save_usage_cache()
+        _stale_logged.discard("anthropic_token_snapshot")
     anthropic_data = _latest_claude_data(anthropic_data)
 
     codex_error = ""
@@ -1637,10 +1630,14 @@ async def _collect_usage_snapshot() -> None:
                 "status": "unavailable",
                 "error": error or "no data",
             }
-            logger.warning(
-                "usage snapshot: %s asked and did not answer — %s",
-                provider_id, error or "empty response",
+            message = (
+                f"usage snapshot: {provider_id} asked and did not answer — "
+                f"{error or 'empty response'}"
             )
+            if ANTHROPIC_TOKEN_STALE_REASON in (error or ""):
+                _warn_once("anthropic_token_snapshot", message)
+            else:
+                logger.warning(message)
     if not providers:
         return
 

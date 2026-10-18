@@ -1,0 +1,14 @@
+== mutation A (refresh exchange restored on the A path)
+
+tests/test_v958_no_refresh_exchange.py:46: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v958_no_refresh_exchange.py::test_cached_usage_path_serves_cache_with_reason_and_never_posts
+FAILED tests/test_v958_no_refresh_exchange.py::test_recovery_clears_the_reason_and_rearms_the_warning
+2 failed, 2 passed in 3.70s
+== mutation B (refresh exchange restored on the B path)
+E       AssertionError: unexpected POST to https://platform.claude.com/v1/oauth/token: the refresh token must never be exchanged
+
+tests/test_v958_no_refresh_exchange.py:46: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v958_no_refresh_exchange.py::test_snapshot_path_names_the_reason_and_never_posts
+1 failed, 3 passed in 3.28s

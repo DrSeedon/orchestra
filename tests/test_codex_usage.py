@@ -382,7 +382,7 @@ async def test_snapshot_collector_persists_codex_without_anthropic_oauth(monkeyp
         "secondary": None,
     }
     save_snapshot = MagicMock()
-    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: (None, None, None))
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: (None, None))
     monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(return_value=codex))
     monkeypatch.setattr(system, "_usage_cache", {"data": None, "ts": 0.0, "token": None})
     monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
@@ -455,7 +455,7 @@ async def test_missing_anthropic_credentials_preserves_codex_capacity(monkeypatc
     monkeypatch.setattr(
         system,
         "_read_oauth_credentials",
-        lambda: (None, None, None),
+        lambda: (None, None),
     )
     monkeypatch.setattr(
         system,
@@ -491,7 +491,7 @@ async def test_forced_provider_refresh_never_authorizes_stale_capacity(monkeypat
     monkeypatch.setattr(
         system,
         "_read_oauth_credentials",
-        lambda: ("token", None, None),
+        lambda: ("token", None),
     )
     monkeypatch.setattr(
         system,
@@ -520,7 +520,7 @@ async def test_internal_provider_refresh_works_when_not_owner_mode(
     monkeypatch.setattr(
         system,
         "_read_oauth_credentials",
-        lambda: ("token", None, None),
+        lambda: ("token", None),
     )
     monkeypatch.setattr(
         system,

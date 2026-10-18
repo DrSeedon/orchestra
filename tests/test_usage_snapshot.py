@@ -27,7 +27,7 @@ def saved(monkeypatch):
     monkeypatch.setattr(system, "_usage_cache", {"data": None, "ts": 0.0, "token": None})
     monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
     monkeypatch.setattr(system, "_grok_usage_cache", {"data": None, "ts": 0.0})
-    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None, None))
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None))
     monkeypatch.setattr(system, "_read_grok_token", lambda: "")
     return calls
 
@@ -221,12 +221,7 @@ async def test_expired_credentials_are_named_not_swallowed(monkeypatch, saved_co
         raise PermissionError("401 Unauthorized")
 
     monkeypatch.setattr(system, "_fetch_anthropic_usage", _fetch)
-    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", "refresh", None))
-
-    async def _refresh(_rt):
-        return ""
-
-    monkeypatch.setattr(system, "_refresh_oauth_token", _refresh)
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None))
     _codex(monkeypatch, result={"plan_type": "pro", "rate_limits": {}})
 
     with caplog.at_level(logging.WARNING, logger="orchestra.system"):

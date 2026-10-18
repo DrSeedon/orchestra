@@ -40,7 +40,7 @@ def isolated_usage(monkeypatch):
     monkeypatch.setattr(system, "_save_usage_cache", lambda: None)
     monkeypatch.setattr(system, "_get_agents_cost", lambda: {})
     monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.0)
-    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None, None))
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None))
     monkeypatch.setattr(system, "_read_grok_token", lambda: None)
 
 
