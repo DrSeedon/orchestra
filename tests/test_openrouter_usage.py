@@ -430,6 +430,54 @@ def test_provider_records_and_timing_are_accessible_only_by_project_scope(tmp_pa
     assert agent_result["turns"][0]["scope"] == "/project"
 
 
+def test_session_usage_filter_returns_latest_success_and_pin_state(tmp_path, monkeypatch):
+    from app import auth, db
+    from app.routes import system
+    from app.harness import llm
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "session-usage.sqlite")
+    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
+    monkeypatch.setattr(auth, "validate_session", lambda token: token == "owner-session")
+    monkeypatch.setattr(llm, "_provider_order", lambda: ["DeepInfra"])
+    db.init_db()
+    common = dict(
+        scope="/project", runtime="harness", model="deepseek/deepseek-v4.1-flash",
+        billing_mode="openrouter_credit", stop_reason="end_turn", cost_usd=0.02,
+        input_tokens=40, output_tokens=5, cache_read_tokens=60, cache_create_tokens=0,
+    )
+    db.turn_usage_add(
+        event_id="session-success", session_id="session-target", ok=True,
+        ts="2026-10-19T10:00:00+00:00", provider_source_records=[
+            {"response": {"provider_name": "DeepInfra", "model": "deepseek/deepseek-v4.1-flash"}},
+        ], **common,
+    )
+    db.turn_usage_add(
+        event_id="session-failure", session_id="session-target", ok=False,
+        ts="2026-10-19T10:02:00+00:00", **common,
+    )
+    db.turn_usage_add(
+        event_id="other-session", session_id="session-other", ok=True,
+        ts="2026-10-19T10:03:00+00:00", **common,
+    )
+
+    result = asyncio.run(system.usage_turns_endpoint(
+        _request(cookie="session=owner-session"), scope="/project",
+        session_id="session-target", limit=1,
+    ))
+
+    assert [turn["event_id"] for turn in result["turns"]] == ["session-success"]
+    assert result["turns"][0]["cache_read_tokens"] == 60
+    assert result["turns"][0]["input_tokens"] == 40
+    assert result["provider_pin_configured"] is True
+
+    monkeypatch.setattr(llm, "_provider_order", lambda: [])
+    unpinned = asyncio.run(system.usage_turns_endpoint(
+        _request(cookie="session=owner-session"), scope="/project",
+        session_id="session-target", limit=1,
+    ))
+    assert unpinned["provider_pin_configured"] is False
+
+
 @pytest.mark.parametrize("scope", [None, "", "  ", "\t "])
 def test_usage_turns_requires_nonempty_scope(scope):
     from app.routes.system import usage_turns_endpoint

@@ -1753,7 +1753,12 @@ async def usage_analytics_endpoint(days: int = 7):
 
 
 @router.get("/api/usage/turns")
-async def usage_turns_endpoint(request: Request, scope: str | None = None, limit: int = 500):
+async def usage_turns_endpoint(
+    request: Request,
+    scope: str | None = None,
+    limit: int = 500,
+    session_id: str | None = None,
+):
     """Return project-scoped terminal usage and the provider source records."""
     scope = (scope or "").strip()
     if not scope:
@@ -1764,12 +1769,12 @@ async def usage_turns_endpoint(request: Request, scope: str | None = None, limit
         if not is_owner_mode():
             raise HTTPException(status_code=404, detail="not found")
     elif check_internal_token(request.headers.get("authorization", "")):
-        session_id = request.headers.get("x-orchestra-session-id", "").strip()
+        caller_session_id = request.headers.get("x-orchestra-session-id", "").strip()
         proof = request.headers.get("x-orchestra-mcp-proof", "")
         from app.db import get_session
         from app.mcp_proof import check_mcp_proof
 
-        caller = get_session(session_id) if check_mcp_proof(session_id, proof) else None
+        caller = get_session(caller_session_id) if check_mcp_proof(caller_session_id, proof) else None
         caller_scope = str((caller or {}).get("scope") or "").strip()
         caller_scope_key = caller_scope.rstrip("/") or "/"
         requested_scope_key = scope.rstrip("/") or "/"
@@ -1794,6 +1799,10 @@ async def usage_turns_endpoint(request: Request, scope: str | None = None, limit
     params: tuple = ()
     query += " WHERE scope=?"
     params = (scope,)
+    session_id = (session_id or "").strip()
+    if session_id:
+        query += " AND session_id=? AND runtime='harness' AND ok=1 AND billing_mode IN ('openrouter_credit', 'free')"
+        params += (session_id,)
     query += " ORDER BY ts DESC, id DESC LIMIT ?"
     params += (limit,)
     with _conn() as connection:
@@ -1807,7 +1816,12 @@ async def usage_turns_endpoint(request: Request, scope: str | None = None, limit
             item["provider_source_records"] = []
         item["cost_unaccounted"] = bool(item["cost_unaccounted"])
         records.append(item)
-    return {"scope": scope, "turns": records}
+    result = {"scope": scope, "turns": records}
+    if session_id:
+        from app.harness.llm import _provider_order
+
+        result["provider_pin_configured"] = bool(_provider_order())
+    return result
 
 
 @router.post("/api/usage/wake-after-reset")

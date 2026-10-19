@@ -3992,7 +3992,60 @@ function _checklistCardHtml(session) {
     return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[9px] text-slate-500 mt-1">${escHtml(T(session.status || 'running'))}${checklist.updated_at ? ` · ${T('Updated')} ${escHtml(_infoTime(checklist.updated_at))}` : ''}</div><div class="info-check-progress"><div class="info-check-progress-head"><span>${T('Checklist')}</span><strong>${checklist.completed} ${T('of')} ${checklist.total}</strong></div><div class="info-check-track"><span style="width:${percent}%"></span></div>${checklist.current ? `<div class="info-check-current">${T('Current step')}: ${escHtml(checklist.current)}</div>` : ''}</div><div class="info-checklist">${items}</div>${reminder}</article>`;
 }
 
-function renderInfoPanel(data) {
+function _cacheWarmthTier(ageMinutes, providerPinConfigured) {
+    if (providerPinConfigured) return 'provider-pin';
+    if (!Number.isFinite(ageMinutes) || ageMinutes < 0) return 'unknown';
+    if (ageMinutes <= 10) return 'sticky-boundary';
+    if (ageMinutes <= 30) return 'observed-window';
+    return 'unknown';
+}
+
+function _cacheWarmthHtml(session, usage) {
+    const model = session.model || '';
+    const providerMeta = _modelMeta(model);
+    if (session.backend_type !== 'harness' || providerMeta?.provider !== 'openrouter') return '';
+    const turn = usage?.turns?.[0];
+    const pin = usage?.provider_pin_configured === true;
+    let state = T('No successful OpenRouter turn recorded for this session.');
+    let details = '';
+    let tier = 'no-data';
+    if (turn) {
+        const ts = new Date(turn.ts);
+        const ageMinutes = (Date.now() - ts.getTime()) / 60000;
+        tier = _cacheWarmthTier(ageMinutes, pin);
+        const ageLabel = Number.isFinite(ageMinutes) && ageMinutes >= 0
+            ? T('{n} min ago', {n: new Intl.NumberFormat(undefined, {maximumFractionDigits: 0}).format(ageMinutes)})
+            : T('time unavailable');
+        if (tier === 'provider-pin') {
+            state = T('Manual provider pin configured — OpenRouter sticky routing is not applied. Cache state is not inferred from these boundaries.');
+        } else if (tier === 'sticky-boundary') {
+            state = T('Within the 10-minute OpenRouter sticky-routing boundary; this is not a cache TTL guarantee.');
+        } else if (tier === 'observed-window') {
+            state = T('Within the empirically observed 10–30 minute cache behavior window; not a provider TTL guarantee.');
+        } else {
+            state = T('Beyond the empirically observed 30-minute window; cache state is unknown, not a provider TTL guarantee.');
+        }
+        const cacheTotal = Number(turn.input_tokens || 0) + Number(turn.cache_read_tokens || 0);
+        const cacheShare = cacheTotal > 0
+            ? `${new Intl.NumberFormat(undefined, {style: 'percent', maximumFractionDigits: 1}).format(Number(turn.cache_read_tokens || 0) / cacheTotal)}`
+            : T('not measurable');
+        const records = Array.isArray(turn.provider_source_records) ? turn.provider_source_records : [];
+        const response = records.at(-1)?.response || {};
+        const actualProvider = response.provider_name || response.provider || T('unknown');
+        const actualModel = response.model || turn.model || model || T('unknown');
+        const cost = turn.cost_unaccounted || turn.cost_usd == null ? T('unknown') : fmtCost(turn.cost_usd);
+        details = `<div>${T('Last successful turn')}: ${escHtml(ageLabel)} · ${escHtml(ts.toLocaleString())}</div>
+            <div>${T('Provider / model')}: ${escHtml(actualProvider)} · ${escHtml(actualModel)}</div>
+            <div>${T('Measured cache share')}: ${escHtml(cacheShare)} · ${T('Turn cost')}: ${escHtml(cost)}</div>`;
+    }
+    return `<section class="info-cache-warmth" data-tier="${tier}" aria-label="${escHtml(T('OpenRouter cache warmth'))}">
+        <div class="info-panel-heading">${T('OpenRouter cache warmth')}</div>
+        <p>${escHtml(state)}</p>${details}
+        <small>${T('Routing evidence: 10-minute sticky-routing boundary; cache persistence has been observed at 10–30 minutes and beyond 30 minutes is unknown. These are empirical observations, not provider TTL guarantees.')}</small>
+    </section>`;
+}
+
+function renderInfoPanel(data, usage = null) {
     const panel = $('#info-panel');
     if (!panel) return;
     if (!data) {
@@ -4001,6 +4054,7 @@ function renderInfoPanel(data) {
     }
     const session = currentSessions.find(s => s.name === data.session?.name) || {name: data.session?.name || selectedAgent};
     let html = '';
+    html += _cacheWarmthHtml(session, usage);
     if (data.session?.is_orchestrator) {
         const workers = (data.children || []).filter(child => child.checklist?.total > 0);
         html += `<div class="info-panel-heading">${T('Workers this session')}</div>`;
@@ -4023,7 +4077,12 @@ async function loadInfoPanel() {
     if (!_infoTabActive || !selectedAgent || !currentScope) return;
     try {
         const data = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/info-panel?scope=${encodeURIComponent(currentScope)}`, {pollKey: 'info-panel'});
-        if (selectedAgent === data.session?.name) renderInfoPanel(data);
+        let warmth = null;
+        const session = currentSessions.find(s => s.name === data.session?.name);
+        if (session?.backend_type === 'harness' && _modelMeta(session.model)?.provider === 'openrouter') {
+            warmth = await api(`/api/usage/turns?scope=${encodeURIComponent(currentScope)}&session_id=${encodeURIComponent(data.session.id)}&limit=1`, {pollKey: 'cache-warmth'});
+        }
+        if (selectedAgent === data.session?.name) renderInfoPanel(data, warmth);
     } catch (error) {
         const panel = $('#info-panel');
         if (panel && _infoTabActive) panel.innerHTML = `<div class="p-3 text-center text-slate-500">${T('Could not load information panel')}: ${escHtml(error.message)}</div>`;

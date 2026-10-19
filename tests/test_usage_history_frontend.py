@@ -135,6 +135,23 @@ def test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure(brows
     page.close()
 
 
+def test_openrouter_cache_warmth_classifies_empirical_windows_and_pin(browser):
+    page = _page_with_api(browser)
+    tiers = page.evaluate("""() => [
+        _cacheWarmthTier(10, false),
+        _cacheWarmthTier(10.01, false),
+        _cacheWarmthTier(30, false),
+        _cacheWarmthTier(30.01, false),
+        _cacheWarmthTier(2, true),
+        _cacheWarmthTier(NaN, false),
+    ]""")
+    assert tiers == [
+        "sticky-boundary", "observed-window", "observed-window", "unknown",
+        "provider-pin", "unknown",
+    ]
+    page.close()
+
+
 def _history(count: int, *, provider_usage=None, step: int = 30, skip: int = 0,
              nulls: tuple = (), drop: tuple = ()):
     """Ответ /api/usage/history: снимки в текущем 5h-окне с шагом step минут.
