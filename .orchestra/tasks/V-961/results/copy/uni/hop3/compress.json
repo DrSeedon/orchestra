@@ -1,0 +1,11 @@
+{
+ "arm": "copy",
+ "label": "uni",
+ "k": 3,
+ "model_raw_chars": 13826,
+ "cost": 0.5684,
+ "sec": 94,
+ "journal_rows": 257,
+ "block_chars": 12304,
+ "summary_chars": 19313
+}
