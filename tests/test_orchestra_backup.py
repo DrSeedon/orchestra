@@ -95,7 +95,7 @@ def test_laptop_upload_timeout_keeps_partial_for_retry(
     monkeypatch.setattr(backup.subprocess, "run", timed_out)
 
     partial = Path("/mnt/data/orchestra-backups/archive.partial")
-    assert backup._rsync_to_laptop(source, partial) is False
+    assert backup._rsync_to_laptop(source, partial, 450) is False
     assert calls[0][0:4] == ["timeout", "--signal=TERM", "--kill-after=5s", "450s"]
     assert "--partial" in calls[0]
     assert "--append-verify" in calls[0]
@@ -155,9 +155,9 @@ def test_incomplete_laptop_upload_emits_backup_failure(
             raise RuntimeError("remote file missing")
         return ""
 
-    monkeypatch.setattr(sys, "argv", ["orchestra_backup.py", "--daily"])
+    monkeypatch.setattr(sys, "argv", ["orchestra_backup.py", "--push-task-store"])
     monkeypatch.setattr(backup, "_service_paths", lambda: (tmp_path / "orchestra.db", tmp_path))
-    monkeypatch.setattr(backup, "_make_daily_backup", lambda *_args: (archive, manifest))
+    monkeypatch.setattr(backup, "_scan_and_push_tasks", lambda _repo: None)
     monkeypatch.setattr(backup, "_verify_archive", lambda *_args: {})
     monkeypatch.setattr(backup, "_ssh", ssh)
     monkeypatch.setattr(backup, "_sha256", lambda _path: "archive-sha")
@@ -369,3 +369,52 @@ def test_banner_timeout_behind_open_port_exits_zero_silently(
 
     assert backup.main() == 0
     assert capsys.readouterr().err == ""
+
+
+def test_daily_never_touches_laptop_so_it_fits_the_job_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    """V-962: archive creation + a 450 s slice exceeded the 600 s kill; the hourly run copies."""
+    archive = tmp_path / "orchestra-db-2026-10-09.sqlite.zst"
+    manifest = tmp_path / "orchestra-db-2026-10-09.json"
+    archive.write_bytes(b"archive")
+    manifest.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["orchestra_backup.py", "--daily"])
+    monkeypatch.setattr(backup, "_service_paths", lambda: (tmp_path / "orchestra.db", tmp_path))
+    monkeypatch.setattr(backup, "_make_daily_backup", lambda *_args: (archive, manifest))
+    monkeypatch.setattr(backup, "_laptop_tunnel_available", lambda: pytest.fail("laptop touched"))
+    monkeypatch.setattr(backup, "_copy_to_laptop", lambda *_a: pytest.fail("laptop touched"))
+
+    assert backup.main() == 0
+
+
+@pytest.mark.parametrize(
+    ("elapsed", "expected"),
+    [(0, 450), (100, 410), (200, 310), (505, 5)],
+)
+def test_transfer_slice_is_cut_to_remaining_job_budget(monkeypatch, elapsed, expected):
+    monkeypatch.setattr(backup, "_JOB_STARTED", 1000.0)
+    monkeypatch.setattr(backup.time, "monotonic", lambda: 1000.0 + elapsed)
+    slice_seconds = backup._transfer_slice_seconds()
+    assert slice_seconds == expected
+    # run time + slice + reserve for post-transfer checks never exceeds the 600 s kill
+    assert elapsed + slice_seconds + backup.JOB_TAIL_RESERVE_SECONDS <= backup.JOB_BUDGET_SECONDS
+
+
+def test_copy_defers_when_budget_is_spent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    archive = tmp_path / "a.sqlite.zst"
+    manifest = tmp_path / "a.json"
+    archive.write_bytes(b"x")
+    manifest.write_text("{}", encoding="utf-8")
+
+    def ssh(command: str) -> str:
+        if command.startswith("sha256sum"):
+            raise RuntimeError("missing")
+        return ""
+
+    monkeypatch.setattr(backup, "_ssh", ssh)
+    monkeypatch.setattr(backup, "_sha256", lambda _p: "h")
+    monkeypatch.setattr(backup, "_transfer_slice_seconds", lambda: 5)
+    monkeypatch.setattr(backup, "_rsync_to_laptop", lambda *_a: pytest.fail("no budget left"))
+
+    backup._copy_to_laptop(archive, manifest)

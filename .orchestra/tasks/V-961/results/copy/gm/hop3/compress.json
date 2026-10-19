@@ -1,0 +1,11 @@
+{
+ "arm": "copy",
+ "label": "gm",
+ "k": 3,
+ "model_raw_chars": 13704,
+ "cost": 0.5691,
+ "sec": 76,
+ "journal_rows": 251,
+ "block_chars": 10302,
+ "summary_chars": 16256
+}

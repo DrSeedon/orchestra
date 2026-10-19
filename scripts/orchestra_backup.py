@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,17 @@ LAPTOP_PORT = "2222"
 LAPTOP_KEY = "/home/kesha/.ssh/tunnel_laptop"
 LAPTOP_DIR = "/mnt/data/orchestra-backups"
 LAPTOP_TRANSFER_SLICE_SECONDS = 450
+# The platform kills a job at 600 s; the slice is cut to what is left of the run so
+# archive creation or the task-store push cannot push the whole job over (V-962).
+JOB_BUDGET_SECONDS = 600
+JOB_TAIL_RESERVE_SECONDS = 90
+MIN_TRANSFER_SLICE_SECONDS = 20
+_JOB_STARTED = time.monotonic()
+
+
+def _transfer_slice_seconds() -> int:
+    left = JOB_BUDGET_SECONDS - JOB_TAIL_RESERVE_SECONDS - (time.monotonic() - _JOB_STARTED)
+    return int(min(LAPTOP_TRANSFER_SLICE_SECONDS, left))
 
 
 class BackupError(RuntimeError):
@@ -238,7 +250,7 @@ def _ssh(remote_command: str) -> str:
     ])
 
 
-def _rsync_to_laptop(source: Path, remote_partial: Path) -> bool:
+def _rsync_to_laptop(source: Path, remote_partial: Path, slice_seconds: int) -> bool:
     ssh = " ".join([
         "ssh", "-i", shlex.quote(LAPTOP_KEY), "-o", "IdentitiesOnly=yes",
         "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
@@ -249,7 +261,7 @@ def _rsync_to_laptop(source: Path, remote_partial: Path) -> bool:
     result = subprocess.run(
         [
             "timeout", "--signal=TERM", "--kill-after=5s",
-            f"{LAPTOP_TRANSFER_SLICE_SECONDS}s", "rsync", "--quiet", "--partial",
+            f"{slice_seconds}s", "rsync", "--quiet", "--partial",
             "--append-verify", "-e", ssh, str(source), f"{LAPTOP}:{remote_partial}",
         ],
         capture_output=True,
@@ -355,8 +367,11 @@ def _copy_to_laptop(archive: Path, manifest_path: Path) -> None:
             remote_hash = ""
         if remote_hash == local_hash:
             continue
+        slice_seconds = _transfer_slice_seconds()
+        if slice_seconds < MIN_TRANSFER_SLICE_SECONDS:
+            return  # budget spent; the next hourly run resumes via append-verify
         previous_size = _remote_size(remote_partial)
-        if not _rsync_to_laptop(source, remote_partial):
+        if not _rsync_to_laptop(source, remote_partial, slice_seconds):
             uploaded_size = _remote_size(remote_partial)
             if uploaded_size <= previous_size:
                 raise RuntimeError(f"laptop transfer made no progress: {name}")
@@ -467,7 +482,8 @@ def _daily() -> None:
             _make_daily_backup(db_path, directory)
         except Exception as error:
             raise BackupError("local-database", str(error)) from error
-    _sync_latest_laptop_backup(db_path)
+    # The laptop copy is left to the hourly --push-task-store run: archive creation
+    # plus a transfer slice does not fit the 600 s job limit (V-962).
 
 
 def _restore_drill(archive: Path, manifest_path: Path, temp_root: Path) -> dict[str, int]:
