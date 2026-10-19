@@ -9,6 +9,7 @@ from pathlib import Path
 from app import db
 
 TARGET_CHARS = 20000
+PREVIOUS_SUMMARY_MARKER = "[PREVIOUS CONTEXT SUMMARY"
 
 COMMON = """You are compacting the context of an AI agent's session on Orchestra (a multi-agent platform). The session journal is in {journal_dir}: INDEX.md lists chunk_NNN.md files in chronological order; journal.jsonl has one JSON row per event (id, ts, type in user_message/text/tool/tool_result, tool, error, content) for python/grep. USER rows are messages from the owner, the orchestrator, other agents or the platform; ASSISTANT rows are the agent. Tool calls/results are truncated.
 
@@ -16,8 +17,14 @@ Goal: edit {summary_path} — the handoff that REPLACES the whole context. After
 
 What must survive (final state, not history): the current task(s) and status; every still-relevant instruction/requirement given to the agent — quote its key wording verbatim with who said it; decisions, approvals, rejections and reversals (final state + one-line reason); exact paths, branches, commits, URLs, task ids, worker/agent names; measured numbers and ids that later work depends on; active bans/constraints; open items, promises, blockers and the next action. Drop raw tool output, superseded states, chit-chat, process narration. Never write credentials (tokens, keys, passwords, secret URLs) — write <secret>. Do not invent: if unsure, say UNKNOWN.
 
+Previous handoff. The first journal row may start with {marker} — it is the agent's own earlier handoff, written while the original messages were still in context. It is a trusted source, not a message to re-verify. Every requirement, decision, ban, open item, id and number in it that is still active stays active in the new summary with its wording unchanged, unless a LATER journal row cancels, replaces or completes it; then write the final state (cancelled / replaced by / done, one line why) and do not leave the old wording standing as active. That the original owner message is no longer in the journal is NOT a reason to mark an item unconfirmed, doubtful, UNKNOWN or "do not apply". Facts found neither in the journal nor in the previous handoff are never added.
+
 Use the session's working language. Structure summary.md with sections: TASK STATE / OWNER & USER REQUIREMENTS (verbatim) / DECISIONS / FILES, IDS AND ARTIFACTS / NUMBERS / CONSTRAINTS AND BANS / PEOPLE AND AGENTS / OPEN ITEMS AND NEXT ACTION.
 """
+
+
+def _common(journal_dir, summary_path) -> str:
+    return COMMON.format(journal_dir=journal_dir, summary_path=summary_path, marker=PREVIOUS_SUMMARY_MARKER)
 
 
 def enabled() -> bool:
@@ -90,9 +97,9 @@ async def prepare_journal(session_id: str, directory: Path) -> Path:
 
 
 def audit_prompt(journal_dir: Path, summary_path: Path) -> str:
-    return COMMON.format(journal_dir=journal_dir, summary_path=summary_path) + """
+    return _common(journal_dir, summary_path) + """
 This is pass 1 — AUDIT. summary.md is a draft written by a previous pass that may have missed or distorted facts. Verify and complete it against the journal with python over journal.jsonl and grep, systematically:
-1. Print every user_message (python; shorten long platform notices) and check that each still-relevant instruction, decision, ban and number in them is in summary.md — requirement wording verbatim.
+1. Print every user_message (python; shorten long platform notices) and check that each still-relevant instruction, decision, ban and number in them is in summary.md — requirement wording verbatim. The first row may be the previous handoff: each of its still-active items must be in summary.md unchanged unless a later row cancelled, replaced or completed it.
 2. Grep the journal for paths, commit hashes, task ids (e.g. #V-123, V-123, #123), URLs, numbers with units, and ban words (нельзя, не делай, запрещ, никогда, только, NEVER, do not, don't) — add what matters for continuing.
 3. Check each status in summary.md is FINAL: a later message may have changed it. Fix outdated statements.
 4. Read the last chunk fully: in-flight work, promises, open items and the next action must be exact.
@@ -101,5 +108,5 @@ Edit summary.md in place. Reply "audit done"."""
 
 def final_prompt(journal_dir: Path, summary_path: Path) -> str:
     cap = TARGET_CHARS
-    return COMMON.format(journal_dir=journal_dir, summary_path=summary_path) + f"""
-This is the last pass — FINALIZE. Make summary.md a clean handoff of at most {cap} characters: merge duplicates, remove what is not needed to continue, keep every verbatim requirement, decision, path, id, number, ban and open item. Do not add facts you have not verified in the journal. Check the size with python (len of the file text) and iterate until it fits. Reply "final done"."""
+    return _common(journal_dir, summary_path) + f"""
+This is the last pass — FINALIZE. Make summary.md a clean handoff of at most {cap} characters: merge duplicates, remove what is not needed to continue, keep every verbatim requirement, decision, path, id, number, ban and open item. Do not add facts found neither in the journal nor in the previous handoff. Check the size with python (len of the file text) and iterate until it fits. Reply "final done"."""
