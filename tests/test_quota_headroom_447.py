@@ -264,7 +264,7 @@ def test_usage_percent_formatter_guards_strip_without_browser():
         re.DOTALL,
     )
     mini_bar = re.search(
-        r"function _miniBar\(pct, color\) \{.*?\n\}",
+        r"function _miniBar\(pct, color, lockedPct = 0\) \{.*?\n\}",
         usage,
         re.DOTALL,
     )
@@ -283,3 +283,52 @@ def test_usage_percent_formatter_guards_strip_without_browser():
 
     assert "29%" in result.stdout
     assert "28.999999999999996" not in result.stdout
+
+
+def _usage_page(browser):
+    page = browser.new_page()
+    page.route(
+        "http://harness.local/**",
+        lambda route: route.fulfill(
+            status=200, content_type="text/html", body="<body><div id='usage-bar'></div></body>",
+        ),
+    )
+    page.goto("http://harness.local/")
+    page.add_script_tag(content="""
+        window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        );
+    """)
+    for script in ("theme.js", "utils.js", "connection.js", "usage.js"):
+        page.add_script_tag(path=str(ROOT / "app/static/js" / script))
+    return page
+
+
+@pytest.mark.browser
+def test_five_hour_bar_shows_week_locked_part_from_quota_headroom(browser):
+    """V-969: the 5h strip shows the week-locked part from the same `quota_headroom` as /limits."""
+    page = _usage_page(browser)
+    page.evaluate("""() => {
+        _usageData = {
+            anthropic: {five_hour: {utilization: 16, resets_at: null},
+                        seven_day: {utilization: 97, resets_at: null}},
+            quota_headroom: {rate: 1, windows_left: 0.03, available_pct: 3, locked_pct: 81},
+        };
+        renderUsageBar();
+    }""")
+    assert page.locator('[data-week-lock-segment="true"]').count() == 1
+    width = page.locator('[data-week-lock-segment="true"]').evaluate("e => e.style.width")
+    assert width == "81%"
+    label = page.locator('[data-week-lock="true"]')
+    assert "3%" in label.inner_text()
+    assert "81%" in label.get_attribute("title") and "3%" in label.get_attribute("title")
+
+    page.evaluate("""() => {
+        _usageData.quota_headroom = {rate: 1, windows_left: 5, available_pct: 84, locked_pct: 0};
+        renderUsageBar();
+    }""")
+    assert page.locator('[data-week-lock-segment="true"]').count() == 0
+    assert page.locator('[data-week-lock="true"]').count() == 0
+    page.evaluate("() => { _usageData.quota_headroom = null; renderUsageBar(); }")
+    assert page.locator('[data-week-lock="true"]').count() == 0
+    page.close()

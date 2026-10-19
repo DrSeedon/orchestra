@@ -210,9 +210,29 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
     return `<span style="color:${color}">${T('⏳{label}', {label})}</span>`;
 }
 
-function _miniBar(pct, color) {
+function _miniBar(pct, color, lockedPct = 0) {
     const formatted = _formatPercent(pct);
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:var(--ink);font-weight:600">${formatted}%</span></span>`;
+    const locked = Math.min(Math.max(Number(lockedPct) || 0, 0), Math.max(0, 100 - Number(formatted)));
+    const lock = locked > 0.05
+        ? `<span data-week-lock-segment="true" style="position:absolute;right:0;top:0;width:${locked}%;height:100%;background:repeating-linear-gradient(135deg,#475569 0 2px,#1e293b 2px 4px)"></span>`
+        : '';
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span>${lock}</span><span style="color:var(--ink);font-weight:600">${formatted}%</span></span>`;
+}
+
+// One source with the Telegram card: `quota_headroom` from /api/usage (_quota_headroom).
+function _weekLockInfo() {
+    const head = _usageData && _usageData.quota_headroom;
+    if (!head) return null;
+    const locked = Number(head.locked_pct);
+    const available = Number(head.available_pct);
+    if (!Number.isFinite(locked) || !Number.isFinite(available) || locked <= 0.05) return null;
+    return {locked, available};
+}
+
+function _weekLockLabel(info) {
+    const title = T('The weekly limit is nearly used up, so only {avail}% of this 5-hour window can actually be used before it resets; the hatched {locked}% is locked by the week.',
+        {avail: _formatPercent(info.available), locked: _formatPercent(info.locked)});
+    return ` <span data-week-lock="true" title="${title}" style="color:var(--warn);cursor:help">${T('usable {avail}%', {avail: _formatPercent(info.available)})}</span>`;
 }
 
 function _usageProviderAccent(providerId) {
@@ -291,7 +311,8 @@ function renderUsageBar() {
         const rp = rpNum != null ? ` <span style="color:var(--ink-dim)">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
         const release = '';
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('5h')}: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+        const lock = _weekLockInfo();
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('5h')}: ${_miniBar(fh.utilization, c, lock ? lock.locked : 0)}${lock ? _weekLockLabel(lock) : ''}${rp}${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {

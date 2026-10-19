@@ -34,6 +34,8 @@
     '4× signal': 'сигнал 4×',
     '5h': '5 ч',
     '7d': '7 д',
+    'The weekly limit is nearly used up, so only {avail}% of this 5-hour window can actually be used before it resets; the hatched {locked}% is locked by the week.': 'Недельный лимит почти выбран, поэтому до сброса можно реально потратить только {avail}% этого 5-часового окна; заштрихованные {locked}% заблокированы неделей.',
+    'usable {avail}%': 'реально {avail}%',
     'AI Agent Orchestrator': 'Оркестратор ИИ-агентов',
     'Add': 'Добавить',
     'After turn': 'После хода',
