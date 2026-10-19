@@ -1655,6 +1655,38 @@ async def test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt(
 
 
 @pytest.mark.asyncio
+async def test_spawn_worker_forwards_sol_model_to_session_creation(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/repo")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    captured = {}
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/sessions":
+            captured.update(kwargs["json"])
+            return {
+                "worktree_path": "/worktrees/sol-worker",
+                "branch": "task-970/sol-worker",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        return {
+            "ok": True,
+            "delivery_id": kwargs["json"]["delivery_id"],
+            "delivery_state": "QUEUED",
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await m.spawn_worker(
+        name="sol-worker", task="run the assigned work", repo_path="/repo", model="sol",
+    )
+
+    assert captured["model"] == "sol"
+    assert "Worker 'sol-worker' spawned" in result
+
+
+@pytest.mark.asyncio
 async def test_t3_spawn_delivery_same_repository_has_no_cross_repo_note(monkeypatch):
     import app.mcp_stdio as m
 

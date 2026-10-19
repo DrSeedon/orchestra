@@ -4060,7 +4060,7 @@ async def codex_review(
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
         in context (e.g. 'I fixed X and Y, re-review').
     model: reviewer model or registry alias. Omitted means the server-owned gpt-6-luna Fast tier.
-        Registered Codex-runtime models are accepted except Codex Spark and Astra/Sol, which are
+        Registered Codex-runtime models are accepted except Codex Spark and Astra, which are
         owner-selectable only for manual orchestrator sessions. Pass the model again on resume;
         it is applied to the resumed Codex thread.
     required: fail-safe implementation-review decision. Only literal JSON false asserts low risk

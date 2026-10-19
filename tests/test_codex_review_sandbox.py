@@ -19,8 +19,8 @@ what_matters = "sandbox and command correctness"
 what_does_not_matter = "deployment scale"
 """
 
-# The registered Luna worker route reaches the Codex CLI; readiness's manual-only Sol
-# model is quota metadata and must not replace the requested model.
+# The registered Luna worker route reaches the Codex CLI; readiness's Sol model is quota
+# metadata and must not replace the requested model.
 REVIEW_MODEL = "gpt-6-luna"
 READINESS_MODEL = "gpt-6.1-sol"
 

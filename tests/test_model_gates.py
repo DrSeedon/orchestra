@@ -53,9 +53,14 @@ def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
 
     manager.sessions.clear()
     with TestClient(app) as client:
-        ids = {m["id"] for m in client.get("/api/models").json()["models"]}
+        models = client.get("/api/models").json()["models"]
+        ids = {model["id"] for model in models}
+        catalog = client.get("/api/models/catalog").json()["catalog"]
     assert "test/vendor-x:free" not in ids
     assert "claude-haiku-5-5" in ids
+    assert "gpt-6.1-sol" in ids
+    sol = next(model for model in catalog if model["id"] == "gpt-6.1-sol")
+    assert sol["flags"]["agents"] is True
 
     registry.set_model_flags("test/vendor-x:free", dashboard=True)
     with TestClient(app) as client:
@@ -71,20 +76,18 @@ def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", ["astra", "sol"])
-async def test_manual_only_model_cannot_be_spawned_by_an_agent(model):
+async def test_astra_cannot_be_spawned_by_an_agent():
     from app.manager import SessionManager
 
     with pytest.raises(ValueError, match="disabled for agents"):
         await SessionManager().create_session(
-            name="manual-only-child", scope="/tmp", cwd="/tmp", model=model,
+            name="manual-only-child", scope="/tmp", cwd="/tmp", model="astra",
             parent_name="agent-orchestrator",
         )
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", ["astra", "sol"])
-async def test_mcp_change_model_rejects_manual_only_models_before_loading(model, monkeypatch):
+async def test_mcp_change_model_rejects_astra_before_loading(monkeypatch):
     from app.routes import sessions as routes
     from fastapi.responses import JSONResponse
     from unittest.mock import AsyncMock
@@ -92,12 +95,33 @@ async def test_mcp_change_model_rejects_manual_only_models_before_loading(model,
     ensure_loaded = AsyncMock(side_effect=AssertionError("gate must run before loading"))
     monkeypatch.setattr(routes.manager, "ensure_loaded", ensure_loaded)
     response = await routes.change_model(
-        "worker", {"scope": "/tmp", "model": model, "via": "mcp"},
+        "worker", {"scope": "/tmp", "model": "astra", "via": "mcp"},
     )
     assert isinstance(response, JSONResponse)
     assert response.status_code == 409
     assert "disabled for agents" in response.body.decode()
     ensure_loaded.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_mcp_change_model_allows_sol(monkeypatch):
+    from app.routes import sessions as routes
+    from unittest.mock import AsyncMock
+
+    changed_to = []
+
+    class Worker:
+        async def change_model(self, model):
+            changed_to.append(model)
+            return {"ok": True, "changed": True, "old_model": "gpt-6-luna", "model": model}
+
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=Worker()))
+    result = await routes.change_model(
+        "worker", {"scope": "/tmp", "model": "sol", "via": "mcp"},
+    )
+
+    assert result["ok"] is True
+    assert changed_to == ["gpt-6.1-sol"]
 
 
 def test_t3_dashboard_gate_blocks_user_actions_only(vendor_model):

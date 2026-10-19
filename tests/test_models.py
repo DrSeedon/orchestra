@@ -66,7 +66,7 @@ def test_selectable_models_match_the_curated_catalog():
     assert retired_ids.isdisjoint(ALIASES.values())
     assert retired_ids.isdisjoint(MODELS)
     assert get_model_flags("gpt-6-astra") == {"dashboard": True, "agents": False}
-    assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": False}
+    assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": True}
     assert resolve_model("grok") == "grok-4.6"
     assert resolve_model("sol") == "gpt-6.1-sol"
 
@@ -102,8 +102,8 @@ def test_claude_cache_rates_and_prompt_tier_are_registry_data():
     assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_over_threshold_multiplier"] == 5.0
 
 
-@pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol"])
-def test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents(model_id, monkeypatch):
+def test_astra_remains_manual_only_even_if_stored_flags_allow_agents(monkeypatch):
+    model_id = "gpt-6-astra"
     monkeypatch.setattr(
         "app.models._load_model_flags",
         lambda: {model_id: {"agents": True, "dashboard": True}},
@@ -111,6 +111,11 @@ def test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents(model_i
     assert get_model_flags(model_id) == {"dashboard": True, "agents": False}
     with pytest.raises(ValueError, match="disabled for agents"):
         ensure_spawn_allowed(model_id)
+
+
+def test_sol_is_open_to_agents_by_default_and_can_be_spawned():
+    assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": True}
+    ensure_spawn_allowed("gpt-6.1-sol")
 
 
 def test_retired_models_keep_explicit_session_compatibility_without_becoming_selectable():

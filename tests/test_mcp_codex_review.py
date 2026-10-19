@@ -240,7 +240,6 @@ async def test_codex_review_resume_command_passes_usage_arguments(
         "claude-opus-5[1m]",       # registered, but wrong runtime
         "gpt-5.3-codex-spark",     # Codex runtime, but forbidden as reviewer
         "gpt-6-astra",             # manually selectable only
-        "gpt-6.1-sol",              # manually selectable only
         "gpt-5.6-sol",              # retired
     ],
 )
@@ -265,6 +264,12 @@ async def test_codex_review_rejects_unusable_model_before_any_api_call(monkeypat
     assert caught.value.code == "invalid_argument"
     assert caught.value.details["field"] == "model"
     assert calls == []
+
+
+def test_codex_review_model_resolver_accepts_sol():
+    import app.mcp_stdio as mcp
+
+    assert mcp._resolve_codex_review_model("sol") == "gpt-6.1-sol"
 
 
 @pytest.mark.asyncio

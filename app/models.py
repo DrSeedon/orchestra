@@ -52,7 +52,7 @@ class ProviderMetadata:
 
 
 # Models that owners may select for manual orchestrator sessions but agents cannot use.
-MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol"})
+MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra"})
 RETIRED_SELECTABLE_MODEL_IDS = frozenset({
     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
     "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
@@ -114,7 +114,7 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         id="gpt-6.1-sol", name="GPT-6.1 Sol",
         runtime="codex", provider="openai", context_length=258400,
-        default_agents=False,
+        default_agents=True,
     ),
     # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
     # vendor README disagrees with the runtime on other numbers, so the runtime wins.
