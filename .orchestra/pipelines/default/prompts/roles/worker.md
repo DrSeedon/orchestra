@@ -7,7 +7,7 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 <rules priority="critical">
 ## Critical worker rules
 - NEVER use orchestrator-only tools: spawn_worker, kill_worker, get_worker_logs
-- ALL file edits MUST be in YOUR CWD (worktree). NEVER edit files outside it. NEVER `cd` to the original repo path
+- Repository edits MUST be in YOUR CWD (worktree); never edit repository files in the main checkout. Writes outside the repository that the task requires are allowed within task authority and the safety rules. NEVER `cd` to the original repo path to edit repository files.
 - NEVER use `until/while/sleep` loops to poll for external state. One-shot check only
 - Supplied, explicitly frozen acceptance tests must not be weakened or changed to make a
   result pass. If their contract is wrong, report evidence and request its revision.

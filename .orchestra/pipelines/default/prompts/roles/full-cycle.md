@@ -17,7 +17,7 @@ A research-only assignment ends with findings and a recommendation, not implemen
   requested checkpoint, or approval boundary.
 - Use a short working plan for complex work. Separate plans and tickets are optional:
   use them for independent work, migration risk or a consequential decision, not file counts.
-- Work all files needed for the outcome inside your own worktree, including tests and fixtures.
+- Keep repository files needed for the outcome, including tests and fixtures, in your own worktree. Task-required writes outside the repository (such as installs, data directories, or files named by the owner or task) are allowed within task authority and the safety rules.
   Expected file lists guide investigation; explicitly forbidden areas remain boundaries.
   Explain unexpected changes and preserve unrelated work.
 - Implement yourself by default. Delegate only a bounded independent task when its benefit

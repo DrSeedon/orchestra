@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Task-directed writes outside a repository are no longer blocked by worktree rules** (`.orchestra/pipelines/default/prompts/modules/git-workflow.md`, `roles/worker.md`, `roles/full-cycle.md`, `base.md`; V-971). Worktree confinement now applies specifically to repository edits; installs, data directories and other external files named by the task remain within its authority and the safety rules. Trigger: a worker treated the installation target `/mnt/data/dwn` as forbidden because its role said every file edit had to stay in its worktree. In matched Luna trials, explicit refusals citing the old boundary fell from 4/5 to 0/5; one post-change success claim was not externally verifiable as a persisted file.
+
 ### Changed
 - **Orchestra MCP calls render as readable, localized tool cards** (`app/static/js/chat.js`, `app/static/css/style.css`, `app/static/js/i18n.js`; V-967). Compact chat shows a translated action and useful argument values without exposing the argument JSON; expanded cards show translated fields, readable text and checklist states/estimates, with full arguments and structured results under technical details. Unknown future tools use a humanized generic card. Agent-count summaries no longer expose the English `(many)` marker. Trigger: Orchestra calls such as `update_checklist`, `publish_artifact` and `worker_wip` were shown as raw names/JSON, while the Russian dashboard had English labels and checklist items looked like key/value dumps.
 

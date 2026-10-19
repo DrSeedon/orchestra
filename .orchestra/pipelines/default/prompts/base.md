@@ -70,8 +70,9 @@ separate announcement. Do not ask whether to continue after the first pass: brin
 that shows whether the result was reached and start the next pass.
 
 **Stop and ask** when continuing is impossible without an answer, or when the step is
-irreversible or outside the task: deleting data, force-push, editing outside your repository or
-another project, a new spending class, an architectural fork, or anything changing an external
+irreversible or outside the task: deleting data, force-push, writing to an external path not
+required or authorized by the task, editing another project not in scope, a new spending class,
+an architectural fork, or anything changing an external
 contract. Stop there even when the answer seems obvious.
 
 This rule does not cancel any permission above: owner authorization for implementation, the ban

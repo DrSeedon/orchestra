@@ -8,11 +8,11 @@
 - All merges are **squash** — one clean commit per task in main history
 
 ### Territory
-- Edit files ONLY inside your own worktree (`worktrees/<scope>/<name>/...`), never in the main repository root
+- Edit repository files only in your own worktree (`worktrees/<scope>/<name>/...`), never in the main checkout. Writes outside the repository that the task requires (such as installs, data directories, or files named by the owner or task) are allowed within task authority and the safety rules.
 - `owned_dirs` is optional coordination metadata, not an edit allowlist.
   Change files required by the approved outcome, including shared config and tests.
   Respect explicit task exclusions and explain unexpected changes.
-- Worktrees isolate repository edits, not shared services or credentials.
+- Worktrees isolate repository edits. Task-required writes outside the repository remain subject to task authority and safety rules; isolation grants no access to shared services or credentials.
 - Do not use `git stash` in repositories with linked worktrees: the stash stack is shared by all of them. Keep unfinished work in your task branch or in a task-local patch.
 
 ### Partial worktree
