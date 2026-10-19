@@ -26,7 +26,8 @@ scope. `own_catalog(scope)` открывает ровно этот файл и �
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import logging
 from pathlib import Path
 import os
 import re
@@ -36,6 +37,8 @@ import yaml
 
 from app.task_refs import project_key
 
+
+logger = logging.getLogger(__name__)
 
 CATALOG_PATH = Path(__file__).parent.parent / ".orchestra" / "projects.yaml"
 
@@ -269,16 +272,59 @@ def own_catalog(scope: str) -> Catalog:
     return _aggregate(projects)
 
 
+_PROBLEMS: dict[str, str] = {}
+
+
+def catalog_problems() -> dict[str, str]:
+    """include-файл → причина, по которой он исключён из слитого вида."""
+    with _LOCK:
+        return dict(_PROBLEMS)
+
+
+def _same_entry(a: Project, b: Project) -> bool:
+    return replace(a, source="") == replace(b, source="")
+
+
+def _merge_included(combined: list[Project], included: list[Project]) -> list[Project]:
+    """Идентичные дубликаты принимаются (первая запись остаётся), противоречащие
+    поднимает `_aggregate` при проверке всего набора."""
+    merged = list(combined)
+    for project in included:
+        if any(_same_entry(project, known) for known in merged if known.tag == project.tag):
+            continue
+        merged.append(project)
+    return merged
+
+
 def catalog() -> Catalog:
     """Слитый вид: домашний файл этой установки плюс каждый её include_scopes.
 
     Только для внутренней бухгалтерии платформы, которая физически обслуживает все
     scope разом (проекция номеров при старте, метка источника чужого пространства
     рядом с номером). Не источник того, что видит или может выставить один
-    оркестратор — для этого `own_catalog(scope)`."""
+    оркестратор — для этого `own_catalog(scope)`.
+
+    Ошибка в домашнем файле остаётся громкой. Ошибка в include-файле чужого scope
+    исключает только этот файл (`catalog_problems()` + лог): иначе одна опечатка в
+    чужом каталоге роняла бы резолв тегов и spawn_worker во всех проектах."""
     home_projects, includes = _load_file(catalog_path())
+    result = _aggregate(home_projects)
     combined = list(home_projects)
+    problems: dict[str, str] = {}
     for scope in includes:
-        included, _nested = _load_file(own_catalog_path(scope))
-        combined.extend(included)
-    return _aggregate(combined)
+        path = own_catalog_path(scope)
+        try:
+            included, _nested = _load_file(path)
+            candidate = _merge_included(combined, included)
+            result = _aggregate(candidate)
+        except (CatalogError, yaml.YAMLError) as error:
+            problems[str(path)] = str(error)
+            continue
+        combined = candidate
+    with _LOCK:
+        for key, message in problems.items():
+            if _PROBLEMS.get(key) != message:
+                logger.error("include-файл каталога проектов исключён: %s", message)
+        _PROBLEMS.clear()
+        _PROBLEMS.update(problems)
+    return result

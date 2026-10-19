@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app import tm as _tm
-from app.project_catalog import CatalogError, catalog, own_catalog
+from app.project_catalog import CatalogError, catalog, catalog_problems, own_catalog
 
 router = APIRouter(prefix="/api/tm", tags=["task-manager"])
 
@@ -28,7 +28,8 @@ async def tm_projects(scope: str = ""):
             {"tag": project.tag, "name": project.name, "scope": project.scope,
              "archived": project.archived, "namespaces": list(project.namespaces)}
             for project in parsed.projects
-        ]
+        ],
+        "catalog_problems": catalog_problems(),
     }
 
 
