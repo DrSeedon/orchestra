@@ -13,6 +13,7 @@
 - Панель «Context» справа застывает на значении момента выбора агента — OPEN-DEFECT, [T115](.orchestra/tasks/V-698/triage.md#t115). Доказательство: `app/static/js/app.js:2603,2862-2918,3216`.
 
 ## Запуск и layout
+- На ноутбуке при последнем рестарте bootstrap не смог создать настроенный `WORKSPACE_DIR=/workspace/project` (ошибка permission denied) и пропустил его, продолжив запуск с существующим orchestrator; сервис стал active, HTTP 200, TG bridge ready. Проверить, кому принадлежит создание этого каталога и влияет ли отказ на spawn новых laptop agents. Увидено 19.10.2026, root cause не исследован.
 - `scripts/sparse_convert.py` падает `FileNotFoundError` (`app/workspace.py` `convert_worktree_to_sparse`, `_git_cmd` с cwd) на worktree, который исчез между списком и проверкой (wf-* у dynamic_workflow): весь прогон обрывается вместо `refused` по этой копии. Замечено 17.10.
 - Главный процесс Orchestra 17.10 трижды за 26 минут убит глобальным OOM (07:20, 07:35, 07:46 UTC; `oom_score_adj 800`, пик юнита 14 ГБ + 12 ГБ swap): это и были утренние «рестарты», а не зависший shutdown. Найти, что раздуло память юнита. — [V-919](.orchestra/tasks/V-919/report.md)
 - Уточнить написание scope в task-management: текст называет `.orchestra/projects.yaml` Orchestra единственным каталогом, но рабочий код валидирует каталог своего project scope. — [V-972 C01](.orchestra/tasks/V-972/report.md)
