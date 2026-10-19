@@ -1,3 +1,19 @@
 # Temporary agent rules, managed by the temp_rule_* tools; hand edits and git pulls are honoured.
 # An entry without a reason, or without a date in mode expires/review, is skipped with a warning.
-rules: []
+rules:
+- id: rule-f1ce0b7f41
+  project: '*'
+  mode: expires
+  expires_at: '2026-10-31T17:00:00+00:00'
+  targets:
+  - all
+  author: Orchestra-orchestrator
+  created_at: '2026-10-19T08:06:35.754229+00:00'
+  text: 'До конца октября пул Codex выжигаем в первую очередь: новых воркеров и задачи dynamic_workflow
+    запускайте на Codex — Luna по умолчанию, Sol на сложные задачи (архитектура, тяжёлые баги, открытые
+    исследования). Claude (Sonnet/Opus) — только если задача без него не делается или Codex упёрся в лимит.
+    Правило перекрывает model-routing в части выбора между Claude и Codex.'
+  reason: 'Решение владельца 19.10.2026 15:06 КРС: «рул глобал поставь в этом месяце кодекс выжигать побольше
+    предварительно типо луна и сол открой последний чтобы пользовались». Повод: неделя Claude выжжена
+    до 97% при 0% Codex; с 05.10 одно 5-часовое окно Claude стоит ~20% недели против ~14% раньше, Claude
+    кончается за 4–5 дней.'
