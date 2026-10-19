@@ -1536,6 +1536,11 @@ function buildCompactToolLine(type, content, ts, payload) {
         }
 
         const isOrch = rawName.startsWith('mcp__orchestra__');
+        if (isOrch) {
+            icon = '🎼';
+            try { preview = _orchestraCompactPreview(rawName, JSON.parse(body)); }
+            catch { preview = _orchestraToolTitle(rawName); }
+        }
         const nameColor = isOrch ? '#a78bfa' : '#38bdf8';
 
         const iconSpan = document.createElement('span');
@@ -1543,7 +1548,7 @@ function buildCompactToolLine(type, content, ts, payload) {
         iconSpan.style.minWidth = '1.2em';
 
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = short;
+        nameSpan.textContent = isOrch ? T('Orchestra') : short;
         nameSpan.style.color = nameColor;
         nameSpan.style.minWidth = 'max-content';
 
@@ -2118,6 +2123,98 @@ function _appendFullToolArguments(card, rawName, data) {
     card.appendChild(details);
 }
 
+function _orchestraToolTitle(rawName) {
+    const action = String(rawName || '').split('__').pop() || 'tool';
+    return action.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function _orchestraCompactPreview(rawName, data) {
+    const important = ['to', 'name', 'worker', 'project', 'task_id', 'operation_id', 'branch', 'model', 'par', 'title', 'type', 'status', 'delivery_id', 'reason', 'path'];
+    const previewValue = value => {
+        let text = typeof value === 'string' ? value : String(value);
+        if (/^\s*[\[{]/.test(text)) {
+            try {
+                const parsed = JSON.parse(text);
+                if (parsed && typeof parsed === 'object') text = Array.isArray(parsed) ? `${parsed.length} items` : `${Object.keys(parsed).length} fields`;
+            } catch {}
+        }
+        text = text.replace(/\s+/g, ' ').trim();
+        return text.length > 48 ? text.slice(0, 48) + '…' : text;
+    };
+    const fields = [];
+    for (const key of important) {
+        const value = data?.[key];
+        if (value == null || value === '') continue;
+        fields.push(`${key.replace(/_/g, ' ')}: ${previewValue(value)}`);
+        if (fields.length === 2) break;
+    }
+    if (!fields.length && data && typeof data === 'object') {
+        const entry = Object.entries(data).find(([, value]) => typeof value === 'string' && value.trim());
+        if (entry) fields.push(`${entry[0].replace(/_/g, ' ')}: ${previewValue(entry[1])}`);
+    }
+    return `${_orchestraToolTitle(rawName)}${fields.length ? ` · ${fields.join(' · ')}` : ''}`;
+}
+
+function _appendOrchestraCallDetails(card, rawName, data, {includeFields = false} = {}) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return;
+    if (includeFields) {
+        const longKeys = new Set(['message', 'task', 'task_description', 'system_prompt', 'prompt', 'description', 'reason', 'purpose', 'text', 'caption', 'comment', 'acceptance_note', 'owned_dirs']);
+        const fields = document.createElement('div');
+        fields.className = 'tool-argument-settings orchestra-tool-fields';
+        for (const [key, value] of Object.entries(data)) {
+            if (key.startsWith('_') || value == null || value === '') continue;
+            const field = document.createElement('div');
+            field.className = 'tool-argument-field';
+            const label = document.createElement('div');
+            label.className = 'tool-argument-label';
+            label.textContent = key.replace(/_/g, ' ');
+            const text = document.createElement('pre');
+            text.className = 'tool-argument-value';
+            if (longKeys.has(key) && typeof value === 'string') {
+                text.classList.add('orchestra-tool-long-text');
+                text.textContent = value;
+            } else if (Array.isArray(value)) {
+                text.textContent = value.map((item, index) => {
+                    if (item && typeof item === 'object' && !Array.isArray(item)) {
+                        return `${index + 1}. ${Object.entries(item).map(([field, entry]) => `${field.replace(/_/g, ' ')}: ${typeof entry === 'string' ? entry : JSON.stringify(entry)}`).join(' · ')}`;
+                    }
+                    return `${index + 1}. ${typeof item === 'string' ? item : JSON.stringify(item)}`;
+                }).join('\n');
+            } else {
+                text.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+            }
+            field.append(label, text);
+            fields.appendChild(field);
+        }
+        if (fields.childElementCount) card.appendChild(fields);
+    }
+    if (!card.querySelector('[data-tool-full-arguments]')) _appendFullToolArguments(card, rawName, data);
+}
+
+function _orchestraResultSummary(content, isError = false) {
+    let result;
+    try { result = JSON.parse(content); } catch { result = null; }
+    const status = result?.operation_state || result?.status || result?.state || '';
+    const statusCode = String(status).toUpperCase();
+    const failed = isError || result?.success === false || result?.ok === false
+        || result?.error || result?.isError === true
+        || ['ERROR', 'FAILED', 'UNKNOWN', 'REFUSED'].includes(statusCode);
+    if (failed) {
+        const message = result?.error?.message || result?.message || (typeof result?.error === 'string' ? result.error : '');
+        const id = result?.operation_id || result?.delivery_id || result?.job_id || result?.task_id || result?.id || result?.par;
+        return {icon: '❌', text: message || [status, id ? `#${String(id).slice(0, 18)}` : ''].filter(Boolean).join(' · ') || 'Call failed'};
+    }
+    if (result && typeof result === 'object') {
+        const id = result.operation_id || result.delivery_id || result.job_id || result.task_id || result.id || result.par;
+        const detail = [status, id ? `#${String(id).slice(0, 18)}` : ''].filter(Boolean).join(' · ');
+        const partial = ['PARTIAL', 'PENDING', 'RUNNING'].includes(statusCode);
+        return {icon: partial ? '⏳' : '✅', text: detail || (Array.isArray(result) ? `${result.length} items` : 'Done')};
+    }
+    const text = String(content || '').trim().replace(/\s+/g, ' ');
+    return {icon: /\b(error|failed|refused)\b/i.test(text) ? '❌' : '✅', text: text.slice(0, 110) || 'Done'};
+}
+
 function _agentResultSummary(content) {
     const lines = content.split('\n').filter(line => line.includes('|'));
     if (!lines.length) return null;
@@ -2190,6 +2287,17 @@ const COMPACT_ORCHESTRA_SIMPLE_TOOLS = new Set([
     'mcp__orchestra__get_worker_info',
     'mcp__orchestra__bg_cancel',
 ]);
+const ORCHESTRA_SPECIFIC_RESULT_TOOLS = new Set([
+    'mcp__orchestra__task_create', 'mcp__orchestra__task_get', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list',
+    'mcp__orchestra__list_agents', 'mcp__orchestra__list_orchestrators', 'mcp__orchestra__bg_list',
+    'mcp__orchestra__get_worker_info', 'mcp__orchestra__get_worker_logs', 'mcp__orchestra__compact_worker',
+    'mcp__orchestra__kill_worker', 'mcp__orchestra__stop_worker', 'mcp__orchestra__rename_worker',
+    'mcp__orchestra__change_worker_model', 'mcp__orchestra__update_worker_description',
+    'mcp__orchestra__merge_worker', 'mcp__orchestra__send_message', 'mcp__orchestra__bg_create',
+    'mcp__orchestra__bg_cancel', 'mcp__orchestra__send_file', 'mcp__orchestra__send_files',
+    'mcp__orchestra__send_chart', 'mcp__orchestra__report_bug', 'mcp__orchestra__spawn_worker',
+    'mcp__orchestra__dynamic_workflow',
+]);
 
 function _renderSendChartResult(card, content, ts) {
     const chartResultMatch = content.match(/\s*\|\s*chart:\s*(\/[^\s]+)\s*$/);
@@ -2231,7 +2339,7 @@ function _renderSendChartResult(card, content, ts) {
     return true;
 }
 
-function _updateCompactToolResult(card, content, isBase64Image) {
+function _updateCompactToolResult(card, content, isBase64Image, isError = false) {
     liveStopToolClock(card);
     const resultSpan = card.querySelector('.compact-result');
     if (isBase64Image) {
@@ -2328,6 +2436,10 @@ function _updateCompactToolResult(card, content, isBase64Image) {
         resultSpan.textContent = spec?.queries.length ? T('✅ {n} queries', {n: spec.queries.length}) : '✅';
     } else if (rawName === 'mcp__orchestra__spawn_worker') {
         resultSpan.textContent = clean.toLowerCase().includes('error') ? '❌' : T('✅ spawned');
+    } else if (rawName.startsWith('mcp__orchestra__')) {
+        const summary = _orchestraResultSummary(content, isError);
+        resultSpan.textContent = `${summary.icon} ${summary.text}`;
+        resultSpan.style.color = summary.icon === '❌' ? '#ef4444' : '#64748b';
     } else if (COMPACT_EDIT_TOOLS.has(rawName)) {
         resultSpan.textContent = T('📎 updated');
     } else if (rawName === 'Read') {
@@ -2343,7 +2455,7 @@ function _updateCompactToolResult(card, content, isBase64Image) {
         const singleLine = clean.replace(/\n/g, ' ');
         resultSpan.textContent = '📎 ' + (singleLine.length > 40 ? singleLine.slice(0, 40) + '…' : singleLine);
     }
-    card.dataset.resultContent = (isTask || isAgentList) ? content : clean;
+    card.dataset.resultContent = (isTask || isAgentList || rawName.startsWith('mcp__orchestra__')) ? content : clean;
 }
 
 function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, insertAndFollow, isBase64Image) {
@@ -2351,7 +2463,7 @@ function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, inser
     if (type === 'tool_result') {
         const card = _toolForResult(chat, payload, anchor, true);
         if (card) {
-            _updateCompactToolResult(card, content, isBase64Image);
+            _updateCompactToolResult(card, content, isBase64Image, payload?.tool_is_error === true || payload?.tool_is_error === 1);
             return true;
         }
     }
@@ -2920,6 +3032,7 @@ function _renderFullToolCall(content, payload, div) {
     div.dataset.lastTool = '1';
     div.dataset.toolContent = content;
     div.dataset.toolRawName = rawName;
+    if (isOrch) div.classList.add('codex-tool-card-orchestra');
     div.style.cursor = 'pointer';
     if (payload?.tool_use_id) div.dataset.toolUseId = payload.tool_use_id;
     let codexItemId = '';
@@ -2936,7 +3049,8 @@ function _renderFullToolCall(content, payload, div) {
     header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
     let toolDesc = '';
     try { toolDesc = JSON.parse(body).description || ''; } catch {}
-    header.innerHTML = `${icon} ${DOMPurify.sanitize(T(short))}${toolDesc ? ` <span style="color:var(--ink-dim);font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
+    const toolTitle = isOrch ? _orchestraToolTitle(rawName) : T(short);
+    header.innerHTML = `${icon} ${DOMPurify.sanitize(toolTitle)}${toolDesc ? ` <span style="color:var(--ink-dim);font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
     div.appendChild(header);
 
     // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
@@ -3563,7 +3677,7 @@ function _renderFullToolCall(content, payload, div) {
                !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                !isToolSearchCall && !isBugReport && !isWebFetch &&
                !isSendFile && !isSendFiles && !isSendChart && !isOrchSimple && !isGlob && !isSkill &&
-               !isFileChangeTool && !isViewImageTool &&
+               !isOrch && !isFileChangeTool && !isViewImageTool &&
                !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
         let _inputJsonRendered = false;
         if (body) {
@@ -3609,6 +3723,19 @@ function _renderFullToolCall(content, payload, div) {
                 const rb = div.querySelector('.result-body');
                 if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
             });
+        }
+    }
+    if (isOrch) {
+        try {
+            const args = JSON.parse(body);
+            const dedicated = isNotify || isSendMsg || isDynamicWorkflow || isAgentTool || isSpawnWorker || isBugReport
+                || isSendFile || isSendFiles || isSendChart || isOrchSimple;
+            _appendOrchestraCallDetails(div, rawName, args, {includeFields: !dedicated});
+        } catch {
+            const fallback = document.createElement('div');
+            fallback.className = 'text-xs opacity-70';
+            fallback.textContent = T('Call details unavailable');
+            div.appendChild(fallback);
         }
     }
     if (codexItemId) {
@@ -3798,6 +3925,22 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
     const full = _hasMore ? linked : null;
 
     if (lastTool) {
+        const orchestraName = lastTool.dataset.toolRawName || '';
+        if (orchestraName.startsWith('mcp__orchestra__') && !ORCHESTRA_SPECIFIC_RESULT_TOOLS.has(orchestraName)) {
+            liveStopToolClock(lastTool);
+            const summary = _orchestraResultSummary(content, payload?.tool_is_error === true || payload?.tool_is_error === 1);
+            const result = document.createElement('div');
+            result.className = 'orchestra-tool-result';
+            result.textContent = `${summary.icon} ${summary.text}`;
+            lastTool.appendChild(result);
+            if (content.trim().startsWith('{') || content.trim().startsWith('[') || content.length > 110) {
+                _appendToolTechnicalDetails(lastTool, content);
+            }
+            completeCodexToolCard(lastTool, summary.icon !== '❌');
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            return;
+        }
         if (lastTool.dataset.isCodexWebSearch) {
             // Codex шлёт результатом ту же структуру с action/queries — ею обновляем шапку.
             // Встроенный WebSearch и MCP-поиск отдают ТЕКСТ: spec=null, и его надо

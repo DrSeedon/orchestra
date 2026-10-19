@@ -684,6 +684,10 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .tool-argument-field { padding: 4px 7px; border-left: 2px solid rgba(56,189,248,.28); border-radius: 4px; background: rgba(15,23,42,.48); }
 .tool-argument-label { color: var(--ink-dim); font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .tool-argument-value { margin: 2px 0 0; color: var(--ink-body); font-family: inherit; font-size: 10px; line-height: 1.45; max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.orchestra-tool-fields { margin-top: 7px; }
+.orchestra-tool-fields .tool-argument-field { border-left-color: rgba(167,139,250,.35); }
+.tool-argument-value.orchestra-tool-long-text { max-height: 220px; overflow: auto; padding: 6px 8px; border-radius: 5px; background: rgba(8,13,22,.62); }
+.orchestra-tool-result { margin-top: 6px; color: var(--ink-body); font-size: 11px; overflow-wrap: anywhere; }
 .codex-image-prompt { margin-top: 5px; color: var(--ink-dim); font-size: 10px; line-height: 1.4; }
 .codex-turn-diff { border-left-color: var(--warn-strong); }
 .codex-diff-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

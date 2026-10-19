@@ -2216,6 +2216,13 @@ def _open_tool_correlation_page(
 ) -> Page:
     page = browser.new_page()
     _route_frontend_sources(page, source_path)
+    chat_source = (Path(__file__).resolve().parent.parent / "app/static/js/chat.js").read_text()
+    page.route(
+        "**/static/js/chat.js*",
+        lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=chat_source,
+        ),
+    )
     _goto_dashboard(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
     # ОСТАНОВИТЬ опрос, а не ждать случайной тишины. Начальная загрузка дашборда идёт
@@ -2246,6 +2253,72 @@ def _open_tool_correlation_page(
         document.querySelector('#chat').innerHTML = '';
     }""", compact_mode)
     return page
+
+
+def test_orchestra_tool_cards_have_compact_and_readable_full_views(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_correlation_page(dashboard_browser, True)
+    page.evaluate("""() => {
+        const examples = [
+            ['mcp__orchestra__update_checklist', {
+                name: 'planner', items: [{text: 'Inspect the changed files', status: 'done'},
+                    {text: 'Capture the dashboard card', status: 'in_progress'}],
+                }, 'checklist-card', {status: 'updated', id: 'check-142'}],
+            ['mcp__orchestra__publish_artifact', {
+                path: '.orchestra/tasks/V-967/screenshots/tool-cards.png',
+                caption: 'Tool card review', ttl_seconds: 86400,
+                }, 'artifact-card', {status: 'published', id: 'artifact-142'}],
+            ['mcp__orchestra__list_agents', {}, 'agents-card', 'Worker A | idle | sonnet · ctx:4%'],
+            ['mcp__orchestra__future_tool_preview', {
+                name: 'planner', purpose: 'Protect the shared UI verification run while the dashboard renders a readable card for a new Orchestra MCP tool.',
+            }, 'future-tool-card', {status: 'acquired', id: 'lock-142'}],
+        ];
+        for (const [name, args, id, result] of examples) {
+            addChatEntry('tool', `${name}: ${JSON.stringify(args)}`, null, null,
+                {tool_use_id: id});
+            addChatEntry('tool_result', typeof result === 'string' ? result : JSON.stringify(result), null, null,
+                {tool_use_id: id});
+        }
+    }""")
+    page.wait_for_timeout(100)
+    compact_rows = page.locator('#chat [data-compact-tool]')
+    expect(compact_rows).to_have_count(4)
+    for row in compact_rows.all():
+        text = row.inner_text()
+        assert '{"' not in text
+        assert 'mcp__orchestra__' not in text
+    expect(compact_rows.nth(0)).to_contain_text('Update Checklist')
+    expect(compact_rows.nth(2)).to_contain_text('List Agents')
+    expect(compact_rows.nth(3)).to_contain_text('Future Tool Preview')
+    assert page.evaluate("_orchestraResultSummary('{\"operation_state\":\"FAILED\",\"operation_id\":\"merge-142\"}').icon") == '❌'
+
+    screenshot_dir = Path(__file__).resolve().parent.parent / '.orchestra/tasks/V-967'
+    screenshot_dir.mkdir(parents=True, exist_ok=True)
+    chat_box = page.locator('#chat').bounding_box()
+    page.screenshot(path=str(screenshot_dir / 'tool-cards-compact.png'), clip=chat_box)
+
+    compact_rows.nth(3).click()
+    full_card = page.locator('#chat [data-tool-use-id="future-tool-card"]:not([data-compact-tool])')
+    expect(full_card).to_contain_text('Protect the shared UI verification run')
+    expect(full_card.locator('.orchestra-tool-long-text')).to_have_count(1)
+    expect(full_card.locator('details[data-tool-full-arguments]')).to_have_count(1)
+    assert full_card.locator('details[data-tool-technical-details]').count() == 1, (
+        full_card.evaluate("el => el.dataset.toolRawName") + "\n" + full_card.inner_text()
+    )
+    expect(full_card).to_contain_text('acquired · #lock-142')
+    expect(full_card.locator('details[data-tool-technical-details]')).not_to_have_attribute('open', '')
+    page.screenshot(path=str(screenshot_dir / 'tool-cards-expanded.png'), clip=chat_box)
+    for index, card_id, filename in [
+        (0, 'checklist-card', 'tool-cards-expanded-checklist.png'),
+        (1, 'artifact-card', 'tool-cards-expanded-artifact.png'),
+    ]:
+        compact_rows.nth(index).click()
+        card = page.locator(f'#chat [data-tool-use-id="{card_id}"]:not([data-compact-tool])')
+        card.scroll_into_view_if_needed()
+        expect(card.locator('details[data-tool-full-arguments]')).to_have_count(1)
+        page.screenshot(path=str(screenshot_dir / filename), clip=chat_box)
+    page.close()
 
 
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
