@@ -1,17 +1,3 @@
 # Temporary agent rules, managed by the temp_rule_* tools; hand edits and git pulls are honoured.
 # An entry without a reason, or without a date in mode expires/review, is skipped with a warning.
-rules:
-- id: rule-1a45c89513
-  project: '*'
-  mode: expires
-  expires_at: '2026-10-20T07:00:00+00:00'
-  targets:
-  - orchestrators
-  author: Orchestra-orchestrator
-  created_at: '2026-10-19T07:48:00.898292+00:00'
-  text: 'Неделя Claude выжжена до 97%: до сброса (20.10 07:00 UTC) новых воркеров и dynamic_workflow запускать
-    на Luna (Codex), не на Sonnet/Opus. Уже работающих Claude-воркеров не перезапускать, дать им закончить.
-    Opus/Sonnet — только если задача без них невозможна.'
-  reason: '19.10 ~07:47 UTC дашборд: Claude 7д 97% (сброс через 23 ч), Codex 7д 0%. Прежнее правило «Sonnet/Opus,
-    Luna только второе мнение» (решение владельца 17.10 выжечь неделю Claude) цель выполнило; при 100%
-    на сутки встанут все Claude-агенты, включая оркестраторов. Владелец 19.10 14:47 КРС: «ебать нажгли».'
+rules: []
