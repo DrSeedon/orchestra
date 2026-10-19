@@ -1,14 +1,15 @@
 """HarnessBackend — Orchestra's own agent backend (BackendLike), no daemon.
 
 A persistent in-process object: it owns an OpenRouter HTTP client, an MCP stdio client,
-a JSONL session store, and the cumulative cost/token counters that must survive across
-turns. Each send()/events() pair runs ONE turn through AgentLoop and emits EXACTLY ONE
-turn_end (plan B2) carrying the full 15-key metadata parity of the other backends.
+a JSONL session store, and session-level token counters. Each send()/events() pair runs
+ONE turn through AgentLoop and emits EXACTLY ONE turn_end (plan B2) carrying the full
+15-key metadata parity of the other backends.
 
-Cost contract (plan B5): _cumulative_cost is authoritative. A turn with no usage.cost
-does NOT reset it to 0 — that would corrupt session_cost's `max(0, new - last)` delta and
-overcount the next turn. Exact `:free` routes must report zero when cost is present;
-the HTTP client rejects a non-zero charge before tool dispatch.
+Cost is a per-turn sum of OpenRouter's request-level `usage.cost` values. It is emitted as
+a delta because each API call reports only its own request cost; treating this sum as a
+session-cumulative value would compare it with a persisted baseline after backend restart.
+Exact `:free` routes must report zero when cost is present; the HTTP client rejects a
+non-zero charge before tool dispatch.
 """
 
 import asyncio
@@ -136,7 +137,7 @@ class HarnessBackend:
         self._abort_flag = False
         self._injected: list[str] = []   # steering messages awaiting the next round
 
-        self._cumulative_cost: float = 0.0
+        self._turn_cost_usd: float = 0.0
         self._cumulative_input: int = 0
         self._cumulative_cached: int = 0
         self._cumulative_output: int = 0
@@ -334,6 +335,7 @@ class HarnessBackend:
         user_msg = self._pending_msg
         self._pending_msg = None
         self._turn_started_at = time.perf_counter()
+        self._turn_cost_usd = 0.0
         self._turn_cost_unaccounted = False
         self._refresh_system_prompt()
         self._usage_baseline = (self._cumulative_input, self._cumulative_output,
@@ -400,16 +402,12 @@ class HarnessBackend:
         messages = _consistent_prefix(loop.new_messages) if cancelled else loop.new_messages
         await self._persist(messages)
 
-    # ── cost / tokens (plan B5) ──
+    # ── usage accounting ──
 
     def _accumulate(self, usage: dict) -> None:
-        """Grow cumulative counters from one round without resetting missing usage.
-
-        The HTTP client rejects any non-zero provider cost before tool dispatch; keeping
-        the reported zero here preserves the shared cumulative-cost contract.
-        """
+        """Add session token totals and this turn's request-level cost."""
         if not usage:
-            return  # no usage → keep previous cumulative (do not corrupt the delta)
+            return
         in_tok = int(usage.get("prompt_tokens", 0) or 0)
         out_tok = int(usage.get("completion_tokens", 0) or 0)
         self._cumulative_input += in_tok
@@ -417,7 +415,7 @@ class HarnessBackend:
         self._cumulative_cached += _cached_prompt_tokens(usage)
         cost = usage.get("cost")
         if cost is not None:
-            self._cumulative_cost += float(cost)
+            self._turn_cost_usd += float(cost)
         elif "_provider_source_record" in usage:
             from app.models import PAID_HARNESS_ROUTES
 
@@ -473,9 +471,9 @@ class HarnessBackend:
             "ok": ok,
             "stop_reason": stop_reason,
             "num_turns": 1,
-            "cost_usd": None if cost_unaccounted else self._cumulative_cost,
-            "cost_usd_cached": None if cost_unaccounted else self._cumulative_cost,
-            "cost_baseline_usd": self._cumulative_cost,
+            "cost_usd": None if cost_unaccounted else self._turn_cost_usd,
+            "cost_usd_cached": None if cost_unaccounted else self._turn_cost_usd,
+            "cost_is_delta": True,
             "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
             "billing_mode": billing_mode,
             "cost_unaccounted": cost_unaccounted,
@@ -490,8 +488,7 @@ class HarnessBackend:
         }, usage=turn_usage)
 
     def _error_turn_end(self, reason: str, loop: AgentLoop | None = None) -> AgentEvent:
-        # Even on error, cost is the AUTHORITATIVE cumulative — NOT 0 (plan B5), so
-        # session_cost's delta does not overcount the next turn. Tokens are this turn's.
+        # A paid error has no complete request-cost report, so the per-turn amount is unknown.
         prompt_turn = self._cumulative_input - self._usage_baseline[0]
         cached_turn = self._cumulative_cached - self._usage_baseline[2]
         turn_usage = TurnUsage(
@@ -521,9 +518,9 @@ class HarnessBackend:
             "ok": False,
             "stop_reason": reason,
             "num_turns": 1,
-            "cost_usd": None if (self._turn_cost_unaccounted or paid_openrouter) else self._cumulative_cost,
-            "cost_usd_cached": None if (self._turn_cost_unaccounted or paid_openrouter) else self._cumulative_cost,
-            "cost_baseline_usd": self._cumulative_cost,
+            "cost_usd": None if (self._turn_cost_unaccounted or paid_openrouter) else self._turn_cost_usd,
+            "cost_usd_cached": None if (self._turn_cost_unaccounted or paid_openrouter) else self._turn_cost_usd,
+            "cost_is_delta": True,
             "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
             "billing_mode": _billing_mode(self.model),
             "cost_unaccounted": self._turn_cost_unaccounted or paid_openrouter,

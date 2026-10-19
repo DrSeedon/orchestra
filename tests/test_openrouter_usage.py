@@ -257,6 +257,106 @@ def test_turn_manager_persists_missing_paid_cost_as_unknown(tmp_path, monkeypatc
     assert "cost" not in source_records[1]["usage"]
 
 
+def test_recreated_harness_backend_persists_request_cost_delta_once(
+    tmp_path, monkeypatch,
+):
+    from unittest.mock import MagicMock
+
+    from app import db, session_turns
+    from app.backend_harness import HarnessBackend
+    from app.manager import SessionManager
+    from app.session import AgentSession
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "restart-cost.sqlite")
+    db.init_db()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+    monkeypatch.setattr(
+        session_turns,
+        "_cached_quota_snapshot",
+        lambda *_args, **_kwargs: {
+            "state": {
+                "quota_five_hour_pct": None,
+                "quota_seven_day_pct": None,
+                "quota_primary_pct": None,
+                "quota_sampled_at": None,
+            },
+            "display": (),
+        },
+    )
+    session = AgentSession(
+        id="restart-paid", name="restart-paid", scope="/project", cwd=str(tmp_path),
+        model="deepseek/deepseek-v4.1-flash", backend_type="harness",
+    )
+    session.session_id = "openrouter-session"
+    session._last_cost = 0.04504706316
+    session._last_cost_cached = 0.04504706316
+    session.cost_usd = 0.04504706316
+    session._context_cost = 0.04504706316
+    db.save_session(session._to_db_dict())
+    session = SessionManager._hydrate_row(db.get_session(session.id))
+    assert session._last_cost == pytest.approx(0.04504706316)
+
+    def persist_turn(event):
+        session._log = lambda *_args, **_kwargs: None
+        session._persist = lambda: None
+        session._spawn_bg = lambda coro: coro.close()
+        session._hibernate.schedule = MagicMock()
+        session._submit_db_write = lambda operation, *args, **kwargs: operation(*args, **kwargs)
+        session._turns.handle_turn_end(event)
+
+    paid_costs = [0.01, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.00504706316]
+    first_backend = HarnessBackend(session.model, str(tmp_path))
+    first_rounds = [
+        _record("DeepInfra", f"req-{index}", 10 + index, cost, 1)
+        for index, cost in enumerate(paid_costs)
+    ]
+    for usage in first_rounds:
+        first_backend._accumulate(usage)
+    first_event = first_backend._turn_end(
+        SimpleNamespace(last_usage=first_rounds[-1], round_usages=first_rounds),
+        True,
+        "end_turn",
+    )
+    assert first_backend._turn_cost_usd == pytest.approx(0.04504706316)
+    assert first_event.metadata["cost_is_delta"] is True
+    assert first_event.metadata["cost_usd"] == pytest.approx(0.04504706316)
+    persist_turn(first_event)
+    assert session._turn_cost == pytest.approx(0.04504706316)
+    assert session.cost_usd == pytest.approx(0.09009412632)
+    with db._conn() as connection:
+        first_row = connection.execute(
+            "SELECT cost_usd, cost_unaccounted FROM turn_usage WHERE event_id=?",
+            (first_event.metadata["event_id"],),
+        ).fetchone()
+    assert first_row["cost_usd"] == pytest.approx(0.04504706316)
+    assert first_row["cost_unaccounted"] == 0
+
+    db.save_session(session._to_db_dict())
+    resumed = SessionManager._hydrate_row(db.get_session(session.id))
+    second_backend = HarnessBackend(resumed.model, str(tmp_path))
+    second_round = _record("DeepInfra", "req-next-turn", 12, 0.01, 0)
+    second_backend._accumulate(second_round)
+    second_event = second_backend._turn_end(
+        SimpleNamespace(last_usage=second_round, round_usages=[second_round]),
+        True,
+        "end_turn",
+    )
+    resumed._log = lambda *_args, **_kwargs: None
+    resumed._persist = lambda: None
+    resumed._spawn_bg = lambda coro: coro.close()
+    resumed._hibernate.schedule = MagicMock()
+    resumed._submit_db_write = lambda operation, *args, **kwargs: operation(*args, **kwargs)
+    resumed._turns.handle_turn_end(second_event)
+    with db._conn() as connection:
+        second_row = connection.execute(
+            "SELECT cost_usd, cost_unaccounted FROM turn_usage WHERE event_id=?",
+            (second_event.metadata["event_id"],),
+        ).fetchone()
+    assert second_row["cost_usd"] == pytest.approx(0.01)
+    assert second_row["cost_unaccounted"] == 0
+    assert resumed.cost_usd == pytest.approx(0.10009412632)
+
+
 def test_provider_records_and_timing_are_accessible_only_by_project_scope(tmp_path, monkeypatch):
     from app import auth, db
     from app.backend_harness import HarnessBackend
@@ -412,17 +512,16 @@ def test_missing_round_cost_is_not_transferred_to_next_turn():
     assert terminal.metadata["cost_unaccounted"] is True
     tracker.apply_turn_result(terminal.metadata, terminal.usage)
     assert session.cost_usd == 0
-    assert backend._cumulative_cost == pytest.approx(0.4)
+    assert backend._turn_cost_usd == pytest.approx(0.4)
 
-    backend._turn_cost_unaccounted = False
-    backend._usage_baseline = (
-        backend._cumulative_input, backend._cumulative_output, backend._cumulative_cached,
-    )
+    next_backend = HarnessBackend("deepseek/deepseek-v4.1-flash", "/project")
     next_call = _record("DeepInfra", "req-next", 20, 0.2, 0)
-    backend._accumulate(next_call)
-    next_terminal = backend._turn_end(
+    next_backend._accumulate(next_call)
+    next_terminal = next_backend._turn_end(
         SimpleNamespace(last_usage=next_call, round_usages=[next_call]), True, "end_turn",
     )
+    assert next_terminal.metadata["cost_usd"] == pytest.approx(0.2)
+    assert next_terminal.metadata["cost_is_delta"] is True
     tracker.apply_turn_result(next_terminal.metadata, next_terminal.usage)
     assert session.cost_usd == pytest.approx(0.2)
 
