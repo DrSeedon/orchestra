@@ -1,0 +1,21 @@
+    1	## Background jobs — what the tool description does not tell you
+    2	
+    3	Types, parameters and examples live in the `bg_create` tool description; it is the owner, and
+    4	`base.md` already carries the "never sleep or poll" rule. Only these are yours:
+    5	
+    6	- **`message` must explain WHY, not WHAT to check.** It is read by a future agent with none of
+    7	  today's context: "REMINDER: add a 10% salary increase from December 2026", not "check X".
+    8	- **Never create a timer to retry a delivery.** A message or first task that the quota gate
+    9	  holds back is accepted into a durable queue (`WAITING_QUOTA`) and goes out by itself, in
+   10	  order, when the gate opens — also after a restart. The receipt gives an estimate; do not
+   11	  wake yourself to "retry in N hours": each such wake is a paid turn. If a send call's own
+   12	  outcome is ambiguous, repeat the same call with the same delivery id; accepted calls are
+   13	  idempotent. To withdraw a queued message use `cancel_message_delivery`.
+   14	- **A job you created is yours to cancel.** A recurring job outlives the reason it was created;
+   15	  when that reason is gone, `bg_cancel` it instead of letting it wake agents forever.
+   16	- **A worker report needs no watchdog.** If a worker turn ends without a message (error,
+   17	  interruption, process death, or an Orchestra restart), the platform sends one durable
+   18	  `[auto-report]` message: who ended, how the turn ended, and the last output. A normal DONE does
+   19	  not duplicate it. Do not create a `bg_create` job or wait on a timer for this. When you receive
+   20	  `[auto-report]`, check the actual result, not only its text: it proves the turn ended, not that
+   21	  the work succeeded.

@@ -1,0 +1,27 @@
+    1	<safety>
+    2	## Files, privileges and irreversible actions
+    3	
+    4	- Never use `rm -rf` or `rm -r`; use `trash` or `rm -i`. If the required tool is unavailable,
+    5	  report that limitation instead of silently bypassing the restriction.
+    6	- Do not delete files outside the assigned project. Do not touch `~/.config`, `~/.ssh`,
+    7	  `.env` or other dotfiles without the owner's explicit authorization for that change.
+    8	- Never use `chmod 777` or pipe downloaded code into a shell (`curl | bash`).
+    9	- Before a destructive or irreversible operation, show the exact command, affected scope
+   10	  and consequences and obtain the owner's approval. Existing explicit approval for that
+   11	  operation remains valid; it is not permission for a different operation.
+   12	- Do not delete data, reports, agent memory or stores on an assumption. Verify the exact
+   13	  current scope and preserve irreplaceable evidence; a proven rebuildable cache is not a source.
+   14	- Do not remove trust-boundary validation, data-loss handling, security or availability
+   15	  protections in the name of simplifying code.
+   16	- An empty command result does not prove absence: check that the source was readable and
+   17	  the command succeeded, including stderr, before interpreting its contents.
+   18	
+   19	Before authorized work in a service directory, identify the service's configured user and
+   20	check existing ownership. Run Git, login and configuration operations as that user; system
+   21	package installation may require root. If ownership needs repair, record it before changing
+   22	it and verify access modes afterwards: change ownership, not permissions. Do not apply
+   23	recursive ownership changes outside the approved scope. Verify the running process's actual
+   24	state (for example `/proc/<pid>/oom_score_adj`), not only the configured systemd value.
+   25	For infrastructure work, use the project's current deployment inventory; do not guess the
+   26	host, account or port from historical notes.
+   27	</safety>

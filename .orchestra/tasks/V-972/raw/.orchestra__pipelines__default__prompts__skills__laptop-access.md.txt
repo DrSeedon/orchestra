@@ -1,0 +1,132 @@
+    1	---
+    2	name: laptop-access
+    3	description: Check the owner's laptop or its projects from the VPS through the reverse SSH tunnel.
+    4	---
+    5	
+    6	# Laptop access
+    7	
+    8	The only route for platform agents is SSH through the reverse tunnel. The laptop maintains the
+    9	connection to the VPS; its system-level `ssh-tunnel-vps.service` was checked active/running on
+   10	2026-09-13. The `run_on_laptop` tool is unavailable to platform agents.
+   11	
+   12	## Check the connection
+   13	
+   14	On the VPS, check the local listener:
+   15	
+   16	```bash
+   17	ss -ltnH 'sport = :2222'
+   18	```
+   19	
+   20	Working command (2026-09-13, host `maxim-911aird`, user `maxim`):
+   21	
+   22	```bash
+   23	ssh -i /home/kesha/.ssh/tunnel_laptop -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 -p 2222 maxim@127.0.0.1 'hostname; pwd'
+   24	```
+   25	
+   26	For authorized work, replace only the remote command; quote paths containing spaces. The laptop
+   27	user is `maxim`, not the VPS user `kesha`. Empty successful `ss` output means no listener; an
+   28	error from the check does not prove that none exists. Refused/timeout means the connection is
+   29	unavailable: report the observed failure to the owner. Sleep, shutdown, and network loss are
+   30	possible, but one error does not establish the cause. Permission denied means an authentication
+   31	problem, not proven sleep: check the user and specified key. The tunnel is raised from the
+   32	laptop; do not reconfigure or restart it from the VPS.
+   33	
+   34	## Actual boundaries
+   35	
+   36	This is a remote shell with the `maxim` account's rights, not a command whitelist or metacharacter
+   37	filter. SSH maintains authentication and protects transport; the laptop OS limits object access.
+   38	The assignment and project rules determine what is allowed, not the existence of a working
+   39	connection. Installation, restart, and configuration changes are allowed only when explicitly
+   40	included in the agreed assignment. Handle the laptop carefully — see [AGENTS.md Orchestra,
+   41	"Authority boundaries"](/home/kesha/orchestra/AGENTS.md). Do not copy those rules into this skill.
+   42	Access alone does not authorize spawning agents or continuing other sessions. Long authorized
+   43	commands follow the platform's background-jobs rules.
+   44	
+   45	## Directory map
+   46	
+   47	Snapshot of the laptop: 2026-09-13T14:00:29.258676+00:00. These are directory names, not a
+   48	claim that each is an independent project. The `.git` marker was checked without reading history
+   49	or remotes; a file may represent a worktree or submodule. Before work, verify the chosen path
+   50	exists; the snapshot does not promise it is unchanged.
+   51	
+   52	### /mnt/data/Projects/Python/
+   53	
+   54	| Directory | `.git` marker |
+   55	|---|---|
+   56	| `ai-proxy-manager` | directory |
+   57	| `Alexey-Projects` | not found |
+   58	| `Aperant` | directory |
+   59	| `BallisticSim` | not found |
+   60	| `civsim` | not found |
+   61	| `Claude-Code-Game-Master` | directory |
+   62	| `claude-plugins-official` | directory |
+   63	| `claude-server` | directory |
+   64	| `CursorUsageAnalyzer` | directory |
+   65	| `DnD-Music-MCP` | directory |
+   66	| `E-CommerceBench` | directory |
+   67	| `games` | directory |
+   68	| `inscryption-ai` | directory |
+   69	| `inscryption-ai-public` | directory |
+   70	| `kesha-tg-bot` | directory |
+   71	| `LLM` | not found |
+   72	| `OF-Parser` | not found |
+   73	| `orchestra` | directory |
+   74	| `orchestra-architecture-audit` | file |
+   75	| `orchestra-astra-usage` | file |
+   76	| `orchestra-backups` | not found |
+   77	| `orchestra-bash-latency-20260905` | file |
+   78	| `orchestra-codex-state-compat` | file |
+   79	| `orchestra-day-20260907` | file |
+   80	| `orchestra-db-research` | file |
+   81	| `orchestra-design-gallery` | file |
+   82	| `orchestra-enterprise` | directory |
+   83	| `orchestra-handoff-context-window` | file |
+   84	| `orchestra-html-skill` | file |
+   85	| `orchestra-instruction-guard` | file |
+   86	| `orchestra-knowledge-delivery` | file |
+   87	| `orchestra-local-workflow` | file |
+   88	| `orchestra-model-text-control-flow` | file |
+   89	| `orchestra-receipt-audit` | file |
+   90	| `orchestra-remove-dead-compat` | file |
+   91	| `orchestra-retire-legacy-review` | file |
+   92	| `orchestra-service-lifecycle` | file |
+   93	| `orchestra-service-lifecycle-baseline` | file |
+   94	| `orchestra-simplify-review` | file |
+   95	| `orchestra-stability-recovery` | file |
+   96	| `orchestra-storage` | file |
+   97	| `orchestra-storage-baseline` | file |
+   98	| `orchestra-sync-20260912` | file |
+   99	| `orchestra-worker-autonomy` | file |
+  100	| `Parsing` | directory |
+  101	| `PhotoServer` | directory |
+  102	| `seedon` | directory |
+  103	| `slay-the-spire-analysis` | not found |
+  104	| `space-sim` | directory |
+  105	| `stargate-tactics` | directory |
+  106	| `test-project` | directory |
+  107	| `TradingCryptoBot` | directory |
+  108	| `TTS` | not found |
+  109	| `Vitaliy-Projects` | not found |
+  110	| `VoiceType` | directory |
+  111	| `VPN-Service` | directory |
+  112	| `web_portfolio` | directory |
+  113	| `WebView` | directory |
+  114	| `wmod` | directory |
+  115	| `world-state` | not found |
+  116	
+  117	### /mnt/data/Projects/Unity/
+  118	
+  119	| Directory | `.git` marker |
+  120	|---|---|
+  121	| `AIMedical` | directory |
+  122	| `AISwapFace` | directory |
+  123	| `Bashilov Story` | not found |
+  124	| `Birusa2026` | directory |
+  125	| `DefaultProjectUnity` | directory |
+  126	| `POLUS` | not found |
+  127	| `Test` | not found |
+  128	| `WinterGame` | directory |
+  129	
+  130	Vault: `/mnt/data/Рабочий стол/Cursor/COG-second-brain` — existence checked in the same snapshot.
+  131	The laptop's Orchestra folder is a checkout; this platform's running Orchestra instance is on
+  132	the VPS. Access to the checkout does not authorize deployment or restart.

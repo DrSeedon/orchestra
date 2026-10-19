@@ -1,0 +1,717 @@
+    1	"""Loader пайплайнов: схема манифеста (pydantic) + резолв ролей/промптов/спавна.
+    2	
+    3	Источник истины о ролях — единый манифест ``.orchestra/pipelines/<name>/pipeline.yaml``
+    4	(вместо frontmatter+glob апстрима). ВСЁ берётся только из ``.orchestra/pipelines/<name>/``.
+    5	``app/prompts/`` удалён — единственный источник промптов = pipelines.
+    6	
+    7	Наследование defaults→roles выполняется на РЕЗОЛВЕ (:func:`resolve_role`), не на
+    8	загрузке: ``load_pipeline`` валидирует и кэширует сырой манифест, ``resolve_role``
+    9	сливает роль с defaults в :class:`ResolvedRole`.
+   10	"""
+   11	from __future__ import annotations
+   12	
+   13	import logging
+   14	from functools import lru_cache
+   15	from pathlib import Path
+   16	from typing import Literal, Union
+   17	
+   18	import yaml
+   19	from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+   20	
+   21	from app.models import ALIASES, MODELS
+   22	from app.tool_scoping import parse_disabled_tools
+   23	
+   24	logger = logging.getLogger(__name__)
+   25	
+   26	# Корень с пайплайнами: <repo>/.orchestra/pipelines/. В гите только default.
+   27	PIPELINES_DIR = Path(__file__).parent.parent / ".orchestra" / "pipelines"
+   28	DEFAULT_PIPELINE = "default"
+   29	
+   30	# Спецзначение "all" для skills/mcp_servers (строка) vs явный список.
+   31	AllOrList = Union[Literal["all"], list[str]]
+   32	
+   33	# Эффорт роли: скаляр (одно значение на всех) либо карта «ключ → ступень», где ключ —
+   34	# id модели, имя рантайма или "default". Модель, а не рантайм, потому что Sol и Luna
+   35	# живут в одном рантайме codex и требуют разных ступеней (#213).
+   36	EffortSpec = Union[str, dict[str, str]]
+   37	
+   38	Kind = Literal["orchestrator", "worker"]
+   39	ValidationMode = Literal["fail-closed", "fail-open"]
+   40	BranchStrategy = Literal["parent", "main"]
+   41	
+   42	
+   43	def _model_is_known(model: str) -> bool:
+   44	    """Модель валидна, если её ID или alias явно присутствует в реестре."""
+   45	    normalized = model.lower().strip()
+   46	    return normalized in ALIASES or normalized in MODELS
+   47	
+   48	
+   49	def _canon_model(model: str) -> str:
+   50	    """Alias → canonical id. Незнакомое возвращаем как есть (валидация — отдельно)."""
+   51	    key = model.lower().strip()
+   52	    return ALIASES.get(key, key)
+   53	
+   54	
+   55	def _is_runtime(name: str) -> bool:
+   56	    """True, если ``name`` — зарегистрированный рантайм (claude/codex/grok/...)."""
+   57	    from app.runtime_registry import get_runtime  # локально: тяжёлый импорт бэкендов
+   58	    try:
+   59	        get_runtime(name)
+   60	        return True
+   61	    except ValueError:
+   62	        return False
+   63	
+   64	
+   65	def _is_safe_rel(p: str) -> bool:
+   66	    """True если ``p`` — безопасный относительный путь (без абсолютного и '..').
+   67	
+   68	    Защита изоляции: слои промпта/шаблоны не должны выходить за .orchestra/pipelines/<name>/.
+   69	    """
+   70	    from pathlib import PurePosixPath
+   71	    if not p or p.startswith("/"):
+   72	        return False
+   73	    return ".." not in PurePosixPath(p).parts
+   74	
+   75	
+   76	def _is_safe_component(value: str) -> bool:
+   77	    """True for one portable path component (pipeline/skill identifiers)."""
+   78	    return bool(
+   79	        value
+   80	        and value not in {".", ".."}
+   81	        and "/" not in value
+   82	        and "\\" not in value
+   83	        and "\x00" not in value
+   84	    )
+   85	
+   86	
+   87	def _validate_skill_names(value: AllOrList | None) -> AllOrList | None:
+   88	    if value is None or value == "all":
+   89	        return value
+   90	    for name in value:
+   91	        if not _is_safe_component(name):
+   92	            raise ValueError(f"unsafe skill name '{name}'")
+   93	    return value
+   94	
+   95	
+   96	# ── Pydantic-схема манифеста ───────────────────────────────────────────────
+   97	
+   98	class Symlink(BaseModel):
+   99	    """Симлинк в worktree: source (относительно repo) → target (внутри worktree)."""
+  100	    model_config = ConfigDict(extra="forbid")
+  101	    source: str
+  102	    target: str
+  103	
+  104	    @field_validator("source", "target")
+  105	    @classmethod
+  106	    def _safe_rel(cls, v: str) -> str:
+  107	        # B2: source резолвится от repo, target — внутри worktree; ни один не должен
+  108	        # выходить за свою границу (abs или '..'). Та же защита, что у docs_dir.
+  109	        if not _is_safe_rel(v):
+  110	            raise ValueError(f"unsafe symlink path '{v}' (abs или '..')")
+  111	        return v
+  112	
+  113	
+  114	class SparseProject(BaseModel):
+  115	    """Переопределение sparse-правила для репозиториев, чей корень подходит под glob-ключ."""
+  116	    model_config = ConfigDict(extra="forbid")
+  117	    enabled: bool | None = None
+  118	    exclude: list[str] | None = None
+  119	    include: list[str] = Field(default_factory=list)
+  120	    own: list[str] | None = None
+  121	    reference_scan: list[str] = Field(default_factory=list)
+  122	
+  123	    @field_validator("exclude", "include", "own", "reference_scan")
+  124	    @classmethod
+  125	    def _safe_paths(cls, v: list[str] | None) -> list[str] | None:
+  126	        for name in v or []:
+  127	            if not _is_safe_rel(name):
+  128	                raise ValueError(f"unsafe sparse path '{name}' (abs или '..')")
+  129	        return v
+  130	
+  131	
+  132	class Sparse(BaseModel):
+  133	    """Частичная копия worktree воркера: что не класть в неё и что догружать сразу.
+  134	
+  135	    exclude — каталоги репозитория, которых нет в копии; own — шаблоны каталогов самой задачи
+  136	    (`{id}` = номер задачи); include — каталоги, которые нужны всегда; reference_scan — каталоги
+  137	    исходников, где ищутся ссылки на исключённые каталоги (их тоже кладём в копию).
+  138	    Ключи `projects` — glob по корню репозитория. enabled=False → полная копия.
+  139	    """
+  140	    model_config = ConfigDict(extra="forbid")
+  141	    enabled: bool = False
+  142	    exclude: list[str] = Field(default_factory=list)
+  143	    own: list[str] = Field(default_factory=list)
+  144	    include: list[str] = Field(default_factory=list)
+  145	    reference_scan: list[str] = Field(default_factory=list)
+  146	    projects: dict[str, SparseProject] = Field(default_factory=dict)
+  147	
+  148	    @field_validator("exclude", "include", "own", "reference_scan")
+  149	    @classmethod
+  150	    def _safe_paths(cls, v: list[str]) -> list[str]:
+  151	        for name in v:
+  152	            if not _is_safe_rel(name):
+  153	                raise ValueError(f"unsafe sparse path '{name}' (abs или '..')")
+  154	        return v
+  155	
+  156	
+  157	class Worktree(BaseModel):
+  158	    """Настройка worktree роли: симлинки и копируемые файлы (= PROJECT_FILES)."""
+  159	    model_config = ConfigDict(extra="forbid")
+  160	    symlinks: list[Symlink] = Field(default_factory=list)
+  161	    copies: list[str] = Field(default_factory=list)
+  162	    sparse: Sparse = Field(default_factory=Sparse)
+  163	
+  164	    @field_validator("copies")
+  165	    @classmethod
+  166	    def _safe_copies(cls, v: list[str]) -> list[str]:
+  167	        # B2: copies резолвятся как repo/<name> и пишутся как wt_path/<name>;
+  168	        # abs или '..' позволили бы чтение/запись вне repo/worktree. Та же защита,
+  169	        # что у symlinks (симметрично — иначе copies остаётся дырой).
+  170	        for name in v:
+  171	            if not _is_safe_rel(name):
+  172	                raise ValueError(f"unsafe copy path '{name}' (abs или '..')")
+  173	        return v
+  174	
+  175	
+  176	class DocsDir(BaseModel):
+  177	    """Скаффолдинг doc-папки роли в docs_work/.
+  178	
+  179	    ``requires='feature'`` → плейсхолдер ``{feature}`` обязателен в path; если фича
+  180	    не передана при спавне — скаффолд пропускается.
+  181	    """
+  182	    model_config = ConfigDict(extra="forbid")
+  183	    path: str
+  184	    template: str | None = None
+  185	    requires: Literal["feature"] | None = None
+  186	
+  187	    @field_validator("path", "template")
+  188	    @classmethod
+  189	    def _safe_rel(cls, v: str | None) -> str | None:
+  190	        # B2: путь/шаблон не должны выходить за .orchestra/pipelines/<name>/ (abs или '..').
+  191	        # {feature} подставляется в рантайме — containment проверяет B3.
+  192	        if v is not None and not _is_safe_rel(v):
+  193	            raise ValueError(f"unsafe docs_dir path '{v}' (abs или '..')")
+  194	        return v
+  195	
+  196	
+  197	class Tg(BaseModel):
+  198	    """Параметры Telegram-топика роли (emoji + шаблон topic)."""
+  199	    model_config = ConfigDict(extra="forbid")
+  200	    emoji: str = ""
+  201	    topic: str = ""
+  202	
+  203	
+  204	class PromptLayers(BaseModel):
+  205	    """Порядок слоёв промпта по kind. ``{role}`` подставляется на резолве.
+  206	
+  207	    Пути относительны ``.orchestra/pipelines/<name>/prompts/``.
+  208	    """
+  209	    model_config = ConfigDict(extra="forbid")
+  210	    orchestrator: list[str] = Field(
+  211	        default_factory=lambda: ["base.md", "roles/{role}.md", "_pipeline.md"])
+  212	    worker: list[str] = Field(
+  213	        default_factory=lambda: ["base.md", "roles/{role}.md"])
+  214	
+  215	    @field_validator("orchestrator", "worker")
+  216	    @classmethod
+  217	    def _safe_layers(cls, v: list[str]) -> list[str]:
+  218	        # B2: слои не должны выходить за .orchestra/pipelines/<name>/prompts/. Плейсхолдер
+  219	        # {role} безопасен (_is_safe_rel("roles/{role}.md") True).
+  220	        for layer in v:
+  221	            if not _is_safe_rel(layer):
+  222	                raise ValueError(f"unsafe prompt layer '{layer}' (abs или '..')")
+  223	        return v
+  224	
+  225	
+  226	
+  227	class Defaults(BaseModel):
+  228	    """Дефолты пайплайна. Роль переопределяет: скаляр — replace, список — union."""
+  229	    model_config = ConfigDict(extra="forbid")
+  230	    model: str = "opus"
+  231	    skills: AllOrList = "all"
+  232	    # Fail-CLOSED (#224): `"all"` в `_merge_list` ПОГЛОЩАЕТ любой список, поэтому пайплайн,
+  233	    # забывший строку `mcp_servers:`, раздавал бы каждой роли все user-level MCP-серверы
+  234	    # вместе с их секретами. Раздача остаётся возможной — но только когда её попросили явно.
+  235	    mcp_servers: AllOrList = []
+  236	    inherit_claude_md: bool = True
+  237	    prompt_layers: PromptLayers = Field(default_factory=PromptLayers)
+  238	    worktree: Worktree = Field(default_factory=Worktree)
+  239	    base_branch_strategy: BranchStrategy = "parent"
+  240	    docs_scaffold: bool = True
+  241	
+  242	    @field_validator("model")
+  243	    @classmethod
+  244	    def _model_known(cls, v: str) -> str:
+  245	        if not _model_is_known(v):
+  246	            # #366: the registry can now hold 400+ catalog models — don't dump
+  247	            # them all into the error, list aliases plus a bounded id sample.
+  248	            ids = sorted(MODELS)
+  249	            sample = ids[:20]
+  250	            suffix = f" … (+{len(ids) - 20} more)" if len(ids) > 20 else ""
+  251	            raise ValueError(
+  252	                f"unknown model '{v}'. aliases={sorted(ALIASES)} "
+  253	                f"ids={sample}{suffix}")
+  254	        return v
+  255	
+  256	    @field_validator("skills")
+  257	    @classmethod
+  258	    def _safe_skills(cls, v: AllOrList) -> AllOrList:
+  259	        return _validate_skill_names(v)
+  260	
+  261	
+  262	class RoleSpec(BaseModel):
+  263	    """Сырая роль из манифеста. Опциональные поля (model/skills/...) = None →
+  264	    наследуются из defaults на резолве. kind/label — обязательны для контракта.
+  265	    """
+  266	    model_config = ConfigDict(extra="forbid")
+  267	    kind: Kind
+  268	    label: str
+  269	    order: int = 100
+  270	    disabled_tools: list[str] = Field(default_factory=list)
+  271	    _disabled_tools_valid = field_validator("disabled_tools", mode="before")(parse_disabled_tools)
+  272	    can_spawn: list[str] = Field(default_factory=list)  # "*" = любая роль; [] = терминал
+  273	    allow_unrouted_workers: bool = False
+  274	    # Модули — переиспользуемые блоки промпта (prompts/modules/{m}.md), инлайнятся
+  275	    # в system_prompt после слоёв роли. Пусто → ничего не добавляется.
+  276	    modules: list[str] = Field(default_factory=list)
+  277	    # Переопределения defaults (None → наследуем):
+  278	    model: str | None = None
+  279	    effort: EffortSpec | None = None
+  280	    skills: AllOrList | None = None
+  281	    mcp_servers: AllOrList | None = None
+  282	    base_branch_strategy: BranchStrategy | None = None
+  283	    inherit_claude_md: bool | None = None
+  284	    docs_scaffold: bool | None = None
+  285	    # Роле-специфика:
+  286	    docs_dir: DocsDir | None = None
+  287	    tg: Tg | None = None
+  288	    when: str | None = None
+  289	    not_for: str | None = None
+  290	    description: str | None = None
+  291	
+  292	    @field_validator("model")
+  293	    @classmethod
+  294	    def _model_known(cls, v: str | None) -> str | None:
+  295	        if v is not None and not _model_is_known(v):
+  296	            raise ValueError(f"unknown model '{v}'")
+  297	        return v
+  298	
+  299	    @field_validator("effort")
+  300	    @classmethod
+  301	    def _effort_keys(cls, v: EffortSpec | None) -> EffortSpec | None:
+  302	        """Карта эффорта: нормализовать ключи-модели; неизвестная СТУПЕНЬ — отказ.
+  303	
+  304	        Два разных исхода у двух разных ошибок, и разница не косметическая:
+  305	
+  306	        * **Неизвестная ступень → `ValueError`** (манифест не грузится). Пропуск такой
+  307	          строки не «оставляет как было», а ТИХО МЕНЯЕТ МАРШРУТ: опечатка в ключе Sol
+  308	          роняет его на `default`, то есть с `xhigh` на `high`, — и с перечитыванием на
+  309	          границе хода это уезжает живым агентам само. Список ступеней замкнут и известен
+  310	          на момент загрузки, гонки инициализации здесь нет, поэтому опечатка однозначна.
+  311	          Цена принята осознанно: спавн новых агентов падает, пока не починят; живые при
+  312	          этом работают — `AgentSession._apply_manifest_effort` на сбой резолва оставляет
+  313	          текущее значение и НЕ пересобирает бэкенды.
+  314	        * **Неизвестный ключ модели → warning, ключ сохраняем.** Реестр моделей
+  315	          досоздаётся на старте (`models.fetch_models_from_proxy`), манифест мог быть
+  316	          разобран раньше него — отказ или выброс потеряли бы валидную строку из-за
+  317	          порядка инициализации.
+  318	
+  319	        Скаляр не трогаем вовсе — обратная совместимость.
+  320	        """
+  321	        if not isinstance(v, dict):
+  322	            return v
+  323	        from app.backend_codex import CODEX_REASONING_EFFORTS  # владелец набора ступеней
+  324	        out: dict[str, str] = {}
+  325	        for key, val in v.items():
+  326	            if val not in CODEX_REASONING_EFFORTS:
+  327	                raise ValueError(
+  328	                    f"effort['{key}']: unknown level '{val}'; "
+  329	                    f"known={sorted(CODEX_REASONING_EFFORTS)}")
+  330	            # Порядок проверок: рантайм раньше модели, иначе ключи "codex"/"grok" (они же
+  331	            # алиасы моделей gpt-6.1-sol и grok-4.6) читались бы как модель — и ключ
+  332	            # "codex" не покрывал бы Luna. Имена рантаймов здесь ЗАРЕЗЕРВИРОВАНЫ: выбрать
+  333	            # ими конкретную модель нельзя, для этого есть полный id.
+  334	            if key == "default" or _is_runtime(key):
+  335	                out[key] = val
+  336	            elif _model_is_known(key):
+  337	                out[_canon_model(key)] = val
+  338	            else:
+  339	                # Незнакомый ключ НЕ выбрасываем: реестр моделей досоздаётся на старте
+  340	                # (`fetch_models_from_proxy`), и манифест мог быть разобран раньше него —
+  341	                # выброс сделал бы валидную строку невосстановимо потерянной. Ключ просто
+  342	                # не совпадёт ни с одной моделью, пока она не появится.
+  343	                logger.warning(
+  344	                    f"effort: key '{key}' — не известная модель и не рантайм; "
+  345	                    f"сработает только если такая модель появится в реестре")
+  346	                out[key] = val
+  347	        return out
+  348	
+  349	    @field_validator("modules")
+  350	    @classmethod
+  351	    def _safe_modules(cls, v: list[str]) -> list[str]:
+  352	        # B2: имя модуля → prompts/modules/{m}.md; не должно выходить за изоляцию
+  353	        # (abs или '..'). Та же защита, что у docs_dir/prompt_layers.
+  354	        for m in v:
+  355	            if not _is_safe_rel(m):
+  356	                raise ValueError(f"unsafe module name '{m}' (abs или '..')")
+  357	        return v
+  358	
+  359	    @field_validator("skills")
+  360	    @classmethod
+  361	    def _safe_skills(cls, v: AllOrList | None) -> AllOrList | None:
+  362	        return _validate_skill_names(v)
+  363	
+  364	
+  365	class PipelineConfig(BaseModel):
+  366	    """Сырой манифест пайплайна (роли с None-полями, до наследования)."""
+  367	    model_config = ConfigDict(extra="forbid")
+  368	    name: str
+  369	    description: str = ""
+  370	    validation: ValidationMode = "fail-closed"
+  371	    defaults: Defaults = Field(default_factory=Defaults)
+  372	    roles: dict[str, RoleSpec]
+  373	
+  374	    @model_validator(mode="after")
+  375	    def _check_graph(self) -> "PipelineConfig":
+  376	        """can_spawn ⊆ roles (кроме '*'): ссылка на несуществующую роль → ошибка."""
+  377	        known = set(self.roles)
+  378	        for rname, r in self.roles.items():
+  379	            for child in r.can_spawn:
+  380	                if child != "*" and child not in known:
+  381	                    raise ValueError(
+  382	                        f"pipeline '{self.name}': role '{rname}' can_spawn references "
+  383	                        f"unknown role '{child}'. known={sorted(known)}")
+  384	        return self
+  385	
+  386	
+  387	class ResolvedRole(BaseModel):
+  388	    """RoleSpec после слияния defaults→role. Все поля заполнены, None нет.
+  389	
+  390	    То, что отдаётся наружу (manager/workspace/tg).
+  391	    """
+  392	    model_config = ConfigDict(extra="forbid")
+  393	    name: str
+  394	    pipeline: str
+  395	    kind: Kind
+  396	    label: str
+  397	    order: int
+  398	    can_spawn: list[str]
+  399	    disabled_tools: list[str] = Field(default_factory=list)
+  400	    allow_unrouted_workers: bool
+  401	    modules: list[str]
+  402	    model: str
+  403	    effort: EffortSpec | None
+  404	    skills: AllOrList
+  405	    mcp_servers: AllOrList
+  406	    base_branch_strategy: BranchStrategy
+  407	    inherit_claude_md: bool
+  408	    docs_scaffold: bool
+  409	    docs_dir: DocsDir | None
+  410	    tg: Tg | None
+  411	    when: str | None
+  412	    not_for: str | None
+  413	    description: str | None
+  414	    prompt_layers: list[str]  # выбранный (orchestrator|worker) список с подставленным {role}
+  415	
+  416	    @property
+  417	    def is_orchestrator(self) -> bool:
+  418	        return self.kind == "orchestrator"
+  419	
+  420	
+  421	# ── Загрузка манифеста ─────────────────────────────────────────────────────
+  422	
+  423	class _ManifestUnstable(OSError):
+  424	    """Файл сменился между stat и чтением — прочитанное невалидно, нужен повтор."""
+  425	
+  426	
+  427	@lru_cache(maxsize=64)
+  428	def _load_pipeline_cached(name: str, path: Path, stamp: tuple[int, int]) -> PipelineConfig:
+  429	    """Разбор манифеста. Ключ кэша включает (mtime_ns, размер) — правка даёт промах.
+  430	
+  431	    Размер в ключе не избыточен: пара «та же секунда + тот же размер» уже давала
+  432	    ложное попадание в кеше байткода CPython, и стоила полутора часов отладки (#214).
+  433	    """
+  434	    text = path.read_text()
+  435	    after = path.stat()
+  436	    if (after.st_mtime_ns, after.st_size) != stamp:
+  437	        # Файл писали, пока мы читали. Проверки схемы тут не защищают: НЕДОПИСАННЫЙ YAML
+  438	        # бывает синтаксически валидным, и роль молча получила бы неполную карту эффорта —
+  439	        # а с #214 такая карта уезжает живым агентам на их следующем ходе.
+  440	        # lru_cache исключения не кеширует, поэтому отравленной записи не остаётся.
+  441	        raise _ManifestUnstable(f"pipeline '{name}' changed while being read")
+  442	    data = yaml.safe_load(text) or {}
+  443	    cfg = PipelineConfig(**data)  # pydantic: схема + граф can_spawn
+  444	    if cfg.name != name:
+  445	        raise ValueError(f"pipeline name '{cfg.name}' != dir '{name}'")
+  446	    return cfg
+  447	
+  448	
+  449	def load_pipeline(name: str) -> PipelineConfig:
+  450	    """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+  451	
+  452	    Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+  453	    сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+  454	    Один ``stat`` на вызов, разбор — только на изменившемся файле.
+  455	
+  456	    Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+  457	    попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+  458	    деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+  459	
+  460	    :raises FileNotFoundError: если папки/файла нет.
+  461	    :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+  462	    :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+  463	        граф can_spawn.
+  464	    :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+  465	    """
+  466	    # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+  467	    # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+  468	    if not name:
+  469	        raise FileNotFoundError("pipeline name is empty")
+  470	    if not _is_safe_component(name):
+  471	        raise ValueError(f"unsafe pipeline name '{name}'")
+  472	    path = PIPELINES_DIR / name / "pipeline.yaml"
+  473	    if not path.is_file():
+  474	        raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+  475	    unstable: _ManifestUnstable | None = None
+  476	    for _ in range(3):
+  477	        st = path.stat()
+  478	        try:
+  479	            return _load_pipeline_cached(name, path, (st.st_mtime_ns, st.st_size))
+  480	        except _ManifestUnstable as e:
+  481	            unstable = e
+  482	    raise unstable
+  483	
+  484	
+  485	# Вызывающие (и ~23 теста) чистят кэш через load_pipeline.cache_clear() — адрес
+  486	# сохраняем, чтобы разбиение на «stat + разбор» не расползлось по коду.
+  487	load_pipeline.cache_clear = _load_pipeline_cached.cache_clear
+  488	load_pipeline.cache_info = _load_pipeline_cached.cache_info
+  489	
+  490	
+  491	def get_worktree_config(pipeline_name: str) -> Worktree:
+  492	    """Вернуть worktree-конфиг пайплайна (``defaults.worktree``).
+  493	
+  494	    Это pipeline-level настройка (симлинки + copies), общая для всех ролей —
+  495	    в :class:`ResolvedRole` её нет.
+  496	
+  497	    :raises FileNotFoundError: если манифест отсутствует (пробрасываем, чтобы
+  498	        вызывающий в manager сделал fallback на upstream-поведение).
+  499	    """
+  500	    return load_pipeline(pipeline_name).defaults.worktree
+  501	
+  502	
+  503	def list_pipelines() -> list[dict]:
+  504	    """Скан ``.orchestra/pipelines/`` (включая gitignored). Для UI-дропдауна.
+  505	
+  506	    Возвращает ``[{name, description, roles:[...], valid:bool, error:str|None}]``.
+  507	    Битый манифест НЕ роняет список — помечается ``valid=False`` с текстом ошибки.
+  508	    """
+  509	    out: list[dict] = []
+  510	    if not PIPELINES_DIR.is_dir():
+  511	        return out
+  512	    for d in sorted(PIPELINES_DIR.iterdir()):
+  513	        if not d.is_dir() or not (d / "pipeline.yaml").is_file():
+  514	            continue
+  515	        try:
+  516	            cfg = load_pipeline(d.name)
+  517	            out.append({"name": cfg.name, "description": cfg.description,
+  518	                        "roles": sorted(cfg.roles), "valid": True, "error": None})
+  519	        except Exception as e:  # noqa: BLE001 — намеренно глотаем, чтобы список не падал
+  520	            out.append({"name": d.name, "description": "", "roles": [],
+  521	                        "valid": False, "error": str(e)})
+  522	    return out
+  523	
+  524	
+  525	# ── Резолв роли: наследование defaults→roles ──────────────────────────────
+  526	
+  527	def _merge_scalar(default_val, role_val):
+  528	    """Скаляр: роль переопределяет, если задала (не None); иначе наследуем."""
+  529	    return default_val if role_val is None else role_val
+  530	
+  531	
+  532	def _merge_list(default_val: AllOrList, role_val: AllOrList | None) -> AllOrList:
+  533	    """Список: union(defaults ∪ role). ``"all"`` в любом из двух → ``"all"`` (поглощает)."""
+  534	    if role_val is None:
+  535	        return default_val
+  536	    if default_val == "all" or role_val == "all":
+  537	        return "all"
+  538	    return sorted(set(default_val) | set(role_val))
+  539	
+  540	
+  541	def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
+  542	    """Слить роль с defaults в :class:`ResolvedRole` (все поля заполнены).
+  543	
+  544	    Скаляр — роль переопределяет если задан, иначе defaults. Список (skills/
+  545	    mcp_servers) — union с поглощением ``"all"``. ``prompt_layers`` — по kind роли
+  546	    с подстановкой ``{role}``.
+  547	
+  548	    :raises KeyError: если ``role`` нет в ``pipeline.roles`` (ловит вызывающий).
+  549	    """
+  550	    spec = pipeline.roles[role]
+  551	    d = pipeline.defaults
+  552	    layers_tmpl = (d.prompt_layers.orchestrator if spec.kind == "orchestrator"
+  553	                   else d.prompt_layers.worker)
+  554	    return ResolvedRole(
+  555	        name=role, pipeline=pipeline.name, kind=spec.kind, label=spec.label,
+  556	        order=spec.order, can_spawn=spec.can_spawn,
+  557	        allow_unrouted_workers=spec.allow_unrouted_workers,
+  558	        modules=spec.modules, disabled_tools=spec.disabled_tools,
+  559	        model=_merge_scalar(d.model, spec.model),
+  560	        effort=spec.effort,
+  561	        skills=_merge_list(d.skills, spec.skills),
+  562	        mcp_servers=_merge_list(d.mcp_servers, spec.mcp_servers),
+  563	        base_branch_strategy=_merge_scalar(d.base_branch_strategy, spec.base_branch_strategy),
+  564	        inherit_claude_md=_merge_scalar(d.inherit_claude_md, spec.inherit_claude_md),
+  565	        docs_scaffold=_merge_scalar(d.docs_scaffold, spec.docs_scaffold),
+  566	        docs_dir=spec.docs_dir, tg=spec.tg,
+  567	        when=spec.when, not_for=spec.not_for, description=spec.description,
+  568	        prompt_layers=[p.replace("{role}", role) for p in layers_tmpl],
+  569	    )
+  570	
+  571	
+  572	def resolve_effort(effort: EffortSpec | None, model: str, runtime: str) -> str | None:
+  573	    """Ступень эффорта под конкретную модель спавна.
+  574	
+  575	    Скаляр — как раньше. Карта — точный id модели → рантайм → ``default`` → None.
+  576	    ``model`` ожидается уже канонизованным (``resolve_model``), но alias тоже переживёт.
+  577	    """
+  578	    if isinstance(effort, str):
+  579	        return effort or None
+  580	    if not isinstance(effort, dict):
+  581	        return None
+  582	    for key in (_canon_model(model), runtime, "default"):
+  583	        val = effort.get(key)
+  584	        if val:
+  585	            return val
+  586	    return None
+  587	
+  588	
+  589	def get_role(pipeline_name: str, role: str) -> ResolvedRole | None:
+  590	    """Загрузить пайплайн и резолвнуть роль. None, если роли нет в манифесте."""
+  591	    cfg = load_pipeline(pipeline_name)
+  592	    return resolve_role(cfg, role) if role in cfg.roles else None
+  593	
+  594	
+  595	def known_roles(pipeline_name: str) -> list[str]:
+  596	    """Отсортированный список имён ролей пайплайна."""
+  597	    return sorted(load_pipeline(pipeline_name).roles)
+  598	
+  599	
+  600	# ── Резолв путей промпта (полная изоляция: только .orchestra/pipelines/<name>/prompts/) ─
+  601	
+  602	def prompt_path(pipeline_name: str, rel: str) -> Path:
+  603	    """Путь к слою промпта. ВСЕГДА внутри ``.orchestra/pipelines/<name>/prompts/``.
+  604	
+  605	    ``rel`` — элемент prompt_layers (``base.md``, ``roles/coder.md``, ``_pipeline.md``).
+  606	    Единственный источник — ``.orchestra/pipelines/<name>/prompts/`` (app/prompts/ удалён).
+  607	    """
+  608	    return PIPELINES_DIR / pipeline_name / "prompts" / rel
+  609	
+  610	
+  611	def template_path(pipeline_name: str, template: str) -> Path:
+  612	    """Путь к шаблону doc-папки внутри ``.orchestra/pipelines/<name>/templates/``."""
+  613	    return PIPELINES_DIR / pipeline_name / "templates" / template
+  614	
+  615	
+  616	def build_prompt_modules(pipeline_name: str, modules: list[str] | tuple[str, ...]) -> str:
+  617	    """Assemble named modules from the canonical pipeline prompt library."""
+  618	    parts: list[str] = []
+  619	    for module in modules:
+  620	        if not _is_safe_rel(module):
+  621	            raise ValueError(f"unsafe module name '{module}' (abs или '..')")
+  622	        path = prompt_path(pipeline_name, f"modules/{module}.md")
+  623	        if not path.is_file():
+  624	            raise FileNotFoundError(
+  625	                f"pipeline '{pipeline_name}' module '{module}' not found at {path}"
+  626	            )
+  627	        parts.append(path.read_text().strip())
+  628	    return "\n\n".join(parts)
+  629	
+  630	
+  631	def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
+  632	    """Собрать system_prompt из prompt_layers резолвнутой роли.
+  633	
+  634	    Каждый слой читается из ``.orchestra/pipelines/<name>/prompts/<layer>`` через
+  635	    :func:`prompt_path` (единственный источник — app/prompts/ удалён). Отсутствующий
+  636	    слой-файл пропускается. Конкатенация через ``\\n\\n``. Динамика (каталог ролей,
+  637	    блоки других оркестраторов/воркеров) добавляется вызывающим в manager — здесь
+  638	    только статика из файлов.
+  639	
+  640	    После слоёв роли инлайнятся ``modules`` — переиспользуемые блоки промпта из
+  641	    ``prompts/modules/{m}.md`` (та же изоляция). Отсутствующий модуль пропускается с
+  642	    warning (роль не должна падать из-за недостающего блока).
+  643	
+  644	    :raises FileNotFoundError: если манифест пайплайна отсутствует (на Этапе 3 manager
+  645	        ловит и делегирует в legacy-путь апстрима).
+  646	    """
+  647	    rr = resolve_role(load_pipeline(pipeline_name), role)
+  648	    parts: list[str] = []
+  649	    for layer in rr.prompt_layers:
+  650	        p = prompt_path(pipeline_name, layer)
+  651	        if p.is_file():
+  652	            parts.append(p.read_text())
+  653	    module_text = build_prompt_modules(pipeline_name, rr.modules)
+  654	    if module_text:
+  655	        parts.append(module_text)
+  656	    return "\n\n".join(parts)
+  657	
+  658	
+  659	# ── Активный пайплайн ──────────────────────────────────────────────────────
+  660	
+  661	def get_active_pipeline(scope: str = "", parent_pipeline: str = "") -> str:
+  662	    """Определить активный пайплайн для НОВОЙ сессии.
+  663	
+  664	    1) ``parent_pipeline`` (от родителя при спавне) — главный источник: дети
+  665	       наследуют пайплайн родителя.
+  666	    2) пусто/корневой оркестратор → :data:`DEFAULT_PIPELINE`.
+  667	
+  668	    Один пайплайн на дерево агентов — в середине цепочки сменить нельзя. Полная
+  669	    логика (чтение колонки sessions.pipeline) — Этап 7; здесь зафиксирована
+  670	    сигнатура и базовое поведение наследования.
+  671	    """
+  672	    if parent_pipeline:
+  673	        return parent_pipeline
+  674	    return DEFAULT_PIPELINE
+  675	
+  676	
+  677	# ── Валидация спавна (fail-closed / fail-open) ────────────────────────────
+  678	
+  679	def validate_spawn(pipeline_name: str, parent_role: str | None, child_role: str) -> None:
+  680	    """Проверить допустимость спавна ``child_role`` родителем ``parent_role``.
+  681	
+  682	    Неизвестная роль родителя или ребёнка — всегда ``ValueError``, в том числе
+  683	    при ``validation: fail-open``. Иначе whitelist ``can_spawn`` действует
+  684	    только на роли из манифеста, а любая чужая строка обходит его целиком (#36).
+  685	
+  686	    ``can_spawn: ['*']`` значит любую *известную* роль, не любую строку.
+  687	    Корень (parent пуст/None) — спавн от юзера/UI, всегда разрешён. Пустой
+  688	    ``child_role`` (генерик-воркер) разрешён только если ``allow_unrouted_workers``.
+  689	
+  690	    :raises ValueError: при запрещённом спавне.
+  691	    :raises FileNotFoundError: если манифест отсутствует (manager ловит → fallback).
+  692	    """
+  693	    cfg = load_pipeline(pipeline_name)
+  694	
+  695	    if not parent_role:  # корень — спавн от юзера/UI
+  696	        return
+  697	    parent = cfg.roles.get(parent_role)
+  698	    if parent is None:
+  699	        raise ValueError(
+  700	            f"unknown parent role '{parent_role}' in pipeline '{pipeline_name}'. "
+  701	            f"known={known_roles(pipeline_name)}")
+  702	    if not child_role:  # генерик-воркер (роль не указана)
+  703	        if not parent.allow_unrouted_workers:
+  704	            raise ValueError(
+  705	                f"role '{parent_role}' must specify child role. "
+  706	                f"allowed: {parent.can_spawn or '(none)'}")
+  707	        return
+  708	    if child_role not in cfg.roles:
+  709	        raise ValueError(
+  710	            f"unknown role '{child_role}' in pipeline '{pipeline_name}'. "
+  711	            f"known={known_roles(pipeline_name)}")
+  712	    if "*" in parent.can_spawn:
+  713	        return
+  714	    if child_role not in parent.can_spawn:
+  715	        raise ValueError(
+  716	            f"role '{parent_role}' cannot spawn '{child_role}'. "
+  717	            f"allowed: {parent.can_spawn or '(none — terminal)'}")

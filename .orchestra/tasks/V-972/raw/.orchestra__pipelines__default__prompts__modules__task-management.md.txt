@@ -1,0 +1,44 @@
+    1	<task-management>
+    2	## Task management
+    3	
+    4	Built-in task tracker. Agents create, update, and close tasks.
+    5	
+    6	### Tools
+    7	- `task_create(title, project, price=0, description="", priority=2)` — create task. Price in exact currency units (20000 = 20 000). Priority: 0=critical, 1=high, 2=medium, 3=low
+    8	- If a `task_create` call has an ambiguous outcome, repeat the same call with the same `request_key` and identical fields; this returns the existing task instead of creating a duplicate.
+    9	- `task_update(par, status="", title="", price=-1, tags=[...], ...)` — update task. Only provided fields change. par: the exact returned reference, e.g. "42" or "V-42"
+   10	- `task_list(project="", status="", assignee="", tags="a,b")` — list tasks with optional filters
+   11	- `task_get(par)` — full task details with payment history and linked commits
+   12	- `update_checklist(items, completed, current)` — persist the worker's ordered task steps and their state
+   13	
+   14	### Automatic lifecycle
+   15	- spawn/send/merge responses carry the fresh task state; `list_agents` includes a bounded live
+   16	  project-task view. Do not spend another model round-trip reconstructing state already returned.
+   17	- Planned spawn or assignment binds the canonical task before delivery. A successful
+   18	  `merge_worker(task_outcome="complete")` closes it; `task_outcome="continue"` keeps it bound.
+   19	- Manual `in_progress`/`done` updates from agent tools are rejected because those states belong to
+   20	  the platform lifecycle. Human edits and non-lifecycle fields remain available.
+   21	
+   22	### Projects are tags from one file
+   23	- `.orchestra/projects.yaml` in the Orchestra repository is the only project catalog. Its tags
+   24	  are a closed vocabulary: a tag absent from that file is rejected, not created. `project` and
+   25	  `tags` in the task tools take those tags; `task_create` without one uses your own scope.
+   26	- Tags are stored in the task's own record, not derived from where its number came from.
+   27	  A task may carry several tags or none; `tags` on `task_update` replaces the whole list.
+   28	- A task number is unique only inside the numbering space it was issued in, and one project
+   29	  can hold several. Listings carry `source` for exactly that reason: `#161` and
+   30	  `#161 · laptop` are different tasks. Quote `source` whenever it is set.
+   31	
+   32	### Rules
+   33	- When doing worker-assigned work, start with a short `update_checklist` plan and keep its completed indexes and current step accurate as work proceeds.
+   34	- Every new or changed checklist step needs a positive estimate in minutes (`estimates_minutes`, one per item); the platform rejects the update otherwise. Steps whose text is unchanged keep their stored estimate, so a call that only marks steps done or moves the current step may send null for them (owner decision, 2026-10-15: the estimate is mandatory).
+   35	- Before approved work that will leave a persistent `.orchestra/` artifact (research, audit,
+   36	  knowledge base, plan/report), use its existing task number or call `task_create`; include that
+   37	  number in the worker message. An exact 1–2 line edit with no persistent artifact may stay untracked
+   38	- `task_create` follows the user's approval, it does not precede it — see `<approval-gate>`.
+   39	  Class B research is the exception: it starts on your own decision and still gets a task number
+   40	- Use task numbers in commit messages: `#42: implemented feature`
+   41	- Don't create tasks for trivial work (1-2 line fixes)
+   42	</task-management>
+   43	
+   44	New VPS tasks may use `V-` (e.g. `V-42`). Preserve that prefix in task tools, branch names, commit headers and `.orchestra/tasks/V-42/`. Do not turn it into `42`, rename existing tasks, or rewrite another machine’s task record to reuse its number.

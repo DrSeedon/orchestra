@@ -1,0 +1,78 @@
+    1	"""KB topic index — one parser for the root contract check and the agent prompt.
+    2	
+    3	The list of topics has exactly one source: ``<scope>/.orchestra/kb/README.md``. Both the
+    4	committed-rules check (`scripts/check_instruction_contract.py`) and the system prompt the
+    5	platform assembles read it through here, so a second copy cannot drift away from the first.
+    6	"""
+    7	
+    8	import logging
+    9	import re
+   10	from pathlib import Path
+   11	
+   12	logger = logging.getLogger(__name__)
+   13	
+   14	# `- [<slug>](<topic>.md) — <description>` — the description is what the agent is shown.
+   15	_ENTRY = re.compile(r"- \[[^\]]+\]\(([^)]+)\) — (.+)")
+   16	
+   17	_HEADER = """## Project knowledge base
+   18	
+   19	Topic index only; file contents are not loaded. Paths are relative to the repository root."""
+   20	
+   21	
+   22	def kb_topic_files(root: str | Path) -> set[str]:
+   23	    """Topic files present under ``<root>/.orchestra/kb/`` (README itself excluded)."""
+   24	    kb = Path(root) / ".orchestra" / "kb"
+   25	    return {p.relative_to(kb).as_posix() for p in kb.rglob("*.md") if p != kb / "README.md"}
+   26	
+   27	
+   28	def kb_topic_index(root: str | Path) -> dict[str, str]:
+   29	    """Map topic path → description, in README order. ``{}`` when the project has no index.
+   30	
+   31	    :raises ValueError: an entry that leaves the topic inventory, repeats a topic, or has
+   32	        no description. A listed topic the agent cannot open is worse than one it never
+   33	        saw: it spends a turn guessing where the file went.
+   34	    """
+   35	    kb = Path(root) / ".orchestra" / "kb"
+   36	    readme = kb / "README.md"
+   37	    if not readme.is_file():
+   38	        return {}
+   39	    topics = kb_topic_files(root)
+   40	    entries: dict[str, str] = {}
+   41	    for line in readme.read_text(encoding="utf-8").splitlines():
+   42	        match = _ENTRY.fullmatch(line)
+   43	        if not match:
+   44	            continue
+   45	        path, description = match.groups()
+   46	        if path.startswith("../"):
+   47	            continue
+   48	        if path not in topics or not (kb / path).resolve().is_relative_to(kb.resolve()):
+   49	            raise ValueError(f"KB index points outside its topic inventory: {path}")
+   50	        if path in entries:
+   51	            raise ValueError(f"KB topic indexed more than once: {path}")
+   52	        if not description.strip():
+   53	            raise ValueError(f"KB topic needs a description: {path}")
+   54	        entries[path] = description.strip()
+   55	    return entries
+   56	
+   57	
+   58	def kb_index_block(scope: str) -> str:
+   59	    """The KB index block injected into an agent's system prompt, or "" when there is none.
+   60	
+   61	    A project without a KB gets nothing at all — an empty heading reads as "this project
+   62	    has no knowledge worth reading", which is a claim we have no evidence for.
+   63	    """
+   64	    if not scope:
+   65	        return ""
+   66	    try:
+   67	        entries = kb_topic_index(scope)
+   68	    except OSError as exc:
+   69	        # Unreadable README is an environment fault, not a broken index: refusing here
+   70	        # would take down every spawn in that project over a permission bit.
+   71	        logger.warning("KB index unreadable in %s: %s", scope, exc)
+   72	        return ""
+   73	    if not entries:
+   74	        return ""
+   75	    lines = "\n".join(
+   76	        f"- [{description}](.orchestra/kb/{path})" for path, description in entries.items()
+   77	    )
+   78	    return f"{_HEADER}\n\n{lines}"

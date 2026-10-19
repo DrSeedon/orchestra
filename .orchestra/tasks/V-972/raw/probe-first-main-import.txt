@@ -1,0 +1,38 @@
+app= /home/kesha/orchestra/app/__init__.py
+revision= 2fe8af9f6d8bd6ee0e335f70375308486c8e62dd
+{"role": "orchestrator", "layers": ["base.md", "roles/orchestrator.md"], "modules": ["safety", "project-maintenance", "code-quality", "dynamic-workflows", "model-routing", "git-workflow", "orchestration", "worker-lifecycle", "background-jobs", "task-management", "knowledge", "communication-style", "user-values"], "skills": ["grill-me", "html-artifacts", "laptop-access", "orchestra-agents", "video-artifact", "vps-deploy"], "can_spawn": ["worker", "full-cycle", "reducer"], "markers": {"<platform>": 0, "<role>": 7456, "<git-workflow>": 39249, "<orchestration>": 43167, "<worker-lifecycle>": 63790, "<report-format>": -1, "<user-values>": 83776}, "bytes": 88810, "sha256": "04166f58cbf2572415b5ebbbe0adad664b2625c2e3f5bdfcef3c3ceeac9654e7"}
+{"role": "sub-orchestrator", "layers": ["base.md", "roles/sub-orchestrator.md"], "modules": ["safety", "project-maintenance", "code-quality", "dynamic-workflows", "model-routing", "git-workflow", "orchestration", "worker-lifecycle", "background-jobs", "task-management", "knowledge", "communication-style", "user-values"], "skills": ["html-artifacts", "laptop-access", "orchestra-agents", "video-artifact", "vps-deploy"], "can_spawn": ["worker", "full-cycle", "reducer"], "markers": {"<platform>": 0, "<role>": 7456, "<git-workflow>": 31886, "<orchestration>": 35804, "<worker-lifecycle>": 56427, "<report-format>": -1, "<user-values>": 76413}, "bytes": 81338, "sha256": "f64be005bb030c9eb712f4ee27bc03fcd14365d2570c6b812d1901af1cb5d7f8"}
+{"role": "worker", "layers": ["base.md", "roles/worker.md"], "modules": ["safety", "project-maintenance", "code-quality", "git-workflow", "report-format", "knowledge", "communication-style", "user-values"], "skills": ["html-artifacts", "laptop-access", "video-artifact"], "can_spawn": [], "markers": {"<platform>": 0, "<role>": 7456, "<git-workflow>": 24010, "<orchestration>": -1, "<worker-lifecycle>": -1, "<report-format>": 27928, "<user-values>": 39001}, "bytes": 43678, "sha256": "30ab6987d02e943a765fd780927142031d72c93f4fd90671145b93cc3ef0c0e8"}
+{"role": "full-cycle", "layers": ["base.md", "roles/full-cycle.md"], "modules": ["safety", "project-maintenance", "dynamic-workflows", "model-routing", "research-method", "code-quality", "git-workflow", "worker-lifecycle", "report-format", "task-management", "knowledge", "communication-style", "user-values"], "skills": ["html-artifacts", "laptop-access", "video-artifact"], "can_spawn": ["worker", "full-cycle", "reducer"], "markers": {"<platform>": 0, "<role>": 7456, "<git-workflow>": 44731, "<orchestration>": -1, "<worker-lifecycle>": 48649, "<report-format>": 53987, "<user-values>": 68699}, "bytes": 73528, "sha256": "4ddeb4c9d2016630167ced7cc11a49e6da9d6194c2f4bb656e9fff8a5caa3e5b"}
+{"role": "reducer", "layers": ["base.md", "roles/reducer.md"], "modules": ["safety", "knowledge", "communication-style", "user-values"], "skills": ["html-artifacts", "video-artifact"], "can_spawn": [], "markers": {"<platform>": 0, "<role>": -1, "<git-workflow>": -1, "<orchestration>": -1, "<worker-lifecycle>": -1, "<report-format>": -1, "<user-values>": 20098}, "bytes": 24711, "sha256": "552611c2ca22c9e4e9c7d3d3e2e3c373315387a2aceb3e78c75ad90cd7235f96"}
+KB index:
+## Project knowledge base
+
+Topic index only; file contents are not loaded. Paths are relative to the repository root.
+
+- [MemoryHigh/reclaim, GIL-профиль, ложная CSS-абляция, плавающий baseline, бенчмарки: bwrap/AppArmor/userns и учёт при лимите](.orchestra/kb/evidence-methods.md)
+- [КАК СЧИТАТЬ расход модели (cost_usd, кредиты, запрет делить общий котёл), cache_read/input/reasoning, Claude Max V-541, reset/ценность пула V-542, ошибки фаз, цена хода Astra/Sol/Luna и квантование quota_primary_pct; формула подписки: запись кеша 0.6 п.п./М, чтение ≈0 (V-660, внешний bulk-probe V-664); Sonnet 5.5 против Opus 5.5 и effort low…max (V-656/V-661)](.orchestra/kb/models-and-quotas.md)
+- [Grok 1.0.3 doctor/trust/MCP, контроль Codex 0.153.4, bwrap RC=0, ARTEMIS/Android отклонён за отсутствием предмета; V-831: input_json_delta, пустой thinking, файл вывода local_bash](.orchestra/kb/runtimes.md)
+- [page.route и кеш, scroll anchoring, конечный SSE, coalescing без dropped](.orchestra/kb/chat-and-telegram.md)
+- [Luna #454: 8/11 и 6/11, отменённое правило как current, пределы оценки](.orchestra/kb/knowledge-base.md)
+- [33 коллизии UUID независимых узлов, расходящийся acceptance-контракт, эксперимент с карточками предложенных задач и удалённой сводкой дочерних работ INFO](.orchestra/kb/tasks-and-projects.md)
+- [Инструкция не доставлена: ошибка до создания сессии #430; V-570: глобальный AGENTS вне managed Codex; V-572: две личные копии скилла; проверка «читает ли агент файл правил» ломается о включённые инструменты](.orchestra/kb/agent-control.md)
+- [Закреплённый Git-снимок исходных исследований и старых материалов](.orchestra/kb/history.md)
+- [#77: соблюдение ≠ сохранность; #147: фильтр и триггер; #148/#149: подписка и доставка; #125: пропущенная ветка; V-548/V-550: свобода метода; V-565/V-566: рекомендация для Astra помогла Luna; V-666: «сравни подходы/думай глубже» жгут токены без выигрыша; V-895: переписывание задания «deeper» (Ризеберг) ×2,07 токенов без прироста принятого](.orchestra/kb/prompt-engineering.md)
+catalog source for a separate scope: /example/project/.orchestra/projects.yaml
+ownership_block: '\n\n## Directory ownership\nExpected work areas (advisory, not an edit allowlist):\n- app/\nEdit other files needed for the approved task within your worktree. Respect explicit task exclusions and coordinate overlapping changes.'
+loaded update_session_fields: {"prompt_overlay": null, "system_prompt": "Expertise: asyncio", "_current_prompt": "Expertise: asyncio"}
+Global references and installed copies:
+/home/kesha/.claude/skills/html-artifacts/SKILL.md exists= False
+/home/kesha/.claude/skills/video-artifact/SKILL.md exists= False
+/home/kesha/.claude/skills/vps-orchestra/SKILL.md exists= False
+/home/kesha/.agents/skills/laptop-access/SKILL.md exists= True
+sha256= ca17aa78dc9f841d1f2a42ffc871a20e308f820331be1dcae200f6475673c505 lines= 9
+/home/kesha/.claude/skills/laptop-access/SKILL.md exists= True
+sha256= ca17aa78dc9f841d1f2a42ffc871a20e308f820331be1dcae200f6475673c505 lines= 9
+html-artifacts installed= True same= True
+video-artifact installed= True same= True
+laptop-access installed= True same= True
+temp rule: rule-f1ce0b7f41 targets= ['all'] mode= expires active at 2026-10-19T12:00:00+00:00 = True
+Repository drift:
+exit= 0 stdout= '' stderr= ''

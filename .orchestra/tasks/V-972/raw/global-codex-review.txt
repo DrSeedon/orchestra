@@ -1,0 +1,272 @@
+    1	---
+    2	name: codex-review
+    3	description: "Cross-LLM ревью через Codex CLI (GPT-5.5). Codex ревьюит план/код/diff, запускает тесты, пишет результат в CODEX_REVIEW_*.md. Персистентные сессии для debate. Триггеры: 'спроси кодекса', 'кодекс ревью', 'ревьюй через кодекса', 'второе мнение', 'cross-review', 'переспроси кодекса', 'уточни у кодекса', '/codex'. НЕ юзать на тривиальных задачах."
+    4	roles: [all]
+    5	integrations: []
+    6	---
+    7	
+    8	# Codex Review — cross-LLM ревью через GPT-5.5
+    9	
+   10	## Purpose
+   11	Adversarial review плана/кода/решения через Codex CLI. Codex исследует код, запускает тесты, пишет результат в `CODEX_REVIEW_*.md` — юзер читает сам.
+   12	
+   13	## Главный принцип — ВТОРОЕ МНЕНИЕ, НЕ ИСТИНА
+   14	
+   15	Codex — другая модель с другими bias'ами. Он **часто прав** (100% accuracy на тестах 24.04), но **не всегда**. Claude Code должен:
+   16	- **Прислушиваться** к каждому замечанию
+   17	- **Проверять** blocking-замечания через код (`ls`, `grep`, `cat`, Serena) перед тем как принять
+   18	- **Спорить** если не согласен — через resume сессии с контраргументами
+   19	- **Показывать юзеру** и свою позицию, и позицию Codex'а при расхождении
+   20	- **Не соглашаться слепо** — это обесценивает весь cross-LLM review
+   21	
+   22	При несогласии формат: "Codex говорит X. Я проверил — [согласен/не согласен потому что Y]. Хочешь чтобы я вступил в дебаты с ним?"
+   23	
+   24	## When to Invoke
+   25	- "спроси кодекса", "кодекс ревью", "ревьюй через кодекса"
+   26	- "второе мнение", "cross-review", "adversarial review"
+   27	- "переспроси кодекса", "уточни у кодекса" → resume сессии
+   28	- `/codex`
+   29	- **АВТОМАТИЧЕСКИ после каждого фикса/изменения кода** — не пушить без хотя бы одного раунда Codex. Исключение: тривиальные правки (1-2 строки конфиг/docs). Workflow: код → тесты → Codex review → фикс замечаний → push.
+   30	
+   31	## Главные правила
+   32	
+   33	1. **OUTPUT В ПАПКУ ФИЧИ** — Codex пишет в `docs/<feature-slug>/CODEX_REVIEW.md` (рядом с PLAN.md). Все раунды в одном файле (append секции `## Round N`). Если фичи-папки нет — создать. **НЕ в корень cwd**, НЕ россыпью в docs/.
+   34	2. **ТЕСТЫ ПО СИТУАЦИИ** — если проект Python с pytest → запустить. Если план/ТЗ без кода или не-Python → пропустить и написать "тесты не применимы"
+   35	3. **CONVENTIONAL COMMENTS** — формат замечаний
+   36	4. **RESUME НЕ НОВАЯ СЕССИЯ** — follow-up через `codex exec resume`
+   37	
+   38	## Формат замечаний (Conventional Comments)
+   39	
+   40	- **`blocking:`** — must fix, мерж невозможен. Баги, security, data loss.
+   41	- **`suggestion:`** — рекомендация. Не блокирует мерж.
+   42	- **`question:`** — нужен ответ автора.
+   43	- **`thought:`** — мысль вслух, не требует действия.
+   44	- **`nit:`** — мелочь, опциональна.
+   45	
+   46	## Process Flow
+   47	
+   48	### Pre-Flight
+   49	1. `command -v codex >/dev/null 2>&1` — если нет → стоп
+   50	2. `mkdir -p /tmp/codex-sessions`
+   51	3. Определить slug: sanitize к `[a-zA-Z0-9._-]`, max 50 chars
+   52	4. **Папка фичи**: `docs/<feature-slug>/` — создать если нет. Plan тоже должен лежать тут (`PLAN.md`).
+   53	5. Output файл: `docs/<feature-slug>/CODEX_REVIEW.md`
+   54	6. JSONL лог: `/tmp/codex-sessions/<slug>.jsonl` (slug-specific, не глобальный)
+   55	7. **ОДИН SLUG НА ВСЮ СЕССИЮ** — slug определяется ОДИН раз в Pre-Flight и используется **везде**: JSONL, `.session`, resume, debate. НЕ придумывать новое имя при resume/debate. Slug = имя папки фичи в `docs/`. Если `docs/seo-full-review/` → slug = `seo-full-review` ВЕЗДЕ: `/tmp/codex-sessions/seo-full-review.jsonl`, `/tmp/codex-sessions/seo-full-review.session`. Ошибка "session not found" при resume на 99% — использовал другой slug чем при создании.
+   56	
+   57	### Структура docs/
+   58	```
+   59	docs/
+   60	  <feature-slug>/     ← 1 фича = 1 папка
+   61	    PLAN.md           ← план/ТЗ
+   62	    CODEX_REVIEW.md   ← ревью (все раунды)
+   63	  archive/            ← завершённые/устаревшие фичи
+   64	  <живые справочники>.md  ← VICTORIA_MASTER.md, QA, bridge-setup и т.п.
+   65	```
+   66	При завершении фичи (merged + deployed) → `mv docs/<slug>/ docs/archive/`
+   67	
+   68	### Новая сессия
+   69	
+   70	Prompt передавать через heredoc (безопасный quoting):
+   71	```bash
+   72	cd <проект>
+   73	codex exec -s workspace-write --json - <<'CODEX_PROMPT' 2>&1 | tee /tmp/codex-sessions/<slug>.jsonl
+   74	<промпт здесь>
+   75	CODEX_PROMPT
+   76	```
+   77	
+   78	Модель и reasoning берутся из `~/.codex/config.toml`. Если нужно override:
+   79	```bash
+   80	codex exec -s workspace-write -m gpt-5.5 -c model_reasoning_effort="high" --json - <<'CODEX_PROMPT'
+   81	```
+   82	
+   83	Сохранить session_id (robust parsing):
+   84	```bash
+   85	SESSION_ID=$(jq -r 'select(.type=="thread.started") | .thread_id' /tmp/codex-sessions/<slug>.jsonl 2>/dev/null | head -1)
+   86	if [ -z "$SESSION_ID" ]; then
+   87	  SESSION_ID=$(grep -oP '"thread_id":"\K[^"]+' /tmp/codex-sessions/<slug>.jsonl | head -1)
+   88	fi
+   89	test -n "$SESSION_ID" && echo "$SESSION_ID" > /tmp/codex-sessions/<slug>.session
+   90	```
+   91	
+   92	### Resume сессии
+   93	
+   94	```bash
+   95	SESSION_ID=$(cat /tmp/codex-sessions/<slug>.session)
+   96	codex exec resume "$SESSION_ID" --skip-git-repo-check --json - <<'CODEX_PROMPT' 2>&1 | tee -a /tmp/codex-sessions/<slug>.jsonl
+   97	<follow-up промпт>
+   98	CODEX_PROMPT
+   99	```
+  100	
+  101	`-s` у resume НЕ работает — sandbox наследуется. Prompt через stdin (`-`).
+  102	
+  103	### После завершения — АВТОМАТИЧЕСКАЯ ИТЕРАЦИЯ ДО КОНСЕНСУСА
+  104	
+  105	**НЕ спрашивать юзера "спорить или принять?" — ДУМАТЬ СВОЕЙ ГОЛОВОЙ и итерировать.**
+  106	
+  107	1. Прочитать ревью, **проверить каждое замечание** через код
+  108	2. По каждому пункту САМОСТОЯТЕЛЬНО решить: ACK / DISAGREE / PARTIAL — с аргументами из кода
+  109	3. Обновить план/код по принятым замечаниям
+  110	4. Resume сессию Codex с изменениями — показать что исправлено, спросить APPROVED/NOT YET
+  111	5. **Повторять шаги 1-4 пока Codex не скажет APPROVED** или 5+ раундов без прогресса
+  112	6. Только после консенсуса — показать юзеру финальный результат
+  113	
+  114	**Принцип:** Claude Code = инженер, не секретарь. Сам принимает решения по замечаниям, сам спорит где не согласен, сам итерирует. Юзера не дёргать на каждый раунд — показать готовый согласованный результат.
+  115	
+  116	## Язык
+  117	
+  118	**Codex пишет ревью на языке юзера.** Если юзер общается на русском — в промпте Codex добавляй: "Напиши ревью на русском языке." Если на английском — не добавляй (дефолт английский). Codex может думать на любом языке, но output = язык юзера.
+  119	
+  120	## ВСЕГДА В ФОНЕ
+  121	
+  122	**Codex ВСЕГДА запускается в background** (`run_in_background: true` в Bash). Пока Codex работает — продолжай другие задачи. Когда завершится — придёт уведомление, тогда читай результат и итерируй. НЕ блокировать основной поток ожиданием Codex.
+  123	
+  124	## Workflow после ревью ПЛАНА
+  125	
+  126	**После получения ревью плана — НЕ показывать юзеру и ждать. Действовать:**
+  127	1. Прочитать ревью, проверить каждый blocking через код
+  128	2. **Обновить план** по принятым замечаниям — Edit файл плана
+  129	3. **Resume Codex** с обновлённым планом — "I fixed N issues, re-review the plan"
+  130	4. Повторять пока Codex не скажет "план рабочий" / APPROVED
+  131	5. Только после консенсуса — показать юзеру финальный план
+  132	
+  133	**Для ревью кода** — то же: фиксить → resume → re-review → консенсус.
+  134	
+  135	## Project Context — ОБЯЗАТЕЛЬНО добавлять в каждый промпт Codex
+  136	
+  137	Codex не знает масштаб проекта и ревьюит как enterprise. Чтобы не приколупывался к мелочам — **ВСЕГДА** добавлять блок контекста в начало промпта:
+  138	
+  139	```
+  140	PROJECT CONTEXT (calibrate your review severity accordingly):
+  141	- Scale: 1 client (Александр), 1 developer (Максим), MVP stage
+  142	- Users: ~10 active, NOT millions. No horizontal scaling needed
+  143	- Stack: {стек проекта}
+  144	- Philosophy: "Pit of Success" — simple, flat, minimal abstractions. 3 lines > premature abstraction
+  145	- What matters: correctness, security, data integrity
+  146	- What does NOT matter: enterprise patterns, scalability to 1M users, 100% test coverage, perfect error messages, logging best practices
+  147	- Do NOT suggest: dependency injection frameworks, message queues (unless already used), caching layers for <1000 QPS, complex error hierarchies, monitoring/alerting infrastructure
+  148	- Severity calibration: "blocking" = will crash/corrupt data/security hole. "suggestion" = real improvement. "nit" = skip entirely, we don't care about style/naming/comments
+  149	```
+  150	
+  151	**Зачем:** без этого Codex на ревью 200 строк MVP-фикса выдаёт 15 suggestions про "добавьте retry policy", "нужен circuit breaker", "логирование недостаточно structured" — всё верно для Netflix, бесполезно для нас.
+  152	
+  153	**Адаптировать под проект:** parsing-hub (FastAPI+Redis), seo-platform (FastAPI+PostgreSQL), ai-assistants (FastAPI+SQLite+Asterisk), zahoron-laravel (Laravel 10+MySQL).
+  154	
+  155	## Промпты
+  156	
+  157	### Review плана/ТЗ
+  158	```
+  159	Ты adversarial code reviewer. В cwd — <проект> (<стек>).
+  160	
+  161	Шаг 1: Прочитай <файл>.
+  162	Шаг 2: Исследуй живой код через ls/grep/cat — проверь все ссылки из плана.
+  163	Шаг 3: Определи есть ли тесты (ls tests/ или ls test/). Если есть и проект Python — запусти. Если нет или не Python — напиши "тесты не применимы".
+  164	Шаг 4: Напиши ревью в <OUTPUT_FILE>.
+  165	
+  166	Формат файла:
+  167	## Tests
+  168	Результат тестов или "не применимо".
+  169	
+  170	## Summary
+  171	3-5 предложений.
+  172	
+  173	## Замечания
+  174	`blocking:` / `suggestion:` / `question:` / `thought:` / `nit:` — file:line + проблема + фикс.
+  175	
+  176	## Вердикт
+  177	Одна фраза: план рабочий / требует доработки / выкинуть.
+  178	
+  179	Ищи:
+  180	1. Scope creep
+  181	2. Неверные ссылки на код (проверяй ls/grep, не угадывай)
+  182	3. Внутренние противоречия
+  183	4. Security / архитектурные проблемы
+  184	5. Нарушения бизнес-правил (прочитай CLAUDE.md если есть)
+  185	
+  186	До 10 замечаний. Конкретика. Без воды.
+  187	```
+  188	
+  189	### Review кода (diff / uncommitted)
+  190	```
+  191	Ты adversarial code reviewer. В cwd — <проект>.
+  192	
+  193	Шаг 1: Определи test runner: ищи pyproject.toml/package.json/Makefile. Запусти если найдёшь.
+  194	Шаг 2: Посмотри diff: `git diff` или `git diff <base>...HEAD`.
+  195	Шаг 3: Прочитай новые/изменённые файлы.
+  196	Шаг 4: Найди баги, security, breaking changes, race conditions, null safety.
+  197	Шаг 5: Напиши ревью в <OUTPUT_FILE>.
+  198	
+  199	Формат: ## Tests, ## Summary, ## Замечания (blocking/suggestion/question/nit), ## Вердикт (ACK / требует фиксов).
+  200	Не предлагай рефакторинг если старый код работает.
+  201	```
+  202	
+  203	### Debate (при несогласии Claude)
+  204	```
+  205	Claude Code не согласен с твоими замечаниями. Вот его аргументы:
+  206	
+  207	<аргументы Claude>
+  208	
+  209	Проверь каждый пункт:
+  210	- ACK — принимаю, Claude прав
+  211	- Контраргумент — не согласен, вот почему (с фактами из кода, не "мне кажется")
+  212	- Частично — что принято, что нет
+  213	
+  214	Допиши в <OUTPUT_FILE> секцию ## Debate Round N.
+  215	```
+  216	
+  217	## Fix → Re-review Loop
+  218	
+  219	Когда Codex находит баги и Claude фиксит:
+  220	
+  221	1. **Пофиксить** все blocking/suggestion замечания
+  222	2. **Resume сессию** — НЕ новая, чтобы Codex помнил контекст:
+  223	```bash
+  224	SESSION_ID=$(cat /tmp/codex-sessions/<slug>.session)
+  225	codex exec resume "$SESSION_ID" --skip-git-repo-check --json - <<'CODEX_PROMPT'
+  226	I fixed your N findings. For each say FIXED or STILL BROKEN.
+  227	Then list any NEW bugs introduced by the fixes.
+  228	
+  229	Changes: <краткий список что поменял>
+  230	CODEX_PROMPT
+  231	```
+  232	3. **Проверить ответ**: FIXED/BROKEN по каждому пункту
+  233	4. **Если BROKEN или NEW bugs** → фиксить → повторить шаг 2
+  234	5. **Если все FIXED + no new blockers** → консенсус, мерж
+  235	
+  236	### Когда остановиться
+  237	- Codex сказал "merge-ready" / "no remaining blockers" — консенсус
+  238	- 7+ раундов без прогресса — diminishing returns, решай сам
+  239	- Остались только `nit:` / `thought:` — можно мержить
+  240	
+  241	### Важно
+  242	- Каждый раунд фиксов может **создать новые баги** — Codex это ловит
+  243	- Не соглашаться на всё — если Codex неправ, спорить с аргументами
+  244	- Показывать юзеру scorecard: "Round N: X fixed, Y still broken, Z new"
+  245	
+  246	## Error Handling
+  247	
+  248	- **codex не найден** → "Codex CLI не установлен"
+  249	- **rate limit** → показать ошибку, стоп, не ретраить
+  250	- **файл не создался** → показать последние 20 строк `/tmp/codex-sessions/<slug>.jsonl`
+  251	- **resume упал на протухшей сессии** → удалить `.session` файл, начать заново
+  252	- **tee: No such file or directory** → slug в `tee` не совпадает со slug из Pre-Flight. ВСЕГДА проверять: имя файла в `tee /tmp/codex-sessions/XXX.jsonl` == slug из шага 3. Если ошибся → JSONL ушёл в stdout, session_id потерян, resume невозможен. Перезапустить с правильным slug.
+  253	- **таймаут** → в Claude Code Bash tool ставить `timeout: 300000` (это параметр Claude Code, не codex CLI)
+  254	
+  255	## Технические детали
+  256	
+  257	- **Модель и reasoning:** из `~/.codex/config.toml` (сейчас `gpt-5.5`, `high`)
+  258	- **Sandbox:** `workspace-write` (чтобы мог писать файл ревью)
+  259	- **Approval:** `codex exec` = автономно (`--ask-for-approval=never` дефолт)
+  260	- **Sessions:** `/tmp/codex-sessions/<slug>.session` → thread_id, `.jsonl` → полный лог
+  261	- **Serena MCP:** подключена к Codex — может юзать LSP-навигацию
+  262	- **Лимиты Plus:** 30-150 локальных / 5 часов
+  263	- **Security:** при `workspace-write` Codex может читать файлы в cwd. НЕ запускать в директориях с `.env`, credentials, SSH-ключами. Если нужно — предварительно проверить `ls -a` на наличие секретов
+  264	
+  265	## Что НЕ делать
+  266	
+  267	- ❌ Не показывать сырой JSONL — только путь к файлу + краткий пересказ
+  268	- ❌ Не создавать новую сессию на follow-up — resume
+  269	- ❌ Не забывать "напиши в файл" в промпте
+  270	- ❌ Не соглашаться слепо — проверять blocking-замечания через код
+  271	- ❌ Не использовать `danger-full-access`
+  272	- ❌ Не запускать в директориях с секретами при workspace-write

@@ -1,0 +1,400 @@
+    1	---
+    2	name: video-artifact
+    3	description: "Create and deliver a 30–90 s MP4 explainer in the light paper style (painted opening/closing pictures, large real numbers on flat diagrams, a quiet music bed), using an animated HTML scene or Manim with local Russian or English voice-over, phrase synchronization, and checks."
+    4	---
+    5	
+    6	# Explainer Video
+    7	
+    8	A video is a scene voiced step by step: load `html-artifacts` and read its
+    9	`references/animation.md` for HTML diagrams, or use Manim for charts and mathematics in motion.
+   10	This skill adds voice, the 16:9 frame (or 9:16 with `--format vertical`),
+   11	and video-specific checks. Numbers and facts come from a source (report, data, or code), as in
+   12	every artifact.
+   13	
+   14	**Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes phrases in parallel
+   15	with one loaded TTS model, then sets step duration to intro + phrase + pause (0.35 and 0.55 s
+   16	divided by `--rate`, default 1.0; `hold: seconds` replaces the default end pause on any step to give the viewer time). Do not write `d` in
+   17	steps: it is replaced. State changes are constructed to begin with the phrase. The phrase fills
+   18	almost the whole step, so `w: {id: [a, b]}` approximates its fraction: an object mentioned in
+   19	the middle uses `[.4, .6]`. For a second precise accent, split the phrase into two steps rather
+   20	than tuning windows. HTML renders each ordered step as soon as its phrase is ready; Manim waits
+   21	for all phrases because `construct()` needs the complete timing plan.
+   22	
+   23	**TeraTTSv2 weights have no declared license; check [the model-license discussion](https://huggingface.co/TeraSpace/TeraTTSv2/discussions/1) before preparing audio for public or commercial use.**
+   24	
+   25	- **Scene:** for HTML, use the player scaffold in `html-artifacts`, with `<svg id="stage" viewBox="0 0 1200 520">`.
+   26	  Immediately after `STEPS`, include `STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);` — without it the tool stops. The video label is subtitles (Telegram's feed plays without sound): use `say`; if it contains transliteration or numbers written as words, use `sub` with the screen form (for example "Together", "7 680"); `t` is a short step heading.
+   27	- For `along` with a `w` window, also set the markup attribute (`<circle along="path">`): before
+   28	  the window the scaffold uses the initial value and otherwise falls back to `getPointAtLength`.
+   29	- **The tool sets frame and theme:** 1920×1080 (scene CSS 1280×720), no buttons, no step
+   30	  headings, Manrope and JetBrains Mono (`class="mono"`). The default theme is `paper` (below);
+   31	  `--theme dark` restores the former dark frame (`#0b0e14`, 3Blue1Brown palette) for old scenes.
+   32	  Do not override the theme with your own `!important` CSS. The theme styles only the scaffold
+   33	  (`.mv`, `.cap`, `#stage`): a scene with its own layout keeps its colors and gets only the
+   34	  progress bar; a scaffold scene drawn for the dark frame stays readable on paper but looks
+   35	  mixed, so build it with `--theme dark` or recolor it.
+   36	- Build repeated structures (grid, byte row) with a JS loop up to `STEPS`, and generate steps.
+   37	
+   38	- **`say` phrase:** speak in Russian and write Latin names as Cyrillic pronunciation (for example
+   39	  «Дип Инфра», «опен роутер»); keep original names and digits in the screen subtitle. Tera expands
+   40	  numeric literals, but does not infer their grammatical case (`в 2026 году` becomes an uninflected
+   41	  «две тысячи двадцать шесть году»). Write Russian numbers as words with the required case for both
+   42	  Tera and Vosk (for example «в две тысячи двадцать шестом году»). Use 1–2 sentences, 2–6 s at
+   43	  rate 1.0, and 30–90 s total. Tera synthesizes each sentence whole, so the model itself
+   44	  intonates commas, colons and dashes; between sentences the tool adds only the missing silence up to 0.42 s divided
+   45	  by `--rate` (the model's own tail counts). A sentence of three vowels or fewer is glued to the next one. Add `[0.6]`
+   46	  in `say` for an explicit pause.
+   47	  A silent beat uses `say: ""` with a positive `hold`. Avoid officialese; write as spoken.
+   48	- **English video:** `make.py … --lang en` uses Kokoro-82M instead of Vosk and Deepgram with
+   49	  `language=en`. English `say` may contain digits, names, and `#2`; Kokoro reads them, rejecting
+   50	  only Cyrillic. Voice `--voice af_heart` (default, female) or `am_michael` (male); five tested
+   51	  voices were recognized verbatim by Deepgram (V-686). `--rate 1.1` sounds more natural than 1.25.
+   52	
+   53	## Paper style (default)
+   54	
+   55	Owner decision, 2026-10-17: after comparing the NIST-curves video with our demos (V-904, V-912)
+   56	the owner chose its light paper look as our standard style instead of the dark one. Source
+   57	analysis and before/after frames: `.orchestra/tasks/V-904/report.md`.
+   58	
+   59	- **Two registers.** A painted picture opens and closes the story (a room, a desk, people:
+   60	  the human situation); everything in between is a flat diagram on the light background. The
+   61	  opening picture ends by pushing the camera into the object the diagram starts from (a
+   62	  monitor, a sheet), and the diagram appears at exactly that place: a match cut, not a jump.
+   63	- **Few objects, large.** Two or three objects in a frame. Data in JetBrains Mono at 32–40
+   64	  scene units (≈48–60 px in the video), labels at least 30 units; the caption is one line.
+   65	  Shorten rows instead of shrinking type: 8 bytes, not 16; one hex word, not a paragraph.
+   66	  When a new idea needs room, fade or move the previous block away first.
+   67	- **Two meaning colors only.** Blue `#0e5e9c` (tint `#d6e8f4`) = known, matched, confirmed;
+   68	  orange `#c9551b` (tint `#fde4d0`) = hidden, wrong, unexplained. Everything else is ink
+   69	  `#16171b`, muted `#6b7280`, cells `#eef0f3`, lines `#d9dce3` on background `#f6f7f9`.
+   70	  No green/red pair. The palette is also in `Paper.BLUE`, `Paper.ORANGE`, … .
+   71	- **Only real numbers.** Every value on screen comes from the source: real bytes, real sizes,
+   72	  real counts. A counter ticks through the real range in `draw`; never round for looks.
+   73	- **Order of presenting data:** show the raw value → split it into parts → highlight the one
+   74	  part that matters → verdict mark ✓ (blue) or ✗ (orange) → the next step reuses the
+   75	  marked part. Text appears by typing with a block cursor when a person or program "writes" it.
+   76	- **Motion is quiet.** Appearances fade (the caption blurs in by itself); objects move to
+   77	  their next place with the scaffold's spring; no bounces, spins or flying in.
+   78	
+   79	**Paper kit** (`scripts/video_artifact/paper.js`, injected by `make.py`; pure functions of `t`,
+   80	call them from `draw(i, p, t)`):
+   81	
+   82	```js
+   83	Paper.install();                                   // filters, gradients, markers #paper-arrow, #paper-arrow-orange
+   84	const pic = Paper.picture('room', {x: 96, y: 18, w: 1088, h: 556});   // torn edge, grain, vignette, wobble
+   85	const VIEW = {from: [640, 252], to: [640, 170], scale: 4.2};          // monitor centre → diagram centre
+   86	function draw(i, p, t) {
+   87	  const st = []; let at = 0; for (const s of STEPS) { st.push(at); at += s.d; }
+   88	  Paper.brush(pic, t, 0, 1.2);                                         // roller-stroke reveal
+   89	  Paper.camera(pic, t, {...VIEW, t0: .5 * STEPS[0].d, t1: st[1] - .15}); // push-in, done before step 2
+   90	  $('room').setAttribute('opacity', 1 - Paper.fade(t, st[1] - .1));    // crossfade into the diagram
+   91	  $('dia').setAttribute('opacity', Paper.fade(t, st[1] - .15));
+   92	  Paper.type($('alarm'), 'тревога → оркестратору', t, st[3] + .4, st[3] + 2.6);  // typing, block cursor
+   93	}
+   94	```
+   95	
+   96	Call `Paper.install()` and `Paper.picture()` in the scene script after the SVG, before
+   97	`STEPS`; compute step starts in `draw` from `STEPS[k].d` as above (`P` does not exist yet
+   98	during the first `draw`). For the match cut, place a `<use href="#cards"
+   99	transform="${Paper.miniature(VIEW)}">` copy of the diagram inside the picture: after the zoom it
+  100	lands exactly on the original. Keep text inside that copy as large as the diagram's; small text
+  101	in the zoomed monitor is unreadable. Reference a group that is itself visible (`#agents`
+  102	inside a faded `#agentsLayer`): a `<use>` copies the referenced element's own `opacity`. The
+  103	progress bar and caption blur are added by the tool.
+  104	
+  105	**Opening and closing pictures come from a scene library** (`scripts/video_artifact/scenes/`,
+  106	`index.json`; owner decision, 2026-10-17: a video series must not start and end with the same
+  107	room every time). `Paper.picture('pic', box, {scene: 'board'})` fills the picture; `Paper.view(scene)`
+  108	gives the camera view onto the scene's screen; `Paper.mini(pic, 'agents', view)` places the
+  109	matching copy there; `Paper.live(pic, t)` turns clocks and moves steam. Bundled scenes:
+  110	
+  111	| scene | picture | fits |
+  112	|---|---|---|
+  113	| `night-desk` | night room, monitor, desk lamp | the problem, someone working late |
+  114	| `board` | bright office, whiteboard, plant | rules, processes, agreements, summing up |
+  115	| `cafe` | morning window, laptop and coffee | "now it works", light features, a calm ending |
+  116	
+  117	Pick by the topic and use a different scene (or the same one reversed) for the ending; a closing
+  118	can zoom out (`camera` with mirrored time) or wipe away (`Paper.brush(pic, t, t0, dur, {out: true})`).
+  119	A new scene is an SVG fragment with ids prefixed by its name, one `.paper-mini` group on its
+  120	screen, and a line in `index.json` with `screen: [x, y, w, h]`.
+  121	
+  122	**Objects stand on supports.** Mark every prop that must rest on something with
+  123	`data-on="<support id>"` (the lamp and the monitor on the desk top, the chair on the floor, the
+  124	pot on the sill). `make.py` stops the build when a marked object's bottom is not on its support or
+  125	its centre is beside it: a lamp hanging in the air read as a mistake to the owner (V-929). The
+  126	check does not judge good placement; look at the unzoomed opening frame yourself (the chair in
+  127	front of the desk, not beside it). Working scenes: `.orchestra/tasks/V-917/demo/scene.html`,
+  128	`.orchestra/tasks/V-935/openings/openings.html`.
+  129	
+  130	## Second engine: Manim
+  131	
+  132	Manim is the library used by 3Blue1Brown. Grant works on ManimGL; use Community Edition
+  133	(ManimCE 0.20.1, MIT), which is more stable and documented at docs.manim.community. A scene is a
+  134	Python class, Cairo renders frames, and Manim writes the video.
+  135	
+  136	**What to choose.** Use animated HTML scenes for diagrams, flow diagrams, tables, text, and
+  137	existing HTML artifacts; they are fast to edit and can capture any frame. Use Manim for mathematics and data in
+  138	motion: axes and function plots (`Axes`, `plot`), drawn curves (`Create`), changing numbers
+  139	(`ValueTracker` + `always_redraw`), shape transformations (`Transform`), polar/radial charts,
+  140	and LaTeX formulas with substituted values. Choose Manim for smooth morphing and growing charts.
+  141	
+  142	**Scene:** a `.py` file with one `VoiceScene` subclass from
+  143	`scripts/video_artifact/manim_voice.py` (beside `make.py`). The contract is the same as the
+  144	HTML scene: `STEPS` with `t`/`say`/`sub`/`hold`, and the same `say` rules. Each step is a
+  145	`with self.step(i):` block containing ordinary `self.play(...)`. Set animation durations as
+  146	fractions of the remaining step, `run_time=self.left() * 0.4`, so phrase and rate changes stay
+  147	synchronized; overrunning a step stops the build with a clear error. `VoiceScene` draws heading
+  148	and subtitles; style comes from its constants and `text()` (`BLUE_`, `GOLD_`, `PANEL`). `VoiceScene`
+  149	uses `MovingCameraScene`; its palette and font follow `--theme` (paper: Manrope on `#f6f7f9`
+  150	with the paper colors in `BLUE_`/`GOLD_`/`FG`; dark: CMU Serif on black, OFL fonts in `fonts/`);
+  151	captions wrap by measured width and an unknown font name fails the build; subclasses may override
+  152	`TEXT_FONT` and `BACKGROUND_COLOR`, or call `self.text(..., font="CMU Serif")`. Minimal example:
+  153	
+  154	```python
+  155	from manim import *
+  156	from manim_voice import BLUE_, GOLD_, VoiceScene, text
+  157	
+  158	class Growth(VoiceScene):
+  159	    STEPS = [
+  160	        {"t": "Growth", "say": "Квадрат растёт быстрее прямой.", "sub": "x² grows faster than x"},
+  161	        {"t": "Result", "say": "После единицы парабола уходит вверх.", "hold": 1.5},
+  162	    ]
+  163	
+  164	    def construct(self):
+  165	        ax = Axes(x_range=[0, 3, 1], y_range=[0, 9, 3], x_length=7, y_length=4.5)
+  166	        with self.step(0):
+  167	            self.play(Create(ax), run_time=self.left() * 0.3)
+  168	            self.play(Create(ax.plot(lambda x: x, color=BLUE_)),
+  169	                      Create(ax.plot(lambda x: x * x, color=GOLD_)), run_time=self.left() * 0.6)
+  170	        with self.step(1):
+  171	            self.play(Indicate(text("x > 1", 30).next_to(ax, UP)), run_time=self.left() * 0.5)
+  172	```
+  173	
+  174	Build with `make.py scene.py --out <folder>`; the engine is selected by extension. Preview
+  175	early with `--preview-step N` or `--preview-range A:B`; it writes a contact sheet without loading
+  176	TTS. Send that draft to the owner before starting the full build. Run
+  177	`--timing-only` next: voice durations and statically supported animation lengths are checked
+  178	before frames render; unsupported scenes use Manim `--dry_run`. Fix timing/layout issues, then build
+  179	the full video. Build output reports voice/frame/step counts and ETA; concurrent heavy builds queue
+  180	on a host-wide lock and print the current build they await.
+  181	
+  182	**Formulas are LaTeX.** `MathTex` (math) and `Tex` (text with `$…$`) render through TeX and look
+  183	like textbook typesetting. `manim_voice` puts the project's TinyTeX on PATH and installs a
+  184	Cyrillic-capable template, so `\text{запись}` and Russian `Tex` work. Split formulas into parts
+  185	so they can be colored, bracketed, and transformed when numbers are substituted:
+  186	
+  187	```python
+  188	f = MathTex(r"\Delta q", r"\approx", r"0{,}6", r"\cdot", r"W", font_size=64)
+  189	f[4].set_color(GOLD_)
+  190	note = Brace(f[2:5], DOWN)
+  191	g = MathTex(r"\Delta q", r"\approx", r"0{,}6", r"\cdot", r"0{,}362")
+  192	self.play(TransformMatchingTex(f, g), run_time=self.left() * 0.4)
+  193	```
+  194	
+  195	Use `0{,}6` for a decimal comma; without braces TeX adds space after the comma. The first
+  196	formula in a build compiles in ~1–2 s, then `media/Tex` is cached. For `latex error converting to
+  197	dvi`, read the `!` line in the indicated `.log`: usually a missing package (`tlmgr install
+  198	<package>`, see Environment) or an unescaped `%`/`&` in `Tex`. Formula example:
+  199	`.orchestra/tasks/V-685/compact55.py`. Frame is 14.2×8 units centered at (0, 0); subtitles use
+  200	about one unit below and heading is upper-left: keep objects in y ∈ [−2.6, 3].
+  201	
+  202	## Vertical 9:16 (Shorts, Reels, VK Клипы), opt-in
+  203	
+  204	`make.py scene.html --out DIR --format vertical --hook "Claim with a number"` renders 1080×1920
+  205	(CSS 720×1280); without `--format` nothing changes (1920×1080). Design the scene for the tall
+  206	frame, do not crop a 16:9 one:
+  207	- The stage gets about 720×728 CSS px and the caption sits above the platform UI, so stack
+  208	  diagrams in a column (rows of full-width cards, vertical flows, big numbers left, labels right)
+  209	  and write at font-size 30+ in SVG units. Keep `viewBox` 720 wide: `viewBox="0 0 720 720"`, or reuse
+  210	  the painted scenes, which live in 1280-wide world coordinates, with `viewBox="280 0 720 720"`
+  211	  (the strip around the monitor, x 280…1000; picture box `{x: 280, y: 20, w: 720, h: 600}`).
+  212	- Captions are 38 px (57 px in the video), up to four lines. The build fails when any caption or
+  213	  the hook leaves the safe area (x 120…960, y 250…1580 in video pixels), so shorten `sub` text.
+  214	- `--hook` is a short on-screen claim with a digit (refused without one), shown over the first
+  215	  2.6 s, before the voice has told the story: the first frame is the claim, not the painting.
+  216	  Numbers are tinted. Prefer a statement with a number ("Night request answered in 40 seconds").
+  217	- Aim for 45–60 s and 8–10 steps (V-947: best reach at that length). The contact sheet is six
+  218	  frames per row. Manim: `--format vertical` renders `-r 1080,1920` (frame 4.5×8 Manim units), and
+  219	  `wrap_caption` follows the narrow width; lay the scene out for that frame yourself.
+  220	
+  221	## Build
+  222	
+  223	Run outside the platform cgroup (Chromium + TTS model need ~2 GB); pass the Deepgram key through
+  224	stdin so it does not appear in the command line:
+  225	
+  226	```
+  227	printf '%s\n' "$DEEPGRAM_API_KEY" | ssh -o BatchMode=yes kesha@localhost \
+  228	  'read -r K; cd <work folder> && DEEPGRAM_API_KEY=$K uv run --frozen --project /home/kesha/orchestra \
+  229	   python /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out <folder>'
+  230	```
+  231	
+  232	Always use `bg_create(type="run")`: a 69 s video took 9.5 min (model loading ~2 min, six
+  233	parallel Chromium frame writers via `--jobs`; one thread took 25 min). Phrases cache in
+  234	`<folder>/.tts-cache`; changing the scene without changing `say` does not reload the model.
+  235	`--stills` skips video and produces phrase timing/contact sheets; `--check-only` checks an
+  236	existing MP4. `--speaker` selects the Vosk voice (1 is its default; 0–2 are female and 3–4 male).
+  237	`--rate` defaults to 1.0; speech and standard punctuation pauses shorten together.
+  238	
+  239	Russian video uses local TeraTTSv2 by default (`ru_m1`); choose a Tera voice with `--voice m1|m5|f1|f2` (`m1` is default, `f2` is the alternate female voice),
+  240	or pass `--tts-engine vosk` to use Vosk. TeraTTSv2 expands numbers in Russian tags and applies its
+  241	bundled RUAccent-derived stress pass. If a word needs correction, put `+` before the stressed vowel
+  242	(`лим+ита`): manual markers win for that word, while RUAccent still accents other words in the phrase.
+  243	`--stress-only` prints the normalized text before synthesis and warns when more than two numerals are
+  244	consecutive; `--no-stress` disables automatic stress but keeps manual markers. The existing
+  245	`--rate` maps to Tera's inverse `duration_scale`, so timing and pause semantics remain the same.
+  246	
+  247	Vosk remains available as an explicit Russian fallback and keeps its separate RUAccent worker.
+  248	English video continues to use Kokoro.
+  249	
+  250	If Tera's bundled stress pass or the Vosk RUAccent worker fails to load, stop and report the broken
+  251	TTS environment. Do not use `--no-stress` as a workaround for a broken requested build. Manual `+`
+  252	markers are targeted corrections for specific words the automatic pass marks incorrectly; do not
+  253	replace automatic stress with hand-marking.
+  254	
+  255	**Stress dictionary and homograph gate** (`scripts/video_artifact/stress_ru.json`, V-935). The
+  256	automatic pass marks words one at a time and cannot see meaning: in V-929 it said «ход+а» for
+  257	«хо́да», «ст+оит» in «блок сто́ит в конце» and «з+амка» for the lock «замка́». `fixed` words are
+  258	corrected before synthesis automatically; a word from `homographs` without a manual `+` stops the
+  259	build with the step number. Every Tera build writes `<name>.stress.txt` next to the video. When
+  260	you hear or find a new mistake, add the word to `fixed` (one stress for every meaning) or
+  261	`homographs` (stress depends on meaning).
+  262	
+  263	**Check stress yourself before the build.** Automatic stress can make mistakes: in V-696 RUAccent marked
+  264	«посл+е» instead of «по́сле» once in five edits. The owner hears every such word. Before a full
+  265	build, run `make.py scene.html --out <folder> --stress-only`. Read every phrase in the output
+  266	(also `<folder>/<name>.stress.txt`) and check every `+`
+  267	against Russian pronunciation. Pay attention to homographs («за́мок/замо́к», «уже́»), loanwords,
+  268	terms («репозито́рий», «оркестра́тор»), and names. Fix likely errors manually in scene `say` with
+  269	`+`; repeat `--stress-only` until every `+` is correct, then build. Report the words changed.
+  270	
+  271	Output: `<name>.mp4`, `<name>.timing.json`, `<name>-contact.png` (last frame of each step), and
+  272	`<name>.check.json` (Deepgram nova-2 recognition per phrase and its start offset from the plan).
+  273	
+  274	## Sound layer
+  275	
+  276	**A quiet music bed plays under the voice by default**: the first `bed` default of the sound
+  277	kit (`bed/fs-254856-long-ambient-pad`, "Long Ambient Pad" by indigo.cloud, CC0, Freesound
+  278	254856, first 2 s trimmed because it fades in). It loops with a crossfade and ducks during
+  279	speech. `--music path` uses any audio file (yours, generated, or someone else's); `--music-source` and
+  280	`--music-license` are optional notes for the credits side file. `--no-music` builds voice only
+  281	(then without events). For a sound-enabled step,
+  282	declare real actions in `STEPS` as `events: [{id, at, sound, weight, visual}]`. `at` is seconds
+  283	from that step's start; `sound` is a picked kit id or layer expression, `weight` is `support` or
+  284	`hero`, and `visual` is `cut`, `move`, `land`, or `appear` only when the picture has that motion.
+  285	`make.py` maps the event through `timing.json` to its exact frame/time; never type frame numbers.
+  286	Events play over the bed; `--no-music` with events is rejected. Cues may be kit recordings, any
+  287	file you choose, or generated `synth:pluck` / `synth:bell` accents. Basis (owner decision,
+  288	2026-10-18): our videos are personal use only and never shown publicly, so no license
+  289	restriction applies to music or effects and nothing is credited on the video. A best-effort side
+  290	note `<name>.credits.md` lists the music and the kit recordings used; it never blocks a build.
+  291	
+  292	Install the kit only at `~/.local/share/orchestra-sfx/` with `uv run --script
+  293	scripts/video_artifact/sound/sfx.py kit`. Review candidates with `sfx.py browse --type <type>
+  294	--like "<material, weight, mood>"`; look in the CC0 kit first, then `search` Openverse (any
+  295	license and source by default; `--source jamendo` for music, `--license cc0` to narrow) and `add`
+  296	what you pick. Inspect the chosen recordings' waveform and spectrogram. Do not call a sound good: report
+  297	the measured `qa.py` checks and leave the final ear check to a person. To make that check
+  298	targeted, `qa.py` writes `<name>.sound/ear-check/` from the encoded MP4: a frame just before and
+  299	just after every event (`<id>-before.png`, `<id>-after.png`) and `ear-check.md` with at most five
+  300	timestamps for headphones (hero events and the sharpest music duck), each with a reason. Hand that
+  301	folder to the owner with the video. The
+  302	sound scripts and MIT attribution are in `scripts/video_artifact/sound/`; downloaded sounds and
+  303	their `CREDITS.md` stay in the external kit directory. `make.py` runs sound QA automatically.
+  304	
+  305	## Check before sending
+  306	
+  307	- Open the contact sheet and inspect every frame: nothing is clipped or overlaid, the step result
+  308	  is visible, and text is readable. Inspect a doubtful `frames/<name>/stepNN.png` at full size.
+  309	- The build prints a short `check.json`. `onset_offset_max_abs_s` is where phrase audio actually
+  310	  begins in the MP4 versus the plan; it must be ≤ 0.1 s. `offset_s` is the first recognized-word
+  311	  start: ±0.3 s is normal; one large negative after a pause can be a Deepgram artifact stretching
+  312	  the first word into silence when audio started on time. `recall` is the share of phrase words
+  313	  found in recognition (from `say` or `sub`; Deepgram writes numbers as digits and names in
+  314	  Latin). Below 0.85, or a missing name/key word, means unclear synthesis: rephrase. A number
+  315	  written differently («два» → «2») is not a problem. Recognition does not score intonation.
+  316	- Send with `send_file(path_to_mp4)`; MP4 goes as an inline video.
+  317	
+  318	## Environment (already on VPS; restore if missing)
+  319	
+  320	TeraTTSv2 uses local CPU ONNX inference; the distilled sampler needs about 0.4 GB of weights.
+  321	The app pins revision `f05ea799094571a3553904a555df3834fb0b963b`, defaults to `ru_m1`, and loads
+  322	one model with six ONNX threads for two concurrent phrase workers. Model/code cache stays under
+  323	`~/.local/share/orchestra-tts/tera/`; once installed, synthesis uses local files only. Install an
+  324	isolated environment and fetch the pinned assets (including bundled Russian stress assets, but
+  325	excluding the unused teacher sampler):
+  326	
+  327	```sh
+  328	T=~/.local/share/orchestra-tts/tera
+  329	uv venv --python 3.12 "$T/venv"
+  330	uv pip install --python "$T/venv/bin/python" torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+  331	uv pip install --python "$T/venv/bin/python" transformers==4.57.1 onnxruntime==1.23.2 \
+  332	  huggingface_hub==0.36.0 num2words==0.5.14 numpy
+  333	"$T/venv/bin/python" -c 'from pathlib import Path; from huggingface_hub import snapshot_download; p=snapshot_download(repo_id="TeraSpace/TeraTTSv2", revision="f05ea799094571a3553904a555df3834fb0b963b", cache_dir=str(Path.home()/".local/share/orchestra-tts/tera/hub"), allow_patterns=["README.md","config.json","configuration_teratts.py","modeling_teratts.py","teratts.py","teratts_ruaccent.py","RUACCENT_NOTICE.txt","unicode_indexer.json","models/duration_predictor.onnx","models/sampler_distilled_cfg3_8step.onnx","models/text_encoder.onnx","models/vocoder.onnx","styles/ru_m1/*","styles/ru_m5/*","styles/ru_f1/*","styles/ru_f2/*","ruaccent/**"]); print(p)'
+  334	```
+  335	
+  336	Set `ORCHESTRA_TERA_HOME` or `ORCHESTRA_TERA_PYTHON` only when using a different default path.
+  337	Vosk remains in `~/.local/share/orchestra-tts/` (`venv` with `vosk-tts` and
+  338	`vosk-model-tts-ru-0.9-multi`, Apache 2.0); see `.orchestra/tasks/V-681/report.md`.
+  339	
+  340	English voice: `~/.local/share/orchestra-tts/en/` (`ORCHESTRA_TTS_EN_HOME`), with `kokoro-onnx`
+  341	(MIT), `soundfile`, `kokoro-v1.0.onnx` (310 MB), and `voices-v1.0.bin` (28 MB; Kokoro-82M,
+  342	Apache 2.0) from `thewh1teagle/kokoro-onnx` release `model-files-v1.0`. Install:
+  343	
+  344	```
+  345	D=~/.local/share/orchestra-tts/en; mkdir -p $D && cd $D && uv venv --python 3.12 venv
+  346	uv pip install --python venv/bin/python kokoro-onnx soundfile
+  347	for f in kokoro-v1.0.onnx voices-v1.0.bin; do curl -sSfL --retry 5 -o $f \
+  348	  https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f; done
+  349	```
+  350	
+  351	`~/.local/share/orchestra-manim/`: micromamba in `bin/`, `env/` with Python 3.12 and ManimCE
+  352	0.20.1 from conda-forge (Cairo, Pango, and ffmpeg included; apt/root unnecessary). The path is
+  353	`ORCHESTRA_MANIM_HOME`; if missing:
+  354	
+  355	```
+  356	mkdir -p ~/.local/share/orchestra-manim/bin && cd ~/.local/share/orchestra-manim
+  357	curl -sSfL https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C . bin/micromamba
+  358	MAMBA_ROOT_PREFIX=$PWD/mamba ./bin/micromamba create -y -p $PWD/env -c conda-forge python=3.12 manim=0.20.1
+  359	./env/bin/manim --version
+  360	```
+  361	
+  362	This takes ~2 min and ~0.5 GB. On macOS/Windows use that platform's micromamba build instead of
+  363	`linux-64` (mamba.readthedocs.io); the rest is the same.
+  364	
+  365	TinyTeX for `MathTex`/`Tex`: TeX Live 2026, 220 MB, in `~/.local/share/orchestra-manim/tex/`, no
+  366	apt/root. `manim_voice` uses it through `ORCHESTRA_MANIM_HOME`; if absent, it uses system `latex`
+  367	(the VPS has TeX Live 2023 from apt too). If neither exists:
+  368	
+  369	```
+  370	cd ~/.local/share/orchestra-manim
+  371	curl -sSfL --retry 5 --retry-all-errors -o /tmp/tinytex.tar.xz \
+  372	  https://github.com/rstudio/tinytex-releases/releases/download/v2026.10/TinyTeX-1-linux-x86_64-v2026.10.tar.xz
+  373	mkdir tex-unpack && tar -xJf /tmp/tinytex.tar.xz -C tex-unpack && mv tex-unpack/.TinyTeX tex && rmdir tex-unpack
+  374	tex/bin/x86_64-linux/tlmgr install standalone preview dvisvgm babel-english babel-russian cyrillic lh \
+  375	  doublestroke setspace rsfs relsize ragged2e microtype wasysym physics jknapltx wasy mathastext
+  376	```
+  377	
+  378	This takes ~1 min. Latest releases are at `rstudio/tinytex-releases`; GitHub can return 503, so
+  379	use `--retry`. Install another package with `tex/bin/x86_64-linux/tlmgr install <name>`. Installer
+  380	script and log: `.orchestra/tasks/V-685/install-tex.sh`.
+  381	
+  382	### Chromium on Ubuntu 26.04
+  383	
+  384	HTML builds need a Playwright browser. On Ubuntu 26.04, project Playwright 1.60.0 ends with
+  385	`Playwright does not support chromium on ubuntu26.04-x64`; Playwright 1.61.0 adds support. Keep
+  386	the project lockfile intact by using a separate environment and that Python for `make.py`; only
+  387	Playwright belongs to the calling environment, while TTS and Manim stay in theirs:
+  388	
+  389	```
+  390	P=~/.local/share/orchestra-playwright
+  391	uv venv --python 3.12 "$P"
+  392	uv pip install --python "$P/bin/python" playwright==1.61.0
+  393	PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
+  394	  "$P/bin/python" -m playwright install chromium
+  395	PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
+  396	  "$P/bin/python" /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out video
+  397	```
+  398	
+  399	If `/mnt/data` is unavailable or lacks space, choose another storage location for
+  400	`PLAYWRIGHT_BROWSERS_PATH`; the browser directory may occupy hundreds of megabytes.

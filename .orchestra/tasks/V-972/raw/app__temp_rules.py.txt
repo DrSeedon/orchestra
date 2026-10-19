@@ -1,0 +1,668 @@
+    1	"""Временные правила агентам: файл в git проекта, блок в системном промпте, пока действуют.
+    2	
+    3	Правило — это решение, которое должно гулять по git вместе с проектом (решение владельца
+    4	2026-10-17: «Всё в гите»), поэтому текст и метаданные лежат в `.orchestra/temp-rules.yaml`
+    5	основного checkout проекта; правила на все проекты — в таком же файле репозитория Orchestra.
+    6	Инструменты `temp_rule_*` меняют файл и коммитят ровно его. Промпт собирается из файла при
+    7	каждом вызове: ручная правка или `git pull` вступают в силу со следующего хода, истёкшее
+    8	правило пропадает само. В БД остаётся только изменяемое состояние напоминаний.
+    9	
+   10	Режимы: `expires` — снимается само в срок; `review` — остаётся в силе, автору один раз
+   11	приходит «пора пересмотреть»; `permanent` — без даты.
+   12	"""
+   13	from __future__ import annotations
+   14	
+   15	import hashlib
+   16	import json
+   17	import logging
+   18	import os
+   19	import re
+   20	import sqlite3
+   21	import threading
+   22	from datetime import datetime, timezone
+   23	from pathlib import Path
+   24	
+   25	import yaml
+   26	
+   27	from app import db
+   28	from app.prompting import is_orchestrator_role
+   29	
+   30	logger = logging.getLogger(__name__)
+   31	
+   32	# Project that may set rules for every project at once.
+   33	ORCHESTRA_SCOPE = str(db._REPO_ROOT)
+   34	ORCHESTRA_ORCHESTRATOR = "Orchestra-orchestrator"
+   35	GLOBAL = "*"
+   36	THIS = "this"  # stored in the file instead of a machine-specific path
+   37	MODES = ("expires", "review", "permanent")
+   38	RULES_FILE = Path(".orchestra") / "temp-rules.yaml"
+   39	_BLOCK = re.compile(r"\n*(<temporary-rules>.*?</temporary-rules>)", re.DOTALL)
+   40	_FILE_HEADER = (
+   41	    "# Temporary agent rules, managed by the temp_rule_* tools; hand edits and git pulls are honoured.\n"
+   42	    "# An entry without a reason, or without a date in mode expires/review, is skipped with a warning.\n"
+   43	)
+   44	_locks: dict[str, threading.Lock] = {}
+   45	_locks_guard = threading.Lock()
+   46	_warned: set[tuple[str, str]] = set()
+   47	
+   48	
+   49	class RuleError(Exception):
+   50	    def __init__(self, status_code: int, detail: str) -> None:
+   51	        super().__init__(detail)
+   52	        self.status_code = status_code
+   53	        self.detail = detail
+   54	
+   55	
+   56	def _now() -> datetime:
+   57	    return datetime.now(timezone.utc)
+   58	
+   59	
+   60	def _parse_utc(value) -> datetime:
+   61	    if isinstance(value, datetime):
+   62	        moment = value
+   63	    else:
+   64	        try:
+   65	            moment = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+   66	        except ValueError:
+   67	            raise RuleError(422, "expires_at must be an ISO UTC timestamp, e.g. 2026-10-20T07:00Z")
+   68	    if moment.tzinfo is None:
+   69	        raise RuleError(422, "expires_at must carry a timezone (use Z for UTC)")
+   70	    return moment.astimezone(timezone.utc)
+   71	
+   72	
+   73	def _norm(scope: str) -> str:
+   74	    return (scope or "").rstrip("/")
+   75	
+   76	
+   77	def _warn_once(path: Path, key: str, message: str) -> None:
+   78	    if (str(path), key) not in _warned:
+   79	        _warned.add((str(path), key))
+   80	        logger.warning("temporary rules %s: %s", path, message)
+   81	
+   82	
+   83	# ── file storage ──
+   84	
+   85	def _path(scope: str) -> Path:
+   86	    return Path(scope) / RULES_FILE
+   87	
+   88	
+   89	def _validate(entry) -> str:
+   90	    """'' when the entry is usable, else why it is skipped."""
+   91	    if not isinstance(entry, dict):
+   92	        return "entry is not a mapping"
+   93	    for key in ("id", "text", "reason", "author"):
+   94	        if not str(entry.get(key) or "").strip():
+   95	            return f"missing {key}"
+   96	    targets = entry.get("targets")
+   97	    if not isinstance(targets, list) or not targets or not all(isinstance(t, str) and t.strip() for t in targets):
+   98	        return "targets must be a non-empty list"
+   99	    if entry.get("mode") not in MODES:
+  100	        return f"mode must be {'|'.join(MODES)}"
+  101	    if entry.get("project", THIS) not in (THIS, GLOBAL):
+  102	        return f"project must be {THIS} or {GLOBAL}"
+  103	    if entry["mode"] != "permanent":
+  104	        try:
+  105	            _parse_utc(entry.get("expires_at"))
+  106	        except RuleError as error:
+  107	            return f"mode {entry['mode']} needs a valid date: {error.detail}"
+  108	    return ""
+  109	
+  110	
+  111	def _read(scope: str, *, strict: bool = False) -> list[dict]:
+  112	    """Valid entries of the scope's file; broken ones are skipped with one warning each."""
+  113	    path = _path(scope)
+  114	    try:
+  115	        raw = path.read_text()
+  116	    except FileNotFoundError:
+  117	        return []
+  118	    except OSError as error:
+  119	        _warn_once(path, "unreadable", f"unreadable, ignored: {error}")
+  120	        return []
+  121	    try:
+  122	        data = yaml.safe_load(raw) or {}
+  123	        entries = data.get("rules") or []
+  124	        if not isinstance(entries, list):
+  125	            raise ValueError("`rules` must be a list")
+  126	    except (yaml.YAMLError, ValueError, AttributeError) as error:
+  127	        if strict:
+  128	            raise RuleError(409, f"{path} is not valid YAML with a rules list: {error}")
+  129	        _warn_once(path, "parse", f"not valid, all its rules ignored: {error}")
+  130	        return []
+  131	    good = []
+  132	    for entry in entries:
+  133	        problem = _validate(entry)
+  134	        if problem:
+  135	            name = entry.get("id", "?") if isinstance(entry, dict) else "?"
+  136	            _warn_once(path, f"{name}:{problem}", f"entry {name} skipped: {problem}")
+  137	            continue
+  138	        good.append({**entry, "project": entry.get("project", THIS), "id": str(entry["id"])})
+  139	    return good
+  140	
+  141	
+  142	def _dump(entries: list[dict]) -> str:
+  143	    plain = []
+  144	    for e in entries:
+  145	        item = {k: e[k] for k in ("id", "project", "mode", "expires_at", "targets", "author", "created_at", "text", "reason")
+  146	                if e.get(k) not in (None, "")}
+  147	        for key in ("expires_at", "created_at"):
+  148	            if isinstance(item.get(key), datetime):
+  149	                item[key] = item[key].isoformat()
+  150	        plain.append(item)
+  151	    return _FILE_HEADER + yaml.safe_dump(
+  152	        {"rules": plain}, sort_keys=False, allow_unicode=True, default_flow_style=False, width=100)
+  153	
+  154	
+  155	def _git(root: str, *args: str):
+  156	    from app.rules_link import _git as run
+  157	
+  158	    return run(Path(root), *args)
+  159	
+  160	
+  161	def _is_repo(root: str) -> bool:
+  162	    return _git(root, "rev-parse", "--show-toplevel").returncode == 0
+  163	
+  164	
+  165	def _git_blocker(root: str) -> str:
+  166	    """Why a commit here is unsafe; '' = go ahead. A non-repository is not a blocker (file only)."""
+  167	    from app.rules_link import _IN_PROGRESS
+  168	    from app.workspace import resolve_base_branch
+  169	
+  170	    if not _is_repo(root):
+  171	        return ""
+  172	    if _git(root, "rev-parse", "--verify", "-q", "HEAD").returncode != 0:
+  173	        return "repository has no commits"
+  174	    branch = _git(root, "symbolic-ref", "--quiet", "--short", "HEAD").stdout.strip()
+  175	    if not branch:
+  176	        return "HEAD is detached"
+  177	    try:
+  178	        mainline = resolve_base_branch(root)
+  179	    except ValueError as error:
+  180	        return f"mainline unknown: {error}"
+  181	    if branch != mainline:
+  182	        return f"checked-out branch is {branch}, not mainline {mainline}"
+  183	    for name in _IN_PROGRESS:
+  184	        marker = _git(root, "rev-parse", "--git-path", name).stdout.strip()
+  185	        if marker and (Path(root) / marker if not os.path.isabs(marker) else Path(marker)).exists():
+  186	            return f"a git operation is in progress ({name})"
+  187	    return ""
+  188	
+  189	
+  190	def _lock_for(scope: str) -> threading.Lock:
+  191	    with _locks_guard:
+  192	        return _locks.setdefault(_norm(scope), threading.Lock())
+  193	
+  194	
+  195	def _write_and_commit(scope: str, entries: list[dict], message: str, *, strict: bool = True) -> None:
+  196	    """Replace the file and commit exactly it; on failure restore the original bytes.
+  197	
+  198	    `strict=False` (migration only) keeps the written file when git refuses, so a rule that
+  199	    is already in force is never dropped just because a commit was impossible.
+  200	    """
+  201	    if not (Path(scope) / ".orchestra" / "layout.json").is_file():
+  202	        # Creating `.orchestra/` in a project without a layout would make its prompt assembly fail.
+  203	        raise RuleError(409, f"{scope} has no .orchestra/layout.json; temporary rules need an Orchestra project")
+  204	    blocker = _git_blocker(scope)
+  205	    if blocker:
+  206	        if strict:
+  207	            raise RuleError(409, f"cannot record the rule in git: {blocker}")
+  208	        logger.warning("temporary rules %s written without a commit: %s", scope, blocker)
+  209	    path = _path(scope)
+  210	    original = path.read_bytes() if path.exists() else None
+  211	    path.parent.mkdir(parents=True, exist_ok=True)
+  212	    path.write_text(_dump(entries))
+  213	    if blocker or not _is_repo(scope):
+  214	        return
+  215	
+  216	    def rollback() -> None:
+  217	        if original is None:
+  218	            path.unlink(missing_ok=True)
+  219	        else:
+  220	            path.write_bytes(original)
+  221	        _git(scope, "reset", "-q", "--", str(RULES_FILE))
+  222	
+  223	    added = _git(scope, "add", "--", str(RULES_FILE))
+  224	    if added.returncode == 0:
+  225	        done = _git(scope, "commit", "-m", message, "--only", "--", str(RULES_FILE))
+  226	    if added.returncode != 0 or done.returncode != 0:
+  227	        detail = (added.stderr if added.returncode else done.stderr or done.stdout).strip()
+  228	        if not strict:
+  229	            logger.warning("temporary rules %s written without a commit: %s", scope, detail)
+  230	            return
+  231	        rollback()
+  232	        raise RuleError(409, f"git could not commit the rules file: {detail}")
+  233	
+  234	
+  235	def _mutate(scope: str, change, message_of) -> dict:
+  236	    """Read-modify-write-commit under one lock; `change(entries)` returns the touched entry."""
+  237	    scope = _norm(scope)
+  238	    with _lock_for(scope):
+  239	        entries = _read(scope, strict=True)
+  240	        touched = change(entries)
+  241	        _write_and_commit(scope, entries, message_of(touched))
+  242	    return touched
+  243	
+  244	
+  245	# ── authorization ──
+  246	
+  247	def _is_orchestra_orchestrator(actor: dict) -> bool:
+  248	    return (
+  249	        actor.get("name") == ORCHESTRA_ORCHESTRATOR
+  250	        and _norm(actor.get("scope")) == _norm(ORCHESTRA_SCOPE)
+  251	    )
+  252	
+  253	
+  254	def _require_orchestrator(actor: dict | None) -> dict:
+  255	    if not actor or not (
+  256	        actor.get("is_orchestrator") or is_orchestrator_role(actor.get("role") or "")
+  257	    ):
+  258	        raise RuleError(403, "temporary rules can be managed by orchestrators only")
+  259	    return actor
+  260	
+  261	
+  262	def _authorize(actor: dict, entry_project: str, file_scope: str) -> None:
+  263	    """Own project only; every project (`*`) only for the Orchestra project orchestrator."""
+  264	    if entry_project == GLOBAL:
+  265	        if not _is_orchestra_orchestrator(actor):
+  266	            raise RuleError(403, "rules for all projects can be set only by the Orchestra project orchestrator")
+  267	    elif _norm(file_scope) != _norm(actor.get("scope")):
+  268	        raise RuleError(403, "an orchestrator can manage rules of its own project only")
+  269	
+  270	
+  271	def _mode(row: dict) -> str:
+  272	    return row["mode"]
+  273	
+  274	
+  275	def _view(row: dict, scope: str) -> dict:
+  276	    return {**row, "targets": list(row["targets"]), "expires_at": _iso(row.get("expires_at")),
+  277	            "created_at": _iso(row.get("created_at")), "author_name": row["author"],
+  278	            "project": GLOBAL if row["project"] == GLOBAL else _norm(scope)}
+  279	
+  280	
+  281	def _iso(value):
+  282	    return value.isoformat() if isinstance(value, datetime) else value
+  283	
+  284	
+  285	def _check_targets(targets: list[str]) -> list[str]:
+  286	    cleaned = [t.strip() for t in targets if isinstance(t, str) and t.strip()]
+  287	    if not cleaned:
+  288	        raise RuleError(422, "targets is required: all | orchestrators | workers | <role> | agent:<name>")
+  289	    return cleaned
+  290	
+  291	
+  292	def add_rule(
+  293	    actor: dict | None, text: str, reason: str, targets: list[str], mode: str,
+  294	    expires_at: str = "", *, project: str = "",
+  295	) -> dict:
+  296	    actor = _require_orchestrator(actor)
+  297	    text = (text or "").strip()
+  298	    if not text:
+  299	        raise RuleError(422, "rule text is required")
+  300	    if "</temporary-rules>" in text or "<temporary-rules>" in text:
+  301	        raise RuleError(422, "rule text must not contain the temporary-rules tag")
+  302	    reason = (reason or "").strip()
+  303	    if not reason:
+  304	        raise RuleError(422, "reason is required: why the rule exists and what caused it")
+  305	    if mode not in MODES:
+  306	        raise RuleError(422, f"mode must be {'|'.join(MODES)}")
+  307	    if mode == "permanent":
+  308	        if expires_at:
+  309	            raise RuleError(422, "a permanent rule has no expires_at")
+  310	        deadline = None
+  311	    else:
+  312	        if not expires_at:
+  313	            raise RuleError(422, f"expires_at is required for mode {mode}")
+  314	        deadline = _parse_utc(expires_at)
+  315	        if deadline <= _now():
+  316	            raise RuleError(422, "expires_at is already in the past")
+  317	    project = (project or actor.get("scope") or "").strip()
+  318	    stored_project = GLOBAL if project == GLOBAL else THIS
+  319	    if project != GLOBAL and _norm(project) != _norm(actor.get("scope")):
+  320	        raise RuleError(403, "an orchestrator can manage rules of its own project only")
+  321	    _authorize(actor, stored_project, actor["scope"])
+  322	    file_scope = ORCHESTRA_SCOPE if project == GLOBAL else actor["scope"]
+  323	    created = _now()
+  324	    entry = {
+  325	        "id": f"rule-{hashlib.sha1(f'{created.isoformat()}{text}'.encode()).hexdigest()[:10]}",
+  326	        "project": stored_project, "mode": mode,
+  327	        "expires_at": deadline.isoformat() if deadline else None,
+  328	        "targets": _check_targets(targets), "author": actor["name"],
+  329	        "created_at": created.isoformat(), "text": text, "reason": reason,
+  330	    }
+  331	    _mutate(
+  332	        file_scope, lambda entries: entries.append(entry) or entry,
+  333	        lambda e: f"temp-rules: set {e['id']} ({mode}, {', '.join(e['targets'])}) — {reason[:100]}",
+  334	    )
+  335	    return _view(entry, file_scope)
+  336	
+  337	
+  338	def _is_active(row: dict, now: datetime) -> bool:
+  339	    return row["mode"] != "expires" or _parse_utc(row["expires_at"]) > now
+  340	
+  341	
+  342	def _file_scopes(scope: str) -> list[str]:
+  343	    scopes = [_norm(scope)]
+  344	    if _norm(ORCHESTRA_SCOPE) not in scopes:
+  345	        scopes.append(_norm(ORCHESTRA_SCOPE))
+  346	    return scopes
+  347	
+  348	
+  349	def _visible(scope: str) -> list[tuple[str, dict]]:
+  350	    """(file scope, entry) pairs that apply to a project, ordered by creation time then id."""
+  351	    pairs = []
+  352	    for file_scope in _file_scopes(scope):
+  353	        for entry in _read(file_scope):
+  354	            if (entry["project"] == THIS and file_scope == _norm(scope)) or (
+  355	                entry["project"] == GLOBAL and file_scope == _norm(ORCHESTRA_SCOPE)
+  356	            ):
+  357	                pairs.append((file_scope, entry))
+  358	            elif entry["project"] == GLOBAL:
+  359	                _warn_once(_path(file_scope), f"{entry['id']}:foreign-global",
+  360	                           f"entry {entry['id']} is for all projects but this is not the Orchestra repository; ignored")
+  361	    return sorted(pairs, key=lambda p: (str(_iso(p[1].get("created_at"))), p[1]["id"]))
+  362	
+  363	
+  364	def list_rules(actor: dict | None, *, include_inactive: bool = False) -> list[dict]:
+  365	    actor = _require_orchestrator(actor)
+  366	    now = _now()
+  367	    return [
+  368	        {**_view(e, fs), "active": _is_active(e, now)} for fs, e in _visible(actor["scope"])
+  369	        if include_inactive or _is_active(e, now)
+  370	    ]
+  371	
+  372	
+  373	def _locate(actor: dict, rule_id: str) -> tuple[str, dict]:
+  374	    for file_scope, entry in _visible(actor["scope"]):
+  375	        if entry["id"] == rule_id:
+  376	            return file_scope, entry
+  377	    raise RuleError(404, f"no such rule: {rule_id}")
+  378	
+  379	
+  380	def remove_rule(actor: dict | None, rule_id: str) -> dict:
+  381	    actor = _require_orchestrator(actor)
+  382	    file_scope, found = _locate(actor, rule_id)
+  383	    _authorize(actor, found["project"], file_scope)
+  384	
+  385	    def change(entries):
+  386	        for i, e in enumerate(entries):
+  387	            if str(e.get("id")) == rule_id:
+  388	                return entries.pop(i)
+  389	        raise RuleError(404, f"no such rule: {rule_id}")
+  390	
+  391	    _mutate(file_scope, change, lambda e: f"temp-rules: remove {rule_id}")
+  392	    return {"ok": True, "id": rule_id}
+  393	
+  394	
+  395	def update_rule(
+  396	    actor: dict | None, rule_id: str, *, expires_at: str = "", keep: bool = False,
+  397	) -> dict:
+  398	    """Extend the date (re-arms the one-time notice) or make the rule permanent."""
+  399	    actor = _require_orchestrator(actor)
+  400	    if bool(expires_at) == bool(keep):
+  401	        raise RuleError(422, "pass either expires_at (extend) or keep=true")
+  402	    deadline = None
+  403	    if expires_at:
+  404	        deadline = _parse_utc(expires_at)
+  405	        if deadline <= _now():
+  406	            raise RuleError(422, "expires_at is already in the past")
+  407	    file_scope, found = _locate(actor, rule_id)
+  408	    _authorize(actor, found["project"], file_scope)
+  409	
+  410	    def change(entries):
+  411	        for e in entries:
+  412	            if str(e.get("id")) == rule_id:
+  413	                if keep:
+  414	                    e["mode"] = "permanent"
+  415	                    e.pop("expires_at", None)
+  416	                else:
+  417	                    e["expires_at"] = deadline.isoformat()
+  418	                return e
+  419	        raise RuleError(404, f"no such rule: {rule_id}")
+  420	
+  421	    entry = _mutate(
+  422	        file_scope, change,
+  423	        lambda e: f"temp-rules: {'keep ' + rule_id + ' permanent' if keep else 'extend ' + rule_id + ' to ' + e['expires_at']}",
+  424	    )
+  425	    return _view(entry, file_scope)
+  426	
+  427	
+  428	def _applies(row: dict, *, role: str, is_orch: bool, name: str) -> bool:
+  429	    for target in row["targets"]:
+  430	        if (
+  431	            target == "all"
+  432	            or (target == "orchestrators" and is_orch)
+  433	            or (target == "workers" and not is_orch)
+  434	            or target == role
+  435	            or target == f"agent:{name}"
+  436	        ):
+  437	            return True
+  438	    return False
+  439	
+  440	
+  441	def active_block(*, role: str, is_orch: bool, scope: str, name: str) -> str:
+  442	    """Prompt block for one agent; empty when no active rule targets it."""
+  443	    try:
+  444	        ensure_migrated()
+  445	        visible = _visible(scope)
+  446	    except Exception as error:
+  447	        # Prompt assembly is on every turn's hot path; a broken rules store must not stop turns.
+  448	        logger.warning("temporary rules unreadable, prompt built without them: %s", error)
+  449	        return ""
+  450	    now = _now()
+  451	    lines = []
+  452	    for _, row in visible:
+  453	        if _is_active(row, now) and _applies(row, role=role, is_orch=is_orch, name=name):
+  454	            when = {"expires": "expires", "review": "review due", "permanent": "permanent"}[row["mode"]]
+  455	            if row["mode"] != "permanent":
+  456	                when += f" {_iso(row['expires_at'])}"
+  457	            lines.append(
+  458	                f"- {row['text'].strip()} Reason: {row['reason'].strip()}. "
+  459	                f"[{when}; set by {row['author']} on {str(_iso(row['created_at']))[:10]}]")
+  460	    if not lines:
+  461	        return ""
+  462	    return (
+  463	        "<temporary-rules>\nTemporary rules currently in force; a rule marked "
+  464	        "expires drops out of this prompt by itself; the others stay until their author changes them.\n"
+  465	        + "\n".join(lines) + "\n</temporary-rules>"
+  466	    )
+  467	
+  468	
+  469	def strip_block(prompt: str) -> str:
+  470	    return _BLOCK.sub("", prompt)
+  471	
+  472	
+  473	def with_block(prompt: str, **agent) -> str:
+  474	    """Replace the temporary-rules block of an assembled prompt with the current one."""
+  475	    prompt = strip_block(prompt)
+  476	    block = active_block(**agent)
+  477	    return f"{prompt}\n\n{block}" if block else prompt
+  478	
+  479	
+  480	def fingerprint(**agent) -> str:
+  481	    return block_fingerprint(active_block(**agent))
+  482	
+  483	
+  484	def block_fingerprint(prompt: str) -> str:
+  485	    found = _BLOCK.search(prompt)
+  486	    return hashlib.md5(found.group(1).encode()).hexdigest()[:8] if found else ""
+  487	
+  488	
+  489	def fingerprint(**agent) -> str:
+  490	    return block_fingerprint(active_block(**agent))
+  491	
+  492	
+  493	def block_fingerprint(prompt: str) -> str:
+  494	    found = _BLOCK.search(prompt)
+  495	    return hashlib.md5(found.group(1).encode()).hexdigest()[:8] if found else ""
+  496	
+  497	
+  498	# ── reminder state (the only thing kept in the database) ──
+  499	
+  500	def _state_schema(conn: sqlite3.Connection) -> None:
+  501	    conn.execute(
+  502	        """CREATE TABLE IF NOT EXISTS temp_rule_notices (
+  503	            scope TEXT NOT NULL, rule_id TEXT NOT NULL, due_at TEXT NOT NULL, notified_at TEXT NOT NULL,
+  504	            PRIMARY KEY (scope, rule_id, due_at))"""
+  505	    )
+  506	
+  507	
+  508	def _project_scopes() -> list[str]:
+  509	    scopes = {_norm(r.get("scope")) for r in db.get_all_sessions()} | {_norm(ORCHESTRA_SCOPE)}
+  510	    return sorted(s for s in scopes if s)
+  511	
+  512	
+  513	def claim_due_notices() -> list[dict]:
+  514	    """Review rules past their date whose current date has not been announced yet."""
+  515	    now = _now()
+  516	    due = []
+  517	    with db._conn() as conn:
+  518	        _state_schema(conn)
+  519	        for scope in _project_scopes():
+  520	            for entry in _read(scope):
+  521	                owned = (entry["project"] == THIS) or scope == _norm(ORCHESTRA_SCOPE)
+  522	                if entry["mode"] != "review" or not owned or _parse_utc(entry["expires_at"]) > now:
+  523	                    continue
+  524	                due_at = _parse_utc(entry["expires_at"]).isoformat()
+  525	                seen = conn.execute(
+  526	                    "SELECT 1 FROM temp_rule_notices WHERE scope=? AND rule_id=? AND due_at=?",
+  527	                    (scope, entry["id"], due_at)).fetchone()
+  528	                if not seen:
+  529	                    due.append({**_view(entry, scope), "scope": scope, "due_at": due_at})
+  530	    return due
+  531	
+  532	
+  533	def mark_notified(scope: str, rule_id: str, due_at: str) -> bool:
+  534	    with db._conn() as conn:
+  535	        _state_schema(conn)
+  536	        cursor = conn.execute(
+  537	            "INSERT OR IGNORE INTO temp_rule_notices VALUES(?,?,?,?)",
+  538	            (_norm(scope), rule_id, due_at, _now().isoformat()))
+  539	        return cursor.rowcount == 1
+  540	
+  541	
+  542	def notice_text(row: dict) -> str:
+  543	    return (
+  544	        f"Temporary rule {row['id']} reached its review date ({row['expires_at']}) and is STILL IN FORCE "
+  545	        f"for project {row['project']}, targets {row['targets']}: «{row['text']}». "
+  546	        f"Decide: extend (temp_rule_update with expires_at), keep without a deadline "
+  547	        f"(temp_rule_update keep=true) or remove (temp_rule_remove). This notice is sent once."
+  548	    )
+  549	
+  550	
+  551	def _recipient(row: dict) -> tuple[dict | None, bool]:
+  552	    """The live author, else the live orchestrator of the rule's project (Orchestra's for "*")."""
+  553	    from app.notify import orchestrator_for_scope
+  554	
+  555	    for session in db.get_all_sessions():
+  556	        if (session.get("name") == row["author"] and _norm(session.get("scope")) == row["scope"]
+  557	                and session.get("status") != "archived"):
+  558	            return session, False
+  559	    return orchestrator_for_scope(row["scope"]), True
+  560	
+  561	
+  562	# Rules already warned about, so the 60 s sweep does not repeat the warning.
+  563	_warned_no_recipient: set[tuple[str, str]] = set()
+  564	
+  565	
+  566	async def notify_due(session_manager) -> int:
+  567	    """Send each due notice once; the DB mark survives a restart. Returns notices sent.
+  568	
+  569	    A notice nobody can receive is not marked as sent: it waits for the next sweep.
+  570	    """
+  571	    from app.events import MessageProvenance
+  572	
+  573	    sent = 0
+  574	    for row in claim_due_notices():
+  575	        key = (row["scope"], row["id"])
+  576	        recipient, fallback = _recipient(row)
+  577	        if recipient is None:
+  578	            if key not in _warned_no_recipient:
+  579	                _warned_no_recipient.add(key)
+  580	                logger.warning(
+  581	                    "temp rule %s: author %s is gone and project %s has no live orchestrator; "
+  582	                    "the review notice waits until one exists", row["id"], row["author"], row["scope"])
+  583	            continue
+  584	        text = notice_text(row)
+  585	        if fallback:
+  586	            text = f"(Author {row['author']} is no longer active, so you receive this.) {text}"
+  587	        try:
+  588	            await session_manager.send(
+  589	                recipient["id"], text,
+  590	                provenance=MessageProvenance(
+  591	                    origin="platform", senders=("Orchestra",), subtype="temp_rule", ref=row["id"]),
+  592	            )
+  593	        except Exception as error:
+  594	            logger.warning("temp rule %s: notice failed, will retry: %s", row["id"], error)
+  595	            continue
+  596	        _warned_no_recipient.discard(key)
+  597	        mark_notified(row["scope"], row["id"], row["due_at"])
+  598	        sent += 1
+  599	    return sent
+  600	
+  601	
+  602	# ── one-time move of the former database table into the files ──
+  603	
+  604	_migration_lock = threading.Lock()
+  605	_migrated = False
+  606	
+  607	
+  608	def ensure_migrated() -> None:
+  609	    """Move rules from the legacy `temp_rules` table into the files, once per process.
+  610	
+  611	    Runs from the first prompt assembly, so a rule in force keeps acting without a gap: the
+  612	    file is written before the table is renamed, and the same call then reads the file.
+  613	    """
+  614	    global _migrated
+  615	    if _migrated:
+  616	        return
+  617	    with _migration_lock:
+  618	        if _migrated:
+  619	            return
+  620	        try:
+  621	            _migrate_table()
+  622	        except Exception as error:
+  623	            logger.error("temporary rules: migration from the database table failed: %s", error)
+  624	        _migrated = True
+  625	
+  626	
+  627	def _migrate_table() -> None:
+  628	    with db._conn() as conn:
+  629	        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='temp_rules'").fetchone():
+  630	            return
+  631	        rows = [dict(r) for r in conn.execute("SELECT * FROM temp_rules WHERE removed_at IS NULL")]
+  632	    now = _now()
+  633	    by_scope: dict[str, list[dict]] = {}
+  634	    seen_notices = []
+  635	    for row in rows:
+  636	        mode = ("permanent" if not row["expires_at"]
+  637	                else "review" if row["on_expire"] == "notify" else "expires")
+  638	        if mode == "expires" and _parse_utc(row["expires_at"]) <= now:
+  639	            continue
+  640	        if row["project"] == GLOBAL:
+  641	            scope, project = _norm(ORCHESTRA_SCOPE), GLOBAL
+  642	        elif Path(row["project"]).is_dir():
+  643	            scope, project = _norm(row["project"]), THIS
+  644	        else:
+  645	            logger.warning("temporary rules: rule %s of missing project %s not migrated", row["id"], row["project"])
+  646	            continue
+  647	        by_scope.setdefault(scope, []).append({
+  648	            "id": row["id"], "project": project, "mode": mode,
+  649	            "expires_at": _parse_utc(row["expires_at"]).isoformat() if row["expires_at"] else None,
+  650	            "targets": json.loads(row["targets"]), "author": row["author_name"],
+  651	            "created_at": row["created_at"], "text": row["text"], "reason": row["reason"] or "(migrated; no reason recorded)",
+  652	        })
+  653	        if mode == "review" and row["notified_at"]:
+  654	            seen_notices.append((scope, row["id"], _parse_utc(row["expires_at"]).isoformat(), row["notified_at"]))
+  655	    for scope, fresh in by_scope.items():
+  656	        with _lock_for(scope):
+  657	            entries = _read(scope)
+  658	            known = {e["id"] for e in entries}
+  659	            added = [e for e in fresh if e["id"] not in known]
+  660	            if added:
+  661	                _write_and_commit(
+  662	                    scope, entries + added,
+  663	                    "temp-rules: move rules from the database into git (" + ", ".join(e["id"] for e in added) + ")",
+  664	                    strict=False)
+  665	    with db._conn() as conn:
+  666	        _state_schema(conn)
+  667	        conn.executemany("INSERT OR IGNORE INTO temp_rule_notices VALUES(?,?,?,?)", seen_notices)
+  668	        conn.execute("ALTER TABLE temp_rules RENAME TO temp_rules_moved_to_git")

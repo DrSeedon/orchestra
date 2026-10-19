@@ -1,0 +1,52 @@
+    1	<project-maintenance>
+    2	## Issues and project documentation
+    3	
+    4	When you find a problem outside the current fix, record the actionable follow-up in the
+    5	project's TODO.md and mention it with the result when there is something to report.
+    6	This does not authorize fixing it or creating another task without the required approval.
+    7	
+    8	If the project has CHANGELOG.md, update it with the change before commit/publication.
+    9	If it has none, create it for a substantial feature, refactoring or non-obvious fix.
+   10	Publication still requires its own authorization; a changelog obligation never requires a push.
+   11	Write entries by hand, never generate a public changelog from internal task reports: those
+   12	reports may contain paths, addresses, customer identities or other unpublished details.
+   13	Each entry states what changed, the technical substance with relevant symbols/files, and
+   14	the concrete triggering case. Record known tradeoffs and correct previous incomplete fixes
+   15	honestly. Omit linter noise, development-only changes and cosmetic style refactoring.
+   16	Use patch increments for fixes, minor increments for features, major for breaking changes;
+   17	sections are Added / Fixed / Changed / Removed / Known tradeoff / Reasoning.
+   18	
+   19	An owner's decision that should outlive this conversation goes into the project's rules,
+   20	in the same turn, with the date, his words verbatim and what prompted it (a paraphrase gets
+   21	lost in compaction and handoffs; a dated quote does not). The exception is Orchestra's own
+   22	shared prompts (`.orchestra/pipelines/**`): they are public product text, so write them in
+   23	English and record an owner decision there as "owner decision, <date>" with an English summary
+   24	and reason, never as a verbatim quote. Keep undated rules in the rules files and dated state in
+   25	a separate state file with only current statuses; do not grow a chronicle there. If the rule is
+   26	already written, fix that entry instead of appending another version.
+   27	
+   28	Structure of a project's rules (owner decision, 2026-10-17). The root file (CLAUDE.md /
+   29	AGENTS.md) is the core and holds what is needed always: the essence of the project (what it
+   30	does, for whom, the main structure), small rules that always apply and are not worth a file of
+   31	their own, and a registry of lines "topic → file → when to read". What is needed only
+   32	sometimes lives in topic Markdown files of the project, which agents read when the registry
+   33	line says so and extend when a rule changes. Keep them in a directory that runtimes do
+   34	not load by themselves (for example `.orchestra/kb/rules-*.md`) and never in `.claude/rules/`:
+   35	Claude Code loads every `.md` there into context, so the registry silently becomes a full load
+   36	(measured: an 18.5 KB core plus 171 KB in `.claude/rules/` put about 189 KB on every turn, and a
+   37	model with file tools disabled still knew a fact that existed only in a topic file). To check
+   38	the layout, ask a model without file tools for a fact that exists only in a topic file: it must
+   39	not know it, while a fact from the core it must. A new rule that is not always needed, or an
+   40	owner decision with its date and quote, goes into its topic file; the core gets one registry
+   41	line, or one line with the conclusion and a link. The core is sent on every turn of every
+   42	agent, so it has a size ceiling: 16 KiB, half of the 32 KiB at which the OpenRouter harness
+   43	silently truncates project instructions (the Claude and Codex CLIs read far larger files). When the core outgrows the ceiling, move content into topic
+   44	files; do not raise the ceiling. AGENTS.md and CLAUDE.md are one file and a symlink to it,
+   45	never two copies: Codex reads AGENTS.md, the Claude SDK may read only CLAUDE.md, and the harness
+   46	prefers AGENTS.md, so a stale copy silently gives part of the agents old rules. Triggering
+   47	cases: one project's core, compressed to about 64 KB, grew back to about 139 KB; in three
+   48	projects of one installation AGENTS.md had drifted into a separate copy.
+   49	
+   50	Update an existing architecture.md after significant changes to modules, structure or
+   51	dependencies. Do not create that document on your own.
+   52	</project-maintenance>

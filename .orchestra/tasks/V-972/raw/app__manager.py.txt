@@ -1,0 +1,2551 @@
+    1	"""SessionManager — registry, lifecycle, persistence for all agent sessions."""
+    2	
+    3	import asyncio
+    4	import itertools
+    5	import json
+    6	import logging
+    7	import re
+    8	import sqlite3
+    9	import shutil
+   10	import subprocess
+   11	import sys
+   12	import time
+   13	import uuid
+   14	from contextlib import asynccontextmanager
+   15	from datetime import datetime, timezone
+   16	from pathlib import Path
+   17	from typing import Awaitable, Callable, Optional
+   18	
+   19	from app.task_refs import task_ref as public_task_ref
+   20	from app.session import AgentSession, AgentStatus
+   21	from app.tool_scoping import parse_disabled_tools
+   22	from app.session_state import ACTIVE_SESSION_STATUSES
+   23	from app.events import InjectedMessage, MessageProvenance
+   24	from app.kb_index import kb_index_block
+   25	from app import temp_rules
+   26	from app.prompting import (
+   27	    is_orchestrator_role, safe_format_prompt,
+   28	    prompt_template_hash, inject_skills_to_worktree,
+   29	    refresh_worker_memory, strip_worker_memory,
+   30	)
+   31	
+   32	# Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
+   33	_TASK_BRANCH_RE = re.compile(r"^(?:task-)((?:V-)?\d+)/|^[A-Z]{2,5}-(\d+)/")
+   34	from app.workspace import (
+   35	    create_worktree, discard_prepared_worktree, remove_worktree,
+   36	    parse_owned_dirs,
+   37	    validate_repo_root, resolve_base_branch as resolve_git_base_branch,
+   38	    repo_root,
+   39	)
+   40	from app.models import (
+   41	    COMPAT_MODEL_SPECS,
+   42	    CONTEXT_LIMITS,
+   43	    backend_for_model,
+   44	    cache_policy_for_runtime,
+   45	    ensure_dashboard_visible,
+   46	    ensure_spawn_allowed,
+   47	    get_model_spec,
+   48	    resolve_model,
+   49	    runtime_for_record,
+   50	)
+   51	from app.pipeline import (
+   52	    DEFAULT_PIPELINE,
+   53	    build_system_prompt,
+   54	    get_active_pipeline,
+   55	    get_role,
+   56	    get_worktree_config,
+   57	    load_pipeline,
+   58	    resolve_effort,
+   59	    resolve_role,
+   60	    template_path,
+   61	    validate_spawn,
+   62	)
+   63	from app.db import (
+   64	    get_session, get_session_by_name, get_all_sessions, publish_ready_session,
+   65	    archive_session, get_stats, save_session, update_session_lifecycle,
+   66	    get_confirmed_runtime_handoff_attempt, get_latest_runtime_handoff_for_session,
+   67	    list_latest_runtime_handoffs,
+   68	    list_runtime_handoff_attempts, update_runtime_handoff_status,
+   69	)
+   70	from app.errtext import err_text
+   71	from app.tasks import spawn_supervised
+   72	
+   73	logger = logging.getLogger(__name__)
+   74	
+   75	_adhoc_serial = itertools.count(1)
+   76	
+   77	
+   78	def enc_cli_dir(cwd: str) -> str:
+   79	    """~/.claude/projects/<this> — path separators, dots, and underscores map to '-'.
+   80	    Case is preserved.
+   81	
+   82	    The leading '-' (from the leading '/') is part of the name and must stay:
+   83	    stripping it produced a directory the CLI never reads. The CLI also maps
+   84	    dots and underscores in temporary paths to '-'. scripts/migrate_agent.py re-exports this
+   85	    function so the encoding cannot drift a second time.
+   86	    """
+   87	    return cwd.replace("/", "-").replace(".", "-").replace("_", "-")
+   88	
+   89	
+   90	# Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
+   91	# чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
+   92	LOCK_WAIT_LIMIT_SECONDS = 25.0
+   93	class LockBusy(RuntimeError):
+   94	    """Лок сессии занят дольше отведённого: у вызова есть кто уступить и кому повторить."""
+   95	
+   96	    def __init__(self, what: str, worker: str, waited: float):
+   97	        self.what, self.worker, self.waited = what, worker, waited
+   98	        super().__init__(
+   99	            f"worker '{worker}' is busy: another operation has held the session lock for "
+  100	            f"{waited:.0f}s (message delivery or merge in flight). Nothing was changed — "
+  101	            f"retry {what} in ~30s."
+  102	        )
+  103	
+  104	
+  105	class LifecycleQuarantineError(RuntimeError):
+  106	    """A durable task/branch binding blocks delivery until an explicit repair."""
+  107	
+  108	    def __init__(self, lifecycle: dict):
+  109	        self.lifecycle = lifecycle
+  110	        super().__init__(str(lifecycle["message"]))
+  111	
+  112	    def envelope(self) -> dict:
+  113	        return {
+  114	            "code": self.lifecycle["code"],
+  115	            "message": self.lifecycle["message"],
+  116	            "retryable": False,
+  117	            "outcome_unknown": False,
+  118	            "details": {
+  119	                "task_id": self.lifecycle["task_id"],
+  120	                "repair": self.lifecycle["repair"],
+  121	            },
+  122	        }
+  123	
+  124	
+  125	@asynccontextmanager
+  126	async def wait_for_session_lock(lock, *, what: str, worker: str, limit: float | None = None):
+  127	    """Взять лок сессии так, чтобы ожидание было ВИДНО снаружи.
+  128	
+  129	    Замер #27: доставка держит лок секундами (коннект CLI-бэкенда 1.6–2.0 с, а `connect()`
+  130	    внутри разрешает себе до 60 с), git при этом занимает 0.01 с. Раньше ожидание не
+  131	    оставляло ни строки в журнале и ни поля в ответе — снаружи оно было неотличимо от
+  132	    зависшего сервера.
+  133	    """
+  134	    # Предел читается в момент вызова, а не как значение по умолчанию: значение по умолчанию
+  135	    # вычисляется при определении функции, и подмена константы в тесте молча не сработала бы.
+  136	    limit = LOCK_WAIT_LIMIT_SECONDS if limit is None else limit
+  137	    started = time.monotonic()
+  138	    try:
+  139	        await asyncio.wait_for(lock.acquire(), timeout=limit)
+  140	    except asyncio.TimeoutError:
+  141	        waited = time.monotonic() - started
+  142	        logger.warning("%s for %s gave up after %.1fs waiting for the session lock",
+  143	                       what, worker, waited)
+  144	        raise LockBusy(what, worker, waited) from None
+  145	    waited = time.monotonic() - started
+  146	    if waited > 0.5:
+  147	        logger.warning("%s for %s waited %.1fs for the session lock", what, worker, waited)
+  148	    try:
+  149	        yield waited
+  150	    finally:
+  151	        lock.release()
+  152	
+  153	
+  154	def next_adhoc_branch(worker_name: str) -> str:
+  155	    """Имя ветки для авто-переключения перед доставкой сообщения.
+  156	
+  157	    Секунды эпохи БЕЗ усечения. Прежняя форма `str(int(time.time()))[-6:]` замыкала
+  158	    пространство имён каждые 10**6 с = 11.57 суток, а ветки `adhoc-*` не удаляются —
+  159	    столкновение было гарантировано временем, а не вероятностью, и приводило к тихому
+  160	    переселению воркера на чужую ветку 11-суточной давности (#27, E2).
+  161	
+  162	    ВНИМАНИЕ, зависимость между слоями: порядковый номер живёт в ПРОЦЕССЕ и обнуляется
+  163	    рестартом, поэтому теоретически возможен повтор имени при рестарте внутри одной
+  164	    секунды. Это допустимо ТОЛЬКО потому, что второй слой — `expect_absent=True` в
+  165	    `switch_worktree_branch` — делает такой повтор громким отказом. Снимете второй слой
+  166	    как «лишнюю паранойю» — вернёте тихую порчу данных, а не просто упростите код.
+  167	    """
+  168	    return f"adhoc-{int(time.time())}-{next(_adhoc_serial)}/{worker_name}"
+  169	
+  170	from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exported for callers
+  171	
+  172	COLOR_PALETTE = [
+  173	    "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
+  174	    "#a78bfa", "#fbbf24", "#2dd4bf", "#fb7185", "#4ade80",
+  175	    "#60a5fa", "#c084fc", "#facc15", "#22d3ee", "#fb923c",
+  176	    "#f87171", "#a3e635", "#e879f9", "#67e8f9", "#93c5fd",
+  177	    "#86efac", "#fca5a5", "#fde68a", "#5eead4",
+  178	]
+  179	
+  180	
+  181	async def _wait_owned_task(task: asyncio.Task) -> asyncio.CancelledError | None:
+  182	    """Wait without letting caller cancellation penetrate an owned operation."""
+  183	    cancellation = None
+  184	    current = asyncio.current_task()
+  185	    while not task.done():
+  186	        try:
+  187	            await asyncio.shield(task)
+  188	        except asyncio.CancelledError as error:
+  189	            if current is not None and current.cancelling():
+  190	                cancellation = cancellation or error
+  191	                while current.cancelling():
+  192	                    current.uncancel()
+  193	            elif task.done():
+  194	                break
+  195	            else:
+  196	                raise
+  197	        except BaseException:
+  198	            break
+  199	    return cancellation
+  200	
+  201	
+  202	def get_active_profile(scope: str = "", parent_profile: str = "") -> str:
+  203	    return parent_profile or ""
+  204	
+  205	
+  206	def _fmt_role_catalog_entry(rr) -> str:
+  207	    """Форматировать одну запись каталога ролей из :class:`ResolvedRole`.
+  208	
+  209	    Совпадает по форме с ``_roles_catalog`` (заголовок ### `name` (label) — model,
+  210	    описание, when/not_for). Источник полей — манифест (ResolvedRole), не frontmatter.
+  211	    """
+  212	    desc = (rr.description or "").strip().replace("\n", " ")
+  213	    entry = f"### `{rr.name}` ({rr.label}) — model: {rr.model}"
+  214	    if desc:
+  215	        entry += f"\n{desc}"
+  216	    if rr.when:
+  217	        entry += f"\n- ✅ **When**: {rr.when.strip()}"
+  218	    if rr.not_for:
+  219	        entry += f"\n- ❌ **Not for**: {rr.not_for.strip()}"
+  220	    if "*" in rr.can_spawn:
+  221	        spawn = "any role"
+  222	    elif rr.can_spawn:
+  223	        spawn = ", ".join(f"`{r}`" for r in rr.can_spawn)
+  224	    else:
+  225	        spawn = "none (cannot spawn)"
+  226	    entry += f"\n- 🌱 **Can spawn**: {spawn}"
+  227	    skills = rr.skills
+  228	    if isinstance(skills, list) and skills:
+  229	        entry += f"\n- 🔧 **Skills**: {', '.join(skills)}"
+  230	    return entry
+  231	
+  232	
+  233	def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
+  234	    """Каталог ролей оркестратору из манифеста, отфильтрованный по ``can_spawn``.
+  235	
+  236	    B2: показываем ВСЕ роли из ``can_spawn`` родителя (включая под-оркестраторов).
+  237	    ``can_spawn=['*']`` → все роли пайплайна. Сортировка по ``order``. Закрывает
+  238	    дефект плоского ``_roles_catalog`` (показывал бы запретные роли).
+  239	    """
+  240	    cfg = load_pipeline(pipeline)
+  241	    parent = cfg.roles.get(parent_role)
+  242	    if parent is None:
+  243	        return ""
+  244	    if "*" in parent.can_spawn:
+  245	        # S1: wildcard НЕ включает саму роль-родителя (upstream _roles_catalog
+  246	        # пропускал orchestrator из своего же каталога воркеров).
+  247	        visible = [r for r in cfg.roles if r != parent_role]
+  248	    else:
+  249	        visible = list(parent.can_spawn)
+  250	    visible = [r for r in visible if r in cfg.roles]
+  251	    if not visible:
+  252	        return ""
+  253	    entries = [
+  254	        _fmt_role_catalog_entry(resolve_role(cfg, r))
+  255	        for r in sorted(visible, key=lambda r: cfg.roles[r].order)
+  256	    ]
+  257	    return ('## Available worker roles\nSpawn with `role="<name>"`. '
+  258	            'If no role specified, defaults to `worker`.\n\n' + "\n\n".join(entries))
+  259	
+  260	
+  261	def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+  262	    """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+  263	
+  264	    Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+  265	    :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+  266	    (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+  267	    поэтому изменения БД не переписывают кешируемый префикс.
+  268	
+  269	    Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+  270	    принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+  271	    эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+  272	    Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+  273	    ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+  274	
+  275	    Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+  276	    Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+  277	    """
+  278	    try:
+  279	        base = build_system_prompt(pipeline, role, scope)
+  280	    except (FileNotFoundError, KeyError) as e:
+  281	        raise ValueError(
+  282	            f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+  283	            f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+  284	        ) from e
+  285	    kb = kb_index_block(scope)
+  286	    if kb:
+  287	        base += f"\n\n{kb}"
+  288	    rr = get_role(pipeline, role)
+  289	    is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
+  290	    if is_orch:
+  291	        catalog = _roles_catalog_from_manifest(pipeline, role)
+  292	        if catalog:
+  293	            base += f"\n\n{catalog}"
+  294	    return base
+  295	
+  296	
+  297	def ORCHESTRATOR_SYSTEM_PROMPT(pipeline: str = DEFAULT_PIPELINE, scope: str = "") -> str:
+  298	    return ROLE_SYSTEM_PROMPT(pipeline, "orchestrator", scope)
+  299	
+  300	
+  301	def WORKER_SYSTEM_PROMPT(pipeline: str = DEFAULT_PIPELINE) -> str:
+  302	    return ROLE_SYSTEM_PROMPT(pipeline, "worker")
+  303	
+  304	
+  305	
+  306	def _scaffold_role_docs(pipeline: str, cwd: str, role: str, feature: str = "") -> None:
+  307	    try:
+  308	        rr = get_role(pipeline, role)
+  309	    except FileNotFoundError:
+  310	        return
+  311	    if rr is None or not rr.docs_scaffold or rr.docs_dir is None:
+  312	        return
+  313	    dd = rr.docs_dir
+  314	    if dd.requires == "feature" and not feature:
+  315	        return
+  316	    rel = dd.path.replace("{feature}", feature) if feature else dd.path
+  317	    base_docs = (Path(cwd) / "docs_work").resolve()
+  318	    target = (base_docs / rel).resolve()
+  319	    try:
+  320	        target.relative_to(base_docs)
+  321	    except ValueError:
+  322	        logger.warning("scaffold: путь '%s' выходит за docs_work — пропуск", rel)
+  323	        return
+  324	    target.mkdir(parents=True, exist_ok=True)
+  325	    dashboard = target / "dashboard.md"
+  326	    if dashboard.exists() or not dd.template:
+  327	        return
+  328	    tpl = template_path(pipeline, dd.template)
+  329	    if not tpl.is_file():
+  330	        return
+  331	    content = tpl.read_text()
+  332	    if feature:
+  333	        content = content.replace("{feature}", feature)
+  334	    dashboard.write_text(content)
+  335	
+  336	
+  337	def _parse_custom_mcp(raw) -> dict:
+  338	    """Sanitize custom MCP servers (from DB JSON string or a dict).
+  339	    Returns a dict with the `orchestra` key stripped. Non-dict input -> {}."""
+  340	    if not raw:
+  341	        return {}
+  342	    if isinstance(raw, str):
+  343	        import json
+  344	        try:
+  345	            raw = json.loads(raw)
+  346	        except (json.JSONDecodeError, TypeError):
+  347	            logger.warning("invalid mcp_servers_custom JSON; ignoring")
+  348	            return {}
+  349	    if not isinstance(raw, dict):
+  350	        logger.warning(f"mcp_servers_custom is not an object ({type(raw).__name__}); ignoring")
+  351	        return {}
+  352	    return {k: v for k, v in raw.items() if k != "orchestra"}
+  353	
+  354	
+  355	def _make_mcp_config(name: str, scope: str, role: str = "worker",
+  356	                     parent_name: str = "", extra: dict | None = None,
+  357	                     session_id: str = "", pipeline: str = "",
+  358	                     disabled_tools: list[str] | None = None) -> dict:
+  359	    role_spec = get_role(pipeline or get_active_pipeline(scope), role)
+  360	    denied = parse_disabled_tools(disabled_tools)
+  361	    denied = sorted(set(denied) | set(role_spec.disabled_tools if role_spec else []))
+  362	    env = {
+  363	        "ORCHESTRA_DISABLED_TOOLS": json.dumps(denied),
+  364	        **MCP_BASE_ENV,
+  365	        "ORCHESTRA_URL": "http://127.0.0.1:8888",
+  366	        "ORCHESTRA_SCOPE": scope,
+  367	        "ORCHESTRA_ROLE": role,
+  368	        "ORCHESTRA_ACCESS_MODE": "reducer" if role == "reducer" else "full",
+  369	        "WORKER_NAME": name,
+  370	        "PARENT_NAME": parent_name,
+  371	        # Имя агент может сменить, id — нет. Всё, что СОХРАНЯЕТСЯ и сравнивается позже
+  372	        # (держатель тест-лока), обязано опираться на него, а не на имя (#82).
+  373	        "ORCHESTRA_SESSION_ID": session_id,
+  374	    }
+  375	    from app.mcp_proof import PROOF_ENV, issue_mcp_proof
+  376	
+  377	    proof = issue_mcp_proof(session_id)
+  378	    if proof:
+  379	        env[PROOF_ENV] = proof
+  380	    cfg = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
+  381	    if extra:
+  382	        for k, v in extra.items():
+  383	            if k == "orchestra":
+  384	                logger.warning("custom MCP server 'orchestra' would override Orchestra MCP — ignored")
+  385	                continue
+  386	            cfg[k] = v
+  387	    return cfg
+  388	
+  389	
+  390	def _crosses_repo_boundary(parent_dir: str, child_repo: str) -> bool:
+  391	    """Родитель и ребёнок в РАЗНЫХ репозиториях? Спрашиваем git, а не сравниваем пути.
+  392	
+  393	    Каталог `seedon/site` лежит внутри `seedon`, но это другой репозиторий; префиксное
+  394	    сравнение путей ответило бы «тот же» (#69). Не смогли определить — считаем, что
+  395	    граница НЕ пересечена: тогда исходная ошибка о ненайденной ветке уйдёт наверх как есть,
+  396	    без выдуманного объяснения.
+  397	    """
+  398	    try:
+  399	        return repo_root(parent_dir) != repo_root(child_repo)
+  400	    except Exception as exc:
+  401	        logger.warning("не смог сравнить репозитории '%s' и '%s': %s", parent_dir, child_repo, exc)
+  402	        return False
+  403	
+  404	
+  405	OWNERSHIP_MARKER = "\n\n## Directory ownership\n"
+  406	# Opening tag only: the number of newlines before it varies between the spawn path and
+  407	# refresh_worker_memory (app/prompting.py:27 matches it as `\n*<worker-memory>`).
+  408	WORKER_MEMORY_MARKER = "<worker-memory>"
+  409	
+  410	
+  411	def ownership_block(owned_dirs: list[str]) -> str:
+  412	    """The generated directory-ownership suffix. Single owner of its wording."""
+  413	    if not owned_dirs:
+  414	        return ""
+  415	    lines = "\n".join(f"- {d}/" for d in owned_dirs)
+  416	    return (OWNERSHIP_MARKER +
+  417	            "Expected work areas (advisory, not an edit allowlist):\n"
+  418	            f"{lines}\n"
+  419	            "Edit other files needed for the approved task within your worktree. "
+  420	            "Respect explicit task exclusions and coordinate overlapping changes.")
+  421	
+  422	
+  423	def replace_ownership_block(
+  424	    prompt: str, before: list[str], after: list[str],
+  425	) -> tuple[str, bool]:
+  426	    """Swap the generated ownership block for the one ``after`` produces.
+  427	
+  428	    Ownership lives in two places — the ``sessions.owned_dirs`` column and this block
+  429	    inside the stored prompt — so a migration that fixes only the column leaves the
+  430	    worker reading the old paths.
+  431	
+  432	    The block is matched WHOLE, reconstructed from ``before``, not located by its
+  433	    heading: operator task text may quote "## Directory ownership" followed by a
+  434	    bullet, and a heading search would rewrite that quotation while leaving the real
+  435	    generated suffix untouched. Returns ``(prompt, False)`` when the exact block is
+  436	    absent, so the caller can report a drifted prompt instead of guessing at it.
+  437	    """
+  438	    old_block = ownership_block(before)
+  439	    if not old_block:
+  440	        return prompt, False
+  441	    # Worker memory is appended AFTER the ownership suffix and is written by the worker
+  442	    # itself, so it can quote a whole ownership block. Searching the full prompt would let
+  443	    # `rpartition` rewrite that quotation and leave the real block — the one assemble_prompt
+  444	    # keeps — untouched. Only the region before the memory can hold the generated block.
+  445	    body, memory_separator, memory = prompt.partition(WORKER_MEMORY_MARKER)
+  446	    if old_block not in body:
+  447	        # Upgrade only the exact historical generated suffix, never free-form exclusions.
+  448	        lines = "\n".join(f"- {d}/" for d in before)
+  449	        old_block = (OWNERSHIP_MARKER +
+  450	                     "You OWN these directories — edit ONLY files under them:\n"
+  451	                     f"{lines}\n"
+  452	                     "Do NOT touch files outside your owned directories. "
+  453	                     "If the task requires it — STOP and ask the orchestrator.")
+  454	        if old_block not in body:
+  455	            return prompt, False
+  456	    head, _, tail = body.rpartition(old_block)
+  457	    return head + ownership_block(after) + tail + memory_separator + memory, True
+  458	
+  459	
+  460	_RESTART_REPLAY_LIMIT = 20_000
+  461	
+  462	
+  463	def restart_notice_text(row: dict) -> str:
+  464	    """Wake-up text for an agent whose turn a restart cut off.
+  465	
+  466	    Without a native session id the runtime starts an empty conversation, so the messages of
+  467	    the cut turn are replayed: otherwise the agent wakes up without its task (V-919).
+  468	    """
+  469	    text = (
+  470	        "[system] Orchestra server restarted while your turn was running. "
+  471	        "Commands running inside the turn were stopped; background jobs created with "
+  472	        "bg_create keep running and report as usual. Continue your task from where you "
+  473	        "stopped: check files and external action outcomes first and do not blindly repeat "
+  474	        "the last operation."
+  475	    )
+  476	    if row.get("session_id"):
+  477	        return text + " The saved conversation was restored."
+  478	    from app.db import _conn
+  479	    with _conn() as c:
+  480	        last_end = c.execute(
+  481	            "SELECT COALESCE(MAX(id), 0) FROM logs WHERE session_id=? AND type='status' "
+  482	            "AND content LIKE 'turn ended%'", (row["id"],),
+  483	        ).fetchone()[0]
+  484	        messages = [r[0] for r in c.execute(
+  485	            "SELECT content FROM logs WHERE session_id=? AND type='user_message' AND id>? "
+  486	            "ORDER BY id", (row["id"], last_end),
+  487	        ).fetchall()]
+  488	    if not messages:
+  489	        return text
+  490	    replay = "\n\n---\n\n".join(messages)
+  491	    if len(replay) > _RESTART_REPLAY_LIMIT:
+  492	        replay = "…" + replay[-_RESTART_REPLAY_LIMIT:]
+  493	    return (
+  494	        text + " The conversation could not be restored because the turn was cut before "
+  495	        "it was saved. Messages of that turn, oldest first:\n\n" + replay
+  496	    )
+  497	
+  498	
+  499	class SessionManager:
+  500	    def __init__(self):
+  501	        self.sessions: dict[str, AgentSession] = {}
+  502	        self._session_locks: dict[str, asyncio.Lock] = {}
+  503	        self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
+  504	        self._scope_ownership_locks: dict[str, asyncio.Lock] = {}
+  505	        # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
+  506	        self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
+  507	        # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
+  508	        self.draining = False
+  509	        # #237 T3: sessions this restart attempt already handed to systemd. Objects, not ids:
+  510	        # a rollback has to reach their backends, and an abandoned restart may leave them out
+  511	        # of `self.sessions`.
+  512	
+  513	
+  514	    def begin_drain(self) -> None:
+  515	        """Закрыть приём новых ходов. СИНХРОННО — в этом весь смысл.
+  516	
+  517	        Ни одного `await` здесь быть не должно: флаг обязан встать раньше, чем цикл
+  518	        событий отдаст управление кому-то ещё. Иначе ход, уже прошедший проверку
+  519	        гейта, успеет присвоить себе RUNNING после того, как дренаж снял снимок
+  520	        живых ходов, и попадёт под сигнал как раз тот, кого дренаж защищал.
+  521	        """
+  522	        self.draining = True
+  523	
+  524	    def end_drain(self) -> None:
+  525	        """Открыть приём обратно. Нужен тестам и отменённому рестарту."""
+  526	        self.draining = False
+  527	
+  528	    def get_session_lock(self, session_id: str) -> asyncio.Lock:
+  529	        if session_id not in self._session_locks:
+  530	            self._session_locks[session_id] = asyncio.Lock()
+  531	        return self._session_locks[session_id]
+  532	
+  533	    def start_background_tasks(self) -> None:
+  534	        # log retention REMOVED by owner decision: agent history is research data. The old
+  535	        # `_periodic_db_cleanup` dropped logs older than 7 days every 6h, silently destroying
+  536	        # every transcript past a week while `sessions` rows survived since May. Never restore
+  537	        # Never under pytest: every TestClient(app) enters lifespan, and a test that points
+  538	        # app.db at a temporary database while WORKTREE_ROOT still points at the real
+  539	        # checkout deletes every clean working copy of every project (.orchestra/tasks/62 —
+  540	        # reproduced: one green `pytest tests/test_build_signal.py` erased both decoys).
+  541	        if "pytest" in sys.modules:
+  542	            logger.warning("worktree cleanup task not started: running under pytest")
+  543	            return
+  544	        if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
+  545	            self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
+  546	        if not getattr(self, '_rules_link_task', None) or self._rules_link_task.done():
+  547	            self._rules_link_task = asyncio.create_task(self._periodic_rules_link())
+  548	        if not getattr(self, '_temp_rules_task', None) or self._temp_rules_task.done():
+  549	            self._temp_rules_task = asyncio.create_task(self._periodic_temp_rules())
+  550	
+  551	    @staticmethod
+  552	    def _ownership_prompt(owned_dirs: list[str]) -> str:
+  553	        return ownership_block(owned_dirs)
+  554	
+  555	    @classmethod
+  556	    def _without_ownership_prompt(cls, prompt: str) -> str:
+  557	        """Remove the generated ownership suffix while preserving other prompt text."""
+  558	        marker = "\n\n## Directory ownership\n"
+  559	        before, separator, _rest = prompt.partition(marker)
+  560	        return before.rstrip() if separator else prompt.rstrip()
+  561	
+  562	    def validate_owned_dirs_transition(
+  563	        self, session: AgentSession, owned_dirs: list[str],
+  564	    ) -> list[str]:
+  565	        """Normalize advisory work areas; overlap is not an authorization failure."""
+  566	        return parse_owned_dirs(owned_dirs)
+  567	
+  568	    def _transition_prompt(
+  569	        self, session: AgentSession, owned_dirs: list[str],
+  570	    ) -> tuple[str, str | None]:
+  571	        """Build a prompt with only the ownership block for the new task."""
+  572	        old_prompt = session._current_prompt or session.system_prompt or ""
+  573	        prompt_without_memory = temp_rules.strip_block(strip_worker_memory(old_prompt))
+  574	        new_ownership = self._ownership_prompt(owned_dirs)
+  575	        prompt = self._without_ownership_prompt(prompt_without_memory) + new_ownership
+  576	        if session.prompt_overlay is None:
+  577	            new_overlay = None
+  578	        else:
+  579	            new_overlay = self._without_ownership_prompt(session.prompt_overlay) + new_ownership
+  580	        prompt = refresh_worker_memory(
+  581	            prompt, session.name, session.role, session.scope,
+  582	            session.worktree_path or "",
+  583	            allow_absent_project=True,
+  584	        )
+  585	        return prompt, new_overlay
+  586	
+  587	    # ── Session CRUD ──
+  588	
+  589	    async def create_session(self, name: str, scope: str, cwd: str, model: str,
+  590	                             system_prompt: str = "", use_worktree: bool = False,
+  591	                             repo_path: str | None = None, is_orchestrator: bool = False,
+  592	                             role: str = "", task_id: str = "", description: str = "",
+  593	                             base_branch: str = "",
+  594	                             parent_id: str = "", parent_name: str = "",
+  595	                             mcp_servers: dict | None = None,
+  596	                             disabled_tools: list[str] | None = None,
+  597	                             pipeline: str = "", profile: str = "",
+  598	                             docs_feature: str = "",
+  599	                             owned_dirs: list | None = None,
+  600	                             tg_topic: bool = False,
+  601	                             planned_initial_turn: bool = False,
+  602	                             initial_task_title: str = "",
+  603	                             model_policy_override_reason: str = "") -> AgentSession:
+  604	        normalized_scope = scope.rstrip("/")
+  605	        key = (normalized_scope, name)
+  606	        lock = self._spawn_locks.setdefault(key, asyncio.Lock())
+  607	        async with lock:
+  608	            return await self._create_session_locked(
+  609	                name=name,
+  610	                scope=normalized_scope,
+  611	                cwd=cwd,
+  612	                model=model,
+  613	                system_prompt=system_prompt,
+  614	                use_worktree=use_worktree,
+  615	                repo_path=repo_path,
+  616	                is_orchestrator=is_orchestrator,
+  617	                role=role,
+  618	                task_id=task_id,
+  619	                description=description,
+  620	                base_branch=base_branch,
+  621	                parent_id=parent_id,
+  622	                parent_name=parent_name,
+  623	                mcp_servers=mcp_servers,
+  624	                disabled_tools=disabled_tools,
+  625	                pipeline=pipeline,
+  626	                profile=profile,
+  627	                docs_feature=docs_feature,
+  628	                owned_dirs=owned_dirs,
+  629	                tg_topic=tg_topic,
+  630	                planned_initial_turn=planned_initial_turn,
+  631	                initial_task_title=initial_task_title,
+  632	                model_policy_override_reason=model_policy_override_reason,
+  633	            )
+  634	
+  635	    async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
+  636	                             system_prompt: str = "", use_worktree: bool = False,
+  637	                             repo_path: str | None = None, is_orchestrator: bool = False,
+  638	                             role: str = "", task_id: str = "", description: str = "",
+  639	                             base_branch: str = "",
+  640	                             parent_id: str = "", parent_name: str = "",
+  641	                             mcp_servers: dict | None = None,
+  642	                             disabled_tools: list[str] | None = None,
+  643	                             pipeline: str = "", profile: str = "",
+  644	                             docs_feature: str = "",
+  645	                             owned_dirs: list | None = None,
+  646	                             tg_topic: bool = False,
+  647	                             planned_initial_turn: bool = False,
+  648	                             initial_task_title: str = "",
+  649	                             model_policy_override_reason: str = "") -> AgentSession:
+  650	        scope = scope.rstrip("/")
+  651	        cwd = cwd.rstrip("/")
+  652	        model = resolve_model(model)
+  653	        # #366: agent-spawned workers are gated by the `agents` level; anything
+  654	        # created from the dashboard (orchestrators, manual sessions) — by the
+  655	        # `dashboard` level. Internal routes never pass through here.
+  656	        if parent_name:
+  657	            ensure_spawn_allowed(model)
+  658	        else:
+  659	            ensure_dashboard_visible(model)
+  660	        if not Path(cwd).is_dir():
+  661	            raise ValueError(f"cwd does not exist: {cwd}")
+  662	        spawn_repo_path = ""
+  663	        spawn_git_common_dir = ""
+  664	        existing = get_session_by_name(name, scope)
+  665	        if existing:
+  666	            st = existing.get("status", "?")
+  667	            ctx = existing.get("context_pct", 0) or 0
+  668	            raise ValueError(f"worker '{name}' already exists ({st}, ctx:{ctx}%). Use send_message instead")
+  669	        if use_worktree and not repo_path:
+  670	            raise ValueError("repo_path required when use_worktree=True")
+  671	        if use_worktree:
+  672	            repo_root = validate_repo_root(repo_path)
+  673	            repo_path = str(repo_root)
+  674	            spawn_repo_path = repo_path
+  675	            spawn_git_common_dir = str((repo_root / ".git").resolve())
+  676	
+  677	        # Явно ли указана роль: генерик-воркер (role не задан) валидируется как
+  678	        # unrouted (child_role="") — им управляет allow_unrouted_workers родителя.
+  679	        explicit_role = bool(role)
+  680	        if not role:
+  681	            role = "orchestrator" if is_orchestrator else "worker"
+  682	
+  683	        # Активный пайплайн: явный аргумент главнее, иначе наследуем от родителя
+  684	        # (или DEFAULT_PIPELINE для корня). parent_name тут — только явно переданный;
+  685	        # для воркеров без parent_name он доразрешается ниже (auto-find).
+  686	        explicit_pipeline = bool(pipeline)
+  687	        parent_pipeline = self._resolve_pipeline(parent_name, scope) if parent_name else ""
+  688	        pipeline = pipeline or get_active_pipeline(scope, parent_pipeline=parent_pipeline)
+  689	
+  690	        # Активный профиль Claude: явный аргумент главнее, иначе наследуем от
+  691	        # родителя (пусто для корня → env процесса). Зеркало логики pipeline.
+  692	        explicit_profile = bool(profile)
+  693	        parent_profile = self._resolve_profile(parent_name, scope) if parent_name else ""
+  694	        profile = profile or get_active_profile(scope, parent_profile=parent_profile)
+  695	
+  696	        # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
+  697	        is_orch = self._role_is_orchestrator(pipeline, role)
+  698	
+  699	        disabled_tools = parse_disabled_tools(disabled_tools)
+  700	
+  701	        # Work areas describe expected edits; separate worktrees may overlap.
+  702	        owned_dirs = parse_owned_dirs(owned_dirs)
+  703	
+  704	        if not parent_name and not is_orch:
+  705	            parent_name = self._find_orchestrator_name(scope) or ""
+  706	            if parent_name and not explicit_pipeline:
+  707	                # Доразрешили родителя авто-поиском — воркер наследует его пайплайн.
+  708	                parent_pipeline = self._resolve_pipeline(parent_name, scope)
+  709	                pipeline = get_active_pipeline(scope, parent_pipeline=parent_pipeline)
+  710	                is_orch = self._role_is_orchestrator(pipeline, role)
+  711	            if parent_name and not explicit_profile:
+  712	                # Тот же авто-найденный родитель — воркер наследует и его профиль.
+  713	                parent_profile = self._resolve_profile(parent_name, scope)
+  714	                profile = get_active_profile(scope, parent_profile=parent_profile)
+  715	
+  716	        prompt_overlay = "\n\n" + system_prompt if system_prompt else ""
+  717	        if not is_orch:
+  718	            prompt_overlay += self._ownership_prompt(owned_dirs)
+  719	        # The final branch and worktree are available immediately before start().
+  720	        prompt = ""
+  721	
+  722	        if not parent_id and parent_name:
+  723	            p_session = self.get_by_name(parent_name, scope)
+  724	            if p_session:
+  725	                parent_id = p_session.id
+  726	
+  727	        # R2: валидация спавна ДО любых side-effects (worktree/start). Единственный
+  728	        # источник прав — манифест пайплайна: другого пути принятия решения о спавне
+  729	        # в коде нет. Нет манифеста → FileNotFoundError пробрасывается
+  730	        # (fail loud, единый источник = .orchestra/pipelines/).
+  731	        parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
+  732	        validate_spawn(pipeline, parent_role, role if explicit_role else "")
+  733	
+  734	        # Гейт квот здесь НЕ отказывает (V-678): первое задание принимается durable-доставкой и,
+  735	        # если гейт закрыт, ждёт его в `WAITING_QUOTA` (app/quota_queue.py). Раньше спавн
+  736	        # отбивался 429, и оркестратор ставил таймер «повтори спавн».
+  737	
+  738	        # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
+  739	        # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
+  740	        if use_worktree and repo_path:
+  741	            base_branch = self._resolve_base_branch(
+  742	                base_branch, pipeline, role, parent_name, scope, repo_path,
+  743	            )
+  744	
+  745	        task_identity = None
+  746	        allocated_task_id = None
+  747	        if planned_initial_turn and not task_id and not is_orch:
+  748	            from app.tm import create_task_for_scope, resolve_scoped_task_identity
+  749	            created = await asyncio.to_thread(
+  750	                create_task_for_scope, scope,
+  751	                initial_task_title.strip() or description.strip() or f"Work for {name}",
+  752	            )
+  753	            task_identity = await asyncio.to_thread(
+  754	                resolve_scoped_task_identity, scope, created.get("par") or str(created["par_number"]),
+  755	            )
+  756	            allocated_task_id = task_identity["id"]
+  757	            task_id = public_task_ref(task_identity)
+  758	        if task_id:
+  759	            from app.tm import resolve_scoped_task_identity
+  760	            task_identity = await asyncio.to_thread(
+  761	                resolve_scoped_task_identity, scope, task_id,
+  762	            )
+  763	            task_id = public_task_ref(task_identity)
+  764	
+  765	        # Root orchestrators get a dedicated TG topic so users can message them
+  766	        # directly from Telegram without knowing worker names
+  767	        if is_orch and not parent_name:
+  768	            tg_topic = True
+  769	
+  770	        custom_mcp = _parse_custom_mcp(mcp_servers)
+  771	        bt = backend_for_model(model)
+  772	        _rr_effort = get_role(pipeline, role)
+  773	        raw_effort = getattr(_rr_effort, "effort", None) if _rr_effort else None
+  774	        effort = resolve_effort(raw_effort, model, bt)
+  775	        session_id = str(uuid.uuid4())
+  776	        session = AgentSession(
+  777	            id=session_id, name=name, scope=scope, cwd=cwd, model=model,
+  778	            system_prompt=prompt, prompt_overlay=prompt_overlay, role=role,
+  779	            parent_id=parent_id, parent_name=parent_name,
+  780	            pipeline=pipeline, profile=profile,
+  781	            color="" if is_orch else self._pick_color(scope),
+  782	            mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name,
+  783	                                         extra=custom_mcp, session_id=session_id,
+  784	                                         pipeline=pipeline, disabled_tools=disabled_tools),
+  785	            disabled_tools=parse_disabled_tools(disabled_tools),
+  786	            mcp_servers_custom=custom_mcp,
+  787	            backend_type=bt, effort=effort, task_id=task_id, description=description,
+  788	            base_branch=base_branch,
+  789	            owned_dirs=owned_dirs,
+  790	            tg_topic=tg_topic,
+  791	        )
+  792	        session.is_orchestrator = is_orch
+  793	        session._template_hash = prompt_template_hash(role)
+  794	        session._spawn_warning = ""
+  795	        session._spawn_repo_path = spawn_repo_path
+  796	        session._spawn_git_common_dir = spawn_git_common_dir
+  797	
+  798	        prepared_worktree = None
+  799	
+  800	        async def prepare() -> None:
+  801	            nonlocal prepared_worktree
+  802	            if use_worktree and repo_path:
+  803	                # Worktree-конфиг из манифеста (симлинки + copies). Нет манифеста
+  804	                # → None → create_worktree использует upstream-fallback (PROJECT_FILES).
+  805	                try:
+  806	                    worktree_cfg = get_worktree_config(pipeline)
+  807	                except FileNotFoundError:
+  808	                    worktree_cfg = None
+  809	                wt = await asyncio.to_thread(
+  810	                    create_worktree, repo_path, name, task_id, base_branch, worktree_cfg)
+  811	                prepared_worktree = wt
+  812	                session.cwd = wt.path
+  813	                session.worktree_path = wt.path
+  814	                session.branch = wt.branch
+  815	                try:
+  816	                    _rr = get_role(pipeline, role)
+  817	                    _skills = _rr.skills if _rr else None
+  818	                except FileNotFoundError:
+  819	                    _skills = None
+  820	                if bt == "claude" and _skills and _skills != "all":
+  821	                    await asyncio.to_thread(inject_skills_to_worktree, _skills, wt.path)
+  822	
+  823	            try:
+  824	                await asyncio.to_thread(
+  825	                    _scaffold_role_docs, pipeline, session.cwd, role, docs_feature)
+  826	            except Exception:
+  827	                logger.warning("docs scaffold failed for role '%s'", role)
+  828	
+  829	            session.system_prompt, session.prompt_overlay = self.assemble_prompt(
+  830	                pipeline=pipeline, role=role, scope=scope, is_orch=is_orch,
+  831	                name=name, owned_dirs=owned_dirs,
+  832	                branch=session.branch or session.base_branch,
+  833	                stored_overlay=session.prompt_overlay, old_prompt="",
+  834	                repository_path=session.worktree_path or "",
+  835	                parent_name=parent_name,
+  836	            )
+  837	            if not is_orch:
+  838	                session.on_idle = self._make_idle_callback(scope)
+  839	                session.on_turn_blocked = self._make_quota_blocked_callback(scope)
+  840	
+  841	            await session.start(persist=False)
+  842	
+  843	        async def compensate() -> None:
+  844	            errors: list[str] = []
+  845	            try:
+  846	                await session.abort_unpublished()
+  847	            except Exception as error:
+  848	                errors.append(f"session abort: {type(error).__name__}: {error}")
+  849	            if prepared_worktree is not None and repo_path:
+  850	                try:
+  851	                    await asyncio.to_thread(
+  852	                        discard_prepared_worktree, repo_path, prepared_worktree,
+  853	                    )
+  854	                except Exception as error:
+  855	                    errors.append(f"Git cleanup: {type(error).__name__}: {error}")
+  856	            if allocated_task_id is not None:
+  857	                try:
+  858	                    from app.tm import discard_unbound_task
+  859	                    await asyncio.to_thread(discard_unbound_task, allocated_task_id)
+  860	                except Exception as error:
+  861	                    errors.append(f"task cleanup: {type(error).__name__}: {error}")
+  862	            if errors:
+  863	                raise RuntimeError("; ".join(errors))
+  864	
+  865	        async def compensate_after(error: BaseException) -> None:
+  866	            try:
+  867	                await compensate()
+  868	            except Exception as cleanup_error:
+  869	                raise RuntimeError(
+  870	                    f"spawn failed ({type(error).__name__}: {error}); "
+  871	                    f"compensation failed: {cleanup_error}"
+  872	                ) from error
+  873	
+  874	        prepare_task = asyncio.create_task(prepare())
+  875	        prepare_cancelled = await _wait_owned_task(prepare_task)
+  876	        try:
+  877	            prepare_task.result()
+  878	        except BaseException as prepare_error:
+  879	            primary_error = prepare_cancelled or prepare_error
+  880	        else:
+  881	            primary_error = prepare_cancelled
+  882	        if primary_error is not None:
+  883	            cleanup_task = asyncio.create_task(compensate_after(primary_error))
+  884	            await _wait_owned_task(cleanup_task)
+  885	            cleanup_task.result()
+  886	            raise primary_error
+  887	
+  888	        async def finalize() -> AgentSession:
+  889	            try:
+  890	                await asyncio.to_thread(
+  891	                    publish_ready_session, session._to_db_dict(), task_identity,
+  892	                )
+  893	            except BaseException as publish_error:
+  894	                await compensate_after(publish_error)
+  895	                raise
+  896	
+  897	            self.sessions[session.id] = session
+  898	            return session
+  899	
+  900	        finalize_task = asyncio.create_task(finalize())
+  901	        await _wait_owned_task(finalize_task)
+  902	        return finalize_task.result()
+  903	
+  904	    async def _auto_switch_before_delivery(self, session: AgentSession) -> None:
+  905	        if not getattr(session, "loaded", True):
+  906	            durable = await asyncio.to_thread(get_session, session.id)
+  907	            if durable:
+  908	                session.branch = durable.get("branch") or session.branch
+  909	                session.base_branch = durable.get("base_branch") or session.base_branch
+  910	                session.task_id = durable.get("task_id") or ""
+  911	                session.needs_switch = bool(durable.get("needs_switch") or 0)
+  912	        if not session.needs_switch:
+  913	            return
+  914	        lifecycle = await asyncio.to_thread(self.lifecycle_quarantine, session)
+  915	        if lifecycle:
+  916	            raise LifecycleQuarantineError(lifecycle)
+  917	        if session.status != AgentStatus.IDLE:
+  918	            raise RuntimeError(
+  919	                f"worker is {session.status.value} — cannot auto-switch before delivery"
+  920	            )
+  921	        if not session.worktree_path:
+  922	            raise RuntimeError("auto-switch failed: session has no worktree")
+  923	
+  924	        async with session._lifecycle_lock:
+  925	            if not session.needs_switch:
+  926	                return
+  927	            if session.status != AgentStatus.IDLE:
+  928	                raise RuntimeError(
+  929	                    f"worker is {session.status.value} — cannot auto-switch before delivery"
+  930	                )
+  931	
+  932	            from app.workspace import inspect_worktree_identity, switch_worktree_branch
+  933	
+  934	            try:
+  935	                base_branch = await asyncio.to_thread(
+  936	                    resolve_git_base_branch,
+  937	                    session.worktree_path,
+  938	                    session.base_branch,
+  939	                )
+  940	            except Exception as error:
+  941	                raise RuntimeError(
+  942	                    f"auto-switch failed: base resolution raised {err_text(error)}"
+  943	                ) from error
+  944	            new_branch = next_adhoc_branch(session.name)
+  945	            try:
+  946	                result = await asyncio.to_thread(
+  947	                    switch_worktree_branch,
+  948	                    session.worktree_path,
+  949	                    new_branch,
+  950	                    base_branch,
+  951	                    force=True,
+  952	                    expect_absent=True,
+  953	                )
+  954	            except Exception as error:
+  955	                detail = err_text(error)
+  956	                try:
+  957	                    actual_branch, _actual_head = await asyncio.to_thread(
+  958	                        inspect_worktree_identity, session.worktree_path,
+  959	                    )
+  960	                except Exception as inspect_error:
+  961	                    inspect_detail = err_text(inspect_error)
+  962	                    detail = f"{detail}; actual Git state unavailable: {inspect_detail}"
+  963	                else:
+  964	                    # A failed Git operation is expected to roll back. Do not rewrite
+  965	                    # ownership or lifecycle unless Git reports that rollback itself failed.
+  966	                    if actual_branch != session.branch:
+  967	                        try:
+  968	                            await self.persist_lifecycle(
+  969	                                session,
+  970	                                branch=actual_branch,
+  971	                                base_branch=base_branch,
+  972	                                task_id="",
+  973	                                needs_switch=True,
+  974	                            )
+  975	                        except Exception as persist_error:
+  976	                            persist_detail = err_text(persist_error)
+  977	                            detail = (
+  978	                                f"{detail}; quarantine persistence failed: {persist_detail}"
+  979	                            )
+  980	                raise RuntimeError(
+  981	                    f"auto-switch failed: Git switch raised {detail}"
+  982	                ) from error
+  983	            if not result.get("ok"):
+  984	                detail = result.get("error") or "Git switch returned no error detail"
+  985	                if result.get("state") == "rollback_failed":
+  986	                    actual_branch = result.get("actual_branch") or session.branch or ""
+  987	                    try:
+  988	                        await self.persist_lifecycle(
+  989	                            session,
+  990	                            branch=actual_branch,
+  991	                            base_branch=base_branch,
+  992	                            task_id="",
+  993	                            needs_switch=True,
+  994	                        )
+  995	                    except Exception as persist_error:
+  996	                        session.branch = actual_branch
+  997	                        session.base_branch = base_branch
+  998	                        session.task_id = ""
+  999	                        session.needs_switch = True
+ 1000	                        persist_detail = err_text(persist_error)
+ 1001	                        detail = f"{detail}; quarantine persistence failed: {persist_detail}"
+ 1002	                raise RuntimeError(f"auto-switch failed: {detail}")
+ 1003	
+ 1004	            switched_branch = result.get("branch") or new_branch
+ 1005	            try:
+ 1006	                await self.transition_lifecycle(
+ 1007	                    session,
+ 1008	                    branch=switched_branch,
+ 1009	                    base_branch=base_branch,
+ 1010	                    task_id="",
+ 1011	                    needs_switch=False,
+ 1012	                    owned_dirs=[],
+ 1013	                )
+ 1014	            except Exception as persist_error:
+ 1015	                first_detail = err_text(persist_error)
+ 1016	                try:
+ 1017	                    await self.persist_lifecycle(
+ 1018	                        session,
+ 1019	                        branch=switched_branch,
+ 1020	                        base_branch=base_branch,
+ 1021	                        task_id="",
+ 1022	                        needs_switch=True,
+ 1023	                    )
+ 1024	                except Exception as quarantine_error:
+ 1025	                    session.branch = switched_branch
+ 1026	                    session.base_branch = base_branch
+ 1027	                    session.task_id = ""
+ 1028	                    session.needs_switch = True
+ 1029	                    quarantine_detail = err_text(quarantine_error)
+ 1030	                    first_detail = (
+ 1031	                        f"{first_detail}; quarantine persistence failed: "
+ 1032	                        f"{quarantine_detail}"
+ 1033	                    )
+ 1034	                raise RuntimeError(
+ 1035	                    f"auto-switch failed: lifecycle persistence failed: {first_detail}"
+ 1036	                ) from persist_error
+ 1037	
+ 1038	            logger.info(
+ 1039	                "auto-switch %s to %s before delivery", session.name, switched_branch,
+ 1040	            )
+ 1041	
+ 1042	    async def send(
+ 1043	        self, session_id: str, message: str | InjectedMessage, *,
+ 1044	        provenance: MessageProvenance,
+ 1045	    ) -> None:
+ 1046	        session = self.sessions.get(session_id)
+ 1047	        if not session:
+ 1048	            raise KeyError(f"session not found: {session_id}")
+ 1049	
+ 1050	        async def deliver() -> None:
+ 1051	            async with self.get_session_lock(session_id):
+ 1052	                if self.sessions.get(session_id) is not session:
+ 1053	                    raise KeyError(f"session changed before delivery: {session_id}")
+ 1054	                await self._auto_switch_before_delivery(session)
+ 1055	                await session.send(message, provenance=provenance)
+ 1056	
+ 1057	        delivery_task = asyncio.create_task(deliver())
+ 1058	        await _wait_owned_task(delivery_task)
+ 1059	        delivery_task.result()
+ 1060	
+ 1061	    async def send_initial_delivery(
+ 1062	        self, session_id: str, message: str, *, delivery,
+ 1063	        provenance: MessageProvenance,
+ 1064	    ) -> None:
+ 1065	        session = self.sessions.get(session_id)
+ 1066	        if session is None:
+ 1067	            session = await self.ensure_loaded_by_id(session_id)
+ 1068	        if session is None:
+ 1069	            raise KeyError(f"session not found: {session_id}")
+ 1070	
+ 1071	        async def deliver() -> None:
+ 1072	            async with self.get_session_lock(session_id):
+ 1073	                if self.sessions.get(session_id) is not session:
+ 1074	                    raise KeyError(f"session changed before delivery: {session_id}")
+ 1075	                await self._auto_switch_before_delivery(session)
+ 1076	                await session.send(
+ 1077	                    message, delivery=delivery, provenance=provenance,
+ 1078	                )
+ 1079	
+ 1080	        delivery_task = asyncio.create_task(deliver())
+ 1081	        await _wait_owned_task(delivery_task)
+ 1082	        delivery_task.result()
+ 1083	
+ 1084	    async def send_message_delivery(
+ 1085	        self, session_id: str, message: str, *, delivery, target_generation: str,
+ 1086	        provenance: MessageProvenance,
+ 1087	    ) -> None:
+ 1088	        """Send one accepted direct message under the normal target lock."""
+ 1089	        session = self.sessions.get(session_id)
+ 1090	        if session is None:
+ 1091	            session = await self.ensure_loaded_by_id(session_id)
+ 1092	        if not session:
+ 1093	            raise KeyError(f"session not found: {session_id}")
+ 1094	
+ 1095	        async def deliver() -> None:
+ 1096	            async with self.get_session_lock(session_id):
+ 1097	                if self.sessions.get(session_id) is not session:
+ 1098	                    raise KeyError(f"session changed before delivery: {session_id}")
+ 1099	                current_generation = (
+ 1100	                    f"session={session.id}|task={getattr(session, 'task_id', '')}|"
+ 1101	                    f"branch={getattr(session, 'branch', '')}|"
+ 1102	                    f"needs_switch={int(bool(getattr(session, 'needs_switch', False)))}"
+ 1103	                )
+ 1104	                if current_generation != target_generation:
+ 1105	                    from app.message_deliveries import TargetTaskChangedError
+ 1106	
+ 1107	                    raise TargetTaskChangedError(
+ 1108	                        "target task generation changed before delivery"
+ 1109	                    )
+ 1110	                await self._auto_switch_before_delivery(session)
+ 1111	                await session.send(
+ 1112	                    message, delivery=delivery, provenance=provenance,
+ 1113	                )
+ 1114	
+ 1115	        delivery_task = asyncio.create_task(deliver())
+ 1116	        await _wait_owned_task(delivery_task)
+ 1117	        delivery_task.result()
+ 1118	
+ 1119	    async def preflight_message_delivery(self, session_id: str) -> None:
+ 1120	        """Run the target's new-turn gate before accepting a direct receipt."""
+ 1121	        session = self.sessions.get(session_id)
+ 1122	        if session is None:
+ 1123	            row = get_session(session_id)
+ 1124	            session = self._hydrate_row(row) if row else None
+ 1125	        if session is None:
+ 1126	            raise KeyError(f"session not found: {session_id}")
+ 1127	        await self._auto_switch_before_delivery(session)
+ 1128	        await session.preflight_delivery_admission()
+ 1129	
+ 1130	    @staticmethod
+ 1131	    def lifecycle_quarantine(session) -> dict:
+ 1132	        """Project the delivery gate's derived quarantine state for every reader."""
+ 1133	        get = session.get if isinstance(session, dict) else lambda key, default="": getattr(
+ 1134	            session, key, default,
+ 1135	        )
+ 1136	        task_id = str(get("task_id", "") or "")
+ 1137	        if not bool(get("needs_switch", False)) or not task_id:
+ 1138	            return {}
+ 1139	        from app.tm import task_binding_requires_quarantine
+ 1140	
+ 1141	        scope = str(get("scope", "") or "")
+ 1142	        session_id = str(get("id", "") or "")
+ 1143	        if not task_binding_requires_quarantine(scope, session_id, task_id):
+ 1144	            return {}
+ 1145	        name = str(get("name", "") or "")
+ 1146	        base_branch = str(get("base_branch", "") or "main")
+ 1147	        call = (
+ 1148	            f'switch_worker_branch(name="{name}", task_id="{task_id}", '
+ 1149	            f'from_ref="{base_branch}")'
+ 1150	        )
+ 1151	        return {
+ 1152	            "code": "LIFECYCLE_QUARANTINED",
+ 1153	            "task_id": task_id,
+ 1154	            "repair": {
+ 1155	                "tool": "switch_worker_branch",
+ 1156	                "arguments": {
+ 1157	                    "name": name,
+ 1158	                    "task_id": task_id,
+ 1159	                    "from_ref": base_branch,
+ 1160	                },
+ 1161	                "call": call,
+ 1162	            },
+ 1163	            "message": (
+ 1164	                f"worker lifecycle is quarantined for task #{task_id}; repair with "
+ 1165	                f"{call}. The call is idempotent when the binding is already healthy."
+ 1166	            ),
+ 1167	        }
+ 1168	
+ 1169	    async def interrupt(self, session_id: str) -> None:
+ 1170	        session = self.sessions.get(session_id)
+ 1171	        if session:
+ 1172	            await session.interrupt()
+ 1173	
+ 1174	    async def stop_worker(self, session_id: str) -> None:
+ 1175	        session = self.sessions.get(session_id)
+ 1176	        if session:
+ 1177	            await session.interrupt()
+ 1178	
+ 1179	    async def commit_session_archive(
+ 1180	        self,
+ 1181	        session_id: str,
+ 1182	        *,
+ 1183	        project_id: str,
+ 1184	        archive_id: str,
+ 1185	        idempotency_key: str,
+ 1186	        retention: str,
+ 1187	    ) -> dict:
+ 1188	        """Commit structured history through the live AgentSession owner."""
+ 1189	
+ 1190	        session = self.sessions.get(session_id)
+ 1191	        if session is None:
+ 1192	            session = await self.ensure_loaded_by_id(session_id)
+ 1193	        if session is None:
+ 1194	            raise KeyError(f"session not found: {session_id}")
+ 1195	        return await session.commit_archive(
+ 1196	            project_id=project_id,
+ 1197	            archive_id=archive_id,
+ 1198	            idempotency_key=idempotency_key,
+ 1199	            retention=retention,
+ 1200	        )
+ 1201	
+ 1202	    async def remove(self, session_id: str) -> None:
+ 1203	        from app.bg_jobs import bg_manager
+ 1204	        await bg_manager.cancel_by_session(session_id)
+ 1205	        session = self.sessions.get(session_id)
+ 1206	        # #219 T1b, AC-2: убитый ребёнок обязан породить ПОЛОЖИТЕЛЬНЫЙ терминальный
+ 1207	        # токен. Гейт на `fire_auto_report` его породить не может — тот выходит
+ 1208	        # раньше `on_idle` для `_manually_interrupted` (`session_turns.py:266`).
+ 1209	        # Без этого веер висит до дедлайна при уже известном исходе.
+ 1210	        _killed_name = session.name if session else (get_session(session_id) or {}).get("name")
+ 1211	        if _killed_name:
+ 1212	            from app import fan_barrier
+ 1213	            fan_barrier.on_child_killed(_killed_name)
+ 1214	        if session is not None:
+ 1215	            session._cancel_precompact_timer("removed")
+ 1216	        # Процесс CLI есть только у загруженной живой сессии; гасим его до удаления
+ 1217	        # worktree, в котором он работает. Гидрированная из БД сессия его не имеет.
+ 1218	        if session is not None and session.loaded:
+ 1219	            await session._disconnect_backend()
+ 1220	        if session is None:
+ 1221	            row = get_session(session_id)
+ 1222	            if row is None:
+ 1223	                return
+ 1224	            session = self._hydrate_row(row)
+ 1225	        if session.worktree_path:
+ 1226	            await asyncio.to_thread(
+ 1227	                remove_worktree,
+ 1228	                session.scope,
+ 1229	                session.worktree_path,
+ 1230	            )
+ 1231	        # Сессии больше нет — снять её имена из FD store (#230 T2). Иначе store дорастает до
+ 1232	        # `FileDescriptorStoreMax=256`, и новые агенты молча перестают быть защищёнными.
+ 1233	        archive_session(session_id)
+ 1234	        self.sessions.pop(session_id, None)
+ 1235	        await asyncio.to_thread(self._cleanup_cli_home, session_id)
+ 1236	
+ 1237	    async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict[str, dict]:
+ 1238	        """Убрать все сессии scope; с delete_tg_topics — и TG-топики его оркестраторов,
+ 1239	        чьи имена снимаются до удаления: после него их строк уже не найти."""
+ 1240	        live = [s for s in self.sessions.values() if s.scope == scope]
+ 1241	        # dict.fromkeys держит порядок и склеивает живую сессию с её же строкой в БД.
+ 1242	        orchestrators = dict.fromkeys(
+ 1243	            [s.name for s in live if s.is_orchestrator]
+ 1244	            + [row["name"] for row in get_all_sessions(scope) if row.get("is_orchestrator")]
+ 1245	        )
+ 1246	        for s in live:
+ 1247	            await self.remove(s.id)
+ 1248	        for row in get_all_sessions(scope):
+ 1249	            await self.remove(row["id"])
+ 1250	        if not (delete_tg_topics and orchestrators and self.tg_topics_remover):
+ 1251	            return {"tg": {}}
+ 1252	        return {"tg": await self.tg_topics_remover(list(orchestrators))}
+ 1253	
+ 1254	    def _cleanup_cli_home(self, session_id: str) -> None:
+ 1255	        from app.backend_codex import _CODEX_HOME_ROOT, _SAFE_HOME_KEY
+ 1256	
+ 1257	        try:
+ 1258	            # Never sweep this root: unknown IDs (including .locks and test homes)
+ 1259	            # are not ours to delete. Recheck the DB, not an earlier snapshot.
+ 1260	            row = get_session(session_id)
+ 1261	            if (row is None or row["status"] != "archived"
+ 1262	                    or session_id in self.sessions
+ 1263	                    or not _SAFE_HOME_KEY.fullmatch(session_id)):
+ 1264	                return
+ 1265	            shutil.rmtree(_CODEX_HOME_ROOT / session_id)
+ 1266	        except FileNotFoundError:
+ 1267	            logger.debug("CLI home already absent for session %s", session_id)
+ 1268	        except Exception:
+ 1269	            logger.warning("Could not clean CLI home for session %s", session_id, exc_info=True)
+ 1270	
+ 1271	    def refresh_identity(self, session) -> str:
+ 1272	        """Пересобрать MCP-конфиг сессии под её ТЕКУЩИЕ имя и родителя.
+ 1273	
+ 1274	        `WORKER_NAME`/`PARENT_NAME` попадают в env MCP-подпроцесса один раз — при его
+ 1275	        старте, — поэтому переименование обязано поднять подпроцесс заново. Конфиг
+ 1276	        обновляем СРАЗУ: любой следующий коннект строит бэкенд из `session.mcp_servers`,
+ 1277	        значит упавший ход, гибернация и рестарт чинятся сами. Живой бэкенд гасится не
+ 1278	        здесь, а на границе хода (`session.send`) — дисконнект внутри хода оборвал бы его.
+ 1279	
+ 1280	        Незагруженной сессии не нужно ничего: её конфиг всё равно строится заново из
+ 1281	        строки БД при загрузке (`_load_from_db`). Это не поломка, чинить нечего.
+ 1282	        """
+ 1283	        if not session.loaded:
+ 1284	            return "not-loaded"
+ 1285	        session.mcp_servers = _make_mcp_config(
+ 1286	            session.name, session.scope, session.role,
+ 1287	            parent_name=session.parent_name, extra=session.mcp_servers_custom,
+ 1288	            session_id=session.id, pipeline=session.pipeline,
+ 1289	            disabled_tools=session.disabled_tools,
+ 1290	        )
+ 1291	        if session._backend is None:
+ 1292	            return "config-only"
+ 1293	        session._identity_stale = True
+ 1294	        return "restart-pending"
+ 1295	
+ 1296	    async def change_orchestrator_scope(self, name: str, old_scope: str,
+ 1297	                                         new_scope: str, new_cwd: str) -> dict:
+ 1298	        """Move an idle, worker-free orchestrator to a new scope/cwd.
+ 1299	
+ 1300	        Updates DB (db.change_scope), then rebuilds the runtime: kills the old MCP
+ 1301	        subprocess via _disconnect_backend(), swaps scope/cwd/mcp_servers, and lets
+ 1302	        the backend lazily reconnect on the next send() with the new ORCHESTRA_SCOPE.
+ 1303	        session_id is preserved → context survives.
+ 1304	        """
+ 1305	        old_scope = old_scope.rstrip("/")
+ 1306	        new_scope = new_scope.rstrip("/")
+ 1307	        new_cwd = new_cwd.rstrip("/")
+ 1308	        session = self.get_by_name(name, old_scope)
+ 1309	        # live-only: detached hydrate has no backend/MCP to rebuild
+ 1310	        if not session or not session.loaded:
+ 1311	            return {"error": f"orchestrator '{name}' not loaded in scope '{old_scope}'"}
+ 1312	        if not session.is_orchestrator:
+ 1313	            return {"error": f"'{name}' is not an orchestrator — scope change is orchestrator-only"}
+ 1314	        if not Path(new_cwd).is_dir():
+ 1315	            return {"error": f"new_cwd does not exist: {new_cwd}"}
+ 1316	
+ 1317	        live_workers = self._live_workers_in_scope(old_scope)
+ 1318	        if live_workers:
+ 1319	            return {"error": f"cannot change scope: live workers in '{old_scope}' — "
+ 1320	                             f"merge+kill first: {', '.join(live_workers)}"}
+ 1321	
+ 1322	        # Hold the session lifecycle lock so a concurrent send() cannot flip
+ 1323	        # the session IDLE→RUNNING between the idle check and the disconnect.
+ 1324	        # (send() only starts a fresh turn inside this same lock.)
+ 1325	        async with session._lifecycle_lock:
+ 1326	            if session.status.value == "running":
+ 1327	                return {"error": "cannot change scope while running — wait for idle"}
+ 1328	
+ 1329	            # Re-check under the lock right before the DB write to shrink the
+ 1330	            # worker-spawn TOCTOU window (a spawn could have landed since the
+ 1331	            # pre-lock scan). Full closure needs a scope-level spawn lock.
+ 1332	            live_workers = self._live_workers_in_scope(old_scope)
+ 1333	            if live_workers:
+ 1334	                return {"error": f"cannot change scope: live workers appeared in '{old_scope}' — "
+ 1335	                                 f"merge+kill first: {', '.join(live_workers)}"}
+ 1336	
+ 1337	            # Stop the backend (no new persists from this session) and drain any
+ 1338	            # in-flight _persist() BEFORE the transaction, so change_scope()'s
+ 1339	            # synchronous scope+cwd write is the last writer. Otherwise a stale
+ 1340	            # queued persist (snapshot cwd=/old) could land after the transaction
+ 1341	            # and clobber cwd, leaving scope=/new + cwd=/old on disk.
+ 1342	            await session._disconnect_backend()
+ 1343	            await session._drain_persist()
+ 1344	
+ 1345	            from app.db import change_scope
+ 1346	            result = change_scope(session.id, old_scope, new_scope, new_cwd)
+ 1347	            if not result.get("ok"):
+ 1348	                return result
+ 1349	
+ 1350	            session.scope = new_scope
+ 1351	            session.cwd = new_cwd
+ 1352	            # Migrate CLI session file so resume works in new cwd
+ 1353	            if session.session_id:
+ 1354	                self._migrate_cli_session(session.session_id, old_scope, new_scope)
+ 1355	            session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
+ 1356	                                                   parent_name=session.parent_name,
+ 1357	                                                   extra=session.mcp_servers_custom,
+ 1358	                                                   session_id=session.id, pipeline=session.pipeline,
+ 1359	                                                   disabled_tools=session.disabled_tools)
+ 1360	            session._persist()
+ 1361	            if session._persist_task:
+ 1362	                await asyncio.gather(session._persist_task, return_exceptions=True)
+ 1363	        logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
+ 1364	        return result
+ 1365	
+ 1366	    @staticmethod
+ 1367	    def _migrate_cli_session(session_id: str, old_scope: str, new_scope: str) -> None:
+ 1368	        """Copy CLI session files from old project dir to new so resume works after scope change."""
+ 1369	        cli_base = Path.home() / ".claude" / "projects"
+ 1370	        old_dir = cli_base / enc_cli_dir(old_scope)
+ 1371	        new_dir = cli_base / enc_cli_dir(new_scope)
+ 1372	        if not old_dir.is_dir():
+ 1373	            return
+ 1374	        import shutil
+ 1375	        new_dir.mkdir(parents=True, exist_ok=True)
+ 1376	        for f in old_dir.glob(f"{session_id}*"):
+ 1377	            shutil.copy2(f, new_dir / f.name)
+ 1378	            logger.info(f"migrated CLI session file: {f.name} → {new_dir}")
+ 1379	
+ 1380	    def _live_workers_in_scope(self, scope: str) -> list[str]:
+ 1381	        """Names of active (idle/running/waiting) workers in scope, from both the
+ 1382	        in-memory registry and the DB (catches unloaded-but-active worker rows).
+ 1383	        Deduplicated by session id."""
+ 1384	        seen_ids: set[str] = set()
+ 1385	        names: set[str] = set()
+ 1386	        # list() gives the worker thread a stable registry snapshot while the event loop may
+ 1387	        # add/remove sessions. Individual session fields are ordinary immutable/scalar reads.
+ 1388	        for s in list(self.sessions.values()):
+ 1389	            if (
+ 1390	                s.scope == scope
+ 1391	                and not s.is_orchestrator
+ 1392	                and s.status.value in ACTIVE_SESSION_STATUSES
+ 1393	            ):
+ 1394	                seen_ids.add(s.id)
+ 1395	                names.add(s.name)
+ 1396	        for row in get_all_sessions(scope):
+ 1397	            if row["id"] in seen_ids:
+ 1398	                continue
+ 1399	            if is_orchestrator_role(row.get("role", "worker")):
+ 1400	                continue
+ 1401	            if (row.get("status") or "") in ACTIVE_SESSION_STATUSES:
+ 1402	                names.add(row["name"])
+ 1403	        return sorted(names)
+ 1404	
+ 1405	    def _live_children(self, parent_name: str, scope: str) -> list[str]:
+ 1406	        """Names of active (idle/running/waiting) children spawned by ``parent_name``
+ 1407	        in ``scope``, from both the in-memory registry and the DB (catches
+ 1408	        unloaded-but-active rows). Deduplicated by session id. Used to block
+ 1409	        killing a parent that still has live sub-workers (would orphan them)."""
+ 1410	        if not parent_name:
+ 1411	            return []
+ 1412	        seen_ids: set[str] = set()
+ 1413	        names: set[str] = set()
+ 1414	        for s in self.sessions.values():
+ 1415	            if (
+ 1416	                s.scope == scope
+ 1417	                and s.parent_name == parent_name
+ 1418	                and s.status.value in ACTIVE_SESSION_STATUSES
+ 1419	            ):
+ 1420	                seen_ids.add(s.id)
+ 1421	                names.add(s.name)
+ 1422	        for row in get_all_sessions(scope):
+ 1423	            if row["id"] in seen_ids:
+ 1424	                continue
+ 1425	            if (row.get("parent_name") or "") != parent_name:
+ 1426	                continue
+ 1427	            if (row.get("status") or "") in ACTIVE_SESSION_STATUSES:
+ 1428	                names.add(row["name"])
+ 1429	        return sorted(names)
+ 1430	
+ 1431	    # ── Lookups ──
+ 1432	
+ 1433	    def get(self, session_id: str) -> Optional[AgentSession]:
+ 1434	        return self.sessions.get(session_id)
+ 1435	
+ 1436	    def get_by_name(self, name: str, scope: str) -> AgentSession | None:
+ 1437	        """Live session from registry, or detached hydrate from DB. Never a dict."""
+ 1438	        scope = scope.rstrip("/")
+ 1439	        for s in self.sessions.values():
+ 1440	            if s.name == name and s.scope == scope:
+ 1441	                return s
+ 1442	        db_row = get_session_by_name(name, scope)
+ 1443	        return self._hydrate_row(db_row) if db_row else None
+ 1444	
+ 1445	    @staticmethod
+ 1446	    def _hydrate_row(row: dict) -> AgentSession:
+ 1447	        """DB row → detached AgentSession (loaded=False). Data only: no start(),
+ 1448	        no prompt assembly, no git — unlike the heavy resume path (_resume_session)."""
+ 1449	        try:
+ 1450	            status = AgentStatus(row.get("status") or "idle")
+ 1451	        except ValueError:
+ 1452	            status = AgentStatus.IDLE
+ 1453	        s = AgentSession(
+ 1454	            id=row["id"], name=row["name"], scope=row["scope"],
+ 1455	            cwd=row.get("cwd") or row["scope"],
+ 1456	            model=row.get("model") or "",
+ 1457	            system_prompt=row.get("system_prompt") or "",
+ 1458	            prompt_overlay=row.get("prompt_overlay"),
+ 1459	            status=status,
+ 1460	            session_id=row.get("session_id"),
+ 1461	            cost_usd=row.get("cost_usd") or 0.0,
+ 1462	            cost_usd_cached=row.get("cost_usd_cached") or 0.0,
+ 1463	            _context_cost=row.get("context_cost") or 0.0,
+ 1464	            worktree_path=row.get("worktree_path"),
+ 1465	            branch=row.get("branch"),
+ 1466	            base_branch=row.get("base_branch") or "",
+ 1467	            created_at=datetime.fromisoformat(row["created_at"]) if row.get("created_at") else datetime.now(timezone.utc),
+ 1468	            role=row.get("role") or "worker",
+ 1469	            parent_id=row.get("parent_id") or "",
+ 1470	            parent_name=row.get("parent_name") or "",
+ 1471	            pipeline=row.get("pipeline") or "",
+ 1472	            profile=row.get("profile") or "",
+ 1473	            backend_type=runtime_for_record(row),
+ 1474	            runtime_handoff=row.get("runtime_handoff") or "",
+ 1475	            history_import_source=row.get("history_import_source") or None,
+ 1476	            last_summary=row.get("last_summary") or "",
+ 1477	            task_id=row.get("task_id") or "",
+ 1478	            description=row.get("description") or "",
+ 1479	            disabled_tools=parse_disabled_tools(row.get("disabled_tools")),
+ 1480	            owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
+ 1481	            tg_topic=bool(row.get("tg_topic") or 0),
+ 1482	            effort=row.get("effort") or None,
+ 1483	            loaded=False,
+ 1484	            db_row=row,
+ 1485	        )
+ 1486	        if row.get("is_orchestrator") is not None:
+ 1487	            s.is_orchestrator = bool(row.get("is_orchestrator"))
+ 1488	        s._last_cost = (
+ 1489	            float(row.get("provider_cost_baseline_usd") or 0.0)
+ 1490	            if s.session_id else 0.0
+ 1491	        )
+ 1492	        raw_hist = row.get("session_id_history") or "[]"
+ 1493	        try:
+ 1494	            s.session_id_history = json.loads(raw_hist) if isinstance(raw_hist, str) else raw_hist
+ 1495	        except (json.JSONDecodeError, TypeError):
+ 1496	            s.session_id_history = []
+ 1497	        s.needs_switch = bool(row.get("needs_switch") or 0)
+ 1498	        s.progress_pct = row.get("progress_pct") or 0
+ 1499	        s.progress_status = row.get("progress_status") or ""
+ 1500	        s.total_turns = row.get("total_turns") or 0
+ 1501	        s.total_input_tokens = row.get("total_input_tokens") or 0
+ 1502	        s.total_output_tokens = row.get("total_output_tokens") or 0
+ 1503	        s.total_cache_read_tokens = row.get("total_cache_read_tokens") or 0
+ 1504	        s.total_cache_create_tokens = row.get("total_cache_create_tokens") or 0
+ 1505	        s.total_tool_calls = row.get("total_tool_calls") or 0
+ 1506	        s._last_context = {
+ 1507	            "percentage": row.get("context_pct", 0) or 0,
+ 1508	            "total_tokens": row.get("context_tokens", 0) or 0,
+ 1509	            "max_tokens": 0,
+ 1510	        }
+ 1511	        return s
+ 1512	
+ 1513	    _UPDATABLE_FIELDS = frozenset({"description", "system_prompt", "tg_topic"})
+ 1514	
+ 1515	    def update_session_fields(self, name: str, scope: str, **fields) -> AgentSession | None:
+ 1516	        """Update simple session fields atomically for the caller.
+ 1517	        Live session → setattr + _persist(); detached → direct DB UPDATE."""
+ 1518	        unknown = set(fields) - self._UPDATABLE_FIELDS
+ 1519	        if unknown:
+ 1520	            raise ValueError(f"non-updatable fields: {sorted(unknown)}")
+ 1521	        found = self.get_by_name(name, scope)
+ 1522	        if not found:
+ 1523	            return None
+ 1524	        if found.loaded:
+ 1525	            for k, v in fields.items():
+ 1526	                setattr(found, k, v)
+ 1527	            if "system_prompt" in fields:
+ 1528	                # The endpoint replaces the complete assembled prompt, so no older
+ 1529	                # separated overlay may override it on the next reload.
+ 1530	                found.prompt_overlay = None
+ 1531	                found._current_prompt = fields["system_prompt"]
+ 1532	            found._persist()
+ 1533	        else:
+ 1534	            from app.db import _conn
+ 1535	            db_fields = dict(fields)
+ 1536	            if "system_prompt" in fields:
+ 1537	                db_fields["prompt_overlay"] = None
+ 1538	            sets = ", ".join(f"{k}=?" for k in db_fields)
+ 1539	            vals = [int(v) if isinstance(v, bool) else v for v in db_fields.values()]
+ 1540	            with _conn() as c:
+ 1541	                cur = c.execute(
+ 1542	                    f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id),
+ 1543	                )
+ 1544	                if cur.rowcount == 0:
+ 1545	                    # Молчаливый ноль здесь означал бы, что поля «сохранены» только
+ 1546	                    # в памяти вызывающего, а в БД их нет (#54).
+ 1547	                    logger.warning(
+ 1548	                        "UPDATE sessions changed 0 rows: fields %s for id=%r not persisted",
+ 1549	                        list(fields), found.id,
+ 1550	                    )
+ 1551	        return found
+ 1552	
+ 1553	    async def persist_lifecycle(
+ 1554	        self,
+ 1555	        session: AgentSession,
+ 1556	        *,
+ 1557	        branch: str,
+ 1558	        base_branch: str,
+ 1559	        task_id: str,
+ 1560	        needs_switch: bool,
+ 1561	    ) -> None:
+ 1562	        """Persist one Git lifecycle snapshot for loaded or detached sessions."""
+ 1563	        if session.loaded:
+ 1564	            await session._drain_persist()
+ 1565	        session.branch = branch
+ 1566	        session.base_branch = base_branch
+ 1567	        session.task_id = task_id
+ 1568	        session.needs_switch = needs_switch
+ 1569	        updated = await asyncio.to_thread(
+ 1570	            update_session_lifecycle,
+ 1571	            session.id,
+ 1572	            branch=branch,
+ 1573	            base_branch=base_branch,
+ 1574	            task_id=task_id,
+ 1575	            needs_switch=needs_switch,
+ 1576	        )
+ 1577	        if not updated:
+ 1578	            raise RuntimeError(f"cannot persist lifecycle for session {session.id}")
+ 1579	        if session.db_row is not None:
+ 1580	            session.db_row.update(
+ 1581	                branch=branch,
+ 1582	                base_branch=base_branch,
+ 1583	                task_id=task_id,
+ 1584	                needs_switch=int(needs_switch),
+ 1585	            )
+ 1586	
+ 1587	    async def transition_lifecycle(
+ 1588	        self,
+ 1589	        session: AgentSession,
+ 1590	        *,
+ 1591	        branch: str,
+ 1592	        base_branch: str,
+ 1593	        task_id: str,
+ 1594	        needs_switch: bool,
+ 1595	        owned_dirs: list[str] | None = None,
+ 1596	    ) -> None:
+ 1597	        """Atomically publish a successful branch/task transition.
+ 1598	
+ 1599	        Git is deliberately completed by the caller first. Until this DB transaction
+ 1600	        succeeds, the in-memory and durable lifecycle remain untouched. ``owned_dirs``
+ 1601	        is ``None`` for same-task continuation and a list (including ``[]``) for a new
+ 1602	        task, which also replaces the ownership prompt.
+ 1603	        """
+ 1604	        # A few lifecycle callers use lightweight detached doubles in tests and
+ 1605	        # integrations. They have no full session snapshot; retain the old lifecycle
+ 1606	        # seam for those data-only objects while real AgentSession transitions use one
+ 1607	        # complete save_session transaction below.
+ 1608	        if not hasattr(session, "_to_db_dict"):
+ 1609	            await self.persist_lifecycle(
+ 1610	                session,
+ 1611	                branch=branch,
+ 1612	                base_branch=base_branch,
+ 1613	                task_id=task_id,
+ 1614	                needs_switch=needs_switch,
+ 1615	            )
+ 1616	            return
+ 1617	        if session.loaded:
+ 1618	            await session._drain_persist()
+ 1619	        snapshot = session._to_db_dict()
+ 1620	        snapshot.update(
+ 1621	            branch=branch,
+ 1622	            base_branch=base_branch,
+ 1623	            task_id=task_id,
+ 1624	            needs_switch=int(needs_switch),
+ 1625	        )
+ 1626	        new_prompt = None
+ 1627	        new_overlay = session.prompt_overlay
+ 1628	        normalized = None
+ 1629	        if owned_dirs is not None:
+ 1630	            normalized = parse_owned_dirs(owned_dirs)
+ 1631	            new_prompt, new_overlay = self._transition_prompt(session, normalized)
+ 1632	            snapshot.update(
+ 1633	                owned_dirs=json.dumps(normalized) if normalized else "",
+ 1634	                system_prompt=new_prompt,
+ 1635	                prompt_overlay=new_overlay,
+ 1636	            )
+ 1637	        await asyncio.to_thread(save_session, snapshot)
+ 1638	
+ 1639	        session.branch = branch
+ 1640	        session.base_branch = base_branch
+ 1641	        session.task_id = task_id
+ 1642	        session.needs_switch = needs_switch
+ 1643	        if normalized is not None:
+ 1644	            session.owned_dirs = normalized
+ 1645	            session.system_prompt = new_prompt or ""
+ 1646	            session.prompt_overlay = new_overlay
+ 1647	            session._current_prompt = new_prompt or ""
+ 1648	            # The next turn must deliver the new ownership prompt at the idle boundary.
+ 1649	            session._prompt_injected = False
+ 1650	        if session.db_row is not None:
+ 1651	            session.db_row.update(
+ 1652	                branch=branch,
+ 1653	                base_branch=base_branch,
+ 1654	                task_id=task_id,
+ 1655	                needs_switch=int(needs_switch),
+ 1656	            )
+ 1657	            if normalized is not None:
+ 1658	                session.db_row.update(
+ 1659	                    owned_dirs=json.dumps(normalized) if normalized else "",
+ 1660	                    system_prompt=new_prompt or "",
+ 1661	                    prompt_overlay=new_overlay,
+ 1662	                )
+ 1663	
+ 1664	    def _scope_ownership_lock(self, scope: str) -> asyncio.Lock:
+ 1665	        """One ownership critical section per scope — overlap is a scope-wide invariant."""
+ 1666	        key = (scope or "").rstrip("/")
+ 1667	        if key not in self._scope_ownership_locks:
+ 1668	            self._scope_ownership_locks[key] = asyncio.Lock()
+ 1669	        return self._scope_ownership_locks[key]
+ 1670	
+ 1671	    @staticmethod
+ 1672	    def _persist_owned_dirs_only(
+ 1673	        session_id: str, stored_dirs: str, system_prompt: str, prompt_overlay: str | None,
+ 1674	    ) -> None:
+ 1675	        from app.db import _conn
+ 1676	
+ 1677	        with _conn() as connection:
+ 1678	            cursor = connection.execute(
+ 1679	                "UPDATE sessions SET owned_dirs=?, system_prompt=?, prompt_overlay=? "
+ 1680	                "WHERE id=?",
+ 1681	                (stored_dirs, system_prompt, prompt_overlay, session_id),
+ 1682	            )
+ 1683	            if cursor.rowcount == 0:
+ 1684	                # Silence here would mean "ownership changed" while the DB still holds the
+ 1685	                # old boundary — the exact failure this task exists to remove (#54).
+ 1686	                raise ValueError(
+ 1687	                    f"ownership update changed 0 rows for session id={session_id!r}"
+ 1688	                )
+ 1689	
+ 1690	    async def apply_owned_dirs(
+ 1691	        self, session: AgentSession, owned_dirs: list[str],
+ 1692	    ) -> list[str]:
+ 1693	        """Replace ownership without touching the branch or the task.
+ 1694	
+ 1695	        Both owners move together — the ``owned_dirs`` column and the ownership
+ 1696	        block inside the stored prompt — because a column-only write leaves the
+ 1697	        worker reading its previous directories. An empty list clears ownership.
+ 1698	        The caller checks the status: rewriting the prompt of a running turn would
+ 1699	        change the contract under a worker that is already editing files.
+ 1700	        """
+ 1701	        # Validation reads every live worker of this scope, so validate+write must be one
+ 1702	        # critical section: two concurrent calls for DIFFERENT workers each lock only their
+ 1703	        # own session, both pass against the pre-write state, and both commit the same
+ 1704	        # directory. (The same race still exists on the older spawn/switch paths — those
+ 1705	        # take only a per-name lock — and closing it there is a separate change.)
+ 1706	        async with self._scope_ownership_lock(session.scope):
+ 1707	            normalized = self.validate_owned_dirs_transition(session, owned_dirs)
+ 1708	            if session.loaded:
+ 1709	                await session._drain_persist()
+ 1710	            new_prompt, new_overlay = self._transition_prompt(session, normalized)
+ 1711	            stored_dirs = json.dumps(normalized) if normalized else ""
+ 1712	
+ 1713	            async def _commit() -> None:
+ 1714	                """Persist and publish as one step that a cancelled request cannot split.
+ 1715	
+ 1716	                A client disconnect between the DB write and the in-memory publication
+ 1717	                would leave SQLite holding the new boundary while the live worker keeps
+ 1718	                the old one — and release the locks that were supposed to protect exactly
+ 1719	                that gap.
+ 1720	                """
+ 1721	                if session.loaded:
+ 1722	                    snapshot = session._to_db_dict()
+ 1723	                    snapshot.update(
+ 1724	                        owned_dirs=stored_dirs,
+ 1725	                        system_prompt=new_prompt,
+ 1726	                        prompt_overlay=new_overlay,
+ 1727	                    )
+ 1728	                    await asyncio.to_thread(save_session, snapshot)
+ 1729	                else:
+ 1730	                    # A detached session is hydrated from a partial row: `_hydrate_row`
+ 1731	                    # never fills `color` or `template_hash`, so persisting its full
+ 1732	                    # `_to_db_dict()` snapshot blanks those columns for a worker nobody
+ 1733	                    # asked to change.
+ 1734	                    await asyncio.to_thread(
+ 1735	                        self._persist_owned_dirs_only,
+ 1736	                        session.id, stored_dirs, new_prompt, new_overlay,
+ 1737	                    )
+ 1738	                session.owned_dirs = normalized
+ 1739	                session.system_prompt = new_prompt
+ 1740	                session.prompt_overlay = new_overlay
+ 1741	                session._current_prompt = new_prompt
+ 1742	                # The next turn must deliver the new ownership prompt at the idle boundary.
+ 1743	                session._prompt_injected = False
+ 1744	                if session.db_row is not None:
+ 1745	                    session.db_row.update(
+ 1746	                        owned_dirs=stored_dirs,
+ 1747	                        system_prompt=new_prompt,
+ 1748	                        prompt_overlay=new_overlay,
+ 1749	                    )
+ 1750	
+ 1751	            # A single `shield` is not enough on two counts: the caller would leave this
+ 1752	            # block and release the scope, lifecycle and session locks while the write is
+ 1753	            # still in flight, and a SECOND cancellation penetrates a plain `await commit`
+ 1754	            # — cancelling the `to_thread` future while the SQLite thread keeps going and
+ 1755	            # commits, leaving the DB ahead of the live session. `_wait_owned_task`
+ 1756	            # absorbs repeated cancellation and returns it to re-raise afterwards.
+ 1757	            commit = asyncio.create_task(_commit())
+ 1758	            cancellation = await _wait_owned_task(commit)
+ 1759	            commit.result()
+ 1760	            if cancellation is not None:
+ 1761	                raise cancellation
+ 1762	        return normalized
+ 1763	
+ 1764	    def _resolve_role(self, name: str, scope: str) -> str | None:
+ 1765	        for s in self.sessions.values():
+ 1766	            if s.name == name and s.scope == scope:
+ 1767	                return s.role
+ 1768	        row = get_session_by_name(name, scope)
+ 1769	        return row.get("role") if row else None
+ 1770	
+ 1771	    def _resolve_pipeline(self, name: str, scope: str) -> str:
+ 1772	        """Пайплайн сессии ``name`` (для наследования детьми). '' если не найдена."""
+ 1773	        for s in self.sessions.values():
+ 1774	            if s.name == name and s.scope == scope:
+ 1775	                return s.pipeline or ""
+ 1776	        row = get_session_by_name(name, scope)
+ 1777	        return (row.get("pipeline") or "") if row else ""
+ 1778	
+ 1779	    def _resolve_profile(self, name: str, scope: str) -> str:
+ 1780	        """Профиль Claude сессии ``name`` (для наследования детьми). '' если не найдена."""
+ 1781	        for s in self.sessions.values():
+ 1782	            if s.name == name and s.scope == scope:
+ 1783	                return s.profile or ""
+ 1784	        row = get_session_by_name(name, scope)
+ 1785	        return (row.get("profile") or "") if row else ""
+ 1786	
+ 1787	    def _resolve_base_branch(self, base_branch: str, pipeline: str, role: str,
+ 1788	                             parent_name: str, scope: str, repo_path: str) -> str:
+ 1789	        """Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
+ 1790	
+ 1791	        Explicit base wins. ``strategy=parent`` uses the parent's actual branch;
+ 1792	        ``strategy=main`` and missing parents use the repository's verifiable mainline.
+ 1793	        """
+ 1794	        if base_branch:
+ 1795	            return resolve_git_base_branch(repo_path, base_branch)
+ 1796	        try:
+ 1797	            rr = get_role(pipeline, role)
+ 1798	        except FileNotFoundError:
+ 1799	            rr = None
+ 1800	        if rr is None or rr.base_branch_strategy == "main":
+ 1801	            return resolve_git_base_branch(repo_path)
+ 1802	        parent_branch = ""
+ 1803	        parent_dir = ""
+ 1804	        if parent_name:
+ 1805	            ps = self.get_by_name(parent_name, scope)
+ 1806	            if ps is not None:
+ 1807	                parent_branch = ps.branch or ""
+ 1808	                parent_dir = ps.worktree_path or ps.cwd or ""
+ 1809	        if not parent_branch:
+ 1810	            logger.warning(
+ 1811	                "base_branch_strategy=parent, но у родителя '%s' нет ветки — "
+ 1812	                "resolving repository mainline",
+ 1813	                parent_name)
+ 1814	            return resolve_git_base_branch(repo_path)
+ 1815	        try:
+ 1816	            return resolve_git_base_branch(repo_path, parent_branch)
+ 1817	        except ValueError:
+ 1818	            # Ветка родителя может жить в ДРУГОМ репозитории: в одном scope их бывает
+ 1819	            # несколько (у seedon `site/` и `infra/` — свои git root'ы со своими origin).
+ 1820	            # «Ответвись от родителя» через границу репозитория не значит ничего — там
+ 1821	            # другая история. Берём mainline репозитория РЕБЁНКА, но громко: молчаливая
+ 1822	            # подмена базы хуже отказа. Если репозиторий ТОТ ЖЕ, отсутствие ветки —
+ 1823	            # настоящая ошибка, и она летит дальше (#69).
+ 1824	            if parent_dir and _crosses_repo_boundary(parent_dir, repo_path):
+ 1825	                logger.warning(
+ 1826	                    "base_branch_strategy=parent: ветка '%s' родителя '%s' живёт в другом "
+ 1827	                    "репозитории (%s), воркер спавнится в %s — база взята из mainline его "
+ 1828	                    "репозитория",
+ 1829	                    parent_branch, parent_name, parent_dir, repo_path)
+ 1830	                return resolve_git_base_branch(repo_path)
+ 1831	            raise
+ 1832	
+ 1833	    @staticmethod
+ 1834	    def _role_is_orchestrator(pipeline: str, role: str) -> bool:
+ 1835	        """R1: is_orchestrator из kind манифеста; fallback на frozenset апстрима.
+ 1836	
+ 1837	        Манифеста нет (FileNotFoundError) или роли нет в нём → ``is_orchestrator_role``.
+ 1838	        """
+ 1839	        try:
+ 1840	            rr = get_role(pipeline, role)
+ 1841	        except FileNotFoundError:
+ 1842	            rr = None
+ 1843	        if rr is not None:
+ 1844	            return rr.is_orchestrator
+ 1845	        return is_orchestrator_role(role)
+ 1846	
+ 1847	    async def ensure_loaded(self, name: str, scope: str) -> Optional[AgentSession]:
+ 1848	        scope = scope.rstrip("/")
+ 1849	        for s in self.sessions.values():
+ 1850	            if s.name == name and s.scope == scope:
+ 1851	                return s
+ 1852	        db_row = get_session_by_name(name, scope)
+ 1853	        if not db_row:
+ 1854	            return None
+ 1855	        return await self._ensure_loaded_row(db_row)
+ 1856	
+ 1857	    async def ensure_loaded_by_id(self, session_id: str) -> Optional[AgentSession]:
+ 1858	        """Загрузить сессию по НЕИЗМЕНЯЕМОМУ id.
+ 1859	
+ 1860	        Имя меняется `rename_worker` и может быть занято другим агентом, поэтому всё, что
+ 1861	        сохранило ссылку РАНЬШЕ (bg-джобы), обязано будить по id, а не по имени.
+ 1862	        """
+ 1863	        session = self.sessions.get(session_id)
+ 1864	        if session:
+ 1865	            return session
+ 1866	        db_row = get_session(session_id)
+ 1867	        if not db_row or db_row.get("status") == "archived":
+ 1868	            return None
+ 1869	        return await self._ensure_loaded_row(db_row)
+ 1870	
+ 1871	    async def ensure_loaded_any(self, name: str) -> Optional[AgentSession]:
+ 1872	        for s in self.sessions.values():
+ 1873	            if s.name == name:
+ 1874	                return s
+ 1875	        for row in get_all_sessions():
+ 1876	            if row["name"] == name:
+ 1877	                return await self._ensure_loaded_row(row)
+ 1878	        return None
+ 1879	
+ 1880	    async def _ensure_loaded_row(self, db_row: dict) -> AgentSession:
+ 1881	        session_id = db_row["id"]
+ 1882	        session = self.sessions.get(session_id)
+ 1883	        if session is not None:
+ 1884	            return session
+ 1885	        async with self.get_session_lock(session_id):
+ 1886	            session = self.sessions.get(session_id)
+ 1887	            if session is not None:
+ 1888	                return session
+ 1889	            # Re-read under the lock: `db_row` was fetched by the caller BEFORE the lock,
+ 1890	            # and a writer holding it meanwhile (ownership, prompt, model) has already
+ 1891	            # committed. Hydrating the captured row would publish a live session that
+ 1892	            # silently disagrees with SQLite — for ownership that means a worker running
+ 1893	            # under a boundary the database says it no longer has.
+ 1894	            return await self._load_from_db(get_session(session_id) or db_row)
+ 1895	
+ 1896	    def assemble_prompt(
+ 1897	        self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
+ 1898	        owned_dirs, branch: str, stored_overlay: str | None, old_prompt: str,
+ 1899	        repository_path: str = "", parent_name: str | None = None,
+ 1900	        allow_missing_layout: bool = False,
+ 1901	    ) -> tuple[str, str | None]:
+ 1902	        """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
+ 1903	
+ 1904	        Зовётся из `_load_from_db` (восстановление сессии при старте) и из переинжекта
+ 1905	        в `session.py`: без второго вызывающего правка `.orchestra/pipelines/**` доезжала до живого
+ 1906	        агента только рестартом (#220 T1, медиана задержки выката 3.3 ч).
+ 1907	
+ 1908	        Возвращает (собранный промпт, восстановленный overlay). `overlay is None` на
+ 1909	        выходе означает полную замену промпта оператором — у неё нет границы
+ 1910	        компонентов, и пересобирать её нельзя.
+ 1911	        """
+ 1912	        current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+ 1913	        if not is_orch:
+ 1914	            current_base = safe_format_prompt(
+ 1915	                current_base,
+ 1916	                worker_name=name, orchestrator_name=parent_name or "orchestrator",
+ 1917	                scope=scope, branch=branch,
+ 1918	            )
+ 1919	        if stored_overlay is None:
+ 1920	            old_without_memory = temp_rules.strip_block(strip_worker_memory(old_prompt))
+ 1921	            if not old_without_memory:
+ 1922	                prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
+ 1923	                prompt_without_memory = current_base + prompt_overlay
+ 1924	            elif old_without_memory.startswith(current_base):
+ 1925	                prompt_overlay = old_without_memory[len(current_base):]
+ 1926	                prompt_without_memory = current_base + prompt_overlay
+ 1927	            elif (
+ 1928	                "<role>" in old_without_memory
+ 1929	                and "</role>" in old_without_memory
+ 1930	                and (
+ 1931	                    ("<knowledge>" in old_without_memory and "</knowledge>" in old_without_memory)
+ 1932	                )
+ 1933	            ):
+ 1934	                # Pre-overlay pipeline prompts are identifiable by their complete platform
+ 1935	                # envelopes. They are not operator overrides: rebuild the current base while
+ 1936	                # retaining the separately stored directory-ownership contract. A free-form full
+ 1937	                # prompt has no such boundary and remains byte-preserved in the branch below.
+ 1938	                prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
+ 1939	                prompt_without_memory = current_base + prompt_overlay
+ 1940	            else:
+ 1941	                # A legacy/full-prompt override has no component boundary to recover.
+ 1942	                # Preserve it byte-for-byte instead of guessing and dropping authority.
+ 1943	                prompt_overlay = None
+ 1944	                prompt_without_memory = old_without_memory
+ 1945	        else:
+ 1946	            prompt_overlay = safe_format_prompt(
+ 1947	                strip_worker_memory(stored_overlay), worker_name=name,
+ 1948	                orchestrator_name=parent_name or "orchestrator", scope=scope, branch=branch,
+ 1949	            )
+ 1950	            prompt_without_memory = current_base + prompt_overlay
+ 1951	        if prompt_overlay is not None:
+ 1952	            areas = parse_owned_dirs(owned_dirs)
+ 1953	            prompt_overlay, _ = replace_ownership_block(prompt_overlay, areas, areas)
+ 1954	            prompt_without_memory = current_base + prompt_overlay
+ 1955	        refreshed = refresh_worker_memory(
+ 1956	            prompt_without_memory, name, role, scope, repository_path,
+ 1957	            allow_absent_project=True,
+ 1958	            allow_missing_layout=allow_missing_layout,
+ 1959	        )
+ 1960	        # Last on purpose: the volatile block must not invalidate the cached stable prefix.
+ 1961	        return temp_rules.with_block(
+ 1962	            refreshed, role=role, is_orch=is_orch, scope=scope, name=name), prompt_overlay
+ 1963	
+ 1964	    async def _load_from_db(
+ 1965	        self,
+ 1966	        db_row: dict,
+ 1967	        *,
+ 1968	        recovery_handoff: dict | None = None,
+ 1969	    ) -> AgentSession:
+ 1970	        # Every loader funnels through this method, including lazy name/id lookup.
+ 1971	        # Recovery ownership therefore cannot depend on startup auto-resume selecting
+ 1972	        # the row (sessions with a NULL native id are intentionally absent there).
+ 1973	        if recovery_handoff is None:
+ 1974	            recovery_handoff = get_latest_runtime_handoff_for_session(db_row["id"])
+ 1975	        role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
+ 1976	        # Old rows (migrated) store pipeline='' → normalize to DEFAULT_PIPELINE.
+ 1977	        # Without this, ROLE_SYSTEM_PROMPT('') now fails loud (legacy fallback removed)
+ 1978	        # and resume/load of pre-pipeline sessions would break.
+ 1979	        # Нормализованное значение обязано доехать и до самой сессии (см. AgentSession
+ 1980	        # ниже): пока в объект клался сырой db_row, промпт брал 'default', а
+ 1981	        # _refresh_skills — '', падал на «pipeline name is empty», и корневой
+ 1982	        # оркестратор оставался без ВСЕХ скиллов своей роли (#167).
+ 1983	        pipeline = db_row.get("pipeline") or DEFAULT_PIPELINE
+ 1984	        # R1: is_orch из манифеста пайплайна (kind) при наличии; иначе хранимая
+ 1985	        # колонка is_orchestrator (денормализована при спавне); иначе frozenset.
+ 1986	        is_orch = self._role_is_orchestrator(pipeline, role)
+ 1987	        try:
+ 1988	            if get_role(pipeline, role) is None:
+ 1989	                is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
+ 1990	        except FileNotFoundError:
+ 1991	            is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
+ 1992	        old_prompt = db_row.get("system_prompt", "")
+ 1993	        cwd = db_row.get("cwd") or db_row["scope"]
+ 1994	        if not Path(cwd).is_dir():
+ 1995	            cwd = db_row["scope"]
+ 1996	        stored_model = db_row["model"]
+ 1997	        model = (
+ 1998	            stored_model if stored_model in COMPAT_MODEL_SPECS
+ 1999	            else resolve_model(stored_model)
+ 2000	        )
+ 2001	        expected_bt = backend_for_model(model)
+ 2002	        stored_bt = db_row.get("backend_type") or expected_bt
+ 2003	        if stored_bt != expected_bt:
+ 2004	            logger.warning(f"backend mismatch for {db_row['name']}: stored={stored_bt}, model implies={expected_bt}. Using {expected_bt}.")
+ 2005	            stored_bt = expected_bt
+ 2006	        db_branch = db_row.get("branch")
+ 2007	        db_task_id = db_row.get("task_id") or ""
+ 2008	        wt_path = db_row.get("worktree_path")
+ 2009	        if wt_path and Path(wt_path).is_dir():
+ 2010	            actual = await asyncio.to_thread(
+ 2011	                subprocess.run,
+ 2012	                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+ 2013	                cwd=wt_path, capture_output=True, text=True,
+ 2014	            )
+ 2015	            if actual.returncode == 0:
+ 2016	                actual_branch = actual.stdout.strip()
+ 2017	                if actual_branch != db_branch:
+ 2018	                    db_branch = actual_branch
+ 2019	                    m = _TASK_BRANCH_RE.match(actual_branch)
+ 2020	                    db_task_id = next(group for group in m.groups() if group) if m else ""
+ 2021	
+ 2022	        current_prompt, prompt_overlay = self.assemble_prompt(
+ 2023	            pipeline=pipeline, role=role, scope=db_row["scope"], is_orch=is_orch,
+ 2024	            name=db_row["name"], owned_dirs=db_row.get("owned_dirs"),
+ 2025	            branch=db_row.get("branch") or db_row.get("base_branch") or "",
+ 2026	            stored_overlay=db_row.get("prompt_overlay"), old_prompt=old_prompt,
+ 2027	            repository_path=wt_path if wt_path and Path(wt_path).is_dir() else "",
+ 2028	            parent_name=db_row.get("parent_name") or None,
+ 2029	        )
+ 2030	
+ 2031	        custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
+ 2032	        session = AgentSession(
+ 2033	            id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
+ 2034	            model=model, system_prompt=current_prompt,
+ 2035	            prompt_overlay=prompt_overlay,
+ 2036	            session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
+ 2037	            cost_usd_cached=db_row.get("cost_usd_cached", 0),
+ 2038	            _context_cost=db_row.get("context_cost", 0),
+ 2039	            worktree_path=wt_path, branch=db_branch,
+ 2040	            base_branch=db_row.get("base_branch") or "",
+ 2041	            created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
+ 2042	            role=role,
+ 2043	            parent_id=db_row.get("parent_id", ""),
+ 2044	            parent_name=db_row.get("parent_name", ""),
+ 2045	            pipeline=pipeline,
+ 2046	            profile=db_row.get("profile", ""),
+ 2047	            color="" if is_orch else (
+ 2048	                db_row.get("color") or self._pick_color(db_row["scope"])
+ 2049	            ),
+ 2050	            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,
+ 2051	                                         parent_name=db_row.get("parent_name", ""),
+ 2052	                                         extra=custom_mcp, session_id=db_row["id"], pipeline=pipeline,
+ 2053	                                         disabled_tools=parse_disabled_tools(db_row.get("disabled_tools"))),
+ 2054	            disabled_tools=parse_disabled_tools(db_row.get("disabled_tools")),
+ 2055	            mcp_servers_custom=custom_mcp,
+ 2056	            backend_type=stored_bt, effort=db_row.get("effort") or None,
+ 2057	            runtime_handoff=db_row.get("runtime_handoff") or "",
+ 2058	            history_import_source=db_row.get("history_import_source") or None,
+ 2059	            last_summary=db_row.get("last_summary") or "",
+ 2060	            task_id=db_task_id,
+ 2061	            description=db_row.get("description", ""),
+ 2062	            owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
+ 2063	            tg_topic=bool(db_row.get("tg_topic", 0)),
+ 2064	        )
+ 2065	        session.total_turns = db_row.get("total_turns") or 0
+ 2066	        session.total_input_tokens = db_row.get("total_input_tokens") or 0
+ 2067	        session.total_output_tokens = db_row.get("total_output_tokens") or 0
+ 2068	        session.total_cache_read_tokens = db_row.get("total_cache_read_tokens") or 0
+ 2069	        session.total_cache_create_tokens = db_row.get("total_cache_create_tokens") or 0
+ 2070	        session.total_tool_calls = db_row.get("total_tool_calls") or 0
+ 2071	        session._last_cost = (
+ 2072	            float(db_row.get("provider_cost_baseline_usd") or 0.0)
+ 2073	            if session.session_id else 0.0
+ 2074	        )
+ 2075	        session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
+ 2076	        session.needs_switch = bool(db_row.get("needs_switch") or 0)
+ 2077	        raw_hist = db_row.get("session_id_history") or "[]"
+ 2078	        try:
+ 2079	            session.session_id_history = json.loads(raw_hist) if isinstance(raw_hist, str) else raw_hist
+ 2080	        except (json.JSONDecodeError, TypeError):
+ 2081	            session.session_id_history = []
+ 2082	        pct = db_row.get("context_pct", 0) or 0
+ 2083	        tokens = db_row.get("context_tokens", 0) or 0
+ 2084	        if pct or tokens:
+ 2085	            max_t = get_model_spec(model).context_length
+ 2086	            session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
+ 2087	        session._current_prompt = current_prompt
+ 2088	        session._template_hash = db_row.get("template_hash") or prompt_template_hash(role)
+ 2089	        if not is_orch:
+ 2090	            session.on_idle = self._make_idle_callback(db_row["scope"])
+ 2091	            session.on_turn_blocked = self._make_quota_blocked_callback(db_row["scope"])
+ 2092	        confirmed_attempt = get_confirmed_runtime_handoff_attempt(
+ 2093	            session.id, session.session_id,
+ 2094	        )
+ 2095	        if confirmed_attempt is not None:
+ 2096	            locator = str(confirmed_attempt.get("cleanup_locator") or "")
+ 2097	            if (
+ 2098	                session._handoff_cleanup_locator_is_owned(locator)
+ 2099	                and Path(locator).is_dir()
+ 2100	                and confirmed_attempt.get("target_runtime") == session.backend_type
+ 2101	                and confirmed_attempt.get("target_model") == session.model
+ 2102	            ):
+ 2103	                session._handoff_config_dir = locator
+ 2104	            else:
+ 2105	                session._handoff_recovery_required = True
+ 2106	                update_runtime_handoff_status(
+ 2107	                    str(confirmed_attempt["handoff_id"]),
+ 2108	                    "recovery_required",
+ 2109	                    failure_code="handoff_confirmed_target_store_missing",
+ 2110	                )
+ 2111	        if recovery_handoff is not None:
+ 2112	            await session.recover_runtime_handoff(
+ 2113	                recovery_handoff,
+ 2114	                list_runtime_handoff_attempts(recovery_handoff["handoff_id"]),
+ 2115	            )
+ 2116	        await session.start()
+ 2117	        self.sessions[session.id] = session
+ 2118	        return session
+ 2119	
+ 2120	    def _find_orchestrator_name(self, scope: str) -> str | None:
+ 2121	        names = [s.name for s in self.sessions.values() if s.is_orchestrator and s.scope == scope]
+ 2122	        if len(names) > 1:
+ 2123	            raise ValueError("multiple orchestrators in this project; specify the worker's parent")
+ 2124	        return names[0] if names else None
+ 2125	
+ 2126	    def _context_warning(self, worker_name: str) -> str:
+ 2127	        session = next((s for s in self.sessions.values() if s.name == worker_name), None)
+ 2128	        if not session:
+ 2129	            return ""
+ 2130	        pct = session._last_context.get("percentage", 0)
+ 2131	        if pct >= 90:
+ 2132	            return f"\n⚠️ CONTEXT CRITICAL: {pct}% — do NOT send more tasks to this worker"
+ 2133	        return ""
+ 2134	
+ 2135	    def _make_idle_callback(self, scope: str):
+ 2136	        async def _on_worker_idle(
+ 2137	                worker_name: str,
+ 2138	                worker_scope: str,
+ 2139	                last_texts: list[str],
+ 2140	                stop_reason: str = "",
+ 2141	                turn_ok: bool = True):
+ 2142	            """Record the unreported end of a turn durably, then try to deliver it now.
+ 2143	
+ 2144	            Delivery retries and restart recovery belong to `turn_signals`; nothing here
+ 2145	            may drop the fact on a failed send.
+ 2146	            """
+ 2147	            from app import turn_signals
+ 2148	
+ 2149	            worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
+ 2150	            worker_id = worker_session.id if worker_session else ""
+ 2151	            if not worker_id:
+ 2152	                row = get_session_by_name(worker_name, (worker_scope or scope).rstrip("/"))
+ 2153	                worker_id = row["id"] if row else ""
+ 2154	            if not worker_id:
+ 2155	                return
+ 2156	            signal_id = turn_signals.record(
+ 2157	                key=turn_signals.make_key(worker_session, worker_name),
+ 2158	                worker_session_id=worker_id, worker_name=worker_name,
+ 2159	                scope=(worker_scope or scope), turn_ok=turn_ok,
+ 2160	                stop_reason=stop_reason,
+ 2161	                summary="\n".join(last_texts[-3:]) if last_texts else "(no output)",
+ 2162	            )
+ 2163	            if signal_id is None:
+ 2164	                return
+ 2165	            logger.info(f"Auto-report: {worker_name} recorded as turn signal {signal_id}")
+ 2166	            await turn_signals.deliver_due(self, [signal_id])
+ 2167	        return _on_worker_idle
+ 2168	
+ 2169	    def _make_quota_blocked_callback(self, scope: str):
+ 2170	        async def _on_turn_blocked(worker, error, retained_count: int) -> None:
+ 2171	            message = (
+ 2172	                f"[from:{worker.name}] New worker turn blocked by the quota line; "
+ 2173	                f"{retained_count} queued message(s) retained. {error} "
+ 2174	                "Luna and Spark are outside the line. "
+ 2175	                "Stop and model change remain available."
+ 2176	            )
+ 2177	            parent = None
+ 2178	            if worker.parent_id:
+ 2179	                parent = self.sessions.get(worker.parent_id)
+ 2180	            if parent is None and worker.parent_name:
+ 2181	                parent = self.get_by_name(worker.parent_name, worker.scope)
+ 2182	            if parent is not None and parent.is_orchestrator:
+ 2183	                try:
+ 2184	                    provenance = MessageProvenance(
+ 2185	                        origin="agent", senders=(worker.name,),
+ 2186	                        subtype="quota_blocked",
+ 2187	                    )
+ 2188	                    await self.send(
+ 2189	                        parent.id, message, provenance=provenance,
+ 2190	                    )
+ 2191	                    return
+ 2192	                except Exception as delivery_error:
+ 2193	                    reason = f"{error}; parent delivery failed: {err_text(delivery_error)}"
+ 2194	            else:
+ 2195	                reason = f"{error}; exact parent orchestrator is unavailable"
+ 2196	
+ 2197	            from app.notify import report_undelivered
+ 2198	
+ 2199	            await report_undelivered(
+ 2200	                self,
+ 2201	                scope=worker.scope or scope,
+ 2202	                worker=worker.name,
+ 2203	                what=f"quota-block notice ({retained_count} queued message(s))",
+ 2204	                reason=reason,
+ 2205	                dedupe_key=f"quota:{worker.id}:{error.decision.provider}",
+ 2206	            )
+ 2207	
+ 2208	        return _on_turn_blocked
+ 2209	
+ 2210	    # ── Listings ──
+ 2211	
+ 2212	    # Поля, которые НЕ едут в списке сессий. Список опрашивается раз в 3 секунды, и его вес —
+ 2213	    # это не скорость, а ВЕРОЯТНОСТЬ ДОСТАВКИ: у юзера между нами и его машиной прозрачный
+ 2214	    # посредник, на котором ответы до ~15 КБ доходят 10 из 10, а крупные — 17 из 33 (#65,
+ 2215	    # замер perf). `system_prompt` — 86.4% веса ответа по проводу (46.9 КБ из 54.3),
+ 2216	    # `last_summary` — ещё 5.9%. Ни одно из двух в списке не читается:
+ 2217	    # промпт берётся отдельным роутом `GET /api/sessions/{name}/prompt` по кнопке 📜,
+ 2218	    # а `last_summary` нужен только серверу (`runtime_handoff`).
+ 2219	    # Понадобилось поле в списке — добавляй осознанно и перемеряй вес: tests/test_manager.py::TestListSessions
+ 2220	    # держит потолок.
+ 2221	    _LIST_OMIT = ("system_prompt", "prompt_overlay", "last_summary")
+ 2222	
+ 2223	    def list_sessions(self, scope: str | None = None) -> list[dict]:
+ 2224	        from app.db import get_last_turn_map
+ 2225	        from app.message_deliveries import targets_with_uncertain_delivery
+ 2226	        result = []
+ 2227	        seen = set()
+ 2228	        for s in self.sessions.values():
+ 2229	            if scope is None or s.scope == scope:
+ 2230	                result.append(s.to_dict())
+ 2231	                seen.add(s.id)
+ 2232	        for row in get_all_sessions(scope):
+ 2233	            if row["id"] not in seen:
+ 2234	                if runtime_for_record(row) == "codex" and row.get("session_id"):
+ 2235	                    from app.backend_codex import codex_writer_conflict
+ 2236	
+ 2237	                    error = codex_writer_conflict(row["id"], row["session_id"])
+ 2238	                    if error is not None:
+ 2239	                        row.update(status="broken", runtime_connection="writer_conflict",
+ 2240	                                   runtime_error=error.envelope())
+ 2241	                result.append(row)
+ 2242	        # Cache-timer metadata is runtime-derived; Codex exposes only an approximate window.
+ 2243	        turn_map = get_last_turn_map()
+ 2244	        uncertain_targets = targets_with_uncertain_delivery()
+ 2245	        for r in result:
+ 2246	            r.setdefault("runtime_connection", "not_loaded")
+ 2247	            if r["id"] in uncertain_targets:
+ 2248	                r["delivery_uncertain"] = True
+ 2249	            r["last_turn_ts"] = turn_map.get(r["id"])
+ 2250	            r.update(cache_policy_for_runtime(runtime_for_record(r)))
+ 2251	            lifecycle = self.lifecycle_quarantine(r)
+ 2252	            if lifecycle:
+ 2253	                r["status"] = "quarantined"
+ 2254	                r["lifecycle_status"] = lifecycle
+ 2255	            for omit in self._LIST_OMIT:
+ 2256	                r.pop(omit, None)
+ 2257	        return result
+ 2258	
+ 2259	    def get_session_id(self, name: str, scope: str) -> str | None:
+ 2260	        for s in self.sessions.values():
+ 2261	            if s.name == name and s.scope == scope:
+ 2262	                return s.id
+ 2263	        db_row = get_session_by_name(name, scope)
+ 2264	        return db_row["id"] if db_row else None
+ 2265	
+ 2266	    def _pick_color(self, scope: str | None = None) -> str:
+ 2267	        # Check both in-memory sessions AND DB to avoid duplicates on concurrent spawn / resume.
+ 2268	        colors = self._live_worker_colors(scope)
+ 2269	        used = set(colors)
+ 2270	        for color in COLOR_PALETTE:
+ 2271	            if color not in used:
+ 2272	                return color
+ 2273	        from collections import Counter
+ 2274	        counts = Counter(colors)
+ 2275	        return min(COLOR_PALETTE, key=lambda color: (counts[color], COLOR_PALETTE.index(color)))
+ 2276	
+ 2277	    def _live_worker_colors(self, scope: str | None = None) -> list[str]:
+ 2278	        """Return one color per live worker, optionally limited to one project."""
+ 2279	        rows_by_id = {
+ 2280	            row["id"]: row
+ 2281	            for row in get_all_sessions()
+ 2282	            if row.get("status") != "archived"
+ 2283	            and not bool(row.get("is_orchestrator"))
+ 2284	            and (scope is None or row.get("scope") == scope)
+ 2285	        }
+ 2286	        for session in self.sessions.values():
+ 2287	            if session.is_orchestrator or (scope is not None and session.scope != scope):
+ 2288	                continue
+ 2289	            rows_by_id.setdefault(session.id, {"color": session.color})
+ 2290	        return [row["color"] for row in rows_by_id.values() if row.get("color")]
+ 2291	
+ 2292	    def reconcile_live_colors(self) -> None:
+ 2293	        """Reassign live worker colors evenly within each project and persist them."""
+ 2294	        from collections import Counter, defaultdict
+ 2295	        from app.db import _conn
+ 2296	
+ 2297	        rows_by_id = {
+ 2298	            row["id"]: row
+ 2299	            for row in get_all_sessions()
+ 2300	            if row.get("status") != "archived"
+ 2301	            and not bool(row.get("is_orchestrator"))
+ 2302	        }
+ 2303	        for session in self.sessions.values():
+ 2304	            if session.is_orchestrator:
+ 2305	                continue
+ 2306	            rows_by_id.setdefault(session.id, {
+ 2307	                "id": session.id,
+ 2308	                "scope": session.scope,
+ 2309	                "created_at": session.created_at.isoformat(),
+ 2310	                "color": session.color,
+ 2311	            })
+ 2312	
+ 2313	        by_scope = defaultdict(list)
+ 2314	        for row in rows_by_id.values():
+ 2315	            by_scope[row.get("scope") or ""].append(row)
+ 2316	        assignments = {}
+ 2317	        for scope_rows in by_scope.values():
+ 2318	            counts = Counter()
+ 2319	            for row in sorted(scope_rows, key=lambda item: (
+ 2320	                item.get("created_at") or "", item["id"],
+ 2321	            )):
+ 2322	                color = min(
+ 2323	                    COLOR_PALETTE,
+ 2324	                    key=lambda candidate: (counts[candidate], COLOR_PALETTE.index(candidate)),
+ 2325	                )
+ 2326	                assignments[row["id"]] = color
+ 2327	                counts[color] += 1
+ 2328	
+ 2329	        with _conn() as connection:
+ 2330	            if assignments:
+ 2331	                connection.executemany(
+ 2332	                    "UPDATE sessions SET color=? WHERE id=? AND status != 'archived' "
+ 2333	                    "AND is_orchestrator=0",
+ 2334	                    [(color, session_id) for session_id, color in assignments.items()],
+ 2335	                )
+ 2336	            connection.execute(
+ 2337	                "UPDATE sessions SET color='' WHERE status != 'archived' "
+ 2338	                "AND is_orchestrator=1",
+ 2339	            )
+ 2340	        for session in self.sessions.values():
+ 2341	            if session.is_orchestrator:
+ 2342	                session.color = ""
+ 2343	                if session.db_row is not None:
+ 2344	                    session.db_row["color"] = ""
+ 2345	                continue
+ 2346	            color = assignments.get(session.id)
+ 2347	            if color is None:
+ 2348	                continue
+ 2349	            session.color = color
+ 2350	            if session.db_row is not None:
+ 2351	                session.db_row["color"] = color
+ 2352	
+ 2353	    def stats(self, scope: str | None = None) -> dict:
+ 2354	        return get_stats(scope)
+ 2355	
+ 2356	    # ── Startup / Shutdown ──
+ 2357	
+ 2358	
+ 2359	    async def auto_resume_all(self) -> None:
+ 2360	        self.reconcile_live_colors()
+ 2361	        from app.db import _conn
+ 2362	        with _conn() as c:
+ 2363	            # 'interrupted' — graceful shutdown успел пометить оборванный ход;
+ 2364	            # 'running' — не успел (SIGKILL/OOM). Оба означают одно: ход прерван
+ 2365	            # рестартом. Читать только 'running' значило будить лишь тех, кого
+ 2366	            # застал аварийный путь (#160).
+ 2367	            was_running_rows = [dict(r) for r in c.execute(
+ 2368	                "SELECT * FROM sessions WHERE status IN ('running', 'interrupted')"
+ 2369	            ).fetchall()]
+ 2370	            was_running = {r["id"] for r in was_running_rows}
+ 2371	            was_waiting = {r["id"] for r in c.execute(
+ 2372	                "SELECT id FROM sessions WHERE status = 'waiting'"
+ 2373	            ).fetchall()}
+ 2374	            # A turn cut before the runtime reported its native id (first turn, V-919) has no
+ 2375	            # session_id, yet it is exactly the agent that must continue.
+ 2376	            resumable = [dict(r) for r in c.execute(
+ 2377	                "SELECT * FROM sessions WHERE (session_id IS NOT NULL "
+ 2378	                "AND status IN ('running', 'interrupted', 'idle', 'waiting')) "
+ 2379	                "OR status IN ('running', 'interrupted')"
+ 2380	            ).fetchall()]
+ 2381	            c.execute("UPDATE sessions SET status='idle' "
+ 2382	                      "WHERE status IN ('running', 'interrupted', 'waiting')")
+ 2383	
+ 2384	        # R1: load orchestrators first — workers need their parent_name resolved,
+ 2385	        # and the orchestrator's on_idle callback registered before workers resume
+ 2386	        orchs = [r for r in resumable if bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker"))]
+ 2387	        workers = [r for r in resumable if not (bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker")))]
+ 2388	        pending_handoffs = {
+ 2389	            row["session_id"]: row for row in list_latest_runtime_handoffs()
+ 2390	        }
+ 2391	
+ 2392	        not_continued = []
+ 2393	        for kind, rows in (("orchestrator", orchs), ("worker", workers)):
+ 2394	            for row in rows:
+ 2395	                if row["id"] in self.sessions:
+ 2396	                    continue
+ 2397	                if not Path(row.get("cwd") or row["scope"]).is_dir():
+ 2398	                    if row["id"] in was_running:
+ 2399	                        not_continued.append(row)
+ 2400	                    continue
+ 2401	                try:
+ 2402	                    session = await self._load_from_db(
+ 2403	                        row, recovery_handoff=pending_handoffs.get(row["id"]),
+ 2404	                    )
+ 2405	                    logger.info("Resumed %s: %s", kind, row["name"])
+ 2406	                    if row["id"] in was_waiting:
+ 2407	                        from app.bg_jobs import bg_manager
+ 2408	                        if bg_manager and bg_manager.has_active_jobs(row["id"]):
+ 2409	                            session.status = AgentStatus.WAITING
+ 2410	                            session._persist()
+ 2411	                    elif row["id"] in was_running:
+ 2412	                        spawn_supervised(
+ 2413	                            self._inject_restart_notice(session, row),
+ 2414	                            f"уведомление о рестарте для {session.name}",
+ 2415	                        )
+ 2416	                except Exception as e:
+ 2417	                    logger.error("Failed to resume %s %s: %s", kind, row["name"], e)
+ 2418	                    if row["id"] in was_running:
+ 2419	                        not_continued.append(row)
+ 2420	        # V-680 told the parent about every restart-cut turn, which read as a failure and
+ 2421	        # made orchestrators intervene while the worker was already continuing (V-919).
+ 2422	        # The continued turn reports its own end; only a turn that cannot continue is
+ 2423	        # signalled here.
+ 2424	        self._signal_restart_cut_turns(not_continued)
+ 2425	
+ 2426	    @staticmethod
+ 2427	    def _signal_restart_cut_turns(rows: list[dict]) -> None:
+ 2428	        if not rows:
+ 2429	            return
+ 2430	        from app import turn_signals
+ 2431	        try:
+ 2432	            turn_signals.record_interrupted_by_restart(rows)
+ 2433	        except Exception as error:
+ 2434	            logger.error("turn signals for restart-interrupted turns failed: %s: %s",
+ 2435	                         type(error).__name__, error)
+ 2436	
+ 2437	    async def _inject_restart_notice(self, session: AgentSession, row: dict) -> None:
+ 2438	        import random
+ 2439	        # Random stagger: if N agents resume simultaneously they'd all hit the SDK
+ 2440	        # concurrently and cause a connection storm; spread them over 15s
+ 2441	        await asyncio.sleep(3 + random.uniform(0, 12))
+ 2442	        try:
+ 2443	            provenance = MessageProvenance(
+ 2444	                origin="system", senders=("system",), subtype="restart",
+ 2445	            )
+ 2446	            await self.send(
+ 2447	                session.id, restart_notice_text(row), provenance=provenance,
+ 2448	            )
+ 2449	            logger.info(f"Restart notice injected: {session.name}")
+ 2450	        except Exception as e:
+ 2451	            logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
+ 2452	            self._signal_restart_cut_turns([row])
+ 2453	
+ 2454	    async def _periodic_worktree_cleanup(self) -> None:
+ 2455	        WT_CLEANUP_INTERVAL = 24 * 3600
+ 2456	        try:
+ 2457	            from app.workspace import cleanup_stale_worktrees
+ 2458	            removed = await asyncio.to_thread(cleanup_stale_worktrees)
+ 2459	            if removed:
+ 2460	                logger.info(f"Startup worktree cleanup: removed {len(removed)} stale worktree(s)")
+ 2461	        except Exception as e:
+ 2462	            logger.warning(f"Startup worktree cleanup failed: {e}")
+ 2463	        while True:
+ 2464	            try:
+ 2465	                await asyncio.sleep(WT_CLEANUP_INTERVAL)
+ 2466	                from app.workspace import cleanup_stale_worktrees
+ 2467	                removed = await asyncio.to_thread(cleanup_stale_worktrees)
+ 2468	                if removed:
+ 2469	                    logger.info(f"Periodic worktree cleanup: removed {len(removed)} stale worktree(s)")
+ 2470	            except asyncio.CancelledError:
+ 2471	                return
+ 2472	            except Exception as e:
+ 2473	                logger.warning(f"Periodic worktree cleanup failed: {e}")
+ 2474	
+ 2475	
+ 2476	    async def _periodic_rules_link(self) -> None:
+ 2477	        from app import rules_link
+ 2478	        while True:
+ 2479	            try:
+ 2480	                await rules_link.sweep(self)
+ 2481	            except asyncio.CancelledError:
+ 2482	                return
+ 2483	            except Exception as e:
+ 2484	                logger.warning(f"rules_link sweep failed: {e}")
+ 2485	            await asyncio.sleep(rules_link.SWEEP_SECONDS)
+ 2486	
+ 2487	    async def _periodic_temp_rules(self) -> None:
+ 2488	        while True:
+ 2489	            try:
+ 2490	                await temp_rules.notify_due(self)
+ 2491	            except asyncio.CancelledError:
+ 2492	                return
+ 2493	            except Exception as e:
+ 2494	                logger.warning(f"temp rules notice sweep failed: {e}")
+ 2495	            await asyncio.sleep(60)
+ 2496	
+ 2497	    async def drain_restart_persistence(self) -> dict:
+ 2498	        """Flush every current session's queued persistence before restart signalling."""
+ 2499	        sessions = list(self.sessions.values())
+ 2500	        results = await asyncio.gather(
+ 2501	            *(session._drain_handoff_log_writes() for session in sessions),
+ 2502	            return_exceptions=True,
+ 2503	        )
+ 2504	        losses = []
+ 2505	        retried_log_writes = 0
+ 2506	        for session, result in zip(sessions, results):
+ 2507	            if isinstance(result, BaseException):
+ 2508	                losses.append({
+ 2509	                    "session_id": session.id,
+ 2510	                    "session_name": session.name,
+ 2511	                    "reason": f"{type(result).__name__}: {result}",
+ 2512	                })
+ 2513	            elif isinstance(result, dict):
+ 2514	                retried_log_writes += int(result.get("retried_log_writes", 0) or 0)
+ 2515	        outcome = {"ok": not losses, "drained": len(sessions)}
+ 2516	        if retried_log_writes:
+ 2517	            outcome["retried_log_writes"] = retried_log_writes
+ 2518	        if losses:
+ 2519	            outcome["losses"] = losses
+ 2520	        return outcome
+ 2521	
+ 2522	
+ 2523	    async def shutdown_all(self) -> None:
+ 2524	        background_tasks = [
+ 2525	            task for task in (
+ 2526	                getattr(self, '_cleanup_task', None),
+ 2527	                getattr(self, '_wt_cleanup_task', None),
+ 2528	            )
+ 2529	            if task is not None
+ 2530	        ]
+ 2531	        for task in background_tasks:
+ 2532	            if not task.done():
+ 2533	                task.cancel()
+ 2534	        if background_tasks:
+ 2535	            await asyncio.gather(*background_tasks, return_exceptions=True)
+ 2536	        self._cleanup_task = None
+ 2537	        self._wt_cleanup_task = None
+ 2538	        sessions = list(self.sessions.values())
+ 2539	        results = await asyncio.gather(
+ 2540	            *(session.stop() for session in sessions),
+ 2541	            return_exceptions=True,
+ 2542	        )
+ 2543	        for session, result in zip(sessions, results):
+ 2544	            if isinstance(result, BaseException):
+ 2545	                logger.warning(
+ 2546	                    "session '%s' stop failed on shutdown: %s",
+ 2547	                    session.name,
+ 2548	                    result,
+ 2549	                )
+ 2550	        self.sessions.clear()
+ 2551	        self._session_locks.clear()

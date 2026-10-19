@@ -1,0 +1,9 @@
+source snapshots unchanged: 40
+report: 20 unique pair/scenario rows, nine required columns
+secret-form scan: 65 files; 2 candidate lines (masked below; inspect source literals)
+.orchestra/tasks/V-972/raw/app__mcp_stdio.py.txt:56:    56	_INTERNAL_TOKEN = [secret len=31 tail=KEN"], "")
+.orchestra/tasks/V-972/raw/app__mcp_stdio.py.txt:345:   345	        headers["Authorization"] = f"Bearer [secret len=16 tail=OKEN]}"
+git diff --check exit= 0 stdout= '' stderr= ''
+git diff --cached --check (authored report/scripts; raw excluded) exit= 0 stdout= '' stderr= ''
+git diff --cached --check (all files, raw blank-at-eol retained) exit= 0 stdout= '' stderr= ''
+manual secret-form inspection: both candidates are source expressions reading/reference-naming INTERNAL_TOKEN, not credential values; raw source preserved

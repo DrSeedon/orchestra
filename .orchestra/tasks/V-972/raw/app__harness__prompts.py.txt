@@ -1,0 +1,102 @@
+    1	"""System prompt + OpenAI tool-schema assembly for the harness.
+    2	
+    3	The model already knows how to use tools from their JSON schemas; the prompt
+    4	stays lean. Tool guidelines are short and name each tool explicitly (so the
+    5	model never has to guess which "this tool" a bullet refers to).
+    6	"""
+    7	
+    8	from pathlib import Path
+    9	
+   10	_TOOL_GUIDELINES = """
+   11	You operate in a workspace directory with these tools:
+   12	- bash: run shell commands (git, tests, build). Runs in the workspace cwd.
+   13	- read: read a file (line-numbered, 1-based offset). Use before editing.
+   14	- write: create or overwrite a file.
+   15	- edit: replace an exact unique string in a file.
+   16	- glob: find files by pattern ('**/*.py' for recursive search).
+   17	- grep: search file contents (Python re syntax; '|' alternates).
+   18	Independent tool calls (several reads, several greps) go in ONE reply — each reply costs one API request.
+   19	Prefer read before write/edit. Keep changes minimal and verify with bash when useful.
+   20	""".strip()
+   21	
+   22	
+   23	# GigaChat returns at most one function_call per reply, and without an explicit rule
+   24	# GigaChat-2-Max wrote `ls`/`python` and invented their output as text (V-636).
+   25	_SINGLE_CALL_GUIDELINES = """
+   26	Call exactly one function per reply; its result arrives in the next message.
+   27	Never write a command or its output as text: call bash (or read/glob) and report only what it actually returned.
+   28	""".strip()
+   29	
+   30	
+   31	# Тот же потолок, что у Codex по умолчанию (project_doc_max_bytes = 32 KiB).
+   32	PROJECT_DOC_MAX_BYTES = 32 * 1024
+   33	
+   34	
+   35	def project_instructions(cwd: str) -> str:
+   36	    """Project rules the way managed Codex sees them: from the git root down to cwd,
+   37	    one file per directory — AGENTS.md, else CLAUDE.md (they are often one file under
+   38	    two names). Personal global files are deliberately not read: shared norms reach
+   39	    agents through pipeline modules (owner's decision, V-570)."""
+   40	    if not cwd:
+   41	        return ""
+   42	    here = Path(cwd).resolve()
+   43	    root = next((p for p in (here, *here.parents) if (p / ".git").exists()), here)
+   44	    dirs = [here, *here.parents]
+   45	    dirs = list(reversed(dirs[: dirs.index(root) + 1]))
+   46	    seen: set[Path] = set()
+   47	    parts: list[str] = []
+   48	    budget = PROJECT_DOC_MAX_BYTES
+   49	    for d in dirs:
+   50	        doc = next((d / n for n in ("AGENTS.md", "CLAUDE.md") if (d / n).is_file()), None)
+   51	        if doc is None or doc.resolve() in seen:
+   52	            continue
+   53	        seen.add(doc.resolve())
+   54	        raw = doc.read_bytes()
+   55	        text = raw[:budget].decode("utf-8", errors="ignore")
+   56	        if len(raw) > budget:
+   57	            text += f"\n[harness: {doc} truncated at {PROJECT_DOC_MAX_BYTES} bytes]"
+   58	        parts.append(f"# Project instructions: {doc}\n\n{text.strip()}")
+   59	        budget -= min(len(raw), budget)
+   60	        if budget <= 0:
+   61	            break
+   62	    return "\n\n".join(parts)
+   63	
+   64	
+   65	def build_system_prompt(base: str, has_own_tools: bool = True, *, cwd: str = "",
+   66	                        single_call: bool = False) -> str:
+   67	    """base = Orchestra role prompt; then project rules; then concise tool guidelines."""
+   68	    parts = [base.strip()] if base and base.strip() else []
+   69	    project = project_instructions(cwd)
+   70	    if project:
+   71	        parts.append(project)
+   72	    if has_own_tools:
+   73	        guidelines = _TOOL_GUIDELINES
+   74	        if single_call:
+   75	            guidelines = guidelines.replace(
+   76	                "Independent tool calls (several reads, several greps) go in ONE reply — "
+   77	                "each reply costs one API request.\n", "")
+   78	            guidelines += "\n" + _SINGLE_CALL_GUIDELINES
+   79	        if cwd:
+   80	            guidelines += f"\nWorkspace directory (cwd of every tool): {cwd}"
+   81	        parts.append(guidelines)
+   82	    return "\n\n".join(parts)
+   83	
+   84	
+   85	def merge_tool_schemas(own_tools: list[dict], mcp_tools: list[dict]) -> list[dict]:
+   86	    """Combine own + MCP tool schemas (already OpenAI function-format).
+   87	
+   88	    Fail fast on duplicate tool names — collisions across MCP servers or with
+   89	    own tools are a hard error (the model cannot disambiguate by name).
+   90	    """
+   91	    seen: dict[str, str] = {}
+   92	    out: list[dict] = []
+   93	    for src, schemas in (("own", own_tools), ("mcp", mcp_tools)):
+   94	        for s in schemas:
+   95	            name = s.get("function", {}).get("name", "")
+   96	            if name in seen:
+   97	                raise ValueError(
+   98	                    f"duplicate tool name '{name}' (from {src}, already from {seen[name]})"
+   99	                )
+  100	            seen[name] = src
+  101	            out.append(s)
+  102	    return out

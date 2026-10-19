@@ -1,0 +1,153 @@
+    1	---
+    2	name: orchestra-agents
+    3	description: "Create an Orchestra orchestrator or permanent specialist, or move an agent between environments. Not for one-shot workers."
+    4	---
+    5	
+    6	# Creating and moving Orchestra agents
+    7	
+    8	Create an orchestrator or permanent specialist so it immediately receives project context and
+    9	the accumulated knowledge base instead of a blank slate that must be retrained.
+   10	
+   11	Use this for:
+   12	
+   13	- a new project that needs its own orchestrator;
+   14	- a recurring task class that needs a permanent specialist;
+   15	- moving an agent between environments (laptop ↔ VPS, one server ↔ another);
+   16	- "make one like mine" requests.
+   17	
+   18	**Do not use this** for one-shot workers for a specific task: ordinary `spawn_worker` is enough,
+   19	and extra ceremony only gets in the way.
+   20	
+   21	## Separate environments
+   22	
+   23	**One Orchestra instance cannot see another instance's agents.** Each has its own database,
+   24	sessions, and list. `list_agents` and `list_orchestrators` show ONLY local agents. Before writing
+   25	to a "clone" or creating a copy, identify the environment; otherwise a message may go to a
+   26	similarly named but unrelated agent. Checking the recipient costs one call; an error loses a turn
+   27	and creates confusion in both environments.
+   28	
+   29	For a remote instance, use the `vps-orchestra` skill; addresses and access details intentionally
+   30	do not belong in this file.
+   31	
+   32	### 1. Identify what is needed
+   33	
+   34	| Need | Role | Lifecycle |
+   35	|---|---|---|
+   36	| Project owner who manages workers | `orchestrator` (`is_orchestrator` flag) | persistent |
+   37	| Research, measurements, prompt edits | `full-cycle` | persistent |
+   38	| Implementation from a ready specification | `worker` | one-shot or persistent |
+   39	| Sub-team inside a large project | `sub-orchestrator` | persistent |
+   40	
+   41	For an unfamiliar approach, choose `full-cycle` by default. If the owner explicitly assigned a
+   42	specialist another role, do not recreate it merely for a role label. The task defines method and
+   43	required evidence; having a module does not itself prove quality.
+   44	
+   45	### 2. Orchestrator for a new project
+   46	
+   47	Create an orchestrator through the session-creation API with `is_orchestrator: true`, not through
+   48	`spawn_worker`. Key request fields (`CreateSessionRequest` in `app/`):
+   49	
+   50	```json
+   51	{
+   52	  "name": "<project>-orchestrator",
+   53	  "role": "orchestrator",
+   54	  "model": "opus",
+   55	  "cwd": "/path/to/project",
+   56	  "scope": "/path/to/project",
+   57	  "description": "lifecycle=persistent | project orchestrator"
+   58	}
+   59	```
+   60	
+   61	`cwd` and `scope` are the project root, not a subdirectory; that is where `CLAUDE.md`, `TODO.md`,
+   62	and `.orchestra/` are loaded.
+   63	
+   64	### 3. Permanent specialist
+   65	
+   66	Use the session API with a stable name, project root, role, and a first task:
+   67	
+   68	```python
+   69	create_session(
+   70	    name='<specialist-name>',
+   71	    role='full-cycle',
+   72	    model='sonnet',
+   73	    repo_path='/path/to/project',
+   74	    description='lifecycle=persistent | one-sentence role',
+   75	    task='<first task>',
+   76	)
+   77	```
+   78	
+   79	### 4. Main rule: keep `system_prompt` empty
+   80	
+   81	The runtime assembles the complete prompt from the role, modules, and personal memory. A custom
+   82	text is an optional overlay and is absent by default.
+   83	
+   84	Write an overlay only for a boundary absent from the role, task, or `owned_dirs`: narrow
+   85	expertise (such as Python asyncio), a specific directory prohibition, or a quality bar above the
+   86	standard.
+   87	
+   88	**Do not rewrite the role or shared quality rules in an overlay** — they already exist in the
+   89	assembled prompt, and the agent will follow your stale copy instead of the source. The source may
+   90	be updated while the copy silently diverges.
+   91	
+   92	### 5. Move an agent between environments
+   93	
+   94	Move **the recipe plus memory, not the session**. Conversation, accumulated context, and
+   95	`session_id` do not move; this is a property that rebuilds the agent from reproducible parts.
+   96	
+   97	What actually moves:
+   98	
+   99	| What | How |
+  100	|---|---|
+  101	| Personal memory | `.orchestra/workers/<name>.md` in the repository, arriving with `git pull` |
+  102	| Project rules | `CLAUDE.md`, through the same `git pull` |
+  103	| Codex-agent mirror | `AGENTS.md`, generated when the backend connects |
+  104	| Role and modules | From `.orchestra/pipelines/` in the repository |
+  105	| Conversation, `session_id` | **Does not move** |
+  106	
+  107	**Key technique:** personal memory is injected by exact name matching. Give the agent the same
+  108	name in the new environment and it receives the accumulated base at its first spawn. Manual data
+  109	copying is unnecessary and is the common mistake.
+  110	
+  111	Move in this order:
+  112	
+  113	1. Ensure `.orchestra/workers/<name>.md` is committed and has reached the remote environment.
+  114	2. Send the recipe: exact name, role, model, `description`, and first task.
+  115	3. State explicitly that `system_prompt` is empty; otherwise the destination will invent one and
+  116	   conflict with the role.
+  117	4. Attach 1–2 example results so the receiving side understands the quality bar.
+  118	
+  119	### 6. Deliberately erase history during a move
+  120	
+  121	When moving an agent with a long life in the old environment, consider clearing its history
+  122	(`session_id`) instead of moving it.
+  123	
+  124	The reason is tested in practice: an old session remembers stale state and acts on it confidently.
+  125	An agent with cleared history and a fresh handoff document errs less often than one remembering an
+  126	outdated configuration. Compaction does not solve this: it asks the session to summarize itself,
+  127	so stale beliefs move into the summary without their source.
+  128	
+  129	Do this with the service STOPPED — a live server will overwrite the value from memory. Always
+  130	leave a handoff document: what is done, what is in progress, decisions made, and what not to touch.
+  131	Without it the agent has no support.
+  132	
+  133	After creation, report one line: name, role, model, and environment. For a move, state what moved
+  134	(memory/rules) and what stayed (conversation).
+  135	
+  136	## Troubleshooting
+  137	
+  138	| Symptom | Cause | Resolution |
+  139	|---|---|---|
+  140	| Agent "does not know the project" | `cwd`/`scope` point below the project root | Recreate with the project root |
+  141	| Agent ignores part of the rules | Custom `system_prompt` conflicts with the role | Remove the overlay; keep it empty |
+  142	| Personal memory was not loaded | Name differs from `.orchestra/workers/<name>.md` | Rename the agent to exactly match the file |
+  143	| Codex agent sees old rules | `AGENTS.md` mirror was not refreshed | It is written on backend connect; reconnect |
+  144	| "Created an orchestrator, but it is a worker" | `is_orchestrator` flag was omitted | Create through `POST /api/sessions`, not `spawn_worker` |
+  145	| Message reached the wrong agent | Same name in different environments | Check the agent list of THAT instance |
+  146	
+  147	## What not to do
+  148	
+  149	- **Copy agent data manually** — memory is loaded by name; manual copying creates a second
+  150	  diverging version.
+  151	- **Write a detailed `system_prompt`** — it conflicts with the role, so the agent follows the
+  152	  copy instead of the source.
+  153	- **Move the whole session** — stale beliefs move with it and sound as confident as correct ones.

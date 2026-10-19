@@ -1,0 +1,66 @@
+    1	<knowledge>
+    2	## Knowledge — one policy for every role
+    3	
+    4	The KB stores findings that would be costly to rediscover: research results, non-obvious
+    5	external behavior, hard-to-find constraints, empirical comparisons, failed approaches and
+    6	why a non-obvious decision was made. It is not a description of the current repository.
+    7	
+    8	Before adding a finding, ask: what would another capable agent otherwise have to investigate
+    9	or test again? Time spent alone is not evidence of value. Do not add general engineering
+   10	advice, a paraphrase of accessible documentation, function/file inventories, current settings,
+   11	status reports or a list of your edits. Read changing code/config directly. A code-related
+   12	entry belongs only when it preserves an expensive experiment, rejected alternative or design
+   13	reason that cannot be recovered by ordinary source reading.
+   14	
+   15	### Find the relevant experience
+   16	
+   17	Use the injected topic index, then search exact symbols, errors or distinctive terms in the knowledge base and task reports:
+   18	`rg -n -i -F -e '<symbol>' -e '<symptom>' .orchestra/kb .orchestra/tasks`.
+   19	Read the matching section with its conditions and evidence. Historical behavior is a hypothesis
+   20	for today's version, not a current guarantee. If necessary, follow sources in the task or
+   21	pinned Git history (`kb/history.md` when present). Skip lookup when the named code/command
+   22	already answers the question. Search `.orchestra/kb/` and `.orchestra/tasks/` with `rg`; no matches do not prove that an idea is new.
+   23	
+   24	When reporting a negative result such as "nothing found", "no new records" or "no errors" after
+   25	searching, traversing logs, collecting data or fanning out, state the coverage: which source or
+   26	channel was checked, how many records or files were inspected, and whether the result is complete,
+   27	cut off by a limit, or affected by an error. A zero without this coverage is not a result.
+   28	
+   29	### Preserve the knowledge, not another transcript
+   30	
+   31	Write a concise, self-contained explanation in ordinary Markdown. Retain the observation,
+   32	material conditions (version/environment/date when relevant), the unsuccessful attempts,
+   33	and the reason for the conclusion. Distinguish measured behavior from interpretation and
+   34	untested hypotheses. "Failed in this experiment" does not mean "never works".
+   35	Link to inspected evidence or a recorded experiment; do not make up missing provenance.
+   36	There is no required card, status vocabulary, fact ID, receipt, section count or line format.
+   37	One exception (owner decision, 2026-10-18): an entry about the effect of a change (a prompt,
+   38	rule, mechanism or model route) states a verdict, `helped`, `hurt`, `no observed effect` or
+   39	`confounded`, resting on a contrast between runs before/after or with/without the change, and a
+   40	`cue`: the situation in which to apply the lesson. Without such a contrast write `confounded`, or
+   41	no entry; an invented cause is worse. Other findings need neither. Reason: in a published
+   42	agent-harness study (arXiv 2610.14224) editing the base harness directly, without contrasted
+   43	runs, lowered the result, and its framework keeps a lesson only when runs can be contrasted.
+   44	
+   45	Search for an existing entry first. Another confirmation extends its conditions/evidence;
+   46	a contradicting experiment qualifies or replaces the conclusion. Keep the decisive reason
+   47	for rejecting an approach. Do not append duplicate versions across topics. A new topic needs
+   48	a distinct recurring research question and one index line in `.orchestra/kb/README.md`:
+   49	`- [name](topic.md) — description with search terms`.
+   50	
+   51	Verified reusable findings may update the KB within the authorized task. Unchecked candidates
+   52	stay in the task or short personal notes; neither automatic promotion nor a separate approval
+   53	receipt is required. New shared behavioral policy still needs the instruction owner's decision.
+   54	
+   55	Task results, unfinished work and detailed evidence belong in the existing report under
+   56	`.orchestra/tasks/<id>/`. Personal observations belong in `.orchestra/workers/<your-name>.md`
+   57	only when useful and not already in the KB; these files are injected into your prompt, so
+   58	keep them short. No new finding means no memory entry. Research completion does not require
+   59	adding a KB line. Do not make daily summaries, compulsory pre-compaction chronicles or a
+   60	second record of the same result. Update changed unfinished task state in its existing place.
+   61	TODO contains actionable follow-ups, not every observation or declined idea.
+   62	
+   63	Keep source evidence retrievable when consolidating: pinned reachable Git history may replace
+   64	old checkout copies after authorized, verified cleanup. A summary alone does not prove complete
+   65	extraction. Check changed links and never publish private credentials from the source material.
+   66	</knowledge>

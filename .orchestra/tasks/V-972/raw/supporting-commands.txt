@@ -1,0 +1,660 @@
+$ nl -ba app/manager.py | sed -n '232,294p;405,420p;1513,1538p;1896,1962p'
+EXIT=0
+STDOUT:
+   232	
+   233	def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
+   234	    """Каталог ролей оркестратору из манифеста, отфильтрованный по ``can_spawn``.
+   235	
+   236	    B2: показываем ВСЕ роли из ``can_spawn`` родителя (включая под-оркестраторов).
+   237	    ``can_spawn=['*']`` → все роли пайплайна. Сортировка по ``order``. Закрывает
+   238	    дефект плоского ``_roles_catalog`` (показывал бы запретные роли).
+   239	    """
+   240	    cfg = load_pipeline(pipeline)
+   241	    parent = cfg.roles.get(parent_role)
+   242	    if parent is None:
+   243	        return ""
+   244	    if "*" in parent.can_spawn:
+   245	        # S1: wildcard НЕ включает саму роль-родителя (upstream _roles_catalog
+   246	        # пропускал orchestrator из своего же каталога воркеров).
+   247	        visible = [r for r in cfg.roles if r != parent_role]
+   248	    else:
+   249	        visible = list(parent.can_spawn)
+   250	    visible = [r for r in visible if r in cfg.roles]
+   251	    if not visible:
+   252	        return ""
+   253	    entries = [
+   254	        _fmt_role_catalog_entry(resolve_role(cfg, r))
+   255	        for r in sorted(visible, key=lambda r: cfg.roles[r].order)
+   256	    ]
+   257	    return ('## Available worker roles\nSpawn with `role="<name>"`. '
+   258	            'If no role specified, defaults to `worker`.\n\n' + "\n\n".join(entries))
+   259	
+   260	
+   261	def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+   262	    """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
+   263	
+   264	    Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
+   265	    :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+   266	    (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+   267	    поэтому изменения БД не переписывают кешируемый префикс.
+   268	
+   269	    Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+   270	    принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+   271	    эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+   272	    Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+   273	    ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+   274	
+   275	    Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+   276	    Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
+   277	    """
+   278	    try:
+   279	        base = build_system_prompt(pipeline, role, scope)
+   280	    except (FileNotFoundError, KeyError) as e:
+   281	        raise ValueError(
+   282	            f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+   283	            f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+   284	        ) from e
+   285	    kb = kb_index_block(scope)
+   286	    if kb:
+   287	        base += f"\n\n{kb}"
+   288	    rr = get_role(pipeline, role)
+   289	    is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
+   290	    if is_orch:
+   291	        catalog = _roles_catalog_from_manifest(pipeline, role)
+   292	        if catalog:
+   293	            base += f"\n\n{catalog}"
+   294	    return base
+   405	OWNERSHIP_MARKER = "\n\n## Directory ownership\n"
+   406	# Opening tag only: the number of newlines before it varies between the spawn path and
+   407	# refresh_worker_memory (app/prompting.py:27 matches it as `\n*<worker-memory>`).
+   408	WORKER_MEMORY_MARKER = "<worker-memory>"
+   409	
+   410	
+   411	def ownership_block(owned_dirs: list[str]) -> str:
+   412	    """The generated directory-ownership suffix. Single owner of its wording."""
+   413	    if not owned_dirs:
+   414	        return ""
+   415	    lines = "\n".join(f"- {d}/" for d in owned_dirs)
+   416	    return (OWNERSHIP_MARKER +
+   417	            "Expected work areas (advisory, not an edit allowlist):\n"
+   418	            f"{lines}\n"
+   419	            "Edit other files needed for the approved task within your worktree. "
+   420	            "Respect explicit task exclusions and coordinate overlapping changes.")
+  1513	    _UPDATABLE_FIELDS = frozenset({"description", "system_prompt", "tg_topic"})
+  1514	
+  1515	    def update_session_fields(self, name: str, scope: str, **fields) -> AgentSession | None:
+  1516	        """Update simple session fields atomically for the caller.
+  1517	        Live session → setattr + _persist(); detached → direct DB UPDATE."""
+  1518	        unknown = set(fields) - self._UPDATABLE_FIELDS
+  1519	        if unknown:
+  1520	            raise ValueError(f"non-updatable fields: {sorted(unknown)}")
+  1521	        found = self.get_by_name(name, scope)
+  1522	        if not found:
+  1523	            return None
+  1524	        if found.loaded:
+  1525	            for k, v in fields.items():
+  1526	                setattr(found, k, v)
+  1527	            if "system_prompt" in fields:
+  1528	                # The endpoint replaces the complete assembled prompt, so no older
+  1529	                # separated overlay may override it on the next reload.
+  1530	                found.prompt_overlay = None
+  1531	                found._current_prompt = fields["system_prompt"]
+  1532	            found._persist()
+  1533	        else:
+  1534	            from app.db import _conn
+  1535	            db_fields = dict(fields)
+  1536	            if "system_prompt" in fields:
+  1537	                db_fields["prompt_overlay"] = None
+  1538	            sets = ", ".join(f"{k}=?" for k in db_fields)
+  1896	    def assemble_prompt(
+  1897	        self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
+  1898	        owned_dirs, branch: str, stored_overlay: str | None, old_prompt: str,
+  1899	        repository_path: str = "", parent_name: str | None = None,
+  1900	        allow_missing_layout: bool = False,
+  1901	    ) -> tuple[str, str | None]:
+  1902	        """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
+  1903	
+  1904	        Зовётся из `_load_from_db` (восстановление сессии при старте) и из переинжекта
+  1905	        в `session.py`: без второго вызывающего правка `.orchestra/pipelines/**` доезжала до живого
+  1906	        агента только рестартом (#220 T1, медиана задержки выката 3.3 ч).
+  1907	
+  1908	        Возвращает (собранный промпт, восстановленный overlay). `overlay is None` на
+  1909	        выходе означает полную замену промпта оператором — у неё нет границы
+  1910	        компонентов, и пересобирать её нельзя.
+  1911	        """
+  1912	        current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+  1913	        if not is_orch:
+  1914	            current_base = safe_format_prompt(
+  1915	                current_base,
+  1916	                worker_name=name, orchestrator_name=parent_name or "orchestrator",
+  1917	                scope=scope, branch=branch,
+  1918	            )
+  1919	        if stored_overlay is None:
+  1920	            old_without_memory = temp_rules.strip_block(strip_worker_memory(old_prompt))
+  1921	            if not old_without_memory:
+  1922	                prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
+  1923	                prompt_without_memory = current_base + prompt_overlay
+  1924	            elif old_without_memory.startswith(current_base):
+  1925	                prompt_overlay = old_without_memory[len(current_base):]
+  1926	                prompt_without_memory = current_base + prompt_overlay
+  1927	            elif (
+  1928	                "<role>" in old_without_memory
+  1929	                and "</role>" in old_without_memory
+  1930	                and (
+  1931	                    ("<knowledge>" in old_without_memory and "</knowledge>" in old_without_memory)
+  1932	                )
+  1933	            ):
+  1934	                # Pre-overlay pipeline prompts are identifiable by their complete platform
+  1935	                # envelopes. They are not operator overrides: rebuild the current base while
+  1936	                # retaining the separately stored directory-ownership contract. A free-form full
+  1937	                # prompt has no such boundary and remains byte-preserved in the branch below.
+  1938	                prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
+  1939	                prompt_without_memory = current_base + prompt_overlay
+  1940	            else:
+  1941	                # A legacy/full-prompt override has no component boundary to recover.
+  1942	                # Preserve it byte-for-byte instead of guessing and dropping authority.
+  1943	                prompt_overlay = None
+  1944	                prompt_without_memory = old_without_memory
+  1945	        else:
+  1946	            prompt_overlay = safe_format_prompt(
+  1947	                strip_worker_memory(stored_overlay), worker_name=name,
+  1948	                orchestrator_name=parent_name or "orchestrator", scope=scope, branch=branch,
+  1949	            )
+  1950	            prompt_without_memory = current_base + prompt_overlay
+  1951	        if prompt_overlay is not None:
+  1952	            areas = parse_owned_dirs(owned_dirs)
+  1953	            prompt_overlay, _ = replace_ownership_block(prompt_overlay, areas, areas)
+  1954	            prompt_without_memory = current_base + prompt_overlay
+  1955	        refreshed = refresh_worker_memory(
+  1956	            prompt_without_memory, name, role, scope, repository_path,
+  1957	            allow_absent_project=True,
+  1958	            allow_missing_layout=allow_missing_layout,
+  1959	        )
+  1960	        # Last on purpose: the volatile block must not invalidate the cached stable prefix.
+  1961	        return temp_rules.with_block(
+  1962	            refreshed, role=role, is_orch=is_orch, scope=scope, name=name), prompt_overlay
+STDERR:
+
+$ nl -ba app/session.py | sed -n '1539,1610p;1733,1779p;2148,2167p'
+EXIT=0
+STDOUT:
+  1539	            did_inject = False
+  1540	            pending_th = ""
+  1541	            templates_changed = False
+  1542	            prompt_started = time.monotonic()
+  1543	            rules_now = temp_rules.fingerprint(
+  1544	                role=self.role, is_orch=self.is_orchestrator, scope=self.scope, name=self.name)
+  1545	            if self._temp_rules_fp is None:
+  1546	                self._temp_rules_fp = temp_rules.block_fingerprint(self._current_prompt or "")
+  1547	            rules_changed = rules_now != self._temp_rules_fp
+  1548	            if self.session_id and self._current_prompt and (
+  1549	                not self._prompt_injected or rules_changed
+  1550	            ):
+  1551	                # Inject updated system prompt once per session — workers list, role
+  1552	                # catalog, and template content drift as other agents spawn/die.
+  1553	                # Only on first message after resume; subsequent turns use cached prompt.
+  1554	                current_th = prompt_template_hash(self.role)
+  1555	                old_th = self._template_hash or current_th
+  1556	                templates_changed = old_th != current_th or rules_changed
+  1557	                pending_th = current_th
+  1558	                # Personal memory is re-read here, not reused from the assembled string:
+  1559	                # the prompt is built at spawn / _load_from_db, so anything the agent
+  1560	                # wrote to its own memory since then would otherwise wait for a restart.
+  1561	                # The same argument applies to the ROLE text itself (#220 T1): rebuild it
+  1562	                # from .orchestra/pipelines/** instead of replaying the string assembled at startup,
+  1563	                # otherwise a rule edit waits for a restart (median 3.3h, p75 22.9h).
+  1564	                if self.prompt_overlay is None:
+  1565	                    # A full prompt set by the operator has no component boundary —
+  1566	                    # rebuilding it would silently drop the authority they gave.
+  1567	                    self._current_prompt = refresh_worker_memory(
+  1568	                        self._current_prompt, self.name, self.role, self.scope,
+  1569	                        self.worktree_path or "",
+  1570	                        allow_absent_project=True,
+  1571	                        allow_missing_layout=delivery is not None,
+  1572	                    )
+  1573	                else:
+  1574	                    from app.deps import manager
+  1575	                    try:
+  1576	                        self._current_prompt, _ = manager.assemble_prompt(
+  1577	                            pipeline=self.pipeline, role=self.role, scope=self.scope,
+  1578	                            is_orch=self.is_orchestrator, name=self.name,
+  1579	                            parent_name=self.parent_name or None,
+  1580	                            owned_dirs=self.owned_dirs,
+  1581	                            branch=self.branch or self.base_branch or "",
+  1582	                            stored_overlay=self.prompt_overlay,
+  1583	                            old_prompt=self._current_prompt,
+  1584	                            repository_path=self.worktree_path or "",
+  1585	                            allow_missing_layout=delivery is not None,
+  1586	                        )
+  1587	                    except Exception as error:
+  1588	                        # Пересборка читает .orchestra/pipelines/** на ГОРЯЧЕМ пути, а
+  1589	                        # ROLE_SYSTEM_PROMPT падает громко (ValueError) на битом
+  1590	                        # манифесте. До T1 этого вызова здесь не было вовсе, поэтому
+  1591	                        # опечатка в роли теперь убивала бы следующий ход У ВСЕХ
+  1592	                        # агентов сразу. Откат к прежнему поведению — со старым
+  1593	                        # промптом, но вслух: горячее применение не имеет права быть
+  1594	                        # хуже своего отсутствия.
+  1595	                        self._log("error", f"prompt rebuild failed, using the prompt "
+  1596	                                           f"from startup: {err_text(error)}")
+  1597	                        logger.error(f"[{self.name}] prompt rebuild failed: "
+  1598	                                     f"{err_text(error)}")
+  1599	                        self._current_prompt = refresh_worker_memory(
+  1600	                            self._current_prompt, self.name, self.role, self.scope,
+  1601	                            self.worktree_path or "",
+  1602	                            allow_absent_project=True,
+  1603	                            allow_missing_layout=delivery is not None,
+  1604	                        )
+  1605	                self._current_prompt = temp_rules.with_block(
+  1606	                    self._current_prompt, role=self.role, is_orch=self.is_orchestrator,
+  1607	                    scope=self.scope, name=self.name)
+  1608	                message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
+  1609	                did_inject = True
+  1610	            self._log_codex_connect_stage("prompt_assembly", prompt_started)
+  1733	    async def _refresh_skills(self) -> None:
+  1734	        """Re-install this role's pipeline skills before the CLI starts.
+  1735	
+  1736	        Both runtimes read skills as FILES, each from its own directory: Claude from
+  1737	        `<cwd>/.claude/skills/`, Codex from `<cwd>/.codex/skills/`. Either copy goes stale the
+  1738	        moment a skill is edited, and a skill added to a role after spawn never arrives at all.
+  1739	
+  1740	        Falls back to `self.cwd` when there is no worktree — orchestrators run without one,
+  1741	        which is why a worktree-only injection reached none of them.
+  1742	        """
+  1743	        home_dir = _SKILL_HOME_DIRS.get(self.backend_type)
+  1744	        if not home_dir:
+  1745	            return
+  1746	        path = self.worktree_path or self.cwd
+  1747	        if not path:
+  1748	            return
+  1749	        if self.backend_type == "codex":
+  1750	            self._codex_skill_index_fallback = False
+  1751	        try:
+  1752	            from app.pipeline import get_role
+  1753	            role = get_role(self.pipeline, self.role)
+  1754	            skills = role.skills if role else None
+  1755	            if skills is None:
+  1756	                return
+  1757	            if self.backend_type == "codex":
+  1758	                requested_skills = [] if skills == "all" else skills
+  1759	                result = await asyncio.to_thread(
+  1760	                    inject_skills_to_worktree_report,
+  1761	                    requested_skills, path, home_dir,
+  1762	                )
+  1763	                if result.home_path_is_file:
+  1764	                    self._codex_skill_index_fallback = True
+  1765	                    ownership = "tracked repo file" if result.home_path_tracked else "existing file"
+  1766	                    self._log_codex_preflight_once(
+  1767	                        "skill-home-file",
+  1768	                        f"Codex skill injection unavailable: {result.home_path} is an "
+  1769	                        f"{ownership}; file left untouched, bounded prompt skill fallback enabled.",
+  1770	                    )
+  1771	                # "all" means native CLI discovery; the report call above is only
+  1772	                # the home-path guard needed to decide whether that discovery exists.
+  1773	            else:
+  1774	                if skills == "all":
+  1775	                    return
+  1776	                await asyncio.to_thread(
+  1777	                    inject_skills_to_worktree, skills, path, home_dir,
+  1778	                )
+  1779	        except Exception as e:
+  2148	        project_path = self.worktree_path or self.cwd
+  2149	        if self.backend_type == "codex" and project_path:
+  2150	            # Codex reads AGENTS.md, not CLAUDE.md. Refresh the mirror before the CLI starts,
+  2151	            # otherwise a long-lived worker keeps the project rules from its spawn day.
+  2152	            # Orchestrators have no worktree, so cwd must be included too; omitting it left
+  2153	            # every root Codex orchestrator without its repository's CLAUDE.md rules.
+  2154	            agents_started = time.monotonic()
+  2155	            try:
+  2156	                from app.workspace import sync_agents_md
+  2157	                await asyncio.to_thread(sync_agents_md, project_path)
+  2158	            except Exception as e:
+  2159	                logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
+  2160	            finally:
+  2161	                self._log_codex_connect_stage("agents_sync", agents_started)
+  2162	        skills_started = time.monotonic()
+  2163	        await self._refresh_skills()
+  2164	        self._log_codex_connect_stage("skills_sync", skills_started)
+  2165	        project_doc_started = time.monotonic()
+  2166	        await self._refresh_codex_project_doc()
+  2167	        self._log_codex_connect_stage("project_doc_sync", project_doc_started)
+STDERR:
+
+$ nl -ba app/backend_codex.py | sed -n '713,727p'
+EXIT=0
+STDOUT:
+   713	            params = {
+   714	                "cwd": self.cwd,
+   715	                "model": self.model,
+   716	                "approvalPolicy": "never",
+   717	                "sandbox": "danger-full-access",
+   718	            }
+   719	            history_import = self._history_import
+   720	            developer_instructions = self.system_prompt
+   721	            if history_import:
+   722	                developer_instructions = "\n\n".join(filter(None, (
+   723	                    developer_instructions,
+   724	                    HISTORICAL_TOOL_INSTRUCTION,
+   725	                )))
+   726	            if developer_instructions:
+   727	                params["developerInstructions"] = developer_instructions
+STDERR:
+
+$ nl -ba app/backend_claude.py | sed -n '1125,1158p'
+EXIT=0
+STDOUT:
+  1125	        if self._history_import:
+  1126	            options.resume = self._history_import.session_id
+  1127	            options.session_store = ClaudeLogSessionStore(self._history_import)
+  1128	            options.system_prompt = {
+  1129	                "type": "preset",
+  1130	                "preset": "claude_code",
+  1131	                "append": f"{self.system_prompt}\n\n{HISTORICAL_TOOL_INSTRUCTION}",
+  1132	            }
+  1133	        elif resume_id:
+  1134	            options.resume = resume_id
+  1135	        else:
+  1136	            options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
+  1137	        # MCP merge order: user < scope < instance — more specific wins.
+  1138	        # Instance (Orchestra's own server) always overrides to prevent hijacking.
+  1139	        merged_mcp = {
+  1140	            **self._user_mcp_servers,
+  1141	            **self._scope_mcp_servers,
+  1142	            **self._mcp_servers,
+  1143	        }
+  1144	        if merged_mcp:
+  1145	            # #224: dict SDK сериализует прямо в argv (subprocess_cli.py:384-390), а str/Path
+  1146	            # отдаёт как путь (391-393). Значения секретов в argv читает процесс ЛЮБОГО uid —
+  1147	            # hidepid не включён. Отдаём путь к файлу 600.
+  1148	            options.mcp_servers = str(self._write_mcp_config(merged_mcp))
+  1149	        # F4: inherit_claude_md=False → только local-слой (нет user/project
+  1150	        # CLAUDE.md и настроек); иначе — полный набор, как в upstream.
+  1151	        options.setting_sources = (
+  1152	            ["user", "project", "local"] if self._inherit_claude_md else ["local"]
+  1153	        )
+  1154	        # F1: options.skills НЕ задаём НИКОГДА. Ветка "skills-список → options.skills"
+  1155	        # сознательно НЕ реализована (B4: default 1:1 upstream — его роли имеют
+  1156	        # skills-списки, но скиллы инъектятся через _inject_skills_to_worktree,
+  1157	        # не через options.skills). Единственное действие F1 — gating инъекции
+  1158	        # в manager.create_session при skills=="all".
+STDERR:
+
+$ nl -ba app/project_catalog.py | sed -n '1,25p;243,272p'
+EXIT=0
+STDOUT:
+     1	"""Каталог проектов: файл на каждый scope, а не один общий.
+     2	
+     3	Решение владельца V-621, 23.09.2026, дословно: «эта хуйня в каждом оркестраторе свои
+     4	задачи должны быть и свои проекты не надо мешать блять и каждый оркестратор локально
+     5	в дот оркестра может проекты вписывать свои». До V-621 один файл
+     6	`.orchestra/projects.yaml` в репозитории Orchestra нёс теги ВСЕХ проектов на VPS — у
+     7	каждого оркестратора в интерфейсе висели чипы чужих проектов вперемешку со своими.
+     8	
+     9	Теперь у каждого проекта, у которого есть `scope` (рабочий каталог на диске), СВОЙ
+    10	файл `<scope>/.orchestra/projects.yaml` — его читает и правит только оркестратор этого
+    11	scope. `own_catalog(scope)` открывает ровно этот файл и ничего больше: чужой тег в него
+    12	попасть не может, потому что чужой файл этот код никогда не открывает.
+    13	
+    14	Проекты без scope (архив, «сироты» без живого рабочего каталога) жить своим файлом не
+    15	могут — их держит домашний файл той установки, которая физически всех обслуживает
+    16	(`.orchestra/projects.yaml` в репозитории Orchestra). Тот же домашний файл несёт
+    17	`include_scopes` — список путей, чьи собственные файлы стоит подмешать в СЛИТЫЙ вид.
+    18	Слитый вид (`catalog()`) — внутренняя бухгалтерия одной установки (проекция номеров при
+    19	старте, метка источника у чужого пространства), а не то, что видит или может выставить
+    20	один оркестратор; для этого — `own_catalog(scope)`.
+    21	
+    22	Каталог владеет тегом, именем, scope и целевым пространством номеров. Он НЕ владеет
+    23	номерами задач: номер выдаёт и разрешает namespace (`tm_tasks.project_id`), потому что
+    24	`#N` уникален только внутри пространства — на 15.09.2026 внутри тегов этого каталога
+    25	424 конфликтующие ссылки на 857 задач из 1755 (см. .orchestra/kb, V-576).
+   243	def scope_root(scope: str) -> Path:
+   244	    """Физический каталог, отвечающий за `scope`. В проде это сам `scope`; тесты и
+   245	    миграция переопределяют корень через `ORCHESTRA_PROJECT_CATALOG_ROOT`, чтобы не
+   246	    трогать реальные пути чужих проектов вне явно выделенной песочницы."""
+   247	    scope = str(scope or "").rstrip("/")
+   248	    _require(scope, "scope is required to locate its own project catalog")
+   249	    root = os.environ.get("ORCHESTRA_PROJECT_CATALOG_ROOT", "").strip()
+   250	    if root:
+   251	        return Path(root) / project_key(scope)
+   252	    return Path(scope)
+   253	
+   254	
+   255	def own_catalog_path(scope: str) -> Path:
+   256	    return scope_root(scope) / ".orchestra" / "projects.yaml"
+   257	
+   258	
+   259	def own_catalog(scope: str) -> Catalog:
+   260	    """Каталог одного оркестратора: ровно его файл, ничего чужого.
+   261	
+   262	    Это то, что оркестратор scope может увидеть в UI и передать в тулы — словарь
+   263	    тегов, закрытый ЭТИМ файлом. Чужой тег сюда попасть не может по построению.
+   264	
+   265	    Отсутствующий файл — не авария, а обычное состояние scope, который ещё не завёл
+   266	    свой каталог (или никогда не будет — он просто ничего не тегирует): пустой
+   267	    каталог, а не громкий отказ. Громко падает только испорченный существующий файл."""
+   268	    path = own_catalog_path(scope)
+   269	    if not path.is_file():
+   270	        return _aggregate([])
+   271	    projects, _includes = _load_file(path)
+   272	    return _aggregate(projects)
+STDERR:
+
+$ nl -ba app/routes/tm.py | sed -n '15,25p;223,246p'
+EXIT=0
+STDOUT:
+    15	@router.get("/projects")
+    16	async def tm_projects(scope: str = ""):
+    17	    """Каталог проектов для фильтра.
+    18	
+    19	    V-621: с `scope` — только собственный каталог этого оркестратора (файл его
+    20	    `<scope>/.orchestra/projects.yaml`), чужие теги в чипах не появляются. Без
+    21	    `scope` — прежний слитый вид, для админского/внутреннего использования."""
+    22	    try:
+    23	        parsed = own_catalog(scope) if scope else catalog()
+    24	    except CatalogError as error:
+    25	        return JSONResponse({"error": str(error)}, status_code=500)
+   223	@router.get("/tasks")
+   224	async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
+   225	                        scope: str = "", tags: str = ""):
+   226	    wanted = [tag for tag in (t.strip() for t in tags.split(",")) if tag]
+   227	    try:
+   228	        def _do():
+   229	            proj = project
+   230	            # V-621: с известным scope тег проверяется по собственному каталогу
+   231	            # вызывающего — чужой тег не проходит валидацию и не попадает в выдачу.
+   232	            known = own_catalog(scope) if scope else catalog()
+   233	            if wanted:
+   234	                return _tm.api_list_tasks("", status, assignee, tags=wanted, catalog_scope=scope)
+   235	            if project and known.by_tag(project) is not None:
+   236	                return _tm.api_list_tasks("", status, assignee, tags=[project], catalog_scope=scope)
+   237	            if project:
+   238	                proj = _resolve_task_project_id(project, "")
+   239	            elif scope:
+   240	                proj = _resolve_scope_project_id(scope)
+   241	                if not proj:
+   242	                    return {"tasks": [], "count": 0, "total_debt": "0"}
+   243	            return _tm.api_list_tasks(proj, status, assignee)
+   244	        return await asyncio.to_thread(_do)
+   245	    except ValueError as e:
+   246	        return JSONResponse({"error": str(e)}, status_code=400)
+STDERR:
+
+$ nl -ba app/routes/system.py | sed -n '2630,2646p'
+EXIT=0
+STDOUT:
+  2630	@router.get("/api/test-lock")
+  2631	async def test_lock_status_endpoint(scope: str):
+  2632	    lock = get_test_lock(scope) or {}
+  2633	    return {"held": bool(lock), **{key: lock.get(key) for key in ("holder", "reason", "acquired_at")}}
+  2634	
+  2635	
+  2636	@router.post("/api/test-lock/acquire")
+  2637	async def acquire_lock_endpoint(req: TestLockRequest):
+  2638	    acquired, holder = acquire_test_lock(req.scope, req.holder, req.reason,
+  2639	                                         holder_session_id=req.holder_session_id)
+  2640	    return {"acquired": acquired, "holder": holder}
+  2641	
+  2642	
+  2643	@router.post("/api/test-lock/release")
+  2644	async def release_lock_endpoint(req: TestLockRequest):
+  2645	    released = release_test_lock(req.scope, req.holder, holder_session_id=req.holder_session_id)
+  2646	    return {"released": released}
+STDERR:
+
+$ nl -ba app/routes/sessions.py | sed -n '1149,1153p'
+EXIT=0
+STDOUT:
+  1149	                    )
+  1150	                if not source_is_orchestrator and not operator:
+  1151	                    return keyed_auth_required(
+  1152	                        "cross-project target requires an orchestrator proof",
+  1153	                    )
+STDERR:
+
+$ nl -ba app/routes/sessions.py | sed -n '1873,1884p'
+EXIT=0
+STDOUT:
+  1873	
+  1874	
+  1875	@router.post("/api/sessions/{name}/prompt")
+  1876	async def update_prompt(name: str, req: dict):
+  1877	    scope = req.get("scope", "")
+  1878	    prompt = req.get("system_prompt", "")
+  1879	    if not manager.update_session_fields(name, scope, system_prompt=prompt):
+  1880	        return JSONResponse({"error": "not found"}, status_code=404)
+  1881	    return {"ok": True}
+  1882	
+  1883	
+  1884	@router.post("/api/sessions/{name}/owned-dirs")
+STDERR:
+
+$ nl -ba app/workspace.py | sed -n '603,639p'
+EXIT=0
+STDOUT:
+   603	def sync_agents_md(worktree_path: str) -> bool:
+   604	    """Mirror CLAUDE.md → AGENTS.md: Codex CLI reads project instructions from AGENTS.md only.
+   605	
+   606	    Re-runs on every backend (re)connect, not just at worktree creation — a long-lived worker
+   607	    would otherwise keep the CLAUDE.md snapshot from the day it was spawned.
+   608	    A git-TRACKED AGENTS.md belongs to the repo (Orchestra is public — a third-party project
+   609	    may ship one) → left alone. mtime is useless here (the copy is always newer), compare bytes.
+   610	    """
+   611	    wt = Path(worktree_path)
+   612	    claude_md = wt / "CLAUDE.md"
+   613	    agents_md = wt / "AGENTS.md"
+   614	    if not claude_md.is_file():
+   615	        return False
+   616	    # Native Claude imports the canonical AGENTS.md. Mirroring this adapter back
+   617	    # into its own target would replace the rules with a circular import.
+   618	    if re.search(r"(?m)^@(?:\./)?AGENTS\.md\s*$", claude_md.read_text()):
+   619	        if not agents_md.is_file():
+   620	            raise RuntimeError(f"CLAUDE.md imports missing AGENTS.md in {wt}")
+   621	        return False
+   622	    try:
+   623	        tracked = tracked_paths(wt, ["AGENTS.md"])
+   624	    except RuntimeError as exc:
+   625	        # Git failing (not a repo, ownership, broken worktree) proves nothing about the
+   626	        # file — don't overwrite on a guess. A stale mirror is survivable; a clobbered
+   627	        # repo file is not.
+   628	        logger.warning(f"{exc} — AGENTS.md mirror skipped")
+   629	        return False
+   630	    if tracked:
+   631	        logger.info(f"AGENTS.md is tracked by the repo at {wt} — mirror skipped")
+   632	        return False
+   633	    if agents_md.is_symlink():
+   634	        logger.warning(f"AGENTS.md in {wt} is a symlink — mirror skipped (copy would clobber its target)")
+   635	        return False
+   636	    # Old worktrees predate AGENTS.md joining the exclude list — do this even when the mirror is
+   637	    # already current, otherwise it keeps showing up as untracked junk and can block merge.
+   638	    _exclude_worktree_artifacts(wt)
+   639	    if agents_md.exists() and agents_md.read_bytes() == claude_md.read_bytes():
+STDERR:
+
+$ nl -ba app/claude_api_credits.py | sed -n '25,47p'
+EXIT=0
+STDOUT:
+    25	def _tracking_snapshot() -> tuple[float | None, bool]:
+    26	    baseline = datetime.fromisoformat(BALANCE_BASELINE_AT)
+    27	    with db._conn() as connection:
+    28	        columns = {
+    29	            str(row[1])
+    30	            for row in connection.execute("PRAGMA table_info(turn_usage)").fetchall()
+    31	        }
+    32	        if not {"billing_mode", "cost_usd", "cost_unaccounted", "ts"} <= columns:
+    33	            return None, False
+    34	        row = connection.execute(
+    35	            """SELECT COALESCE(SUM(CASE
+    36	                       WHEN cost_unaccounted=0 AND cost_usd IS NOT NULL THEN cost_usd
+    37	                       ELSE 0 END), 0) AS spent,
+    38	                      COALESCE(SUM(CASE
+    39	                       WHEN cost_unaccounted=1 OR cost_usd IS NULL THEN 1
+    40	                       ELSE 0 END), 0) AS unknown
+    41	               FROM turn_usage
+    42	               WHERE billing_mode='api_credit' AND ts >= ?""",
+    43	            (baseline.isoformat(),),
+    44	        ).fetchone()
+    45	    if int(row["unknown"] or 0):
+    46	        return None, False
+    47	    return max(0.0, BALANCE_BASELINE_USD - float(row["spent"] or 0)), True
+STDERR:
+
+$ nl -ba scripts/video_artifact/make.py | sed -n '1260,1264p'
+EXIT=0
+STDOUT:
+  1260	    key = os.environ.get("DEEPGRAM_API_KEY")
+  1261	    if args.no_check or not key:
+  1262	        print("проверка распознаванием пропущена" + ("" if key else ": нет DEEPGRAM_API_KEY"))
+  1263	        return
+  1264	    report = check(out, name, timing, key, args.lang)
+STDERR:
+
+$ nl -ba app/models.py | sed -n '589,601p;622,631p'
+EXIT=0
+STDOUT:
+   589	def get_model_flags(model_id: str) -> dict[str, bool]:
+   590	    """Dashboard/agents visibility; manifest models default to both-true, catalog
+   591	    models registered later default to both-false until the user enables them."""
+   592	    manifest = next((spec for spec in SELECTABLE_MODEL_SPECS if spec.id == model_id), None)
+   593	    stored = _load_model_flags().get(model_id) or {}
+   594	    return {
+   595	        "dashboard": bool(stored.get(
+   596	            "dashboard", manifest.default_dashboard if manifest is not None else False
+   597	        )),
+   598	        "agents": model_id not in MANUAL_ONLY_MODEL_IDS and bool(stored.get(
+   599	            "agents", manifest.default_agents if manifest is not None else False
+   600	        )),
+   601	    }
+   622	def ensure_spawn_allowed(model_id: str) -> None:
+   623	    """Hard gate for agent-side usage (worker spawn, MCP change-model)."""
+   624	    spec = get_model_spec(model_id)
+   625	    if spec.runtime == "harness":
+   626	        validate_harness_model_spec(spec)
+   627	    if not get_model_flags(model_id)["agents"]:
+   628	        raise ValueError(
+   629	            f"model '{model_id}' is disabled for agents — re-enable it in the "
+   630	            "Models catalog screen"
+   631	        )
+STDERR:
+
+$ rg -n -F -e 'противореч' -e 'V-971' .orchestra/kb/agent-control.md .orchestra/kb/prompt-engineering.md .orchestra/tasks/V-971/report.md
+EXIT=0
+STDOUT:
+.orchestra/tasks/V-971/report.md:1:# V-971 — distinguish repository edits from task-directed external writes
+.orchestra/tasks/V-971/report.md:15:- Before, run `V-971-659fb14683bc`: **4/5 explicit refusals**, each citing the CWD/worktree restriction; 1/5 reported success. The outer shell could read that one marker.
+.orchestra/tasks/V-971/report.md:16:- After, run `V-971-d421673429e1`: **0/5 explicit refusals**; all five reported success. The outer shell could read 4/5 markers; task 2's success claim was not visible as a persisted file outside its workflow run.
+.orchestra/tasks/V-971/report.md:19:A preliminary pair (`V-971-f077f7ca7754` before, `V-971-f68606e725f6` after) added explicit wording that the task authorized the external write. It produced 0/5 refusals in both arms and is not the primary comparison because that wording removed the ambiguity under test. All ten marker files from this preliminary pair were visible and matched their requested contents.
+.orchestra/kb/prompt-engineering.md:138:## V-971: запрет worktree блокировал записи вне репозитория по задаче (19.10.2026)
+.orchestra/kb/prompt-engineering.md:140:В парных прогонах Luna через dynamic workflow на прямую просьбу создать файл в `/tmp` доля явных отказов со ссылкой на границу worktree снизилась с 4/5 до 0/5 после уточнения правил. Внешний shell видел 1/5 файла до правки и 4/5 после; файл одного постправочного прогона не был виден вне его workflow, поэтому вердикт об отказах не доказывает сохранность каждой записи. Правила передавались в контексте задания, а не как полный системный промпт worker. Вердикт: `helped`; cue: задача worker явно указывает путь вне репозитория, а общая формулировка про CWD/worktree может запретить туда запись. Подробности и ID прогонов — [V-971](../tasks/V-971/report.md).
+STDERR:
+
+$ git diff --stat HEAD main -- .orchestra/pipelines/default/prompts .orchestra/pipelines/default/pipeline.yaml .orchestra/temp-rules.yaml AGENTS.md app/prompting.py app/manager.py app/kb_index.py app/mcp_stdio.py
+EXIT=0
+STDOUT:
+STDERR:
+
+$ git ls-files --stage AGENTS.md CLAUDE.md
+EXIT=0
+STDOUT:
+100644 593b0b0b11e318fcf0b99184efea4092c5f078c5 0	AGENTS.md
+120000 47dc3e3d863cfb5727b87d785d09abf9743c0a72 0	CLAUDE.md
+STDERR:
+

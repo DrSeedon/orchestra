@@ -1,0 +1,151 @@
+    1	name: default
+    2	description: Upstream-derived v2.18 pipeline with local models and runtime modules.
+    3	validation: fail-open
+    4	defaults:
+    5	  model: opus
+    6	  skills: [html-artifacts, video-artifact]
+    7	  mcp_servers: []
+    8	  inherit_claude_md: true
+    9	  prompt_layers:
+   10	    orchestrator: [base.md, "roles/{role}.md"]
+   11	    worker:       [base.md, "roles/{role}.md"]
+   12	  worktree:
+   13	    symlinks: []
+   14	    copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]
+   15	    # Partial (sparse) worker copies. `exclude` stays out of the copy; `own` are the task's own
+   16	    # directories ({id} = task number, e.g. V-821), present from the first turn; `include` always
+   17	    # stays; `reference_scan` lists source directories whose mentions of an excluded directory
+   18	    # (KB links, test fixtures) pull that directory into the copy. A project overrides by a glob
+   19	    # on its repository root; `enabled: false` there (or here) gives a full copy again.
+   20	    sparse:
+   21	      enabled: true
+   22	      exclude: [artifacts, .orchestra/tasks]
+   23	      own:
+   24	        - ".orchestra/tasks/{id}"
+   25	        - "artifacts/{id}"
+   26	        - "artifacts/task-{id}"
+   27	        - "artifacts/{id}-*"
+   28	        - "artifacts/task-{id}-*"
+   29	      projects:
+   30	        "*/katya-work":
+   31	          include: [artifacts/task-2/tooling]
+   32	        "*/orchestra":
+   33	          reference_scan: [.orchestra/kb, tests, scripts]
+   34	  base_branch_strategy: main
+   35	  docs_scaffold: false
+   36	# `&effort_policy` — единственное YAML-определение карты модель→ступень; остальные роли ссылаются
+   37	# на него через `*effort_policy`. Это остаётся обычным role.effort и работает без рестарта сервера.
+   38	# Ключом обязана быть МОДЕЛЬ, а не рантайм: Sol и Luna оба `codex` и требуют разных ступеней.
+   39	# Разрешение (`pipeline.resolve_effort`): точный id модели → рантайм → `default` → нет эффорта.
+   40	# Скаляр остаётся валидным — просто здесь он больше не используется.
+   41	# Оркестраторы подняты с `medium` до `high` по прямому указанию юзера (#214): #208 меряло только
+   42	# рабочие роли, но medium→high — САМЫЙ крупный шаг лестницы Opus (+2.9 пункта), и переносить его
+   43	# на оркестраторов дешевле, чем оставлять их на ступени, выбранной до этого замера. Откат — правка
+   44	# одного ключа модели Opus в двух ролях ниже; живые агенты подхватят её на следующем ходе.
+   45	# Opus 5.5 у оркестраторов: medium с 23.09, снова high с 03.10 по слову владельца как замер
+   46	# (V-683: жалобы katya-work выросли 8% → 13% после 23.09; модель и effort сменились разом).
+   47	# Сравнение — .orchestra/tasks/V-683/complaint_rate.py через 4–5 дней. Воркеры остаются medium.
+   48	# Основания значений:
+   49	#   harness           → medium — бесплатные маршруты OpenRouter, ступень НЕ измерена ни на одном
+   50	#                               из них; medium выбран как середина и как выключатель гейта
+   51	#                               планирования (todo_write включается только на high).
+   52	#   claude-opus-5-5[1m] → high — #208: перегиб отдачи на `high` (medium→high +2.9, дальше high→xhigh
+   53	#                               всего +1.0 пункта при +47% цены)
+   54	#   gpt-6-astra       → medium — собственное колено Astra: coding ≈65/$2.19; high добавляет около
+   55	#                               0.5 пункта за +32%.
+   56	#   gpt-6-luna        → high  — действующее семейство Luna
+   57	#   default           → high  — модели без отдельного замера
+   58	roles:
+   59	  orchestrator:
+   60	    kind: orchestrator
+   61	    label: Orchestrator
+   62	    order: 0
+   63	    model: claude-opus-5-5[1m]
+   64	    # Ручной выбор Astra владельцем оставляет ступень для оркестраторского промпта;
+   65	    # агентские вызовы блокируются централизованным model gate.
+   66	    effort: &effort_policy {"claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+   67	    skills: [grill-me, orchestra-agents, laptop-access, vps-deploy]
+   68	    modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
+   69	    can_spawn: [worker, full-cycle, reducer]
+   70	    allow_unrouted_workers: true
+   71	    tg: {emoji: "👑"}
+   72	    when: Managing a team of workers, decomposing tasks, approving plans
+   73	    not_for: Direct implementation — delegate to workers
+   74	    description: >
+   75	      Manages worker agents. Decomposes tasks, spawns workers, reviews results.
+   76	      Available worker roles are injected automatically from roles/ directory.
+   77	  sub-orchestrator:
+   78	    kind: orchestrator
+   79	    label: Sub-Orchestrator
+   80	    order: 1
+   81	    model: claude-opus-5-5[1m]
+   82	    effort: *effort_policy
+   83	    skills: [orchestra-agents, laptop-access, vps-deploy]
+   84	    modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
+   85	    # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
+   86	    # заспавнить ни одной роли.
+   87	    can_spawn: [worker, full-cycle, reducer]
+   88	    allow_unrouted_workers: true
+   89	    tg: {emoji: "🎯"}
+   90	    when: Managing a sub-team within a larger hierarchy (department lead, tech lead, team lead)
+   91	    not_for: Direct implementation — delegate to workers
+   92	    description: >
+   93	      Manages a subset of workers under a parent orchestrator.
+   94	      Reports up to parent, delegates down to workers.
+   95	  worker:
+   96	    kind: worker
+   97	    label: Worker
+   98	    order: 2
+   99	    model: claude-sonnet-5-5[1m]
+  100	    effort: &worker_effort_policy {"claude-opus-5-5[1m]": medium, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+  101	    skills: [laptop-access]
+  102	    modules: [safety, project-maintenance, code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
+  103	    can_spawn: []
+  104	    allow_unrouted_workers: false
+  105	    tg: {emoji: "⚙️"}
+  106	    when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
+  107	    not_for: Tasks needing research or unknown scope — use full-cycle
+  108	    description: >
+  109	      General-purpose worker for one bounded task. Implements it directly, no pipeline
+  110	      gates, and cannot spawn other agents. For system workers (permanent, module-scoped)
+  111	      and disposable one-shots. (owner decision, 2026-10-16)
+  112	  full-cycle:
+  113	    kind: worker
+  114	    label: Full-Cycle
+  115	    order: 3
+  116	    model: claude-sonnet-5-5[1m]
+  117	    # xhigh → high (#207). Anthropic для Opus 5 велит начинать с high и НЕ переносить настройки
+  118	    # прошлого поколения — унаследованный xhigh оттуда и пришёл; на девяти чужих бенчмарках
+  119	    # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
+  120	    # НЕ ЗАКРЫТО: вендор оправдывает xhigh длиной горизонта задачи, а все опубликованные замеры
+  121	    # короче наших сессий. Правка обратимая и наблюдаемая: пошли разваливающиеся длинные ходы →
+  122	    # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol и Astra
+  123	    # ступени свои (#214, #373 и основания в комментарии над `roles:`).
+  124	    effort: *worker_effort_policy
+  125	    skills: [laptop-access]
+  126	    modules: [safety, project-maintenance, dynamic-workflows, model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
+  127	    can_spawn: [worker, full-cycle, reducer]
+  128	    allow_unrouted_workers: false
+  129	    tg: {emoji: "🔄"}
+  130	    when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
+  131	    not_for: Trivial bug fixes, config changes, one-line implementation from a clear spec
+  132	    description: >
+  133	      Drives a task through the full cycle (research, plan, implementation, verification)
+  134	      with the complete module set, and can spawn sub-workers for independent work. Owns an
+  135	      approved outcome end-to-end and chooses the depth of each stage. Research-only
+  136	      assignments end at findings. Explicit approval boundaries remain in force.
+  137	      (owner decision, 2026-10-16)
+  138	  reducer:
+  139	    kind: worker
+  140	    label: Reducer
+  141	    order: 4
+  142	    model: gpt-6-luna
+  143	    effort: *effort_policy
+  144	    modules: [safety, knowledge, communication-style, user-values]
+  145	    can_spawn: []
+  146	    tg: {emoji: "🧾"}
+  147	    when: Collecting fan-out child reports into one lossless handoff for the parent
+  148	    not_for: Selecting, summarizing, deciding, implementing, or managing agents
+  149	    description: >
+  150	      Cheap fan-out report collector. Receives child reports, preserves every report,
+  151	      and sends one combined handoff to the parent without selecting or interpreting it.

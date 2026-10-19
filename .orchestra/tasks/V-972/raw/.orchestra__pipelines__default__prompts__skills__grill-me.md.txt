@@ -1,0 +1,145 @@
+    1	---
+    2	name: grill-me
+    3	description: "Interview the user relentlessly about a plan or design until reaching shared understanding and resolving each branch of the decision tree. Use when the user wants to stress-test a plan, get grilled on a design, or mentions \"grill me\"."
+    4	roles: [all]
+    5	integrations: [web-search]
+    6	---
+    7	
+    8	# Grill Me — stress-test a plan, business, or product
+    9	
+   10	## Purpose
+   11	
+   12	Relentlessly stress-test a plan, business model, or product through evidence-based question
+   13	frameworks. Find contradictions, blind spots, and untested assumptions. Record the answers.
+   14	
+   15	## When to invoke
+   16	
+   17	- "grill me", "stress-test", "criticize this", "find the weak spots"
+   18	- "fundamental questions", "contradictions", "stress test"
+   19	- "devil's advocate", "take it apart", "poke holes"
+   20	- The user shares a plan and wants it challenged
+   21	
+   22	## Methodology (five question frameworks)
+   23	
+   24	### 1. Pre-mortem (Gary Klein, HBR 2007)
+   25	
+   26	Imagine the project has ALREADY failed: "A year has passed; the project is dead. Why?" Shifting
+   27	from "what could go wrong" to "what went wrong" improves risk identification by 30% (Wharton,
+   28	"Back to the Future", 1989). Future tense → past tense is prospective hindsight.
+   29	
+   30	### 2. Socratic questioning (six types)
+   31	
+   32	- **Clarification:** "What do you mean by X?"
+   33	- **Probing assumptions:** "Why do you believe X is true? What is it based on?"
+   34	- **Probing evidence:** "What data supports this? How do you know?"
+   35	- **Exploring alternatives:** "What if the opposite is true? What else could work?"
+   36	- **Implications:** "If X is true, what follows?"
+   37	- **Meta-questions:** "Why does this question matter at all?"
+   38	
+   39	### 3. Assumption mapping (Bland & Osterwalder, 2019)
+   40	
+   41	Use a 2×2 matrix: importance × uncertainty. CB Insights reports that 42% of startups die from
+   42	"no market need" — untested demand assumptions.
+   43	
+   44	- Desirability: "Do customers WANT this?" (most often fatal)
+   45	- Feasibility: "CAN we build this?" (less often fatal)
+   46	- Viability: "WILL it pay off?" (often ignored)
+   47	
+   48	### 4. Five Whys (Toyota, Taiichi Ohno)
+   49	
+   50	For every weak answer, dig deeper. Ask "Why?" across five levels. The goal is the root cause,
+   51	not the symptom.
+   52	
+   53	### 5. Red team (US military → business)
+   54	
+   55	Adopt the role of a competitor/critic: "If I wanted to destroy this business, how would I do it?"
+   56	This is a formal devil's advocate.
+   57	
+   58	## Process flow
+   59	
+   60	### Phase 1: Silent analysis
+   61	
+   62	Read documents relevant to the plan. Build a map:
+   63	
+   64	- What claims are made?
+   65	- What evidence exists?
+   66	- What is accepted without verification?
+   67	- Where do documents contradict one another?
+   68	- Which obvious questions were NOT asked?
+   69	
+   70	### Phase 2: Pre-mortem
+   71	
+   72	Start with one question:
+   73	
+   74	> "Imagine: a year has passed and [project] failed. Customers left and money ran out. What happened? Name the three most likely causes."
+   75	
+   76	Record the answer. Then continue.
+   77	
+   78	### Phase 3: Structured grill (10 questions as one batch)
+   79	
+   80	Choose the 5–7 most relevant categories:
+   81	
+   82	- 🏗️ **Foundation** — why does this exist, who needs it, what is the evidence?
+   83	- 💰 **Unit economics** — CAC, LTV, margin, break-even point
+   84	- ⚔️ **Competitors/moat** — who already does this, how are you better, what if X appears tomorrow?
+   85	- 📈 **Scale** — what if usage grows 10×, what breaks first, where is the single point of failure?
+   86	- ⚠️ **Risks** — vendor, legal, and technical dependencies
+   87	- 🎯 **Sales** — who buys, how do you find them, sales cycle, conversion?
+   88	- 📋 **Operations** — who does the work, SLA, what if you become ill?
+   89	- 🔄 **Contradictions** — "Document A says X; document B says Y — which is true?"
+   90	
+   91	**Question rules:**
+   92	
+   93	- Every question cites a CONCRETE fact/document, not a generic "have you considered…?"
+   94	- For a contradiction, quote BOTH sides.
+   95	- Move from fundamentals to details.
+   96	- Match the user's style: direct, without corporate language.
+   97	- Give each question its own recommended answer when you have an opinion.
+   98	
+   99	### Phase 4: Deep dive (Five Whys)
+  100	
+  101	For weak answers ("no idea", "later", "somehow"), ask Five Whys:
+  102	
+  103	> "Why is there no SLA?" → "Because I work alone" → "Why alone?" → "Because there is no money for an employee" → "Why?" → "Because there is one customer" → ROOT CAUSE: get a second customer before hiring.
+  104	
+  105	### Phase 5: Red team
+  106	
+  107	End with one question:
+  108	
+  109	> "I am your competitor. I have a $5M budget and a team of ten. How do I kill your business in six months?"
+  110	
+  111	### Phase 6: Record
+  112	
+  113	Record everything in a document:
+  114	
+  115	```markdown
+  116	## Grill [topic] — [date]
+  117	
+  118	### Pre-Mortem: three failure causes
+  119	1. ...
+  120	
+  121	### Questions and answers
+  122	**🏗️ Q: [question]**
+  123	A: [answer]
+  124	
+  125	### Assumption Map
+  126	| Assumption | Importance | Tested? | How to test |
+  127	|---|---|---|---|
+  128	
+  129	### Unresolved questions
+  130	- [ ] ...
+  131	
+  132	### Red Team: how to kill the business
+  133	...
+  134	```
+  135	
+  136	### Phase 7: Next batch
+  137	
+  138	"Another 10 questions, or go deeper into [topic]?" Each next batch goes deeper into weak spots.
+  139	Stop when the user says to stop.
+  140	
+  141	## Error handling
+  142	
+  143	- Vague answer ("no idea", "later") → record it + ⚠️ + Five Whys
+  144	- Defensive reaction → normal; do not soften. "Better now than a customer in a month."
+  145	- No documents → ask verbally and grill the answers

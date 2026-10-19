@@ -1,0 +1,272 @@
+[
+  {
+    "name": "spawn_worker",
+    "line": 1065,
+    "description_line": 1077,
+    "description": "Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."
+  },
+  {
+    "name": "retry_initial_delivery",
+    "line": 1220,
+    "description_line": 1221,
+    "description": "Retry a known-not-sent initial task. Repeat this exact call with the same delivery_id after an ambiguous response."
+  },
+  {
+    "name": "send_message",
+    "line": 1328,
+    "description_line": 1331,
+    "description": "Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat the same send_message call with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it."
+  },
+  {
+    "name": "cancel_message_delivery",
+    "line": 1553,
+    "description_line": 1554,
+    "description": "Withdraw your direct message that has not reached the target yet (state WAITING_QUOTA or QUEUED). A message already dispatched cannot be cancelled."
+  },
+  {
+    "name": "open_fan",
+    "line": 1576,
+    "description_line": 1578,
+    "description": "Low-level compatibility entry: open a barrier without launching workers.\n\nFor new one-shot parallel jobs use scripts/wf_run.py via a background run job.\nThis tool remains for old connected clients and specialized reducers."
+  },
+  {
+    "name": "list_agents",
+    "line": 1672,
+    "description_line": 1673,
+    "description": "List all agents in your project (orchestrators and workers)."
+  },
+  {
+    "name": "list_orchestrators",
+    "line": 1815,
+    "description_line": 1816,
+    "description": "List ALL orchestrators across all projects. Use to find agents you can talk to from other projects."
+  },
+  {
+    "name": "get_worker_logs",
+    "line": 1862,
+    "description_line": 1863,
+    "description": "Get recent logs from a worker."
+  },
+  {
+    "name": "compact_worker",
+    "line": 1881,
+    "description_line": 1882,
+    "description": "Manually compact an idle worker's context. Codex compacts natively in the same thread;\nClaude creates a summary, reconnects fresh, and retains that handoff. This is a manual escape\nhatch, not the auto-compact policy. Returns the runtime result; may take 30-60s."
+  },
+  {
+    "name": "temp_rule_set",
+    "line": 1894,
+    "description_line": 1898,
+    "description": "Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. reason (required): why the rule exists and what caused it; the agents see it. targets: \"all\", \"orchestrators\", \"workers\", a role name, or \"agent:<name>\". mode: \"expires\" (the rule drops out by itself at expires_at), \"review\" (it stays in force and you are told once at expires_at that it is time to review it; then extend with temp_rule_update expires_at, make it permanent with keep=true, or remove it), \"permanent\" (no date, stays until removed). expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z; required for expires and review, forbidden for permanent. project: empty = your own project (scope); \"*\" = every project, allowed only for the Orchestra project orchestrator."
+  },
+  {
+    "name": "temp_rule_list",
+    "line": 1907,
+    "description_line": 1908,
+    "description": "Orchestrators only. List temporary rules of your project plus all-project rules (the Orchestra orchestrator sees all)."
+  },
+  {
+    "name": "temp_rule_update",
+    "line": 1919,
+    "description_line": 1920,
+    "description": "Orchestrators only. Extend a temporary rule to a new expires_at (ISO UTC), or keep=true to keep it with no deadline."
+  },
+  {
+    "name": "temp_rule_remove",
+    "line": 1926,
+    "description_line": 1927,
+    "description": "Orchestrators only. Remove a temporary rule at once; it leaves the targeted agents' prompts from their next turn."
+  },
+  {
+    "name": "kill_worker",
+    "line": 1933,
+    "description_line": 1934,
+    "description": "Stop and archive a worker. Blocked if worker has uncommitted changes or unmerged commits — pass force=True to override."
+  },
+  {
+    "name": "stop_worker",
+    "line": 1942,
+    "description_line": 1943,
+    "description": "Interrupt a worker and set it to idle. Worktree and session are preserved — can be resumed later with send_message."
+  },
+  {
+    "name": "rename_worker",
+    "line": 1951,
+    "description_line": 1952,
+    "description": "Rename a worker agent."
+  },
+  {
+    "name": "send_file",
+    "line": 2051,
+    "description_line": 2057,
+    "description": "Queue a local file for durable Telegram delivery. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat send_file with the same event_id and inputs. Local Bot API documents allow up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 is sent as video with document fallback; as_document forces a document."
+  },
+  {
+    "name": "send_files",
+    "line": 2116,
+    "description_line": 2122,
+    "description": "Queue an ordered batch for durable Telegram album delivery. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat send_files with the same event_id and inputs. Local Bot API documents allow up to 2000 MB (200 MB verified); albums hold up to 10 files of one kind and longer/mixed batches split automatically; as_document forces documents."
+  },
+  {
+    "name": "publish_artifact",
+    "line": 2190,
+    "description_line": 2191,
+    "description": "Publish a private immutable HTML artifact; document fallback stays explicit."
+  },
+  {
+    "name": "send_chart",
+    "line": 2211,
+    "description_line": 2212,
+    "description": "Draw data and send the chart to Telegram. Use for comparisons, trends or 2-4 final metrics; single facts/statuses belong in text. title states the conclusion without data numbers; a factual line is computed. data shapes: bars/bars_log: {unit,categories,series:[{name,values,tone?}]}; series: {unit,series:[{name,points:[[ISO-time,number]]}]}; cards: {metrics:[{label,value:string,note?,tone?}]}. bars is linear; bars_log is for differences >=100x, shows zero explicitly and rejects negatives. Series gaps are shaded, not bridged. tone: good|bad|neutral, default palette index. Limits: 2-8 categories, <=3 bar series, <=3 lines, <=4 cards. Returns the send_file delivery receipt."
+  },
+  {
+    "name": "notify_user",
+    "line": 2237,
+    "description_line": 2238,
+    "description": "Orchestrators only: tag the user at this turn's end, once and only after a durable result marker. Silence is normal. Do not call if the user started/interrupted this turn or wrote within 10 minutes. After long/background work, call only for a needed decision, reversal, live incident or quantified result changing the plan; never for review blockers, merges, progress or worker start/finish. reason is one short phrase sent with the tag. kind: legacy|incident|reversal|plan_change|waiting — use waiting when you are blocked until he answers, and say in reason exactly what you need decided."
+  },
+  {
+    "name": "update_progress",
+    "line": 2257,
+    "description_line": 2258,
+    "description": "Update task progress. percent: 0-100, status: short description of current step."
+  },
+  {
+    "name": "update_checklist",
+    "line": 2268,
+    "description_line": 2272,
+    "description": "Create or update your task checklist. Every new or changed step needs a positive estimate in minutes in estimates_minutes (one per item, same order); steps with unchanged text keep their stored estimate, so null is accepted only for those (owner decision, 2026-10-15)."
+  },
+  {
+    "name": "change_worker_model",
+    "line": 2287,
+    "description_line": 2288,
+    "description": "Change an idle worker's model while preserving its dialog. Within one runtime the\nnative session continues. Between Claude and Codex, recent chat history is handed off\n(chat_history_v1); a refused transfer returns an error. Refused while the worker is\nrunning or compacting."
+  },
+  {
+    "name": "merge_worker",
+    "line": 2560,
+    "description_line": 2571,
+    "description": "Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. On a taskless adhoc branch, task_id promotes committed work to the named task before merging; omitting task_id refuses a strict task-lifecycle merge."
+  },
+  {
+    "name": "resolve_merge_operation",
+    "line": 2737,
+    "description_line": 2738,
+    "description": "Close a PARTIAL/UNKNOWN merge operation you have already reconciled.\n\nThis is the ONLY way to unblock merges for a worker held by such an operation.\nReconcile FIRST (check what actually landed in the target branch), then call this\nwith what you found in `reason`. The operation keeps its state as the record; only\nthe block is lifted. SUCCEEDED/FAILED operations are refused — they block nothing."
+  },
+  {
+    "name": "switch_worker_branch",
+    "line": 2812,
+    "description_line": 2822,
+    "description": "After merge, switch worker to a new branch for a new task.\nfrom_ref — optional local base override; empty uses the worker's persisted base.\nforce=True explicitly discards committed content not verified in the base.\npromote_current=True preserves and assigns committed taskless adhoc work.\nowned_dirs — optional JSON array replacing the worker's ownership on a new task;\nomitted or [] clears it.\nA clean worker with nothing unmerged is released from its previous task, which\nreturns to the queue; complete_previous=True closes it as done instead and requires\nacceptance_note (why it is done).\nWorker must be idle with clean working tree. Repeat the same task_id after its binding\nwas released (for example after PARTIAL) to reopen the task run on the existing branch."
+  },
+  {
+    "name": "check_conflict",
+    "line": 2897,
+    "description_line": 2898,
+    "description": "Dry-run: would merging these two workers' branches conflict? Both must have committed work.\nUse to decide merge order or whether two parallel workers collided. No changes made."
+  },
+  {
+    "name": "worker_wip",
+    "line": 2913,
+    "description_line": 2914,
+    "description": "Show a worker's WIP: uncommitted files + unmerged commits. Call before resuming to see what's left.\nEmpty base_ref uses the worker's persisted base branch."
+  },
+  {
+    "name": "acquire_test_lock",
+    "line": 2975,
+    "description_line": 2976,
+    "description": "Занять эксклюзивный лок проекта на полный прогон тестов (весь сьют).\nНужен только для полного прогона и только после согласия PM; узкие тесты этапа идут без лока.\nЕсли лок у другого агента, ответ назовёт его — тогда полный сьют не запускай, подожди и повтори.\nПосле прогона обязательно освободи лок через release_test_lock()."
+  },
+  {
+    "name": "release_test_lock",
+    "line": 2992,
+    "description_line": 2993,
+    "description": "Снять твой лок полного прогона тестов. Вызывай сразу, как полный прогон закончился."
+  },
+  {
+    "name": "test_lock_status",
+    "line": 3003,
+    "description_line": 3004,
+    "description": "Показать, свободен ли лок полного прогона тестов проекта и кто его держит."
+  },
+  {
+    "name": "report_bug",
+    "line": 3013,
+    "description_line": 3014,
+    "description": "Report an Orchestra platform bug immediately without approval. description must include: exact file:line/function/commit; verbatim error, stop_reason or HTTP/tool status; exception class (N/A only without an exception); reproduction command/steps; checks and excluded causes; turns/tokens/cost/counts or N/A; model/runtime/version/project. Empty exception strings still require the class. Missing trace means incomplete report. Project-code bugs go to their task evidence and orchestrator instead."
+  },
+  {
+    "name": "update_worker_description",
+    "line": 3020,
+    "description_line": 3021,
+    "description": "Update a worker's description. Use to set/change the role description shown in list_agents."
+  },
+  {
+    "name": "set_worker_owned_dirs",
+    "line": 3029,
+    "description_line": 3030,
+    "description": "Update an idle worker's advisory work areas without changing task or branch. owned_dirs is a JSON array; [] clears it. Overlaps are allowed; coordinate edits. Running/waiting workers are refused. Stored dirs and the prompt block update together for the next turn. For a new task use switch_worker_branch."
+  },
+  {
+    "name": "update_worker_prompt",
+    "line": 3050,
+    "description_line": 3051,
+    "description": "Update a worker's custom system prompt."
+  },
+  {
+    "name": "get_worker_info",
+    "line": 3059,
+    "description_line": 3060,
+    "description": "Get full worker info including system_prompt, description, model, status, context, task_id."
+  },
+  {
+    "name": "task_create",
+    "line": 3089,
+    "description_line": 3096,
+    "description": "Create a new task. Returns task number and details.\nproject: registered project scope or id; omitted uses the caller's mapped scope.\nprice in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).\npriority: 0=critical, 1=high, 2=medium (default), 3=low.\nstatus: lifecycle statuses (in_progress/done) are platform-owned and rejected.\nrequest_key: optional idempotency key, 1-128 chars of A-Z a-z 0-9 . _ : -; any short readable key is fine.\nThe key is scoped to the project: the same key with the same inputs returns the existing task,\nthe same key with different inputs is refused, so use a new key for each distinct task.\nOn an ambiguous outcome, repeat the same call with the same request_key and inputs."
+  },
+  {
+    "name": "task_update",
+    "line": 3158,
+    "description_line": 3167,
+    "description": "Update an existing task. Only provided fields are changed.\npar: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).\nEmpty string = don't change for text fields. priority: 0-3 or -1=don't change.\nacceptance_command is orchestrator-only; empty means don't change.\nclear_acceptance_command=true explicitly clears it.\nproject: explicit project returned by task_list; omitted uses the caller's mapped scope.\ntags: project tags from your own project's catalog (`<scope>/.orchestra/projects.yaml`);\nreplaces the task's tags, so pass the full list. A task may carry several tags or\nnone. An unknown tag, or a tag from another project's own catalog, is rejected.\nstatus: lifecycle statuses (in_progress/done) are platform-owned and rejected."
+  },
+  {
+    "name": "task_list",
+    "line": 3218,
+    "description_line": 3220,
+    "description": "List tasks with optional filters. Returns summary per task.\n\nproject/tags accept project tags from your own project's catalog\n(`<scope>/.orchestra/projects.yaml`); a tag covers the whole project, including\ntask numbers inherited from another machine. A tag from another project's own\ncatalog is rejected. Each task carries `source`: `#161` and `#161 · ноутбук`\nare different tasks.\ntags: comma-separated, matches any of them."
+  },
+  {
+    "name": "task_get",
+    "line": 3250,
+    "description_line": 3251,
+    "description": "Get task details. project overrides scope and should come from task_list output."
+  },
+  {
+    "name": "dynamic_workflow",
+    "line": 3260,
+    "description_line": 3270,
+    "description": "Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna), JSON schema, and billing route (defaults to subscription; set billing='api_credit' only for an explicitly selected Claude task). Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.\n\nMiroFish example: 50 personas read a page, then each writes a reaction for\nthree rounds using all results from the previous round, then one analyst\nproduces a report. This is one tool call:\n\n    personas = [{\"id\": i, \"profile\": f\"persona {i}\"} for i in range(50)]\n    stages = [{\"prompt\": \"Read PAGE_URL as persona {item}; write your initial view.\",\n               \"items\": personas}]\n    stages += [{\"prompt\": f\"Round {round_no}: as persona {{item}}, read every prior post in your structured inputs and write one reaction.\",\n                \"items\": personas} for round_no in range(1, 4)]\n    stages.append({\"tasks\": [{\"prompt\": \"Analyze the page and all three rounds in your structured inputs; write the audience report.\"}]})\n    dynamic_workflow(budget_usd=5, max_calls=300, max_concurrency=20,\n                     task_id=\"TASK-ID\", repo=\"/absolute/repository\",\n                     mode=\"stages\", stages=stages)"
+  },
+  {
+    "name": "bg_create",
+    "line": 3487,
+    "description_line": 3492,
+    "description": "Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command."
+  },
+  {
+    "name": "bg_list",
+    "line": 3535,
+    "description_line": 3536,
+    "description": "List active background jobs in your project."
+  },
+  {
+    "name": "bg_cancel",
+    "line": 3606,
+    "description_line": 3607,
+    "description": "Cancel an active background job."
+  }
+]

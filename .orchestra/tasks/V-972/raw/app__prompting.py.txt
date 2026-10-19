@@ -1,0 +1,778 @@
+    1	"""Prompt composition — pure file/template helpers for agent prompts."""
+    2	
+    3	import hashlib
+    4	import logging
+    5	import os
+    6	import re
+    7	import shutil
+    8	import subprocess
+    9	import tomllib
+   10	import uuid
+   11	from dataclasses import dataclass
+   12	from functools import lru_cache
+   13	from pathlib import Path
+   14	
+   15	from app.workspace import _exclude_worktree_artifacts, tracked_paths
+   16	
+   17	logger = logging.getLogger(__name__)
+   18	
+   19	# Single source of prompts = .orchestra/pipelines/default/prompts/ (app/prompts/ removed —
+   20	# no legacy fallback). These helpers feed dashboard prompt view, role icons,
+   21	# skill injection, and the template hash — all off the default pipeline.
+   22	_PROMPTS_DIR = Path(__file__).parent.parent / ".orchestra" / "pipelines" / "default" / "prompts"
+   23	_MODULES_DIR = _PROMPTS_DIR / "modules"
+   24	_SKILLS_DIR = _PROMPTS_DIR / "skills"
+   25	_REPO_ROOT = _PROMPTS_DIR.parents[3]
+   26	
+   27	_ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
+   28	_IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
+   29	_WORKER_MEMORY_BLOCK = re.compile(r"\n*<worker-memory>.*?</worker-memory>", re.DOTALL)
+   30	
+   31	
+   32	@dataclass(frozen=True)
+   33	class SkillInjectionResult:
+   34	    written: int
+   35	    requested: int
+   36	    home_path: str
+   37	    home_path_is_file: bool = False
+   38	    home_path_tracked: bool = False
+   39	    skipped: tuple[str, ...] = ()
+   40	
+   41	
+   42	@dataclass(frozen=True)
+   43	class CodexProjectDocPreflight:
+   44	    path: str
+   45	    actual_bytes: int | None
+   46	    budget_bytes: int | None
+   47	    first_truncated_line: int | None
+   48	    instruction: str = ""
+   49	    diagnostic: str = ""
+   50	
+   51	
+   52	def is_orchestrator_role(role: str) -> bool:
+   53	    return role in _ORCHESTRATOR_ROLES
+   54	
+   55	
+   56	@lru_cache(maxsize=1)
+   57	def _retired_skill_hashes() -> dict[str, frozenset[str]]:
+   58	    """Return hashes of canonical skill files removed from this repository."""
+   59	    prefix = ".orchestra/pipelines/default/prompts/skills/"
+   60	    pathspec = prefix + "*.md"
+   61	    removed_paths: set[str] = set()
+   62	    history = subprocess.run(
+   63	        [
+   64	            "git", "-C", str(_REPO_ROOT), "log", "--all", "--no-renames",
+   65	            "--diff-filter=D", "--format=", "--name-only", "--",
+   66	            pathspec,
+   67	        ],
+   68	        capture_output=True,
+   69	        text=True,
+   70	    )
+   71	    if history.returncode == 0:
+   72	        for line in history.stdout.splitlines():
+   73	            if not line.startswith(prefix) or Path(line).parent.as_posix() != prefix.rstrip("/"):
+   74	                continue
+   75	            name = Path(line).stem
+   76	            if not (_SKILLS_DIR / f"{name}.md").exists():
+   77	                removed_paths.add(line)
+   78	
+   79	    working = subprocess.run(
+   80	        [
+   81	            "git", "-C", str(_REPO_ROOT), "diff", "HEAD", "--no-renames", "--name-only",
+   82	            "--diff-filter=D", "--", pathspec,
+   83	        ],
+   84	        capture_output=True,
+   85	        text=True,
+   86	    )
+   87	    if working.returncode == 0:
+   88	        for line in working.stdout.splitlines():
+   89	            if not line.startswith(prefix) or Path(line).parent.as_posix() != prefix.rstrip("/"):
+   90	                continue
+   91	            name = Path(line).stem
+   92	            if (_SKILLS_DIR / f"{name}.md").exists():
+   93	                continue
+   94	            removed_paths.add(line)
+   95	
+   96	    removed: dict[str, set[str]] = {}
+   97	    for path in sorted(removed_paths):
+   98	        name = Path(path).stem
+   99	        history = subprocess.run(
+  100	            ["git", "-C", str(_REPO_ROOT), "log", "--all", "--follow", "--format=%H", "--name-only", "--", path],
+  101	            capture_output=True,
+  102	            text=True,
+  103	        )
+  104	        if history.returncode != 0:
+  105	            continue
+  106	        revision = None
+  107	        for line in history.stdout.splitlines():
+  108	            line = line.strip()
+  109	            if not line:
+  110	                continue
+  111	            if re.fullmatch(r"[0-9a-f]{40,64}", line):
+  112	                revision = line
+  113	                continue
+  114	            if revision is None:
+  115	                continue
+  116	            prior = subprocess.run(
+  117	                ["git", "-C", str(_REPO_ROOT), "show", f"{revision}:{line}"],
+  118	                capture_output=True,
+  119	            )
+  120	            if prior.returncode == 0:
+  121	                removed.setdefault(name, set()).add(
+  122	                    hashlib.sha256(prior.stdout).hexdigest()
+  123	                )
+  124	    return {name: frozenset(digests) for name, digests in removed.items()}
+  125	
+  126	
+  127	def _copy_skill_file(source: Path, destination: Path) -> bool:
+  128	    created = _run_as_agent(["mkdir", "-p", str(destination.parent)], capture_output=True)
+  129	    if created.returncode != 0:
+  130	        return False
+  131	    tmp = destination.parent / f".SKILL.md.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+  132	    try:
+  133	        copied = _run_as_agent(["cp", "-p", str(source), str(tmp)], capture_output=True)
+  134	        if copied.returncode != 0:
+  135	            return False
+  136	        moved = _run_as_agent(["mv", "-f", str(tmp), str(destination)], capture_output=True)
+  137	        return moved.returncode == 0
+  138	    finally:
+  139	        if tmp.exists():
+  140	            _run_as_agent(["rm", "-f", str(tmp)], capture_output=True)
+  141	
+  142	
+  143	def safe_format_prompt(template: str, **kwargs: str) -> str:
+  144	    """Substitute only known identity placeholders, leaving other {braces} intact."""
+  145	    return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
+  146	
+  147	
+  148	def load_worker_memory(
+  149	    name: str,
+  150	    role: str,
+  151	    scope: str,
+  152	    repository_path: str = "",
+  153	    allow_absent_project: bool = False,
+  154	    allow_missing_layout: bool = False,
+  155	) -> str:
+  156	    """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
+  157	
+  158	    Agents keep concise personal observations here; the file survives kill/respawn/compact
+  159	    and is re-read whenever the prompt is (re)assembled. A worker can belong to a
+  160	    repository below its parent's scope, so its repository checkout takes precedence.
+  161	    """
+  162	    base = Path(repository_path or scope)
+  163	    layout_file = base / ".orchestra" / "layout.json"
+  164	    if not layout_file.is_file() and repository_path:
+  165	        # Resume, auto-switch and the first message all assemble the prompt here, so this
+  166	        # is the one place a worker branch left behind by its base's migration catches up.
+  167	        from app.orchestra_layout import LayoutMigrationError, migrate_worker_worktree
+  168	        try:
+  169	            migrate_worker_worktree(base)
+  170	        except LayoutMigrationError as error:
+  171	            if not allow_missing_layout:
+  172	                raise
+  173	            logger.warning(
+  174	                "worker memory skipped for %s: project layout is unavailable (%s)",
+  175	                base, error,
+  176	            )
+  177	    if not layout_file.is_file():
+  178	        if not allow_missing_layout:
+  179	            if allow_absent_project:
+  180	                # LEGACY_PATH_FIXTURE: classify old paths without reading them as fallbacks.
+  181	                managed_state_signals = (
+  182	                    base / "docs" / "kb",
+  183	                    base / "docs" / "tasks",
+  184	                    base / "docs" / "workers",
+  185	                    base / "docs" / "archive",
+  186	                    base / "pipelines",
+  187	                    base / ".orchestra",
+  188	                )
+  189	                if not any(path.exists() for path in managed_state_signals):
+  190	                    return ""
+  191	            from app.orchestra_layout import LayoutMigrationError
+  192	            raise LayoutMigrationError(
+  193	                "ORCHESTRA_LAYOUT_MISSING", base, ".orchestra/layout.json is missing"
+  194	            )
+  195	        logger.info(
+  196	            "worker memory skipped for %s: .orchestra/layout.json is missing",
+  197	            base,
+  198	        )
+  199	        return ""
+  200	    for filename in (f"{name}.md", f"{role}.md" if role else None):
+  201	        if not filename:
+  202	            continue
+  203	        path = base / ".orchestra" / "workers" / filename
+  204	        if path.is_file():
+  205	            try:
+  206	                content = path.read_text().strip()
+  207	                if content:
+  208	                    logger.info(f"Loaded worker memory: {path} ({len(content)} chars)")
+  209	                    return content
+  210	            except Exception as e:
+  211	                logger.warning(f"Failed to read worker memory {path}: {e}")
+  212	    return ""
+  213	
+  214	
+  215	def refresh_worker_memory(
+  216	    prompt: str,
+  217	    name: str,
+  218	    role: str,
+  219	    scope: str,
+  220	    repository_path: str = "",
+  221	    *,
+  222	    allow_absent_project: bool = False,
+  223	    allow_missing_layout: bool = False,
+  224	) -> str:
+  225	    """Re-read personal memory from disk and swap it into an already-assembled prompt.
+  226	
+  227	    The prompt is assembled once (spawn / _load_from_db) but re-injected on every
+  228	    resume and compact, so without this the agent keeps receiving the memory as it
+  229	    was at the last server restart — measured in #137 as 11 of 13 live sessions
+  230	    carrying a stale block, the worst missing 61% of its own file.
+  231	    """
+  232	    prompt_without_memory = strip_worker_memory(prompt)
+  233	    mem = load_worker_memory(
+  234	        name,
+  235	        role,
+  236	        scope,
+  237	        repository_path,
+  238	        allow_absent_project,
+  239	        allow_missing_layout,
+  240	    )
+  241	    block = f"<worker-memory>\n{mem}\n</worker-memory>" if mem else ""
+  242	    return f"{prompt_without_memory}\n\n{block}" if block else prompt_without_memory
+  243	
+  244	
+  245	def strip_worker_memory(prompt: str) -> str:
+  246	    """Remove every persisted memory block while preserving all other prompt bytes."""
+  247	    return _WORKER_MEMORY_BLOCK.sub("", prompt)
+  248	
+  249	
+  250	def read_prompt(name: str) -> str:
+  251	    p = _PROMPTS_DIR / name
+  252	    return p.read_text() if p.exists() else ""
+  253	
+  254	
+  255	def parse_role_frontmatter(text: str) -> tuple[dict, str]:
+  256	    """Parse YAML frontmatter from role .md file. Returns (meta, body)."""
+  257	    if not text.startswith("---"):
+  258	        return {}, text
+  259	    parts = text.split("---", 2)
+  260	    if len(parts) < 3:
+  261	        return {}, text
+  262	    try:
+  263	        import yaml
+  264	        meta = yaml.safe_load(parts[1]) or {}
+  265	    except Exception:
+  266	        meta = {}
+  267	    body = parts[2].strip()
+  268	    return meta, body
+  269	
+  270	
+  271	def _load_modules(module_names: list[str]) -> str:
+  272	    parts = []
+  273	    for name in module_names:
+  274	        p = _MODULES_DIR / f"{name}.md"
+  275	        if p.exists():
+  276	            parts.append(p.read_text().strip())
+  277	        else:
+  278	            logger.warning(f"Module '{name}' not found at {p}")
+  279	    return "\n\n".join(parts)
+  280	
+  281	
+  282	def role_prompt_file(role: str) -> str:
+  283	    """Find the best prompt for a role. Parses frontmatter, returns body + modules.
+  284	    Falls back to 'worker' role if role file not found."""
+  285	    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+  286	    if role_path.exists():
+  287	        meta, body = parse_role_frontmatter(role_path.read_text())
+  288	        if body:
+  289	            modules = meta.get("modules", [])
+  290	            if modules:
+  291	                body = body + "\n\n" + _load_modules(modules)
+  292	            return body
+  293	    if role != "worker":
+  294	        fallback = _PROMPTS_DIR / "roles" / ("orchestrator.md" if is_orchestrator_role(role) else "worker.md")
+  295	        if fallback.exists():
+  296	            meta, body = parse_role_frontmatter(fallback.read_text())
+  297	            if body:
+  298	                modules = meta.get("modules", [])
+  299	                if modules:
+  300	                    body = body + "\n\n" + _load_modules(modules)
+  301	                return body
+  302	    return ""
+  303	
+  304	
+  305	def get_role_icons() -> dict[str, str]:
+  306	    """Role icons from the manifest (`roles.<name>.tg.emoji`) of the default pipeline.
+  307	
+  308	    Role .md bodies are frontmatter-free, so the old `icon:` read returned {} on every
+  309	    call. `scripts/extract-manifest.py` maps frontmatter `icon` → `tg.emoji`, so the
+  310	    manifest is where that field lives now — and `load_pipeline` is cached, unlike the
+  311	    per-request directory scan this replaced.
+  312	    """
+  313	    from app.pipeline import DEFAULT_PIPELINE, load_pipeline
+  314	
+  315	    cfg = load_pipeline(DEFAULT_PIPELINE)
+  316	    return {name: spec.tg.emoji for name, spec in cfg.roles.items() if spec.tg and spec.tg.emoji}
+  317	
+  318	
+  319	def prompt_template_hash(role_or_orch) -> str:
+  320	    """Hash only the static template files (base.md + role.md + skills).
+  321	    Accepts role string or legacy bool (is_orchestrator)."""
+  322	    if isinstance(role_or_orch, bool):
+  323	        role = "orchestrator" if role_or_orch else "worker"
+  324	    else:
+  325	        role = role_or_orch
+  326	    content = read_prompt("base.md") + role_prompt_file(role)
+  327	    return hashlib.md5(content.encode()).hexdigest()[:8]
+  328	
+  329	
+  330	def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+  331	    """Run command as agent user if ORCHESTRA_AGENT_UID set (cap_drop=ALL workaround)."""
+  332	    agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+  333	    if agent_uid:
+  334	        gosu = shutil.which("gosu")
+  335	        if gosu:
+  336	            args = [gosu, agent_uid] + args
+  337	    return subprocess.run(args, **kwargs)
+  338	
+  339	
+  340	def inject_skills_to_worktree_report(
+  341	    skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
+  342	) -> SkillInjectionResult:
+  343	    """Copy resolved pipeline skills and their references into the CLI skill directory.
+  344	
+  345	    Runs on every backend (re)connect, not just at worktree creation — a long-lived agent
+  346	    would otherwise keep the skill files from the day it was spawned, and a skill added to a
+  347	    role after spawn would never reach anyone. Same reasoning, same seam as `sync_agents_md`.
+  348	
+  349	    ``home_dir`` is the only thing that differs between runtimes: Claude discovers skills in
+  350	    `.claude/skills/`, Codex in `.codex/skills/` (verified on codex-cli 0.145.0 — a project
+  351	    directory is searched upward from cwd alongside `$CODEX_HOME/skills` and `~/.agents/skills`,
+  352	    and the three sources are merged, not replaced). One mechanism, two addresses: a second
+  353	    copy of this function would be two places for the guards below to drift apart.
+  354	
+  355	    ``worktree_path`` is the agent's worktree when it has one, otherwise its plain cwd —
+  356	    orchestrators run without a worktree, so a worktree-only path never delivered to them.
+  357	    That cwd is a REAL repository the user works in by hand, hence the two guards below.
+  358	
+  359	    A repo that TRACKS `<home_dir>/skills/<name>/SKILL.md` owns that file: `info/exclude` cannot
+  360	    ignore a tracked path, so overwriting it leaves the tree dirty forever and blocks
+  361	    every merge. Such skills are left alone — the agent reads the repo's own version, which
+  362	    the CLI already loads from the same path.
+  363	
+  364	    Returns enough evidence for the session to distinguish a safe no-op from a
+  365	    repo-owned home-file conflict. The public int wrapper below remains stable.
+  366	    """
+  367	    home = Path(worktree_path) / home_dir
+  368	    if not _SKILLS_DIR.is_dir():
+  369	        return SkillInjectionResult(
+  370	            written=0, requested=len(skill_names), home_path=str(home),
+  371	            skipped=("missing_skill_root",),
+  372	        )
+  373	    wt = Path(worktree_path)
+  374	    rels = {sname: f"{home_dir}/skills/{sname}/SKILL.md" for sname in skill_names}
+  375	    reference_sources = {
+  376	        sname: sorted(
+  377	            p for p in (_SKILLS_DIR / sname / "references").rglob("*")
+  378	            if p.is_file() and not p.is_symlink()
+  379	        )
+  380	        for sname in skill_names
+  381	    }
+  382	    reference_rels = {
+  383	        source: (
+  384	            f"{home_dir}/skills/{sname}/references/"
+  385	            f"{source.relative_to(_SKILLS_DIR / sname / 'references')}"
+  386	        )
+  387	        for sname, sources in reference_sources.items()
+  388	        for source in sources
+  389	    }
+  390	    current_sources = {path.stem for path in _SKILLS_DIR.glob("*.md")}
+  391	    retired_names = set(_retired_skill_hashes()) - current_sources - set(skill_names)
+  392	    retired_rels = {
+  393	        name: f"{home_dir}/skills/{name}/SKILL.md" for name in retired_names
+  394	    }
+  395	    retired_tmp_rels = {
+  396	        name: f"{home_dir}/skills/{name}/.SKILL.md.*.tmp" for name in retired_names
+  397	    }
+  398	    try:
+  399	        tracked = tracked_paths(
+  400	            wt,
+  401	            [home_dir, *rels.values(), *reference_rels.values(),
+  402	             *retired_rels.values(), *retired_tmp_rels.values()],
+  403	        )
+  404	    except RuntimeError as exc:
+  405	        # Git failing (not a repo, ownership, broken worktree) proves nothing about who owns
+  406	        # these files. Writing on a guess is what dirties someone else's repository.
+  407	        logger.warning(f"{exc} — skill injection skipped for {wt}")
+  408	        return SkillInjectionResult(
+  409	            written=0, requested=len(skill_names), home_path=str(home),
+  410	            skipped=("unsafe_git_state",),
+  411	        )
+  412	    if home.exists() and not home.is_dir():
+  413	        # Measured on a live repo: `Aperant` tracks a read-only zero-byte FILE named `.codex`.
+  414	        # `mkdir -p` then fails once per skill per connect. The repo owns that name — bail out
+  415	        # quietly rather than log the same failure five times forever or clobber their file.
+  416	        logger.info(f"'{home}' exists and is not a directory — skill injection skipped")
+  417	        return SkillInjectionResult(
+  418	            written=0, requested=len(skill_names), home_path=str(home),
+  419	            home_path_is_file=True, home_path_tracked=home_dir in tracked,
+  420	            skipped=("home_path_is_file",),
+  421	        )
+  422	    skills_home = home / "skills"
+  423	    if not home.is_symlink() and not skills_home.is_symlink():
+  424	        for name, rel in retired_rels.items():
+  425	            dest = wt / rel
+  426	            skill_dir = dest.parent
+  427	            if skill_dir.is_symlink():
+  428	                continue
+  429	            if rel not in tracked and not dest.is_symlink() and dest.is_file():
+  430	                try:
+  431	                    digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+  432	                except OSError:
+  433	                    digest = ""
+  434	                if digest in _retired_skill_hashes()[name]:
+  435	                    try:
+  436	                        dest.unlink()
+  437	                    except OSError as exc:
+  438	                        logger.warning(f"Retired managed skill at {dest} could not be removed ({exc})")
+  439	            for temp in skill_dir.glob(".SKILL.md.*.tmp"):
+  440	                temp_rel = temp.relative_to(wt).as_posix()
+  441	                if (temp_rel in tracked or temp.is_symlink() or not temp.is_file()
+  442	                        or not re.fullmatch(r"\.SKILL\.md\.\d+\.[0-9a-f]{8}\.tmp", temp.name)):
+  443	                    continue
+  444	                try:
+  445	                    temp.unlink()
+  446	                except OSError as exc:
+  447	                    logger.warning(f"Retired skill write temp at {temp} could not be removed ({exc})")
+  448	            try:
+  449	                skill_dir.rmdir()
+  450	            except OSError:
+  451	                pass
+  452	            else:
+  453	                logger.info(f"Removed retired managed skill directory at {skill_dir}")
+  454	    if not skill_names:
+  455	        return SkillInjectionResult(
+  456	            written=0, requested=0, home_path=str(home), skipped=("no_skills",),
+  457	        )
+  458	    injected = 0
+  459	    wrote_files = False
+  460	    skipped: list[str] = []
+  461	    for sname in skill_names:
+  462	        skill_src = _SKILLS_DIR / f"{sname}.md"
+  463	        if not skill_src.exists():
+  464	            logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
+  465	            skipped.append(f"missing_source:{sname}")
+  466	            continue
+  467	        if rels[sname] in tracked:
+  468	            logger.info(f"Skill '{sname}' is tracked by the repo at {wt} — injection skipped")
+  469	            skipped.append(f"tracked_skill:{sname}")
+  470	            continue
+  471	        skill_dir = wt / home_dir / "skills" / sname
+  472	        if skill_dir.is_symlink():
+  473	            logger.warning(f"Skill directory at {skill_dir} is a symlink — skipped")
+  474	            skipped.append(f"symlink_skill_dir:{sname}")
+  475	            continue
+  476	        dest = skill_dir / "SKILL.md"
+  477	        if dest.is_symlink():
+  478	            logger.warning(f"Skill '{sname}' at {dest} is a symlink — skipped (copy would clobber its target)")
+  479	            skipped.append(f"symlink:{sname}")
+  480	            continue
+  481	        unchanged = False
+  482	        try:
+  483	            unchanged = dest.is_file() and dest.read_bytes() == skill_src.read_bytes()
+  484	        except OSError as exc:
+  485	            logger.warning(f"Skill '{sname}' at {dest} unreadable ({exc}) — rewriting")
+  486	        if not unchanged:
+  487	            if not _copy_skill_file(skill_src, dest):
+  488	                logger.warning(f"Skill '{sname}' install failed at {dest}")
+  489	                skipped.append(f"install_failed:{sname}")
+  490	                continue
+  491	            injected += 1
+  492	            wrote_files = True
+  493	        for source in reference_sources[sname]:
+  494	            rel = reference_rels[source]
+  495	            resource_dest = wt / rel
+  496	            if (skill_dir / "references").is_symlink():
+  497	                skipped.append(f"symlink_references:{sname}")
+  498	                break
+  499	            if rel in tracked or resource_dest.is_symlink():
+  500	                continue
+  501	            try:
+  502	                if resource_dest.is_file() and resource_dest.read_bytes() == source.read_bytes():
+  503	                    continue
+  504	            except OSError:
+  505	                pass
+  506	            if _copy_skill_file(source, resource_dest):
+  507	                wrote_files = True
+  508	            else:
+  509	                logger.warning(f"Skill reference install failed at {resource_dest}")
+  510	                skipped.append(f"install_failed_reference:{sname}")
+  511	    if wrote_files:
+  512	        # Only after actually planting something, and only the directory we wrote — this path
+  513	        # may be the user's working repository, where adding unrelated ignore rules is a side
+  514	        # effect we have no mandate for. Without this, a repo that ignores neither `.claude/`
+  515	        # nor `.codex/` (games and seedon ignore neither) gets permanent untracked junk in the
+  516	        # user's `git status`.
+  517	        try:
+  518	            _exclude_worktree_artifacts(wt, only=(f"{home_dir}/",))
+  519	        except Exception as exc:
+  520	            logger.warning(f"could not exclude {home_dir}/ in {wt}: {exc}")
+  521	        # Path is logged, not just the count: whether a CLI actually discovers this directory
+  522	        # is not something we detect (see ORCHESTRA_CODEX_SKILL_INDEX). If an agent turns out
+  523	        # to have no skills, this line is the evidence of where they were put.
+  524	        logger.info(
+  525	            f"Refreshed {injected} skill entrypoints into {worktree_path}/{home_dir}/skills/"
+  526	        )
+  527	    return SkillInjectionResult(
+  528	        written=injected, requested=len(skill_names), home_path=str(home),
+  529	        skipped=tuple(skipped),
+  530	    )
+  531	
+  532	
+  533	def inject_skills_to_worktree(
+  534	    skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
+  535	) -> int:
+  536	    """Backward-compatible count-only wrapper over the diagnostic injector."""
+  537	    return inject_skills_to_worktree_report(
+  538	        skill_names, worktree_path, home_dir,
+  539	    ).written
+  540	
+  541	
+  542	def codex_project_doc_preflight(
+  543	    worktree_path: str,
+  544	    *,
+  545	    codex_home: str | None = None,
+  546	) -> CodexProjectDocPreflight:
+  547	    """Diagnose a provably truncated root AGENTS.md without changing it or config."""
+  548	    doc = Path(worktree_path) / "AGENTS.md"
+  549	    if not doc.exists() or not doc.is_file():
+  550	        return CodexProjectDocPreflight(str(doc), None, None, None)
+  551	    if doc.is_symlink():
+  552	        return CodexProjectDocPreflight(
+  553	            str(doc), None, None, None,
+  554	            diagnostic=f"Codex project-doc preflight skipped unsafe symlink: {doc}",
+  555	        )
+  556	    config_root = Path(
+  557	        codex_home
+  558	        or os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+  559	    ).expanduser()
+  560	    config = config_root / "config.toml"
+  561	    try:
+  562	        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+  563	    except FileNotFoundError:
+  564	        return CodexProjectDocPreflight(str(doc), None, None, None)
+  565	    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+  566	        return CodexProjectDocPreflight(
+  567	            str(doc), None, None, None,
+  568	            diagnostic=(
+  569	                f"Codex project-doc budget unavailable: {config}: "
+  570	                f"{type(exc).__name__}: {exc}"
+  571	            ),
+  572	        )
+  573	    budget = parsed.get("project_doc_max_bytes")
+  574	    if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+  575	        return CodexProjectDocPreflight(str(doc), None, None, None)
+  576	    try:
+  577	        content = doc.read_bytes()
+  578	    except OSError as exc:
+  579	        return CodexProjectDocPreflight(
+  580	            str(doc), None, budget, None,
+  581	            diagnostic=f"Codex project-doc unreadable: {doc}: {type(exc).__name__}: {exc}",
+  582	        )
+  583	    actual = len(content)
+  584	    if actual <= budget:
+  585	        return CodexProjectDocPreflight(str(doc), actual, budget, None)
+  586	    offset = 0
+  587	    first_truncated_line = 1
+  588	    for line_number, line in enumerate(content.splitlines(keepends=True), 1):
+  589	        if offset + len(line) > budget:
+  590	            first_truncated_line = line_number
+  591	            break
+  592	        offset += len(line)
+  593	    diagnostic = (
+  594	        f"Codex project doc exceeds configured auto-load budget: {doc} is "
+  595	        f"{actual} bytes, project_doc_max_bytes={budget}; first line not fully "
+  596	        f"inside the budget is line {first_truncated_line}."
+  597	    )
+  598	    instruction = (
+  599	        "[Orchestra project-doc warning: Codex auto-load is incomplete. "
+  600	        f"{doc} is {actual} bytes with configured budget {budget}. Before task "
+  601	        f"actions, read {doc} from line {first_truncated_line} through EOF once; "
+  602	        "that line may overlap the auto-loaded prefix. Do not rewrite the file.]"
+  603	    )
+  604	    return CodexProjectDocPreflight(
+  605	        str(doc), actual, budget, first_truncated_line,
+  606	        instruction=instruction, diagnostic=diagnostic,
+  607	    )
+  608	
+  609	
+  610	_SKILL_INDEX_HEADER = """## Available skills (progressive loading)
+  611	
+  612	The entries below are an index, not loaded instructions. When a request matches a skill description, you MUST read that skill file completely before acting. Do not read unrelated skill files. Skills apply only to the current request."""
+  613	
+  614	
+  615	def _read_skill_index_entry(path: Path) -> tuple[str, str, Path]:
+  616	    text = path.read_text(encoding="utf-8")
+  617	    meta, _ = parse_role_frontmatter(text)
+  618	    name = meta.get("name") if isinstance(meta, dict) else None
+  619	    description = meta.get("description") if isinstance(meta, dict) else None
+  620	    if not isinstance(name, str) or not name.strip():
+  621	        raise ValueError("missing frontmatter name")
+  622	    if "\n" in name or "\r" in name:
+  623	        raise ValueError("frontmatter name must be one line")
+  624	    if not isinstance(description, str) or not description.strip():
+  625	        raise ValueError("missing frontmatter description")
+  626	    return name.strip(), " ".join(description.split()), path.resolve()
+  627	
+  628	
+  629	def build_skills_index(
+  630	    required_skill_files: list[Path],
+  631	    optional_skill_files: list[Path],
+  632	) -> str:
+  633	    """Generate a progressive skill catalog from canonical source files.
+  634	
+  635	    Required files are explicit pipeline role configuration and fail backend
+  636	    construction on any read/frontmatter error. Optional project files are ambient:
+  637	    malformed entries are logged and omitted.
+  638	    """
+  639	    entries: list[str] = []
+  640	    seen: set[str] = set()
+  641	    for required, paths in (
+  642	        (True, required_skill_files),
+  643	        (False, optional_skill_files),
+  644	    ):
+  645	        for path in paths:
+  646	            try:
+  647	                name, description, resolved = _read_skill_index_entry(Path(path))
+  648	            except (OSError, UnicodeError, ValueError) as exc:
+  649	                if required:
+  650	                    logger.error("Required skill '%s' is invalid: %s", path, exc)
+  651	                    raise ValueError(f"required skill '{path}' is invalid: {exc}") from exc
+  652	                logger.warning("Skipping optional skill '%s': %s", path, exc)
+  653	                continue
+  654	            if name in seen:
+  655	                continue
+  656	            seen.add(name)
+  657	            entries.append(f"- `{name}` — {description} — `{resolved}`")
+  658	    if not entries:
+  659	        return ""
+  660	    return _SKILL_INDEX_HEADER + "\n\n" + "\n".join(entries)
+  661	
+  662	
+  663	def _project_skill_files(worktree_path: str) -> list[Path]:
+  664	    """Return project skills whose live files still match committed HEAD."""
+  665	    try:
+  666	        worktree = Path(worktree_path).resolve()
+  667	        skills_candidate = worktree / ".claude" / "skills"
+  668	        if skills_candidate.is_symlink():
+  669	            logger.warning("Project skill root is a symlink: %s", skills_candidate)
+  670	            return []
+  671	        skills_root = skills_candidate.resolve()
+  672	    except (OSError, RuntimeError) as exc:
+  673	        logger.warning("Project skill root cannot be resolved in %s: %s", worktree_path, exc)
+  674	        return []
+  675	    if not skills_root.is_relative_to(worktree):
+  676	        logger.warning("Project skill root escapes worktree: %s", skills_root)
+  677	        return []
+  678	    try:
+  679	        tracked = subprocess.run(
+  680	            ["git", "ls-files", "-z", "--", ".claude/skills/*/SKILL.md"],
+  681	            cwd=worktree,
+  682	            capture_output=True,
+  683	        )
+  684	    except OSError as exc:
+  685	        logger.warning("Project skill discovery failed in %s: %s", worktree, exc)
+  686	        return []
+  687	    if tracked.returncode != 0:
+  688	        logger.debug("No Git project skills in %s", worktree)
+  689	        return []
+  690	    try:
+  691	        relative_paths = tracked.stdout.decode("utf-8").split("\0")
+  692	    except UnicodeDecodeError as exc:
+  693	        logger.warning("Project skill paths are not UTF-8 in %s: %s", worktree, exc)
+  694	        return []
+  695	
+  696	    result: list[Path] = []
+  697	    for relative in sorted(path for path in relative_paths if path):
+  698	        candidate = worktree / relative
+  699	        if candidate.is_symlink():
+  700	            logger.warning("Skipping project skill symlink: %s", candidate)
+  701	            continue
+  702	        try:
+  703	            resolved = candidate.resolve(strict=True)
+  704	        except (OSError, RuntimeError) as exc:
+  705	            logger.warning("Skipping missing project skill '%s': %s", candidate, exc)
+  706	            continue
+  707	        if not resolved.is_relative_to(skills_root) or not resolved.is_file():
+  708	            logger.warning("Skipping project skill outside canonical root: %s", resolved)
+  709	            continue
+  710	        try:
+  711	            clean = subprocess.run(
+  712	                ["git", "diff", "--quiet", "HEAD", "--", relative],
+  713	                cwd=worktree,
+  714	                capture_output=True,
+  715	            )
+  716	        except OSError as exc:
+  717	            logger.warning("Skipping project skill '%s': diff failed: %s", candidate, exc)
+  718	            continue
+  719	        if clean.returncode != 0:
+  720	            detail = (
+  721	                "diff failed"
+  722	                if clean.returncode > 1
+  723	                else "working file differs from committed HEAD"
+  724	            )
+  725	            logger.warning("Skipping project skill '%s': %s", candidate, detail)
+  726	            continue
+  727	        result.append(resolved)
+  728	    return result
+  729	
+  730	
+  731	def build_codex_skills_index(
+  732	    pipeline_name: str,
+  733	    skill_names: list[str] | str,
+  734	    worktree_path: str,
+  735	) -> str:
+  736	    """Build the live skill index for a Codex backend.
+  737	
+  738	    Pipeline files are explicit/required. Project discovery is added separately
+  739	    below; keeping the resolver here ensures both sources share one output format.
+  740	    """
+  741	    from app.pipeline import PIPELINES_DIR, _is_safe_component
+  742	
+  743	    # Empty pipeline (legacy sessions, ad-hoc workers) → no pipeline skills.
+  744	    # Project discovery below still runs. Don't fail the whole send.
+  745	    if not pipeline_name:
+  746	        pipeline_name = "default"
+  747	    if not _is_safe_component(pipeline_name):
+  748	        raise ValueError(f"unsafe pipeline name '{pipeline_name}'")
+  749	    pipelines_root = PIPELINES_DIR.resolve()
+  750	    skills_candidate = pipelines_root / pipeline_name / "prompts" / "skills"
+  751	    if skills_candidate.is_symlink():
+  752	        raise ValueError(f"unsafe pipeline skill root symlink '{skills_candidate}'")
+  753	    skills_root = skills_candidate.resolve()
+  754	    if not skills_root.is_relative_to(pipelines_root):
+  755	        raise ValueError(f"unsafe pipeline skill root '{skills_root}'")
+  756	
+  757	    required: list[Path] = []
+  758	    if skill_names == "all":
+  759	        for candidate in sorted(skills_root.glob("*.md")):
+  760	            if candidate.is_symlink():
+  761	                raise ValueError(f"unsafe pipeline skill path (symlink): '{candidate}'")
+  762	            path = candidate.resolve()
+  763	            if not path.is_relative_to(skills_root):
+  764	                raise ValueError(f"unsafe pipeline skill path '{path}'")
+  765	            required.append(path)
+  766	    else:
+  767	        for name in skill_names:
+  768	            if not _is_safe_component(name):
+  769	                raise ValueError(f"unsafe skill name '{name}'")
+  770	            candidate = skills_root / f"{name}.md"
+  771	            if candidate.is_symlink():
+  772	                raise ValueError(f"unsafe pipeline skill path (symlink): '{candidate}'")
+  773	            path = candidate.resolve()
+  774	            if not path.is_relative_to(skills_root):
+  775	                raise ValueError(f"unsafe pipeline skill path '{path}'")
+  776	            required.append(path)
+  777	
+  778	    return build_skills_index(required, _project_skill_files(worktree_path))

@@ -1,0 +1,36 @@
+    1	<report-format>
+    2	## Report format
+    3	
+    4	Every worker completion report MUST be sent with an actual `send_message` tool call before
+    5	the turn ends. This is role-owned: orchestrators do not repeat the instruction in each task.
+    6	Silent completion and turn failure are platform fallbacks, not an alternative reporting path.
+    7	
+    8	Report to your orchestrator via `mcp__orchestra__send_message` (NOT the built-in SendMessage).
+    9	
+   10	**Who to report to:** if the task message started with `[from:X]`, report DONE/WIP to X — not `{orchestrator_name}`. X gave you the task; they need the result.
+   11	
+   12	**Review:** model review was frozen by the owner on 2026-09-20 — do not call it or seek a
+   13	substitute; do not seek repeated approval of unchanged work. Resolve verified blockers. The
+   14	report states the actual check result, final commit and remaining uncertainty.
+   15	
+   16	### DONE — task finished
+   17	```
+   18	mcp__orchestra__send_message(to="{orchestrator_name}", message="""DONE #<task-id>: <short summary>
+   19	
+   20	Files: <changed files> (+N/-M lines)
+   21	Tests: <what you tested, results>
+   22	Breaking: none | <what changed>
+   23	Notes: <anything orchestrator should know>""")
+   24	```
+   25	
+   26	### WIP / STOPPED — interrupted before finishing
+   27	```
+   28	mcp__orchestra__send_message(to="{orchestrator_name}", message="WIP #<task-id>: done X, Y; TODO: Z")
+   29	```
+   30	Commit the WIP first (`WIP #<task-id>: <what's unfinished>`), then report.
+   31	
+   32	### Pipeline gates (full-cycle only)
+   33	- After a phase that needs approval, report and STOP:
+   34	  `RESEARCH DONE #<id>: <summary>. Findings, evidence and limitations in .orchestra/tasks/<id>/research.md. Awaiting approval.`
+   35	  `PLAN READY #<id>: <summary>. Plan + selected review evidence in .orchestra/tasks/<id>/. Awaiting approval.`
+   36	</report-format>

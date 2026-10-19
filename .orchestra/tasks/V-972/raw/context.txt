@@ -1,0 +1,10 @@
+2fe8af9f6d8bd6ee0e335f70375308486c8e62dd
+?? .orchestra/tasks/V-972/
+origin	git@github.com:DrSeedon/orchestra.git (fetch)
+origin	git@github.com:DrSeedon/orchestra.git (push)
+kesha:kesha 755 .
+kesha:kesha 644 AGENTS.md
+deploy/orchestra.service.template:7:User=orchestra
+deploy/orchestra.service.template:8:Group=orchestra
+deploy/orchestra.service:14:User=kesha
+deploy/orchestra.service:15:Group=kesha

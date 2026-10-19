@@ -1,0 +1,298 @@
+    1	"""AGENTS.md и CLAUDE.md в корне проекта — один файл и симлинк, а не две копии (V-902).
+    2	
+    3	Codex читает AGENTS.md, Claude Agent SDK — CLAUDE.md, `app/harness/prompts.py` берёт AGENTS.md
+    4	первым. Две расходящиеся копии молча отдают часть агентов под устаревшие правила. Правило из
+    5	V-900 держалось бы на доверии; здесь его проверяет платформа (решение владельца 14.10.2026:
+    6	«чтобы не на доверии соблюдали, всё на реальности… нарушил — по рукам побить»).
+    7	
+    8	`reconcile(root)` разбирает пару файлов так:
+    9	- один файл — ссылка на другой (или `CLAUDE.md` = `@AGENTS.md`) → ничего;
+   10	- копии побайтно равны, либо файл один → второй становится симлинком на каноничный. Каноничный
+   11	  — AGENTS.md, если он обычный файл (его читают и Codex, и платформа); если есть только
+   12	  CLAUDE.md, он остаётся каноничным — переименование стёрло бы историю файла;
+   13	- копии разные → НИЧЕГО не пишем (иначе правила одной из них пропадут), вызывающий поднимает
+   14	  тревогу оркестратору проекта.
+   15	Где симлинки недоступны (Windows, `core.symlinks=false`) вместо симлинка кладётся точная копия.
+   16	
+   17	Изменение в чужом репозитории не должно оставлять грязное дерево (`merge_worker` отказывает от
+   18	любого неучтённого файла): правка делается только если оба пути чисты, ветка — основная, нет
+   19	merge/rebase, и сразу коммитится локально ровно этими двумя путями. Не вышло — откат до
+   20	исходных байтов. Ничего не пушится, remote не трогаем.
+   21	"""
+   22	from __future__ import annotations
+   23	
+   24	import json
+   25	import logging
+   26	import os
+   27	import subprocess
+   28	import threading
+   29	import time
+   30	import uuid
+   31	from dataclasses import dataclass, field
+   32	from pathlib import Path
+   33	
+   34	logger = logging.getLogger(__name__)
+   35	
+   36	AGENTS = "AGENTS.md"
+   37	CLAUDE = "CLAUDE.md"
+   38	_IMPORT_STUB = b"@AGENTS.md"
+   39	_IN_PROGRESS = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")
+   40	
+   41	REALERT_SECONDS = 24 * 3600
+   42	SWEEP_SECONDS = 6 * 3600
+   43	OK_STATES = frozenset({"absent", "linked", "linked_copy", "converted", "copied"})
+   44	
+   45	_lock = threading.Lock()
+   46	
+   47	
+   48	@dataclass
+   49	class Outcome:
+   50	    state: str
+   51	    detail: str = ""
+   52	    sizes: dict[str, int] = field(default_factory=dict)
+   53	
+   54	    @property
+   55	    def needs_attention(self) -> bool:
+   56	        return self.state not in OK_STATES
+   57	
+   58	
+   59	def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
+   60	    return subprocess.run(
+   61	        ["git", "-C", str(root), *args], capture_output=True, text=True, errors="replace",
+   62	    )
+   63	
+   64	
+   65	def symlinks_supported(root: Path) -> bool:
+   66	    if os.name == "nt":
+   67	        return False
+   68	    return _git(root, "config", "--type=bool", "core.symlinks").stdout.strip() != "false"
+   69	
+   70	
+   71	def _read(path: Path) -> bytes:
+   72	    return path.read_bytes()
+   73	
+   74	
+   75	def _snapshot(path: Path):
+   76	    if path.is_symlink():
+   77	        return ("link", os.readlink(path))
+   78	    if path.exists():
+   79	        return ("file", path.read_bytes(), path.stat().st_mode & 0o7777)
+   80	    return ("none",)
+   81	
+   82	
+   83	def _restore(path: Path, snap) -> None:
+   84	    if snap[0] == "none":
+   85	        if path.is_symlink() or path.exists():
+   86	            path.unlink()
+   87	        return
+   88	    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+   89	    if snap[0] == "link":
+   90	        os.symlink(snap[1], tmp)
+   91	    else:
+   92	        tmp.write_bytes(snap[1])
+   93	        tmp.chmod(snap[2])
+   94	    os.replace(tmp, path)
+   95	
+   96	
+   97	def _place(path: Path, source: Path, use_symlink: bool) -> bool:
+   98	    """Make `path` a symlink to `source.name` (or an exact copy). Returns whether it is a link."""
+   99	    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+  100	    try:
+  101	        linked = False
+  102	        if use_symlink:
+  103	            try:
+  104	                os.symlink(source.name, tmp)
+  105	                linked = True
+  106	            except OSError:
+  107	                pass
+  108	        if not linked:
+  109	            tmp.write_bytes(_read(source))
+  110	            tmp.chmod(source.stat().st_mode & 0o7777)
+  111	        os.replace(tmp, path)
+  112	        return linked
+  113	    finally:
+  114	        if tmp.is_symlink() or tmp.exists():
+  115	            tmp.unlink()
+  116	
+  117	
+  118	def _git_blocker(root: Path) -> str:
+  119	    """Why a commit in this checkout would be unsafe or impossible; '' = go ahead."""
+  120	    from app.workspace import resolve_base_branch
+  121	
+  122	    top = _git(root, "rev-parse", "--show-toplevel")
+  123	    if top.returncode != 0:
+  124	        return ""  # not a repository: nothing to commit, nothing to dirty
+  125	    if _git(root, "rev-parse", "--verify", "-q", "HEAD").returncode != 0:
+  126	        return "repository has no commits"
+  127	    branch = _git(root, "symbolic-ref", "--quiet", "--short", "HEAD").stdout.strip()
+  128	    if not branch:
+  129	        return "HEAD is detached"
+  130	    try:
+  131	        mainline = resolve_base_branch(str(root))
+  132	    except ValueError as error:
+  133	        return f"mainline unknown: {error}"
+  134	    if branch != mainline:
+  135	        return f"checked-out branch is {branch}, not mainline {mainline}"
+  136	    for name in _IN_PROGRESS:
+  137	        marker = _git(root, "rev-parse", "--git-path", name).stdout.strip()
+  138	        if marker and (root / marker if not os.path.isabs(marker) else Path(marker)).exists():
+  139	            return f"a git operation is in progress ({name})"
+  140	    status = _git(root, "status", "--porcelain", "--ignored", "--", AGENTS, CLAUDE)
+  141	    dirty = [line for line in status.stdout.splitlines() if not line.startswith("!!")]
+  142	    if status.returncode != 0 or dirty:
+  143	        return "uncommitted or untracked changes in AGENTS.md/CLAUDE.md: " + "; ".join(dirty)
+  144	    return ""
+  145	
+  146	
+  147	def _commit(root: Path, paths: list[str], message: str) -> str:
+  148	    """Commit exactly `paths` (ignored ones stay out). Returns an error text or ''."""
+  149	    if _git(root, "rev-parse", "--show-toplevel").returncode != 0:
+  150	        return ""
+  151	    wanted = [p for p in paths if _git(root, "check-ignore", "-q", p).returncode != 0]
+  152	    if not wanted:
+  153	        return ""
+  154	    added = _git(root, "add", "--", *wanted)
+  155	    if added.returncode != 0:
+  156	        return f"git add: {added.stderr.strip()}"
+  157	    done = _git(root, "commit", "-m", message, "--only", "--", *wanted)
+  158	    if done.returncode != 0:
+  159	        return f"git commit: {(done.stderr or done.stdout).strip()}"
+  160	    return ""
+  161	
+  162	
+  163	def _link(root: Path, canonical: Path, other: Path, outcome: str) -> Outcome:
+  164	    blocker = _git_blocker(root)
+  165	    if blocker:
+  166	        return Outcome("blocked", blocker)
+  167	    snaps = {p: _snapshot(p) for p in (canonical, other)}
+  168	    try:
+  169	        linked = _place(other, canonical, symlinks_supported(root))
+  170	        error = _commit(
+  171	            root, [other.name],
+  172	            f"rules: {other.name} is {'a symlink to' if linked else 'an exact copy of'} "
+  173	            f"{canonical.name} (Orchestra V-902)",
+  174	        )
+  175	    except OSError as exc:
+  176	        error = f"{type(exc).__name__}: {exc}"
+  177	    if error:
+  178	        for path, snap in snaps.items():
+  179	            _restore(path, snap)
+  180	        _git(root, "reset", "-q", "--", other.name)
+  181	        return Outcome("blocked", f"could not record the change, rolled back: {error}")
+  182	    return Outcome(outcome if linked or outcome != "converted" else "copied",
+  183	                   f"{other.name} -> {canonical.name}")
+  184	
+  185	
+  186	def reconcile(root: str | Path) -> Outcome:
+  187	    root = Path(root)
+  188	    agents, claude = root / AGENTS, root / CLAUDE
+  189	    with _lock:
+  190	        present = [p for p in (agents, claude) if os.path.lexists(p)]
+  191	        for p in present:
+  192	            if not p.exists():
+  193	                return Outcome("broken", f"{p.name} is a dangling symlink")
+  194	            if not p.is_file():
+  195	                return Outcome("blocked", f"{p.name} is not a regular file")
+  196	        if not present:
+  197	            return Outcome("absent")
+  198	        sizes = {p.name: p.stat().st_size for p in present}
+  199	        if len(present) == 1:
+  200	            only = present[0]
+  201	            other = claude if only == agents else agents
+  202	            result = _link(root, only, other, "converted")
+  203	            result.sizes = sizes
+  204	            return result
+  205	        if agents.resolve() == claude.resolve() or _read(claude).strip() == _IMPORT_STUB:
+  206	            return Outcome("linked", sizes=sizes)
+  207	        if _read(agents) != _read(claude):
+  208	            # A git symlink checked out as text (core.symlinks=false) holds just the target name.
+  209	            if not symlinks_supported(root) and (
+  210	                _read(claude).strip() == AGENTS.encode() or _read(agents).strip() == CLAUDE.encode()
+  211	            ):
+  212	                return Outcome("linked_copy", "git symlink checked out as a text stub", sizes)
+  213	            return Outcome("diverged", sizes=sizes)
+  214	        if not symlinks_supported(root):
+  215	            return Outcome("linked_copy", sizes=sizes)
+  216	        canonical = agents if not agents.is_symlink() else claude
+  217	        other = claude if canonical == agents else agents
+  218	        result = _link(root, canonical, other, "converted")
+  219	        result.sizes = sizes
+  220	        return result
+  221	
+  222	
+  223	def alert_text(scope: str, outcome: Outcome) -> str:
+  224	    sizes = ", ".join(f"{name} {size} B" for name, size in outcome.sizes.items())
+  225	    if outcome.state == "diverged":
+  226	        body = (
+  227	            f"AGENTS.md and CLAUDE.md in {scope} are two different files ({sizes}). Codex reads "
+  228	            "AGENTS.md, Claude reads CLAUDE.md, so part of the agents works by outdated rules. "
+  229	            "Platform did not overwrite anything. Fix: merge the content into ONE file "
+  230	            "(AGENTS.md), make the other a symlink to it (`ln -sf AGENTS.md CLAUDE.md`), commit. "
+  231	            "The platform re-checks every few hours and reminds you daily until it is fixed."
+  232	        )
+  233	    else:
+  234	        body = (
+  235	            f"AGENTS.md/CLAUDE.md in {scope} could not be unified automatically: "
+  236	            f"{outcome.state}: {outcome.detail}. Fix the cause (commit or clean the two files, "
+  237	            "return to the main branch) or make them one file plus a symlink by hand; "
+  238	            "the platform retries every few hours and reminds daily."
+  239	        )
+  240	    return "RULES FILES: " + body
+  241	
+  242	
+  243	def due_for_alert(scope: str, outcome: Outcome, now: float | None = None) -> bool:
+  244	    """Daily reminder, immediately when the kind of problem changes; a fixed scope forgets itself."""
+  245	    from app.db import kv_delete, kv_get, kv_set
+  246	
+  247	    key = f"rules_link_alert:{scope}"
+  248	    if not outcome.needs_attention:
+  249	        if kv_get(key):
+  250	            kv_delete(key)
+  251	        return False
+  252	    now = time.time() if now is None else now
+  253	    try:
+  254	        last = json.loads(kv_get(key) or "{}")
+  255	    except ValueError:
+  256	        last = {}
+  257	    if last.get("state") == outcome.state and now - float(last.get("at", 0)) < REALERT_SECONDS:
+  258	        return False
+  259	    kv_set(key, json.dumps({"state": outcome.state, "at": now}))
+  260	    return True
+  261	
+  262	
+  263	async def sweep(session_manager) -> dict[str, str]:
+  264	    """Reconcile every project where Orchestra has live sessions; alert its orchestrator."""
+  265	    import asyncio
+  266	
+  267	    from app.db import get_all_sessions
+  268	    from app.events import MessageProvenance
+  269	    from app.notify import orchestrator_for_scope
+  270	
+  271	    scopes = sorted({(row.get("scope") or "").rstrip("/") for row in get_all_sessions()} - {""})
+  272	    states: dict[str, str] = {}
+  273	    for scope in scopes:
+  274	        if not Path(scope).is_dir():
+  275	            continue
+  276	        try:
+  277	            outcome = await asyncio.to_thread(reconcile, scope)
+  278	        except Exception as error:
+  279	            outcome = Outcome("blocked", f"{type(error).__name__}: {error}")
+  280	        states[scope] = outcome.state
+  281	        if outcome.state in ("converted", "copied"):
+  282	            logger.info("rules_link %s: %s %s", scope, outcome.state, outcome.detail)
+  283	        if not due_for_alert(scope, outcome):
+  284	            continue
+  285	        orch = orchestrator_for_scope(scope)
+  286	        if not orch:
+  287	            logger.warning("rules_link %s: %s %s — no orchestrator to tell",
+  288	                           scope, outcome.state, outcome.detail)
+  289	            continue
+  290	        try:
+  291	            await session_manager.send(
+  292	                orch["id"], alert_text(scope, outcome),
+  293	                provenance=MessageProvenance(
+  294	                    origin="platform", senders=("Orchestra",), subtype="rules_link", ref=scope),
+  295	            )
+  296	        except Exception as error:
+  297	            logger.warning("rules_link %s: alert to %s failed: %s", scope, orch["name"], error)
+  298	    return states
