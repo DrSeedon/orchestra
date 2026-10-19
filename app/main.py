@@ -529,6 +529,8 @@ async def lifespan(app: FastAPI):
                         logger.info("Proxy reconnected, models loaded")
                         break
             asyncio.create_task(_proxy_retry_loop())
+        from app import checklists
+        await asyncio.to_thread(checklists.drop_open_clocks)
         await manager.auto_resume_all()
         from app.routes.tg import resume_dashboard_voice_transcriptions
         await resume_dashboard_voice_transcriptions()

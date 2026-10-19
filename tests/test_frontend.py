@@ -1469,6 +1469,18 @@ def test_info_panel_displays_step_estimate_and_live_elapsed_time(dashboard_page:
     )
 
 
+def test_checklist_reminder_is_hidden_on_a_card_that_is_not_running(dashboard_page: Page):
+    html = dashboard_page.evaluate("""() => ['running', 'idle'].map(status => _checklistCardHtml({
+        name: 'w-' + status, model: 'codex', status,
+        checklist: {
+            completed: 0, total: 1, current: 'Step', reminded_at: '2026-10-19T01:30:00+00:00',
+            items: [{text: 'Step', current: true, estimate_minutes: 5, actual_seconds: 10}],
+        },
+    }))""")
+    assert "checklist-reminder" in html[0]
+    assert "checklist-reminder" not in html[1]
+
+
 def test_no_js_errors(dashboard_browser: Browser):
     errors = []
     page = dashboard_browser.new_page()

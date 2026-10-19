@@ -3987,7 +3987,7 @@ function _checklistCardHtml(session) {
             : `<span class="info-check-elapsed" data-checklist-elapsed data-actual-seconds="${Number(item.actual_seconds)}"${activeSince}>0:00</span>`;
         return `<div class="info-check-item ${state}"><span class="mark">${item.done ? '✓' : item.current ? '●' : '·'}</span><span>${escHtml(item.text)}<small>${label} · ${estimate} · ${T('Actual')}: ${actual}</small></span></div>`;
     }).join('');
-    const reminder = checklist.reminded_at
+    const reminder = checklist.reminded_at && session.status === 'running'
         ? `<div class="checklist-reminder"><strong>⏱ ${T('Reminder sent')} · ${escHtml(_infoTime(checklist.reminded_at))}</strong>${T('No checklist update for five minutes.')}</div>` : '';
     return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[9px] text-slate-500 mt-1">${escHtml(T(session.status || 'running'))}${checklist.updated_at ? ` · ${T('Updated')} ${escHtml(_infoTime(checklist.updated_at))}` : ''}</div><div class="info-check-progress"><div class="info-check-progress-head"><span>${T('Checklist')}</span><strong>${checklist.completed} ${T('of')} ${checklist.total}</strong></div><div class="info-check-track"><span style="width:${percent}%"></span></div>${checklist.current ? `<div class="info-check-current">${T('Current step')}: ${escHtml(checklist.current)}</div>` : ''}</div><div class="info-checklist">${items}</div>${reminder}</article>`;
 }

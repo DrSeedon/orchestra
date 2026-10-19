@@ -481,3 +481,84 @@ def test_estimate_is_mandatory_for_new_or_changed_steps_only(checklist_db):
         save(["First", "Second changed"], [0])
     added = save(["First", "Second", "Third"], [0], [None, None, 5])
     assert [item["estimate_minutes"] for item in added["items"]] == [3, 4, 5]
+
+
+def test_step_clock_follows_work_state_of_the_session(checklist_db):
+    db, checklists = checklist_db
+    from app.session import AgentSession, AgentStatus
+
+    _insert_session(db, "worker-clock", "task-1")
+    started = datetime.now(timezone.utc) - timedelta(seconds=100)
+    checklists.save_checklist(
+        "worker-clock", "task-1", "turn-clock",
+        items=["Only step"], completed=[], current=0, estimates_minutes=[10], now=started,
+    )
+    session = AgentSession(
+        id="worker-clock", name="worker", scope="/v858", cwd="/v858",
+        status=AgentStatus.RUNNING, task_id="task-1",
+    )
+
+    def step():
+        return checklists.get_checklist("worker-clock", "task-1")["items"][0]
+
+    assert step()["active_since"] is not None
+    session.status = AgentStatus.IDLE
+    paused = step()
+    assert paused["active_since"] is None
+    assert 99 <= paused["actual_seconds"] <= 130
+    session.status = AgentStatus.WAITING
+    session.status = AgentStatus.IDLE
+    assert step()["actual_seconds"] == paused["actual_seconds"]
+
+    session.status = AgentStatus.RUNNING
+    resumed = step()
+    assert resumed["active_since"] is not None
+    assert resumed["actual_seconds"] == paused["actual_seconds"]
+
+    session._compacting = True
+    session.status = AgentStatus.IDLE
+    assert step()["active_since"] is not None
+    session._compacting = False
+    assert step()["active_since"] is None
+
+
+def test_open_clocks_are_dropped_at_process_start(checklist_db):
+    db, checklists = checklist_db
+    _insert_session(db, "worker-restart", "task-1")
+    checklists.save_checklist(
+        "worker-restart", "task-1", "turn-restart",
+        items=["Only step"], completed=[], current=0, estimates_minutes=[10],
+        now=datetime.now(timezone.utc) - timedelta(hours=5),
+    )
+
+    checklists.drop_open_clocks()
+
+    step = checklists.get_checklist("worker-restart", "task-1")["items"][0]
+    assert step["active_since"] is None and step["actual_seconds"] == 0
+
+
+def test_idle_session_gets_no_reminder(checklist_db, monkeypatch):
+    db, checklists = checklist_db
+    from app.session import AgentSession, AgentStatus
+
+    _insert_session(db, "worker-idle", "task-1")
+    monkeypatch.setattr(checklists, "REMINDER_CUTOFF", date(2026, 10, 22))
+    monkeypatch.setattr(checklists, "REMINDER_DELAY_SECONDS", 0.01)
+    checklists.save_checklist(
+        "worker-idle", "task-1", "turn-idle",
+        items=["Slow"], completed=[], current=0, estimates_minutes=[0.1],
+        now=datetime.now(timezone.utc) - timedelta(minutes=5),
+    )
+    session = AgentSession(
+        id="worker-idle", name="worker", scope="/v858", cwd="/v858",
+        status=AgentStatus.IDLE, task_id="task-1",
+    )
+    session._turn_gen = 1
+    session.send = AsyncMock()
+    session._log = Mock()
+    turn_key = checklists.make_turn_key(session.id, 1)
+    checklists.register_turn(session.id, session.task_id, 1, turn_key)
+
+    asyncio.run(session._watch_checklist_reminder(1, turn_key))
+
+    session.send.assert_not_awaited()

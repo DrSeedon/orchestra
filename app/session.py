@@ -854,6 +854,27 @@ class AgentSession:
             f"precompact timer compacted: {self._precompact_payload(state)}",
         )
 
+    def _clock_running(self) -> bool:
+        return self.status == AgentStatus.RUNNING or self._compacting
+
+    def __setattr__(self, name: str, value) -> None:
+        # The checklist step clock follows the agent's work state (running or compacting),
+        # so every assignment that flips it must be seen; there are dozens of them.
+        tracked = name in ("status", "_compacting") and self.__dict__.get("_clock_ready")
+        before = self._clock_running() if tracked else False
+        object.__setattr__(self, name, value)
+        if not tracked or not self.loaded or self.is_orchestrator:
+            return
+        working = self._clock_running()
+        if working == before:
+            return
+        from app import checklists
+
+        try:
+            checklists.set_clock(self.id, self.task_id, working)
+        except Exception as error:
+            logger.warning("[%s] checklist clock update failed: %s", self.name, err_text(error))
+
     def __post_init__(self) -> None:
         # Systems over state (ECS): cost/turn/hibernate methods live in systems,
         # all fields stay on the session (persistence reads them directly)
@@ -861,6 +882,7 @@ class AgentSession:
         self._turns = TurnManager(self)
         self._hibernate = HibernateManager(self)
         self._active_delivery_context = None
+        self._clock_ready = True
 
     @property
     def is_orchestrator(self) -> bool:

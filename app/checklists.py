@@ -342,6 +342,58 @@ def save_checklist(
     }
 
 
+def set_clock(
+    session_id: str, task_id: str, active: bool, *, now: datetime | None = None,
+) -> None:
+    """Run or stop the step clock with the agent's work state.
+
+    The clock counts only time the agent is working; a stop folds the open interval into
+    `actual_seconds`, a start reopens it on the current step of the session's checklist.
+    """
+    now_epoch = (now or datetime.now(timezone.utc)).timestamp()
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if not active:
+            connection.execute(
+                """UPDATE checklist_step_metrics
+                   SET actual_seconds=COALESCE(actual_seconds,0)+MAX(0.0,?-active_since),
+                       active_since=NULL
+                   WHERE session_id=? AND active_since IS NOT NULL""",
+                (now_epoch, session_id),
+            )
+            return
+        row = connection.execute(
+            "SELECT items_json FROM session_checklists WHERE session_id=? AND task_id=?",
+            (session_id, task_id or ""),
+        ).fetchone()
+        try:
+            items = json.loads(row["items_json"]) if row else []
+        except (TypeError, json.JSONDecodeError):
+            items = []
+        current = next(
+            (item.get("step_id") for item in items if isinstance(item, dict) and item.get("current")),
+            None,
+        )
+        if current:
+            connection.execute(
+                """UPDATE checklist_step_metrics
+                   SET active_since=?,actual_seconds=COALESCE(actual_seconds,0)
+                   WHERE session_id=? AND task_id=? AND step_id=? AND active_since IS NULL""",
+                (now_epoch, session_id, task_id or "", current),
+            )
+
+
+def drop_open_clocks() -> None:
+    """At process start no agent is working: close clocks left open by the previous process.
+
+    The elapsed part is dropped, not added: it would include the downtime.
+    """
+    with db._conn() as connection:
+        connection.execute(
+            "UPDATE checklist_step_metrics SET active_since=NULL WHERE active_since IS NOT NULL",
+        )
+
+
 def get_checklist(session_id: str, task_id: str = "") -> dict | None:
     with db._conn() as connection:
         row = connection.execute(
