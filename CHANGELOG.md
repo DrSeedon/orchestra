@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Added
+- **Strict InferenceNet routing for DeepSeek V4.1 Flash 1017** (`app/models.py`, `app/harness/llm.py`; V-973). The exact paid id `deepseek/deepseek-v4.1-flash-1017` is admitted and its request sets `provider.order` and `provider.only` to `InferenceNet` with fallbacks disabled. Other model routes retain the configurable provider order and fallback behavior. Trigger: the owner approved this paid route for openrouter-lab agents after provider evaluation selected the InferenceNet fp8 endpoint.
+
 ### Fixed
 - **Task-directed writes outside a repository are no longer blocked by worktree rules** (`.orchestra/pipelines/default/prompts/modules/git-workflow.md`, `roles/worker.md`, `roles/full-cycle.md`, `base.md`; V-971). Worktree confinement now applies specifically to repository edits; installs, data directories and other external files named by the task remain within its authority and the safety rules. Trigger: a worker treated the installation target `/mnt/data/dwn` as forbidden because its role said every file edit had to stay in its worktree. In matched Luna trials, explicit refusals citing the old boundary fell from 4/5 to 0/5; one post-change success claim was not externally verifiable as a persisted file.
 

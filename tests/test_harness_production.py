@@ -145,6 +145,33 @@ async def test_owner_listed_paid_route_is_billed_and_others_stay_blocked():
     await http.aclose()
 
 
+def test_deepseek_1017_is_admitted_and_strictly_pinned_without_losing_payload():
+    from app.models import harness_route_allowed
+    from app.model_catalog import normalize_catalog_model
+
+    model = "deepseek/deepseek-v4.1-flash-1017"
+    assert harness_route_allowed(model)
+    assert not harness_route_allowed("deepseek/deepseek-v4.1-flash-1017-other")
+    assert normalize_catalog_model({
+        "id": model,
+        "supported_parameters": ["tools"],
+        "architecture": {"input_modalities": ["text", "image"], "output_modalities": ["text"]},
+    })["harness_eligible"]
+    messages = [{"role": "user", "content": [
+        {"type": "text", "text": "What is in this image?"},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,AA=="}},
+    ]}]
+    body = _client(model=model)._build_body(messages, TOOLS)
+
+    assert body["provider"] == {
+        "order": ["InferenceNet"],
+        "only": ["InferenceNet"],
+        "allow_fallbacks": False,
+    }
+    assert body["messages"] == messages
+    assert body["tools"] == TOOLS
+
+
 def test_catalog_admits_only_free_or_owner_listed_paid_routes():
     from app.model_catalog import normalize_catalog_model
     from app.models import PAID_HARNESS_ROUTES

@@ -1,0 +1,5 @@
+{
+  "command": "uv run --frozen python -m pytest tests/test_harness_production.py -q",
+  "exit_code": 0,
+  "combined_output": "...............................                                          [100%]\n31 passed in 8.09s\n"
+}

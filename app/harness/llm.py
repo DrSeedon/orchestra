@@ -44,6 +44,9 @@ GIGACHAT_AUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 GIGACHAT_CHAT_URL = "https://api.giga.chat/v1/chat/completions"
 GIGACHAT_REQUEST_TIMEOUT = 600
 
+_INFERENCENET_MODEL = "deepseek/deepseek-v4.1-flash-1017"
+_INFERENCENET_PROVIDER = "InferenceNet"
+
 
 def tools_to_gigachat_functions(tools: list[dict]) -> list[dict]:
     """Translate the loop's OpenAI tool envelopes to GigaChat functions."""
@@ -376,13 +379,20 @@ class OpenRouterClient:
             "stream": True,
             "usage": {"include": True},   # OpenRouter: emit usage in the final chunk
         }
-        order = _provider_order()
-        if order:
-            # Без пина OpenRouter сам выбирает провайдера (у нас выходил дорогой Together,
-            # $0.006/1М кеш). Закрепляем дешёвых по цене чтения кеша — она и есть основная
-            # статья расхода. allow_fallbacks=True: провайдера, не обслуживающего модель
-            # (GLM у этих нет), OpenRouter пропускает, и агент не зависает.
-            body["provider"] = {"order": order, "allow_fallbacks": True}
+        if self.model == _INFERENCENET_MODEL:
+            body["provider"] = {
+                "order": [_INFERENCENET_PROVIDER],
+                "only": [_INFERENCENET_PROVIDER],
+                "allow_fallbacks": False,
+            }
+        else:
+            order = _provider_order()
+            if order:
+                # Без пина OpenRouter сам выбирает провайдера (у нас выходил дорогой Together,
+                # $0.006/1М кеш). Закрепляем дешёвых по цене чтения кеша — она и есть основная
+                # статья расхода. allow_fallbacks=True: провайдера, не обслуживающего модель
+                # (GLM у этих нет), OpenRouter пропускает, и агент не зависает.
+                body["provider"] = {"order": order, "allow_fallbacks": True}
         if tools:
             if "tools" not in self.supported_parameters:
                 raise ValueError(f"OpenRouter model '{self.model}' does not support tools")

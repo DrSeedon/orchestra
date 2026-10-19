@@ -487,6 +487,7 @@ BLOCKED_HARNESS_ROUTES: dict[str, str] = {
 # («да эту модель отпусти», 01.10.2026: DeepSeek V4.1 Flash для экспериментов с оркестраторами).
 PAID_HARNESS_ROUTES: frozenset[str] = frozenset({
     "deepseek/deepseek-v4.1-flash",
+    "deepseek/deepseek-v4.1-flash-1017",
     "z-ai/glm-5.3",
     "z-ai/glm-5.3-flash",
 })
