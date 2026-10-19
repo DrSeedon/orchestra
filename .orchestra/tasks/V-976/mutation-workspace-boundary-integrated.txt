@@ -1,0 +1,38 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_workspace_read_image_rejects_outside_paths_and_symlinks _________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-807/test_workspace_read_image_reje0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76841d9b50a0>
+
+    @pytest.mark.asyncio
+    async def test_workspace_read_image_rejects_outside_paths_and_symlinks(tmp_path, monkeypatch):
+        from app.harness import images
+        from app.harness import tools
+    
+        workspace = tmp_path / "repo"
+        workspace.mkdir()
+        outside = tmp_path / "outside.png"
+        outside.write_bytes(_png())
+        link = workspace / "outside.png"
+        link.symlink_to(outside)
+        validated_sizes = []
+        original_validate = images._validated_mime
+    
+        def observe_validation(data):
+            validated_sizes.append(len(data))
+            return original_validate(data)
+    
+        monkeypatch.setattr(images, "_validated_mime", observe_validation)
+        result, _ = await tools.dispatch("read_image", {"path": str(outside)}, str(workspace))
+        assert result.startswith("[read_image error]")
+>       assert validated_sizes == []
+E       assert [79] == []
+E         
+E         Left contains one more item: 79
+E         Use -v to get more diff
+
+tests/test_harness_vision.py:260: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_harness_vision.py::test_workspace_read_image_rejects_outside_paths_and_symlinks
+1 failed in 2.82s

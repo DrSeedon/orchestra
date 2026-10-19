@@ -24,6 +24,9 @@ import stat
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import quote
+
+from app.harness.images import read_image as _read_validated_image
 
 BASH_DEFAULT_TIMEOUT = 120
 BASH_MAX_TIMEOUT = 600
@@ -242,6 +245,13 @@ def read(path: str, cwd: str, offset: int = 0, limit: int = 0) -> str:
     return out
 
 
+def read_image(path: str, cwd: str) -> str:
+    """Validate a workspace image and return a text-only reference for the next model request."""
+    resolved, _, _ = _read_validated_image(path, cwd)
+    relative = resolved.relative_to(Path(cwd).resolve()).as_posix()
+    return f"[workspace image: {quote(relative, safe='/._-')}]"
+
+
 def write(path: str, content: str, cwd: str) -> str:
     """Create/overwrite a file atomically (temp in same dir → rename). Source files
     (.py) are syntax-checked first; broken syntax is rejected and the file is NOT
@@ -446,6 +456,8 @@ def tool_schemas() -> list[dict]:
            {"command": s, "timeout": i}, ["command"]),
         fn("read", "Read a file with line numbers.",
            {"path": s, "offset": i, "limit": i}, ["path"]),
+        fn("read_image", "View a PNG, JPEG, WEBP or GIF image inside the workspace. The image is attached to the next model request; paths outside the workspace are refused.",
+           {"path": s}, ["path"]),
         fn("write", "Create or overwrite a file. Python files are syntax-checked (must parse "
                     "under the harness Python); a broken write is rejected with the error.",
            {"path": s, "content": s}, ["path", "content"]),
@@ -468,12 +480,13 @@ def tool_schemas() -> list[dict]:
 # ── read-only reviewer subset (#126) ──
 # A review sub-agent gets ONLY these — it physically cannot write/edit/run shell (Determinism:
 # read-only is structural, not a prompt promise).
-READONLY_NAMES = {"read", "glob", "grep"}
+READONLY_NAMES = {"read", "read_image", "glob", "grep"}
 
 
-def readonly_tool_schemas() -> list[dict]:
-    """The read-only subset (read/glob/grep) for the reviewer sub-loop."""
-    return [s for s in tool_schemas() if s["function"]["name"] in READONLY_NAMES]
+def readonly_tool_schemas(*, vision_enabled: bool = False) -> list[dict]:
+    """The read-only file/search subset for a reviewer sub-loop."""
+    return [s for s in tool_schemas() if s["function"]["name"] in READONLY_NAMES
+            and (vision_enabled or s["function"]["name"] != "read_image")]
 
 
 REVIEW_TOOL_NAME = "review"
@@ -527,6 +540,8 @@ async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
         if name == "read":
             return await asyncio.to_thread(read, args.get("path", ""), cwd,
                                            args.get("offset", 0), args.get("limit", 0)), False
+        if name == "read_image":
+            return await asyncio.to_thread(read_image, args.get("path", ""), cwd), False
         if name == "write":
             async with _MUTATION_LOCK:
                 return await asyncio.to_thread(write, args.get("path", ""), args.get("content", ""), cwd), True
@@ -544,7 +559,7 @@ async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
     return f"[error] unknown built-in tool: {name}", False
 
 
-BUILTIN_NAMES = {"bash", "read", "write", "edit", "glob", "grep"}
+BUILTIN_NAMES = {"bash", "read", "read_image", "write", "edit", "glob", "grep"}
 
 
 # ── gated planning: todo_write (#125) ──

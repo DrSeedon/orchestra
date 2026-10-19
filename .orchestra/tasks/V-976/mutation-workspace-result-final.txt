@@ -1,0 +1,61 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_workspace_read_image_tool_reaches_openrouter_without_persisting_base64 __
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-803/test_workspace_read_image_tool0')
+
+    @pytest.mark.asyncio
+    async def test_workspace_read_image_tool_reaches_openrouter_without_persisting_base64(tmp_path):
+        from app.harness import tools
+    
+        workspace = tmp_path / "repo"
+        assets = workspace / "assets"
+        assets.mkdir(parents=True)
+        image_path = assets / "logo.png"
+        image_path.write_bytes(_png(b"workspace"))
+        result, changed = await tools.dispatch("read_image", {"path": "assets/logo.png"}, str(workspace))
+        assert result == "[workspace image: assets/logo.png]"
+        assert changed is False
+        assert "read_image" in tools.READONLY_NAMES
+    
+        messages = [
+            {"role": "assistant", "content": None, "tool_calls": [{
+                "id": "call-image", "type": "function", "function": {
+                    "name": "read_image", "arguments": "{\"path\":\"assets/logo.png\"}",
+                },
+            }]},
+            {"role": "tool", "tool_call_id": "call-image", "content": result},
+        ]
+        store = SessionStore(str(tmp_path / "sessions"))
+        await store.append_messages(messages)
+        history = SessionStore(str(tmp_path / "sessions"), session_id=store.session_id).load()
+        captured = {}
+    
+        def handler(request):
+            captured.update(json.loads(request.content))
+            return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=(
+                b'data: {"choices":[{"delta":{"content":"It is a logo."},"finish_reason":"stop"}]}\n\n'
+                b"data: [DONE]\n\n"))
+    
+        client = OpenRouterClient(
+            "test", "vendor/vision:free", supported_parameters=("tools",),
+            input_modalities=("text", "image"), workspace_root=workspace,
+            http=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        )
+        events = [event async for event in client.stream(history, tools.tool_schemas())]
+        await client.aclose()
+    
+        assert events[-1].kind == "final"
+        request_messages = captured["messages"]
+        assert request_messages[0] == history[0]
+        assert request_messages[1]["role"] == "tool"
+>       assert request_messages[1]["content"] == "Image read from workspace file: assets/logo.png"
+E       AssertionError: assert '[workspace i...ets/logo.png]' == 'Image read f...sets/logo.png'
+E         
+E         - Image read from workspace file: assets/logo.png
+E         + [workspace image: assets/logo.png]
+
+tests/test_harness_vision.py:227: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_harness_vision.py::test_workspace_read_image_tool_reaches_openrouter_without_persisting_base64
+1 failed in 2.27s

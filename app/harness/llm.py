@@ -21,13 +21,15 @@ import random
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import AsyncIterator, Iterable
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 from uuid import uuid4
 
 import httpx
 
 from app import openrouter_counter as _counter
+from app.harness.images import MAX_INLINE_IMAGE_BYTES, read_image
 
 
 def _provider_order() -> list[str]:
@@ -40,6 +42,9 @@ def _provider_order() -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 logger = logging.getLogger(__name__)
+
+_IMAGE_TAG = re.compile(r"\[(?:photo|file):\s*([^|\]\n]+)")
+_WORKSPACE_IMAGE_RESULT = re.compile(r"^\[workspace image: ([^\]]+)\]$")
 
 GIGACHAT_AUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 # api.giga.chat is the unified endpoint since 16.07.2026; GigaChat-3-Ultra is served only there.
@@ -352,10 +357,16 @@ class _ReasoningAccumulator:
 class OpenRouterClient:
     def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_BASE_URL,
                  http: httpx.AsyncClient | None = None,
-                 supported_parameters: Iterable[str] = ()):
+                 supported_parameters: Iterable[str] = (),
+                 input_modalities: Iterable[str] = (),
+                 attachments_root: str | Path | None = None,
+                 workspace_root: str | Path | None = None):
         self.api_key = api_key
         self.model = model
         self.supported_parameters = frozenset(str(p) for p in supported_parameters)
+        self.input_modalities = frozenset(str(m) for m in input_modalities)
+        self.attachments_root = Path(attachments_root or Path(__file__).resolve().parents[2] / "data" / "uploads")
+        self.workspace_root = Path(workspace_root).resolve() if workspace_root else None
         self.base_url = base_url.rstrip("/")
         # Allow injecting a client (tests); otherwise own one.
         self._http = http
@@ -372,7 +383,8 @@ class OpenRouterClient:
             await self._http.aclose()
             self._http = None
 
-    def retarget(self, model: str, supported_parameters: Iterable[str]) -> None:
+    def retarget(self, model: str, supported_parameters: Iterable[str],
+                 input_modalities: Iterable[str] = ()) -> None:
         """Change the exact route and its request contract together.
 
         Keeping these fields atomic prevents a seamless model switch from sending the
@@ -380,6 +392,78 @@ class OpenRouterClient:
         """
         self.model = model
         self.supported_parameters = frozenset(str(p) for p in supported_parameters)
+        self.input_modalities = frozenset(str(m) for m in input_modalities)
+
+    def _prepare_messages(self, messages: list[dict]) -> list[dict]:
+        """Inline only validated Telegram uploads for routes that advertise image input."""
+        if "image" not in self.input_modalities:
+            return messages
+
+        root = self.attachments_root.resolve()
+        total_image_bytes = 0
+        prepared = []
+        read_image_ids = {
+            tc.get("id")
+            for message in messages if message.get("role") == "assistant"
+            for tc in message.get("tool_calls", []) or []
+            if tc.get("id") and (tc.get("function") or {}).get("name") == "read_image"
+        }
+        pending_workspace_images: list[tuple[str, bytes, str]] = []
+
+        def add_image(path: str, allowed_root: Path, *, root_label: str,
+                      direct_child: bool = False) -> tuple[str, bytes, str]:
+            nonlocal total_image_bytes
+            resolved, data, mime = read_image(
+                path, allowed_root, root_label=root_label, direct_child=direct_child)
+            total_image_bytes += len(data)
+            if total_image_bytes > MAX_INLINE_IMAGE_BYTES:
+                raise ValueError(f"inline images in one request exceed {MAX_INLINE_IMAGE_BYTES} bytes")
+            return str(resolved), data, mime
+
+        def append_workspace_images() -> None:
+            if not pending_workspace_images:
+                return
+            paths = ", ".join(path for path, _, _ in pending_workspace_images)
+            parts = [{"type": "text", "text": f"Inspect the workspace image(s) read by the read_image tool: {paths}"}]
+            parts.extend({"type": "image_url", "image_url": {
+                "url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"}}
+                for _, data, mime in pending_workspace_images)
+            prepared.append({"role": "user", "content": parts})
+            pending_workspace_images.clear()
+
+        for message in messages:
+            if message.get("role") == "tool":
+                prepared.append(message)
+                if (message.get("tool_call_id") in read_image_ids and self.workspace_root
+                        and isinstance(message.get("content"), str)):
+                    match = _WORKSPACE_IMAGE_RESULT.fullmatch(message["content"])
+                    if match:
+                        rel_path = unquote(match.group(1))
+                        resolved, data, mime = add_image(
+                            rel_path, self.workspace_root, root_label="workspace")
+                        pending_workspace_images.append((
+                            str(Path(rel_path)), data, mime))
+                        prepared[-1] = {
+                            **message,
+                            "content": f"Image read from workspace file: {Path(rel_path)}",
+                        }
+                continue
+            append_workspace_images()
+            content = message.get("content")
+            if message.get("role") != "user" or not isinstance(content, str):
+                prepared.append(message)
+                continue
+            parts: list[dict] = [{"type": "text", "text": content}]
+            for match in _IMAGE_TAG.finditer(content):
+                raw_path = match.group(1).strip()
+                _, data, mime = add_image(
+                    raw_path, root, root_label="Telegram uploads directory", direct_child=True)
+                encoded = base64.b64encode(data).decode("ascii")
+                parts.append({"type": "image_url", "image_url": {
+                    "url": f"data:{mime};base64,{encoded}"}})
+            prepared.append({**message, "content": parts} if len(parts) > 1 else message)
+        append_workspace_images()
+        return prepared
 
     def _validate_route(self) -> None:
         # Provider-side atomic zero-spend does not exist for an unsuffixed preview.
@@ -433,7 +517,7 @@ class OpenRouterClient:
         abort is handled by the loop (it stops consuming), not here.
         effort: OpenRouter reasoning effort for this turn (None → no reasoning field).
         """
-        body = self._build_body(messages, tools, effort)
+        body = self._build_body(self._prepare_messages(messages), tools, effort)
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -608,6 +692,10 @@ class OpenRouterClient:
             "usage": dict(usage),
             "api_duration_ms": max(0, round((time.perf_counter() - request_started) * 1000)),
         }
+        if finish_reason == "length":
+            yield LLMEvent("final", finish_reason="length", usage=usage,
+                           reasoning_details=racc.finished())
+            raise RuntimeError("OpenRouter completion was truncated at the output length limit")
         # emit accumulated tool calls (one per completed call), then final
         for tc in acc.finished():
             if not tc["id"] or not tc["name"]:

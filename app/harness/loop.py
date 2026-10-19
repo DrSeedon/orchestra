@@ -517,7 +517,9 @@ class AgentLoop:
         sub = AgentLoop(
             llm=ctx.llm, mcp=_NoopMCP(), cwd=ctx.cwd,
             history=[{"role": "system", "content": builtin.REVIEWER_PROMPT}],  # clean context
-            tool_schemas=builtin.readonly_tool_schemas(), max_context=ctx.max_context,
+            tool_schemas=builtin.readonly_tool_schemas(
+                vision_enabled="image" in getattr(ctx.llm, "input_modalities", ())),
+            max_context=ctx.max_context,
             abort=self._abort, allow_review=False, readonly_mode=True, max_rounds=REVIEW_MAX_ROUNDS,
         )
         text_parts: list[str] = []

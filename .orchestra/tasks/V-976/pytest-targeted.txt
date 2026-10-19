@@ -1,0 +1,93 @@
+....FFFF................................................................ [ 64%]
+.......................................                                  [100%]
+=================================== FAILURES ===================================
+_ test_supported_image_formats_are_detected_from_validated_bytes[PNG-image/png] _
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-775/test_supported_image_formats_a0')
+fmt = 'PNG', mime = 'image/png'
+
+    @pytest.mark.parametrize(("fmt", "mime"), [
+        ("PNG", "image/png"), ("JPEG", "image/jpeg"),
+        ("WEBP", "image/webp"), ("GIF", "image/gif"),
+    ])
+    def test_supported_image_formats_are_detected_from_validated_bytes(tmp_path, fmt, mime):
+        path = tmp_path / f"sample.{fmt.lower()}"
+        path.write_bytes(_image(fmt))
+        url = _client(tmp_path)._prepare_messages([
+            {"role": "user", "content": f"[photo: {path}]"}
+        ])[0]["content"][1]["image_url"]["url"]
+>       assert url.startswith(mime + ";base64,")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0x78ba91ed5bb0>(('image/png' + ';base64,'))
+E        +    where <built-in method startswith of str object at 0x78ba91ed5bb0> = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGNsYGhgYGBgYmBgYGBgAAAMKgEEhS+DLgAAAABJRU5ErkJggg=='.startswith
+
+tests/test_harness_vision.py:117: AssertionError
+_ test_supported_image_formats_are_detected_from_validated_bytes[JPEG-image/jpeg] _
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-775/test_supported_image_formats_a1')
+fmt = 'JPEG', mime = 'image/jpeg'
+
+    @pytest.mark.parametrize(("fmt", "mime"), [
+        ("PNG", "image/png"), ("JPEG", "image/jpeg"),
+        ("WEBP", "image/webp"), ("GIF", "image/gif"),
+    ])
+    def test_supported_image_formats_are_detected_from_validated_bytes(tmp_path, fmt, mime):
+        path = tmp_path / f"sample.{fmt.lower()}"
+        path.write_bytes(_image(fmt))
+        url = _client(tmp_path)._prepare_messages([
+            {"role": "user", "content": f"[photo: {path}]"}
+        ])[0]["content"][1]["image_url"]["url"]
+>       assert url.startswith(mime + ";base64,")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0x25b3e0f0>(('image/jpeg' + ';base64,'))
+E        +    where <built-in method startswith of str object at 0x25b3e0f0> = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKD...mKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzSiiivpT7A//Z'.startswith
+
+tests/test_harness_vision.py:117: AssertionError
+_ test_supported_image_formats_are_detected_from_validated_bytes[WEBP-image/webp] _
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-775/test_supported_image_formats_a2')
+fmt = 'WEBP', mime = 'image/webp'
+
+    @pytest.mark.parametrize(("fmt", "mime"), [
+        ("PNG", "image/png"), ("JPEG", "image/jpeg"),
+        ("WEBP", "image/webp"), ("GIF", "image/gif"),
+    ])
+    def test_supported_image_formats_are_detected_from_validated_bytes(tmp_path, fmt, mime):
+        path = tmp_path / f"sample.{fmt.lower()}"
+        path.write_bytes(_image(fmt))
+        url = _client(tmp_path)._prepare_messages([
+            {"role": "user", "content": f"[photo: {path}]"}
+        ])[0]["content"][1]["image_url"]["url"]
+>       assert url.startswith(mime + ";base64,")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0x78ba91ebe470>(('image/webp' + ';base64,'))
+E        +    where <built-in method startswith of str object at 0x78ba91ebe470> = 'data:image/webp;base64,UklGRjoAAABXRUJQVlA4IC4AAADQAQCdASoCAAIAAUAmJaACdLoB+AADsAD++LUX/zNDPJR5cP/SbPE2eJs+AAAA'.startswith
+
+tests/test_harness_vision.py:117: AssertionError
+_ test_supported_image_formats_are_detected_from_validated_bytes[GIF-image/gif] _
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-775/test_supported_image_formats_a3')
+fmt = 'GIF', mime = 'image/gif'
+
+    @pytest.mark.parametrize(("fmt", "mime"), [
+        ("PNG", "image/png"), ("JPEG", "image/jpeg"),
+        ("WEBP", "image/webp"), ("GIF", "image/gif"),
+    ])
+    def test_supported_image_formats_are_detected_from_validated_bytes(tmp_path, fmt, mime):
+        path = tmp_path / f"sample.{fmt.lower()}"
+        path.write_bytes(_image(fmt))
+        url = _client(tmp_path)._prepare_messages([
+            {"role": "user", "content": f"[photo: {path}]"}
+        ])[0]["content"][1]["image_url"]["url"]
+>       assert url.startswith(mime + ";base64,")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0x78ba919ba2b0>(('image/gif' + ';base64,'))
+E        +    where <built-in method startswith of str object at 0x78ba919ba2b0> = 'data:image/gif;base64,R0lGODdhAgACAIEAAIAAgAAAAAAAAAAAACwAAAAAAgACAAAIBgABCAQQEAA7'.startswith
+
+tests/test_harness_vision.py:117: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_harness_vision.py::test_supported_image_formats_are_detected_from_validated_bytes[PNG-image/png]
+FAILED tests/test_harness_vision.py::test_supported_image_formats_are_detected_from_validated_bytes[JPEG-image/jpeg]
+FAILED tests/test_harness_vision.py::test_supported_image_formats_are_detected_from_validated_bytes[WEBP-image/webp]
+FAILED tests/test_harness_vision.py::test_supported_image_formats_are_detected_from_validated_bytes[GIF-image/gif]
+4 failed, 107 passed in 12.06s

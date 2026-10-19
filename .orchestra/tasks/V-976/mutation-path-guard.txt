@@ -1,0 +1,19 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_path_escape_and_missing_upload_fail_before_request ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-781/test_path_escape_and_missing_u0')
+
+    def test_path_escape_and_missing_upload_fail_before_request(tmp_path):
+        root = tmp_path / "uploads"
+        root.mkdir()
+        outside = tmp_path / "outside.png"
+        outside.write_bytes(_png())
+        client = _client(root)
+>       with pytest.raises(ValueError, match="outside the Telegram uploads"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_harness_vision.py:134: Failed
+=========================== short test summary info ============================
+FAILED tests/test_harness_vision.py::test_path_escape_and_missing_upload_fail_before_request
+1 failed in 1.99s

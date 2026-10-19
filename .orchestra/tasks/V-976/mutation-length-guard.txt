@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_truncated_tool_calls_are_rejected_before_tool_execution _________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-784/test_truncated_tool_calls_are_0')
+
+    @pytest.mark.asyncio
+    async def test_truncated_tool_calls_are_rejected_before_tool_execution(tmp_path):
+        payload = (
+            b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1",'
+            b'"type":"function","function":{"name":"write","arguments":"{\\"path\\":\\"x\\"}"}}]},'
+            b'"finish_reason":"length"}]}\n\ndata: [DONE]\n\n'
+        )
+        http = httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, headers={"content-type": "text/event-stream"}, content=payload)))
+        client = OpenRouterClient("test", "vendor/vision:free", supported_parameters=("tools",), http=http)
+        emitted = []
+>       with pytest.raises(RuntimeError, match="truncated"):
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests/test_harness_vision.py:215: Failed
+------------------------------ Captured log call -------------------------------
+WARNING  app.openrouter_counter:openrouter_counter.py:28 openrouter counter failed: OperationalError: no such table: openrouter_attempts
+=========================== short test summary info ============================
+FAILED tests/test_harness_vision.py::test_truncated_tool_calls_are_rejected_before_tool_execution
+1 failed in 2.69s

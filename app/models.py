@@ -28,6 +28,7 @@ class ModelSpec:
     price_input: float | None = None
     price_output: float | None = None
     supported_parameters: tuple[str, ...] = ()
+    input_modalities: tuple[str, ...] = ("text",)
     default_dashboard: bool = True
     default_agents: bool = True
     available: bool = True

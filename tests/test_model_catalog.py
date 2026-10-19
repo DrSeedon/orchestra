@@ -199,6 +199,7 @@ def test_t2_legacy_cache_row_stays_usable_with_conservative_tools_only_capabilit
 
     import app.models as registry
     assert registry.MODEL_SPECS["vendor/model-x:free"].supported_parameters == ("tools",)
+    assert registry.MODEL_SPECS["vendor/model-x:free"].input_modalities == ("text", "image")
 
 
 def test_t2_apply_never_registers_zero_token_unsuffixed_route():

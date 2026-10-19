@@ -154,9 +154,13 @@ class HarnessBackend:
     def _turn_tool_schemas(self, effort: str, allow_review: bool = True) -> list[dict]:
         """Tool schemas for THIS turn. `review` (read-only reviewer, #126) is added on parent turns;
         complex turns additionally get todo_write (#125). We never shadow a same-named MCP tool.
-        When nothing is added (simple turn, review disabled), returns the base set UNCHANGED (same
-        object → default behavior preserved)."""
-        names = {s.get("function", {}).get("name") for s in self._tool_schemas}
+        The base set is capability-filtered per selected runtime before optional tools are added."""
+        vision_enabled = "image" in getattr(self._llm, "input_modalities", ())
+        schemas = (self._tool_schemas if vision_enabled else [
+            schema for schema in self._tool_schemas
+            if schema.get("function", {}).get("name") != "read_image"
+        ])
+        names = {s.get("function", {}).get("name") for s in schemas}
         extra: list[dict] = []
         # V-636: GigaChat answered "which tasks exist?" by calling review, whose English
         # reviewer replied in the chat; a policy naming "review" switches it off like MCP tools.
@@ -168,7 +172,7 @@ class HarnessBackend:
                 logger.warning("todo_write already provided by another tool source — not adding the gated one")
             else:
                 extra.append(builtin.todo_write_schema())
-        return self._tool_schemas + extra if extra else self._tool_schemas
+        return schemas + extra if extra else schemas
 
     def _drain_injected(self) -> list[str]:
         """Hand the running loop everything that arrived mid-turn, and forget it here.
@@ -218,7 +222,7 @@ class HarnessBackend:
                 raise RuntimeError("cannot retarget an active OpenRouter session to GigaChat")
             if spec.provider != "gigachat" and isinstance(self._llm, GigaChatClient):
                 raise RuntimeError("cannot retarget an active GigaChat session to OpenRouter")
-            self._llm.retarget(model, spec.supported_parameters)
+            self._llm.retarget(model, spec.supported_parameters, spec.input_modalities)
         self.model = model
 
     # ── lifecycle ──
@@ -243,6 +247,8 @@ class HarnessBackend:
                 model=self.model,
                 base_url=base_url,
                 supported_parameters=spec.supported_parameters,
+                input_modalities=spec.input_modalities,
+                workspace_root=self.cwd,
             )
 
         # MCP must NEVER break backend startup. connect() is atomic (clears its own state on

@@ -3,9 +3,10 @@
 Fetches https://openrouter.ai/api/v1/models, normalizes it to the fields the
 dashboard filters need, caches the result in SQLite kv (`model_catalog_cache`)
 and registers every eligible cached model into the shared registry via
-`app.models.register_model`. Only deterministic `:free` text routes with tool
-support are eligible for Harness; zero token prices alone are not a free-route
-contract because providers may charge per request, image, song, or other unit.
+`app.models.register_model`. Only deterministic `:free` routes with text input
+and tool support are eligible for Harness; advertised image input is preserved as
+a capability. Zero token prices alone are not a free-route contract because
+providers may charge per request, image, song, or other unit.
 
 Registration-order guarantee: `apply_model_catalog()` is re-applied at the tail
 of every registry rebuild (`fetch_models_from_proxy`, `refresh_models`), so an
@@ -159,6 +160,7 @@ def apply_model_catalog() -> int:
                 norm.get("supported_parameters")
                 or (declared.supported_parameters if declared else ("tools",))
             ),
+            input_modalities=tuple(norm.get("input_modalities") or ("text",)),
             default_dashboard=(declared.default_dashboard if declared else False),
             default_agents=(declared.default_agents if declared else False),
             available=bool(norm.get("available", True)),
