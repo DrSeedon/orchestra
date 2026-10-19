@@ -841,7 +841,7 @@ async def test_lifespan_shuts_down_owned_tasks_on_exit(
 ):
     from contextlib import contextmanager
     from fastapi import FastAPI
-    from app import main as app_main
+    from app import main as app_main, db
 
     async def noop():
         return None
@@ -850,7 +850,10 @@ async def test_lifespan_shuts_down_owned_tasks_on_exit(
         await asyncio.Event().wait()
 
     monkeypatch.setenv("ORCHESTRA_DB_PATH", str(tmp_path / "test.sqlite"))
-    monkeypatch.setattr(app_main, "init_db", lambda: None)
+    # lifespan assigns DB_PATH from the environment; restore the autouse fixture's
+    # isolated path when this test exits so later dashboard fixtures keep their DB.
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "test.sqlite")
+    monkeypatch.setattr(app_main, "init_db", lambda: db.init_db())
     monkeypatch.setattr(app_main, "recover_initial_deliveries", noop)
     monkeypatch.setattr(app_main, "recover_message_deliveries", noop)
     monkeypatch.setattr(app_main, "schedule_restart_inbox_drain", lambda: None)
@@ -858,7 +861,7 @@ async def test_lifespan_shuts_down_owned_tasks_on_exit(
     monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
     monkeypatch.setattr(app_main, "_start_bridge_background", idle)
 
-    from app import db, startup_migration, catalog_migration_v621, tm
+    from app import startup_migration, catalog_migration_v621, tm
     from app import orchestra_layout, task_runtime, artifacts, models
     from app.routes import tg
 

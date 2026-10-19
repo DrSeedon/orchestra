@@ -1,0 +1,1041 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+timeout: 30.0s
+timeout method: signal
+timeout func_only: False
+created: 2/2 workers
+2 workers [512 items]
+
+scheduling tests via LoadScopeScheduling
+
+tests/test_wf_run.py::test_string_schema_accepts_plain_text_and_json_string 
+tests/test_mcp_config_isolation.py::test_t3_claude_passes_config_path_not_dict 
+[gw0] [  0%] PASSED tests/test_wf_run.py::test_string_schema_accepts_plain_text_and_json_string 
+tests/test_wf_run.py::test_schema_parser_extracts_json_wrapped_in_text[Here is the result:\n```json\n{"answer": "ok"}\n```-schema0-expected0] 
+[gw0] [  0%] PASSED tests/test_wf_run.py::test_schema_parser_extracts_json_wrapped_in_text[Here is the result:\n```json\n{"answer": "ok"}\n```-schema0-expected0] 
+[gw1] [  0%] PASSED tests/test_mcp_config_isolation.py::test_t3_claude_passes_config_path_not_dict 
+tests/test_wf_run.py::test_schema_parser_extracts_json_wrapped_in_text[Result: {"answer": {"text": "brace } in string"}} Done.-schema1-expected1] 
+tests/test_mcp_config_isolation.py::test_t3_claude_config_file_is_0600_and_roundtrips 
+[gw0] [  0%] PASSED tests/test_wf_run.py::test_schema_parser_extracts_json_wrapped_in_text[Result: {"answer": {"text": "brace } in string"}} Done.-schema1-expected1] 
+tests/test_wf_run.py::test_wrapped_schema_response_does_not_dispatch_a_retry[Here is the result:\n```json\n{"answer": "ok"}\n```] 
+[gw1] [  0%] PASSED tests/test_mcp_config_isolation.py::test_t3_claude_config_file_is_0600_and_roundtrips 
+tests/test_mcp_config_isolation.py::test_t3_secret_value_absent_from_option_string 
+[gw1] [  1%] PASSED tests/test_mcp_config_isolation.py::test_t3_secret_value_absent_from_option_string 
+tests/test_mcp_config_isolation.py::test_t3_every_server_and_field_survives_the_move 
+[gw0] [  1%] PASSED tests/test_wf_run.py::test_wrapped_schema_response_does_not_dispatch_a_retry[Here is the result:\n```json\n{"answer": "ok"}\n```] 
+tests/test_wf_run.py::test_wrapped_schema_response_does_not_dispatch_a_retry[Result: {"answer": "ok"} Done.] 
+[gw1] [  1%] PASSED tests/test_mcp_config_isolation.py::test_t3_every_server_and_field_survives_the_move 
+tests/test_mcp_config_isolation.py::test_t3_config_dir_is_private_and_outside_worktree_and_tmp 
+[gw1] [  1%] PASSED tests/test_mcp_config_isolation.py::test_t3_config_dir_is_private_and_outside_worktree_and_tmp 
+[gw0] [  1%] PASSED tests/test_wf_run.py::test_wrapped_schema_response_does_not_dispatch_a_retry[Result: {"answer": "ok"} Done.] 
+tests/test_mcp_config_isolation.py::test_t3_repeated_make_client_reuses_one_file 
+tests/test_wf_run.py::test_resume_refuses_when_another_process_holds_the_run_lock 
+[gw1] [  2%] PASSED tests/test_mcp_config_isolation.py::test_t3_repeated_make_client_reuses_one_file 
+tests/test_mcp_config_isolation.py::test_t3_disconnect_removes_the_config_file 
+[gw0] [  2%] PASSED tests/test_wf_run.py::test_resume_refuses_when_another_process_holds_the_run_lock 
+tests/test_wf_run.py::test_stage_results_include_task_identity_and_item 
+[gw1] [  2%] PASSED tests/test_mcp_config_isolation.py::test_t3_disconnect_removes_the_config_file 
+tests/test_mcp_config_isolation.py::test_t7_sdk_server_refuses_file_route_loudly 
+[gw0] [  2%] PASSED tests/test_wf_run.py::test_stage_results_include_task_identity_and_item 
+tests/test_wf_run.py::test_resume_ignores_a_truncated_tail_and_continues_after_completed_calls 
+[gw1] [  2%] PASSED tests/test_mcp_config_isolation.py::test_t7_sdk_server_refuses_file_route_loudly 
+tests/test_mcp_config_isolation.py::test_t4_missing_session_id_fails_loudly 
+[gw1] [  3%] PASSED tests/test_mcp_config_isolation.py::test_t4_missing_session_id_fails_loudly 
+tests/test_mcp_config_isolation.py::test_t4_no_env_fragment_in_codex_argv 
+[gw1] [  3%] PASSED tests/test_mcp_config_isolation.py::test_t4_no_env_fragment_in_codex_argv 
+tests/test_mcp_config_isolation.py::test_t4_no_secret_anywhere_in_the_full_codex_command 
+[gw1] [  3%] PASSED tests/test_mcp_config_isolation.py::test_t4_no_secret_anywhere_in_the_full_codex_command 
+tests/test_mcp_config_isolation.py::test_t4_config_written_to_own_codex_home 
+[gw0] [  3%] PASSED tests/test_wf_run.py::test_resume_ignores_a_truncated_tail_and_continues_after_completed_calls 
+tests/test_wf_run.py::test_budget_exhaustion_returns_none_and_marks_manifest_partial 
+[gw0] [  3%] PASSED tests/test_wf_run.py::test_budget_exhaustion_returns_none_and_marks_manifest_partial 
+tests/test_wf_run.py::test_full_tools_network_and_mcp_are_default_per_agent_call 
+[gw0] [  4%] PASSED tests/test_wf_run.py::test_full_tools_network_and_mcp_are_default_per_agent_call 
+tests/test_wf_run.py::test_agent_modules_use_the_canonical_pipeline_builder 
+[gw0] [  4%] PASSED tests/test_wf_run.py::test_agent_modules_use_the_canonical_pipeline_builder 
+tests/test_wf_run.py::test_api_credit_route_is_explicit_and_subscription_is_the_default 
+[gw0] [  4%] PASSED tests/test_wf_run.py::test_api_credit_route_is_explicit_and_subscription_is_the_default 
+tests/test_wf_run.py::test_unavailable_credits_refuse_task_without_subscription_fallback[expired] 
+[gw0] [  4%] PASSED tests/test_wf_run.py::test_unavailable_credits_refuse_task_without_subscription_fallback[expired] 
+tests/test_wf_run.py::test_unavailable_credits_refuse_task_without_subscription_fallback[exhausted] 
+[gw0] [  4%] PASSED tests/test_wf_run.py::test_unavailable_credits_refuse_task_without_subscription_fallback[exhausted] 
+tests/test_wf_run.py::test_build_system_prompt_still_flows_through_public_module_builder 
+[gw0] [  5%] PASSED tests/test_wf_run.py::test_build_system_prompt_still_flows_through_public_module_builder 
+tests/test_wf_run.py::test_build_system_prompt_keeps_every_configured_worker_module 
+[gw0] [  5%] PASSED tests/test_wf_run.py::test_build_system_prompt_keeps_every_configured_worker_module 
+tests/test_wf_run.py::test_missing_prompt_module_fails_loud 
+[gw0] [  5%] PASSED tests/test_wf_run.py::test_missing_prompt_module_fails_loud 
+tests/test_wf_run.py::test_default_workflow_module_interface_is_frozen 
+[gw0] [  5%] PASSED tests/test_wf_run.py::test_default_workflow_module_interface_is_frozen 
+tests/test_wf_run.py::test_parallel_writers_use_distinct_real_worktrees 
+[gw1] [  5%] PASSED tests/test_mcp_config_isolation.py::test_t4_config_written_to_own_codex_home 
+tests/test_mcp_config_isolation.py::test_t4_foreign_global_servers_not_copied 
+[gw1] [  6%] PASSED tests/test_mcp_config_isolation.py::test_t4_foreign_global_servers_not_copied 
+tests/test_mcp_config_isolation.py::test_t4_trusts_canonical_cwd_and_escapes_it_as_toml_key 
+[gw1] [  6%] PASSED tests/test_mcp_config_isolation.py::test_t4_trusts_canonical_cwd_and_escapes_it_as_toml_key 
+tests/test_mcp_config_isolation.py::test_t4_child_env_points_at_the_same_home 
+[gw1] [  6%] PASSED tests/test_mcp_config_isolation.py::test_t4_child_env_points_at_the_same_home 
+tests/test_mcp_config_isolation.py::test_t4_home_is_stable_across_reconnect 
+[gw1] [  6%] PASSED tests/test_mcp_config_isolation.py::test_t4_home_is_stable_across_reconnect 
+tests/test_mcp_config_isolation.py::test_t4_custom_server_cannot_hijack_the_identity 
+[gw1] [  6%] PASSED tests/test_mcp_config_isolation.py::test_t4_custom_server_cannot_hijack_the_identity 
+tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[../../etc] 
+[gw1] [  7%] PASSED tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[../../etc] 
+tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[a/../../../tmp/x] 
+[gw1] [  7%] PASSED tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[a/../../../tmp/x] 
+tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[] 
+[gw1] [  7%] PASSED tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[] 
+tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[   ] 
+[gw1] [  7%] PASSED tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[   ] 
+tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[a\x00b] 
+[gw0] [  7%] PASSED tests/test_wf_run.py::test_parallel_writers_use_distinct_real_worktrees 
+[gw1] [  8%] PASSED tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[a\x00b] 
+tests/test_mcp_config_isolation.py::test_t4_every_server_and_field_survives_into_config_toml 
+tests/test_wf_run.py::test_identical_parallel_prompts_create_distinct_worktrees 
+[gw1] [  8%] PASSED tests/test_mcp_config_isolation.py::test_t4_every_server_and_field_survives_into_config_toml 
+tests/test_mcp_config_isolation.py::test_t4_hostile_server_name_cannot_inject_toml 
+[gw1] [  8%] PASSED tests/test_mcp_config_isolation.py::test_t4_hostile_server_name_cannot_inject_toml 
+tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x00-NUL] 
+[gw1] [  8%] PASSED tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x00-NUL] 
+tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x07-BEL] 
+[gw1] [  8%] PASSED tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x07-BEL] 
+tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x1f-US] 
+[gw1] [  8%] PASSED tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x1f-US] 
+tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x7f-DEL] 
+[gw1] [  9%] PASSED tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x7f-DEL] 
+tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x85-C1] 
+[gw1] [  9%] PASSED tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x85-C1] 
+tests/test_mcp_config_isolation.py::test_t3_disconnect_does_not_delete_a_newer_backends_config 
+[gw1] [  9%] PASSED tests/test_mcp_config_isolation.py::test_t3_disconnect_does_not_delete_a_newer_backends_config 
+tests/test_mcp_config_isolation.py::test_t4_existing_threads_keep_their_rollouts 
+[gw1] [  9%] PASSED tests/test_mcp_config_isolation.py::test_t4_existing_threads_keep_their_rollouts 
+tests/test_mcp_config_isolation.py::test_t4_rollout_found_via_backend_home_not_parent_environ 
+[gw1] [  9%] PASSED tests/test_mcp_config_isolation.py::test_t4_rollout_found_via_backend_home_not_parent_environ 
+tests/test_mcp_config_isolation.py::test_t5_pipeline_default_denies_user_mcp_servers 
+[gw1] [ 10%] PASSED tests/test_mcp_config_isolation.py::test_t5_pipeline_default_denies_user_mcp_servers 
+tests/test_orchestra_backup.py::test_task_store_push_scans_new_history_before_advancing_remote 
+[gw1] [ 10%] PASSED tests/test_orchestra_backup.py::test_task_store_push_scans_new_history_before_advancing_remote 
+tests/test_orchestra_backup.py::test_daily_sqlite_backup_restores_and_matches_all_table_counts 
+[gw1] [ 10%] PASSED tests/test_orchestra_backup.py::test_daily_sqlite_backup_restores_and_matches_all_table_counts 
+tests/test_orchestra_backup.py::test_laptop_upload_timeout_keeps_partial_for_retry 
+[gw1] [ 10%] PASSED tests/test_orchestra_backup.py::test_laptop_upload_timeout_keeps_partial_for_retry 
+tests/test_orchestra_backup.py::test_laptop_transfer_slice_requires_progress[0-5-BackupError-incomplete, 5 \u0438\u0437 7 \u0431\u0430\u0439\u0442] 
+[gw1] [ 10%] PASSED tests/test_orchestra_backup.py::test_laptop_transfer_slice_requires_progress[0-5-BackupError-incomplete, 5 \u0438\u0437 7 \u0431\u0430\u0439\u0442] 
+tests/test_orchestra_backup.py::test_laptop_transfer_slice_requires_progress[7-7-RuntimeError-made no progress] 
+[gw1] [ 11%] PASSED tests/test_orchestra_backup.py::test_laptop_transfer_slice_requires_progress[7-7-RuntimeError-made no progress] 
+tests/test_orchestra_backup.py::test_incomplete_laptop_upload_emits_backup_failure 
+[gw1] [ 11%] PASSED tests/test_orchestra_backup.py::test_incomplete_laptop_upload_emits_backup_failure 
+tests/test_orchestra_backup.py::test_daily_is_silent_when_laptop_tunnel_is_down 
+[gw1] [ 11%] PASSED tests/test_orchestra_backup.py::test_daily_is_silent_when_laptop_tunnel_is_down 
+tests/test_orchestra_backup.py::test_hourly_task_push_syncs_latest_local_archive_when_laptop_has_none 
+[gw1] [ 11%] PASSED tests/test_orchestra_backup.py::test_hourly_task_push_syncs_latest_local_archive_when_laptop_has_none 
+tests/test_orchestra_backup.py::test_hourly_task_push_reports_laptop_copy_older_than_three_days 
+[gw1] [ 11%] PASSED tests/test_orchestra_backup.py::test_hourly_task_push_reports_laptop_copy_older_than_three_days 
+tests/test_orchestra_backup.py::test_current_laptop_copy_skips_archive_integrity_and_hash_checks 
+[gw1] [ 12%] PASSED tests/test_orchestra_backup.py::test_current_laptop_copy_skips_archive_integrity_and_hash_checks 
+tests/test_orchestra_backup.py::test_sleeping_laptop_behind_listening_tunnel_is_unavailable[Connection timed out during banner exchange] 
+[gw1] [ 12%] PASSED tests/test_orchestra_backup.py::test_sleeping_laptop_behind_listening_tunnel_is_unavailable[Connection timed out during banner exchange] 
+tests/test_orchestra_backup.py::test_sleeping_laptop_behind_listening_tunnel_is_unavailable[kex_exchange_identification: read: Connection reset by peer] 
+[gw1] [ 12%] PASSED tests/test_orchestra_backup.py::test_sleeping_laptop_behind_listening_tunnel_is_unavailable[kex_exchange_identification: read: Connection reset by peer] 
+tests/test_orchestra_backup.py::test_sleeping_laptop_behind_listening_tunnel_is_unavailable[ssh: connect to host 127.0.0.1 port 2222: Connection refused] 
+[gw1] [ 12%] PASSED tests/test_orchestra_backup.py::test_sleeping_laptop_behind_listening_tunnel_is_unavailable[ssh: connect to host 127.0.0.1 port 2222: Connection refused] 
+tests/test_orchestra_backup.py::test_hanging_ssh_probe_is_unavailable 
+[gw1] [ 12%] PASSED tests/test_orchestra_backup.py::test_hanging_ssh_probe_is_unavailable 
+tests/test_orchestra_backup.py::test_reachable_laptop_is_available_and_auth_failure_stays_visible 
+[gw1] [ 13%] PASSED tests/test_orchestra_backup.py::test_reachable_laptop_is_available_and_auth_failure_stays_visible 
+tests/test_orchestra_backup.py::test_banner_timeout_behind_open_port_exits_zero_silently[--push-task-store] 
+[gw1] [ 13%] PASSED tests/test_orchestra_backup.py::test_banner_timeout_behind_open_port_exits_zero_silently[--push-task-store] 
+tests/test_orchestra_backup.py::test_banner_timeout_behind_open_port_exits_zero_silently[--daily] 
+[gw1] [ 13%] PASSED tests/test_orchestra_backup.py::test_banner_timeout_behind_open_port_exits_zero_silently[--daily] 
+tests/test_orchestra_backup.py::test_daily_never_touches_laptop_so_it_fits_the_job_limit 
+[gw1] [ 13%] PASSED tests/test_orchestra_backup.py::test_daily_never_touches_laptop_so_it_fits_the_job_limit 
+tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[0-450] 
+[gw1] [ 13%] PASSED tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[0-450] 
+tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[100-410] 
+[gw1] [ 14%] PASSED tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[100-410] 
+tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[200-310] 
+[gw1] [ 14%] PASSED tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[200-310] 
+tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[505-5] 
+[gw1] [ 14%] PASSED tests/test_orchestra_backup.py::test_transfer_slice_is_cut_to_remaining_job_budget[505-5] 
+tests/test_orchestra_backup.py::test_copy_defers_when_budget_is_spent 
+[gw1] [ 14%] PASSED tests/test_orchestra_backup.py::test_copy_defers_when_budget_is_spent 
+tests/test_workflow_scheduler.py::test_limit_uses_cpu_memory_headroom_and_pressure 
+[gw1] [ 14%] PASSED tests/test_workflow_scheduler.py::test_limit_uses_cpu_memory_headroom_and_pressure 
+tests/test_workflow_scheduler.py::test_resource_snapshot_reads_cgroup_cpu_limit_and_psi 
+[gw1] [ 15%] PASSED tests/test_workflow_scheduler.py::test_resource_snapshot_reads_cgroup_cpu_limit_and_psi 
+tests/test_workflow_scheduler.py::test_unavailable_pressure_closes_admission 
+[gw1] [ 15%] PASSED tests/test_workflow_scheduler.py::test_unavailable_pressure_closes_admission 
+tests/test_workflow_scheduler.py::test_scheduler_fairly_alternates_runs_with_persisted_queue 
+[gw1] [ 15%] PASSED tests/test_workflow_scheduler.py::test_scheduler_fairly_alternates_runs_with_persisted_queue 
+tests/test_workflow_scheduler.py::test_pressure_recalculation_waits_without_revoking_active_leases 
+[gw1] [ 15%] PASSED tests/test_workflow_scheduler.py::test_pressure_recalculation_waits_without_revoking_active_leases 
+tests/test_workflow_scheduler.py::test_active_lease_renewal_prevents_expiration 
+[gw1] [ 15%] PASSED tests/test_workflow_scheduler.py::test_active_lease_renewal_prevents_expiration 
+tests/test_workflow_scheduler.py::test_abandoned_lease_expires_for_restart_recovery 
+[gw1] [ 16%] PASSED tests/test_workflow_scheduler.py::test_abandoned_lease_expires_for_restart_recovery 
+tests/test_workflow_scheduler.py::test_delegated_cgroup_configuration_moves_root_members_and_sets_limits[True] 
+[gw1] [ 16%] PASSED tests/test_workflow_scheduler.py::test_delegated_cgroup_configuration_moves_root_members_and_sets_limits[True] 
+tests/test_workflow_scheduler.py::test_delegated_cgroup_configuration_moves_root_members_and_sets_limits[False] 
+[gw1] [ 16%] PASSED tests/test_workflow_scheduler.py::test_delegated_cgroup_configuration_moves_root_members_and_sets_limits[False] 
+tests/test_workflow_scheduler.py::test_workflow_balancer_can_be_disabled_without_blocking_workers 
+[gw1] [ 16%] PASSED tests/test_workflow_scheduler.py::test_workflow_balancer_can_be_disabled_without_blocking_workers 
+tests/test_workflow_scheduler.py::test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_required 
+[gw1] [ 16%] PASSED tests/test_workflow_scheduler.py::test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_required 
+tests/test_workflow_scheduler.py::test_provider_cli_preexec_moves_process_before_exec 
+[gw1] [ 16%] PASSED tests/test_workflow_scheduler.py::test_provider_cli_preexec_moves_process_before_exec 
+tests/test_workflow_scheduler.py::test_agent_cli_oom_priority_is_set_without_cgroup 
+[gw1] [ 17%] PASSED tests/test_workflow_scheduler.py::test_agent_cli_oom_priority_is_set_without_cgroup 
+tests/test_workflow_scheduler.py::test_claude_cli_wrapper_moves_then_execs_original_cli 
+[gw1] [ 17%] PASSED tests/test_workflow_scheduler.py::test_claude_cli_wrapper_moves_then_execs_original_cli 
+tests/test_workflow_scheduler.py::test_pidfd_agent_run_joins_cgroup_and_gets_oom_priority 
+[gw1] [ 17%] PASSED tests/test_workflow_scheduler.py::test_pidfd_agent_run_joins_cgroup_and_gets_oom_priority 
+tests/test_workflow_scheduler.py::test_pidfd_ordinary_job_does_not_inherit_agent_cgroup 
+[gw1] [ 17%] PASSED tests/test_workflow_scheduler.py::test_pidfd_ordinary_job_does_not_inherit_agent_cgroup 
+tests/test_workflow_scheduler.py::test_codex_runtime_group_is_nested_under_agent_cgroup 
+[gw1] [ 17%] PASSED tests/test_workflow_scheduler.py::test_codex_runtime_group_is_nested_under_agent_cgroup 
+tests/test_workflow_scheduler.py::test_task_average_ignores_memory_of_ordinary_workers 
+[gw1] [ 18%] PASSED tests/test_workflow_scheduler.py::test_task_average_ignores_memory_of_ordinary_workers 
+tests/test_workflow_scheduler.py::test_idle_queue_always_gets_one_slot_below_pressure_threshold 
+[gw1] [ 18%] PASSED tests/test_workflow_scheduler.py::test_idle_queue_always_gets_one_slot_below_pressure_threshold 
+tests/test_workflow_scheduler.py::test_orchestrator_stays_outside_agent_cgroup_and_worker_enters 
+[gw1] [ 18%] PASSED tests/test_workflow_scheduler.py::test_orchestrator_stays_outside_agent_cgroup_and_worker_enters 
+tests/test_workflow_scheduler.py::test_workflow_runner_gets_its_own_leaf_group 
+[gw1] [ 18%] PASSED tests/test_workflow_scheduler.py::test_workflow_runner_gets_its_own_leaf_group 
+tests/test_workflow_scheduler.py::test_agent_limits_do_not_depend_on_service_usage 
+[gw1] [ 18%] PASSED tests/test_workflow_scheduler.py::test_agent_limits_do_not_depend_on_service_usage 
+tests/test_restart_generation_liveness.py::test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback 
+[gw1] [ 19%] PASSED tests/test_restart_generation_liveness.py::test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback 
+tests/test_restart_generation_liveness.py::test_t1_late_uvloop_executor_waiter_is_forced_after_cleanup_and_named 
+[gw0] [ 19%] PASSED tests/test_wf_run.py::test_identical_parallel_prompts_create_distinct_worktrees 
+tests/test_wf_run.py::test_prepare_failure_is_recorded_and_resume_retries_it 
+[gw0] [ 19%] PASSED tests/test_wf_run.py::test_prepare_failure_is_recorded_and_resume_retries_it 
+tests/test_wf_run.py::test_committed_workspace_is_archived_reset_and_discarded 
+[gw0] [ 19%] PASSED tests/test_wf_run.py::test_committed_workspace_is_archived_reset_and_discarded 
+tests/test_wf_run.py::test_new_ignored_workspace_output_is_archived 
+[gw1] [ 19%] PASSED tests/test_restart_generation_liveness.py::test_t1_late_uvloop_executor_waiter_is_forced_after_cleanup_and_named 
+tests/test_restart_generation_liveness.py::test_t1_guard_never_forces_before_application_teardown_and_reports_progress_loss 
+[gw0] [ 20%] PASSED tests/test_wf_run.py::test_new_ignored_workspace_output_is_archived 
+tests/test_wf_run.py::test_workspace_setup_failure_is_recorded_retryable_and_not_paid_unknown 
+[gw0] [ 20%] PASSED tests/test_wf_run.py::test_workspace_setup_failure_is_recorded_retryable_and_not_paid_unknown 
+tests/test_wf_run.py::test_workspace_preparation_uses_pinned_commit_from_linked_checkout 
+[gw0] [ 20%] PASSED tests/test_wf_run.py::test_workspace_preparation_uses_pinned_commit_from_linked_checkout 
+tests/test_wf_run.py::test_workflow_sparse_workspace_includes_parent_task_directory 
+[gw1] [ 20%] PASSED tests/test_restart_generation_liveness.py::test_t1_guard_never_forces_before_application_teardown_and_reports_progress_loss 
+tests/test_restart_generation_liveness.py::test_t1_wrong_starttime_is_identity_mismatch_and_never_signals 
+[gw0] [ 20%] PASSED tests/test_wf_run.py::test_workflow_sparse_workspace_includes_parent_task_directory 
+tests/test_wf_run.py::test_cancellation_during_worktree_create_discards_late_result 
+[gw1] [ 21%] PASSED tests/test_restart_generation_liveness.py::test_t1_wrong_starttime_is_identity_mismatch_and_never_signals 
+tests/test_restart_generation_liveness.py::test_t1_force_implementation_uses_pidfd_not_numeric_pid 
+[gw1] [ 21%] PASSED tests/test_restart_generation_liveness.py::test_t1_force_implementation_uses_pidfd_not_numeric_pid 
+tests/test_restart_generation_liveness.py::test_t1_verified_pidfd_is_opened_before_starttime_is_compared 
+[gw1] [ 21%] PASSED tests/test_restart_generation_liveness.py::test_t1_verified_pidfd_is_opened_before_starttime_is_compared 
+tests/test_restart_generation_liveness.py::test_t1_missing_pidfd_capability_falls_back_without_losing_identity_check 
+[gw1] [ 21%] PASSED tests/test_restart_generation_liveness.py::test_t1_missing_pidfd_capability_falls_back_without_losing_identity_check 
+tests/test_restart_generation_liveness.py::test_t1_injected_pidfd_open_preserves_identity_validation_and_success 
+[gw1] [ 21%] PASSED tests/test_restart_generation_liveness.py::test_t1_injected_pidfd_open_preserves_identity_validation_and_success 
+[gw0] [ 22%] PASSED tests/test_wf_run.py::test_cancellation_during_worktree_create_discards_late_result 
+tests/test_restart_generation_liveness.py::test_t1_production_guard_arm_leaks_neither_listener_nor_agent_pipes 
+tests/test_wf_run.py::test_cancellation_during_snapshot_still_resets_and_discards 
+[gw1] [ 22%] PASSED tests/test_restart_generation_liveness.py::test_t1_production_guard_arm_leaks_neither_listener_nor_agent_pipes 
+tests/test_restart_generation_liveness.py::test_t1_production_path_arms_guard_after_interrupt_mark_and_durable_state 
+[gw0] [ 22%] PASSED tests/test_wf_run.py::test_cancellation_during_snapshot_still_resets_and_discards 
+tests/test_wf_run.py::test_parallel_calls_reserve_max_call_budget_before_dispatch 
+[gw0] [ 22%] PASSED tests/test_wf_run.py::test_parallel_calls_reserve_max_call_budget_before_dispatch 
+tests/test_wf_run.py::test_schema_retries_twice_with_validation_error_then_returns_none 
+[gw0] [ 22%] PASSED tests/test_wf_run.py::test_schema_retries_twice_with_validation_error_then_returns_none 
+tests/test_wf_run.py::test_schema_retry_accepts_a_later_valid_response 
+[gw0] [ 23%] PASSED tests/test_wf_run.py::test_schema_retry_accepts_a_later_valid_response 
+tests/test_wf_run.py::test_schema_invalid_raw_response_is_saved_with_a_byte_limit 
+[gw0] [ 23%] PASSED tests/test_wf_run.py::test_schema_invalid_raw_response_is_saved_with_a_byte_limit 
+tests/test_wf_run.py::test_dispatched_is_fsynced_before_adapter_invocation 
+[gw1] [ 23%] PASSED tests/test_restart_generation_liveness.py::test_t1_production_path_arms_guard_after_interrupt_mark_and_durable_state 
+tests/test_restart_generation_liveness.py::test_t1_durable_state_timeout_still_restarts_and_reports_journal_loss 
+[gw1] [ 23%] PASSED tests/test_restart_generation_liveness.py::test_t1_durable_state_timeout_still_restarts_and_reports_journal_loss 
+tests/test_restart_generation_liveness.py::test_t1_locked_log_write_is_retried_before_reporting_success 
+[gw1] [ 23%] PASSED tests/test_restart_generation_liveness.py::test_t1_locked_log_write_is_retried_before_reporting_success 
+tests/test_restart_generation_liveness.py::test_t1_restart_response_contains_current_journal_loss 
+[gw1] [ 24%] PASSED tests/test_restart_generation_liveness.py::test_t1_restart_response_contains_current_journal_loss 
+tests/test_restart_generation_liveness.py::test_t1_manager_durable_drain_snapshots_and_waits_for_every_session 
+[gw1] [ 24%] PASSED tests/test_restart_generation_liveness.py::test_t1_manager_durable_drain_snapshots_and_waits_for_every_session 
+tests/test_restart_generation_liveness.py::test_t1_real_durable_barrier_enforces_budget_and_failure_identity 
+[gw1] [ 24%] PASSED tests/test_restart_generation_liveness.py::test_t1_real_durable_barrier_enforces_budget_and_failure_identity 
+tests/test_restart_generation_liveness.py::test_t1_real_durable_barrier_names_persistent_log_loss 
+[gw1] [ 24%] PASSED tests/test_restart_generation_liveness.py::test_t1_real_durable_barrier_names_persistent_log_loss 
+tests/test_restart_generation_liveness.py::test_t1_after_arm_signal_failure_aborts_guard_before_reopening_admission 
+[gw1] [ 24%] PASSED tests/test_restart_generation_liveness.py::test_t1_after_arm_signal_failure_aborts_guard_before_reopening_admission 
+tests/test_restart_generation_liveness.py::test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete 
+[gw1] [ 25%] PASSED tests/test_restart_generation_liveness.py::test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete 
+tests/test_restart_generation_liveness.py::test_lifespan_shuts_down_owned_tasks_on_exit 
+[gw1] [ 25%] PASSED tests/test_restart_generation_liveness.py::test_lifespan_shuts_down_owned_tasks_on_exit 
+tests/test_artifacts.py::test_t1_private_registry_is_present_before_snapshot 
+[gw1] [ 25%] PASSED tests/test_artifacts.py::test_t1_private_registry_is_present_before_snapshot 
+tests/test_artifacts.py::test_t1_snapshot_copies_the_authorized_inode_and_stores_no_bearer 
+[gw0] [ 25%] PASSED tests/test_wf_run.py::test_dispatched_is_fsynced_before_adapter_invocation 
+tests/test_wf_run.py::test_engine_persists_usage_before_terminal_journal_record 
+[gw0] [ 25%] PASSED tests/test_wf_run.py::test_engine_persists_usage_before_terminal_journal_record 
+tests/test_wf_run.py::test_usage_is_persisted_for_full_and_restricted_capabilities 
+[gw0] [ 25%] PASSED tests/test_wf_run.py::test_usage_is_persisted_for_full_and_restricted_capabilities 
+tests/test_wf_run.py::test_restricted_capabilities_require_an_inline_reason 
+[gw0] [ 26%] PASSED tests/test_wf_run.py::test_restricted_capabilities_require_an_inline_reason 
+[gw1] [ 26%] PASSED tests/test_artifacts.py::test_t1_snapshot_copies_the_authorized_inode_and_stores_no_bearer 
+tests/test_wf_run.py::test_harness_read_capability_rejects_a_hallucinated_write 
+tests/test_artifacts.py::test_t1_snapshot_rejects_paths_outside_registered_roots[outside] 
+[gw1] [ 26%] PASSED tests/test_artifacts.py::test_t1_snapshot_rejects_paths_outside_registered_roots[outside] 
+tests/test_artifacts.py::test_t1_snapshot_rejects_paths_outside_registered_roots[symlink] 
+[gw0] [ 26%] PASSED tests/test_wf_run.py::test_harness_read_capability_rejects_a_hallucinated_write 
+tests/test_wf_run.py::test_standalone_harness_default_is_not_writable 
+[gw1] [ 26%] PASSED tests/test_artifacts.py::test_t1_snapshot_rejects_paths_outside_registered_roots[symlink] 
+tests/test_artifacts.py::test_t1_publish_route_returns_and_logs_snapshot_rejection[disabled-artifact links are disabled] 
+[gw1] [ 27%] PASSED tests/test_artifacts.py::test_t1_publish_route_returns_and_logs_snapshot_rejection[disabled-artifact links are disabled] 
+tests/test_artifacts.py::test_t1_publish_route_returns_and_logs_snapshot_rejection[outside_roots-source path is outside registered roots] 
+[gw0] [ 27%] PASSED tests/test_wf_run.py::test_standalone_harness_default_is_not_writable 
+tests/test_wf_run.py::test_free_output_requires_a_verify_step_before_synthesis 
+[gw1] [ 27%] PASSED tests/test_artifacts.py::test_t1_publish_route_returns_and_logs_snapshot_rejection[outside_roots-source path is outside registered roots] 
+tests/test_artifacts.py::test_t1_publish_route_returns_and_logs_snapshot_rejection[size_limit-artifact exceeds configured size limit] 
+[gw0] [ 27%] PASSED tests/test_wf_run.py::test_free_output_requires_a_verify_step_before_synthesis 
+tests/test_wf_run.py::test_dispatched_without_terminal_event_resumes_as_unknown_not_a_second_charge 
+[gw1] [ 27%] PASSED tests/test_artifacts.py::test_t1_publish_route_returns_and_logs_snapshot_rejection[size_limit-artifact exceeds configured size limit] 
+tests/test_artifacts.py::test_t1_publish_route_logs_unexpected_snapshot_exception 
+[gw0] [ 28%] PASSED tests/test_wf_run.py::test_dispatched_without_terminal_event_resumes_as_unknown_not_a_second_charge 
+tests/test_wf_run.py::test_attempt_finished_without_completed_resumes_as_unknown 
+[gw0] [ 28%] PASSED tests/test_wf_run.py::test_attempt_finished_without_completed_resumes_as_unknown 
+tests/test_wf_run.py::test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt 
+[gw1] [ 28%] PASSED tests/test_artifacts.py::test_t1_publish_route_logs_unexpected_snapshot_exception 
+tests/test_artifacts.py::test_t2_open_returns_the_verified_immutable_buffer_after_path_retarget 
+[gw0] [ 28%] PASSED tests/test_wf_run.py::test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt 
+tests/test_wf_run.py::test_unknown_spend_conservatively_exhausts_dollar_budget 
+[gw0] [ 28%] PASSED tests/test_wf_run.py::test_unknown_spend_conservatively_exhausts_dollar_budget 
+tests/test_wf_run.py::test_crash_after_final_schema_checkpoint_restores_schema_failure 
+[gw1] [ 29%] PASSED tests/test_artifacts.py::test_t2_open_returns_the_verified_immutable_buffer_after_path_retarget 
+tests/test_artifacts.py::test_t2_open_rejects_an_inode_changed_after_descriptor_open 
+[gw0] [ 29%] PASSED tests/test_wf_run.py::test_crash_after_final_schema_checkpoint_restores_schema_failure 
+tests/test_wf_run.py::test_transient_quota_skip_is_rechecked_on_resume 
+[gw0] [ 29%] PASSED tests/test_wf_run.py::test_transient_quota_skip_is_rechecked_on_resume 
+tests/test_wf_run.py::test_historical_budget_skip_clears_after_larger_budget_resume 
+[gw1] [ 29%] PASSED tests/test_artifacts.py::test_t2_open_rejects_an_inode_changed_after_descriptor_open 
+tests/test_artifacts.py::test_t2_grant_is_bound_to_locator_secret_and_exact_iframe_destination 
+[gw0] [ 29%] PASSED tests/test_wf_run.py::test_historical_budget_skip_clears_after_larger_budget_resume 
+tests/test_wf_run.py::test_adapter_parsers_use_captured_real_cli_outputs 
+[gw0] [ 30%] PASSED tests/test_wf_run.py::test_adapter_parsers_use_captured_real_cli_outputs 
+tests/test_wf_run.py::test_codex_capability_flags_make_full_network_the_default 
+[gw0] [ 30%] PASSED tests/test_wf_run.py::test_codex_capability_flags_make_full_network_the_default 
+tests/test_wf_run.py::test_codex_mcp_uses_private_scope_config_not_global_home 
+[gw0] [ 30%] PASSED tests/test_wf_run.py::test_codex_mcp_uses_private_scope_config_not_global_home 
+tests/test_wf_run.py::test_claude_full_capability_loads_scoped_mcp_without_project_rules 
+[gw0] [ 30%] PASSED tests/test_wf_run.py::test_claude_full_capability_loads_scoped_mcp_without_project_rules 
+tests/test_wf_run.py::test_claude_bash_hook_blocks_forbidden_and_allows_plain_commands 
+[gw1] [ 30%] PASSED tests/test_artifacts.py::test_t2_grant_is_bound_to_locator_secret_and_exact_iframe_destination 
+tests/test_artifacts.py::test_t2_wrapper_is_fixed_trusted_top_level_and_artifact_is_only_the_child 
+[gw1] [ 31%] PASSED tests/test_artifacts.py::test_t2_wrapper_is_fixed_trusted_top_level_and_artifact_is_only_the_child 
+tests/test_artifacts.py::test_t2_revocation_blocks_both_an_existing_grant_and_fragment 
+[gw1] [ 31%] PASSED tests/test_artifacts.py::test_t2_revocation_blocks_both_an_existing_grant_and_fragment 
+tests/test_artifacts.py::test_t2_content_head_and_raw_file_route_remain_authenticated 
+[gw1] [ 31%] PASSED tests/test_artifacts.py::test_t2_content_head_and_raw_file_route_remain_authenticated 
+tests/test_artifacts.py::test_t2_publish_binds_mcp_proof_and_keeps_capability_only_in_telegram 
+[gw1] [ 31%] PASSED tests/test_artifacts.py::test_t2_publish_binds_mcp_proof_and_keeps_capability_only_in_telegram 
+tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file[exception] 
+[gw0] [ 31%] PASSED tests/test_wf_run.py::test_claude_bash_hook_blocks_forbidden_and_allows_plain_commands 
+tests/test_wf_run.py::test_claude_bash_hook_fails_closed_on_garbage_input 
+[gw1] [ 32%] PASSED tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file[exception] 
+tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file[cancelled-after-dispatch] 
+[gw0] [ 32%] PASSED tests/test_wf_run.py::test_claude_bash_hook_fails_closed_on_garbage_input 
+tests/test_wf_run.py::test_claude_bash_stays_closed_outside_full_network_mode[read-True] 
+[gw0] [ 32%] PASSED tests/test_wf_run.py::test_claude_bash_stays_closed_outside_full_network_mode[read-True] 
+tests/test_wf_run.py::test_claude_bash_stays_closed_outside_full_network_mode[read-False] 
+[gw0] [ 32%] PASSED tests/test_wf_run.py::test_claude_bash_stays_closed_outside_full_network_mode[read-False] 
+tests/test_wf_run.py::test_claude_bash_stays_closed_outside_full_network_mode[all-False] 
+[gw0] [ 32%] PASSED tests/test_wf_run.py::test_claude_bash_stays_closed_outside_full_network_mode[all-False] 
+tests/test_wf_run.py::test_claude_full_mode_wires_bash_filter_hook 
+[gw0] [ 33%] PASSED tests/test_wf_run.py::test_claude_full_mode_wires_bash_filter_hook 
+tests/test_wf_run.py::test_credit_key_is_mapped_only_for_selected_claude_cli 
+[gw0] [ 33%] PASSED tests/test_wf_run.py::test_credit_key_is_mapped_only_for_selected_claude_cli 
+tests/test_wf_run.py::test_credit_adapter_refuses_expired_balance_before_cli 
+[gw0] [ 33%] PASSED tests/test_wf_run.py::test_credit_adapter_refuses_expired_balance_before_cli 
+tests/test_wf_run.py::test_sessionless_usage_is_written_immediately_and_is_replay_safe 
+[gw0] [ 33%] PASSED tests/test_wf_run.py::test_sessionless_usage_is_written_immediately_and_is_replay_safe 
+tests/test_wf_run.py::test_manifest_contains_ready_resume_command 
+[gw0] [ 33%] PASSED tests/test_wf_run.py::test_manifest_contains_ready_resume_command 
+tests/test_wf_run.py::test_manifest_can_use_a_runner_specific_resume_command 
+[gw0] [ 33%] PASSED tests/test_wf_run.py::test_manifest_can_use_a_runner_specific_resume_command 
+tests/test_wf_run.py::test_executes_a_top_level_await_workflow 
+[gw0] [ 34%] PASSED tests/test_wf_run.py::test_executes_a_top_level_await_workflow 
+tests/test_wf_run.py::test_pilot_gate_requires_twenty_distinct_closed_ticket_results 
+[gw0] [ 34%] PASSED tests/test_wf_run.py::test_pilot_gate_requires_twenty_distinct_closed_ticket_results 
+tests/test_wf_run.py::test_waiting_for_global_slot_does_not_dispatch_or_spend 
+[gw0] [ 34%] PASSED tests/test_wf_run.py::test_waiting_for_global_slot_does_not_dispatch_or_spend 
+tests/test_wf_run.py::test_missing_scheduler_route_runs_without_admission 
+[gw1] [ 34%] PASSED tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file[cancelled-after-dispatch] 
+tests/test_artifacts.py::test_t2_activation_failure_after_telegram_success_leaves_a_dead_link 
+[gw1] [ 34%] PASSED tests/test_artifacts.py::test_t2_activation_failure_after_telegram_success_leaves_a_dead_link 
+tests/test_fan_barrier.py::test_barrier_holds_until_every_child_has_a_terminal_token 
+[gw1] [ 35%] PASSED tests/test_fan_barrier.py::test_barrier_holds_until_every_child_has_a_terminal_token 
+tests/test_fan_barrier.py::test_silence_is_not_a_terminal_token 
+[gw1] [ 35%] PASSED tests/test_fan_barrier.py::test_silence_is_not_a_terminal_token 
+tests/test_fan_barrier.py::test_failed_and_killed_children_release_the_barrier 
+[gw1] [ 35%] PASSED tests/test_fan_barrier.py::test_failed_and_killed_children_release_the_barrier 
+tests/test_fan_barrier.py::test_kill_lifecycle_produces_the_killed_token 
+[gw1] [ 35%] PASSED tests/test_fan_barrier.py::test_kill_lifecycle_produces_the_killed_token 
+tests/test_fan_barrier.py::test_double_terminal_token_is_idempotent 
+[gw0] [ 35%] PASSED tests/test_wf_run.py::test_missing_scheduler_route_runs_without_admission 
+tests/test_wf_run.py::test_unavailable_scheduler_keeps_waiting[503] 
+[gw1] [ 36%] PASSED tests/test_fan_barrier.py::test_double_terminal_token_is_idempotent 
+tests/test_fan_barrier.py::test_deadline_releases_with_explicit_partial_flag 
+[gw1] [ 36%] PASSED tests/test_fan_barrier.py::test_deadline_releases_with_explicit_partial_flag 
+tests/test_fan_barrier.py::test_exception_classes_bypass_the_barrier[out_of_scope] 
+[gw1] [ 36%] PASSED tests/test_fan_barrier.py::test_exception_classes_bypass_the_barrier[out_of_scope] 
+tests/test_fan_barrier.py::test_exception_classes_bypass_the_barrier[false_premise] 
+[gw1] [ 36%] PASSED tests/test_fan_barrier.py::test_exception_classes_bypass_the_barrier[false_premise] 
+tests/test_fan_barrier.py::test_exception_classes_bypass_the_barrier[blocked] 
+[gw1] [ 36%] PASSED tests/test_fan_barrier.py::test_exception_classes_bypass_the_barrier[blocked] 
+tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[done] 
+[gw1] [ 37%] PASSED tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[done] 
+tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[progress] 
+[gw1] [ 37%] PASSED tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[progress] 
+tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[] 
+[gw1] [ 37%] PASSED tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[] 
+tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[None] 
+[gw1] [ 37%] PASSED tests/test_fan_barrier.py::test_ordinary_messages_are_buffered[None] 
+tests/test_fan_barrier.py::test_unknown_message_kind_fails_closed_to_buffering 
+[gw1] [ 37%] PASSED tests/test_fan_barrier.py::test_unknown_message_kind_fails_closed_to_buffering 
+tests/test_fan_barrier.py::test_child_outside_any_fan_is_never_buffered 
+[gw1] [ 38%] PASSED tests/test_fan_barrier.py::test_child_outside_any_fan_is_never_buffered 
+tests/test_fan_barrier.py::test_released_fan_stops_buffering 
+[gw1] [ 38%] PASSED tests/test_fan_barrier.py::test_released_fan_stops_buffering 
+tests/test_fan_barrier.py::test_single_child_fan_degenerates_to_current_behaviour 
+[gw1] [ 38%] PASSED tests/test_fan_barrier.py::test_single_child_fan_degenerates_to_current_behaviour 
+tests/test_fan_barrier.py::test_manifest_carries_paths_not_report_bodies 
+[gw1] [ 38%] PASSED tests/test_fan_barrier.py::test_manifest_carries_paths_not_report_bodies 
+tests/test_live_tool_activity_831.py::test_tool_arguments_and_thinking_are_brokered_not_persisted 
+[gw1] [ 38%] PASSED tests/test_live_tool_activity_831.py::test_tool_arguments_and_thinking_are_brokered_not_persisted 
+tests/test_live_tool_activity_831.py::test_subagent_partials_nest_under_their_subagent 
+[gw1] [ 39%] PASSED tests/test_live_tool_activity_831.py::test_subagent_partials_nest_under_their_subagent 
+tests/test_live_tool_activity_831.py::test_final_tool_call_is_persisted_and_retires_the_live_replay 
+[gw1] [ 39%] PASSED tests/test_live_tool_activity_831.py::test_final_tool_call_is_persisted_and_retires_the_live_replay 
+tests/test_live_tool_activity_831.py::test_late_subscriber_gets_replay_with_progress 
+[gw1] [ 39%] PASSED tests/test_live_tool_activity_831.py::test_late_subscriber_gets_replay_with_progress 
+tests/test_live_tool_activity_831.py::test_replay_keeps_only_tail_but_counts_everything 
+[gw1] [ 39%] PASSED tests/test_live_tool_activity_831.py::test_replay_keeps_only_tail_but_counts_everything 
+tests/test_live_tool_activity_831.py::test_end_and_clear_live_and_waiting_is_not_replayed 
+[gw1] [ 39%] PASSED tests/test_live_tool_activity_831.py::test_end_and_clear_live_and_waiting_is_not_replayed 
+tests/test_live_tool_activity_831.py::test_coalesce_glues_neighbours_of_one_block_only 
+[gw1] [ 40%] PASSED tests/test_live_tool_activity_831.py::test_coalesce_glues_neighbours_of_one_block_only 
+tests/test_live_tool_activity_831.py::test_coalesce_keeps_replace_and_never_merges_waiting_or_a_new_replace 
+[gw1] [ 40%] PASSED tests/test_live_tool_activity_831.py::test_coalesce_keeps_replace_and_never_merges_waiting_or_a_new_replace 
+tests/test_live_tool_activity_831.py::test_tail_publishes_appended_output_until_file_disappears 
+[gw1] [ 40%] PASSED tests/test_live_tool_activity_831.py::test_tail_publishes_appended_output_until_file_disappears 
+tests/test_live_tool_activity_831.py::test_output_file_lookup_rejects_path_tricks 
+[gw1] [ 40%] PASSED tests/test_live_tool_activity_831.py::test_output_file_lookup_rejects_path_tricks 
+tests/test_live_tool_activity_831.py::test_session_tails_only_shell_tasks_and_stops_on_end 
+[gw1] [ 40%] PASSED tests/test_live_tool_activity_831.py::test_session_tails_only_shell_tasks_and_stops_on_end 
+tests/test_live_tool_activity_831.py::test_decoder_shows_readable_arguments_for_any_chunking 
+[gw1] [ 41%] PASSED tests/test_live_tool_activity_831.py::test_decoder_shows_readable_arguments_for_any_chunking 
+tests/test_live_tool_activity_831.py::test_decoder_tail_mode_and_timeouts_and_label 
+[gw1] [ 41%] PASSED tests/test_live_tool_activity_831.py::test_decoder_tail_mode_and_timeouts_and_label 
+tests/test_live_tool_activity_831.py::test_background_task_clock_survives_being_built_before_insertion 
+[gw1] [ 41%] PASSED tests/test_live_tool_activity_831.py::test_background_task_clock_survives_being_built_before_insertion 
+tests/test_live_tool_activity_831.py::test_agent_cli_streams_tool_arguments_finely 
+[gw1] [ 41%] PASSED tests/test_live_tool_activity_831.py::test_agent_cli_streams_tool_arguments_finely 
+tests/test_live_tool_activity_831.py::test_pacer_spreads_a_burst_over_the_observed_gap 
+[gw1] [ 41%] PASSED tests/test_live_tool_activity_831.py::test_pacer_spreads_a_burst_over_the_observed_gap 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/kiosk-flow-real.html] 
+[gw1] [ 41%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/kiosk-flow-real.html] 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/report.pdf] 
+[gw1] [ 42%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/report.pdf] 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/notes.md] 
+[gw1] [ 42%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/notes.md] 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/data.json] 
+[gw1] [ 42%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/data.json] 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/rows.csv] 
+[gw1] [ 42%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/rows.csv] 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/run.log] 
+[gw1] [ 42%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/run.log] 
+tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/conf.yaml] 
+[gw1] [ 43%] PASSED tests/test_send_file_open_button.py::test_viewable_files_get_the_open_button[/a/conf.yaml] 
+tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/shot.png] 
+[gw1] [ 43%] PASSED tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/shot.png] 
+tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/photo.jpeg] 
+[gw1] [ 43%] PASSED tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/photo.jpeg] 
+tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/clip.webp] 
+[gw1] [ 43%] PASSED tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/clip.webp] 
+tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/arc.zip] 
+[gw1] [ 43%] PASSED tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/arc.zip] 
+tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/voice.wav] 
+[gw1] [ 44%] PASSED tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/voice.wav] 
+tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/bin.exe] 
+[gw1] [ 44%] PASSED tests/test_send_file_open_button.py::test_non_viewable_files_do_not_get_a_fake_button[/a/bin.exe] 
+tests/test_send_file_open_button.py::test_open_does_not_pass_the_download_flag 
+[gw1] [ 44%] PASSED tests/test_send_file_open_button.py::test_open_does_not_pass_the_download_flag 
+tests/test_send_file_open_button.py::test_open_and_download_actions_are_both_rendered 
+[gw1] [ 44%] PASSED tests/test_send_file_open_button.py::test_open_and_download_actions_are_both_rendered 
+tests/test_backend_stream.py::test_text_delta_emits_stream_event 
+[gw1] [ 44%] PASSED tests/test_backend_stream.py::test_text_delta_emits_stream_event 
+tests/test_backend_stream.py::test_empty_text_delta_emits_nothing 
+[gw1] [ 45%] PASSED tests/test_backend_stream.py::test_empty_text_delta_emits_nothing 
+tests/test_backend_stream.py::test_thinking_delta_streams_with_a_block_id 
+[gw1] [ 45%] PASSED tests/test_backend_stream.py::test_thinking_delta_streams_with_a_block_id 
+tests/test_backend_stream.py::test_tool_call_arguments_stream_with_tool_identity 
+[gw1] [ 45%] PASSED tests/test_backend_stream.py::test_tool_call_arguments_stream_with_tool_identity 
+tests/test_backend_stream.py::test_mcp_tool_name_is_shortened_and_unknown_block_deltas_dropped 
+[gw1] [ 45%] PASSED tests/test_backend_stream.py::test_mcp_tool_name_is_shortened_and_unknown_block_deltas_dropped 
+tests/test_backend_stream.py::test_block_indices_restart_per_message 
+[gw1] [ 45%] PASSED tests/test_backend_stream.py::test_block_indices_restart_per_message 
+tests/test_backend_stream.py::test_subagent_tool_arguments_are_tagged_and_isolated_from_main 
+[gw1] [ 46%] PASSED tests/test_backend_stream.py::test_subagent_tool_arguments_are_tagged_and_isolated_from_main 
+tests/test_backend_stream.py::test_signature_delta_dropped 
+[gw1] [ 46%] PASSED tests/test_backend_stream.py::test_signature_delta_dropped 
+tests/test_backend_stream.py::test_subagent_text_delta_becomes_subagent_stream 
+[gw1] [ 46%] PASSED tests/test_backend_stream.py::test_subagent_text_delta_becomes_subagent_stream 
+tests/test_backend_stream.py::test_subagent_stream_resolves_parent_tool_use_to_task_id 
+[gw1] [ 46%] PASSED tests/test_backend_stream.py::test_subagent_stream_resolves_parent_tool_use_to_task_id 
+tests/test_backend_stream.py::test_subagent_lifecycle_keeps_stable_id_type_and_description 
+[gw1] [ 46%] PASSED tests/test_backend_stream.py::test_subagent_lifecycle_keeps_stable_id_type_and_description 
+tests/test_backend_stream.py::test_non_delta_events_dropped 
+[gw1] [ 47%] PASSED tests/test_backend_stream.py::test_non_delta_events_dropped 
+tests/test_backend_stream.py::test_tag_sub_marks_only_subagent_events 
+[gw1] [ 47%] PASSED tests/test_backend_stream.py::test_tag_sub_marks_only_subagent_events 
+tests/test_backend_stream.py::test_omitted_thinking_still_streams_its_token_estimate 
+[gw1] [ 47%] PASSED tests/test_backend_stream.py::test_omitted_thinking_still_streams_its_token_estimate 
+tests/test_codex_review_artifact.py::test_verdict_presence_requires_meaningful_localized_section[## Verdict\nNo verdict was reached.\n-False-] 
+[gw1] [ 47%] PASSED tests/test_codex_review_artifact.py::test_verdict_presence_requires_meaningful_localized_section[## Verdict\nNo verdict was reached.\n-False-] 
+tests/test_codex_review_artifact.py::test_verdict_presence_requires_meaningful_localized_section[## \u0412\u0435\u0440\u0434\u0438\u043a\u0442\nAPPROVED\n-True-APPROVED] 
+[gw1] [ 47%] PASSED tests/test_codex_review_artifact.py::test_verdict_presence_requires_meaningful_localized_section[## \u0412\u0435\u0440\u0434\u0438\u043a\u0442\nAPPROVED\n-True-APPROVED] 
+tests/test_codex_review_artifact.py::test_russian_verdict_header_is_accepted_by_finalizer 
+[gw1] [ 48%] PASSED tests/test_codex_review_artifact.py::test_russian_verdict_header_is_accepted_by_finalizer 
+tests/test_codex_review_artifact.py::test_negative_verdict_is_rejected_by_finalizer 
+[gw1] [ 48%] PASSED tests/test_codex_review_artifact.py::test_negative_verdict_is_rejected_by_finalizer 
+tests/test_codex_review_artifact.py::test_terminal_receipt_records_semantic_verdict[## Verdict\nNo verdict was reached.\n-0-] 
+[gw1] [ 48%] PASSED tests/test_codex_review_artifact.py::test_terminal_receipt_records_semantic_verdict[## Verdict\nNo verdict was reached.\n-0-] 
+tests/test_codex_review_artifact.py::test_terminal_receipt_records_semantic_verdict[## \u0412\u0435\u0440\u0434\u0438\u043a\u0442\nAPPROVED\n-1-APPROVED] 
+[gw1] [ 48%] PASSED tests/test_codex_review_artifact.py::test_terminal_receipt_records_semantic_verdict[## \u0412\u0435\u0440\u0434\u0438\u043a\u0442\nAPPROVED\n-1-APPROVED] 
+tests/test_codex_review_artifact.py::test_fresh_review_is_atomic_and_persists_session 
+[gw1] [ 48%] PASSED tests/test_codex_review_artifact.py::test_fresh_review_is_atomic_and_persists_session 
+tests/test_codex_review_artifact.py::test_resume_appends_without_overwriting_prior_review 
+[gw1] [ 49%] PASSED tests/test_codex_review_artifact.py::test_resume_appends_without_overwriting_prior_review 
+tests/test_codex_review_artifact.py::test_resume_labels_the_model_used_for_that_round 
+[gw1] [ 49%] PASSED tests/test_codex_review_artifact.py::test_resume_labels_the_model_used_for_that_round 
+tests/test_codex_review_artifact.py::test_missing_verdict_fails_without_touching_existing_output 
+[gw1] [ 49%] PASSED tests/test_codex_review_artifact.py::test_missing_verdict_fails_without_touching_existing_output 
+tests/test_codex_review_artifact.py::test_missing_thread_id_fails_loud 
+[gw1] [ 49%] PASSED tests/test_codex_review_artifact.py::test_missing_thread_id_fails_loud 
+tests/test_codex_review_artifact.py::test_review_usage_is_persisted_once_for_requesting_agent 
+[gw1] [ 49%] PASSED tests/test_codex_review_artifact.py::test_review_usage_is_persisted_once_for_requesting_agent 
+tests/test_codex_review_artifact.py::test_old_cli_without_usage_arguments_preserves_review_and_exits_zero 
+[gw1] [ 50%] PASSED tests/test_codex_review_artifact.py::test_old_cli_without_usage_arguments_preserves_review_and_exits_zero 
+tests/test_codex_review_artifact.py::test_usage_failure_is_nonfatal_after_review_is_persisted 
+[gw1] [ 50%] PASSED tests/test_codex_review_artifact.py::test_usage_failure_is_nonfatal_after_review_is_persisted 
+tests/test_runtime_registry.py::test_builtin_runtime_capabilities_are_explicit 
+[gw1] [ 50%] PASSED tests/test_runtime_registry.py::test_builtin_runtime_capabilities_are_explicit 
+tests/test_runtime_registry.py::test_runtime_registry_accepts_external_adapter_without_core_branch 
+[gw1] [ 50%] PASSED tests/test_runtime_registry.py::test_runtime_registry_accepts_external_adapter_without_core_branch 
+tests/test_runtime_registry.py::test_runtime_registry_rejects_incompatible_plugin_backend 
+[gw1] [ 50%] PASSED tests/test_runtime_registry.py::test_runtime_registry_rejects_incompatible_plugin_backend 
+tests/test_runtime_registry.py::test_runtime_registry_rejects_declared_retarget_without_method 
+[gw1] [ 50%] PASSED tests/test_runtime_registry.py::test_runtime_registry_rejects_declared_retarget_without_method 
+tests/test_runtime_registry.py::test_builtin_runtime_cannot_be_overwritten_accidentally 
+[gw1] [ 51%] PASSED tests/test_runtime_registry.py::test_builtin_runtime_cannot_be_overwritten_accidentally 
+tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[claude] 
+[gw1] [ 51%] PASSED tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[claude] 
+tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[codex] 
+[gw1] [ 51%] PASSED tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[codex] 
+tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[grok] 
+[gw1] [ 51%] PASSED tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[grok] 
+tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[harness] 
+[gw1] [ 51%] PASSED tests/test_runtime_registry.py::test_backend_classes_satisfy_structural_contract[harness] 
+tests/test_runtime_registry.py::test_codex_factory_indexes_all_skills_from_active_pipeline 
+[gw1] [ 52%] PASSED tests/test_runtime_registry.py::test_codex_factory_indexes_all_skills_from_active_pipeline 
+tests/test_runtime_registry.py::test_codex_factory_omits_skill_index_by_default 
+[gw1] [ 52%] PASSED tests/test_runtime_registry.py::test_codex_factory_omits_skill_index_by_default 
+tests/test_runtime_registry.py::test_codex_factory_loads_scope_mcp_without_overriding_orchestra 
+[gw1] [ 52%] PASSED tests/test_runtime_registry.py::test_codex_factory_loads_scope_mcp_without_overriding_orchestra 
+tests/test_runtime_registry.py::test_codex_factory_passes_native_history_import 
+[gw1] [ 52%] PASSED tests/test_runtime_registry.py::test_codex_factory_passes_native_history_import 
+tests/test_model_catalog.py::test_t2_normalize_maps_openrouter_fields 
+[gw1] [ 52%] PASSED tests/test_model_catalog.py::test_t2_normalize_maps_openrouter_fields 
+tests/test_model_catalog.py::test_t2_normalize_free_and_no_tools 
+[gw1] [ 53%] PASSED tests/test_model_catalog.py::test_t2_normalize_free_and_no_tools 
+tests/test_model_catalog.py::test_t2_zero_token_price_without_free_suffix_is_not_harness_eligible 
+[gw1] [ 53%] PASSED tests/test_model_catalog.py::test_t2_zero_token_price_without_free_suffix_is_not_harness_eligible 
+tests/test_model_catalog.py::test_t2_normalize_rejects_empty_id 
+[gw1] [ 53%] PASSED tests/test_model_catalog.py::test_t2_normalize_rejects_empty_id 
+tests/test_model_catalog.py::test_t2_catalog_survives_enterprise_proxy_refresh 
+[gw1] [ 53%] PASSED tests/test_model_catalog.py::test_t2_catalog_survives_enterprise_proxy_refresh 
+tests/test_model_catalog.py::test_t2_apply_retains_disappeared_model_as_unavailable_compatibility_route 
+[gw1] [ 53%] PASSED tests/test_model_catalog.py::test_t2_apply_retains_disappeared_model_as_unavailable_compatibility_route 
+tests/test_model_catalog.py::test_t2_legacy_cache_row_stays_usable_with_conservative_tools_only_capability 
+[gw1] [ 54%] PASSED tests/test_model_catalog.py::test_t2_legacy_cache_row_stays_usable_with_conservative_tools_only_capability 
+tests/test_model_catalog.py::test_t2_apply_never_registers_zero_token_unsuffixed_route 
+[gw1] [ 54%] PASSED tests/test_model_catalog.py::test_t2_apply_never_registers_zero_token_unsuffixed_route 
+tests/test_model_catalog.py::test_t2_refresh_retains_vanished_route_for_resume_but_marks_it_unavailable 
+[gw1] [ 54%] PASSED tests/test_model_catalog.py::test_t2_refresh_retains_vanished_route_for_resume_but_marks_it_unavailable 
+tests/test_model_catalog.py::test_t2_admission_refuses_route_the_live_catalog_no_longer_backs 
+[gw1] [ 54%] PASSED tests/test_model_catalog.py::test_t2_admission_refuses_route_the_live_catalog_no_longer_backs 
+tests/test_model_catalog.py::test_t2_admission_passes_route_the_live_catalog_still_backs 
+[gw1] [ 54%] PASSED tests/test_model_catalog.py::test_t2_admission_passes_route_the_live_catalog_still_backs 
+tests/test_model_catalog.py::test_blocked_route_is_refused_and_never_registered 
+[gw1] [ 55%] PASSED tests/test_model_catalog.py::test_blocked_route_is_refused_and_never_registered 
+tests/test_models.py::test_resolve_model_aliases[sol-gpt-6.1-sol] 
+[gw1] [ 55%] PASSED tests/test_models.py::test_resolve_model_aliases[sol-gpt-6.1-sol] 
+tests/test_models.py::test_resolve_model_aliases[luna-gpt-6-luna] 
+[gw1] [ 55%] PASSED tests/test_models.py::test_resolve_model_aliases[luna-gpt-6-luna] 
+tests/test_models.py::test_create_session_request_resolves_model_alias[sol-gpt-6.1-sol] 
+[gw1] [ 55%] PASSED tests/test_models.py::test_create_session_request_resolves_model_alias[sol-gpt-6.1-sol] 
+tests/test_models.py::test_create_session_request_resolves_model_alias[luna-gpt-6-luna] 
+[gw1] [ 55%] PASSED tests/test_models.py::test_create_session_request_resolves_model_alias[luna-gpt-6-luna] 
+tests/test_models.py::test_sonnet_aliases_and_retired_ids_resolve_to_sonnet_55 
+[gw1] [ 56%] PASSED tests/test_models.py::test_sonnet_aliases_and_retired_ids_resolve_to_sonnet_55 
+tests/test_models.py::test_selectable_models_match_the_curated_catalog 
+[gw1] [ 56%] PASSED tests/test_models.py::test_selectable_models_match_the_curated_catalog 
+tests/test_models.py::test_haiku_55_replaces_haiku_45_in_the_selectable_registry 
+[gw1] [ 56%] PASSED tests/test_models.py::test_haiku_55_replaces_haiku_45_in_the_selectable_registry 
+tests/test_models.py::test_claude_cache_rates_and_prompt_tier_are_registry_data 
+[gw1] [ 56%] PASSED tests/test_models.py::test_claude_cache_rates_and_prompt_tier_are_registry_data 
+tests/test_models.py::test_astra_remains_manual_only_even_if_stored_flags_allow_agents 
+[gw1] [ 56%] PASSED tests/test_models.py::test_astra_remains_manual_only_even_if_stored_flags_allow_agents 
+tests/test_models.py::test_sol_is_open_to_agents_by_default_and_can_be_spawned 
+[gw1] [ 57%] PASSED tests/test_models.py::test_sol_is_open_to_agents_by_default_and_can_be_spawned 
+tests/test_models.py::test_retired_models_keep_explicit_session_compatibility_without_becoming_selectable 
+[gw1] [ 57%] PASSED tests/test_models.py::test_retired_models_keep_explicit_session_compatibility_without_becoming_selectable 
+tests/test_models.py::test_reducer_role_uses_the_selectable_luna_model 
+[gw1] [ 57%] PASSED tests/test_models.py::test_reducer_role_uses_the_selectable_luna_model 
+tests/test_merge_completion_watch.py::test_merge_mcp_waits_for_the_outcome_before_leaning_on_the_job 
+[gw1] [ 57%] PASSED tests/test_merge_completion_watch.py::test_merge_mcp_waits_for_the_outcome_before_leaning_on_the_job 
+tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[SUCCEEDED] 
+[gw0] [ 57%] PASSED tests/test_wf_run.py::test_unavailable_scheduler_keeps_waiting[503] 
+tests/test_wf_run.py::test_unavailable_scheduler_keeps_waiting[None] 
+[gw1] [ 58%] PASSED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[SUCCEEDED] 
+tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[FAILED] 
+[gw1] [ 58%] PASSED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[FAILED] 
+tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[PARTIAL] 
+[gw0] [ 58%] PASSED tests/test_wf_run.py::test_unavailable_scheduler_keeps_waiting[None] 
+tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[read-False-Read,Glob,Grep] 
+[gw0] [ 58%] PASSED tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[read-False-Read,Glob,Grep] 
+tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[read-True-Read,Glob,Grep,WebFetch,WebSearch] 
+[gw0] [ 58%] PASSED tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[read-True-Read,Glob,Grep,WebFetch,WebSearch] 
+tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[all-False-Read,Write,Edit,Glob,Grep] 
+[gw0] [ 58%] PASSED tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[all-False-Read,Write,Edit,Glob,Grep] 
+tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[all-True-Read,Write,Edit,Glob,Grep,Bash,WebFetch,WebSearch] 
+[gw0] [ 59%] PASSED tests/test_wf_run.py::test_claude_preapproves_exactly_the_tools_of_its_level[all-True-Read,Write,Edit,Glob,Grep,Bash,WebFetch,WebSearch] 
+tests/test_usage_history_resolution.py::test_grid_does_not_bridge_a_hole_in_snapshots 
+[gw0] [ 59%] PASSED tests/test_usage_history_resolution.py::test_grid_does_not_bridge_a_hole_in_snapshots 
+tests/test_usage_history_resolution.py::test_history_includes_a_real_zero_without_reset_metadata[five_hour_pct-five_hour] 
+[gw0] [ 59%] PASSED tests/test_usage_history_resolution.py::test_history_includes_a_real_zero_without_reset_metadata[five_hour_pct-five_hour] 
+tests/test_usage_history_resolution.py::test_history_includes_a_real_zero_without_reset_metadata[seven_day_pct-seven_day] 
+[gw0] [ 59%] PASSED tests/test_usage_history_resolution.py::test_history_includes_a_real_zero_without_reset_metadata[seven_day_pct-seven_day] 
+tests/test_usage_history_resolution.py::test_hole_shorter_than_two_steps_is_still_filled 
+[gw0] [ 59%] PASSED tests/test_usage_history_resolution.py::test_hole_shorter_than_two_steps_is_still_filled 
+tests/test_usage_history_resolution.py::test_short_range_keeps_full_resolution 
+[gw0] [ 60%] PASSED tests/test_usage_history_resolution.py::test_short_range_keeps_full_resolution 
+tests/test_usage_history_resolution.py::test_long_range_is_thinned_but_keeps_a_fine_tail 
+[gw0] [ 60%] PASSED tests/test_usage_history_resolution.py::test_long_range_is_thinned_but_keeps_a_fine_tail 
+tests/test_usage_history_resolution.py::test_chunks_join_without_overlap 
+[gw0] [ 60%] PASSED tests/test_usage_history_resolution.py::test_chunks_join_without_overlap 
+tests/test_usage_history_resolution.py::test_navigation_window_anchors_to_data_not_calendar 
+[gw0] [ 60%] PASSED tests/test_usage_history_resolution.py::test_navigation_window_anchors_to_data_not_calendar 
+tests/test_usage_history_resolution.py::test_historical_chunk_has_no_fine_tail 
+[gw0] [ 60%] PASSED tests/test_usage_history_resolution.py::test_historical_chunk_has_no_fine_tail 
+tests/test_usage_history_resolution.py::test_oldest_ts_is_the_first_snapshot_ever 
+[gw0] [ 61%] PASSED tests/test_usage_history_resolution.py::test_oldest_ts_is_the_first_snapshot_ever 
+tests/test_usage_history_resolution.py::test_explicit_step_is_honoured 
+[gw0] [ 61%] PASSED tests/test_usage_history_resolution.py::test_explicit_step_is_honoured 
+tests/test_prompting.py::TestBuildSkillsIndex::test_uses_frontmatter_without_inlining_body 
+[gw0] [ 61%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_uses_frontmatter_without_inlining_body 
+tests/test_prompting.py::TestBuildSkillsIndex::test_duplicate_name_keeps_required_pipeline_entry 
+[gw0] [ 61%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_duplicate_name_keeps_required_pipeline_entry 
+tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[not frontmatter] 
+[gw0] [ 61%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[not frontmatter] 
+tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[---\nname: broken\n---\nbody] 
+[gw0] [ 62%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[---\nname: broken\n---\nbody] 
+tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[---\ndescription: no name\n---\nbody] 
+[gw0] [ 62%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[---\ndescription: no name\n---\nbody] 
+tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[---\nname: broken\ndescription: [\n---\nbody] 
+[gw0] [ 62%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_required_pipeline_metadata_fails_loudly[---\nname: broken\ndescription: [\n---\nbody] 
+tests/test_prompting.py::TestBuildSkillsIndex::test_missing_required_pipeline_file_fails_loudly 
+[gw0] [ 62%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_missing_required_pipeline_file_fails_loudly 
+tests/test_prompting.py::TestBuildSkillsIndex::test_multiline_required_name_fails_loudly 
+[gw0] [ 62%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_multiline_required_name_fails_loudly 
+tests/test_prompting.py::TestBuildSkillsIndex::test_multiline_optional_name_warns_and_skips 
+[gw0] [ 63%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_multiline_optional_name_warns_and_skips 
+tests/test_prompting.py::TestBuildSkillsIndex::test_invalid_optional_project_skill_warns_and_skips 
+[gw0] [ 63%] PASSED tests/test_prompting.py::TestBuildSkillsIndex::test_invalid_optional_project_skill_warns_and_skips 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_all_uses_active_pipeline_and_excludes_bodies 
+[gw0] [ 63%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_all_uses_active_pipeline_and_excludes_bodies 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_all_rejects_pipeline_skill_symlink_escape 
+[gw0] [ 63%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_all_rejects_pipeline_skill_symlink_escape 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_skill_symlink_within_root[all] 
+[gw0] [ 63%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_skill_symlink_within_root[all] 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_skill_symlink_within_root[skill_names1] 
+[gw0] [ 64%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_skill_symlink_within_root[skill_names1] 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[../outside-skills0] 
+[gw0] [ 64%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[../outside-skills0] 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[/absolute-skills1] 
+[gw0] [ 64%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[/absolute-skills1] 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[custom-skills2] 
+[gw0] [ 64%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[custom-skills2] 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[custom-skills3] 
+[gw0] [ 64%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[custom-skills3] 
+tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[custom-skills4] 
+[gw0] [ 65%] PASSED tests/test_prompting.py::TestBuildCodexSkillsIndex::test_rejects_pipeline_or_skill_path_escape[custom-skills4] 
+tests/test_prompting.py::TestCodexProjectSkills::test_includes_clean_committed_project_skill 
+[gw0] [ 65%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_includes_clean_committed_project_skill 
+tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[untracked] 
+[gw0] [ 65%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[untracked] 
+tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[modified] 
+[gw0] [ 65%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[modified] 
+tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[staged] 
+[gw0] [ 65%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[staged] 
+tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[deleted] 
+[gw0] [ 66%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_non_committed_project_state[deleted] 
+tests/test_prompting.py::TestCodexProjectSkills::test_excludes_clean_tracked_symlink 
+[gw0] [ 66%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_excludes_clean_tracked_symlink 
+tests/test_prompting.py::TestCodexProjectSkills::test_project_skill_root_symlink_cycle_warns_and_skips 
+[gw0] [ 66%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_project_skill_root_symlink_cycle_warns_and_skips 
+tests/test_prompting.py::TestCodexProjectSkills::test_invalid_utf8_project_skill_warns_and_skips 
+[gw0] [ 66%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_invalid_utf8_project_skill_warns_and_skips 
+tests/test_prompting.py::TestCodexProjectSkills::test_pipeline_skill_shadows_divergent_project_name 
+[gw0] [ 66%] PASSED tests/test_prompting.py::TestCodexProjectSkills::test_pipeline_skill_shadows_divergent_project_name 
+tests/test_agentic_compact_650.py::test_prepare_journal_writes_python_grep_source 
+[gw0] [ 66%] PASSED tests/test_agentic_compact_650.py::test_prepare_journal_writes_python_grep_source 
+tests/test_agentic_compact_650.py::test_sandbox_root_is_next_to_database 
+[gw0] [ 67%] PASSED tests/test_agentic_compact_650.py::test_sandbox_root_is_next_to_database 
+tests/test_agentic_compact_650.py::test_final_replaces_draft_in_ack_and_pass_cost_is_accounted 
+[gw0] [ 67%] PASSED tests/test_agentic_compact_650.py::test_final_replaces_draft_in_ack_and_pass_cost_is_accounted 
+tests/test_agentic_compact_650.py::test_audit_failure_uses_draft_and_logs_reason 
+[gw0] [ 67%] PASSED tests/test_agentic_compact_650.py::test_audit_failure_uses_draft_and_logs_reason 
+tests/test_agentic_compact_650.py::test_timeout_empty_and_oversized_final_fall_back_to_draft 
+[gw0] [ 67%] PASSED tests/test_agentic_compact_650.py::test_timeout_empty_and_oversized_final_fall_back_to_draft 
+tests/test_agentic_compact_650.py::test_stop_after_audit_prevents_final_and_aborts_compaction 
+[gw0] [ 67%] PASSED tests/test_agentic_compact_650.py::test_stop_after_audit_prevents_final_and_aborts_compaction 
+tests/test_agentic_compact_650.py::test_switch_off_uses_native_draft_without_agentic_passes 
+[gw0] [ 68%] PASSED tests/test_agentic_compact_650.py::test_switch_off_uses_native_draft_without_agentic_passes 
+tests/test_agentic_compact_650.py::test_limit_warning_during_audit_keeps_final_but_rejection_falls_back 
+[gw0] [ 68%] PASSED tests/test_agentic_compact_650.py::test_limit_warning_during_audit_keeps_final_but_rejection_falls_back 
+tests/test_audit0901_mcp.py::test_failed_before_submit_is_never_reported_as_accepted 
+[gw0] [ 68%] PASSED tests/test_audit0901_mcp.py::test_failed_before_submit_is_never_reported_as_accepted 
+tests/test_audit0901_mcp.py::test_target_task_changed_is_not_sent_into_a_retry_loop 
+[gw0] [ 68%] PASSED tests/test_audit0901_mcp.py::test_target_task_changed_is_not_sent_into_a_retry_loop 
+tests/test_audit0901_mcp.py::test_spawn_does_not_report_undelivered_task_as_accepted 
+[gw0] [ 68%] PASSED tests/test_audit0901_mcp.py::test_spawn_does_not_report_undelivered_task_as_accepted 
+tests/test_audit0901_mcp.py::test_recovered_failed_merge_keeps_its_confirmed_cause 
+[gw0] [ 69%] PASSED tests/test_audit0901_mcp.py::test_recovered_failed_merge_keeps_its_confirmed_cause 
+tests/test_audit0901_mcp.py::test_spawn_retry_guidance_keeps_cross_repo_warning 
+[gw0] [ 69%] PASSED tests/test_audit0901_mcp.py::test_spawn_retry_guidance_keeps_cross_repo_warning 
+tests/test_audit0901_mcp.py::test_queue_blocked_acceptance_is_not_printed_as_delivery 
+[gw0] [ 69%] PASSED tests/test_audit0901_mcp.py::test_queue_blocked_acceptance_is_not_printed_as_delivery 
+tests/test_audit0901_mcp.py::test_cleared_barrier_is_not_reported_as_delivered 
+[gw0] [ 69%] PASSED tests/test_audit0901_mcp.py::test_cleared_barrier_is_not_reported_as_delivered 
+tests/test_audit0901_mcp.py::test_spawn_does_not_report_unknown_delivery_as_accepted 
+[gw0] [ 69%] PASSED tests/test_audit0901_mcp.py::test_spawn_does_not_report_unknown_delivery_as_accepted 
+tests/test_codex_bin_resolution.py::test_env_override_wins 
+[gw0] [ 70%] PASSED tests/test_codex_bin_resolution.py::test_env_override_wins 
+tests/test_codex_bin_resolution.py::test_falls_back_to_path_lookup 
+[gw0] [ 70%] PASSED tests/test_codex_bin_resolution.py::test_falls_back_to_path_lookup 
+tests/test_codex_bin_resolution.py::test_missing_binary_returns_empty_not_stale_laptop_path 
+[gw0] [ 70%] PASSED tests/test_codex_bin_resolution.py::test_missing_binary_returns_empty_not_stale_laptop_path 
+tests/test_codex_bin_resolution.py::test_blank_env_does_not_shadow_path 
+[gw0] [ 70%] PASSED tests/test_codex_bin_resolution.py::test_blank_env_does_not_shadow_path 
+tests/test_codex_bin_resolution.py::test_hardcoded_constant_is_gone 
+[gw0] [ 70%] PASSED tests/test_codex_bin_resolution.py::test_hardcoded_constant_is_gone 
+tests/test_codex_bin_resolution.py::test_resolution_never_invents_a_path 
+[gw0] [ 71%] PASSED tests/test_codex_bin_resolution.py::test_resolution_never_invents_a_path 
+tests/test_codex_bin_resolution.py::test_missing_binary_gives_actionable_text_instead_of_exit_127 
+[gw0] [ 71%] PASSED tests/test_codex_bin_resolution.py::test_missing_binary_gives_actionable_text_instead_of_exit_127 
+tests/test_codex_bin_resolution.py::test_resolved_binary_reaches_the_shell_command 
+[gw0] [ 71%] PASSED tests/test_codex_bin_resolution.py::test_resolved_binary_reaches_the_shell_command 
+tests/test_spawn_resume_695.py::test_create_cut_off_but_made_by_server_still_delivers 
+[gw0] [ 71%] PASSED tests/test_spawn_resume_695.py::test_create_cut_off_but_made_by_server_still_delivers 
+tests/test_spawn_resume_695.py::test_retry_after_lost_delivery_delivers_and_double_retry_is_one_delivery 
+[gw0] [ 71%] PASSED tests/test_spawn_resume_695.py::test_retry_after_lost_delivery_delivers_and_double_retry_is_one_delivery 
+tests/test_spawn_resume_695.py::test_name_taken_with_other_task_or_delivery_id_is_refused 
+[gw0] [ 72%] PASSED tests/test_spawn_resume_695.py::test_name_taken_with_other_task_or_delivery_id_is_refused 
+tests/test_spawn_resume_695.py::test_worker_that_already_ran_is_not_given_the_task_again 
+[gw1] [ 72%] PASSED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[PARTIAL] 
+tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[UNKNOWN] 
+[gw0] [ 72%] PASSED tests/test_spawn_resume_695.py::test_worker_that_already_ran_is_not_given_the_task_again 
+tests/test_spawn_resume_695.py::test_create_never_reached_server_reports_delivery_id_for_retry 
+[gw0] [ 72%] PASSED tests/test_spawn_resume_695.py::test_create_never_reached_server_reports_delivery_id_for_retry 
+tests/test_spawn_resume_695.py::test_spawn_rejects_invalid_delivery_id_before_creating_worker 
+[gw0] [ 72%] PASSED tests/test_spawn_resume_695.py::test_spawn_rejects_invalid_delivery_id_before_creating_worker 
+tests/test_spawn_resume_695.py::test_http_rejects_invalid_delivery_id_before_creating_worker 
+[gw0] [ 73%] PASSED tests/test_spawn_resume_695.py::test_http_rejects_invalid_delivery_id_before_creating_worker 
+tests/test_spawn_resume_695.py::test_http_spawn_accepts_valid_delivery_id_and_records_intent 
+[gw0] [ 73%] PASSED tests/test_spawn_resume_695.py::test_http_spawn_accepts_valid_delivery_id_and_records_intent 
+tests/test_switch_after_continue_620.py::test_switch_releases_clean_worker_and_requeues_previous_task 
+[gw0] [ 73%] PASSED tests/test_switch_after_continue_620.py::test_switch_releases_clean_worker_and_requeues_previous_task 
+tests/test_switch_after_continue_620.py::test_switch_with_complete_previous_closes_task_as_done_with_note 
+[gw1] [ 73%] PASSED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[UNKNOWN] 
+tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[RUNNING] 
+[gw0] [ 73%] PASSED tests/test_switch_after_continue_620.py::test_switch_with_complete_previous_closes_task_as_done_with_note 
+tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-uncommitted] 
+[gw0] [ 74%] PASSED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-uncommitted] 
+tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-unmerged_commit] 
+[gw0] [ 74%] PASSED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-unmerged_commit] 
+tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-uncommitted] 
+[gw0] [ 74%] PASSED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-uncommitted] 
+tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-unmerged_commit] 
+[gw1] [ 74%] PASSED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[RUNNING] 
+tests/test_merge_completion_watch.py::test_watch_rejects_other_scope 
+[gw1] [ 74%] PASSED tests/test_merge_completion_watch.py::test_watch_rejects_other_scope 
+tests/test_merge_completion_watch.py::test_watch_restores_after_restart 
+[gw1] [ 75%] PASSED tests/test_merge_completion_watch.py::test_watch_restores_after_restart 
+tests/test_merge_completion_watch.py::test_slow_status_request_cannot_exceed_merge_wait_budget 
+[gw1] [ 75%] PASSED tests/test_merge_completion_watch.py::test_slow_status_request_cannot_exceed_merge_wait_budget 
+tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery[/other-False] 
+[gw1] [ 75%] PASSED tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery[/other-False] 
+tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery[/s-True] 
+[gw1] [ 75%] PASSED tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery[/s-True] 
+tests/test_undelivered_queue.py::test_failed_send_keeps_the_facts_in_the_queue 
+[gw0] [ 75%] PASSED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-unmerged_commit] 
+tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-uncommitted] 
+[gw0] [ 75%] PASSED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-uncommitted] 
+tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-unmerged_commit] 
+[gw0] [ 76%] PASSED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-unmerged_commit] 
+tests/test_legacy_pipeline_skills.py::test_default_orchestrator_role_declares_skills 
+[gw0] [ 76%] PASSED tests/test_legacy_pipeline_skills.py::test_default_orchestrator_role_declares_skills 
+tests/test_legacy_pipeline_skills.py::test_empty_pipeline_resolves_no_role 
+[gw0] [ 76%] PASSED tests/test_legacy_pipeline_skills.py::test_empty_pipeline_resolves_no_role 
+tests/test_legacy_pipeline_skills.py::test_legacy_empty_pipeline_still_injects_role_skills 
+[gw0] [ 76%] PASSED tests/test_legacy_pipeline_skills.py::test_legacy_empty_pipeline_still_injects_role_skills 
+tests/test_legacy_pipeline_skills.py::test_empty_pipeline_would_inject_nothing 
+[gw0] [ 76%] PASSED tests/test_legacy_pipeline_skills.py::test_empty_pipeline_would_inject_nothing 
+tests/test_legacy_pipeline_skills.py::test_tracked_codex_file_enables_visible_prompt_fallback 
+[gw1] [ 77%] PASSED tests/test_undelivered_queue.py::test_failed_send_keeps_the_facts_in_the_queue 
+tests/test_undelivered_queue.py::test_agent_sees_the_fact_in_its_context 
+[gw1] [ 77%] PASSED tests/test_undelivered_queue.py::test_agent_sees_the_fact_in_its_context 
+tests/test_undelivered_queue.py::test_overflow_line_is_visible_to_the_agent 
+[gw1] [ 77%] PASSED tests/test_undelivered_queue.py::test_overflow_line_is_visible_to_the_agent 
+tests/test_undelivered_queue.py::test_broken_queue_does_not_block_the_message 
+[gw1] [ 77%] PASSED tests/test_undelivered_queue.py::test_broken_queue_does_not_block_the_message 
+tests/test_undelivered_queue.py::test_mid_turn_inject_also_carries_the_fact 
+[gw1] [ 77%] PASSED tests/test_undelivered_queue.py::test_mid_turn_inject_also_carries_the_fact 
+tests/test_undelivered_queue.py::test_flush_path_carries_the_fact 
+[gw0] [ 78%] PASSED tests/test_legacy_pipeline_skills.py::test_tracked_codex_file_enables_visible_prompt_fallback 
+tests/test_legacy_pipeline_skills.py::test_oversized_agents_warning_and_instruction_are_once_per_backend_prompt 
+[gw0] [ 78%] PASSED tests/test_legacy_pipeline_skills.py::test_oversized_agents_warning_and_instruction_are_once_per_backend_prompt 
+tests/test_p1_union.py::TestGetByNameUnion::test_live_session_is_loaded 
+[gw1] [ 78%] PASSED tests/test_undelivered_queue.py::test_flush_path_carries_the_fact 
+[gw0] [ 78%] PASSED tests/test_p1_union.py::TestGetByNameUnion::test_live_session_is_loaded 
+tests/test_p1_union.py::TestGetByNameUnion::test_db_only_session_hydrates_detached 
+[gw0] [ 78%] PASSED tests/test_p1_union.py::TestGetByNameUnion::test_db_only_session_hydrates_detached 
+tests/test_p1_union.py::TestGetByNameUnion::test_db_only_keeps_raw_row_for_response_shape 
+tests/test_undelivered_queue.py::test_fact_lands_inside_current_user_message_on_handoff 
+[gw0] [ 79%] PASSED tests/test_p1_union.py::TestGetByNameUnion::test_db_only_keeps_raw_row_for_response_shape 
+tests/test_p1_union.py::TestGetByNameUnion::test_miss_returns_none 
+[gw0] [ 79%] PASSED tests/test_p1_union.py::TestGetByNameUnion::test_miss_returns_none 
+tests/test_p1_union.py::TestGetByNameUnion::test_status_hydrated_from_db 
+[gw1] [ 79%] PASSED tests/test_undelivered_queue.py::test_fact_lands_inside_current_user_message_on_handoff 
+[gw0] [ 79%] PASSED tests/test_p1_union.py::TestGetByNameUnion::test_status_hydrated_from_db 
+tests/test_p1_union.py::TestGetByNameUnion::test_unknown_status_falls_back_to_idle 
+[gw0] [ 79%] PASSED tests/test_p1_union.py::TestGetByNameUnion::test_unknown_status_falls_back_to_idle 
+tests/test_prompting.py::TestRefreshWorkerMemory::test_replaces_block_and_keeps_the_blank_line_separator 
+[gw0] [ 80%] PASSED tests/test_prompting.py::TestRefreshWorkerMemory::test_replaces_block_and_keeps_the_blank_line_separator 
+tests/test_prompting.py::TestRefreshWorkerMemory::test_removes_all_stale_blocks_before_appending_one_fresh_block 
+[gw0] [ 80%] PASSED tests/test_prompting.py::TestRefreshWorkerMemory::test_removes_all_stale_blocks_before_appending_one_fresh_block 
+tests/test_prompting.py::TestRefreshWorkerMemory::test_missing_layout_is_loud_but_unreadable_memory_empties_the_block 
+tests/test_process_guard_calibration.py::test_age_formula_and_performance_gate_are_fixed_before_observation 
+[gw1] [ 80%] PASSED tests/test_process_guard_calibration.py::test_age_formula_and_performance_gate_are_fixed_before_observation 
+tests/test_process_guard_calibration.py::test_gate_fails_closed[events0-right_censored_exact_matches] 
+[gw1] [ 80%] PASSED tests/test_process_guard_calibration.py::test_gate_fails_closed[events0-right_censored_exact_matches] 
+tests/test_process_guard_calibration.py::test_gate_fails_closed[events1-scan_p99_not_below_1s] 
+[gw0] [ 80%] PASSED tests/test_prompting.py::TestRefreshWorkerMemory::test_missing_layout_is_loud_but_unreadable_memory_empties_the_block 
+[gw1] [ 81%] PASSED tests/test_process_guard_calibration.py::test_gate_fails_closed[events1-scan_p99_not_below_1s] 
+tests/test_process_guard_calibration.py::test_gate_fails_closed[events2-guard_rss_not_below_32mib] 
+tests/test_prompting.py::TestRefreshWorkerMemory::test_delivery_may_skip_optional_memory_when_layout_is_missing 
+[gw1] [ 81%] PASSED tests/test_process_guard_calibration.py::test_gate_fails_closed[events2-guard_rss_not_below_32mib] 
+tests/test_process_guard_calibration.py::test_gate_fails_closed[events3-non_dry_run_event] 
+[gw0] [ 81%] PASSED tests/test_prompting.py::TestRefreshWorkerMemory::test_delivery_may_skip_optional_memory_when_layout_is_missing 
+tests/test_prompting.py::TestRefreshWorkerMemory::test_memory_containing_regex_escapes_is_inserted_literally 
+[gw1] [ 81%] PASSED tests/test_process_guard_calibration.py::test_gate_fails_closed[events3-non_dry_run_event] 
+tests/test_process_guard_calibration.py::test_reader_and_cli_fail_loud_on_invalid_or_blocked_input 
+[gw0] [ 81%] PASSED tests/test_prompting.py::TestRefreshWorkerMemory::test_memory_containing_regex_escapes_is_inserted_literally 
+tests/test_prompting.py::TestRefreshWorkerMemory::test_falls_back_to_role_file 
+[gw1] [ 82%] PASSED tests/test_process_guard_calibration.py::test_reader_and_cli_fail_loud_on_invalid_or_blocked_input 
+tests/test_compact_gate_438.py::test_compact_boundary_accepts_wire_and_legacy_metadata[metadata0-CLI auto-compacted (auto): 996,005\u219212,345 tokens] 
+[gw0] [ 82%] PASSED tests/test_prompting.py::TestRefreshWorkerMemory::test_falls_back_to_role_file 
+[gw1] [ 82%] PASSED tests/test_compact_gate_438.py::test_compact_boundary_accepts_wire_and_legacy_metadata[metadata0-CLI auto-compacted (auto): 996,005\u219212,345 tokens] 
+tests/test_compact_gate_438.py::test_compact_boundary_accepts_wire_and_legacy_metadata[metadata1-CLI auto-compacted (manual): 88,000\u21924,000 tokens] 
+tests/test_harness_effort_from_manifest.py::test_effort_is_taken_from_the_constructor_not_from_the_message 
+[gw1] [ 82%] PASSED tests/test_compact_gate_438.py::test_compact_boundary_accepts_wire_and_legacy_metadata[metadata1-CLI auto-compacted (manual): 88,000\u21924,000 tokens] 
+[gw0] [ 82%] PASSED tests/test_harness_effort_from_manifest.py::test_effort_is_taken_from_the_constructor_not_from_the_message 
+tests/test_compact_gate_438.py::test_orchestrator_compacts_at_96_but_not_94 
+tests/test_harness_effort_from_manifest.py::test_message_text_no_longer_decides_anything 
+[gw1] [ 83%] PASSED tests/test_compact_gate_438.py::test_orchestrator_compacts_at_96_but_not_94 
+[gw0] [ 83%] PASSED tests/test_harness_effort_from_manifest.py::test_message_text_no_longer_decides_anything 
+tests/test_compact_gate_438.py::test_cli_threshold_lowers_our_threshold 
+tests/test_harness_effort_from_manifest.py::test_manifest_resolves_harness_by_runtime_and_model_id 
+[gw1] [ 83%] PASSED tests/test_compact_gate_438.py::test_cli_threshold_lowers_our_threshold 
+[gw0] [ 83%] PASSED tests/test_harness_effort_from_manifest.py::test_manifest_resolves_harness_by_runtime_and_model_id 
+tests/test_compact_gate_438.py::test_compact_prompt_requires_all_user_messages_and_raw_transcript_link 
+tests/test_harness_effort_from_manifest.py::test_planning_tool_stays_gated_on_high 
+[gw0] [ 83%] PASSED tests/test_harness_effort_from_manifest.py::test_planning_tool_stays_gated_on_high 
+tests/test_harness_effort_from_manifest.py::test_no_effort_configured_leaves_the_request_without_a_reasoning_field 
+[gw0] [ 83%] PASSED tests/test_harness_effort_from_manifest.py::test_no_effort_configured_leaves_the_request_without_a_reasoning_field 
+tests/test_chat_history_transfer.py::test_history_is_inert_bounded_and_keeps_complete_tool_group 
+[gw0] [ 84%] PASSED tests/test_chat_history_transfer.py::test_history_is_inert_bounded_and_keeps_complete_tool_group 
+tests/test_chat_history_transfer.py::test_db_window_skips_status_and_recovers_boundary_call 
+[gw0] [ 84%] PASSED tests/test_chat_history_transfer.py::test_db_window_skips_status_and_recovers_boundary_call 
+tests/test_chat_history_transfer.py::test_switch_does_not_probe_or_write_native_history[claude-opus-5[1m]-gpt-5.6-sol-claude] 
+[gw1] [ 84%] PASSED tests/test_compact_gate_438.py::test_compact_prompt_requires_all_user_messages_and_raw_transcript_link 
+tests/test_build_signal.py::TestBuildId::test_stable_between_calls 
+[gw0] [ 84%] PASSED tests/test_chat_history_transfer.py::test_switch_does_not_probe_or_write_native_history[claude-opus-5[1m]-gpt-5.6-sol-claude] 
+tests/test_chat_history_transfer.py::test_switch_does_not_probe_or_write_native_history[gpt-5.6-sol-claude-opus-5[1m]-codex] 
+[gw1] [ 84%] PASSED tests/test_build_signal.py::TestBuildId::test_stable_between_calls 
+tests/test_build_signal.py::TestBuildId::test_changes_after_touching_static_without_restart 
+[gw0] [ 85%] PASSED tests/test_chat_history_transfer.py::test_switch_does_not_probe_or_write_native_history[gpt-5.6-sol-claude-opus-5[1m]-codex] 
+[gw1] [ 85%] PASSED tests/test_build_signal.py::TestBuildId::test_changes_after_touching_static_without_restart 
+tests/test_p1_union.py::TestUpdateSessionFields::test_live_path_sets_attr 
+tests/test_build_signal.py::TestBuildId::test_ignores_vendor_files 
+[gw1] [ 85%] PASSED tests/test_build_signal.py::TestBuildId::test_ignores_vendor_files 
+tests/test_build_signal.py::TestBuildId::test_no_static_dir_does_not_raise 
+[gw1] [ 85%] PASSED tests/test_build_signal.py::TestBuildId::test_no_static_dir_does_not_raise 
+tests/test_session_id_guard.py::TestGuardInCode::test_save_session_refuses_empty_id_loudly[] 
+[gw1] [ 85%] PASSED tests/test_session_id_guard.py::TestGuardInCode::test_save_session_refuses_empty_id_loudly[] 
+tests/test_session_id_guard.py::TestGuardInCode::test_save_session_refuses_empty_id_loudly[   ] 
+[gw0] [ 86%] PASSED tests/test_p1_union.py::TestUpdateSessionFields::test_live_path_sets_attr 
+tests/test_p1_union.py::TestUpdateSessionFields::test_detached_path_updates_db 
+[gw1] [ 86%] PASSED tests/test_session_id_guard.py::TestGuardInCode::test_save_session_refuses_empty_id_loudly[   ] 
+tests/test_session_id_guard.py::TestGuardInCode::test_save_session_refuses_empty_id_loudly[None] 
+[gw1] [ 86%] PASSED tests/test_session_id_guard.py::TestGuardInCode::test_save_session_refuses_empty_id_loudly[None] 
+tests/test_session_id_guard.py::TestGuardInCode::test_valid_id_still_saves 
+[gw0] [ 86%] PASSED tests/test_p1_union.py::TestUpdateSessionFields::test_detached_path_updates_db 
+tests/test_p1_union.py::TestUpdateSessionFields::test_miss_returns_none 
+[gw1] [ 86%] PASSED tests/test_session_id_guard.py::TestGuardInCode::test_valid_id_still_saves 
+tests/test_session_id_guard.py::TestGuardInDatabase::test_direct_insert_is_rejected_by_trigger[None] 
+[gw0] [ 87%] PASSED tests/test_p1_union.py::TestUpdateSessionFields::test_miss_returns_none 
+tests/test_p1_union.py::TestUpdateSessionFields::test_unknown_field_rejected 
+[gw1] [ 87%] PASSED tests/test_session_id_guard.py::TestGuardInDatabase::test_direct_insert_is_rejected_by_trigger[None] 
+tests/test_session_id_guard.py::TestGuardInDatabase::test_direct_insert_is_rejected_by_trigger[] 
+[gw1] [ 87%] PASSED tests/test_session_id_guard.py::TestGuardInDatabase::test_direct_insert_is_rejected_by_trigger[] 
+tests/test_session_id_guard.py::TestGuardInDatabase::test_direct_insert_is_rejected_by_trigger[   ] 
+[gw0] [ 87%] PASSED tests/test_p1_union.py::TestUpdateSessionFields::test_unknown_field_rejected 
+tests/test_tg_bridge_instance_guard.py::test_worktree_instance_refuses_to_start 
+[gw0] [ 87%] PASSED tests/test_tg_bridge_instance_guard.py::test_worktree_instance_refuses_to_start 
+tests/test_tg_bridge_instance_guard.py::test_bare_process_refuses_to_start 
+[gw1] [ 88%] PASSED tests/test_session_id_guard.py::TestGuardInDatabase::test_direct_insert_is_rejected_by_trigger[   ] 
+[gw0] [ 88%] PASSED tests/test_tg_bridge_instance_guard.py::test_bare_process_refuses_to_start 
+tests/test_tg_bridge_instance_guard.py::test_socket_activated_instance_is_let_through 
+tests/test_session_id_guard.py::TestGuardInDatabase::test_update_cannot_blank_an_existing_id 
+[gw0] [ 88%] PASSED tests/test_tg_bridge_instance_guard.py::test_socket_activated_instance_is_let_through 
+tests/test_tg_bridge_instance_guard.py::test_live_service_environment_passes_the_guard 
+[gw0] [ 88%] PASSED tests/test_tg_bridge_instance_guard.py::test_live_service_environment_passes_the_guard 
+tests/test_v958_no_refresh_exchange.py::test_refresh_exchange_no_longer_exists_and_refresh_token_is_not_read 
+[gw0] [ 88%] PASSED tests/test_v958_no_refresh_exchange.py::test_refresh_exchange_no_longer_exists_and_refresh_token_is_not_read 
+tests/test_v958_no_refresh_exchange.py::test_cached_usage_path_serves_cache_with_reason_and_never_posts 
+[gw1] [ 89%] PASSED tests/test_session_id_guard.py::TestGuardInDatabase::test_update_cannot_blank_an_existing_id 
+tests/test_undelivered_queue.py::TestQueue::test_same_event_twice_is_one_row 
+[gw1] [ 89%] PASSED tests/test_undelivered_queue.py::TestQueue::test_same_event_twice_is_one_row 
+tests/test_undelivered_queue.py::TestQueue::test_overflow_is_collapsed_visibly_not_dropped 
+[gw1] [ 89%] PASSED tests/test_undelivered_queue.py::TestQueue::test_overflow_is_collapsed_visibly_not_dropped 
+tests/test_undelivered_queue.py::TestQueue::test_ack_removes_only_given_keys 
+[gw1] [ 89%] PASSED tests/test_undelivered_queue.py::TestQueue::test_ack_removes_only_given_keys 
+tests/test_undelivered_queue.py::TestQueue::test_queue_survives_reopening_the_database 
+[gw1] [ 89%] PASSED tests/test_undelivered_queue.py::TestQueue::test_queue_survives_reopening_the_database 
+tests/test_merge_reason_preservation_416.py::test_t1_noop_preserves_existing_error_or_uses_default[existing-raw-error] 
+[gw1] [ 90%] PASSED tests/test_merge_reason_preservation_416.py::test_t1_noop_preserves_existing_error_or_uses_default[existing-raw-error] 
+tests/test_merge_reason_preservation_416.py::test_t1_noop_preserves_existing_error_or_uses_default[empty-raw-error] 
+[gw0] [ 90%] PASSED tests/test_v958_no_refresh_exchange.py::test_cached_usage_path_serves_cache_with_reason_and_never_posts 
+[gw1] [ 90%] PASSED tests/test_merge_reason_preservation_416.py::test_t1_noop_preserves_existing_error_or_uses_default[empty-raw-error] 
+tests/test_merge_reason_preservation_416.py::test_t2_dirty_target_path_files_and_action_reach_merge_caller 
+tests/test_v958_no_refresh_exchange.py::test_snapshot_path_names_the_reason_and_never_posts 
+[gw0] [ 90%] PASSED tests/test_v958_no_refresh_exchange.py::test_snapshot_path_names_the_reason_and_never_posts 
+tests/test_v958_no_refresh_exchange.py::test_recovery_clears_the_reason_and_rearms_the_warning 
+[gw0] [ 90%] PASSED tests/test_v958_no_refresh_exchange.py::test_recovery_clears_the_reason_and_rearms_the_warning 
+tests/test_prompting.py::TestCodexProjectDocPreflight::test_exact_budget_is_not_reported_as_truncated 
+[gw0] [ 91%] PASSED tests/test_prompting.py::TestCodexProjectDocPreflight::test_exact_budget_is_not_reported_as_truncated 
+tests/test_prompting.py::TestCodexProjectDocPreflight::test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback 
+[gw0] [ 91%] PASSED tests/test_prompting.py::TestCodexProjectDocPreflight::test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback 
+tests/test_prompting.py::TestCodexProjectDocPreflight::test_malformed_config_diagnoses_unknown_budget_without_claiming_truncation 
+[gw0] [ 91%] PASSED tests/test_prompting.py::TestCodexProjectDocPreflight::test_malformed_config_diagnoses_unknown_budget_without_claiming_truncation 
+tests/test_prompting.py::TestRoleIcons::test_reads_tg_emoji_and_skips_roles_without_one 
+[gw0] [ 91%] PASSED tests/test_prompting.py::TestRoleIcons::test_reads_tg_emoji_and_skips_roles_without_one 
+tests/test_prompting.py::TestRoleIcons::test_ignores_role_file_frontmatter 
+[gw0] [ 91%] PASSED tests/test_prompting.py::TestRoleIcons::test_ignores_role_file_frontmatter 
+tests/test_prompting.py::TestRoleIcons::test_real_default_pipeline_covers_every_role 
+[gw0] [ 91%] PASSED tests/test_prompting.py::TestRoleIcons::test_real_default_pipeline_covers_every_role 
+tests/test_prompting.py::TestHtmlArtifactsSkillInvariants::test_accent_is_never_given_a_value 
+[gw0] [ 92%] PASSED tests/test_prompting.py::TestHtmlArtifactsSkillInvariants::test_accent_is_never_given_a_value 
+tests/test_prompting.py::TestHtmlArtifactsSkillInvariants::test_approved_profile_replaces_old_mandatory_styling 
+[gw0] [ 92%] PASSED tests/test_prompting.py::TestHtmlArtifactsSkillInvariants::test_approved_profile_replaces_old_mandatory_styling 
+tests/test_prompting.py::TestHtmlArtifactsSkillInvariants::test_budget 
+[gw0] [ 92%] PASSED tests/test_prompting.py::TestHtmlArtifactsSkillInvariants::test_budget 
+tests/test_runaway_memory_guard.py::test_t1_runaway_is_killed_and_neighbours_are_untouched 
+[gw0] [ 92%] PASSED tests/test_runaway_memory_guard.py::test_t1_runaway_is_killed_and_neighbours_are_untouched 
+tests/test_runaway_memory_guard.py::test_t2_single_spike_survives_two_strikes_are_required 
+[gw0] [ 92%] PASSED tests/test_runaway_memory_guard.py::test_t2_single_spike_survives_two_strikes_are_required 
+tests/test_runaway_memory_guard.py::test_t3_orchestra_itself_is_never_killed 
+[gw0] [ 93%] PASSED tests/test_runaway_memory_guard.py::test_t3_orchestra_itself_is_never_killed 
+tests/test_task_binding_refusal.py::test_busy_task_names_the_holder_and_the_way_out 
+[gw0] [ 93%] PASSED tests/test_task_binding_refusal.py::test_busy_task_names_the_holder_and_the_way_out 
+tests/test_task_binding_refusal.py::test_free_task_reports_a_revision_race_instead_of_a_fake_holder 
+[gw0] [ 93%] PASSED tests/test_task_binding_refusal.py::test_free_task_reports_a_revision_race_instead_of_a_fake_holder 
+tests/test_task_binding_refusal.py::test_missing_task_row_does_not_crash_the_refusal 
+[gw0] [ 93%] PASSED tests/test_task_binding_refusal.py::test_missing_task_row_does_not_crash_the_refusal 
+tests/test_tg_ingress_509.py::test_forum_topic_edited_is_logged_without_agent_delivery 
+[gw0] [ 93%] PASSED tests/test_tg_ingress_509.py::test_forum_topic_edited_is_logged_without_agent_delivery 
+tests/test_tg_ingress_509.py::test_unknown_nonservice_type_still_reaches_agent 
+[gw0] [ 94%] PASSED tests/test_tg_ingress_509.py::test_unknown_nonservice_type_still_reaches_agent 
+tests/test_tg_ingress_509.py::test_unmapped_topic_is_logged_without_reply 
+[gw0] [ 94%] PASSED tests/test_tg_ingress_509.py::test_unmapped_topic_is_logged_without_reply 
+tests/test_auto_report_send_result.py::test_explicit_send_message_counts_only_after_success[True-False] 
+[gw0] [ 94%] PASSED tests/test_auto_report_send_result.py::test_explicit_send_message_counts_only_after_success[True-False] 
+tests/test_auto_report_send_result.py::test_explicit_send_message_counts_only_after_success[False-True] 
+[gw0] [ 94%] PASSED tests/test_auto_report_send_result.py::test_explicit_send_message_counts_only_after_success[False-True] 
+tests/test_build_signal.py::TestModelsHeader::test_header_present_and_body_unchanged 
+[gw1] [ 94%] PASSED tests/test_merge_reason_preservation_416.py::test_t2_dirty_target_path_files_and_action_reach_merge_caller 
+tests/test_orchestra_layout_repair_base_v611.py::test_repair_hint_points_at_base_checkout_not_worktree 
+[gw1] [ 95%] PASSED tests/test_orchestra_layout_repair_base_v611.py::test_repair_hint_points_at_base_checkout_not_worktree 
+tests/test_orchestra_layout_repair_base_v611.py::test_repairing_only_the_worktree_reproduces_the_loop 
+[gw0] [ 95%] PASSED tests/test_build_signal.py::TestModelsHeader::test_header_present_and_body_unchanged 
+[gw1] [ 95%] PASSED tests/test_orchestra_layout_repair_base_v611.py::test_repairing_only_the_worktree_reproduces_the_loop 
+tests/test_build_signal.py::TestModelsHeader::test_head_carries_same_build_header_with_empty_body 
+tests/test_orchestra_layout_repair_base_v611.py::test_repairing_the_base_checkout_breaks_the_loop 
+[gw1] [ 95%] PASSED tests/test_orchestra_layout_repair_base_v611.py::test_repairing_the_base_checkout_breaks_the_loop 
+tests/test_disconnect_dead_process.py::test_missing_process_is_a_successful_release 
+[gw1] [ 95%] PASSED tests/test_disconnect_dead_process.py::test_missing_process_is_a_successful_release 
+tests/test_disconnect_dead_process.py::test_real_failure_still_propagates 
+[gw1] [ 96%] PASSED tests/test_disconnect_dead_process.py::test_real_failure_still_propagates 
+tests/test_fan_report_delivery.py::test_explicit_send_message_keeps_child_text_reachable_via_manifest 
+[gw1] [ 96%] PASSED tests/test_fan_report_delivery.py::test_explicit_send_message_keeps_child_text_reachable_via_manifest 
+tests/test_fan_report_delivery.py::test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text 
+[gw0] [ 96%] PASSED tests/test_build_signal.py::TestModelsHeader::test_head_carries_same_build_header_with_empty_body 
+tests/test_build_signal.py::TestTemplateCarriesBuild::test_body_has_data_build 
+[gw0] [ 96%] PASSED tests/test_build_signal.py::TestTemplateCarriesBuild::test_body_has_data_build 
+tests/test_build_signal.py::TestTemplateCarriesBuild::test_survives_a_process_that_does_not_know_build_id 
+[gw0] [ 96%] PASSED tests/test_build_signal.py::TestTemplateCarriesBuild::test_survives_a_process_that_does_not_know_build_id 
+tests/test_rate_limit_capture_441.py::test_rate_limit_event_preserves_exact_raw_utilization_and_all_fields 
+[gw0] [ 97%] PASSED tests/test_rate_limit_capture_441.py::test_rate_limit_event_preserves_exact_raw_utilization_and_all_fields 
+tests/test_rate_limit_capture_441.py::test_missing_rate_limit_event_class_does_not_break_import_or_dispatch 
+[gw0] [ 97%] PASSED tests/test_rate_limit_capture_441.py::test_missing_rate_limit_event_class_does_not_break_import_or_dispatch 
+tests/test_session_id_guard.py::TestSilentZeroRowUpdateIsLoud::test_lifecycle_update_warns_when_nothing_changed 
+[gw1] [ 97%] PASSED tests/test_fan_report_delivery.py::test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text 
+tests/test_jobs_view.py::test_cron_next_is_utc_and_strictly_after 
+[gw0] [ 97%] PASSED tests/test_session_id_guard.py::TestSilentZeroRowUpdateIsLoud::test_lifecycle_update_warns_when_nothing_changed 
+tests/test_session_id_guard.py::TestSilentZeroRowUpdateIsLoud::test_archive_warns_when_nothing_changed 
+[gw1] [ 97%] PASSED tests/test_jobs_view.py::test_cron_next_is_utc_and_strictly_after 
+tests/test_jobs_view.py::test_forgotten_flag_only_for_long_lived_not_for_pending_timers 
+[gw0] [ 98%] PASSED tests/test_session_id_guard.py::TestSilentZeroRowUpdateIsLoud::test_archive_warns_when_nothing_changed 
+tests/test_transcription.py::test_transcription_survives_certifi_path_removed_after_import 
+[gw0] [ 98%] PASSED tests/test_transcription.py::test_transcription_survives_certifi_path_removed_after_import 
+tests/test_transcription.py::test_missing_audio_is_classified_before_http_client_creation 
+[gw0] [ 98%] PASSED tests/test_transcription.py::test_missing_audio_is_classified_before_http_client_creation 
+tests/test_p1_union.py::TestLiveOnlyGuards::test_change_orchestrator_scope_rejects_detached 
+[gw1] [ 98%] PASSED tests/test_jobs_view.py::test_forgotten_flag_only_for_long_lived_not_for_pending_timers 
+tests/test_delivery_queue_block_connection.py::test_queue_block_reuses_the_open_transaction_connection 
+[gw1] [ 98%] PASSED tests/test_delivery_queue_block_connection.py::test_queue_block_reuses_the_open_transaction_connection 
+tests/test_merge_worker_lifecycle_702.py::test_merge_refuses_the_workers_own_branch 
+[gw0] [ 99%] PASSED tests/test_p1_union.py::TestLiveOnlyGuards::test_change_orchestrator_scope_rejects_detached 
+tests/test_review_receipt_storage_436.py::test_receipt_round_trip_preserves_provenance_and_unknowns 
+[gw0] [ 99%] PASSED tests/test_review_receipt_storage_436.py::test_receipt_round_trip_preserves_provenance_and_unknowns 
+tests/test_session_id_guard.py::test_bg_create_answers_400_not_500_for_a_session_without_id 
+[gw0] [ 99%] PASSED tests/test_session_id_guard.py::test_bg_create_answers_400_not_500_for_a_session_without_id 
+[gw1] [ 99%] PASSED tests/test_merge_worker_lifecycle_702.py::test_merge_refuses_the_workers_own_branch 
+tests/test_static_js_globals.py::test_no_global_name_is_declared_in_two_scripts 
+[gw1] [ 99%] PASSED tests/test_static_js_globals.py::test_no_global_name_is_declared_in_two_scripts 
+tests/test_taskless_merge_no_id_702.py::test_taskless_merge_without_task_id_returns_promotion_action 
+[gw1] [100%] PASSED tests/test_taskless_merge_no_id_702.py::test_taskless_merge_without_task_id_returns_promotion_action 
+
+============================= 512 passed in 29.75s =============================

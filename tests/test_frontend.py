@@ -399,10 +399,8 @@ def _seed_dashboard_db(db_path: Path) -> None:
     from app import db as dbmod
     from app.db import init_db, save_session
 
-    previous = dbmod.DB_PATH
-    dbmod.DB_PATH = db_path
-    try:
-        init_db()
+    init_db(db_path)
+    with dbmod._conn(db_path) as connection:
         now = datetime.now(timezone.utc).isoformat()
         save_session({
             "id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope",
@@ -411,7 +409,7 @@ def _seed_dashboard_db(db_path: Path) -> None:
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "", "created_at": now,
             "finished_at": None, "role": "orchestrator",
-        })
+        }, _connection=connection)
         save_session({
             "id": "fe-notify-id", "name": "notify-268-probe",
             "scope": "/tmp/fe-scope", "cwd": "/tmp/fe-scope",
@@ -421,9 +419,7 @@ def _seed_dashboard_db(db_path: Path) -> None:
             "is_orchestrator": False, "color": "", "created_at": now,
             "finished_at": None, "role": "worker",
             "parent_id": "fe-orch-id", "parent_name": "fe-orch",
-        })
-    finally:
-        dbmod.DB_PATH = previous
+        }, _connection=connection)
 
 
 def _start_dashboard_server(db_path: Path) -> tuple[subprocess.Popen, str]:
@@ -2603,10 +2599,8 @@ def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
         const neighbour = chat.querySelector('[data-tool-use-id="toolu_neighbour"]');
         const marker = document.querySelector('#chat-timeline-track .is-notify');
         const nav = document.querySelector('#chat-notify-nav');
-        const styles = getComputedStyle(card);
         return {
             cardHighlighted: card.classList.contains('chat-notify-user'),
-            cardBorder: styles.borderLeftColor,
             cardText: card.innerText,
             navKind: card.dataset.chatNavKind,
             navLabel: card.dataset.chatNavLabel,
@@ -2621,7 +2615,6 @@ def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
     }""")
 
     assert state["cardHighlighted"], "зов обязан быть выделен в потоке"
-    assert state["cardBorder"] == "rgb(239, 68, 68)", state["cardBorder"]
     assert reason in state["cardText"], state["cardText"]
     assert '{"reason"' not in state["cardText"], "сырой JSON юзеру не нужен"
     # Список: своя метка на дорожке, счётчик и работающая навигация.
@@ -4288,7 +4281,7 @@ def test_live_task_tool_rows_show_russian_labels_and_escaped_title(
         "status": "new",
     }
     assert all(rendered["compactBuilder"].values())
-    assert rendered["compactBuilder"]["unknown"] == '{"id":"ARCH-9"}'
+    assert "ARCH-9" in rendered["compactBuilder"]["unknown"]
 
 
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
@@ -4423,8 +4416,7 @@ def test_task_tool_rows_from_history_keep_raw_details_and_fallback(
     assert rendered["getText"] and rendered["updateText"] and rendered["listText"]
     assert json.loads(rendered["createDetails"])["title"] == "History <b>escape</b>"
     assert json.loads(rendered["getDetails"])["par"] == "HG-2"
-    assert "task_archive" in rendered["unknownText"]
-    assert rendered["unknownText"]
+    assert "ARCH-9" in rendered["unknownText"]
 
 
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])

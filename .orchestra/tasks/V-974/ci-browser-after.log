@@ -1,0 +1,445 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+timeout: 30.0s
+timeout method: signal
+timeout func_only: False
+created: 2/2 workers
+2 workers [214 items]
+
+scheduling tests via LoadScopeScheduling
+
+tests/test_t344_quota_lines_browser.py::test_claude_lane_label_follows_dashboard_language 
+tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox 
+[gw0] [  0%] PASSED tests/test_t344_quota_lines_browser.py::test_claude_lane_label_follows_dashboard_language 
+tests/test_t344_quota_lines_browser.py::test_unified_panel_has_four_points_without_console_errors 
+[gw0] [  0%] PASSED tests/test_t344_quota_lines_browser.py::test_unified_panel_has_four_points_without_console_errors 
+tests/test_t344_quota_lines_browser.py::test_panel_renders_when_api_returns_object_payload 
+[gw0] [  1%] PASSED tests/test_t344_quota_lines_browser.py::test_panel_renders_when_api_returns_object_payload 
+tests/test_t344_quota_lines_browser.py::test_timeline_centers_now_repeats_thresholds_and_shades_nights 
+[gw0] [  1%] PASSED tests/test_t344_quota_lines_browser.py::test_timeline_centers_now_repeats_thresholds_and_shades_nights 
+tests/test_t344_quota_lines_browser.py::test_timeline_usage_is_monotone_until_provider_reset[codex] 
+[gw0] [  2%] PASSED tests/test_t344_quota_lines_browser.py::test_timeline_usage_is_monotone_until_provider_reset[codex] 
+tests/test_t344_quota_lines_browser.py::test_timeline_usage_is_monotone_until_provider_reset[anthropic] 
+[gw0] [  2%] PASSED tests/test_t344_quota_lines_browser.py::test_timeline_usage_is_monotone_until_provider_reset[anthropic] 
+tests/test_t344_quota_lines_browser.py::test_codex_threshold_uses_observed_boundaries_after_early_reset 
+[gw1] [  3%] PASSED tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox 
+tests/test_frontend.py::test_dashboard_loads 
+[gw0] [  3%] PASSED tests/test_t344_quota_lines_browser.py::test_codex_threshold_uses_observed_boundaries_after_early_reset 
+tests/test_t344_quota_lines_browser.py::test_timeline_keeps_old_claude_rule_until_v732_effective_time 
+[gw1] [  4%] PASSED tests/test_frontend.py::test_dashboard_loads 
+tests/test_frontend.py::test_sidebar_agents_visible 
+[gw1] [  4%] PASSED tests/test_frontend.py::test_sidebar_agents_visible 
+tests/test_frontend.py::test_tg_topic_context_menu_persists_through_frontend_api 
+[gw0] [  5%] PASSED tests/test_t344_quota_lines_browser.py::test_timeline_keeps_old_claude_rule_until_v732_effective_time 
+tests/test_t344_quota_lines_browser.py::test_timeline_uses_monotone_claude_policy_envelope 
+[gw1] [  5%] PASSED tests/test_frontend.py::test_tg_topic_context_menu_persists_through_frontend_api 
+tests/test_frontend.py::test_live_stream_status_updates_selected_agent_badge 
+[gw1] [  6%] PASSED tests/test_frontend.py::test_live_stream_status_updates_selected_agent_badge 
+tests/test_frontend.py::test_chat_input_exists 
+[gw1] [  6%] PASSED tests/test_frontend.py::test_chat_input_exists 
+tests/test_frontend.py::test_internal_telemetry_status_is_not_rendered_in_chat 
+[gw0] [  7%] PASSED tests/test_t344_quota_lines_browser.py::test_timeline_uses_monotone_claude_policy_envelope 
+tests/test_t344_quota_lines_browser.py::test_current_claude_chart_uses_day_night_profile_and_headroom 
+[gw1] [  7%] PASSED tests/test_frontend.py::test_internal_telemetry_status_is_not_rendered_in_chat 
+tests/test_frontend.py::test_send_button_exists 
+[gw1] [  7%] PASSED tests/test_frontend.py::test_send_button_exists 
+tests/test_frontend.py::test_usage_bar_visible 
+[gw1] [  8%] PASSED tests/test_frontend.py::test_usage_bar_visible 
+tests/test_frontend.py::test_stream_updates_preserve_chat_selection 
+[gw0] [  8%] PASSED tests/test_t344_quota_lines_browser.py::test_current_claude_chart_uses_day_night_profile_and_headroom 
+tests/test_t344_quota_lines_browser.py::test_live_quota_map_history_and_two_hour_labels 
+[gw1] [  9%] PASSED tests/test_frontend.py::test_stream_updates_preserve_chat_selection 
+tests/test_frontend.py::test_model_xml_is_displayed_without_execution_verdict 
+[gw1] [  9%] PASSED tests/test_frontend.py::test_model_xml_is_displayed_without_execution_verdict 
+tests/test_frontend.py::test_header_has_orch_tabs 
+[gw1] [ 10%] PASSED tests/test_frontend.py::test_header_has_orch_tabs 
+tests/test_frontend.py::test_hidden_orchestrator_list_reuses_tab_status_and_cache 
+[gw1] [ 10%] PASSED tests/test_frontend.py::test_hidden_orchestrator_list_reuses_tab_status_and_cache 
+tests/test_frontend.py::test_unread_dot_survives_orchestrator_list_poll 
+[gw1] [ 11%] PASSED tests/test_frontend.py::test_unread_dot_survives_orchestrator_list_poll 
+tests/test_frontend.py::test_orchestrator_unread_tracks_own_turn_only 
+[gw1] [ 11%] PASSED tests/test_frontend.py::test_orchestrator_unread_tracks_own_turn_only 
+tests/test_frontend.py::test_json_preview_keeps_long_numbers_verbatim 
+[gw1] [ 12%] PASSED tests/test_frontend.py::test_json_preview_keeps_long_numbers_verbatim 
+tests/test_frontend.py::test_dropped_path_lands_at_caret_not_at_end 
+[gw0] [ 12%] PASSED tests/test_t344_quota_lines_browser.py::test_live_quota_map_history_and_two_hour_labels 
+tests/test_t344_quota_lines_browser.py::test_panel_curve_matches_the_limit_the_server_computed 
+[gw1] [ 13%] PASSED tests/test_frontend.py::test_dropped_path_lands_at_caret_not_at_end 
+tests/test_frontend.py::test_chat_drop_handles_files_tree_paths_and_upload_errors 
+[gw1] [ 13%] PASSED tests/test_frontend.py::test_chat_drop_handles_files_tree_paths_and_upload_errors 
+tests/test_frontend.py::test_left_panel_has_tabs 
+[gw1] [ 14%] PASSED tests/test_frontend.py::test_left_panel_has_tabs 
+tests/test_frontend.py::test_agent_info_panel_exists 
+[gw1] [ 14%] PASSED tests/test_frontend.py::test_agent_info_panel_exists 
+tests/test_frontend.py::test_info_panel_shows_only_workers_with_checklists 
+[gw1] [ 14%] PASSED tests/test_frontend.py::test_info_panel_shows_only_workers_with_checklists 
+tests/test_frontend.py::test_info_panel_displays_step_estimate_and_live_elapsed_time 
+[gw0] [ 15%] PASSED tests/test_t344_quota_lines_browser.py::test_panel_curve_matches_the_limit_the_server_computed 
+tests/test_t344_quota_lines_browser.py::test_claude_shift_matches_lane_limit_and_legacy_rule_falls_back 
+[gw0] [ 15%] PASSED tests/test_t344_quota_lines_browser.py::test_claude_shift_matches_lane_limit_and_legacy_rule_falls_back 
+tests/test_t344_quota_lines_browser.py::test_lane_ceiling_is_drawn_and_capped_like_the_gate 
+[gw0] [ 16%] PASSED tests/test_t344_quota_lines_browser.py::test_lane_ceiling_is_drawn_and_capped_like_the_gate 
+tests/test_t344_quota_lines_browser.py::test_gate_state_names_the_lanes_the_diagonal_holds 
+[gw0] [ 16%] PASSED tests/test_t344_quota_lines_browser.py::test_gate_state_names_the_lanes_the_diagonal_holds 
+tests/test_t344_quota_lines_browser.py::test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate 
+[gw1] [ 17%] PASSED tests/test_frontend.py::test_info_panel_displays_step_estimate_and_live_elapsed_time 
+tests/test_frontend.py::test_checklist_reminder_is_hidden_on_a_card_that_is_not_running 
+[gw1] [ 17%] PASSED tests/test_frontend.py::test_checklist_reminder_is_hidden_on_a_card_that_is_not_running 
+tests/test_frontend.py::test_no_js_errors 
+[gw0] [ 18%] PASSED tests/test_t344_quota_lines_browser.py::test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate 
+tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization 
+[gw0] [ 18%] PASSED tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization 
+tests/test_t344_quota_lines_browser.py::test_calm_window_says_everyone_works 
+[gw0] [ 19%] PASSED tests/test_t344_quota_lines_browser.py::test_calm_window_says_everyone_works 
+tests/test_t344_quota_lines_browser.py::test_gate_override_uses_a_browser_local_datetime_and_shows_an_expiry 
+[gw1] [ 19%] PASSED tests/test_frontend.py::test_no_js_errors 
+tests/test_frontend.py::test_codex_cache_pill_is_approximate_and_expires_to_unknown 
+[gw1] [ 20%] PASSED tests/test_frontend.py::test_codex_cache_pill_is_approximate_and_expires_to_unknown 
+tests/test_frontend.py::test_claude_cache_pill_keeps_exact_thresholds 
+[gw1] [ 20%] PASSED tests/test_frontend.py::test_claude_cache_pill_keeps_exact_thresholds 
+tests/test_frontend.py::test_photo_batch_renders_as_compact_expandable_gallery 
+[gw1] [ 21%] PASSED tests/test_frontend.py::test_photo_batch_renders_as_compact_expandable_gallery 
+tests/test_frontend.py::test_single_chat_photo_keeps_plain_preview 
+[gw0] [ 21%] PASSED tests/test_t344_quota_lines_browser.py::test_gate_override_uses_a_browser_local_datetime_and_shows_an_expiry 
+tests/test_t344_quota_lines_browser.py::test_above_the_curve_stops_sol_but_not_luna_and_spark 
+[gw1] [ 21%] PASSED tests/test_frontend.py::test_single_chat_photo_keeps_plain_preview 
+tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt[False] 
+[gw0] [ 22%] PASSED tests/test_t344_quota_lines_browser.py::test_above_the_curve_stops_sol_but_not_luna_and_spark 
+tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works 
+[gw1] [ 22%] PASSED tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt[False] 
+tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt[True] 
+[gw0] [ 23%] PASSED tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works 
+tests/test_t344_quota_lines_browser.py::test_spark_is_drawn_by_its_own_counter_not_together_with_sol 
+[gw1] [ 23%] PASSED tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt[True] 
+tests/test_frontend.py::test_user_message_renders_display_only_payload_without_durable_timestamp 
+[gw0] [ 24%] PASSED tests/test_t344_quota_lines_browser.py::test_spark_is_drawn_by_its_own_counter_not_together_with_sol 
+tests/test_t344_quota_lines_browser.py::test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it 
+[gw0] [ 24%] PASSED tests/test_t344_quota_lines_browser.py::test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it 
+tests/test_t344_quota_lines_browser.py::test_missing_telemetry_says_no_data_not_works 
+[gw0] [ 25%] PASSED tests/test_t344_quota_lines_browser.py::test_missing_telemetry_says_no_data_not_works 
+tests/test_t344_quota_lines_browser.py::test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop 
+[gw0] [ 25%] PASSED tests/test_t344_quota_lines_browser.py::test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop 
+tests/test_t344_quota_lines_browser.py::test_old_payload_without_rule_block_says_no_data 
+[gw0] [ 26%] PASSED tests/test_t344_quota_lines_browser.py::test_old_payload_without_rule_block_says_no_data 
+tests/test_t344_quota_lines_browser.py::test_summary_without_rule_block_says_no_data_not_works 
+[gw0] [ 26%] PASSED tests/test_t344_quota_lines_browser.py::test_summary_without_rule_block_says_no_data_not_works 
+tests/test_t344_quota_lines_browser.py::test_summary_repeats_the_body_verdict_when_the_rule_arrives 
+[gw1] [ 27%] PASSED tests/test_frontend.py::test_user_message_renders_display_only_payload_without_durable_timestamp 
+tests/test_frontend.py::test_document_upload_card_appears_immediately_and_reports_progress 
+[gw0] [ 27%] PASSED tests/test_t344_quota_lines_browser.py::test_summary_repeats_the_body_verdict_when_the_rule_arrives 
+tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_and_history_empty_notice 
+[gw1] [ 28%] PASSED tests/test_frontend.py::test_document_upload_card_appears_immediately_and_reports_progress 
+tests/test_frontend.py::test_pasted_image_previews_use_one_bounded_square_size 
+[gw1] [ 28%] PASSED tests/test_frontend.py::test_pasted_image_previews_use_one_bounded_square_size 
+tests/test_frontend.py::test_document_upload_card_cancels_xhr_without_inserting_path 
+[gw0] [ 28%] PASSED tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_and_history_empty_notice 
+tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_when_present 
+[gw1] [ 29%] PASSED tests/test_frontend.py::test_document_upload_card_cancels_xhr_without_inserting_path 
+tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions 
+[gw0] [ 29%] PASSED tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_when_present 
+tests/test_t344_quota_lines_browser.py::test_failed_request_says_no_data_and_does_not_pretend_to_work 
+[gw0] [ 30%] PASSED tests/test_t344_quota_lines_browser.py::test_failed_request_says_no_data_and_does_not_pretend_to_work 
+tests/test_t344_quota_lines_browser.py::test_panel_is_absent_outside_owner_mode 
+[gw0] [ 30%] PASSED tests/test_t344_quota_lines_browser.py::test_panel_is_absent_outside_owner_mode 
+tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources 
+[gw0] [ 31%] PASSED tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources 
+tests/test_usage_analytics_frontend.py::test_analytics_renders_usd_when_task_currency_is_rubles 
+[gw0] [ 31%] PASSED tests/test_usage_analytics_frontend.py::test_analytics_renders_usd_when_task_currency_is_rubles 
+tests/test_usage_analytics_frontend.py::test_overview_shows_estimated_claude_api_credit_balance_and_expiry 
+[gw0] [ 32%] PASSED tests/test_usage_analytics_frontend.py::test_overview_shows_estimated_claude_api_credit_balance_and_expiry 
+tests/test_usage_analytics_frontend.py::test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch 
+[gw0] [ 32%] PASSED tests/test_usage_analytics_frontend.py::test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch 
+tests/test_usage_analytics_frontend.py::test_model_speed_view_renders_current_values_and_history_chart 
+[gw1] [ 33%] PASSED tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions 
+tests/test_frontend.py::test_send_files_batch_renders_image_preview_and_lightbox 
+[gw0] [ 33%] PASSED tests/test_usage_analytics_frontend.py::test_model_speed_view_renders_current_values_and_history_chart 
+tests/test_usage_analytics_frontend.py::test_wake_button_schedules_once_and_renders_post_decision 
+[gw0] [ 34%] PASSED tests/test_usage_analytics_frontend.py::test_wake_button_schedules_once_and_renders_post_decision 
+tests/test_usage_analytics_frontend.py::test_monthly_limit_panel_requires_manual_action 
+[gw0] [ 34%] PASSED tests/test_usage_analytics_frontend.py::test_monthly_limit_panel_requires_manual_action 
+tests/test_usage_analytics_frontend.py::test_wake_panel_renders_all_decision_groups_together 
+[gw0] [ 35%] PASSED tests/test_usage_analytics_frontend.py::test_wake_panel_renders_all_decision_groups_together 
+tests/test_usage_analytics_frontend.py::test_wake_click_with_no_action_is_explicitly_acknowledged 
+[gw0] [ 35%] PASSED tests/test_usage_analytics_frontend.py::test_wake_click_with_no_action_is_explicitly_acknowledged 
+tests/test_usage_analytics_frontend.py::test_period_change_ignores_stale_snapshot_response 
+[gw0] [ 35%] PASSED tests/test_usage_analytics_frontend.py::test_period_change_ignores_stale_snapshot_response 
+tests/test_usage_analytics_frontend.py::test_agent_filters_drilldown_and_reliability_are_honest 
+[gw0] [ 36%] PASSED tests/test_usage_analytics_frontend.py::test_agent_filters_drilldown_and_reliability_are_honest 
+tests/test_usage_analytics_frontend.py::test_partial_tool_error_coverage_does_not_claim_zero 
+[gw0] [ 36%] PASSED tests/test_usage_analytics_frontend.py::test_partial_tool_error_coverage_does_not_claim_zero 
+tests/test_usage_analytics_frontend.py::test_partial_task_cost_coverage_does_not_show_exact_price 
+[gw1] [ 37%] PASSED tests/test_frontend.py::test_send_files_batch_renders_image_preview_and_lightbox 
+tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files 
+[gw0] [ 37%] PASSED tests/test_usage_analytics_frontend.py::test_partial_task_cost_coverage_does_not_show_exact_price 
+tests/test_usage_analytics_frontend.py::test_unaccounted_cost_is_visible_and_never_rendered_as_zero 
+[gw0] [ 38%] PASSED tests/test_usage_analytics_frontend.py::test_unaccounted_cost_is_visible_and_never_rendered_as_zero 
+tests/test_usage_analytics_frontend.py::test_new_frontend_remains_compatible_with_old_analytics_payload 
+[gw0] [ 38%] PASSED tests/test_usage_analytics_frontend.py::test_new_frontend_remains_compatible_with_old_analytics_payload 
+tests/test_usage_analytics_frontend.py::test_modal_has_no_document_overflow_at_390px 
+[gw0] [ 39%] PASSED tests/test_usage_analytics_frontend.py::test_modal_has_no_document_overflow_at_390px 
+tests/test_usage_history_frontend.py::test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure 
+[gw1] [ 39%] PASSED tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files 
+tests/test_frontend.py::test_send_file_single_keeps_existing_rendering 
+[gw0] [ 40%] PASSED tests/test_usage_history_frontend.py::test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure 
+tests/test_usage_history_frontend.py::test_empty_history_says_what_is_missing 
+[gw0] [ 40%] PASSED tests/test_usage_history_frontend.py::test_empty_history_says_what_is_missing 
+tests/test_usage_history_frontend.py::test_failed_request_surfaces_the_error 
+[gw0] [ 41%] PASSED tests/test_usage_history_frontend.py::test_failed_request_surfaces_the_error 
+tests/test_usage_history_frontend.py::test_provider_absent_from_history_does_not_get_a_chart 
+[gw0] [ 41%] PASSED tests/test_usage_history_frontend.py::test_provider_absent_from_history_does_not_get_a_chart 
+tests/test_usage_history_frontend.py::test_real_data_draws_a_chart_not_a_stub 
+[gw0] [ 42%] PASSED tests/test_usage_history_frontend.py::test_real_data_draws_a_chart_not_a_stub 
+tests/test_usage_history_frontend.py::test_hole_in_data_breaks_the_line_instead_of_bridging_it 
+[gw1] [ 42%] PASSED tests/test_frontend.py::test_send_file_single_keeps_existing_rendering 
+tests/test_frontend.py::test_orchestra_tool_cards_have_compact_and_readable_full_views 
+[gw0] [ 42%] PASSED tests/test_usage_history_frontend.py::test_hole_in_data_breaks_the_line_instead_of_bridging_it 
+tests/test_usage_history_frontend.py::test_null_pct_is_a_hole_not_a_zero 
+[gw0] [ 43%] PASSED tests/test_usage_history_frontend.py::test_null_pct_is_a_hole_not_a_zero 
+tests/test_usage_history_frontend.py::test_real_zero_without_reset_metadata_draws_a_chart 
+[gw0] [ 43%] PASSED tests/test_usage_history_frontend.py::test_real_zero_without_reset_metadata_draws_a_chart 
+tests/test_usage_history_frontend.py::test_older_period_is_fetched_on_demand 
+[gw0] [ 44%] PASSED tests/test_usage_history_frontend.py::test_older_period_is_fetched_on_demand 
+tests/test_usage_history_frontend.py::test_series_order_does_not_depend_on_which_chunk_loaded_first 
+[gw0] [ 44%] PASSED tests/test_usage_history_frontend.py::test_series_order_does_not_depend_on_which_chunk_loaded_first 
+tests/test_usage_history_frontend.py::test_history_request_gets_its_own_timeout 
+[gw1] [ 45%] PASSED tests/test_frontend.py::test_orchestra_tool_cards_have_compact_and_readable_full_views 
+tests/test_frontend.py::test_orchestra_agent_counts_do_not_expose_pluralization_markers_in_english 
+[gw0] [ 45%] PASSED tests/test_usage_history_frontend.py::test_history_request_gets_its_own_timeout 
+tests/test_usage_history_frontend.py::test_history_timeout_survives_a_caller_signal 
+[gw0] [ 46%] PASSED tests/test_usage_history_frontend.py::test_history_timeout_survives_a_caller_signal 
+tests/test_grok_usage_frontend.py::test_compact_bar_replaces_spark_with_grok 
+[gw1] [ 46%] PASSED tests/test_frontend.py::test_orchestra_agent_counts_do_not_expose_pluralization_markers_in_english 
+tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers[normal] 
+[gw1] [ 47%] PASSED tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers[normal] 
+tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers[compact] 
+[gw0] [ 47%] PASSED tests/test_grok_usage_frontend.py::test_compact_bar_replaces_spark_with_grok 
+tests/test_grok_usage_frontend.py::test_usage_bar_shows_spark_label_and_release_statuses 
+[gw0] [ 48%] PASSED tests/test_grok_usage_frontend.py::test_usage_bar_shows_spark_label_and_release_statuses 
+tests/test_grok_usage_frontend.py::test_usage_bar_renders_each_provider_as_two_columns 
+[gw1] [ 48%] PASSED tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers[compact] 
+tests/test_frontend.py::test_orchestra_tool_result_uses_structured_outcome_not_error_words 
+[gw1] [ 49%] PASSED tests/test_frontend.py::test_orchestra_tool_result_uses_structured_outcome_not_error_words 
+tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[claude-normal] 
+[gw0] [ 49%] PASSED tests/test_grok_usage_frontend.py::test_usage_bar_renders_each_provider_as_two_columns 
+tests/test_grok_usage_frontend.py::test_usage_controls_stay_visible_across_desktop_widths 
+[gw1] [ 50%] PASSED tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[claude-normal] 
+tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[claude-compact] 
+[gw1] [ 50%] PASSED tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[claude-compact] 
+tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_column-normal] 
+[gw0] [ 50%] PASSED tests/test_grok_usage_frontend.py::test_usage_controls_stay_visible_across_desktop_widths 
+tests/test_grok_usage_frontend.py::test_usage_control_keeps_spark_and_adds_grok_third_column 
+[gw1] [ 51%] PASSED tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_column-normal] 
+tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_column-compact] 
+[gw1] [ 51%] PASSED tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_column-compact] 
+tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_item_id_in_body-normal] 
+[gw0] [ 52%] PASSED tests/test_grok_usage_frontend.py::test_usage_control_keeps_spark_and_adds_grok_third_column 
+tests/test_grok_usage_frontend.py::test_missing_grok_data_is_visible_and_never_rendered_as_zero 
+[gw1] [ 52%] PASSED tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_item_id_in_body-normal] 
+tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_item_id_in_body-compact] 
+[gw0] [ 53%] PASSED tests/test_grok_usage_frontend.py::test_missing_grok_data_is_visible_and_never_rendered_as_zero 
+tests/test_grok_usage_frontend.py::test_usage_fetch_failure_stays_visible_and_logs_exception 
+[gw0] [ 53%] PASSED tests/test_grok_usage_frontend.py::test_usage_fetch_failure_stays_visible_and_logs_exception 
+tests/test_grok_usage_frontend.py::test_usage_refresh_uses_one_long_budget_for_external_aggregation 
+[gw1] [ 54%] PASSED tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_item_id_in_body-compact] 
+tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[normal] 
+[gw0] [ 54%] PASSED tests/test_grok_usage_frontend.py::test_usage_refresh_uses_one_long_budget_for_external_aggregation 
+tests/test_grok_usage_frontend.py::test_usage_info_click_opens_details_without_refreshing_usage 
+[gw1] [ 55%] PASSED tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[normal] 
+tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact] 
+[gw0] [ 55%] PASSED tests/test_grok_usage_frontend.py::test_usage_info_click_opens_details_without_refreshing_usage 
+tests/test_grok_usage_frontend.py::test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm 
+[gw1] [ 56%] PASSED tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact] 
+tests/test_frontend.py::test_notify_nav_hides_itself_when_no_calls_are_present[normal] 
+[gw1] [ 56%] PASSED tests/test_frontend.py::test_notify_nav_hides_itself_when_no_calls_are_present[normal] 
+tests/test_frontend.py::test_notify_nav_hides_itself_when_no_calls_are_present[compact] 
+[gw0] [ 57%] PASSED tests/test_grok_usage_frontend.py::test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm 
+tests/test_grok_usage_frontend.py::test_history_period_requires_two_points 
+[gw1] [ 57%] PASSED tests/test_frontend.py::test_notify_nav_hides_itself_when_no_calls_are_present[compact] 
+tests/test_frontend.py::test_restart_button_shows_current_attempt_failure 
+[gw0] [ 57%] PASSED tests/test_grok_usage_frontend.py::test_history_period_requires_two_points 
+tests/test_antigravity_usage_frontend.py::test_t4_two_distinct_antigravity_groups_render_in_contract_order 
+[gw0] [ 58%] SKIPPED tests/test_antigravity_usage_frontend.py::test_t4_two_distinct_antigravity_groups_render_in_contract_order 
+tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly] 
+[gw0] [ 58%] SKIPPED tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly] 
+tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly] 
+[gw0] [ 59%] SKIPPED tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly] 
+tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly] 
+[gw0] [ 59%] SKIPPED tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly] 
+tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly] 
+[gw0] [ 60%] SKIPPED tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly] 
+tests/test_antigravity_usage_frontend.py::test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow 
+[gw0] [ 60%] SKIPPED tests/test_antigravity_usage_frontend.py::test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow 
+tests/test_i18n_dashboard.py::test_dictionary_reaches_static_markup 
+[gw1] [ 61%] PASSED tests/test_frontend.py::test_restart_button_shows_current_attempt_failure 
+tests/test_frontend.py::test_restart_button_shows_journal_loss_before_reboot 
+[gw1] [ 61%] PASSED tests/test_frontend.py::test_restart_button_shows_journal_loss_before_reboot 
+tests/test_frontend.py::test_restart_signal_failure_reaches_frontend_on_heartbeat 
+[gw0] [ 62%] PASSED tests/test_i18n_dashboard.py::test_dictionary_reaches_static_markup 
+tests/test_i18n_dashboard.py::test_dictionary_reaches_marked_attributes 
+[gw0] [ 62%] PASSED tests/test_i18n_dashboard.py::test_dictionary_reaches_marked_attributes 
+tests/test_i18n_dashboard.py::test_language_choice_survives_reload 
+[gw0] [ 63%] PASSED tests/test_i18n_dashboard.py::test_language_choice_survives_reload 
+tests/test_i18n_dashboard.py::test_language_switch_works_before_login 
+[gw0] [ 63%] PASSED tests/test_i18n_dashboard.py::test_language_switch_works_before_login 
+tests/test_i18n_dashboard.py::test_missing_key_falls_back_to_source_string 
+[gw0] [ 64%] PASSED tests/test_i18n_dashboard.py::test_missing_key_falls_back_to_source_string 
+tests/test_i18n_dashboard.py::test_dashboard_loads_without_script_errors 
+[gw0] [ 64%] PASSED tests/test_i18n_dashboard.py::test_dashboard_loads_without_script_errors 
+tests/test_quota_headroom_447.py::test_usage_bar_renders_worker_headroom_from_quota_map 
+[gw0] [ 64%] PASSED tests/test_quota_headroom_447.py::test_usage_bar_renders_worker_headroom_from_quota_map 
+tests/test_quota_headroom_447.py::test_usage_bar_formats_fractional_provider_utilization 
+[gw0] [ 65%] PASSED tests/test_quota_headroom_447.py::test_usage_bar_formats_fractional_provider_utilization 
+tests/test_quota_headroom_447.py::test_five_hour_bar_shows_week_locked_part_from_quota_headroom 
+[gw0] [ 65%] PASSED tests/test_quota_headroom_447.py::test_five_hour_bar_shows_week_locked_part_from_quota_headroom 
+tests/test_system_chat_entry.py::test_system_entry_is_not_an_agent_bubble 
+[gw1] [ 66%] PASSED tests/test_frontend.py::test_restart_signal_failure_reaches_frontend_on_heartbeat 
+tests/test_frontend.py::test_connection_state_confirms_external_restart_by_process_generation 
+[gw1] [ 66%] PASSED tests/test_frontend.py::test_connection_state_confirms_external_restart_by_process_generation 
+tests/test_frontend.py::test_restart_owns_one_status_and_suppresses_component_diagnoses 
+[gw1] [ 67%] PASSED tests/test_frontend.py::test_restart_owns_one_status_and_suppresses_component_diagnoses 
+tests/test_frontend.py::test_connection_recovery_refreshes_every_visible_data_surface 
+[gw1] [ 67%] PASSED tests/test_frontend.py::test_connection_recovery_refreshes_every_visible_data_surface 
+tests/test_frontend.py::test_chat_transient_state_has_one_complete_reset_owner 
+[gw1] [ 68%] PASSED tests/test_frontend.py::test_chat_transient_state_has_one_complete_reset_owner 
+tests/test_frontend.py::test_user_message_stays_before_agent_entries_arriving_during_stream 
+[gw0] [ 68%] PASSED tests/test_system_chat_entry.py::test_system_entry_is_not_an_agent_bubble 
+tests/test_system_chat_entry.py::test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender 
+[gw0] [ 69%] PASSED tests/test_system_chat_entry.py::test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender 
+[gw1] [ 69%] PASSED tests/test_frontend.py::test_user_message_stays_before_agent_entries_arriving_during_stream 
+tests/test_frontend.py::test_silent_turn_marker_is_hidden_only_when_exact_text_in_history 
+[gw1] [ 70%] PASSED tests/test_frontend.py::test_silent_turn_marker_is_hidden_only_when_exact_text_in_history 
+tests/test_frontend.py::test_silent_turn_marker_is_hidden_from_live_sse_but_telemetry_survives 
+tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block 
+[gw1] [ 70%] PASSED tests/test_frontend.py::test_silent_turn_marker_is_hidden_from_live_sse_but_telemetry_survives 
+tests/test_frontend.py::test_dashboard_polling_pauses_hidden_and_resumes_after_visibility_and_online 
+[gw1] [ 71%] PASSED tests/test_frontend.py::test_dashboard_polling_pauses_hidden_and_resumes_after_visibility_and_online 
+tests/test_frontend.py::test_dashboard_polling_coalesces_same_inflight_request 
+[gw1] [ 71%] PASSED tests/test_frontend.py::test_dashboard_polling_coalesces_same_inflight_request 
+tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff 
+[gw0] [ 71%] PASSED tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block 
+tests/test_dashboard_i18n_formatting.py::test_dashboard_numbers_and_dates_follow_the_selected_language 
+[gw0] [ 72%] PASSED tests/test_dashboard_i18n_formatting.py::test_dashboard_numbers_and_dates_follow_the_selected_language 
+tests/test_frontend_context_panel_468.py::test_live_stream_completion_refreshes_selected_agent_context 
+[gw0] [ 72%] PASSED tests/test_frontend_context_panel_468.py::test_live_stream_completion_refreshes_selected_agent_context 
+tests/test_model_catalog_frontend.py::test_catalog_free_filter_and_admission_work_with_new_and_old_api_payloads 
+[gw1] [ 73%] PASSED tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff 
+tests/test_frontend.py::test_dashboard_polling_resume_refreshes_status_after_hidden 
+[gw1] [ 73%] PASSED tests/test_frontend.py::test_dashboard_polling_resume_refreshes_status_after_hidden 
+tests/test_frontend.py::test_hidden_dashboard_stops_polling_and_resumes_when_visible 
+[gw0] [ 74%] PASSED tests/test_model_catalog_frontend.py::test_catalog_free_filter_and_admission_work_with_new_and_old_api_payloads 
+tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer 
+[gw1] [ 74%] PASSED tests/test_frontend.py::test_hidden_dashboard_stops_polling_and_resumes_when_visible 
+tests/test_frontend.py::test_live_call_notifies_once_while_history_and_replays_stay_silent 
+[gw1] [ 75%] PASSED tests/test_frontend.py::test_live_call_notifies_once_while_history_and_replays_stay_silent 
+tests/test_frontend.py::test_history_failure_is_fail_loud_and_never_streams_archive_row_by_row 
+[gw1] [ 75%] PASSED tests/test_frontend.py::test_history_failure_is_fail_loud_and_never_streams_archive_row_by_row 
+tests/test_frontend.py::test_notification_permission_is_asked_by_click_and_never_on_load 
+[gw1] [ 76%] PASSED tests/test_frontend.py::test_notification_permission_is_asked_by_click_and_never_on_load 
+tests/test_frontend.py::test_legacy_rows_without_tool_use_id_pair_by_adjacency[normal] 
+[gw1] [ 76%] PASSED tests/test_frontend.py::test_legacy_rows_without_tool_use_id_pair_by_adjacency[normal] 
+tests/test_frontend.py::test_legacy_rows_without_tool_use_id_pair_by_adjacency[compact] 
+[gw1] [ 77%] PASSED tests/test_frontend.py::test_legacy_rows_without_tool_use_id_pair_by_adjacency[compact] 
+tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call[normal] 
+[gw0] [ 77%] PASSED tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer 
+[gw1] [ 78%] PASSED tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call[normal] 
+tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call[compact] 
+[gw1] [ 78%] PASSED tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call[compact] 
+tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls[normal] 
+[gw1] [ 78%] PASSED tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls[normal] 
+tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls[compact] 
+[gw1] [ 79%] PASSED tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls[compact] 
+tests/test_frontend.py::test_load_more_increases_visible_cards 
+[gw1] [ 79%] PASSED tests/test_frontend.py::test_load_more_increases_visible_cards 
+tests/test_frontend.py::test_short_snapshot_offers_one_shot_previous_100_without_cache 
+[gw1] [ 80%] PASSED tests/test_frontend.py::test_short_snapshot_offers_one_shot_previous_100_without_cache 
+tests/test_frontend.py::test_full_previous_page_keeps_offering_older_history 
+[gw1] [ 80%] PASSED tests/test_frontend.py::test_full_previous_page_keeps_offering_older_history 
+tests/test_frontend.py::test_tool_view_mode_is_visible_without_desktop_header_overflow 
+[gw1] [ 81%] PASSED tests/test_frontend.py::test_tool_view_mode_is_visible_without_desktop_header_overflow 
+tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details[normal] 
+[gw1] [ 81%] PASSED tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details[normal] 
+tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details[compact] 
+[gw1] [ 82%] PASSED tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details[compact] 
+tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title[normal] 
+[gw1] [ 82%] PASSED tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title[normal] 
+tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title[compact] 
+[gw1] [ 83%] PASSED tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title[compact] 
+tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback[normal] 
+[gw1] [ 83%] PASSED tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback[normal] 
+tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback[compact] 
+[gw1] [ 84%] PASSED tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback[compact] 
+tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details[normal] 
+[gw1] [ 84%] PASSED tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details[normal] 
+tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details[compact] 
+[gw1] [ 85%] PASSED tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details[compact] 
+tests/test_frontend.py::test_task_card_uses_real_long_description_and_shared_expandable_body 
+[gw1] [ 85%] PASSED tests/test_frontend.py::test_task_card_uses_real_long_description_and_shared_expandable_body 
+tests/test_frontend.py::test_chat_restores_last_read_boundary_only_when_unread 
+[gw1] [ 85%] PASSED tests/test_frontend.py::test_chat_restores_last_read_boundary_only_when_unread 
+tests/test_frontend.py::test_chat_timeline_navigates_events_and_cycles_user_messages 
+[gw1] [ 86%] PASSED tests/test_frontend.py::test_chat_timeline_navigates_events_and_cycles_user_messages 
+tests/test_frontend.py::test_chat_timeline_marker_height_tracks_message_height 
+[gw1] [ 86%] PASSED tests/test_frontend.py::test_chat_timeline_marker_height_tracks_message_height 
+tests/test_frontend.py::test_chat_timeline_navigates_final_agent_answers_only 
+[gw1] [ 87%] PASSED tests/test_frontend.py::test_chat_timeline_navigates_final_agent_answers_only 
+tests/test_frontend.py::test_codex_successful_mcp_startup_status_is_hidden 
+[gw1] [ 87%] PASSED tests/test_frontend.py::test_codex_successful_mcp_startup_status_is_hidden 
+tests/test_frontend.py::test_native_codex_compact_renders_one_result_badge 
+[gw1] [ 88%] PASSED tests/test_frontend.py::test_native_codex_compact_renders_one_result_badge 
+tests/test_frontend.py::test_subagent_lifecycle_updates_one_existing_card 
+[gw1] [ 88%] PASSED tests/test_frontend.py::test_subagent_lifecycle_updates_one_existing_card 
+tests/test_frontend.py::test_codex_web_search_renders_queries_without_transport_json 
+[gw1] [ 89%] PASSED tests/test_frontend.py::test_codex_web_search_renders_queries_without_transport_json 
+tests/test_frontend.py::test_codex_spawn_worker_renders_task_model_and_completion 
+[gw1] [ 89%] PASSED tests/test_frontend.py::test_codex_spawn_worker_renders_task_model_and_completion 
+tests/test_frontend.py::test_codex_file_change_renders_structured_kind 
+[gw1] [ 90%] PASSED tests/test_frontend.py::test_codex_file_change_renders_structured_kind 
+tests/test_frontend.py::test_codex_view_image_retries_after_initial_load_failure 
+[gw1] [ 90%] PASSED tests/test_frontend.py::test_codex_view_image_retries_after_initial_load_failure 
+tests/test_frontend.py::test_truncated_read_image_restores_full_log_when_source_file_is_gone 
+[gw1] [ 91%] PASSED tests/test_frontend.py::test_truncated_read_image_restores_full_log_when_source_file_is_gone 
+tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry 
+[gw1] [ 91%] PASSED tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry 
+tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows 
+[gw1] [ 92%] PASSED tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows 
+tests/test_frontend.py::test_authoritative_snapshot_has_no_post_paint_history_staircase 
+[gw1] [ 92%] PASSED tests/test_frontend.py::test_authoritative_snapshot_has_no_post_paint_history_staircase 
+tests/test_frontend.py::test_chat_open_waits_for_authoritative_snapshot_and_paints_once 
+[gw1] [ 92%] PASSED tests/test_frontend.py::test_chat_open_waits_for_authoritative_snapshot_and_paints_once 
+tests/test_frontend.py::test_rapid_chat_switch_aborts_old_snapshot_before_render 
+[gw1] [ 93%] PASSED tests/test_frontend.py::test_rapid_chat_switch_aborts_old_snapshot_before_render 
+tests/test_frontend.py::test_selecting_worker_does_not_refresh_whole_sidebar 
+[gw1] [ 93%] PASSED tests/test_frontend.py::test_selecting_worker_does_not_refresh_whole_sidebar 
+tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state 
+[gw1] [ 94%] PASSED tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state 
+tests/test_frontend.py::test_truncated_image_generation_history_recovers_without_server_restart 
+[gw1] [ 94%] PASSED tests/test_frontend.py::test_truncated_image_generation_history_recovers_without_server_restart 
+tests/test_frontend.py::test_mobile_voice_input_records_transcribes_and_cancels 
+[gw1] [ 95%] SKIPPED tests/test_frontend.py::test_mobile_voice_input_records_transcribes_and_cancels 
+tests/test_frontend.py::test_dashboard_voice_appends_transcript_and_sends_once 
+[gw1] [ 95%] PASSED tests/test_frontend.py::test_dashboard_voice_appends_transcript_and_sends_once 
+tests/test_frontend.py::test_dashboard_voice_recording_survives_reload 
+[gw1] [ 96%] PASSED tests/test_frontend.py::test_dashboard_voice_recording_survives_reload 
+tests/test_frontend.py::test_dashboard_voice_transcription_failure_keeps_retryable_recording 
+[gw1] [ 96%] PASSED tests/test_frontend.py::test_dashboard_voice_transcription_failure_keeps_retryable_recording 
+tests/test_frontend.py::test_dashboard_voice_transcribes_when_indexeddb_is_unavailable 
+[gw1] [ 97%] PASSED tests/test_frontend.py::test_dashboard_voice_transcribes_when_indexeddb_is_unavailable 
+tests/test_frontend.py::test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_changes 
+[gw1] [ 97%] PASSED tests/test_frontend.py::test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_changes 
+tests/test_frontend.py::test_dashboard_voice_status_is_compact_above_input[desktop-viewport0-False] 
+[gw1] [ 98%] PASSED tests/test_frontend.py::test_dashboard_voice_status_is_compact_above_input[desktop-viewport0-False] 
+tests/test_frontend.py::test_dashboard_voice_status_is_compact_above_input[phone-viewport1-True] 
+[gw1] [ 98%] PASSED tests/test_frontend.py::test_dashboard_voice_status_is_compact_above_input[phone-viewport1-True] 
+tests/test_frontend.py::test_dashboard_survives_lossy_channel_from_snapshot 
+[gw1] [ 99%] PASSED tests/test_frontend.py::test_dashboard_survives_lossy_channel_from_snapshot 
+tests/test_frontend.py::test_dashboard_shows_error_class_when_nothing_cached 
+[gw1] [ 99%] PASSED tests/test_frontend.py::test_dashboard_shows_error_class_when_nothing_cached 
+tests/test_frontend.py::test_chat_request_uses_reserved_slot_ahead_of_background_gets 
+[gw1] [100%] PASSED tests/test_frontend.py::test_chat_request_uses_reserved_slot_ahead_of_background_gets 
+
+================== 207 passed, 7 skipped in 115.39s (0:01:55) ==================
