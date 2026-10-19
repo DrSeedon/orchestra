@@ -396,6 +396,10 @@ async def _shutdown_runtime(
     sweeper = turn_signals.sweeper_task()
     if sweeper is not None:
         startup_tasks.add(sweeper)
+    from app import message_deliveries as _md
+    delivery_sweeper = _md.sweeper_task()
+    if delivery_sweeper is not None:
+        startup_tasks.add(delivery_sweeper)
     for task in startup_tasks:
         task.cancel()
     if startup_tasks:
@@ -542,6 +546,8 @@ async def lifespan(app: FastAPI):
         schedule_restart_inbox_drain()
         from app import turn_signals
         turn_signals.start_sweeper(manager)
+        from app import message_deliveries as _md
+        _md.start_sweeper(manager)
         from app.bg_jobs import bg_manager
         bg_manager.set_session_manager(manager)
         await bg_manager.restore_from_db()

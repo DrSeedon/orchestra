@@ -1,0 +1,17 @@
+== mutation A: no archive hook
+tests/test_v966_stuck_deliveries.py:70: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v966_stuck_deliveries.py::test_archiving_target_fails_pending_deliveries_visibly
+1 failed, 3 passed in 2.36s
+== mutation B: sweep does not wake idle target
+tests/test_v966_stuck_deliveries.py:124: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v966_stuck_deliveries.py::test_sweep_wakes_idle_target_blocked_by_waiting_next_turn
+1 failed, 3 passed in 2.46s
+== mutation C: sweep does not fail archived targets
+....                                                                     [100%]
+4 passed in 2.31s
+== mutation C (rerun with legacy-rows test)
+=========================== short test summary info ============================
+FAILED tests/test_v966_stuck_deliveries.py::test_sweep_fails_rows_left_behind_by_an_earlier_archive
+1 failed, 4 passed in 2.45s

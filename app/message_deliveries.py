@@ -1099,3 +1099,167 @@ async def recover_message_deliveries(*, target_session_id: str | None = None) ->
     for target in targets:
         ensure_target_runner(target)
     return settled
+
+
+# ── Страж зависших доставок (V-966) ──
+# `WAITING_NEXT_TURN` не терминальна и стоит ГОЛОВОЙ очереди цели, а её единственный выход —
+# конец следующего хода цели (`_deliver_mailbox`). У простаивающей сессии хода нет, поэтому
+# голова висела вечно, и всё принятое после неё стояло в `QUEUED` без ошибки (decision-cost,
+# tender-triage, feat-kesha-alert: 12 записей, самая старая с 05.10). Страж ищет такие записи
+# сам: архивной цели — видимый отказ отправителю, простаивающую живую — будит, остальное
+# только называет в журнале. Неоднозначные `DISPATCHING`/`DELIVERY_UNKNOWN` не трогает:
+# at-most-once сохраняется.
+SWEEP_INTERVAL_SECONDS = 60.0
+STUCK_WAKE_AFTER_SECONDS = 120.0
+STUCK_WARN_AFTER_SECONDS = 3600.0
+_DEAD_TARGET_STATES = ("QUEUED", "WAITING_NEXT_TURN", "WAITING_QUOTA")
+_warned_stuck: set[str] = set()
+_sweeper_task: asyncio.Task | None = None
+
+
+def _age_seconds(stamp: str) -> float:
+    try:
+        return time.time() - datetime.fromisoformat(stamp).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def fail_deliveries_to_archived_targets(target_session_id: str | None = None) -> int:
+    """Принятое, но недоставленное сообщение архивной цели → видимый отказ отправителю."""
+    placeholders = ",".join("?" * len(_DEAD_TARGET_STATES))
+    scope_sql = " AND d.target_session_id=?" if target_session_id else ""
+    with db._conn() as connection:
+        rows = connection.execute(
+            f"""SELECT d.delivery_id, d.target_name, d.state FROM message_deliveries d
+                LEFT JOIN sessions s ON s.id=d.target_session_id
+                WHERE d.state IN ({placeholders})
+                  AND (s.id IS NULL OR s.status='archived'){scope_sql}""",
+            (*_DEAD_TARGET_STATES, *((target_session_id,) if target_session_id else ())),
+        ).fetchall()
+    error = {
+        "code": "TARGET_ARCHIVED",
+        "message": (
+            "The target session is archived; the message can never be delivered. "
+            "Send it to a live agent instead."
+        ),
+        "retryable": False,
+        "outcome_unknown": False,
+    }
+    failed = 0
+    for row in rows:
+        try:
+            _update_state(row["delivery_id"], "FAILED_BEFORE_SUBMIT", error=error)
+            with db._conn() as connection:
+                # Копия в ящике иначе осталась бы невыданной и уехала бы вместе с чужим ходом.
+                connection.execute(
+                    """UPDATE mailbox SET delivered_at=?
+                       WHERE delivered_at IS NULL
+                         AND json_extract(origin_detail,'$.subtype')='direct_message_recovery'
+                         AND json_extract(origin_detail,'$.ref')=?""",
+                    (time.time(), row["delivery_id"]),
+                )
+            failed += 1
+        except Exception as exc:
+            logger.warning("archived-target failure %s not recorded: %s", row["delivery_id"], err_text(exc))
+    return failed
+
+
+async def _wake_idle_waiting_targets(manager) -> int:
+    from app import mailbox
+    from app.session_state import AgentStatus
+
+    with db._conn() as connection:
+        rows = connection.execute(
+            "SELECT target_session_id, MIN(updated_at) AS since FROM message_deliveries "
+            "WHERE state='WAITING_NEXT_TURN' GROUP BY target_session_id"
+        ).fetchall()
+    woken = 0
+    for row in rows:
+        if _age_seconds(row["since"]) < STUCK_WAKE_AFTER_SECONDS:
+            continue
+        session = manager.sessions.get(row["target_session_id"])
+        if session is None:
+            session = await manager.ensure_loaded_by_id(row["target_session_id"])
+        if session is None or session.status != AgentStatus.IDLE or session._compacting:
+            continue
+        queued = mailbox.claim(session.name, session.scope)
+        if not queued:
+            continue
+        session._log("status", f"mailbox: {len(queued)} — зависшая доставка выдаётся простаивающей сессии")
+        session._spawn_bg(session._turns._deliver_mailbox(queued))
+        woken += 1
+    return woken
+
+
+def _warn_long_stuck() -> int:
+    with db._conn() as connection:
+        rows = connection.execute(
+            "SELECT delivery_id, target_session_id, target_name, state, updated_at "
+            "FROM message_deliveries WHERE state IN ('QUEUED','PREPARING','WAITING_NEXT_TURN')"
+        ).fetchall()
+    fresh = 0
+    for row in rows:
+        if row["delivery_id"] in _warned_stuck or _age_seconds(row["updated_at"]) < STUCK_WARN_AFTER_SECONDS:
+            continue
+        _warned_stuck.add(row["delivery_id"])
+        fresh += 1
+        logger.warning(
+            "message delivery %s to %s stuck in %s since %s",
+            row["delivery_id"], row["target_name"], row["state"], row["updated_at"],
+        )
+        db.add_log(
+            row["target_session_id"], datetime.now(timezone.utc), "warning",
+            f"message delivery {row['delivery_id']} has been {row['state']} since "
+            f"{row['updated_at']} and is not being delivered",
+        )
+    return fresh
+
+
+async def sweep_stuck_deliveries(manager=None) -> dict:
+    if manager is None:
+        from app.deps import manager as manager
+    result = {"archived": 0, "woken": 0, "runners": 0, "warned": 0, "notices": 0}
+    result["archived"] = await asyncio.to_thread(fail_deliveries_to_archived_targets)
+    result["woken"] = await _wake_idle_waiting_targets(manager)
+    with db._conn() as connection:
+        targets = [row[0] for row in connection.execute(
+            "SELECT DISTINCT target_session_id FROM message_deliveries WHERE state IN ('QUEUED','PREPARING')"
+        )]
+    for target in targets:
+        ensure_target_runner(target)
+        result["runners"] += 1
+    result["warned"] = await asyncio.to_thread(_warn_long_stuck)
+    with db._conn() as connection:
+        # Отправитель в архиве уже не прочтёт отказ; без этого запись жила бы вечно и
+        # шумела бы предупреждением каждую минуту.
+        connection.execute(
+            """UPDATE message_delivery_failure_notices SET delivered_at=?
+               WHERE delivered_at IS NULL AND NOT EXISTS (
+                   SELECT 1 FROM sessions s
+                   WHERE s.id=source_session_id AND s.status!='archived')""",
+            (_now(),),
+        )
+    result["notices"] = await recover_message_delivery_failure_notices(manager)
+    return result
+
+
+async def _sweep_forever(manager) -> None:
+    while True:
+        try:
+            await sweep_stuck_deliveries(manager)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            logger.warning("message delivery sweep failed: %s", err_text(error))
+        await asyncio.sleep(SWEEP_INTERVAL_SECONDS)
+
+
+def start_sweeper(manager) -> asyncio.Task:
+    global _sweeper_task
+    if _sweeper_task is None or _sweeper_task.done():
+        _sweeper_task = asyncio.create_task(_sweep_forever(manager))
+    return _sweeper_task
+
+
+def sweeper_task() -> asyncio.Task | None:
+    return _sweeper_task if _sweeper_task is not None and not _sweeper_task.done() else None

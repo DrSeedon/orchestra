@@ -688,6 +688,12 @@ def archive_session(session_id: str) -> None:
                 logger.warning(
                     "UPDATE sessions changed 0 rows: session id=%r not archived", session_id,
                 )
+    try:
+        from app import message_deliveries
+
+        message_deliveries.fail_deliveries_to_archived_targets(session_id)
+    except Exception as error:
+        logger.warning("pending deliveries of archived %r not failed: %s", session_id, error)
 
 
 def add_log(
