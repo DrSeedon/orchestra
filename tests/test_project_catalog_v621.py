@@ -140,15 +140,16 @@ def test_merged_catalog_rejects_include_that_resolves_to_itself(tmp_path, monkey
         catalog()
 
 
-def test_merged_catalog_rejects_a_tag_declared_in_two_included_files(_isolate_project_catalog):
+def test_merged_catalog_reports_a_tag_declared_differently_in_two_included_files(_isolate_project_catalog):
     _write_own("/alpha", _ALPHA)
     _write_own("/beta", _ALPHA.replace("/alpha", "/gamma"))  # тот же тег 'alpha', другой scope
     _isolate_project_catalog.write_text(
         "version: 1\ninclude_scopes: [/alpha, /beta]\nprojects: []\n", encoding="utf-8",
     )
     project_catalog.reset_cache()
-    with pytest.raises(CatalogError, match="тег 'alpha' уже объявлен"):
-        catalog()
+    merged = catalog()
+    assert merged.by_tag("alpha").scope == "/alpha"
+    assert "тег 'alpha' уже объявлен" in project_catalog.catalog_problems()[str(own_catalog_path("/beta"))]
 
 
 # --- задача с несколькими тегами и без тегов остаётся валидной ---------------
@@ -222,3 +223,52 @@ async def test_projects_endpoint_scoped_to_caller_hides_foreign_tags():
 
     other = await tm_projects(scope="/beta")
     assert [p["tag"] for p in other["projects"]] == ["beta"]
+
+
+# --- #538: плохой include-файл не роняет остальные проекты -------------------
+
+
+def _include(_isolate_project_catalog, *scopes):
+    _isolate_project_catalog.write_text(
+        f"version: 1\ninclude_scopes: [{', '.join(scopes)}]\nprojects: []\n", encoding="utf-8",
+    )
+    project_catalog.reset_cache()
+
+
+def test_identical_duplicate_entry_in_included_files_is_accepted(_isolate_project_catalog):
+    _write_own("/alpha", _ALPHA)
+    _write_own("/alpha2", _ALPHA)
+    _include(_isolate_project_catalog, "/alpha", "/alpha2")
+
+    merged = catalog()
+    assert merged.by_tag("alpha") is not None
+    assert project_catalog.catalog_problems() == {}
+
+
+def test_conflicting_included_file_is_reported_and_does_not_block_others(
+        _isolate_project_catalog, caplog):
+    _write_own("/alpha", _ALPHA)
+    _write_own("/beta", _BETA)
+    _write_own("/clash", _ALPHA.replace("name: Alpha", "name: Other").replace("/alpha", "/clash"))
+    _include(_isolate_project_catalog, "/alpha", "/clash", "/beta")
+
+    with caplog.at_level("ERROR"):
+        merged = catalog()
+
+    assert merged.by_tag("alpha").name == "Alpha"
+    assert merged.by_tag("beta") is not None
+    problems = project_catalog.catalog_problems()
+    assert list(problems) == [str(own_catalog_path("/clash"))]
+    assert "alpha" in problems[str(own_catalog_path("/clash"))]
+    assert any("исключён" in record.message for record in caplog.records)
+
+
+def test_conflict_inside_the_home_file_stays_loud(_isolate_project_catalog):
+    _isolate_project_catalog.write_text(
+        "version: 1\nprojects:\n"
+        "  - {tag: dup, name: One, namespaces: {a: ''}}\n"
+        "  - {tag: dup, name: Two, namespaces: {b: ''}}\n", encoding="utf-8",
+    )
+    project_catalog.reset_cache()
+    with pytest.raises(CatalogError, match="уже объявлен"):
+        catalog()
