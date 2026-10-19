@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- **Rebuild committed Tailwind CSS after the cache-warmth UI change** (`app/static/css/vendor/tailwind.css`; V-980). Regenerated the pinned Tailwind 3.4.17 output from current templates and JavaScript. Trigger: main CI run 39298172743, shard 4, failed `test_committed_css_matches_current_sources` because the committed generated stylesheet lagged the V-979 source state.
 - **Harness OpenRouter cost is recorded as a per-turn delta across backend restarts** (`app/backend_harness.py`, `app/session_cost.py`; V-978). Each terminal turn now emits the sum of its request-level `usage.cost` values with `cost_is_delta=true`, so a new backend's zero-based counter is not compared against a persisted provider baseline. Missing cost remains unknown and failure turns remain unaccounted. Trigger: after restart, eight paid rounds reported $0.04504706316 total, but session cumulative-cost subtraction persisted $0.00 for the turn.
 
 ### Added

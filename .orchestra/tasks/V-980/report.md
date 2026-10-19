@@ -1,0 +1,5 @@
+# V-980 — rebuild generated Tailwind CSS
+
+Main CI run `39298172743`, shard 4, failed only `tests/test_tailwind_css.py::test_committed_css_matches_current_sources`. The Tailwind source is `app/static/css/tailwind.src.css`; `tailwind.config.js` scans templates and static JavaScript, and `scripts/build-tailwind.sh` runs pinned `tailwindcss@3.4.17`. V-979 added the cache-warmth UI in JavaScript and custom declarations in `app/static/css/style.css`; rebuilding with the existing script refreshed the committed vendor stylesheet without changing those source files or styles.
+
+Validation: `uv run --frozen python -m pytest tests/test_tailwind_css.py::test_committed_css_matches_current_sources tests/test_usage_history_frontend.py tests/test_frontend.py::test_agent_info_panel_exists tests/test_frontend.py::test_info_panel_shows_only_workers_with_checklists tests/test_frontend.py::test_info_panel_displays_step_estimate_and_live_elapsed_time -q` → 17 passed. `bash scripts/build-tailwind.sh` completed successfully. The Tailwind equality test confirms the committed file matches generated output. No restart or deployment performed.
