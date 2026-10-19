@@ -515,10 +515,10 @@ def _stop_dashboard_server(proc: subprocess.Popen) -> None:
             proc.stdout.close()
 
 
-def _goto_dashboard(page: Page):
+def _goto_dashboard(page: Page, language: str = "en"):
     """Open the fixture dashboard. Missing HTML is a failure, not a skip (#242)."""
     origin = _dashboard_base()
-    _pin_english(page)
+    page.add_init_script(f"window.__ORCH_LANG__ = {json.dumps(language)};")
     try:
         resp = page.goto(origin, wait_until="domcontentloaded")
     except Exception as exc:
@@ -2213,6 +2213,7 @@ def _open_tool_correlation_page(
     browser: Browser,
     compact_mode: bool,
     source_path: Path | None = None,
+    language: str = "en",
 ) -> Page:
     page = browser.new_page()
     _route_frontend_sources(page, source_path)
@@ -2223,7 +2224,14 @@ def _open_tool_correlation_page(
             status=200, content_type="application/javascript", body=chat_source,
         ),
     )
-    _goto_dashboard(page)
+    i18n_source = (Path(__file__).resolve().parent.parent / "app/static/js/i18n.js").read_text()
+    page.route(
+        "**/static/js/i18n.js*",
+        lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=i18n_source,
+        ),
+    )
+    _goto_dashboard(page, language)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
     # ОСТАНОВИТЬ опрос, а не ждать случайной тишины. Начальная загрузка дашборда идёт
     # асинхронно и сама переписывает `#chat`: вкинутые раньше записи её `refreshAll`
@@ -2258,13 +2266,13 @@ def _open_tool_correlation_page(
 def test_orchestra_tool_cards_have_compact_and_readable_full_views(
     dashboard_browser: Browser,
 ):
-    page = _open_tool_correlation_page(dashboard_browser, True)
+    page = _open_tool_correlation_page(dashboard_browser, True, language="ru")
     page.evaluate("""() => {
         const examples = [
             ['mcp__orchestra__update_checklist', {
-                name: 'planner', items: [{text: 'Inspect the changed files', status: 'done'},
-                    {text: 'Capture the dashboard card', status: 'in_progress'}],
-                }, 'checklist-card', {status: 'updated', id: 'check-142'}],
+                items: ['Inspect the changed files', 'Capture the dashboard card', 'Run browser checks'],
+                completed: [0], current: 1, estimates_minutes: [null, 5, 10],
+            }, 'checklist-card', {status: 'updated', id: 'check-142'}],
             ['mcp__orchestra__publish_artifact', {
                 path: '.orchestra/tasks/V-967/screenshots/tool-cards.png',
                 caption: 'Tool card review', ttl_seconds: 86400,
@@ -2272,6 +2280,7 @@ def test_orchestra_tool_cards_have_compact_and_readable_full_views(
             ['mcp__orchestra__list_agents', {}, 'agents-card', 'Worker A | idle | sonnet · ctx:4%'],
             ['mcp__orchestra__future_tool_preview', {
                 name: 'planner', purpose: 'Protect the shared UI verification run while the dashboard renders a readable card for a new Orchestra MCP tool.',
+                steps: [{text: 'Inspect candidate tools', status: 'done', estimate_minutes: 3}],
             }, 'future-tool-card', {status: 'acquired', id: 'lock-142'}],
         ];
         for (const [name, args, id, result] of examples) {
@@ -2288,8 +2297,10 @@ def test_orchestra_tool_cards_have_compact_and_readable_full_views(
         text = row.inner_text()
         assert '{"' not in text
         assert 'mcp__orchestra__' not in text
-    expect(compact_rows.nth(0)).to_contain_text('Update Checklist')
-    expect(compact_rows.nth(2)).to_contain_text('List Agents')
+    expect(compact_rows.nth(0)).to_contain_text('Чеклист')
+    expect(compact_rows.nth(1)).to_contain_text('Публикация')
+    expect(compact_rows.nth(2)).to_contain_text('Агенты')
+    expect(compact_rows.nth(2)).to_contain_text('В работе: 0')
     expect(compact_rows.nth(3)).to_contain_text('Future Tool Preview')
     assert page.evaluate("_orchestraResultSummary('{\"operation_state\":\"FAILED\",\"operation_id\":\"merge-142\"}').icon") == '❌'
 
@@ -2302,11 +2313,16 @@ def test_orchestra_tool_cards_have_compact_and_readable_full_views(
     full_card = page.locator('#chat [data-tool-use-id="future-tool-card"]:not([data-compact-tool])')
     expect(full_card).to_contain_text('Protect the shared UI verification run')
     expect(full_card.locator('.orchestra-tool-long-text')).to_have_count(1)
+    expect(full_card).to_contain_text('Назначение')
+    expect(full_card).not_to_contain_text('text:')
+    expect(full_card).not_to_contain_text('status:')
     expect(full_card.locator('details[data-tool-full-arguments]')).to_have_count(1)
+    expect(full_card.locator('details[data-tool-full-arguments] summary')).to_have_text('Полные аргументы')
     assert full_card.locator('details[data-tool-technical-details]').count() == 1, (
         full_card.evaluate("el => el.dataset.toolRawName") + "\n" + full_card.inner_text()
     )
-    expect(full_card).to_contain_text('acquired · #lock-142')
+    expect(full_card).to_contain_text('получено · #lock-142')
+    expect(full_card.locator('details[data-tool-technical-details] summary')).to_have_text('Технические детали')
     expect(full_card.locator('details[data-tool-technical-details]')).not_to_have_attribute('open', '')
     page.screenshot(path=str(screenshot_dir / 'tool-cards-expanded.png'), clip=chat_box)
     for index, card_id, filename in [
@@ -2317,8 +2333,34 @@ def test_orchestra_tool_cards_have_compact_and_readable_full_views(
         card = page.locator(f'#chat [data-tool-use-id="{card_id}"]:not([data-compact-tool])')
         card.scroll_into_view_if_needed()
         expect(card.locator('details[data-tool-full-arguments]')).to_have_count(1)
+        if card_id == 'checklist-card':
+            expect(card).to_contain_text('✓')
+            expect(card).to_contain_text('Готово')
+            expect(card).to_contain_text('●')
+            expect(card).to_contain_text('Текущий шаг')
+            expect(card.locator('.orchestra-checklist-item').nth(2)).to_contain_text('·Осталось')
+            expect(card).to_contain_text('5 мин')
         page.screenshot(path=str(screenshot_dir / filename), clip=chat_box)
     page.close()
+
+
+def test_orchestra_agent_counts_do_not_expose_pluralization_markers_in_english(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_correlation_page(dashboard_browser, True)
+    page.evaluate("""() => {
+        addChatEntry('tool', 'mcp__orchestra__list_agents: {}', null, null,
+            {tool_use_id: 'agents-count'});
+        addChatEntry('tool_result', 'Worker A | idle | sonnet · ctx:4%', null, null,
+            {tool_use_id: 'agents-count'});
+    }""")
+    result = page.locator('[data-tool-use-id="agents-count"] .compact-result').inner_text()
+    page.close()
+
+    assert 'Running: 0' in result
+    assert 'Waiting: 0' in result
+    assert 'Broken: 0' in result
+    assert '(many)' not in result
 
 
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])

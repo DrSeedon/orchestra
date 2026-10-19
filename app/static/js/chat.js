@@ -2123,10 +2123,174 @@ function _appendFullToolArguments(card, rawName, data) {
     card.appendChild(details);
 }
 
+const ORCHESTRA_TOOL_TITLES = {
+    spawn_worker: 'Spawn worker', retry_initial_delivery: 'Retry message delivery',
+    send_message: 'Send message', cancel_message_delivery: 'Cancel message delivery',
+    open_fan: 'Start parallel workers', list_agents: 'Agents', list_orchestrators: 'Orchestrators',
+    get_worker_logs: 'Worker logs', compact_worker: 'Compact worker context',
+    temp_rule_set: 'Set temporary rule', temp_rule_list: 'List temporary rules',
+    temp_rule_update: 'Update temporary rule', temp_rule_remove: 'Remove temporary rule',
+    kill_worker: 'End worker', stop_worker: 'Stop worker', rename_worker: 'Rename worker',
+    send_file: 'Send file', send_files: 'Send files', publish_artifact: 'Publish artifact',
+    send_chart: 'Send chart', notify_user: 'Notify owner', update_progress: 'Update progress',
+    update_checklist: 'Checklist', change_worker_model: 'Change worker model', merge_worker: 'Merge worker branch',
+    resolve_merge_operation: 'Resolve merge operation', switch_worker_branch: 'Switch worker branch',
+    check_conflict: 'Check branch conflict', worker_wip: 'Worker changes',
+    acquire_test_lock: 'Acquire test lock', release_test_lock: 'Release test lock',
+    test_lock_status: 'Test lock status', report_bug: 'Report a bug',
+    update_worker_description: 'Update worker description', set_worker_owned_dirs: 'Set worker work areas',
+    update_worker_prompt: 'Update worker instructions', get_worker_info: 'Worker information',
+    task_create: 'Create task', task_update: 'Update task', task_list: 'List tasks', task_get: 'Read task',
+    dynamic_workflow: 'Start workflow', bg_create: 'Schedule background job',
+    bg_list: 'List background jobs', bg_cancel: 'Cancel background job',
+};
+
+const ORCHESTRA_FIELD_LABELS = {
+    name: 'Name', to: 'Recipient', task: 'Task', repo_path: 'Repository path', model: 'Model',
+    description: 'Description', system_prompt: 'System prompt', task_id: 'Task ID',
+    base_branch: 'Base branch', role: 'Role', mcp_servers: 'MCP servers', owned_dirs: 'Work areas',
+    tg_topic: 'Telegram topic', delivery_id: 'Delivery ID', message: 'Message', file_path: 'File path',
+    children: 'Workers', deadline_seconds: 'Deadline in seconds', reducer: 'Reducer', text: 'Text',
+    reason: 'Reason', targets: 'Targets', mode: 'Mode', expires_at: 'Expiry', project: 'Project',
+    include_inactive: 'Include inactive', rule_id: 'Rule ID', keep: 'Keep', force: 'Force',
+    old_name: 'Previous name', new_name: 'New name', path: 'Path', caption: 'Caption',
+    as_document: 'Send as document', event_id: 'Event ID', ttl_seconds: 'Time to live in seconds',
+    kind: 'Kind', data: 'Data', percent: 'Percent', status: 'Status', items: 'Items',
+    completed: 'Completed steps', current: 'Current step number', estimates_minutes: 'Estimates in minutes',
+    target: 'Target', operation_id: 'Operation ID', waive_diff_budget: 'Waive diff budget',
+    task_outcome: 'Task outcome', expected_head: 'Expected commit', acceptance_note: 'Acceptance note',
+    from_ref: 'Source branch', promote_current: 'Promote current branch', complete_previous: 'Complete previous task',
+    worker_a: 'First worker', worker_b: 'Second worker', base_ref: 'Base branch', purpose: 'Purpose',
+    title: 'Title', worker: 'Worker', host: 'Host', type: 'Type', delay_seconds: 'Delay in seconds',
+    pattern: 'Pattern', command: 'Command', cron_expr: 'Cron schedule', interval_seconds: 'Interval in seconds',
+    timeout_seconds: 'Timeout in seconds', job_id: 'Job ID', par: 'Task number', price: 'Price',
+    assignee: 'Assignee', priority: 'Priority', acceptance_command: 'Acceptance command',
+    acceptance_manifest: 'Acceptance checks', acceptance_required: 'Acceptance required', request_key: 'Request key',
+    clear_acceptance_command: 'Clear acceptance command', clear_acceptance_oracle: 'Clear acceptance oracle',
+    tags: 'Tags', budget_usd: 'Budget in dollars', max_calls: 'Call limit', max_concurrency: 'Concurrency limit',
+    repo: 'Repository', tasks: 'Tasks', stages: 'Stages', steps: 'Steps',
+};
+
 function _orchestraToolTitle(rawName) {
     const action = String(rawName || '').split('__').pop() || 'tool';
-    return action.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ')
+    const words = action.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ')
         .replace(/\b\w/g, letter => letter.toUpperCase());
+    const label = ORCHESTRA_TOOL_TITLES[action];
+    return label ? T(label) : T('Orchestra tool: {name}', {name: words});
+}
+
+function _orchestraFieldLabel(key) {
+    const words = String(key || '').replace(/_/g, ' ');
+    return T(ORCHESTRA_FIELD_LABELS[key] || 'Argument: {name}', {name: words});
+}
+
+function _orchestraItemText(item, index) {
+    if (item == null) return '';
+    if (typeof item !== 'object' || Array.isArray(item)) return String(item);
+    return String(item.text ?? item.title ?? item.label ?? item.content ?? item.name ?? item.task ?? item.message ?? item.worker ?? item.path ?? item.id ?? `${T('Step')} ${index + 1}`);
+}
+
+function _orchestraItemState(item, index, data) {
+    const itemStatus = typeof item === 'object' && item && !Array.isArray(item) ? String(item.status || '').toLowerCase() : '';
+    const completed = Array.isArray(data?.completed) && data.completed.includes(index);
+    const current = data?.current === index;
+    if (completed || ['done', 'completed', 'complete'].includes(itemStatus)) return {icon: '✓', label: T('Done')};
+    if (current || ['current', 'in_progress', 'active'].includes(itemStatus)) return {icon: '●', label: T('Current step')};
+    if (Array.isArray(data?.completed) || Number.isInteger(data?.current)) return {icon: '·', label: T('Remaining')};
+    return null;
+}
+
+function _orchestraItemEstimate(item, data, index) {
+    const estimate = Array.isArray(data?.estimates_minutes) ? data.estimates_minutes[index]
+        : item && typeof item === 'object' ? item.estimate_minutes ?? item.estimated_minutes ?? item.minutes ?? item.estimate
+            : null;
+    return Number.isFinite(Number(estimate)) && estimate != null && estimate !== ''
+        ? `${Number(estimate)} ${T('min')}` : '';
+}
+
+function _appendOrchestraChecklist(card, data) {
+    if (!Array.isArray(data.items)) return;
+    const section = document.createElement('div');
+    section.className = 'orchestra-checklist';
+    const title = document.createElement('div');
+    title.className = 'tool-argument-label';
+    title.textContent = T('Steps');
+    section.appendChild(title);
+    data.items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'orchestra-checklist-item';
+        const state = _orchestraItemState(item, index, data) || {icon: '·', label: T('Remaining')};
+        const marker = document.createElement('span');
+        marker.className = 'orchestra-checklist-state';
+        marker.textContent = state.icon;
+        marker.title = state.label;
+        const stateLabel = document.createElement('span');
+        stateLabel.className = 'orchestra-checklist-status';
+        stateLabel.textContent = state.label;
+        const label = document.createElement('span');
+        label.className = 'orchestra-checklist-text';
+        label.textContent = _orchestraItemText(item, index);
+        const estimate = _orchestraItemEstimate(item, data, index);
+        const meta = document.createElement('span');
+        meta.className = 'orchestra-checklist-meta';
+        meta.textContent = estimate;
+        row.append(marker, stateLabel, label, meta);
+        section.appendChild(row);
+    });
+    card.appendChild(section);
+}
+
+function _appendOrchestraObjectList(host, items, data) {
+    const list = document.createElement('div');
+    list.className = 'orchestra-object-list';
+    items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'orchestra-object-row';
+        const state = _orchestraItemState(item, index, data);
+        if (state) {
+            const marker = document.createElement('span');
+            marker.className = 'orchestra-checklist-state';
+            marker.textContent = state.icon;
+            const stateLabel = document.createElement('span');
+            stateLabel.className = 'orchestra-checklist-status';
+            stateLabel.textContent = state.label;
+            row.append(marker, stateLabel);
+        }
+        const title = document.createElement('span');
+        title.className = 'orchestra-checklist-text';
+        title.textContent = _orchestraItemText(item, index);
+        row.appendChild(title);
+        const estimate = _orchestraItemEstimate(item, data, index);
+        if (estimate) {
+            const estimateTag = document.createElement('span');
+            estimateTag.className = 'orchestra-object-meta';
+            estimateTag.textContent = `${T('Estimate')}: ${estimate}`;
+            row.appendChild(estimateTag);
+        }
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+            for (const [key, value] of Object.entries(item)) {
+                if (['text', 'title', 'label', 'content', 'name', 'task', 'message', 'worker', 'path', 'id', 'status', 'estimate', 'estimate_minutes', 'estimated_minutes', 'minutes'].includes(key) || value == null || value === '') continue;
+                const meta = document.createElement('span');
+                meta.className = 'orchestra-object-meta';
+                const label = document.createElement('span');
+                label.textContent = _orchestraFieldLabel(key);
+                const detail = document.createElement('span');
+                detail.textContent = Array.isArray(value) ? `${value.length} ${T('items')}`
+                    : typeof value === 'object' ? `${Object.keys(value).length} ${T('fields')}`
+                        : String(value);
+                meta.append(label, detail);
+                row.appendChild(meta);
+            }
+            if (item.status && !state) {
+                const status = document.createElement('span');
+                status.className = 'orchestra-object-meta';
+                status.textContent = `${T('Status')}: ${T(String(item.status).toLowerCase())}`;
+                row.appendChild(status);
+            }
+        }
+        list.appendChild(row);
+    });
+    host.appendChild(list);
 }
 
 function _orchestraCompactPreview(rawName, data) {
@@ -2146,14 +2310,19 @@ function _orchestraCompactPreview(rawName, data) {
     for (const key of important) {
         const value = data?.[key];
         if (value == null || value === '') continue;
-        fields.push(`${key.replace(/_/g, ' ')}: ${previewValue(value)}`);
+        fields.push(`${_orchestraFieldLabel(key)}: ${previewValue(value)}`);
         if (fields.length === 2) break;
     }
     if (!fields.length && data && typeof data === 'object') {
         const entry = Object.entries(data).find(([, value]) => typeof value === 'string' && value.trim());
-        if (entry) fields.push(`${entry[0].replace(/_/g, ' ')}: ${previewValue(entry[1])}`);
+        if (entry) fields.push(`${_orchestraFieldLabel(entry[0])}: ${previewValue(entry[1])}`);
     }
-    return `${_orchestraToolTitle(rawName)}${fields.length ? ` · ${fields.join(' · ')}` : ''}`;
+    const action = String(rawName || '').split('__').pop() || 'tool';
+    const title = ORCHESTRA_TOOL_TITLES[action]
+        ? T(ORCHESTRA_TOOL_TITLES[action])
+        : T('Tool: {name}', {name: action.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ')
+            .replace(/\b\w/g, letter => letter.toUpperCase())});
+    return `${title}${fields.length ? ` · ${fields.join(' · ')}` : ''}`;
 }
 
 function _appendOrchestraCallDetails(card, rawName, data, {includeFields = false} = {}) {
@@ -2162,25 +2331,28 @@ function _appendOrchestraCallDetails(card, rawName, data, {includeFields = false
         const longKeys = new Set(['message', 'task', 'task_description', 'system_prompt', 'prompt', 'description', 'reason', 'purpose', 'text', 'caption', 'comment', 'acceptance_note', 'owned_dirs']);
         const fields = document.createElement('div');
         fields.className = 'tool-argument-settings orchestra-tool-fields';
+        if (rawName === 'mcp__orchestra__update_checklist') _appendOrchestraChecklist(fields, data);
+        const checklistKeys = new Set(['items', 'completed', 'current', 'estimates_minutes']);
         for (const [key, value] of Object.entries(data)) {
             if (key.startsWith('_') || value == null || value === '') continue;
+            if (rawName === 'mcp__orchestra__update_checklist' && checklistKeys.has(key)) continue;
             const field = document.createElement('div');
             field.className = 'tool-argument-field';
             const label = document.createElement('div');
             label.className = 'tool-argument-label';
-            label.textContent = key.replace(/_/g, ' ');
-            const text = document.createElement('pre');
+            label.textContent = _orchestraFieldLabel(key);
+            let text = document.createElement('pre');
             text.className = 'tool-argument-value';
             if (longKeys.has(key) && typeof value === 'string') {
                 text.classList.add('orchestra-tool-long-text');
                 text.textContent = value;
             } else if (Array.isArray(value)) {
-                text.textContent = value.map((item, index) => {
-                    if (item && typeof item === 'object' && !Array.isArray(item)) {
-                        return `${index + 1}. ${Object.entries(item).map(([field, entry]) => `${field.replace(/_/g, ' ')}: ${typeof entry === 'string' ? entry : JSON.stringify(entry)}`).join(' · ')}`;
-                    }
-                    return `${index + 1}. ${typeof item === 'string' ? item : JSON.stringify(item)}`;
-                }).join('\n');
+                if (value.some(item => item && typeof item === 'object' && !Array.isArray(item))) {
+                    text = document.createElement('div');
+                    _appendOrchestraObjectList(text, value, data);
+                } else {
+                    text.textContent = value.map((item, index) => `${index + 1}. ${typeof item === 'string' ? item : JSON.stringify(item)}`).join('\n');
+                }
             } else {
                 text.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
             }
@@ -2203,13 +2375,13 @@ function _orchestraResultSummary(content, isError = false) {
     if (failed) {
         const message = result?.error?.message || result?.message || (typeof result?.error === 'string' ? result.error : '');
         const id = result?.operation_id || result?.delivery_id || result?.job_id || result?.task_id || result?.id || result?.par;
-        return {icon: '❌', text: message || [status, id ? `#${String(id).slice(0, 18)}` : ''].filter(Boolean).join(' · ') || 'Call failed'};
+        return {icon: '❌', text: message || [status ? T(String(status).toLowerCase()) : '', id ? `#${String(id).slice(0, 18)}` : ''].filter(Boolean).join(' · ') || T('Call failed')};
     }
     if (result && typeof result === 'object') {
         const id = result.operation_id || result.delivery_id || result.job_id || result.task_id || result.id || result.par;
-        const detail = [status, id ? `#${String(id).slice(0, 18)}` : ''].filter(Boolean).join(' · ');
+        const detail = [status ? T(String(status).toLowerCase()) : '', id ? `#${String(id).slice(0, 18)}` : ''].filter(Boolean).join(' · ');
         const partial = ['PARTIAL', 'PENDING', 'RUNNING'].includes(statusCode);
-        return {icon: partial ? '⏳' : '✅', text: detail || (Array.isArray(result) ? `${result.length} items` : 'Done')};
+        return {icon: partial ? '⏳' : '✅', text: detail || (Array.isArray(result) ? T('{count} items', {count: result.length}) : T('Done'))};
     }
     const text = String(content || '').trim().replace(/\s+/g, ' ');
     return {icon: /\b(error|failed|refused)\b/i.test(text) ? '❌' : '✅', text: text.slice(0, 110) || 'Done'};
@@ -2234,11 +2406,10 @@ function _agentResultSummary(content) {
 }
 
 function _agentCountText(counts) {
-    const word = (count, one, many) => `${count} ${count === 1 ? one : many}`;
     return [
-        word(counts.running, T('running (one)'), T('running (many)')),
-        word(counts.waiting, T('waiting (one)'), T('waiting (many)')),
-        word(counts.broken, T('broken (one)'), T('broken (many)')),
+        T('Running: {count}', {count: counts.running}),
+        T('Waiting: {count}', {count: counts.waiting}),
+        T('Broken: {count}', {count: counts.broken}),
     ];
 }
 

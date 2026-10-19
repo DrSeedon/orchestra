@@ -1,14 +1,14 @@
-# V-967 — Orchestra tool cards
+# V-967 — карточки инструментов Orchestra
 
-Compact chat now renders Orchestra tools with a humanized action and a short argument preview. Expanded cards keep the existing custom renderers, format generic fields and text blocks, and expose complete arguments and structured results under disclosures. Tools without a custom renderer use the same generic view; operation states such as `FAILED` and `UNKNOWN` show as failures.
+Свёрнутый чат показывает переводимое человекочитаемое действие и короткий контекст аргументов. Раскрытые карточки переводят новые подписи и поля, показывают длинный текст отдельным блоком, а полные аргументы и структуру результата оставляют в технических раскрытиях. Общий fallback работает для неизвестных имён. Состояния операции `FAILED` и `UNKNOWN` отображаются как ошибка.
 
-Playwright screenshots from the isolated dashboard test fixture:
+Скриншоты Playwright на русском интерфейсе из изолированной browser-фикстуры:
 
-- [Compact rows](tool-cards-compact.png)
-- [Expanded future-tool fallback](tool-cards-expanded.png)
-- [Expanded checklist](tool-cards-expanded-checklist.png)
-- [Expanded artifact publication](tool-cards-expanded-artifact.png)
+- [Свёрнутые строки](tool-cards-compact.png)
+- [Раскрытая карточка неизвестного будущего инструмента](tool-cards-expanded.png)
+- [Раскрытый чеклист со статусами и оценками](tool-cards-expanded-checklist.png)
+- [Раскрытая публикация артефакта](tool-cards-expanded-artifact.png)
 
-The fixture uses actual Orchestra tool names and argument shapes, includes the no-argument `list_agents` tool, and adds an unknown future tool to exercise fallback rendering. It uses an isolated test database; the production database was not changed.
+Фикстура использует актуальные имена и формы аргументов Orchestra MCP, включая `list_agents` без аргументов, и добавляет неизвестный инструмент для проверки fallback. Использовалась изолированная тестовая БД; боевая база не менялась.
 
-Checks: the V-967 Playwright case plus adjacent tool-result correlation and task-result cases — 6 passed; `node --check app/static/js/chat.js` and `git diff --check` passed.
+Проверки: русские карточки V-967, английские счётчики `list_agents`, связанные проверки корреляции результатов и карточек задач, а также `tests/test_i18n_dashboard.py` — 13 passed. `node --check` для `chat.js` и `i18n.js`, `git diff --check` прошли.

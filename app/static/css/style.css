@@ -688,6 +688,15 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .orchestra-tool-fields .tool-argument-field { border-left-color: rgba(167,139,250,.35); }
 .tool-argument-value.orchestra-tool-long-text { max-height: 220px; overflow: auto; padding: 6px 8px; border-radius: 5px; background: rgba(8,13,22,.62); }
 .orchestra-tool-result { margin-top: 6px; color: var(--ink-body); font-size: 11px; overflow-wrap: anywhere; }
+.orchestra-checklist { display: grid; gap: 4px; }
+.orchestra-checklist-item { display: grid; grid-template-columns: 14px auto minmax(0,1fr) auto; gap: 6px; align-items: baseline; padding: 4px 7px; border-left: 2px solid rgba(167,139,250,.35); border-radius: 4px; background: rgba(15,23,42,.48); font-size: 10px; }
+.orchestra-checklist-state { color: var(--accent-violet); font-weight: 700; text-align: center; }
+.orchestra-checklist-status { color: var(--ink-dim); }
+.orchestra-checklist-text { min-width: 0; color: var(--ink-body); overflow-wrap: anywhere; }
+.orchestra-checklist-meta { color: var(--ink-dim); white-space: nowrap; }
+.orchestra-object-list { display: grid; gap: 4px; }
+.orchestra-object-row { display: flex; flex-wrap: wrap; gap: 5px 8px; align-items: baseline; padding: 4px 7px; border-left: 2px solid rgba(167,139,250,.35); border-radius: 4px; background: rgba(15,23,42,.48); font-size: 10px; }
+.orchestra-object-meta { display: inline-flex; gap: 4px; padding: 1px 5px; border-radius: 4px; color: var(--ink-dim); background: rgba(51,65,85,.32); }
 .codex-image-prompt { margin-top: 5px; color: var(--ink-dim); font-size: 10px; line-height: 1.4; }
 .codex-turn-diff { border-left-color: var(--warn-strong); }
 .codex-diff-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
