@@ -75,7 +75,7 @@ def test_turn_usage_timing_migration_adds_nullable_columns_once(tmp_path, monkey
             "INSERT INTO turn_usage(event_id, ts) VALUES ('old-turn', '2026-10-01T00:00:00+00:00')"
         )
 
-    assert db.ensure_turn_usage_timing_schema() == 11
+    assert db.ensure_turn_usage_timing_schema() == 12
     assert db.ensure_turn_usage_timing_schema() == 0
     with db._conn() as conn:
         row = conn.execute("SELECT * FROM turn_usage WHERE event_id='old-turn'").fetchone()

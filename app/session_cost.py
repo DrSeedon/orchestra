@@ -51,16 +51,33 @@ class CostTracker:
 
         self.adopt_session_id(meta.get("session_id"))
         new_cost = meta.get("cost_usd", 0)
+        cost_unaccounted = meta.get("cost_unaccounted") is True or new_cost is None
+        if not isinstance(new_cost, (int, float)) or isinstance(new_cost, bool):
+            new_cost = 0.0
         is_delta = bool(meta.get("cost_is_delta"))
         # Claude SDK reports cumulative session cost; CodexBackend normalizes its own
         # cumulative thread counters to a per-turn delta before emitting metadata.
-        s._turn_cost = max(0, new_cost) if is_delta else max(0, new_cost - s._last_cost)
-        s.cost_usd += s._turn_cost
-        s._context_cost += s._turn_cost
-        s._session_cost += s._turn_cost
-        s._last_cost = 0.0 if is_delta else new_cost
+        if cost_unaccounted:
+            # The provider did not report a complete amount. Keep the known cumulative
+            # baseline in step without presenting an incomplete total as this turn's cost.
+            s._turn_cost = 0.0
+            if not is_delta:
+                baseline = meta.get("cost_baseline_usd")
+                if isinstance(baseline, (int, float)) and not isinstance(baseline, bool):
+                    s._last_cost = baseline
+        else:
+            s._turn_cost = max(0, new_cost) if is_delta else max(0, new_cost - s._last_cost)
+            s.cost_usd += s._turn_cost
+            s._context_cost += s._turn_cost
+            s._session_cost += s._turn_cost
+            s._last_cost = 0.0 if is_delta else new_cost
         new_cost_cached = meta.get("cost_usd_cached", 0)
-        if is_delta:
+        if cost_unaccounted:
+            if not is_delta:
+                baseline = meta.get("cost_baseline_usd")
+                if isinstance(baseline, (int, float)) and not isinstance(baseline, bool):
+                    s._last_cost_cached = baseline
+        elif is_delta:
             s.cost_usd_cached += max(0, new_cost_cached)
             s._last_cost_cached = 0.0
         else:

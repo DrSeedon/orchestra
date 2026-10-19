@@ -16,6 +16,7 @@ import contextlib
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import AsyncIterator, Optional
 from uuid import uuid4
@@ -61,6 +62,53 @@ def _cache_hit_pct(prompt_tokens: int, cached_tokens: int) -> float:
     return round(100 * min(cached_tokens, prompt_tokens) / prompt_tokens, 2)
 
 
+def _elapsed_ms(started: float | None) -> int | None:
+    if started is None:
+        return None
+    return max(0, round((time.perf_counter() - started) * 1000))
+
+
+def _reasoning_tokens(usage: dict) -> int | None:
+    details = usage.get("completion_tokens_details") or {}
+    value = usage.get("reasoning_tokens")
+    if value is None and isinstance(details, dict):
+        value = details.get("reasoning_tokens")
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _billing_mode(model: str) -> str:
+    from app.models import PAID_HARNESS_ROUTES
+
+    if model in PAID_HARNESS_ROUTES:
+        return "openrouter_credit"
+    if model.endswith(":free"):
+        return "free"
+    return "subscription"
+
+
+def _source_records(round_usages: list[dict]) -> list[dict]:
+    return [
+        dict(usage["_provider_source_record"])
+        for usage in round_usages
+        if isinstance(usage.get("_provider_source_record"), dict)
+    ]
+
+
+def _reasoning_tokens_total(round_usages: list[dict]) -> int | None:
+    openrouter_rounds = [
+        usage for usage in round_usages if isinstance(usage.get("_provider_source_record"), dict)
+    ]
+    counts = [_reasoning_tokens(usage) for usage in openrouter_rounds]
+    if not counts or any(count is None for count in counts):
+        return None
+    return sum(count for count in counts if count is not None)
+
+
 class HarnessBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
@@ -96,6 +144,8 @@ class HarnessBackend:
         # added verbatim to the session totals and to the per-turn turn_usage row. Same
         # normalization CodexBackend does with _usage_baseline.
         self._usage_baseline: tuple[int, int, int] = (0, 0, 0)
+        self._turn_started_at: float | None = None
+        self._turn_cost_unaccounted = False
 
         # Gated planning (#125) — a per-session todo list; the todo_write tool is hard-gated onto
         # complex (effort=="high") turns only (_turn_tool_schemas). Simple turns never see it.
@@ -277,6 +327,8 @@ class HarnessBackend:
 
         user_msg = self._pending_msg
         self._pending_msg = None
+        self._turn_started_at = time.perf_counter()
+        self._turn_cost_unaccounted = False
         self._refresh_system_prompt()
         self._usage_baseline = (self._cumulative_input, self._cumulative_output,
                                 self._cumulative_cached)
@@ -323,7 +375,7 @@ class HarnessBackend:
         for usage in loop.round_usages:
             self._accumulate(usage)
         if error_out is not None:
-            yield self._error_turn_end(error_out)
+            yield self._error_turn_end(error_out, loop)
             return
         yield self._turn_end(loop, ok=loop.ok, stop_reason=loop.stop_reason,
                              detail=loop.error_detail if not loop.ok else "")
@@ -360,6 +412,11 @@ class HarnessBackend:
         cost = usage.get("cost")
         if cost is not None:
             self._cumulative_cost += float(cost)
+        elif "_provider_source_record" in usage:
+            from app.models import PAID_HARNESS_ROUTES
+
+            if self.model in PAID_HARNESS_ROUTES:
+                self._turn_cost_unaccounted = True
 
     def _max_context(self) -> int:
         from app.models import CONTEXT_LIMITS
@@ -391,19 +448,42 @@ class HarnessBackend:
             ),
         )
         content = f"stop_reason={stop_reason}" + (f" ({detail})" if detail else "")
+        round_usages = getattr(loop, "round_usages", [])
+        source_records = _source_records(round_usages)
+        api_durations = [
+            record["api_duration_ms"] for record in source_records
+            if isinstance(record.get("api_duration_ms"), int)
+            and not isinstance(record.get("api_duration_ms"), bool)
+        ]
+        reasoning_tokens = _reasoning_tokens_total(round_usages)
+        billing_mode = _billing_mode(self.model)
+        from app.models import PAID_HARNESS_ROUTES
+        cost_unaccounted = self._turn_cost_unaccounted or (
+            self.model in PAID_HARNESS_ROUTES and not source_records
+        )
         return AgentEvent("turn_end", content, metadata={
             "event_id": str(uuid4()),
             "session_id": self.session_id,
             "ok": ok,
             "stop_reason": stop_reason,
             "num_turns": 1,
-            "cost_usd": self._cumulative_cost,
-            "cost_usd_cached": self._cumulative_cost,   # provider cost already cache-discounted
+            "cost_usd": None if cost_unaccounted else self._cumulative_cost,
+            "cost_usd_cached": None if cost_unaccounted else self._cumulative_cost,
+            "cost_baseline_usd": self._cumulative_cost,
             "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
+            "billing_mode": billing_mode,
+            "cost_unaccounted": cost_unaccounted,
+            "provider_source_records": source_records,
+            "turn_duration_ms": _elapsed_ms(self._turn_started_at),
+            "api_duration_ms": sum(api_durations) if api_durations else None,
+            "reasoning_tokens": reasoning_tokens,
+            "duration_basis": (
+                "api" if api_durations else "turn" if self._turn_started_at is not None else None
+            ),
             **turn_usage.metadata(),
         }, usage=turn_usage)
 
-    def _error_turn_end(self, reason: str) -> AgentEvent:
+    def _error_turn_end(self, reason: str, loop: AgentLoop | None = None) -> AgentEvent:
         # Even on error, cost is the AUTHORITATIVE cumulative — NOT 0 (plan B5), so
         # session_cost's delta does not overcount the next turn. Tokens are this turn's.
         prompt_turn = self._cumulative_input - self._usage_baseline[0]
@@ -419,15 +499,35 @@ class HarnessBackend:
                 unknown_reason=f"turn ended on {reason} before a usage report",
             ),
         )
+        round_usages = loop.round_usages if loop is not None else []
+        source_records = _source_records(round_usages)
+        from app.models import PAID_HARNESS_ROUTES
+        paid_openrouter = self.model in PAID_HARNESS_ROUTES
+        api_durations = [
+            record["api_duration_ms"] for record in source_records
+            if isinstance(record.get("api_duration_ms"), int)
+            and not isinstance(record.get("api_duration_ms"), bool)
+        ]
+        reasoning_tokens = _reasoning_tokens_total(round_usages)
         return AgentEvent("turn_end", f"stop_reason={reason}", metadata={
             "event_id": str(uuid4()),
             "session_id": self.session_id,
             "ok": False,
             "stop_reason": reason,
             "num_turns": 1,
-            "cost_usd": self._cumulative_cost,
-            "cost_usd_cached": self._cumulative_cost,
+            "cost_usd": None if (self._turn_cost_unaccounted or paid_openrouter) else self._cumulative_cost,
+            "cost_usd_cached": None if (self._turn_cost_unaccounted or paid_openrouter) else self._cumulative_cost,
+            "cost_baseline_usd": self._cumulative_cost,
             "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
+            "billing_mode": _billing_mode(self.model),
+            "cost_unaccounted": self._turn_cost_unaccounted or paid_openrouter,
+            "provider_source_records": source_records,
+            "turn_duration_ms": _elapsed_ms(self._turn_started_at),
+            "api_duration_ms": sum(api_durations) if api_durations else None,
+            "reasoning_tokens": reasoning_tokens,
+            "duration_basis": (
+                "api" if api_durations else "turn" if self._turn_started_at is not None else None
+            ),
             **turn_usage.metadata(),
         }, usage=turn_usage)
 

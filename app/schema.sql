@@ -572,7 +572,8 @@ CREATE TABLE turn_usage (
                 tool_duration_sum_ms INTEGER,
                 tool_union_duration_ms INTEGER,
                 tool_intervals_count INTEGER,
-                tool_intervals_missing INTEGER
+                tool_intervals_missing INTEGER,
+                source_records_json TEXT NOT NULL DEFAULT '[]'
             );
 
 CREATE TABLE undelivered_facts (

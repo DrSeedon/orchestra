@@ -232,7 +232,7 @@ def ensure_owner_activity_schema(path: Path | None = None) -> dict[str, int]:
 
 
 def ensure_turn_usage_timing_schema(path: Path | None = None) -> int:
-    """Add nullable timing and reasoning fields and a subscription default for billing mode."""
+    """Add nullable usage fields and compatible defaults to an existing turn_usage table."""
     additions = {
         "turn_duration_ms": "INTEGER",
         "api_duration_ms": "INTEGER",
@@ -244,6 +244,7 @@ def ensure_turn_usage_timing_schema(path: Path | None = None) -> int:
         "tool_union_duration_ms": "INTEGER",
         "tool_intervals_count": "INTEGER",
         "tool_intervals_missing": "INTEGER",
+        "source_records_json": "TEXT NOT NULL DEFAULT '[]'",
         "billing_mode": "TEXT NOT NULL DEFAULT 'subscription'",
     }
     with _conn(path) as connection:
@@ -2299,13 +2300,14 @@ def turn_usage_add(
     tool_intervals_missing: int | None = None,
     native_session_id: str | None = None,
     provider_cost_usd: float | None = None,
+    provider_source_records: list[dict] | None = None,
     ts: str | None = None,
 ) -> bool:
     """Persist one provider-identified terminal turn; return false on replay."""
     if not event_id:
         return False
-    if billing_mode not in {"subscription", "api_credit"}:
-        raise ValueError("billing_mode must be subscription or api_credit")
+    if billing_mode not in {"subscription", "api_credit", "openrouter_credit", "free"}:
+        raise ValueError("unsupported billing_mode")
     quota_pcts = (
         quota_five_hour_pct,
         quota_seven_day_pct,
@@ -2342,6 +2344,7 @@ def turn_usage_add(
     if duration_basis not in {None, "api", "model_estimate", "turn", "incomplete"}:
         raise ValueError("unsupported duration_basis")
     observed_at = ts or datetime.now(timezone.utc).isoformat()
+    cost_unaccounted = cost_unaccounted or cost_usd is None
     with _conn() as c:
         cursor = c.execute(
             """INSERT OR IGNORE INTO turn_usage
@@ -2354,9 +2357,9 @@ def turn_usage_add(
                 turn_duration_ms, api_duration_ms, reasoning_tokens, duration_basis,
                 provider_api_duration_ms, model_estimate_duration_ms,
                 tool_duration_sum_ms, tool_union_duration_ms,
-                tool_intervals_count, tool_intervals_missing,
+                tool_intervals_count, tool_intervals_missing, source_records_json,
                 quota_primary_pct, quota_sampled_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -2386,6 +2389,7 @@ def turn_usage_add(
                 tool_union_duration_ms,
                 tool_intervals_count,
                 tool_intervals_missing,
+                json.dumps(provider_source_records or [], ensure_ascii=False, separators=(",", ":")),
                 quota_primary_pct,
                 quota_sampled_at,
             ),

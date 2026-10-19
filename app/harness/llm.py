@@ -19,8 +19,10 @@ import logging
 import os
 import random
 import re
+import time
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Iterable
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 import httpx
@@ -233,6 +235,25 @@ BACKOFF_BASE = 1.5           # seconds; exponential with jitter
 # стена важнее занятого провайдера — ей позволено ждать дольше.
 RETRY_CEILING_PLATFORM = 120.0
 RETRY_CEILING_UPSTREAM = 30.0
+
+
+def _source_endpoint(base_url: str) -> str:
+    try:
+        parsed = urlsplit(base_url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return "/chat/completions"
+    if not parsed.scheme or not hostname:
+        return "/chat/completions"
+    scheme = parsed.scheme.lower()
+    host = f"[{hostname}]" if ":" in hostname else hostname
+    if port is not None and not (
+        (scheme == "https" and port == 443) or (scheme == "http" and port == 80)
+    ):
+        host = f"{host}:{port}"
+    path = parsed.path.rstrip("/") + "/chat/completions"
+    return urlunsplit((scheme, host, path, "", ""))
 
 
 @dataclass
@@ -495,10 +516,21 @@ class OpenRouterClient:
         racc = _ReasoningAccumulator()
         finish_reason = ""
         usage: dict = {}
+        response_metadata: dict = {}
+        response_headers: dict = {}
         emitted_content = False
         emitted_tool_calls = False
+        request_started = time.perf_counter()
         async with http.stream("POST", f"{self.base_url}/chat/completions",
                                json=body, headers=headers) as resp:
+            response_headers = {
+                key.lower(): value
+                for key, value in resp.headers.items()
+                if key.lower() in {
+                    "x-openrouter-generation-id", "x-request-id", "request-id",
+                    "server-timing", "date", "content-type",
+                }
+            }
             try:
                 _counter.record_attempt_status(attempt_row, resp.status_code)
             except Exception as e:  # pragma: no cover — сбой учёта не роняет стрим (#368)
@@ -523,6 +555,10 @@ class OpenRouterClient:
                 if not isinstance(parsed, dict):
                     continue
                 chunk: dict = parsed
+                response_metadata.update({
+                    key: value for key, value in chunk.items()
+                    if key not in {"choices", "usage"}
+                })
                 if chunk.get("error") is not None:
                     error = chunk["error"]
                     if isinstance(error, dict):
@@ -564,6 +600,14 @@ class OpenRouterClient:
                 raise RuntimeError(
                     f"OpenRouter zero-spend contract violated: usage.cost={billed}"
                 )
+        usage = dict(usage)
+        usage["_provider_source_record"] = {
+            "endpoint": _source_endpoint(self.base_url),
+            "response": response_metadata,
+            "response_headers": response_headers,
+            "usage": dict(usage),
+            "api_duration_ms": max(0, round((time.perf_counter() - request_started) * 1000)),
+        }
         # emit accumulated tool calls (one per completed call), then final
         for tc in acc.finished():
             if not tc["id"] or not tc["name"]:

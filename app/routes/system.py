@@ -1752,6 +1752,64 @@ async def usage_analytics_endpoint(days: int = 7):
     return payload
 
 
+@router.get("/api/usage/turns")
+async def usage_turns_endpoint(request: Request, scope: str | None = None, limit: int = 500):
+    """Return project-scoped terminal usage and the provider source records."""
+    scope = (scope or "").strip()
+    if not scope:
+        return JSONResponse({"error": "scope is required"}, status_code=400)
+
+    from app.auth import check_internal_token, is_auth_enabled, validate_session
+    if validate_session(request.cookies.get("session", "")):
+        if not is_owner_mode():
+            raise HTTPException(status_code=404, detail="not found")
+    elif check_internal_token(request.headers.get("authorization", "")):
+        session_id = request.headers.get("x-orchestra-session-id", "").strip()
+        proof = request.headers.get("x-orchestra-mcp-proof", "")
+        from app.db import get_session
+        from app.mcp_proof import check_mcp_proof
+
+        caller = get_session(session_id) if check_mcp_proof(session_id, proof) else None
+        caller_scope = str((caller or {}).get("scope") or "").strip()
+        caller_scope_key = caller_scope.rstrip("/") or "/"
+        requested_scope_key = scope.rstrip("/") or "/"
+        if not caller_scope or caller_scope_key != requested_scope_key:
+            raise HTTPException(status_code=404, detail="not found")
+        scope = caller_scope
+    elif not is_auth_enabled() and not request.headers.get("authorization"):
+        if not is_owner_mode():
+            raise HTTPException(status_code=404, detail="not found")
+    else:
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from app.db import _conn
+
+    limit = max(1, min(int(limit), 5000))
+    query = (
+        "SELECT event_id, ts, session_id, scope, task_id, runtime, model, ok, stop_reason, "
+        "billing_mode, cost_usd, cost_unaccounted, input_tokens, output_tokens, "
+        "cache_read_tokens, cache_create_tokens, turn_duration_ms, api_duration_ms, "
+        "reasoning_tokens, duration_basis, source_records_json FROM turn_usage"
+    )
+    params: tuple = ()
+    query += " WHERE scope=?"
+    params = (scope,)
+    query += " ORDER BY ts DESC, id DESC LIMIT ?"
+    params += (limit,)
+    with _conn() as connection:
+        rows = connection.execute(query, params).fetchall()
+    records = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["provider_source_records"] = json.loads(item.pop("source_records_json") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            item["provider_source_records"] = []
+        item["cost_unaccounted"] = bool(item["cost_unaccounted"])
+        records.append(item)
+    return {"scope": scope, "turns": records}
+
+
 @router.post("/api/usage/wake-after-reset")
 async def wake_after_reset_endpoint():
     from app.limit_wake import schedule_wake_after_reset

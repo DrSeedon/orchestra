@@ -299,7 +299,10 @@ class TurnManager:
         s = self.s
         s._cancel_checklist_reminder()
         meta = event.metadata
-        cost_unaccounted = meta.get("cost_unaccounted") is True
+        cost_unaccounted = (
+            meta.get("cost_unaccounted") is True
+            or ("cost_usd" in meta and meta.get("cost_usd") is None)
+        )
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
@@ -385,6 +388,7 @@ class TurnManager:
                 tool_union_duration_ms=meta.get("tool_union_duration_ms"),
                 tool_intervals_count=meta.get("tool_intervals_count"),
                 tool_intervals_missing=meta.get("tool_intervals_missing"),
+                provider_source_records=meta.get("provider_source_records"),
                 **baseline_fields,
                 **quota_snapshot["state"],
             )

@@ -1,0 +1,27 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_free_missing_cost_is_known_zero_but_paid_missing_cost_is_unknown _____
+
+    def test_free_missing_cost_is_known_zero_but_paid_missing_cost_is_unknown():
+        from app.backend_harness import HarnessBackend
+    
+        free = HarnessBackend("nvidia/nemotron-3-ultra-550b-a55b:free", "/project")
+        free_event = free._turn_end(SimpleNamespace(last_usage={}, round_usages=[]), True, "end_turn")
+        assert free_event.metadata["billing_mode"] == "free"
+        assert free_event.metadata["cost_usd"] == 0
+        assert free_event.metadata["cost_unaccounted"] is False
+    
+        paid = HarnessBackend("deepseek/deepseek-v4.1-flash", "/project")
+        missing = _record("DeepInfra", "req-no-cost", 12, None, 2)
+        paid._accumulate(missing)
+        paid_event = paid._turn_end(
+            SimpleNamespace(last_usage=missing, round_usages=[missing]), True, "end_turn",
+        )
+        assert paid_event.metadata["billing_mode"] == "openrouter_credit"
+>       assert paid_event.metadata["cost_usd"] is None
+E       assert 0.0 is None
+
+tests/test_openrouter_usage.py:110: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_openrouter_usage.py::test_free_missing_cost_is_known_zero_but_paid_missing_cost_is_unknown
+1 failed in 2.23s

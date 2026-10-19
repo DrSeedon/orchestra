@@ -697,6 +697,12 @@
   ]
  ],
  [
+  "/api/usage/turns",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/usage/wake-after-reset",
   [
    "POST"
