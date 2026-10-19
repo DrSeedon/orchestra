@@ -1,0 +1,121 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestRateLimitClassification.test_turn_end_persists_normalized_structured_usage _
+
+self = <tests.test_session.TestRateLimitClassification object at 0x792d4bff96a0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', system_prompt='test',..._input_tokens=100, total_output_tokens=20, total_cache_read_tokens=75, total_cache_create_tokens=5, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x792d4bffbdd0>
+
+    @pytest.mark.asyncio
+    async def test_turn_end_persists_normalized_structured_usage(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+    
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        add_usage = MagicMock(return_value=True)
+        monkeypatch.setattr("app.session_turns.turn_usage_add", add_usage)
+        monkeypatch.setattr(
+            "app.session_turns._cached_quota_snapshot",
+            lambda runtime, model: {
+                "state": {
+                    "quota_five_hour_pct": 12.5,
+                    "quota_seven_day_pct": 41,
+                    "quota_primary_pct": None,
+                    "quota_sampled_at": "2026-07-29T08:00:00+00:00",
+                },
+                "display": (),
+            },
+        )
+        self._capture_coroutines(session)
+        session._hibernate.schedule = MagicMock()
+    
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "event_id": "result-uuid-1",
+            "ok": True,
+            "stop_reason": "end_turn",
+            "num_turns": 1,
+            "cost_usd": 2.5,
+            "cost_is_delta": True,
+            "input_tokens": 100,
+            "output_tokens": 20,
+            "cache_read": 75,
+            "cache_create": 5,
+        }))
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
+        await session._drain_persist()
+    
+>       add_usage.assert_called_once_with(
+            event_id="result-uuid-1",
+            session_id="test-001",
+            scope="/test",
+            runtime="claude",
+            model="claude-sonnet-5-5[1m]",
+            billing_mode="subscription",
+            task_id="",
+            ok=True,
+            stop_reason="end_turn",
+            cost_usd=2.5,
+            input_tokens=100,
+            output_tokens=20,
+            cache_read_tokens=75,
+            cache_create_tokens=5,
+            quota_five_hour_pct=12.5,
+            quota_seven_day_pct=41,
+            turn_duration_ms=None,
+            api_duration_ms=None,
+            reasoning_tokens=None,
+            duration_basis=None,
+            provider_api_duration_ms=None,
+            model_estimate_duration_ms=None,
+            tool_duration_sum_ms=None,
+            tool_union_duration_ms=None,
+            tool_intervals_count=None,
+            tool_intervals_missing=None,
+            quota_primary_pct=None,
+            quota_sampled_at="2026-07-29T08:00:00+00:00",
+        )
+
+tests/test_session.py:3167: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/unittest/mock.py:956: in assert_called_once_with
+    return self.assert_called_with(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock id='133235420935280'>, args = ()
+kwargs = {'api_duration_ms': None, 'billing_mode': 'subscription', 'cache_create_tokens': 5, 'cache_read_tokens': 75, ...}
+expected = call(event_id='result-uuid-1', session_id='test-001', scope='/test', runtime='claude', model='claude-sonnet-5-5[1m]', ...ntervals_count=None, tool_intervals_missing=None, quota_primary_pct=None, quota_sampled_at='2026-07-29T08:00:00+00:00')
+actual = call(event_id='result-uuid-1', session_id='test-001', scope='/test', task_id='', runtime='claude', model='claude-sonne...quota_five_hour_pct=12.5, quota_seven_day_pct=41, quota_primary_pct=None, quota_sampled_at='2026-07-29T08:00:00+00:00')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x792d4aa62840>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: mock(event_id='result-uuid-1', session_id='test-001', scope='/test', runtime='claude', model='claude-sonnet-5-5[1m]', billing_mode='subscription', task_id='', ok=True, stop_reason='end_turn', cost_usd=2.5, input_tokens=100, output_tokens=20, cache_read_tokens=75, cache_create_tokens=5, quota_five_hour_pct=12.5, quota_seven_day_pct=41, turn_duration_ms=None, api_duration_ms=None, reasoning_tokens=None, duration_basis=None, provider_api_duration_ms=None, model_estimate_duration_ms=None, tool_duration_sum_ms=None, tool_union_duration_ms=None, tool_intervals_count=None, tool_intervals_missing=None, quota_primary_pct=None, quota_sampled_at='2026-07-29T08:00:00+00:00')
+E             Actual: mock(event_id='result-uuid-1', session_id='test-001', scope='/test', task_id='', runtime='claude', model='claude-sonnet-5-5[1m]', billing_mode='subscription', ok=True, stop_reason='end_turn', cost_usd=2.5, input_tokens=100, output_tokens=20, cache_read_tokens=75, cache_create_tokens=5, turn_duration_ms=None, api_duration_ms=None, reasoning_tokens=None, duration_basis=None, provider_api_duration_ms=None, model_estimate_duration_ms=None, tool_duration_sum_ms=None, tool_union_duration_ms=None, tool_intervals_count=None, tool_intervals_missing=None, provider_source_records=None, quota_five_hour_pct=12.5, quota_seven_day_pct=41, quota_primary_pct=None, quota_sampled_at='2026-07-29T08:00:00+00:00')
+
+/usr/lib/python3.12/unittest/mock.py:944: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestRateLimitClassification::test_turn_end_persists_normalized_structured_usage
+1 failed in 2.46s

@@ -3191,6 +3191,7 @@ class TestRateLimitClassification:
             tool_union_duration_ms=None,
             tool_intervals_count=None,
             tool_intervals_missing=None,
+            provider_source_records=None,
             quota_primary_pct=None,
             quota_sampled_at="2026-07-29T08:00:00+00:00",
         )

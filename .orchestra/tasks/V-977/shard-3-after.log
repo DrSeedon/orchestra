@@ -1,0 +1,781 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+timeout: 30.0s
+timeout method: signal
+timeout func_only: False
+created: 2/2 workers
+2 workers [1115 items]
+
+scheduling tests via LoadScopeScheduling
+
+tests/test_video_artifact.py::test_all_video_artifact_python_sources_compile 
+tests/test_mcp_stdio.py::test_change_worker_model_preserves_history_by_default 
+[gw1] [  0%] PASSED tests/test_video_artifact.py::test_all_video_artifact_python_sources_compile 
+tests/test_video_artifact.py::test_deepgram_digits_latin_and_glued_words_match_screen_text 
+[gw1] [  0%] PASSED tests/test_video_artifact.py::test_deepgram_digits_latin_and_glued_words_match_screen_text 
+tests/test_video_artifact.py::test_deepgram_spoken_numbers_match_digits_and_regular_words_stay_strict 
+[gw1] [  0%] PASSED tests/test_video_artifact.py::test_deepgram_spoken_numbers_match_digits_and_regular_words_stay_strict 
+tests/test_video_artifact.py::test_missing_word_is_reported_per_phrase 
+[gw1] [  0%] PASSED tests/test_video_artifact.py::test_missing_word_is_reported_per_phrase 
+tests/test_video_artifact.py::test_manual_stress_marker_is_ignored_by_deepgram_word_matching 
+[gw1] [  0%] PASSED tests/test_video_artifact.py::test_manual_stress_marker_is_ignored_by_deepgram_word_matching 
+tests/test_video_artifact.py::test_manual_stress_marker_is_removed_from_scene_caption 
+[gw0] [  0%] PASSED tests/test_mcp_stdio.py::test_change_worker_model_preserves_history_by_default 
+tests/test_mcp_stdio.py::test_change_worker_model_reports_chat_history_transfer_size 
+[gw0] [  0%] PASSED tests/test_mcp_stdio.py::test_change_worker_model_reports_chat_history_transfer_size 
+tests/test_mcp_stdio.py::test_change_worker_model_surfaces_api_refusal_with_code_and_reason 
+[gw0] [  0%] PASSED tests/test_mcp_stdio.py::test_change_worker_model_surfaces_api_refusal_with_code_and_reason 
+tests/test_mcp_stdio.py::test_send_file_accepts_legacy_synchronous_receipt_without_status_lookup 
+[gw0] [  0%] PASSED tests/test_mcp_stdio.py::test_send_file_accepts_legacy_synchronous_receipt_without_status_lookup 
+tests/test_mcp_stdio.py::test_file_delivery_accepts_slug_and_reuses_its_scoped_receipt[send_file] 
+[gw0] [  0%] PASSED tests/test_mcp_stdio.py::test_file_delivery_accepts_slug_and_reuses_its_scoped_receipt[send_file] 
+tests/test_mcp_stdio.py::test_file_delivery_accepts_slug_and_reuses_its_scoped_receipt[send_files] 
+[gw0] [  0%] PASSED tests/test_mcp_stdio.py::test_file_delivery_accepts_slug_and_reuses_its_scoped_receipt[send_files] 
+tests/test_mcp_stdio.py::test_file_delivery_uuid_event_id_keeps_its_existing_identity 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_file_delivery_uuid_event_id_keeps_its_existing_identity 
+tests/test_mcp_stdio.py::test_get_worker_logs_requests_limit_from_server_without_client_slicing 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_get_worker_logs_requests_limit_from_server_without_client_slicing 
+tests/test_mcp_stdio.py::test_send_file_200_without_matching_receipt_exposes_event_and_no_retry 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_send_file_200_without_matching_receipt_exposes_event_and_no_retry 
+tests/test_mcp_stdio.py::test_send_file_200_mismatched_receipt_keeps_structured_result 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_send_file_200_mismatched_receipt_keeps_structured_result 
+tests/test_mcp_stdio.py::test_t2_publish_artifact_sends_only_path_caption_and_ttl 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_t2_publish_artifact_sends_only_path_caption_and_ttl 
+tests/test_mcp_stdio.py::test_task_create_repeats_ambiguous_call_with_same_request_key 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_task_create_repeats_ambiguous_call_with_same_request_key 
+tests/test_mcp_stdio.py::test_t2_publish_failure_never_automatically_uses_document_fallback 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_t2_publish_failure_never_automatically_uses_document_fallback 
+tests/test_mcp_stdio.py::test_api_429_preserves_typed_fields_and_request_id 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_api_429_preserves_typed_fields_and_request_id 
+tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[nan] 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[nan] 
+tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[inf] 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[inf] 
+tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[-inf] 
+[gw0] [  1%] PASSED tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[-inf] 
+tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[-1] 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[-1] 
+tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[invalid] 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_retry_after_rejects_non_finite_negative_and_invalid_values[invalid] 
+tests/test_mcp_stdio.py::test_api_non_json_5xx_preserves_body_and_post_is_not_safe 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_api_non_json_5xx_preserves_body_and_post_is_not_safe 
+tests/test_mcp_stdio.py::test_send_message_transport_timeout_exposes_generated_delivery_id 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_send_message_transport_timeout_exposes_generated_delivery_id 
+tests/test_mcp_stdio.py::test_file_transport_timeout_exposes_generated_event_id[send_file] 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_file_transport_timeout_exposes_generated_event_id[send_file] 
+tests/test_mcp_stdio.py::test_file_transport_timeout_exposes_generated_event_id[send_files] 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_file_transport_timeout_exposes_generated_event_id[send_files] 
+tests/test_mcp_stdio.py::test_spawn_worker_transport_timeout_exposes_generated_delivery_id 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_spawn_worker_transport_timeout_exposes_generated_delivery_id 
+tests/test_mcp_stdio.py::test_spawn_creation_transport_timeout_exposes_generated_delivery_id 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_spawn_creation_transport_timeout_exposes_generated_delivery_id 
+tests/test_mcp_stdio.py::test_retry_initial_delivery_transport_timeout_exposes_delivery_id 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_retry_initial_delivery_transport_timeout_exposes_delivery_id 
+tests/test_mcp_stdio.py::test_api_mutation_retry_requires_known_outcome[server_fields0-False-True] 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_api_mutation_retry_requires_known_outcome[server_fields0-False-True] 
+tests/test_mcp_stdio.py::test_api_mutation_retry_requires_known_outcome[server_fields1-True-False] 
+[gw0] [  2%] PASSED tests/test_mcp_stdio.py::test_api_mutation_retry_requires_known_outcome[server_fields1-True-False] 
+tests/test_mcp_stdio.py::test_api_non_json_2xx_is_invalid_unknown_post_outcome 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_api_non_json_2xx_is_invalid_unknown_post_outcome 
+tests/test_mcp_stdio.py::test_api_2xx_top_level_error_is_failure 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_api_2xx_top_level_error_is_failure 
+tests/test_mcp_stdio.py::test_publish_artifact_surfaces_api_rejection_reason 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_publish_artifact_surfaces_api_rejection_reason 
+tests/test_mcp_stdio.py::test_api_empty_read_timeout_keeps_type_and_unknown_post_outcome 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_api_empty_read_timeout_keeps_type_and_unknown_post_outcome 
+tests/test_mcp_stdio.py::test_api_connect_error_is_safe_to_retry_before_request 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_api_connect_error_is_safe_to_retry_before_request 
+tests/test_mcp_stdio.py::test_api_rejects_unsupported_method_without_http_call 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_api_rejects_unsupported_method_without_http_call 
+tests/test_mcp_stdio.py::test_protocol_failure_is_typed_and_success_uses_same_shape 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_protocol_failure_is_typed_and_success_uses_same_shape 
+tests/test_mcp_stdio.py::test_protocol_unexpected_empty_exception_keeps_class_name 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_protocol_unexpected_empty_exception_keeps_class_name 
+tests/test_mcp_stdio.py::test_mcp_tool_result_preserves_arbitrary_domain_result 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_mcp_tool_result_preserves_arbitrary_domain_result 
+tests/test_mcp_stdio.py::test_mcp_tool_result_never_marks_unknown_outcome_retryable 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_mcp_tool_result_never_marks_unknown_outcome_retryable 
+tests/test_mcp_stdio.py::test_mcp_boundary_preserves_complete_structured_domain_dict 
+[gw0] [  3%] PASSED tests/test_mcp_stdio.py::test_mcp_boundary_preserves_complete_structured_domain_dict 
+tests/test_mcp_stdio.py::test_mcp_boundary_preserves_singleton_domain_result_dict 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_mcp_boundary_preserves_singleton_domain_result_dict 
+tests/test_mcp_stdio.py::test_mcp_boundary_redacts_manual_error_before_log_and_serialization 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_mcp_boundary_redacts_manual_error_before_log_and_serialization 
+tests/test_mcp_stdio.py::test_safe_response_text_redacts_complete_credentials[Authorization: Basic dXNlcjpwYXNz-dXNlcjpwYXNz] 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_safe_response_text_redacts_complete_credentials[Authorization: Basic dXNlcjpwYXNz-dXNlcjpwYXNz] 
+tests/test_mcp_stdio.py::test_safe_response_text_redacts_complete_credentials[password=correct horse-correct horse] 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_safe_response_text_redacts_complete_credentials[password=correct horse-correct horse] 
+tests/test_mcp_stdio.py::test_safe_response_text_redacts_complete_credentials[token="two words", reason=bad-two words] 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_safe_response_text_redacts_complete_credentials[token="two words", reason=bad-two words] 
+tests/test_mcp_stdio.py::test_mcp_boundary_normalizes_pre_shaped_result_to_two_keys 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_mcp_boundary_normalizes_pre_shaped_result_to_two_keys 
+tests/test_mcp_stdio.py::test_task_create_returns_fields_needed_by_dashboard_card 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_task_create_returns_fields_needed_by_dashboard_card 
+tests/test_mcp_stdio.py::test_task_update_distinguishes_omitted_and_explicitly_cleared_command 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_task_update_distinguishes_omitted_and_explicitly_cleared_command 
+tests/test_mcp_stdio.py::test_task_update_empty_ordinary_fields_do_not_enter_put_body 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_task_update_empty_ordinary_fields_do_not_enter_put_body 
+tests/test_mcp_stdio.py::test_task_create_omits_project_to_use_callers_scope 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_task_create_omits_project_to_use_callers_scope 
+tests/test_mcp_stdio.py::test_task_create_admits_exact_session_scope_when_tm_project_is_stale 
+[gw0] [  4%] PASSED tests/test_mcp_stdio.py::test_task_create_admits_exact_session_scope_when_tm_project_is_stale 
+tests/test_mcp_stdio.py::test_task_create_rejects_scope_absent_from_session_and_projects 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_task_create_rejects_scope_absent_from_session_and_projects 
+tests/test_mcp_stdio.py::test_task_create_keeps_caller_scope_and_registered_project_authorization 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_task_create_keeps_caller_scope_and_registered_project_authorization 
+tests/test_mcp_stdio.py::test_task_get_and_update_prefer_explicit_project_over_scope 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_task_get_and_update_prefer_explicit_project_over_scope 
+tests/test_mcp_stdio.py::test_task_get_and_update_fall_back_to_authoritative_scope 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_task_get_and_update_fall_back_to_authoritative_scope 
+tests/test_mcp_stdio.py::test_task_update_sends_orchestrator_acceptance_command_in_caller_scope 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_task_update_sends_orchestrator_acceptance_command_in_caller_scope 
+tests/test_mcp_stdio.py::test_task_update_empty_acceptance_is_omitted_and_clear_is_explicit 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_task_update_empty_acceptance_is_omitted_and_clear_is_explicit 
+tests/test_mcp_stdio.py::test_worker_task_update_cannot_change_acceptance_command 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_worker_task_update_cannot_change_acceptance_command 
+tests/test_mcp_stdio.py::test_spawn_passes_base_branch_and_model_alias 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_spawn_passes_base_branch_and_model_alias 
+tests/test_mcp_stdio.py::test_spawn_base_branch_default_empty 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_spawn_base_branch_default_empty 
+tests/test_mcp_stdio.py::test_t3_spawn_marks_parent_as_initial_task_sender 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_marks_parent_as_initial_task_sender 
+tests/test_mcp_stdio.py::test_spawn_reports_exact_repo_mapping_when_scope_differs 
+[gw0] [  5%] PASSED tests/test_mcp_stdio.py::test_spawn_reports_exact_repo_mapping_when_scope_differs 
+tests/test_mcp_stdio.py::test_spawn_api_error_does_not_send_initial_task 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_api_error_does_not_send_initial_task 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response0-worktree_path] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response0-worktree_path] 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response1-branch] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response1-branch] 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response2-repo_path] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response2-repo_path] 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response3-git_common_dir] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response3-git_common_dir] 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response4-worktree_path] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response4-worktree_path] 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response5-branch] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response5-branch] 
+tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response6-repo_path] 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task[response6-repo_path] 
+tests/test_mcp_stdio.py::test_t3_spawn_task_delivery_error_reports_created_worker 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_task_delivery_error_reports_created_worker 
+tests/test_mcp_stdio.py::test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend 
+tests/test_mcp_stdio.py::test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt 
+tests/test_mcp_stdio.py::test_spawn_worker_forwards_sol_model_to_session_creation 
+[gw0] [  6%] PASSED tests/test_mcp_stdio.py::test_spawn_worker_forwards_sol_model_to_session_creation 
+tests/test_mcp_stdio.py::test_t3_spawn_delivery_same_repository_has_no_cross_repo_note 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_delivery_same_repository_has_no_cross_repo_note 
+tests/test_mcp_stdio.py::test_t3_spawn_delivery_timeout_reconciles_without_second_post 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_delivery_timeout_reconciles_without_second_post 
+tests/test_mcp_stdio.py::test_t3_spawn_repeats_same_call_after_creation_reconciliation_fails 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_repeats_same_call_after_creation_reconciliation_fails 
+tests/test_mcp_stdio.py::test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend 
+tests/test_mcp_stdio.py::test_t3_spawn_committed_then_500_unresolved_never_posts_again 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_committed_then_500_unresolved_never_posts_again 
+tests/test_mcp_stdio.py::test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries 
+tests/test_mcp_stdio.py::test_t3_retry_initial_delivery_replays_same_receipt_with_same_key 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_t3_retry_initial_delivery_replays_same_receipt_with_same_key 
+tests/test_mcp_stdio.py::test_acquire_test_lock_uses_worker_as_holder 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_acquire_test_lock_uses_worker_as_holder 
+tests/test_mcp_stdio.py::test_acquire_test_lock_reports_holder_when_busy 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_acquire_test_lock_reports_holder_when_busy 
+tests/test_mcp_stdio.py::test_release_and_status 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_release_and_status 
+tests/test_mcp_stdio.py::test_merge_worker_with_next_task_id 
+[gw0] [  7%] PASSED tests/test_mcp_stdio.py::test_merge_worker_with_next_task_id 
+tests/test_mcp_stdio.py::test_merge_worker_no_next_task_id 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_no_next_task_id 
+tests/test_mcp_stdio.py::test_merge_worker_partial_keeps_domain_result_without_protocol_error 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_partial_keeps_domain_result_without_protocol_error 
+tests/test_mcp_stdio.py::test_merge_worker_empty_timeout_returns_unknown_with_operation_id 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_empty_timeout_returns_unknown_with_operation_id 
+tests/test_mcp_stdio.py::test_merge_worker_empty_connect_error_is_typed_and_nonempty 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_empty_connect_error_is_typed_and_nonempty 
+tests/test_mcp_stdio.py::test_merge_worker_invalid_json_outcome_is_typed_and_nonempty 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_invalid_json_outcome_is_typed_and_nonempty 
+tests/test_mcp_stdio.py::test_merge_worker_old_server_fails_closed_without_legacy_post 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_old_server_fails_closed_without_legacy_post 
+tests/test_mcp_stdio.py::test_merge_worker_unknown_dto_keeps_nonempty_detail 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_unknown_dto_keeps_nonempty_detail 
+tests/test_mcp_stdio.py::test_merge_worker_formatter_exception_is_caught_with_operation_id 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_formatter_exception_is_caught_with_operation_id 
+tests/test_mcp_stdio.py::test_merge_worker_empty_http_500_never_returns_empty_error 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_merge_worker_empty_http_500_never_returns_empty_error 
+tests/test_mcp_stdio.py::test_switch_and_wip_defaults_defer_to_persisted_base 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_switch_and_wip_defaults_defer_to_persisted_base 
+tests/test_mcp_stdio.py::test_switch_worker_branch_forwards_explicit_force 
+[gw0] [  8%] PASSED tests/test_mcp_stdio.py::test_switch_worker_branch_forwards_explicit_force 
+tests/test_mcp_stdio.py::test_t2_switch_worker_branch_forwards_explicit_promotion 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_t2_switch_worker_branch_forwards_explicit_promotion 
+tests/test_mcp_stdio.py::test_switch_worker_branch_forwards_owned_dirs_json 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_switch_worker_branch_forwards_owned_dirs_json 
+tests/test_mcp_stdio.py::test_switch_worker_branch_renders_failure_without_new_contract[payload0] 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_switch_worker_branch_renders_failure_without_new_contract[payload0] 
+tests/test_mcp_stdio.py::test_switch_worker_branch_renders_failure_without_new_contract[payload1] 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_switch_worker_branch_renders_failure_without_new_contract[payload1] 
+tests/test_mcp_stdio.py::test_kill_worker_force_param 
+[gw1] [  9%] PASSED tests/test_video_artifact.py::test_manual_stress_marker_is_removed_from_scene_caption 
+tests/test_video_artifact.py::test_caption_keeps_subtitle_verbatim_but_cleans_tts_stress_marker 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_kill_worker_force_param 
+tests/test_mcp_stdio.py::test_kill_worker_force_false_default 
+[gw1] [  9%] PASSED tests/test_video_artifact.py::test_caption_keeps_subtitle_verbatim_but_cleans_tts_stress_marker 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_kill_worker_force_false_default 
+tests/test_mcp_stdio.py::test_send_message_cross_scope_warning 
+tests/test_video_artifact.py::test_vosk_text_normalizes_quote_dash_and_ellipsis_variants 
+[gw1] [  9%] PASSED tests/test_video_artifact.py::test_vosk_text_normalizes_quote_dash_and_ellipsis_variants 
+[gw0] [  9%] PASSED tests/test_mcp_stdio.py::test_send_message_cross_scope_warning 
+tests/test_video_artifact.py::test_unsupported_vosk_symbol_fails_during_step_validation 
+tests/test_mcp_stdio.py::test_send_message_to_self_is_refused_before_delivery 
+[gw1] [  9%] PASSED tests/test_video_artifact.py::test_unsupported_vosk_symbol_fails_during_step_validation 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_to_self_is_refused_before_delivery 
+tests/test_video_artifact.py::test_tera_requires_spelled_numbers_and_preserves_manual_stress 
+tests/test_mcp_stdio.py::test_send_message_file_appends_utf8_text_to_payload 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_file_appends_utf8_text_to_payload 
+tests/test_mcp_stdio.py::test_send_message_rejects_oversized_file_before_delivery 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_rejects_oversized_file_before_delivery 
+tests/test_mcp_stdio.py::test_send_message_rejects_unreadable_attachment[missing.md-None-attachment file not found] 
+[gw1] [ 10%] PASSED tests/test_video_artifact.py::test_tera_requires_spelled_numbers_and_preserves_manual_stress 
+tests/test_video_artifact.py::test_tera_uses_its_own_stress_path_without_external_ruaccent 
+[gw1] [ 10%] PASSED tests/test_video_artifact.py::test_tera_uses_its_own_stress_path_without_external_ruaccent 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_rejects_unreadable_attachment[missing.md-None-attachment file not found] 
+tests/test_video_artifact.py::test_tera_manual_stress_does_not_disable_automatic_stress_for_other_words 
+tests/test_mcp_stdio.py::test_send_message_rejects_unreadable_attachment[bad.md-not utf-8: \xff-must be UTF-8 text] 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_rejects_unreadable_attachment[bad.md-not utf-8: \xff-must be UTF-8 text] 
+[gw1] [ 10%] PASSED tests/test_video_artifact.py::test_tera_manual_stress_does_not_disable_automatic_stress_for_other_words 
+tests/test_mcp_stdio.py::test_send_message_rejects_attachment_directory_before_delivery 
+tests/test_video_artifact.py::test_tera_worker_patches_the_imported_normalizer_globals 
+[gw1] [ 10%] PASSED tests/test_video_artifact.py::test_tera_worker_patches_the_imported_normalizer_globals 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_rejects_attachment_directory_before_delivery 
+tests/test_mcp_stdio.py::test_send_message_without_file_preserves_message_payload 
+tests/test_video_artifact.py::test_tera_splits_only_at_sentence_ends_and_explicit_markers 
+[gw0] [ 10%] PASSED tests/test_mcp_stdio.py::test_send_message_without_file_preserves_message_payload 
+[gw1] [ 11%] PASSED tests/test_video_artifact.py::test_tera_splits_only_at_sentence_ends_and_explicit_markers 
+tests/test_mcp_stdio.py::test_send_message_same_parent_no_warning 
+tests/test_video_artifact.py::test_tera_short_sentence_is_glued_to_the_next_one 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_send_message_same_parent_no_warning 
+[gw1] [ 11%] PASSED tests/test_video_artifact.py::test_tera_short_sentence_is_glued_to_the_next_one 
+tests/test_mcp_stdio.py::test_list_agents_groups_by_parent 
+tests/test_video_artifact.py::test_tera_sentence_gap_scales_with_rate_and_counts_model_tail 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_list_agents_groups_by_parent 
+tests/test_mcp_stdio.py::test_list_agents_optional_icons_failure_is_visible_success 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_list_agents_optional_icons_failure_is_visible_success 
+tests/test_mcp_stdio.py::test_list_agents_starts_all_reads_before_sessions_finishes 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_list_agents_starts_all_reads_before_sessions_finishes 
+tests/test_mcp_stdio.py::test_list_agents_task_read_failure_keeps_sessions 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_list_agents_task_read_failure_keeps_sessions 
+tests/test_mcp_stdio.py::test_list_agents_icons_read_failure_keeps_sessions 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_list_agents_icons_read_failure_keeps_sessions 
+tests/test_mcp_stdio.py::test_list_agents_sessions_failure_raises_after_other_reads_finish 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_list_agents_sessions_failure_raises_after_other_reads_finish 
+tests/test_mcp_stdio.py::test_cache_pill_uses_exact_and_approximate_runtime_policies 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_cache_pill_uses_exact_and_approximate_runtime_policies 
+tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools 
+[gw0] [ 11%] PASSED tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools 
+tests/test_mcp_stdio.py::test_full_access_mode_preserves_all_tools 
+[gw0] [ 12%] PASSED tests/test_mcp_stdio.py::test_full_access_mode_preserves_all_tools 
+tests/test_mcp_stdio.py::test_unknown_access_mode_is_rejected 
+[gw0] [ 12%] PASSED tests/test_mcp_stdio.py::test_unknown_access_mode_is_rejected 
+tests/test_mcp_stdio.py::test_bg_create_cron_command_sends_fail_closed_type 
+[gw0] [ 12%] PASSED tests/test_mcp_stdio.py::test_bg_create_cron_command_sends_fail_closed_type 
+tests/test_mcp_stdio.py::test_merge_worker_waits_out_running_and_returns_the_outcome 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_tera_sentence_gap_scales_with_rate_and_counts_model_tail 
+tests/test_video_artifact.py::test_tera_explicit_pause_is_literal_silence 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_tera_explicit_pause_is_literal_silence 
+tests/test_video_artifact.py::test_silent_step_requires_hold_and_has_no_lead_time 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_silent_step_requires_hold_and_has_no_lead_time 
+tests/test_video_artifact.py::test_numeral_run_warning_threshold_is_three_consecutive_terms 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_numeral_run_warning_threshold_is_three_consecutive_terms 
+tests/test_video_artifact.py::test_tera_worker_loads_one_model_for_parallel_phrase_jobs 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_tera_worker_loads_one_model_for_parallel_phrase_jobs 
+tests/test_video_artifact.py::test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step 
+tests/test_video_artifact.py::test_parallel_synthesis_completions_keep_phrase_order_and_timing 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_parallel_synthesis_completions_keep_phrase_order_and_timing 
+tests/test_video_artifact.py::test_manim_static_timing_tracks_remaining_budget_and_rejects_overrun 
+[gw1] [ 12%] PASSED tests/test_video_artifact.py::test_manim_static_timing_tracks_remaining_budget_and_rejects_overrun 
+tests/test_video_artifact.py::test_build_lock_reports_owner_and_serializes_builds 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_build_lock_reports_owner_and_serializes_builds 
+tests/test_video_artifact.py::test_scene_sound_events_follow_planned_step_timing 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_scene_sound_events_follow_planned_step_timing 
+tests/test_video_artifact.py::test_say_rejects_latin_and_digits_before_synthesis 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_say_rejects_latin_and_digits_before_synthesis 
+tests/test_video_artifact.py::test_english_voice_reads_latin_and_digits_but_rejects_cyrillic 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_english_voice_reads_latin_and_digits_but_rejects_cyrillic 
+tests/test_video_artifact.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis 
+tests/test_video_artifact.py::test_manual_plus_words_are_not_sent_through_automatic_accenting 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_manual_plus_words_are_not_sent_through_automatic_accenting 
+tests/test_video_artifact.py::test_no_stress_flag_disables_ruaccent_in_cli 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_no_stress_flag_disables_ruaccent_in_cli 
+tests/test_video_artifact.py::test_stress_only_shows_marked_phrases_without_synthesis 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_stress_only_shows_marked_phrases_without_synthesis 
+tests/test_video_artifact.py::test_english_cli_branch_does_not_load_or_run_ruaccent 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_english_cli_branch_does_not_load_or_run_ruaccent 
+tests/test_video_artifact.py::test_russian_cli_defaults_to_local_tera_voice[None-ru_m1] 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_russian_cli_defaults_to_local_tera_voice[None-ru_m1] 
+tests/test_video_artifact.py::test_russian_cli_defaults_to_local_tera_voice[f2-ru_f2] 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_russian_cli_defaults_to_local_tera_voice[f2-ru_f2] 
+tests/test_video_artifact.py::test_tera_build_without_local_model_fails_with_install_hint 
+[gw1] [ 13%] PASSED tests/test_video_artifact.py::test_tera_build_without_local_model_fails_with_install_hint 
+tests/test_video_artifact.py::test_missing_ruaccent_fails_with_install_command 
+[gw1] [ 14%] PASSED tests/test_video_artifact.py::test_missing_ruaccent_fails_with_install_command 
+tests/test_video_artifact.py::test_cache_key_changes_when_accented_text_changes 
+[gw1] [ 14%] PASSED tests/test_video_artifact.py::test_cache_key_changes_when_accented_text_changes 
+tests/test_video_artifact.py::test_parallel_synthesis_deduplicates_identical_cache_jobs 
+[gw1] [ 14%] PASSED tests/test_video_artifact.py::test_parallel_synthesis_deduplicates_identical_cache_jobs 
+tests/test_video_artifact.py::test_tera_cache_separates_voices_and_keeps_stress_setting 
+[gw1] [ 14%] PASSED tests/test_video_artifact.py::test_tera_cache_separates_voices_and_keeps_stress_setting 
+tests/test_video_artifact.py::test_manim_missing_font_fails_instead_of_silent_substitution 
+[gw1] [ 14%] PASSED tests/test_video_artifact.py::test_manim_missing_font_fails_instead_of_silent_substitution 
+tests/test_video_artifact.py::test_default_theme_font_is_bundled_and_long_caption_fits_frame 
+[gw0] [ 14%] PASSED tests/test_mcp_stdio.py::test_merge_worker_waits_out_running_and_returns_the_outcome 
+tests/test_mcp_stdio.py::test_merge_worker_does_not_poll_when_already_terminal 
+[gw0] [ 14%] PASSED tests/test_mcp_stdio.py::test_merge_worker_does_not_poll_when_already_terminal 
+tests/test_mcp_stdio.py::test_merge_worker_waits_even_when_a_completion_job_exists 
+[gw0] [ 14%] PASSED tests/test_mcp_stdio.py::test_merge_worker_waits_even_when_a_completion_job_exists 
+tests/test_mcp_stdio.py::test_merge_worker_hands_a_slow_merge_to_the_background_job 
+[gw0] [ 14%] PASSED tests/test_mcp_stdio.py::test_merge_worker_hands_a_slow_merge_to_the_background_job 
+tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure 
+[gw0] [ 14%] PASSED tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure 
+tests/test_mcp_stdio.py::test_merge_worker_real_failure_still_reads_as_failure 
+[gw0] [ 14%] PASSED tests/test_mcp_stdio.py::test_merge_worker_real_failure_still_reads_as_failure 
+tests/test_mcp_stdio.py::test_file_first_memory_tool_surface_does_not_register_legacy_knowledge_tool 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_file_first_memory_tool_surface_does_not_register_legacy_knowledge_tool 
+tests/test_mcp_stdio.py::test_delivery_status_read_tools_are_not_in_the_agent_mcp_surface 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_delivery_status_read_tools_are_not_in_the_agent_mcp_surface 
+tests/test_mcp_stdio.py::test_merge_warning_is_visible_in_the_tool_text 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_merge_warning_is_visible_in_the_tool_text 
+tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_upgrade_required_on_old_server 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_upgrade_required_on_old_server 
+tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_server_refusal 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_server_refusal 
+tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt-6-luna-gpt-6-luna-True] 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt-6-luna-gpt-6-luna-True] 
+tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt6luna-gpt-6-luna-False] 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt6luna-gpt-6-luna-False] 
+tests/test_mcp_stdio.py::test_codex_review_default_is_server_owned_luna_fast 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_codex_review_default_is_server_owned_luna_fast 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[not-a-model-unknown model] 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[not-a-model-unknown model] 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[claude-opus-5-5[1m]-runtime 'claude'] 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[claude-opus-5-5[1m]-runtime 'claude'] 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[grok-4.6-runtime 'grok'] 
+[gw0] [ 15%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[grok-4.6-runtime 'grok'] 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[gpt-5.3-codex-spark-Spark is forbidden] 
+[gw0] [ 16%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[gpt-5.3-codex-spark-Spark is forbidden] 
+tests/test_mcp_stdio.py::test_v955_list_agents_and_orchestrators_show_the_limit_wake_mark 
+[gw0] [ 16%] PASSED tests/test_mcp_stdio.py::test_v955_list_agents_and_orchestrators_show_the_limit_wake_mark 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 6] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 6] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 1; sleep 10; tail log] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 1; sleep 10; tail log] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[while true; do sleep 20; done] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[while true; do sleep 20; done] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[timeout 60 sleep 60] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[timeout 60 sleep 60] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[env MODE=test sleep 90] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[env MODE=test sleep 90] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[bash -c 'sleep 30'] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[bash -c 'sleep 30'] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 5.5 "] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 5.5 "] 
+tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep "$DURATION"] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep "$DURATION"] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[kill -TERM 12; sleep 1; ps -p 12] 
+[gw0] [ 16%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[kill -TERM 12; sleep 1; ps -p 12] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[sleep 5] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[sleep 5] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[timeout 5 sleep 60] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[timeout 5 sleep 60] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[printf 'sleep 600'] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[printf 'sleep 600'] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[python - <<'PY'\nimport time\ntime.sleep(600)\nPY] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[python - <<'PY'\nimport time\ntime.sleep(600)\nPY] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[rg --files --hidden --no-ignore .] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[rg --files --hidden --no-ignore .] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[rg -n TODO app] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[rg -n TODO app] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[printf x | grep x] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[printf x | grep x] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -mtime -2 -type f] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -mtime -2 -type f] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -newer marker -type f] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -newer marker -type f] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -exec rg -n TODO {} +] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -exec rg -n TODO {} +] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -exec echo 'sleep 600' {} +] 
+[gw0] [ 17%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -exec echo 'sleep 600' {} +] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -exec sleep 1 {} +] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -exec sleep 1 {} +] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -printf '%p\\n'] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -printf '%p\\n'] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -maxdepth 2 -type f] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -maxdepth 2 -type f] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -delete] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[find . -delete] 
+tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[rg -n TODO app | grep generated] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_permitted_shell_commands_keep_their_semantics[rg -n TODO app | grep generated] 
+tests/test_shell_policy.py::test_recursive_path_searches_are_classified[find /workspace -name '*.py'-recursive_find] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_recursive_path_searches_are_classified[find /workspace -name '*.py'-recursive_find] 
+tests/test_shell_policy.py::test_recursive_path_searches_are_classified[grep -R TODO .-recursive_grep] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_recursive_path_searches_are_classified[grep -R TODO .-recursive_grep] 
+tests/test_shell_policy.py::test_recursive_path_searches_are_classified[grep -rn TODO app-recursive_grep] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_recursive_path_searches_are_classified[grep -rn TODO app-recursive_grep] 
+tests/test_shell_policy.py::test_recursive_path_searches_are_classified[find . -exec sleep 600 {} +-long_sleep] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_recursive_path_searches_are_classified[find . -exec sleep 600 {} +-long_sleep] 
+tests/test_shell_policy.py::test_recursive_search_fallback_passes_when_rg_is_unavailable[find . -name '*.py'] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_recursive_search_fallback_passes_when_rg_is_unavailable[find . -name '*.py'] 
+tests/test_shell_policy.py::test_recursive_search_fallback_passes_when_rg_is_unavailable[grep -R TODO .] 
+[gw0] [ 18%] PASSED tests/test_shell_policy.py::test_recursive_search_fallback_passes_when_rg_is_unavailable[grep -R TODO .] 
+tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[sleep 30; tail log-long_sleep] 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[sleep 30; tail log-long_sleep] 
+tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[find . -name '*.py'-recursive_find] 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[find . -name '*.py'-recursive_find] 
+tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[grep -R TODO .-recursive_grep] 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_claude_pretooluse_denies_policy_violations[grep -R TODO .-recursive_grep] 
+tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[kill -TERM 12; sleep 1; ps -p 12] 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[kill -TERM 12; sleep 1; ps -p 12] 
+tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[printf x | grep x] 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[printf x | grep x] 
+tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[rg -n TODO app] 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_claude_pretooluse_allows_permitted_commands[rg -n TODO app] 
+tests/test_shell_policy.py::test_localhost_ssh_requires_oom_priority_and_shows_corrected_command 
+[gw0] [ 19%] PASSED tests/test_shell_policy.py::test_localhost_ssh_requires_oom_priority_and_shows_corrected_command 
+tests/test_shell_policy.py::test_codex_managed_home_installs_path_policy_wrappers 
+[gw1] [ 19%] PASSED tests/test_video_artifact.py::test_default_theme_font_is_bundled_and_long_caption_fits_frame 
+tests/test_video_artifact.py::test_tera_level_phrase_removes_overs_and_evens_levels 
+[gw1] [ 19%] PASSED tests/test_video_artifact.py::test_tera_level_phrase_removes_overs_and_evens_levels 
+tests/test_video_artifact.py::test_manim_text_cache_is_dropped_when_bundled_fonts_change 
+[gw1] [ 19%] PASSED tests/test_video_artifact.py::test_manim_text_cache_is_dropped_when_bundled_fonts_change 
+tests/test_video_artifact.py::test_tera_render_phrase_synthesizes_each_sentence_once_and_never_the_gap 
+[gw1] [ 19%] PASSED tests/test_video_artifact.py::test_tera_render_phrase_synthesizes_each_sentence_once_and_never_the_gap 
+tests/test_video_artifact.py::test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable 
+[gw1] [ 20%] PASSED tests/test_video_artifact.py::test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable 
+tests/test_video_artifact.py::test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_managed_home_installs_path_policy_wrappers 
+tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[sleep 10-long_sleep] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[sleep 10-long_sleep] 
+tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[find . -name '*.py' | head -3-recursive_find] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[find . -name '*.py' | head -3-recursive_find] 
+tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[grep -R TODO .-recursive_grep] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_direct_tool_shell_commands_are_classified[grep -R TODO .-recursive_grep] 
+tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/usr/bin/python3-argv0-/usr/lib/codex-parent_argv0] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/usr/bin/python3-argv0-/usr/lib/codex-parent_argv0] 
+tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/bin/sh-argv1-/usr/lib/codex-parent_argv1] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/bin/sh-argv1-/usr/lib/codex-parent_argv1] 
+tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/bin/bash-argv2-/usr/bin/make-parent_argv2] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/bin/bash-argv2-/usr/bin/make-parent_argv2] 
+tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/bin/bash-argv3-/usr/bin/node-parent_argv3] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_codex_wrapper_ignores_application_and_script_children[/bin/bash-argv3-/usr/bin/node-parent_argv3] 
+tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[sleep 100; tail log-long_sleep] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[sleep 100; tail log-long_sleep] 
+tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[find . -name '*.py'-recursive_find] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[find . -name '*.py'-recursive_find] 
+tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[grep -R TODO .-recursive_grep] 
+[gw0] [ 20%] PASSED tests/test_shell_policy.py::test_grok_permission_gate_rejects_policy_violations[grep -R TODO .-recursive_grep] 
+tests/test_shell_policy.py::test_grok_permitted_shell_uses_one_time_approval_only 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_grok_permitted_shell_uses_one_time_approval_only 
+tests/test_shell_policy.py::test_harness_bash_guard[sleep 100; tail log-True] 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_bash_guard[sleep 100; tail log-True] 
+tests/test_shell_policy.py::test_harness_bash_guard[sleep 1; ps-False] 
+[gw1] [ 21%] PASSED tests/test_video_artifact.py::test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original 
+tests/test_video_artifact.py::test_default_bed_comes_from_the_sound_kit_and_missing_bed_fails 
+[gw1] [ 21%] PASSED tests/test_video_artifact.py::test_default_bed_comes_from_the_sound_kit_and_missing_bed_fails 
+tests/test_video_artifact.py::test_music_bed_without_events_still_gets_a_mix_sheet 
+[gw1] [ 21%] PASSED tests/test_video_artifact.py::test_music_bed_without_events_still_gets_a_mix_sheet 
+tests/test_video_artifact.py::test_default_bed_mixes_under_voice_and_passes_sound_qa 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_bash_guard[sleep 1; ps-False] 
+tests/test_shell_policy.py::test_harness_bash_guard[printf x | grep x-False] 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_bash_guard[printf x | grep x-False] 
+tests/test_shell_policy.py::test_harness_bash_guard[rg -n TODO app-False] 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_bash_guard[rg -n TODO app-False] 
+tests/test_shell_policy.py::test_harness_blocks_recursive_search[find . -name '*.py'-recursive_find] 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_blocks_recursive_search[find . -name '*.py'-recursive_find] 
+tests/test_shell_policy.py::test_harness_blocks_recursive_search[grep -R TODO .-recursive_grep] 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_blocks_recursive_search[grep -R TODO .-recursive_grep] 
+tests/test_shell_policy.py::test_harness_allows_find_when_rg_is_unavailable 
+[gw0] [ 21%] PASSED tests/test_shell_policy.py::test_harness_allows_find_when_rg_is_unavailable 
+tests/test_shell_policy.py::test_session_journal_records_violation_rule_for_counts 
+[gw0] [ 22%] PASSED tests/test_shell_policy.py::test_session_journal_records_violation_rule_for_counts 
+tests/test_shell_policy.py::test_session_counts_provider_prefixed_hook_refusal 
+[gw0] [ 22%] PASSED tests/test_shell_policy.py::test_session_counts_provider_prefixed_hook_refusal 
+tests/test_api.py::test_create_request_accepts_base_branch 
+[gw0] [ 22%] PASSED tests/test_api.py::test_create_request_accepts_base_branch 
+tests/test_api.py::test_create_request_base_branch_default_empty 
+[gw0] [ 22%] PASSED tests/test_api.py::test_create_request_base_branch_default_empty 
+tests/test_api.py::test_merge_endpoint_passes_target 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_endpoint_passes_target 
+tests/test_api.py::test_merge_persists_actual_branch_and_base_for_loaded_or_detached[False] 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_persists_actual_branch_and_base_for_loaded_or_detached[False] 
+tests/test_api.py::test_merge_persists_actual_branch_and_base_for_loaded_or_detached[True] 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_persists_actual_branch_and_base_for_loaded_or_detached[True] 
+tests/test_api.py::test_merge_rejects_ambiguous_legacy_base_before_git 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_rejects_ambiguous_legacy_base_before_git 
+tests/test_api.py::test_merge_links_commits_with_normalized_sqlite_results 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_links_commits_with_normalized_sqlite_results 
+tests/test_api.py::test_merge_links_duplicate_par_only_in_worker_scope_project 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_links_duplicate_par_only_in_worker_scope_project 
+tests/test_api.py::test_merge_rejects_invalid_or_missing_next_task_before_git[not-a-task] 
+[gw0] [ 22%] PASSED tests/test_api.py::test_merge_rejects_invalid_or_missing_next_task_before_git[not-a-task] 
+tests/test_api.py::test_merge_rejects_invalid_or_missing_next_task_before_git[999] 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_rejects_invalid_or_missing_next_task_before_git[999] 
+tests/test_api.py::test_execute_merge_session_rejects_removed_and_respawned_identity 
+[gw0] [ 23%] PASSED tests/test_api.py::test_execute_merge_session_rejects_removed_and_respawned_identity 
+tests/test_api.py::test_execute_merge_session_passes_pinned_branch_and_head_into_repo_lock 
+[gw0] [ 23%] PASSED tests/test_api.py::test_execute_merge_session_passes_pinned_branch_and_head_into_repo_lock 
+tests/test_api.py::test_merge_revision_change_keeps_git_success_and_skips_task_update 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_revision_change_keeps_git_success_and_skips_task_update 
+tests/test_api.py::test_merge_next_updates_only_case_variant_in_worker_scope 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_next_updates_only_case_variant_in_worker_scope 
+tests/test_api.py::test_merge_switch_failure_stays_merge_success_and_keeps_quarantine 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_switch_failure_stays_merge_success_and_keeps_quarantine 
+tests/test_api.py::test_merge_switch_exception_stays_merge_success_and_keeps_quarantine 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_switch_exception_stays_merge_success_and_keeps_quarantine 
+tests/test_api.py::test_merge_quarantine_persistence_retries_before_returning 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_quarantine_persistence_retries_before_returning 
+tests/test_api.py::test_merge_switch_persistence_failure_is_partial_and_keeps_task_unchanged 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_switch_persistence_failure_is_partial_and_keeps_task_unchanged 
+tests/test_api.py::test_merge_task_db_exception_is_explicit_without_reversing_git_success 
+[gw0] [ 23%] PASSED tests/test_api.py::test_merge_task_db_exception_is_explicit_without_reversing_git_success 
+tests/test_api.py::test_wip_uses_persisted_base 
+[gw0] [ 23%] PASSED tests/test_api.py::test_wip_uses_persisted_base 
+tests/test_api.py::test_kill_guard_compares_against_persisted_base 
+[gw0] [ 24%] PASSED tests/test_api.py::test_kill_guard_compares_against_persisted_base 
+tests/test_api.py::test_kill_allows_squash_merged_content_after_base_advances 
+[gw0] [ 24%] PASSED tests/test_api.py::test_kill_allows_squash_merged_content_after_base_advances 
+tests/test_api.py::test_kill_blocks_real_unmerged_content 
+[gw0] [ 24%] PASSED tests/test_api.py::test_kill_blocks_real_unmerged_content 
+tests/test_api.py::test_kill_blocks_content_detector_error 
+[gw0] [ 24%] PASSED tests/test_api.py::test_kill_blocks_content_detector_error 
+tests/test_api.py::test_kill_reports_worktree_remove_failure 
+[gw0] [ 24%] PASSED tests/test_api.py::test_kill_reports_worktree_remove_failure 
+tests/test_api.py::test_delete_orchestrator_reports_worktree_remove_failure 
+[gw0] [ 24%] PASSED tests/test_api.py::test_delete_orchestrator_reports_worktree_remove_failure 
+tests/test_api.py::test_send_delegates_auto_switch_to_manager 
+[gw0] [ 24%] PASSED tests/test_api.py::test_send_delegates_auto_switch_to_manager 
+tests/test_api.py::test_switch_uses_persisted_base_when_from_ref_is_omitted[False] 
+[gw0] [ 24%] PASSED tests/test_api.py::test_switch_uses_persisted_base_when_from_ref_is_omitted[False] 
+tests/test_api.py::test_switch_uses_persisted_base_when_from_ref_is_omitted[True] 
+[gw0] [ 24%] PASSED tests/test_api.py::test_switch_uses_persisted_base_when_from_ref_is_omitted[True] 
+tests/test_api.py::test_switch_new_task_replaces_owned_dirs_and_prompt[None] 
+[gw0] [ 24%] PASSED tests/test_api.py::test_switch_new_task_replaces_owned_dirs_and_prompt[None] 
+tests/test_api.py::test_switch_new_task_replaces_owned_dirs_and_prompt[requested1] 
+[gw0] [ 24%] PASSED tests/test_api.py::test_switch_new_task_replaces_owned_dirs_and_prompt[requested1] 
+tests/test_api.py::test_switch_owned_dirs_overlap_does_not_block_git 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_owned_dirs_overlap_does_not_block_git 
+tests/test_api.py::test_switch_failure_keeps_old_state_during_git_call 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_failure_keeps_old_state_during_git_call 
+tests/test_api.py::test_same_task_switch_does_not_clear_ownership 
+[gw0] [ 25%] PASSED tests/test_api.py::test_same_task_switch_does_not_clear_ownership 
+tests/test_api.py::test_switch_updates_duplicate_task_number_only_in_session_project 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_updates_duplicate_task_number_only_in_session_project 
+tests/test_api.py::test_switch_persistence_failure_quarantines_and_does_not_update_task 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_persistence_failure_quarantines_and_does_not_update_task 
+tests/test_api.py::test_switch_task_cas_failure_requarantines_new_branch 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_task_cas_failure_requarantines_new_branch 
+tests/test_api.py::test_switch_failure_restores_previous_lifecycle_and_does_not_update_task[master] 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_failure_restores_previous_lifecycle_and_does_not_update_task[master] 
+tests/test_api.py::test_switch_failure_restores_previous_lifecycle_and_does_not_update_task[] 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_failure_restores_previous_lifecycle_and_does_not_update_task[] 
+tests/test_api.py::test_switch_rollback_failure_persists_quarantine_for_detached_reload 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_rollback_failure_persists_quarantine_for_detached_reload 
+tests/test_api.py::test_switch_rejects_non_boolean_force 
+[gw0] [ 25%] PASSED tests/test_api.py::test_switch_rejects_non_boolean_force 
+tests/test_api.py::test_merge_waits_for_running_worker_then_proceeds 
+[gw0] [ 25%] PASSED tests/test_api.py::test_merge_waits_for_running_worker_then_proceeds 
+tests/test_api.py::test_merge_times_out_waiting_for_running_worker 
+[gw0] [ 26%] PASSED tests/test_api.py::test_merge_times_out_waiting_for_running_worker 
+tests/test_api.py::test_merge_rejects_waiting_worker_without_merging 
+[gw0] [ 26%] PASSED tests/test_api.py::test_merge_rejects_waiting_worker_without_merging 
+tests/test_api.py::test_switch_waits_for_running_worker_to_finish_turn 
+[gw0] [ 26%] PASSED tests/test_api.py::test_switch_waits_for_running_worker_to_finish_turn 
+tests/test_api.py::test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup 
+[gw0] [ 26%] PASSED tests/test_api.py::test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup 
+tests/test_api.py::test_create_session_passes_pipeline_and_profile 
+[gw0] [ 26%] PASSED tests/test_api.py::test_create_session_passes_pipeline_and_profile 
+tests/test_api.py::test_create_worktree_response_contains_server_repo_metadata 
+[gw0] [ 26%] PASSED tests/test_api.py::test_create_worktree_response_contains_server_repo_metadata 
+tests/test_api.py::test_rename_updates_children_parent_reference 
+[gw0] [ 26%] PASSED tests/test_api.py::test_rename_updates_children_parent_reference 
+tests/test_api.py::test_create_quota_refusal_is_canonical_nonretryable_429 
+[gw0] [ 26%] PASSED tests/test_api.py::test_create_quota_refusal_is_canonical_nonretryable_429 
+tests/test_api.py::test_send_quota_refusal_is_canonical_429 
+[gw0] [ 26%] PASSED tests/test_api.py::test_send_quota_refusal_is_canonical_429 
+tests/test_api.py::test_compact_quota_refusal_is_canonical_429 
+[gw0] [ 26%] PASSED tests/test_api.py::test_compact_quota_refusal_is_canonical_429 
+tests/test_api.py::test_clear_session_drops_auto_restorable_conversation_state 
+[gw0] [ 26%] PASSED tests/test_api.py::test_clear_session_drops_auto_restorable_conversation_state 
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner 
+[gw0] [ 26%] PASSED tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner 
+tests/test_merge_operations.py::test_concurrent_keys_start_exactly_one_executor_and_survive_request_return 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_concurrent_keys_start_exactly_one_executor_and_survive_request_return 
+tests/test_merge_operations.py::test_same_key_payload_mismatch_is_typed_409_without_second_row 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_same_key_payload_mismatch_is_typed_409_without_second_row 
+tests/test_merge_operations.py::test_t1_legitimate_operation_trailer_is_not_worker_spoof 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_t1_legitimate_operation_trailer_is_not_worker_spoof 
+tests/test_merge_operations.py::test_t1_malformed_operation_result_refuses_trailer_without_crashing[[]] 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_t1_malformed_operation_result_refuses_trailer_without_crashing[[]] 
+tests/test_merge_operations.py::test_t1_malformed_operation_result_refuses_trailer_without_crashing[null] 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_t1_malformed_operation_result_refuses_trailer_without_crashing[null] 
+tests/test_merge_operations.py::test_t1_malformed_operation_result_refuses_trailer_without_crashing[{"git": null}] 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_t1_malformed_operation_result_refuses_trailer_without_crashing[{"git": null}] 
+tests/test_merge_operations.py::test_terminal_dedupe_only_for_mutating_equivalent_snapshot 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_terminal_dedupe_only_for_mutating_equivalent_snapshot 
+tests/test_merge_operations.py::test_failed_not_reached_and_noop_are_not_permanently_deduped 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_failed_not_reached_and_noop_are_not_permanently_deduped 
+tests/test_merge_operations.py::test_normalize_rejects_zero_commit_noop_even_when_upstream_is_failed 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_normalize_rejects_zero_commit_noop_even_when_upstream_is_failed 
+tests/test_merge_operations.py::test_unresolved_partial_blocks_new_key_even_when_snapshot_drifted 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_unresolved_partial_blocks_new_key_even_when_snapshot_drifted 
+tests/test_merge_operations.py::test_recover_orphan_running_is_unknown_but_pending_is_restartable 
+[gw0] [ 27%] PASSED tests/test_merge_operations.py::test_recover_orphan_running_is_unknown_but_pending_is_restartable 
+tests/test_merge_operations.py::test_runner_rejects_session_snapshot_change_before_executor 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_runner_rejects_session_snapshot_change_before_executor 
+tests/test_merge_operations.py::test_runner_rejects_removed_and_respawned_same_name 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_runner_rejects_removed_and_respawned_same_name 
+tests/test_merge_operations.py::test_restore_runs_pending_once_after_fingerprint_recheck 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_restore_runs_pending_once_after_fingerprint_recheck 
+tests/test_merge_operations.py::test_runner_pins_persisted_base_branch_before_execution 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_runner_pins_persisted_base_branch_before_execution 
+tests/test_merge_operations.py::test_committed_merge_without_terminal_snapshot_is_quarantined 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_committed_merge_without_terminal_snapshot_is_quarantined 
+tests/test_merge_operations.py::test_normalize_merge_outcomes_are_typed[raw0-FAILED-NOT_REACHED-CONFLICT-CONFLICT] 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_normalize_merge_outcomes_are_typed[raw0-FAILED-NOT_REACHED-CONFLICT-CONFLICT] 
+tests/test_merge_operations.py::test_normalize_merge_outcomes_are_typed[raw1-UNKNOWN-UNKNOWN-UNKNOWN-ROLLBACK_FAILED] 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_normalize_merge_outcomes_are_typed[raw1-UNKNOWN-UNKNOWN-UNKNOWN-ROLLBACK_FAILED] 
+tests/test_merge_operations.py::test_normalize_merge_outcomes_are_typed[raw2-PARTIAL-REACHED-SUCCEEDED-LIFECYCLE_FAILED] 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_normalize_merge_outcomes_are_typed[raw2-PARTIAL-REACHED-SUCCEEDED-LIFECYCLE_FAILED] 
+tests/test_merge_operations.py::test_precommit_failures_have_nonempty_typed_actions[worker is running \u2014 wait for idle before merge-BUSY-WAIT_UNTIL_IDLE_THEN_NEW_OPERATION] 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_precommit_failures_have_nonempty_typed_actions[worker is running \u2014 wait for idle before merge-BUSY-WAIT_UNTIL_IDLE_THEN_NEW_OPERATION] 
+tests/test_merge_operations.py::test_precommit_failures_have_nonempty_typed_actions[worker is waiting \u2014 wait for idle before merge-WAITING-FINISH_WAIT_THEN_NEW_OPERATION] 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_precommit_failures_have_nonempty_typed_actions[worker is waiting \u2014 wait for idle before merge-WAITING-FINISH_WAIT_THEN_NEW_OPERATION] 
+tests/test_merge_operations.py::test_precommit_failures_have_nonempty_typed_actions[worker working tree is dirty (1 file(s): shared file.txt) \u2014 commit or discard first-WORKER_DIRTY-COMMIT_WORKER_THEN_NEW_OPERATION] 
+[gw0] [ 28%] PASSED tests/test_merge_operations.py::test_precommit_failures_have_nonempty_typed_actions[worker working tree is dirty (1 file(s): shared file.txt) \u2014 commit or discard first-WORKER_DIRTY-COMMIT_WORKER_THEN_NEW_OPERATION] 
+tests/test_merge_operations.py::test_post_commit_stage_failures_preserve_all_stage_statuses 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_post_commit_stage_failures_preserve_all_stage_statuses 
+tests/test_merge_operations.py::test_post_commit_failure_keeps_git_status_succeeded 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_post_commit_failure_keeps_git_status_succeeded 
+tests/test_merge_operations.py::test_legacy_http_merge_is_426_and_capability_is_visible 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_legacy_http_merge_is_426_and_capability_is_visible 
+tests/test_merge_operations.py::test_operation_http_shape_copies_only_failed_or_unknown_error_to_top_level 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_operation_http_shape_copies_only_failed_or_unknown_error_to_top_level 
+tests/test_merge_operations.py::test_missing_task_number_is_a_warning_not_a_partial 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_missing_task_number_is_a_warning_not_a_partial 
+tests/test_merge_operations.py::test_mixed_link_outcomes_keep_applied_links_and_name_only_the_missing_number 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_mixed_link_outcomes_keep_applied_links_and_name_only_the_missing_number 
+tests/test_merge_operations.py::test_broken_link_is_still_partial_because_state_not_history_failed 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_broken_link_is_still_partial_because_state_not_history_failed 
+tests/test_merge_operations.py::test_missing_task_number_does_not_block_the_next_operation 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_missing_task_number_does_not_block_the_next_operation 
+tests/test_merge_operations.py::test_task_not_found_marker_comes_from_the_task_manager 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_task_not_found_marker_comes_from_the_task_manager 
+tests/test_merge_operations.py::test_secondary_stage_failures_do_not_block_after_commit 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_secondary_stage_failures_do_not_block_after_commit 
+tests/test_merge_operations.py::test_primary_stage_failure_after_commit_still_blocks 
+[gw0] [ 29%] PASSED tests/test_merge_operations.py::test_primary_stage_failure_after_commit_still_blocks 
+tests/test_merge_operations.py::test_unknown_commit_point_is_never_auto_closed_by_secondary_rule 
+[gw0] [ 30%] PASSED tests/test_merge_operations.py::test_unknown_commit_point_is_never_auto_closed_by_secondary_rule 
+tests/test_merge_operations.py::test_blocking_next_action_names_the_allowed_action 
+[gw0] [ 30%] PASSED tests/test_merge_operations.py::test_blocking_next_action_names_the_allowed_action 
+tests/test_merge_operations.py::test_resolved_partial_lets_the_next_operation_start 
+[gw0] [ 30%] PASSED tests/test_merge_operations.py::test_resolved_partial_lets_the_next_operation_start 
+tests/test_merge_operations.py::test_resolve_is_idempotent_and_refuses_non_blocking_states 
+[gw0] [ 30%] PASSED tests/test_merge_operations.py::test_resolve_is_idempotent_and_refuses_non_blocking_states 
+tests/test_merge_operations.py::test_unknown_is_closed_only_by_the_explicit_action 
+[gw0] [ 30%] PASSED tests/test_merge_operations.py::test_unknown_is_closed_only_by_the_explicit_action 
+tests/test_merge_operations.py::test_resolve_http_route_reports_refusal_and_success 
+[gw0] [ 30%] PASSED tests/test_merge_operations.py::test_resolve_http_route_reports_refusal_and_success 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[anthropic] 
+[gw0] [ 30%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[anthropic] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[bearer] 
+[gw0] [ 30%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[bearer] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[github] 
+[gw0] [ 30%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[github] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[github-pat] 
+[gw0] [ 30%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[github-pat] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[google-api-key] 
+[gw0] [ 30%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[google-api-key] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[google-oauth] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[google-oauth] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[openrouter] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[openrouter] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[pem-private-key] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[pem-private-key] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[telegram-bot] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[telegram-bot] 
+tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[yandex-oauth] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[yandex-oauth] 
+tests/test_secret_commit_gate.py::test_telegram_bot_token_is_caught[{t}] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_telegram_bot_token_is_caught[{t}] 
+tests/test_secret_commit_gate.py::test_telegram_bot_token_is_caught[https://api.telegram.org/bot{t}/getMe] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_telegram_bot_token_is_caught[https://api.telegram.org/bot{t}/getMe] 
+tests/test_secret_commit_gate.py::test_known_evasions_are_caught[escaped-pem] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_known_evasions_are_caught[escaped-pem] 
+tests/test_secret_commit_gate.py::test_known_evasions_are_caught[placeholder-inside-valid-token] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_known_evasions_are_caught[placeholder-inside-valid-token] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[https://api.telegram.org/bot<id>:<token>/getMe] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[https://api.telegram.org/bot<id>:<token>/getMe] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[bot1234567890:] 
+[gw0] [ 31%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[bot1234567890:] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[bot1234567890: AAAA] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[bot1234567890: AAAA] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[12:34:56] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[12:34:56] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[1234567890:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[1234567890:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[1234567890:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[1234567890:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] 
+tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[1234567:nFIGLj5M7YYpHCOTHUtuJvbipRdkJAWZ4mo] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_telegram_mention_or_wrong_shape_passes[1234567:nFIGLj5M7YYpHCOTHUtuJvbipRdkJAWZ4mo] 
+tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[tests/test_secret_mask.py] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[tests/test_secret_mask.py] 
+tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json] 
+tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[CLAUDE.md] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[CLAUDE.md] 
+tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/kb/runtimes.md] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/kb/runtimes.md] 
+tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[app/runtime_history.py] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[app/runtime_history.py] 
+tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[app/secret_mask.py] 
+[gw0] [ 32%] PASSED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[app/secret_mask.py] 
+tests/test_secret_commit_gate.py::test_findings_never_print_the_value 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_findings_never_print_the_value 
+tests/test_secret_commit_gate.py::test_hook_blocks_commit_of_a_secret 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_hook_blocks_commit_of_a_secret 
+tests/test_secret_commit_gate.py::test_hook_lets_a_mention_through 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_hook_lets_a_mention_through 
+tests/test_secret_commit_gate.py::test_hook_from_common_dir_covers_linked_worktree 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_hook_from_common_dir_covers_linked_worktree 
+tests/test_secret_commit_gate.py::test_missing_scanner_fails_closed_and_names_the_cause 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_missing_scanner_fails_closed_and_names_the_cause 
+tests/test_secret_commit_gate.py::test_pre_push_catches_what_no_verify_committed 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_pre_push_catches_what_no_verify_committed 
+tests/test_secret_commit_gate.py::test_commit_msg_hook_blocks_a_secret_in_the_message 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_commit_msg_hook_blocks_a_secret_in_the_message 
+tests/test_secret_commit_gate.py::test_pre_push_scans_every_published_commit_not_the_net_diff 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_pre_push_scans_every_published_commit_not_the_net_diff 
+tests/test_secret_commit_gate.py::test_typechange_to_symlink_is_scanned 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_typechange_to_symlink_is_scanned 
+tests/test_secret_commit_gate.py::test_gitlink_and_non_utf8_path_do_not_block_an_honest_commit 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_gitlink_and_non_utf8_path_do_not_block_an_honest_commit 
+tests/test_secret_commit_gate.py::test_installer_refuses_when_git_uses_another_hooks_dir 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_installer_refuses_when_git_uses_another_hooks_dir 
+tests/test_secret_commit_gate.py::test_repo_gitignore_covers_every_env_derivative 
+[gw0] [ 33%] PASSED tests/test_secret_commit_gate.py::test_repo_gitignore_covers_every_env_derivative 
+tests/test_charts.py::test_bars_renders_png_of_fixed_size 
+[gw0] [ 34%] PASSED tests/test_charts.py::test_bars_renders_png_of_fixed_size 
+tests/test_charts.py::test_fact_line_is_computed_from_data 
+[gw0] [ 34%] PASSED tests/test_charts.py::test_fact_line_is_computed_from_data 
+tests/test_charts.py::test_equal_ratios_break_tie_to_last_category 
+[gw0] [ 34%] PASSED tests/test_charts.py::test_equal_ratios_break_tie_to_last_category 
+tests/test_charts.py::test_bars_log_keeps_smallest_bar_visible 
