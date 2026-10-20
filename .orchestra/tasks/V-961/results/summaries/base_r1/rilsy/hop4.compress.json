@@ -1,0 +1,10 @@
+{
+ "arm": "base_r1",
+ "label": "rilsy",
+ "k": 4,
+ "model_raw_chars": 13014,
+ "cost": 0.4354,
+ "sec": 163,
+ "journal_rows": 658,
+ "summary_chars": 13014
+}

@@ -1,0 +1,13 @@
+eval tailonly rilsy hop0: $0.056
+hop {'arm': 'base', 'label': 'uni', 'k': 1, 'model_raw_chars': 13826, 'cost': 0.7216, 'sec': 77, 'journal_rows': 585, 'summary_chars': 13826}
+hop {'arm': 'base', 'label': 'gm', 'k': 1, 'model_raw_chars': 14437, 'cost': 0.6679, 'sec': 87, 'journal_rows': 318, 'summary_chars': 14437}
+eval base uni hop1: $0.081
+eval base gm hop1: $0.082
+eval tailonly uni hop0: $0.055
+hop {'arm': 'base', 'label': 'gamelab', 'k': 1, 'model_raw_chars': 11473, 'cost': 0.7915, 'sec': 104, 'journal_rows': 454, 'summary_chars': 11473}
+eval tailonly gm hop0: $0.055
+eval base gamelab hop1: $0.088
+hop {'arm': 'base', 'label': 'lituroki', 'k': 1, 'model_raw_chars': 9111, 'cost': 0.7832, 'sec': 125, 'journal_rows': 391, 'summary_chars': 9111}
+eval tailonly gamelab hop0: $0.055
+eval base lituroki hop1: $0.059
+eval tailonly lituroki hop0: $0.044

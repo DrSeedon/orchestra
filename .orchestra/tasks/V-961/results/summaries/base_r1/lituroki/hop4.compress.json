@@ -1,0 +1,10 @@
+{
+ "arm": "base_r1",
+ "label": "lituroki",
+ "k": 4,
+ "model_raw_chars": 13506,
+ "cost": 0.2908,
+ "sec": 104,
+ "journal_rows": 275,
+ "summary_chars": 13506
+}

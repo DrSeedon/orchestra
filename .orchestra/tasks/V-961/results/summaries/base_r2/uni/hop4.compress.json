@@ -1,0 +1,10 @@
+{
+ "arm": "base_r2",
+ "label": "uni",
+ "k": 4,
+ "model_raw_chars": 11931,
+ "cost": 0.2015,
+ "sec": 70,
+ "journal_rows": 170,
+ "summary_chars": 11931
+}

@@ -1,0 +1,2 @@
+hop {'arm': 'base', 'label': 'rilsy', 'k': 1, 'model_raw_chars': 10578, 'cost': 0.7217, 'sec': 133, 'journal_rows': 315, 'summary_chars': 10578}
+eval base rilsy hop1: $0.075

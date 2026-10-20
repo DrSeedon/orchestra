@@ -1,0 +1,32 @@
+{
+ "name": "rilsy",
+ "sid": "cade0488-5d49-45ba-b76b-d1a8d9cdd30a",
+ "preamble_ids": [
+  559718,
+  571512,
+  581768,
+  607294,
+  743360
+ ],
+ "seg_rows": [
+  314,
+  536,
+  369,
+  657
+ ],
+ "seg_speech_chars": [
+  16310,
+  27873,
+  3925,
+  16572
+ ],
+ "tail_chars": {
+  "0": 3738,
+  "1": 9327,
+  "2": 2591,
+  "3": 881,
+  "4": 3436
+ },
+ "leak_in_tails": [],
+ "first_preamble_summary_chars": 14502
+}

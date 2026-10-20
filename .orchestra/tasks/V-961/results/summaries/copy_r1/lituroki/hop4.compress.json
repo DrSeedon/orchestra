@@ -1,0 +1,11 @@
+{
+ "arm": "copy_r1",
+ "label": "lituroki",
+ "k": 4,
+ "model_raw_chars": 14884,
+ "cost": 0.2883,
+ "sec": 91,
+ "journal_rows": 275,
+ "block_chars": 19359,
+ "summary_chars": 29401
+}

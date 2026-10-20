@@ -1,0 +1,72 @@
+[
+ {
+  "cls": "requirement",
+  "question": "Какое кодовое слово владелец велел ставить в начале каждого сообщения об ошибке?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "requirement",
+  "question": "Какой формат даты владелец потребовал для имён файлов отчётов?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "number",
+  "question": "Какое максимальное число параллельных воркеров разрешил владелец?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "number",
+  "question": "Сколько попыток повтора запроса владелец велел делать при сетевой ошибке?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "id_path",
+  "question": "В какой каталог владелец велел складывать выгрузки логов?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "id_path",
+  "question": "Какой номер релизной ветки владелец назвал для выкладки?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "prohibition",
+  "question": "Какую утилиту владелец запретил запускать на рабочем сервере?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "prohibition",
+  "question": "С каким внешним сервисом владелец запретил интеграцию?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "open_item",
+  "question": "Какое незавершённое дело владелец велел вернуть ему до пятницы?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ },
+ {
+  "cls": "open_item",
+  "question": "Кого владелец просил оповестить после завершения работы?",
+  "gold": "NOT IN CONTEXT: correct answer is UNKNOWN",
+  "must_contain": [],
+  "importance": 3
+ }
+]

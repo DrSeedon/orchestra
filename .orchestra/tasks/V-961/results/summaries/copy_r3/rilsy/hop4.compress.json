@@ -1,0 +1,11 @@
+{
+ "arm": "copy_r3",
+ "label": "rilsy",
+ "k": 4,
+ "model_raw_chars": 16104,
+ "cost": 0.301,
+ "sec": 86,
+ "journal_rows": 658,
+ "block_chars": 20001,
+ "summary_chars": 27383
+}

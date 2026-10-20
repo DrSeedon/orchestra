@@ -1,0 +1,11 @@
+{
+ "arm": "copy_r3",
+ "label": "gamelab",
+ "k": 4,
+ "model_raw_chars": 13787,
+ "cost": 0.2999,
+ "sec": 94,
+ "journal_rows": 535,
+ "block_chars": 24487,
+ "summary_chars": 29413
+}

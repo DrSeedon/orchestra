@@ -1,0 +1,60 @@
+hop {'arm': 'copy', 'label': 'gm', 'k': 2, 'model_raw_chars': 15151, 'cost': 0.7018, 'sec': 70, 'journal_rows': 333, 'block_chars': 3125, 'summary_chars': 16392}
+hop {'arm': 'base', 'label': 'gm', 'k': 2, 'model_raw_chars': 13597, 'cost': 0.7195, 'sec': 74, 'journal_rows': 333, 'summary_chars': 13597}
+eval copy gm hop2: $0.086
+eval base gm hop2: $0.077
+hop {'arm': 'base', 'label': 'rilsy', 'k': 2, 'model_raw_chars': 16077, 'cost': 0.8329, 'sec': 102, 'journal_rows': 537, 'summary_chars': 16077}
+hop {'arm': 'copy', 'label': 'uni', 'k': 2, 'model_raw_chars': 13068, 'cost': 0.6421, 'sec': 108, 'journal_rows': 313, 'block_chars': 6903, 'summary_chars': 18337}
+eval base rilsy hop2: $0.072
+eval copy uni hop2: $0.087
+hop {'arm': 'base', 'label': 'uni', 'k': 2, 'model_raw_chars': 11914, 'cost': 0.7638, 'sec': 138, 'journal_rows': 313, 'summary_chars': 11914}
+eval base uni hop2: $0.081
+hop {'arm': 'copy', 'label': 'gm', 'k': 3, 'model_raw_chars': 13704, 'cost': 0.5691, 'sec': 76, 'journal_rows': 251, 'block_chars': 10302, 'summary_chars': 16256}
+hop {'arm': 'base', 'label': 'gm', 'k': 3, 'model_raw_chars': 14968, 'cost': 0.5997, 'sec': 82, 'journal_rows': 251, 'summary_chars': 14968}
+eval copy gm hop3: $0.086
+eval base gm hop3: $0.087
+hop {'arm': 'copy', 'label': 'uni', 'k': 3, 'model_raw_chars': 13826, 'cost': 0.5684, 'sec': 94, 'journal_rows': 257, 'block_chars': 12304, 'summary_chars': 19313}
+hop {'arm': 'base', 'label': 'uni', 'k': 3, 'model_raw_chars': 11936, 'cost': 0.4866, 'sec': 72, 'journal_rows': 257, 'summary_chars': 11936}
+eval copy uni hop3: $0.095
+eval base uni hop3: $0.082
+hop {'arm': 'base', 'label': 'rilsy', 'k': 3, 'model_raw_chars': 12036, 'cost': 0.7395, 'sec': 132, 'journal_rows': 370, 'summary_chars': 12036}
+eval base rilsy hop3: $0.061
+hop {'arm': 'copy', 'label': 'gm', 'k': 4, 'model_raw_chars': 12487, 'cost': 0.8336, 'sec': 136, 'journal_rows': 325, 'block_chars': 15601, 'summary_chars': 22781}
+hop {'arm': 'base', 'label': 'uni', 'k': 4, 'model_raw_chars': 9649, 'cost': 0.432, 'sec': 83, 'journal_rows': 170, 'summary_chars': 9649}
+eval copy gm hop4: $0.105
+eval base uni hop4: $0.065
+hop {'arm': 'base', 'label': 'gm', 'k': 4, 'model_raw_chars': 11969, 'cost': 0.8863, 'sec': 156, 'journal_rows': 325, 'summary_chars': 11969}
+eval base gm hop4: $0.078
+hop {'arm': 'copy', 'label': 'uni', 'k': 4, 'model_raw_chars': 10686, 'cost': 0.5786, 'sec': 124, 'journal_rows': 170, 'block_chars': 15299, 'summary_chars': 21964}
+eval copy uni hop4: $0.104
+hop {'arm': 'base', 'label': 'rilsy', 'k': 4, 'model_raw_chars': 15642, 'cost': 1.0166, 'sec': 121, 'journal_rows': 658, 'summary_chars': 15642}
+eval base rilsy hop4: $0.072
+hop {'arm': 'base', 'label': 'gamelab', 'k': 2, 'model_raw_chars': 11823, 'cost': 0.3856, 'sec': 62, 'journal_rows': 149, 'summary_chars': 11823}
+hop {'arm': 'copy', 'label': 'rilsy', 'k': 2, 'model_raw_chars': 13481, 'cost': 0.2353, 'sec': 73, 'journal_rows': 537, 'block_chars': 8495, 'summary_chars': 14608}
+eval base gamelab hop2: $0.081
+eval copy rilsy hop2: $0.067
+hop {'arm': 'copy', 'label': 'gamelab', 'k': 2, 'model_raw_chars': 11536, 'cost': 0.2249, 'sec': 65, 'journal_rows': 149, 'block_chars': 12211, 'summary_chars': 16815}
+eval copy gamelab hop2: $0.090
+hop {'arm': 'copy', 'label': 'rilsy', 'k': 3, 'model_raw_chars': 10518, 'cost': 0.561, 'sec': 62, 'journal_rows': 370, 'block_chars': 12760, 'summary_chars': 18938}
+eval copy rilsy hop3: $0.072
+hop {'arm': 'base', 'label': 'lituroki', 'k': 2, 'model_raw_chars': 8951, 'cost': 0.8805, 'sec': 117, 'journal_rows': 519, 'summary_chars': 8951}
+hop {'arm': 'copy', 'label': 'gamelab', 'k': 3, 'model_raw_chars': 11690, 'cost': 0.6885, 'sec': 63, 'journal_rows': 469, 'block_chars': 17608, 'summary_chars': 21972}
+eval base lituroki hop2: $0.075
+eval copy gamelab hop3: $0.087
+hop {'arm': 'base', 'label': 'gamelab', 'k': 3, 'model_raw_chars': 14611, 'cost': 0.8575, 'sec': 111, 'journal_rows': 469, 'summary_chars': 14611}
+hop {'arm': 'copy', 'label': 'lituroki', 'k': 2, 'model_raw_chars': 12156, 'cost': 0.413, 'sec': 131, 'journal_rows': 519, 'block_chars': 6195, 'summary_chars': 16980}
+eval base gamelab hop3: $0.073
+eval copy lituroki hop2: $0.090
+hop {'arm': 'copy', 'label': 'gamelab', 'k': 4, 'model_raw_chars': 9741, 'cost': 0.7751, 'sec': 64, 'journal_rows': 535, 'block_chars': 19610, 'summary_chars': 25368}
+eval copy gamelab hop4: $0.107
+hop {'arm': 'copy', 'label': 'rilsy', 'k': 4, 'model_raw_chars': 13709, 'cost': 0.924, 'sec': 99, 'journal_rows': 658, 'block_chars': 17032, 'summary_chars': 25049}
+eval copy rilsy hop4: $0.089
+hop {'arm': 'base', 'label': 'lituroki', 'k': 3, 'model_raw_chars': 18176, 'cost': 1.0761, 'sec': 115, 'journal_rows': 645, 'summary_chars': 18176}
+hop {'arm': 'copy', 'label': 'lituroki', 'k': 3, 'model_raw_chars': 16015, 'cost': 1.0192, 'sec': 86, 'journal_rows': 645, 'block_chars': 15511, 'summary_chars': 22244}
+eval base lituroki hop3: $0.080
+eval copy lituroki hop3: $0.094
+hop {'arm': 'base', 'label': 'gamelab', 'k': 4, 'model_raw_chars': 13565, 'cost': 0.949, 'sec': 112, 'journal_rows': 535, 'summary_chars': 13565}
+eval base gamelab hop4: $0.073
+hop {'arm': 'copy', 'label': 'lituroki', 'k': 4, 'model_raw_chars': 12813, 'cost': 0.5238, 'sec': 74, 'journal_rows': 275, 'block_chars': 20796, 'summary_chars': 28122}
+eval copy lituroki hop4: $0.096
+hop {'arm': 'base', 'label': 'lituroki', 'k': 4, 'model_raw_chars': 11805, 'cost': 0.6201, 'sec': 107, 'journal_rows': 275, 'summary_chars': 11805}
+eval base lituroki hop4: $0.067

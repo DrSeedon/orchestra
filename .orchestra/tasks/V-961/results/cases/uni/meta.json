@@ -1,0 +1,32 @@
+{
+ "name": "University-orchestrator",
+ "sid": "336d5d9c-6ca0-40ce-b5c7-76364d7d31a3",
+ "preamble_ids": [
+  388522,
+  403387,
+  454577,
+  530065,
+  622149
+ ],
+ "seg_rows": [
+  584,
+  312,
+  256,
+  169
+ ],
+ "seg_speech_chars": [
+  62661,
+  51642,
+  37289,
+  15490
+ ],
+ "tail_chars": {
+  "0": 11546,
+  "1": 10814,
+  "2": 10675,
+  "3": 11523,
+  "4": 11068
+ },
+ "leak_in_tails": [],
+ "first_preamble_summary_chars": 8013
+}

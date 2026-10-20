@@ -1,0 +1,10 @@
+{
+ "arm": "base_r2",
+ "label": "gm",
+ "k": 4,
+ "model_raw_chars": 12893,
+ "cost": 0.481,
+ "sec": 141,
+ "journal_rows": 325,
+ "summary_chars": 12893
+}

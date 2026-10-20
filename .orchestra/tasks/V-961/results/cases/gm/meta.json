@@ -1,0 +1,32 @@
+{
+ "name": "Claude-Code-Game-Master-orchestrator",
+ "sid": "206a85e3-c813-41c8-ac48-2bbebe9ec846",
+ "preamble_ids": [
+  589018,
+  602383,
+  612058,
+  644930,
+  700882
+ ],
+ "seg_rows": [
+  317,
+  332,
+  250,
+  324
+ ],
+ "seg_speech_chars": [
+  104329,
+  123364,
+  72410,
+  77900
+ ],
+ "tail_chars": {
+  "0": 12008,
+  "1": 11579,
+  "2": 9783,
+  "3": 10950,
+  "4": 11474
+ },
+ "leak_in_tails": [],
+ "first_preamble_summary_chars": 14485
+}
