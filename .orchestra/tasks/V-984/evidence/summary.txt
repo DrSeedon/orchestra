@@ -1,0 +1,26 @@
+states {'refused': 19, 'cleaned': 68}
+project                           |wt|refused|files|deleted MB|in_main_checkout|in_target_branch|cache|kept unique MB
+home-kesha-katya-work             |22|4|1470|939|443|493|2|6333
+home-kesha-orchestra              |26|1|5199|206|0|2|205|5566
+home-kesha-projects-seedon        |23|3|684|46|37|4|4|1012
+home-kesha-projects-ai-table-mvp  |2|0|258|7|0|0|7|0
+home-kesha-projects-kesha-tg-bot  |2|0|160|4|0|0|4|2
+bash-latency-20260905             |1|1|0|0|0|0|0|0
+home-kesha-openrouter-lab         |1|1|0|0|0|0|0|0
+home-kesha-projects-university    |7|7|0|0|0|0|0|0
+home-kesha-projects-vpn-service   |1|0|0|0|0|0|0|0
+opt-cog-second-brain              |2|2|0|0|0|0|0|0
+top worktrees deleted:
+  home-kesha-katya-work/rilsy 400 MB
+  home-kesha-katya-work/kurs-stepik 133 MB
+  home-kesha-katya-work/avito 112 MB
+  home-kesha-katya-work/itog-soch 74 MB
+  home-kesha-katya-work/google-slaydy 71 MB
+  home-kesha-katya-work/urok-svyaz 70 MB
+top kept unique:
+  home-kesha-orchestra/research-cmu-course 5.43 GB [('data/v961', 5.32), ('data/v963', 0.1)]
+  home-kesha-katya-work/rilsy 1.76 GB [('artifacts/V-193', 0.8), ('artifacts/V-173', 0.34), ('artifacts/task-V-94', 0.32)]
+  home-kesha-katya-work/avito 1.44 GB [('artifacts/task-V-102', 0.61), ('artifacts/V-170', 0.2), ('artifacts/V-209', 0.15)]
+  home-kesha-katya-work/video-platforma 1.13 GB [('artifacts/V-202', 0.6), ('artifacts/V-192', 0.22), ('artifacts/V-183', 0.13)]
+  home-kesha-projects-seedon/gamelab-bots 0.49 GB [('.orchestra/tasks', 0.49), ('.claude/skills', 0.0)]
+  home-kesha-katya-work/urok-svyaz 0.36 GB [('artifacts/V-174', 0.23), ('.orchestra/tasks', 0.04), ('artifacts/V-236', 0.04)]

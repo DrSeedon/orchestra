@@ -2213,6 +2213,8 @@ async def _run_operation(operation_id: str) -> None:
         )
         if not stored:
             logger.error("merge operation result CAS failed operation_id=%s", operation_id)
+        elif result.get("operation_state") == "SUCCEEDED":
+            await _clean_worktree_after_merge(record, result)
     except asyncio.CancelledError:
         logger.warning(
             "merge operation runner cancelled operation_id=%s; RUNNING remains for restart quarantine",
@@ -2234,6 +2236,34 @@ async def _run_operation(operation_id: str) -> None:
         await asyncio.to_thread(
             finish_operation, operation_id, owner_token, result, terminal,
         )
+
+
+async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, Any]) -> None:
+    """Free recoverable generated output in the merged worker's copy (V-984).
+
+    Runs after the result is stored, so it never delays or changes the merge outcome; any failure
+    is only logged. The safety rule lives in app.worktree_cleanup."""
+    from app.workspace import _resolve_repo
+    from app.worktree_cleanup import clean_worktree
+
+    operation_id = record.get("operation_id", "")
+    try:
+        row = await asyncio.to_thread(get_session, record["session_id"])
+        worktree = (row or {}).get("worktree_path") or ""
+        target = str((result.get("git") or {}).get("target_branch") or "")
+        if not worktree or not target:
+            return
+        repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)
+        outcome = await asyncio.to_thread(
+            clean_worktree, worktree, main_checkout=str(repo), target_ref=target, apply=True,
+        )
+        logger.info(
+            "post-merge worktree cleanup operation_id=%s worktree=%s state=%s files=%s bytes=%s reason=%s",
+            operation_id, worktree, outcome.get("state"), outcome.get("files"),
+            outcome.get("bytes"), outcome.get("reason", ""),
+        )
+    except Exception:
+        logger.exception("post-merge worktree cleanup failed operation_id=%s", operation_id)
 
 
 def _observe_runner(task: asyncio.Task[None]) -> None:
