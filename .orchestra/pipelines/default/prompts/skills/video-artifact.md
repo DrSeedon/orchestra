@@ -8,7 +8,9 @@ description: "Create and deliver a 30–90 s MP4 explainer in the light paper st
 A video is a scene voiced step by step: load `html-artifacts` and read its
 `references/animation.md` for HTML diagrams, or use Manim for charts and mathematics in motion.
 This skill adds voice, the 16:9 frame (or 9:16 with `--format vertical`),
-and video-specific checks. Numbers and facts come from a source (report, data, or code), as in
+and video-specific checks. **Load `explainer-craft` before writing `STEPS`**: it covers what to
+say and show, in what order and at what pace (script, storyboard, pauses, the "from the viewer's seat"
+check); this skill does not repeat it. Numbers and facts come from a source (report, data, or code), as in
 every artifact.
 
 **Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes phrases in parallel

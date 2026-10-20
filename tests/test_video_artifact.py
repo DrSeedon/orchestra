@@ -1168,3 +1168,16 @@ assert config.frame_width == 4.5 and len(lines) >= 3 and widest <= 4.5 - 2 * s.C
 print("ok")
 """, tmp_path)
     assert run.returncode == 0 and "ok" in run.stdout, run.stderr
+
+
+@needs_sound_tools
+def test_pace_script_counts_pauses_by_length_on_a_voice_track(tmp_path):
+    import subprocess
+
+    track = tmp_path / "voice.wav"
+    gaps = "between(t,1,1.2)+between(t,2.2,2.8)+between(t,3.8,5)+between(t,6,8)+between(t,9,9.4)"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                    f"anoisesrc=d=10.4:c=white:a=0.3:r=16000,volume=0:enable='{gaps}'", str(track)], check=True)
+    run = subprocess.run([make.UV_BIN, "run", "--script", str(make.HERE / "pace.py"), str(track)], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
+    assert "pauses 5 " in run.stdout and ">=0.5 s: 17.3/min   >=1 s: 11.5/min   >=2 s: 5.8/min" in run.stdout

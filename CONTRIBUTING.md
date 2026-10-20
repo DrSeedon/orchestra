@@ -72,7 +72,7 @@ app/
   prompts/          — Agent role/module/skill prompts (Markdown)
     roles/          — orchestrator, worker, sub-orchestrator, full-cycle
     modules/        — git-workflow, orchestration, report-format
-    skills/         — html-artifacts, video-artifact, vps-deploy
+    skills/         — html-artifacts, video-artifact, explainer-craft, vps-deploy
   static/           — CSS, JS, favicon
 
 deploy/
