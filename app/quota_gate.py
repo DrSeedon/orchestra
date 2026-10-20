@@ -980,6 +980,24 @@ def window_progress(window: Mapping, now: float) -> tuple[float | None, str | No
     return min(1.0, max(0.0, (now - start) / span)), started_at
 
 
+_CODEX_BUCKETS = frozenset({"codex", "codex_spark"})
+
+
+def _exhausted_window_reset(provider: object, now: float) -> float | None:
+    """Самый поздний будущий сброс среди окон, выжранных до 100%; иначе None."""
+    if not isinstance(provider, Mapping) or not isinstance(provider.get("windows"), list):
+        return None
+    resets = []
+    for item in provider["windows"]:
+        if not isinstance(item, Mapping):
+            continue
+        used = _utilization(item.get("utilization"))
+        reset = parse_quota_timestamp(item.get("resets_at"))
+        if used is not None and used >= 100.0 and reset is not None and reset > now:
+            resets.append(reset)
+    return max(resets) if resets else None
+
+
 def evaluate_worker_admission(
     model: str,
     providers: Mapping[str, object],
@@ -1131,6 +1149,18 @@ def evaluate_worker_admission(
             f"lane '{lane}' is not gated by the line; utilization {utilization:g}% "
             f"is below the hard stop {hard_stop:g}%"
         )
+
+    # Решающее окно — самое длинное, поэтому исчерпанное короткое окно (5h на 100%
+    # при недельном ниже стопа) его не останавливает, и доставка падала в мёртвый
+    # пул. Подтверждённое исчерпание = окно ≥100% с ещё не наступившим сбросом.
+    exhausted_reset = None if (override_left or bucket not in _CODEX_BUCKETS) else (
+        _exhausted_window_reset(provider, checked_at)
+    )
+    if exhausted_reset is not None and state != "blocked":
+        state = "blocked"
+        reset_at_str = datetime.fromtimestamp(exhausted_reset, timezone.utc).isoformat()
+        release_status, release_in_seconds = "at_reset", max(0.0, exhausted_reset - checked_at)
+        reason = f"a pool window is exhausted (100%) until its reset at {reset_at_str}"
 
     return QuotaDecision(
         state=state, model=resolved, provider=bucket, provider_label=label,

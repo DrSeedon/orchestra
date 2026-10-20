@@ -1087,3 +1087,36 @@ def test_gate_override_discards_corrupt_persisted_expiry():
 
     assert quota_gate.gate_override_remaining() == 0.0
     assert db.kv_get("quota_gate_override_until") == ""
+
+
+# ── Исчерпанное короткое окно при живом недельном ────────────────────────────
+
+def _codex_5h_and_weekly(five_hour: float, weekly: float):
+    return {"codex": {"label": "Codex", "windows": [
+        _window("primary", CODEX_WINDOW_MINUTES, five_hour, 0.5),
+        _window("secondary", 10080, weekly, 0.5),
+    ]}}
+
+
+def test_luna_with_exhausted_five_hour_window_waits_until_its_reset():
+    decision = _decide("gpt-6-luna", _codex_5h_and_weekly(100.0, 40.0))
+
+    assert decision.state == "blocked"
+    assert decision.gated is False
+    assert decision.release_status == "at_reset"
+    assert decision.release_in_seconds == CODEX_WINDOW_MINUTES * 60 * 0.5
+    assert decision.reset_at == _iso(NOW + CODEX_WINDOW_MINUTES * 60 * 0.5)
+
+
+def test_luna_high_but_not_exhausted_is_still_delivered_at_once():
+    decision = _decide("gpt-6-luna", _codex_5h_and_weekly(98.0, 90.0))
+
+    assert decision.state == "available", decision.reason
+    assert decision.gated is False and decision.limit_pct is None
+
+
+def test_exhausted_window_whose_reset_has_passed_does_not_hold():
+    providers = _codex_5h_and_weekly(100.0, 40.0)
+    providers["codex"]["windows"][0]["resets_at"] = _iso(NOW - 60)
+
+    assert _decide("gpt-6-luna", providers).state == "available"
