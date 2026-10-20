@@ -112,6 +112,7 @@
 - В `/home/kesha/projects/comfy-image-pipeline/AGENTS.md` (строки 100 и 168) мёртвые ссылки на старые каталоги задач и базы знаний (файлы `selected-pipeline.md` и `working-with-machines.md` переехали в `.orchestra/tasks/31/` и `.orchestra/kb/`); корень `dnd-game-master/AGENTS.md:203` и корень Orchestra описывали платформенный факт о чтении CLAUDE.md по-разному — у знания нет владельца. Чужие проекты, не правились.
 
 ## Ролики
+- Сверить описанный в `.codex/skills/video-artifact/SKILL.md` Deepgram Nova-2 с текущим `app/transcription.py` (Nova-3, учёт `$0.0052/мин`) и решить, какие проверки роликов должны использовать какой endpoint. Несогласованность найдена в V-987; `.orchestra/tasks/V-987/report.md`.
 - Скилл video-artifact указывает PLAYWRIGHT_BROWSERS_PATH в /mnt/data, а на VPS этого каталога нет; браузеры лежат в ~/.cache/ms-playwright (V-938). Поправить указание в скилле.
 - `scripts/video_artifact/tts_worker_en.py`: четыре потока Kokoro читают один `voices-v1.0.bin` (NpzFile делит один zip-дескриптор), и сборка английского ролика падает с `zipfile.BadZipFile: Overlapped entries: 'af_heart.npy'`. Найдено 18.10.2026 при пересборке сцены V-824 в V-944 (английская сцена не собралась, русская собралась). Лечится загрузкой голоса один раз до пула потоков или блокировкой вокруг `get_voice_style`.
 
