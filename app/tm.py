@@ -699,18 +699,29 @@ def resolve_scoped_task_identities(
             )
 
 
-def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -> dict:
+def _bind_task_to_session_unlocked(
+    scope: str, session_id: str, task_ref: str, *,
+    expected_parent: str | None = None, current_branch: str | None = None,
+    commits: list[dict] | None = None,
+) -> dict:
     """Atomically bind one scoped task to one durable session."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             session = conn.execute(
-                "SELECT id, name, scope, task_id, template_hash FROM sessions "
+                "SELECT id, name, scope, task_id, template_hash, parent_name, branch, "
+                "needs_switch FROM sessions "
                 "WHERE id = ? AND status != 'archived'",
                 (session_id,),
             ).fetchone()
             if not session or session["scope"] != scope.rstrip("/"):
                 raise ValueError("session is not available in this scope")
+            if expected_parent is not None and session["parent_name"] != expected_parent:
+                raise ValueError("only the durable parent may assign a task")
+            if current_branch is not None and (
+                session["branch"] != current_branch or session["needs_switch"]
+            ):
+                raise ValueError("session branch changed or requires a switch")
             project = get_project_by_scope(conn, scope.rstrip("/"))
             if not project:
                 raise ValueError(f"scope '{scope}' has no task project")
@@ -721,6 +732,11 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
             task_worker_session_id = str(task["worker_session_id"] or "")
             if session_task_id and session_task_id != public_task_ref(task):
                 raise ValueError("session is already bound to another task")
+            if current_branch is not None:
+                if task["status"] not in {"new", "in_progress"}:
+                    raise ValueError("only new or in_progress tasks may be assigned")
+                if _live_bindings(conn, scope, public_task_ref(task), session_id):
+                    raise ValueError("task is already bound to another session")
             if task_worker_session_id and task_worker_session_id != session_id:
                 if session_task_id == public_task_ref(task):
                     raise ValueError(
@@ -760,6 +776,8 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
                 )
                 if updated.rowcount != 1:
                     raise ValueError("session binding compare-and-swap failed")
+            if commits is not None:
+                _link_commits_to_task(conn, public_task_ref(task), commits, project["id"])
             active_runtime().publish(conn, task['id'])
             task = get_task_by_id(conn, task['id'])
             _open_task_run_for_task(conn, task, session_id)
@@ -771,9 +789,16 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
             raise
 
 
-def bind_task_to_session(scope: str, session_id: str, task_ref: str) -> dict:
+def bind_task_to_session(
+    scope: str, session_id: str, task_ref: str, *,
+    expected_parent: str | None = None, current_branch: str | None = None,
+    commits: list[dict] | None = None,
+) -> dict:
     with active_runtime().operation():
-        return _bind_task_to_session_unlocked(scope, session_id, task_ref)
+        return _bind_task_to_session_unlocked(
+            scope, session_id, task_ref, expected_parent=expected_parent,
+            current_branch=current_branch, commits=commits,
+        )
 
 
 def _live_bindings(

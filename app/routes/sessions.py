@@ -19,7 +19,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
-from pydantic import BaseModel, StrictFloat, StrictInt, field_validator, model_validator
+from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator, model_validator
 
 from app.db import (
     get_all_sessions,
@@ -3326,6 +3326,56 @@ async def _promote_current_work_for_task(
             "lifecycle_status": quarantine,
         }
     return {**promotion, "task_status": task_status}
+
+
+class BindTaskRequest(BaseModel):
+    scope: str
+    task_id: str = Field(min_length=1)
+
+
+@router.post("/api/sessions/{name}/bind-task")
+async def bind_worker_task(name: str, req: BindTaskRequest, request: Request):
+    """Assign existing work without switching branches or interrupting a turn."""
+    from app import tm as _tm
+    from app.workspace import _parse_merged_commits, inspect_worktree_identity
+
+    caller = _verified_mcp_session(request)
+    if not caller or caller["scope"].rstrip("/") != req.scope.rstrip("/"):
+        return JSONResponse({"error": "a same-scope MCP parent proof is required"}, status_code=403)
+    durable = await asyncio.to_thread(get_session_by_name, name, req.scope)
+    if not durable or durable.get("status") == "archived":
+        return JSONResponse({"error": "worker not found in scope"}, status_code=404)
+    if durable.get("parent_name") != caller["name"]:
+        return JSONResponse({"error": "only the durable parent may assign a task"}, status_code=403)
+    async with manager.get_session_lock(durable["id"]):
+        try:
+            branch, head = await asyncio.to_thread(
+                inspect_worktree_identity, durable["worktree_path"],
+            )
+            identity = await asyncio.to_thread(
+                _tm.resolve_scoped_task_identity, req.scope, req.task_id,
+            )
+            par = public_task_ref(identity)
+            commits = await asyncio.to_thread(
+                _parse_merged_commits, durable["worktree_path"],
+                durable.get("base_branch") or "main", head, strict=True,
+            )
+            live = manager.sessions.get(durable["id"])
+            if live is not None:
+                while live._persist_task and not live._persist_task.done():
+                    await live._drain_persist()
+            # Task-store locks and projection refresh must not block the event loop.
+            # Update the live copy immediately when the transaction returns.
+            task = await asyncio.to_thread(
+                _tm.bind_task_to_session, req.scope, durable["id"], par,
+                expected_parent=caller["name"], current_branch=branch,
+                commits=commits.get(par, []),
+            )
+            if live is not None:
+                live.task_id = par
+        except (ValueError, RuntimeError, OSError) as error:
+            return JSONResponse({"error": str(error)}, status_code=409)
+        return {"ok": True, "task": task, "branch": branch, "head": head}
 
 
 @router.post("/api/sessions/{name}/switch-branch")

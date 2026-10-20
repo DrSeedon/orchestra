@@ -2809,6 +2809,16 @@ async def resolve_merge_operation(operation_id: str, reason: str) -> CallToolRes
 
 
 @mcp.tool()
+async def bind_worker_task(name: str, task_id: str) -> str:
+    """Bind an existing scoped task to your taskless worker, including a running worker with commits and dirty WIP. Preserves branch, HEAD, files and status; creates no task and sends no message. Repeat the same assignment safely. Refuses foreign scope/parent, another task or owner, reservations and pending branch switches. Links the current unmerged commits whose headers reference this task; later commits are linked at merge."""
+    result = await _api(
+        "POST", f"/api/sessions/{name}/bind-task",
+        json={"scope": SCOPE, "task_id": task_id},
+    )
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
 async def switch_worker_branch(
     name: str,
     task_id: str,

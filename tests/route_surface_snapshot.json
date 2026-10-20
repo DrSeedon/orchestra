@@ -343,6 +343,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/bind-task",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/sessions/{name}/change-model",
   [
    "POST"

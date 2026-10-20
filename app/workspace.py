@@ -1121,7 +1121,7 @@ _RESERVED_OPERATION_TRAILER_VALUE_RE = re.compile(
 
 
 _HEADER_TASK_REFS_RE = re.compile(
-    r"^\s*((?:#[0-9]+|[A-Z]{1,5}-[0-9]+)(?:\s*,\s*(?:#[0-9]+|[A-Z]{1,5}-[0-9]+))*)\s*:"
+    r"^\s*((?:#[0-9]+|#?[A-Z]{1,5}-[0-9]+)(?:\s*,\s*(?:#[0-9]+|#?[A-Z]{1,5}-[0-9]+))*)\s*:"
 )
 _ONE_TASK_REF_RE = re.compile(r"#([0-9]+)|([A-Z]{1,5})-([0-9]+)")
 
@@ -2128,12 +2128,14 @@ def merge_worktree_to_main(
 
 
 def _parse_merged_commits(
-    repo: str, old_head: str, head_ref: str = "HEAD",
+    repo: str, old_head: str, head_ref: str = "HEAD", *, strict: bool = False,
 ) -> dict[str, list[dict]]:
     log = _git_cmd(
         ["git", "log", f"{old_head}..{head_ref}", "--format=%H%x00%s%x00%ad", "--date=short"],
         cwd=repo, capture_output=True, text=True,
     )
+    if log.returncode != 0 and strict:
+        raise RuntimeError(f"commit history unavailable: {log.stderr.strip()}")
     if log.returncode != 0 or not log.stdout.strip():
         return {}
 
@@ -2153,6 +2155,8 @@ def _parse_merged_commits(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
             cwd=repo, capture_output=True, text=True,
         )
+        if stat.returncode != 0 and strict:
+            raise RuntimeError(f"commit statistics unavailable: {stat.stderr.strip()}")
         files_changed = insertions = deletions = 0
         for stat_line in (stat.stdout.strip().splitlines() if stat.returncode == 0 else []):
             stat_parts = stat_line.split("\t")
