@@ -31,4 +31,8 @@ The mutation outputs are stored losslessly compressed because pytest includes tr
 
 `uv run --frozen python scripts/check_instruction_contract.py`: exit 0, AGENTS.md below 16 KiB and CLAUDE.md remains its symlink. `git diff --check`: exit 0. `scripts/secret_scan.py` was run with `uv run --frozen python` on every changed source, test, changelog and task evidence file and again on the staged changes: no secret-form findings.
 
-Python changes require an Orchestra server restart after integration. Existing MCP processes must reconnect to expose the new tool. No restart, merge into the platform's main branch, push or live repair of the reported worker/task was performed.
+## Integration
+
+The merge landed as `95f9d202536646b416204d4913d934c89402025e`; `origin/main` was verified at the same SHA. Exact main CI run `39386729403` completed successfully. The owner-delegated API restart replaced MainPID `840206` with `1163912`; `/` returned 302, application startup completed, `MemoryHigh/MemoryMax` remained 14/16 GiB, and `oom_score_adj` remained 800. Restart returned `cut_turns=3` and `cut_names` `Orchestra-orchestrator`, `ege-rus-uroki`, `bolshoe-dz-tolya`; startup injected restart notices for all three and all three were running again. Startup restored 25 background jobs and expired 0. Telegram polling and the bridge reached ready state after a transient disconnect during shutdown. The new MCP tool is available after reconnect.
+
+The reported cross-project data was not modified. After deployment, `kurs-stepik` remained idle on its adhoc branch with empty `task_id`; V-251 still reported `new` with no linked commits. The new binding endpoint requires an authenticated parent in the same scope, so the Katya project must invoke `bind_worker_task` to associate that existing WIP. No cross-scope identity was impersonated.
