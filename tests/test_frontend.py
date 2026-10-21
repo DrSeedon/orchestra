@@ -6664,3 +6664,55 @@ def test_chat_request_uses_reserved_slot_ahead_of_background_gets(
 
     assert "/test/chat" in state["beforeRelease"]
     assert "/test/background-4" not in state["beforeRelease"]
+
+
+def test_video_preview_controls_autohide_while_playing(
+    dashboard_browser: Browser, tmp_path
+):
+    import shutil
+    import subprocess
+
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg required to build a real video fixture")
+    clip = tmp_path / "clip.webm"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+         "testsrc=size=640x360:rate=10:duration=8", "-c:v", "libvpx", "-b:v", "200k", str(clip)],
+        check=True,
+    )
+    body = clip.read_bytes()
+    page = dashboard_browser.new_page(viewport={"width": 1000, "height": 700})
+    _route_frontend_sources(page)
+    page.route(
+        "**/api/files/raw*",
+        lambda route: route.fulfill(status=200, content_type="video/webm", body=body),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof openFilePreview === 'function'")
+    page.evaluate("openFilePreview('/tmp/clip.webm')")
+    video = page.locator("#file-preview-content video")
+    expect(video).to_have_count(1)
+    page.wait_for_function("() => document.querySelector('#file-preview-content video').readyState >= 2")
+    controls = "() => document.querySelector('#file-preview-content video').controls"
+
+    assert page.evaluate(controls) is True  # paused: visible
+    page.evaluate("document.querySelector('#file-preview-content video').muted = true")
+    page.evaluate("document.querySelector('#file-preview-content video').play()")
+    page.mouse.move(500, 300)
+    assert page.evaluate(controls) is True
+    page.screenshot(path=".orchestra/tasks/V-994/before-controls-visible.png")
+
+    page.wait_for_function(f"({controls})() === false", timeout=4000)
+    assert page.evaluate("getComputedStyle(document.querySelector('#file-preview-content video')).cursor") == "none"
+    page.screenshot(path=".orchestra/tasks/V-994/after-controls-hidden.png")
+
+    page.mouse.move(520, 310)
+    assert page.evaluate(controls) is True  # mouse move reveals
+    page.wait_for_function(f"({controls})() === false", timeout=4000)
+    page.evaluate("document.querySelector('#file-preview-content video').dispatchEvent(new Event('touchstart'))")
+    assert page.evaluate(controls) is True  # tap reveals
+
+    page.evaluate("document.querySelector('#file-preview-content video').pause()")
+    page.wait_for_timeout(2600)
+    assert page.evaluate(controls) is True  # paused stays visible
+    page.close()

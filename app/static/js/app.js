@@ -1653,6 +1653,7 @@ async function openFilePreview(path) {
         video.playsInline = true;
         video.preload = 'metadata';
         video.style.cssText = 'max-width:100%;max-height:70vh;border-radius:8px';
+        _autoHideVideoControls(video);
         contentEl.replaceChildren(video);
         return;
     }
@@ -3128,6 +3129,27 @@ function _cacheDuration(totalMinutes) {
     const days = Math.floor(hours / 24);
     const remainingHours = hours % 24;
     return `${days}d${remainingHours ? `${remainingHours}h` : ''}`;
+}
+
+// Native player chrome covers burned-in subtitles: hide it (and the cursor) 2 s after the last
+// pointer/touch/key activity while playing; paused/ended keeps it visible.
+function _autoHideVideoControls(video, delayMs = 2000) {
+    let timer = null;
+    const show = () => {
+        clearTimeout(timer);
+        video.controls = true;
+        video.style.cursor = '';
+        if (!video.paused && !video.ended) timer = setTimeout(hide, delayMs);
+    };
+    const hide = () => {
+        if (video.paused || video.ended) return;
+        video.controls = false;
+        video.style.cursor = 'none';
+    };
+    ['mousemove', 'pointerdown', 'touchstart', 'click', 'keydown', 'focus', 'play', 'pause', 'ended', 'seeked']
+        .forEach(ev => video.addEventListener(ev, show));
+    video.addEventListener('pause', () => clearTimeout(timer));
+    video.tabIndex = 0;
 }
 
 function _cachePill(s) {

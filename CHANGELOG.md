@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Video preview hides the player controls and cursor while playing** (`app/static/js/app.js` `_autoHideVideoControls`, called from the file preview; V-994). The native control bar permanently covered burned-in subtitles. Now controls and cursor hide 2 s after the last mouse move, touch, click, key or focus while the video plays, and reappear on any of those; paused/ended keeps them visible. Native seek/volume/fullscreen are unchanged (the same `<video>` element is used). Trigger: owner screenshot of an 8-minute explainer with the bar over the subtitles. Known tradeoff: on touch devices the first tap on hidden controls only reveals them. Frontend only, no restart. Test `test_video_preview_controls_autohide_while_playing` (real Chromium, ffmpeg-built webm), screenshots in `.orchestra/tasks/V-994/`.
+
 ### Changed
 - **Codex prompt cache is shown and scored as non-expiring** (`app/models.py` `ProviderMetadata.cache_persistent`, `app/mcp_stdio.py:_cache_pill`, `app/usage_analytics.py:_cache_ttl_case`, `app/static/js/{app,analytics}.js`; V-992). The 30-minute approximate Codex window is removed: the dashboard pill shows `♾`, `list_agents` shows `♾ cached`, analytics no longer counts a cold start from an idle gap and labels the TTL `∞`. Claude (1 h), Grok and harness are unchanged. Trigger: the Codex product lead stated on 21.10.2026 that the cache for logged-in users is kept indefinitely, while every idle Codex worker was marked cold after 30 minutes. Known tradeoff: based on a public statement, not documentation; a Python change, takes effect after a restart.
 
