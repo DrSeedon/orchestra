@@ -317,6 +317,25 @@ class OrchestraMCP(FastMCP):
 mcp = OrchestraMCP("orchestra")
 
 
+@mcp.tool()
+async def multicode_run(prompt: str, title: str = "Orchestra task",
+                        timeout_ms: int = 300_000) -> str:
+    """Run prompt in a new MultiCode Hub thread and return its last assistant reply.
+
+    Requires MULTICODE_MCP_BASE and MULTICODE_MCP_TOKEN in this MCP process. The Hub
+    must be reachable at that base URL (for a loopback-only Hub, open an SSH -L tunnel).
+    """
+    from app.multicode_client import MultiCodeClient, MultiCodeError
+
+    token = os.environ.get("MULTICODE_MCP_TOKEN", "")
+    try:
+        async with MultiCodeClient.from_env() as client:
+            return await client.run(prompt, title=title, timeout_ms=timeout_ms)
+    except (MultiCodeError, ValueError) as error:
+        safe_message = str(error).replace(token, "[redacted]") if token else str(error)
+        raise ApiToolError(code="multicode_error", message=safe_message) from error
+
+
 def _tool_names_for_access_mode(names: set[str], mode: str) -> set[str]:
     normalized = mode.strip().lower()
     if normalized in {"read-only", "readonly", "read"}:
