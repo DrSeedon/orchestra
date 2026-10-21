@@ -1,3 +1,19 @@
 # Temporary agent rules, managed by the temp_rule_* tools; hand edits and git pulls are honoured.
 # An entry without a reason, or without a date in mode expires/review, is skipped with a warning.
-rules: []
+rules:
+- id: rule-b94ca6b8a6
+  project: '*'
+  mode: expires
+  expires_at: '2026-10-31T17:00:00+00:00'
+  targets:
+  - all
+  author: Orchestra-orchestrator
+  created_at: '2026-10-21T09:00:55.049298+00:00'
+  text: 'До конца октября пул Codex выжигаем в первую очередь: новых воркеров и задачи dynamic_workflow
+    запускайте на Codex Luna. Sol (GPT-6.1 Sol) агентам закрыт, как и Astra: его выбирает только владелец
+    вручную в дашборде. Claude (Sonnet/Opus) — только если задача без него не делается или Codex упёрся
+    в лимит. Правило перекрывает model-routing в части выбора между Claude и Codex.'
+  reason: 'Решение владельца 19.10.2026 15:06 КРС («кодекс выжигать побольше»): неделя Claude выжжена
+    до 97% при 0% Codex. 21.10.2026 16:00 КРС владелец снова закрыл Sol агентам («6.1 сол снова в бан…
+    только если я вручную… выбери в дашборде»): 21.10 пять воркеров Sol katya-work сожгли 5-часовое окно
+    Codex с 0 до 100% за ~75 минут, Luna за то же время потратила в 200 раз меньше.'
