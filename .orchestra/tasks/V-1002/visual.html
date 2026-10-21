@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Измеренный срез работы Orchestra к задаче V-1000">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23007aff'/%3E%3Cpath d='M9 28V12h4v16m7 0V12h4v16m7 0V12h4v16' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+<title>Orchestra · V-1000</title>
+<style>
+:root{color-scheme:light;--bg:#f5f5f7;--panel:#fff;--ink:#1d1d1f;--muted:#68686d;--line:#e5e5e9;--blue:#007aff;--green:#238636;--amber:#c77800;--violet:#7656c9;--red:#d14b4b}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}body{padding:28px}.page{max-width:1500px;margin:auto}.eyebrow{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}.header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px}.header h1{font-size:30px;line-height:1.08;margin:5px 0 0;letter-spacing:-.03em}.header p{margin:0;color:var(--muted);max-width:390px;text-align:right}.hero{display:grid;grid-template-columns:1.35fr repeat(3,1fr);gap:12px;margin-bottom:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:17px 18px}.hero-main{background:#eaf3ff;border-color:#d1e5ff}.hero-main strong{font-size:42px;line-height:1;letter-spacing:-.04em}.hero-main .tag{color:var(--blue);font-weight:650}.hero-main p{margin:9px 0 0;color:#4e6076}.metric-label{font-size:12px;color:var(--muted);margin-bottom:8px}.metric{font-size:26px;font-weight:700;letter-spacing:-.03em}.metric-sub{font-size:12px;color:var(--muted);margin-top:4px}.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}.section-title{font-size:16px;font-weight:700;margin:0 0 13px}.sub{font-size:11px;color:var(--muted);font-weight:400;margin-left:6px}.month-list{display:grid;gap:11px}.month{display:grid;grid-template-columns:76px 1fr 48px;align-items:center;gap:10px}.month-name{color:var(--muted);font-size:12px}.track{height:17px;border-radius:5px;background:#eef0f3;overflow:hidden}.fill{height:100%;border-radius:5px;background:var(--blue)}.month-count{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;font-weight:650}.legend{display:flex;gap:16px;margin-top:15px;font-size:11px;color:var(--muted)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.status-stack{display:flex;width:100%;height:19px;border-radius:6px;overflow:hidden;margin:4px 0 10px}.status-stack span{height:100%}.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px}.status-item{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;border-bottom:1px solid #f0f0f2;padding:5px 0}.status-item b{font-variant-numeric:tabular-nums;color:var(--ink)}.usage{margin-top:14px}.usage-layout{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.family-table{width:100%;border-collapse:collapse;font-size:12px}.family-table th{text-align:left;color:var(--muted);font-weight:500;padding:6px 0;border-bottom:1px solid var(--line)}.family-table td{padding:8px 0;border-bottom:1px solid #f0f0f2;font-variant-numeric:tabular-nums}.family-table td:last-child,.family-table th:last-child{text-align:right}.spend-total{display:flex;align-items:baseline;gap:8px;margin-top:10px}.spend-total strong{font-size:24px}.spend-total span{font-size:11px;color:var(--muted)}.note{font-size:11px;color:var(--muted);margin:7px 0 0}.timeline{margin-top:14px}.timeline-row{display:grid;grid-template-columns:repeat(5,1fr);gap:0;position:relative;margin-top:14px}.timeline-row:before{content:"";position:absolute;left:6%;right:6%;height:2px;background:#d9dce2;top:7px}.mile{position:relative;padding:23px 12px 0 0;font-size:12px}.mile:before{content:"";position:absolute;top:1px;left:0;width:13px;height:13px;border:3px solid white;box-shadow:0 0 0 1px var(--blue);border-radius:50%;background:var(--blue)}.mile time{display:block;color:var(--blue);font-weight:700;margin-bottom:4px}.footer{display:flex;justify-content:space-between;gap:16px;margin-top:12px;color:var(--muted);font-size:11px}.footer strong{color:var(--ink)}
+@media(max-width:900px){body{padding:16px}.hero{grid-template-columns:repeat(2,1fr)}.grid,.usage-layout{grid-template-columns:1fr}.header{align-items:flex-start;gap:12px;flex-direction:column}.header p{text-align:left}.timeline-row{grid-template-columns:repeat(2,1fr);row-gap:8px}.timeline-row:before{display:none}}
+@media print{html,body{background:#fff}.page{max-width:none}.card{break-inside:avoid}.footer{margin-bottom:0}}
+</style>
+</head>
+<body>
+<main class="page" aria-label="Измеренный срез Orchestra к задаче V-1000">
+  <header class="header">
+    <div><div class="eyebrow">Orchestra · срез на 21 октября 2026</div><h1>От первого MVP до V-1000</h1></div>
+    <p>Счётчики сохранённых данных. Номера задач повторяются между проектами; API-equivalent не является счётом за подписку.</p>
+  </header>
+  <section class="hero" aria-label="Ключевые показатели">
+    <article class="card hero-main"><div class="tag">НОМЕР ЗАДАЧИ</div><strong>V-1000</strong><p>Платформа, проекты и измерения за полгода</p></article>
+    <article class="card"><div class="metric-label">Задачи в task store</div><div class="metric">2 887</div><div class="metric-sub">2 068 завершены или оплачены</div></article>
+    <article class="card"><div class="metric-label">Дочерние запуски</div><div class="metric">1 122</div><div class="metric-sub">1 117 уникальных имён</div></article>
+    <article class="card"><div class="metric-label">Коммиты Orchestra main</div><div class="metric">3 836</div><div class="metric-sub">достижимы из main · 30.04–21.10</div></article>
+  </section>
+  <section class="grid">
+    <article class="card">
+      <h2 class="section-title">Задачи по месяцу создания <span class="sub">строк task store</span></h2>
+      <div class="month-list" role="img" aria-label="Созданные задачи по месяцам: май 90, июнь 154, июль 151, август 1007, сентябрь 684, октябрь 801">
+        <div class="month"><span class="month-name">Май</span><div class="track"><div class="fill" style="width:8.94%"></div></div><span class="month-count">90</span></div>
+        <div class="month"><span class="month-name">Июнь</span><div class="track"><div class="fill" style="width:15.29%"></div></div><span class="month-count">154</span></div>
+        <div class="month"><span class="month-name">Июль</span><div class="track"><div class="fill" style="width:14.99%"></div></div><span class="month-count">151</span></div>
+        <div class="month"><span class="month-name">Август</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="month-count">1 007</span></div>
+        <div class="month"><span class="month-name">Сентябрь</span><div class="track"><div class="fill" style="width:67.92%"></div></div><span class="month-count">684</span></div>
+        <div class="month"><span class="month-name">Октябрь*</span><div class="track"><div class="fill" style="width:79.54%"></div></div><span class="month-count">801</span></div>
+      </div>
+      <div class="legend"><span><i class="dot" style="background:var(--blue)"></i>по created_at</span><span>*по 21 октября</span><span>медиана до завершения: 28 мин 18 с</span></div>
+    </article>
+    <article class="card">
+      <h2 class="section-title">Состояние задач <span class="sub">все пространства нумерации</span></h2>
+      <div class="status-stack" role="img" aria-label="Статусы: 2068 done или paid, 619 new, 119 in progress, 78 cancelled, 3 backlog">
+        <span style="width:71.63%;background:var(--green)"></span><span style="width:21.44%;background:var(--blue)"></span><span style="width:4.12%;background:var(--amber)"></span><span style="width:2.70%;background:var(--red)"></span><span style="width:.10%;background:#92939a"></span>
+      </div>
+      <div class="status-grid">
+        <div class="status-item"><span>Done + paid</span><b>2 068</b></div><div class="status-item"><span>New</span><b>619</b></div><div class="status-item"><span>In progress</span><b>119</b></div><div class="status-item"><span>Cancelled</span><b>78</b></div><div class="status-item"><span>Backlog</span><b>3</b></div><div class="status-item"><span>Всего</span><b>2 887</b></div>
+      </div>
+      <div class="legend"><span><i class="dot" style="background:var(--green)"></i>завершено</span><span><i class="dot" style="background:var(--blue)"></i>новая</span><span><i class="dot" style="background:var(--amber)"></i>в работе</span></div>
+    </article>
+  </section>
+  <section class="card usage">
+    <div class="usage-layout">
+      <div>
+        <h2 class="section-title">Ходы и API-equivalent <span class="sub">03.08–21.10 · неполный ряд</span></h2>
+        <table class="family-table"><thead><tr><th>Семейство модели</th><th>Ходы</th><th>API-eq</th></tr></thead><tbody>
+          <tr><td><i class="dot" style="background:var(--violet)"></i>Claude</td><td>21 024</td><td>$29 652.00</td></tr>
+          <tr><td><i class="dot" style="background:var(--blue)"></i>Codex / GPT</td><td>7 982</td><td>$9 358.85</td></tr>
+          <tr><td><i class="dot" style="background:#92939a"></i>Harness / other</td><td>151</td><td>$1.17</td></tr>
+        </tbody></table>
+      </div>
+      <div>
+        <div class="metric-label">Суммарно в учтённом диапазоне</div>
+        <div class="spend-total"><strong>$39 012.02</strong><span>API-equivalent<br>не счёт владельцу</span></div>
+        <p class="note">29 157 записей turn_usage. В 151 записи цена NULL. До 3 августа помесячного покрытия нет; август неполный.</p>
+      </div>
+    </div>
+  </section>
+  <section class="card timeline">
+    <h2 class="section-title">Что появилось по дороге</h2>
+    <div class="timeline-row">
+      <div class="mile"><time>30.04</time>MVP: менеджер воркеров + dashboard</div>
+      <div class="mile"><time>08–09.09</time>Квоты и резервное хранение задач</div>
+      <div class="mile"><time>04.10</time>Telegram-карточка лимитов</div>
+      <div class="mile"><time>14–15.10</time>Shell-guards, voice и видеоинструменты</div>
+      <div class="mile"><time>21.10</time>V-1000: новая тысяча, а не финиш</div>
+    </div>
+  </section>
+  <footer class="footer"><span>Задачи: SQLite tm_tasks · ходы: turn_usage · коммиты: git rev-list --count main</span><span><strong>Срез:</strong> 21.10.2026, 12:04 UTC</span></footer>
+</main>
+</body>
+</html>
