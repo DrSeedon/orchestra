@@ -272,7 +272,7 @@ async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypa
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ('model', 'expected_error'),
-    [('astra', 'not allowed'), ('gpt-5.6-sol', 'unknown model')],
+    [('astra', 'not allowed'), ('sol', 'not allowed'), ('gpt-5.6-sol', 'unknown model')],
 )
 async def test_dynamic_workflow_rejects_platform_blocked_models(model, expected_error, monkeypatch):
     async def unexpected_api(*_args, **_kwargs):
@@ -285,35 +285,6 @@ async def test_dynamic_workflow_rejects_platform_blocked_models(model, expected_
         task_id='V-720', repo=str(Path.cwd()),
     )
     assert expected_error in response
-
-
-@pytest.mark.asyncio
-async def test_dynamic_workflow_accepts_sol_and_submits_resolved_model(tmp_path, monkeypatch):
-    import json
-
-    repo = _git_repo(tmp_path / 'repo')
-    runner_root = tmp_path / 'runner'
-    (runner_root / 'data').mkdir(parents=True)
-    monkeypatch.setattr(mcp_stdio, '__file__', str(runner_root / 'app' / 'mcp_stdio.py'))
-    captured = {}
-
-    async def fake_api(method, path, **kwargs):
-        captured.update(method=method, path=path, body=kwargs['json'])
-        return {"id": "job-sol"}
-
-    monkeypatch.setattr(mcp_stdio, '_api', fake_api)
-    result = await mcp_stdio.dynamic_workflow(
-        budget_usd=1, max_calls=1, max_concurrency=1, task_id='V-970',
-        repo=str(repo), tasks=[{'prompt': 'analyze', 'model': 'sol'}], mode='parallel',
-    )
-
-    assert result.startswith('Dynamic workflow queued:')
-    assert captured['method'] == 'POST'
-    assert captured['path'] == '/api/bg/jobs'
-    args = shlex.split(captured['body']['config']['command'])
-    spec_path = Path(args[args.index('--spec') + 1])
-    spec = json.loads(spec_path.read_text())
-    assert spec['tasks'][0]['model'] == 'gpt-6.1-sol'
 
 
 @pytest.mark.asyncio
