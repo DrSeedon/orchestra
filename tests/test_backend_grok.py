@@ -570,7 +570,11 @@ def test_cache_ttl_case_covers_every_known_provider():
     assert len(ttls) == len(_PROVIDERS)
     assert sql.count("WHEN") >= len(_PROVIDERS) - 1
     for provider, ttl in zip(_PROVIDERS, ttls):
-        assert ttl == cache_policy_for_runtime(provider)["cache_ttl_seconds"]
+        policy = cache_policy_for_runtime(provider)
+        if policy["cache_persistent"]:
+            assert ttl > 365 * 86400  # unreachable threshold: never cold by elapsed time
+        else:
+            assert ttl == policy["cache_ttl_seconds"]
 
 
 def test_provider_buckets_match_runtime_ids():
@@ -585,7 +589,10 @@ def test_provider_buckets_match_runtime_ids():
             assert policy == {
                 "cache_ttl_seconds": 0,
                 "cache_ttl_approximate": True,
+                "cache_persistent": False,
             }
+        elif policy["cache_persistent"]:
+            assert provider == "codex"
         else:
             assert policy["cache_ttl_seconds"] > 0
 

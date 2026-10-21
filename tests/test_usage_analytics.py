@@ -111,8 +111,8 @@ def test_daily_usage_applies_provider_cache_ttl(usage_db, hour, minute):
     row = rows[0]
     assert row["turns"] == 6
     assert row["cost_usd"] == 6.0
-    assert row["cold_starts"] == 3
-    assert row["cache_hit_pct"] == 25
+    assert row["cold_starts"] == 1
+    assert row["cache_hit_pct"] == 75
     assert row["providers"]["claude"] == {
         "turns": 3,
         "cost_usd": 3.0,
@@ -123,6 +123,7 @@ def test_daily_usage_applies_provider_cache_ttl(usage_db, hour, minute):
         "cache_hit_pct": 50,
         "cache_ttl_seconds": 3600,
         "cache_ttl_approximate": False,
+        "cache_persistent": False,
     }
     assert row["providers"]["codex"] == {
         "turns": 3,
@@ -130,10 +131,11 @@ def test_daily_usage_applies_provider_cache_ttl(usage_db, hour, minute):
         "priced_turns": 3,
         "unaccounted_turns": 0,
         "comparable_turns": 2,
-        "cold_starts": 2,
-        "cache_hit_pct": 0,
-        "cache_ttl_seconds": 1800,
-        "cache_ttl_approximate": True,
+        "cold_starts": 0,
+        "cache_hit_pct": 100,
+        "cache_ttl_seconds": 0,
+        "cache_ttl_approximate": False,
+        "cache_persistent": True,
     }
 
 
@@ -154,7 +156,7 @@ def test_daily_usage_keeps_legacy_keys_and_types(usage_db, monkeypatch):
     assert isinstance(row["cost_usd"], float)
     assert isinstance(row["cold_starts"], int)
     assert row["cache_hit_pct"] is None or isinstance(row["cache_hit_pct"], int)
-    assert row["providers"]["codex"]["cache_ttl_seconds"] == 1800
+    assert row["providers"]["codex"]["cache_persistent"] is True
 
 
 def test_provider_bucket_prefers_explicit_runtime_and_never_defaults_to_claude(

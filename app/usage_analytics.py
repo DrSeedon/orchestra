@@ -39,6 +39,10 @@ def _provider_case(runtime_col: str, model_col: str) -> str:
     )
 
 
+# A persistent cache is never cold from elapsed time alone: the threshold is unreachable.
+_NEVER_COLD_SECONDS = 10**9
+
+
 def _cache_ttl_case() -> tuple[str, tuple[int, ...]]:
     """SQL CASE + bound TTLs for cold-start scoring, in _PROVIDERS order."""
     branches = " ".join(
@@ -47,7 +51,9 @@ def _cache_ttl_case() -> tuple[str, tuple[int, ...]]:
         if p != _FALLBACK_PROVIDER
     )
     ttls = tuple(
-        int(cache_policy_for_runtime(p)["cache_ttl_seconds"]) for p in _PROVIDERS
+        _NEVER_COLD_SECONDS if cache_policy_for_runtime(p)["cache_persistent"]
+        else int(cache_policy_for_runtime(p)["cache_ttl_seconds"])
+        for p in _PROVIDERS
     )
     return f"CASE {branches} ELSE ? END", ttls
 
@@ -267,6 +273,7 @@ def _provider_rollup(daily: list[dict]) -> dict:
                     "cache_hit_pct": None,
                     "cache_ttl_seconds": values["cache_ttl_seconds"],
                     "cache_ttl_approximate": values["cache_ttl_approximate"],
+                    "cache_persistent": values["cache_persistent"],
                 },
             )
             item["turns"] += values["turns"]

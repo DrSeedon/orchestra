@@ -2232,8 +2232,9 @@ class TestListSessions:
         rows = {row["name"]: row for row in mgr.list_sessions(scope="/s")}
         assert rows[claude.name]["cache_ttl_seconds"] == 3600
         assert rows[claude.name]["cache_ttl_approximate"] is False
-        assert rows[codex.name]["cache_ttl_seconds"] == 1800
-        assert rows[codex.name]["cache_ttl_approximate"] is True
+        assert rows[codex.name]["cache_persistent"] is True
+        assert rows[codex.name]["cache_ttl_seconds"] == 0
+        assert rows[codex.name]["cache_ttl_approximate"] is False
 
 
 class TestRemoveScope:

@@ -2865,6 +2865,22 @@ def test_cache_pill_uses_exact_and_approximate_runtime_policies():
     assert m._cache_pill({"status": "running"}) == ""
 
 
+def test_cache_pill_persistent_cache_is_never_cold():
+    import app.mcp_stdio as m
+
+    day_old = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+    codex = {"status": "idle", "last_turn_ts": day_old, "cache_persistent": True,
+             "cache_ttl_seconds": 0}
+    assert m._cache_pill(codex) == "♾ cached"
+    assert m._cache_pill({**codex, "status": "running"}) == "🔥 hot"
+    assert m._cache_pill({"status": "idle", "cache_persistent": True}) == ""
+    # Claude still expires
+    assert m._cache_pill({
+        "status": "idle", "last_turn_ts": day_old, "cache_persistent": False,
+        "cache_ttl_seconds": 3600, "cache_ttl_approximate": False,
+    }) == "🧊 cold"
+
+
 def test_read_only_access_mode_hides_mutating_tools():
     import app.mcp_stdio as m
 

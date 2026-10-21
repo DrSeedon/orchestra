@@ -913,8 +913,9 @@ class TestOrchestrators:
         rows = {row["name"]: row for row in client.get("/api/orchestrators").json()}
         assert rows["claude-orch"]["cache_ttl_seconds"] == 3600
         assert rows["claude-orch"]["cache_ttl_approximate"] is False
-        assert rows["codex-orch"]["cache_ttl_seconds"] == 1800
-        assert rows["codex-orch"]["cache_ttl_approximate"] is True
+        assert rows["codex-orch"]["cache_persistent"] is True
+        assert rows["codex-orch"]["cache_ttl_seconds"] == 0
+        assert rows["codex-orch"]["cache_ttl_approximate"] is False
 
 
 def test_create_request_accepts_base_branch():

@@ -48,6 +48,8 @@ class ProviderMetadata:
     ui_provider: str
     cache_ttl_seconds: int
     cache_ttl_approximate: bool
+    # Cache survives any idle gap (ChatGPT-login Codex); cache_ttl_seconds is then 0 and unused.
+    cache_persistent: bool = False
     legacy_model_prefixes: tuple[str, ...] = ()
     model_providers: tuple[str, ...] = ()
 
@@ -235,8 +237,9 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
         id="codex",
         title="Codex Pro",
         ui_provider="openai",
-        cache_ttl_seconds=1800,
-        cache_ttl_approximate=True,
+        cache_ttl_seconds=0,
+        cache_ttl_approximate=False,
+        cache_persistent=True,
         legacy_model_prefixes=("gpt-",),
         model_providers=("openai",),
     ),
@@ -274,6 +277,7 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
     return {
         "cache_ttl_seconds": metadata.cache_ttl_seconds,
         "cache_ttl_approximate": metadata.cache_ttl_approximate,
+        "cache_persistent": metadata.cache_persistent,
     }
 
 
@@ -724,6 +728,7 @@ def provider_metadata_payload() -> dict[str, dict]:
             "ui_provider": metadata.ui_provider,
             "cache_ttl_seconds": metadata.cache_ttl_seconds,
             "cache_ttl_approximate": metadata.cache_ttl_approximate,
+            "cache_persistent": metadata.cache_persistent,
             "model_providers": list(metadata.model_providers),
         }
         for provider_id, metadata in PROVIDER_METADATA.items()

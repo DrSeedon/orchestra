@@ -440,7 +440,9 @@ function _analyticsProviderCard(provider, stats) {
     };
     const capacity = _analyticsCapacity(provider);
     const { title, runtime } = meta;
-    const ttl = stats.cache_ttl_seconds
+    const ttl = stats.cache_persistent
+        ? '∞'
+        : stats.cache_ttl_seconds
         ? `${Math.round(stats.cache_ttl_seconds / 60)} min${stats.cache_ttl_approximate ? ' ≈' : ''}`
         : '—';
     let windows = '';
@@ -599,7 +601,7 @@ function _analyticsRenderEfficiency(body) {
                     const item = providers[provider] || {};
                     const ttl = item.cache_ttl_seconds ? Math.round(item.cache_ttl_seconds / 60) : null;
                     return `<div class="analytics-cache-card">
-                        <div><strong>${T(_PROVIDER_META[provider].title)}</strong><span>${T('TTL')} ${ttl == null ? '—' : `${ttl} min${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
+                        <div><strong>${T(_PROVIDER_META[provider].title)}</strong><span>${T('TTL')} ${item.cache_persistent ? '∞' : ttl == null ? '—' : `${ttl} min${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
                         <b>${item.cache_hit_pct == null ? '—' : `${_formatPercent(item.cache_hit_pct)}%`}</b>
                         <p>${T('comparable turns: {n}', {n: _analyticsNumber(item.comparable_turns)})} · ${T('cold starts: {n}', {n: _analyticsNumber(item.cold_starts)})}</p>
                     </div>`;

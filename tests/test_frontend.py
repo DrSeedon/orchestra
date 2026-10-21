@@ -1563,6 +1563,27 @@ def test_codex_cache_pill_is_approximate_and_expires_to_unknown(
     assert states["malformedTurn"] is None
 
 
+def test_persistent_cache_pill_never_goes_cold(dashboard_browser: Browser):
+    page = dashboard_browser.new_page()
+    _load_cache_pill_code(page)
+    states = page.evaluate("""() => {
+        const old = new Date(Date.now() - 30 * 3600000).toISOString();
+        const snap = (pill) => pill && {text: pill.textContent, tier: pill.dataset.tier};
+        return {
+            idle: snap(_cachePill({status: 'idle', last_turn_ts: old,
+                cache_ttl_seconds: 0, cache_persistent: true})),
+            running: snap(_cachePill({status: 'running',
+                cache_ttl_seconds: 0, cache_persistent: true})),
+            neverRan: _cachePill({status: 'idle', cache_persistent: true}),
+        };
+    }""")
+    page.close()
+
+    assert states["idle"] == {"text": "♾", "tier": "persistent"}
+    assert states["running"]["text"] == "🔥"
+    assert states["neverRan"] is None
+
+
 def test_claude_cache_pill_keeps_exact_thresholds(dashboard_browser: Browser):
     page = dashboard_browser.new_page()
     _load_cache_pill_code(page)

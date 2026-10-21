@@ -3134,6 +3134,16 @@ function _cachePill(s) {
     const isDead = s.status === 'stopped' || s.status === 'error' || s.status === 'archived';
     if (isDead) return null;
     const running = s.status === 'running' || s.status === 'starting';
+    if (s.cache_persistent === true) {
+        if (!running && !s.last_turn_ts) return null;
+        const pill = document.createElement('span');
+        pill.className = 'cache-pill';
+        pill.textContent = running ? '🔥' : '♾';
+        pill.style.color = '#22c55e';
+        pill.title = T('Cache is kept indefinitely for ChatGPT login — resuming an old conversation hits it');
+        pill.dataset.tier = 'persistent';
+        return pill;
+    }
     const rawTtl = s.cache_ttl_seconds == null ? 3600 : Number(s.cache_ttl_seconds);
     if (!Number.isFinite(rawTtl) || rawTtl <= 0) return null;
     const ttl = rawTtl * 1000;

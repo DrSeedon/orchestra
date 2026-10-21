@@ -262,18 +262,22 @@ def test_cache_policy_is_explicit_and_unknown_is_conservative():
     assert cache_policy_for_runtime("claude") == {
         "cache_ttl_seconds": 3600,
         "cache_ttl_approximate": False,
+        "cache_persistent": False,
     }
     assert cache_policy_for_runtime("codex") == {
-        "cache_ttl_seconds": 1800,
-        "cache_ttl_approximate": True,
+        "cache_ttl_seconds": 0,
+        "cache_ttl_approximate": False,
+        "cache_persistent": True,
     }
     assert cache_policy_for_runtime("harness") == {
         "cache_ttl_seconds": 0,
         "cache_ttl_approximate": True,
+        "cache_persistent": False,
     }
     assert cache_policy_for_runtime("not-registered") == {
         "cache_ttl_seconds": 0,
         "cache_ttl_approximate": True,
+        "cache_persistent": False,
     }
 
 

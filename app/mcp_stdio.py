@@ -1624,6 +1624,10 @@ def _cache_pill(s: dict) -> str:
     from app.models import cache_policy_for_runtime, runtime_for_record
 
     policy = cache_policy_for_runtime(runtime_for_record(s))
+    if s.get("cache_persistent", policy["cache_persistent"]):
+        if s.get("status") in ("running", "starting"):
+            return "🔥 hot"
+        return "♾ cached" if s.get("last_turn_ts") else ""
     raw_ttl = s.get("cache_ttl_seconds")
     raw_ttl = policy["cache_ttl_seconds"] if raw_ttl is None else raw_ttl
     try:

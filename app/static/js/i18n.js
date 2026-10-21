@@ -109,6 +109,7 @@
     'Cache': 'Кеш',
     '⏳ limit, wakes ~{time}': '⏳ лимит, проснётся ~{time}',
     'Cache cold — next turn ~20× дороже': 'Кеш остыл — следующий ход ~20× дороже',
+    'Cache is kept indefinitely for ChatGPT login — resuming an old conversation hits it': 'Кеш хранится бессрочно при входе через ChatGPT — возврат к старому разговору попадает в кеш',
     'Cache hit': 'Попадания в кеш',
     'Cache {rem}m — после истечения ~20× дороже': 'Кеш {rem} мин — после истечения ~20× дороже',
     'Cancel': 'Отменить',
