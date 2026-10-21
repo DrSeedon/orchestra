@@ -114,3 +114,52 @@ async def test_json_rpc_error_does_not_emit_token():
         with pytest.raises(MultiCodeError) as error:
             await client.tool_call("t3_thread_launch", {"title": "x", "message": "y", "scratch": True})
     assert token not in str(error.value)
+
+
+async def _launch_args(monkeypatch, **kwargs):
+    monkeypatch.setenv("MULTICODE_MCP_BASE", "http://hub.local")
+    monkeypatch.setenv("MULTICODE_MCP_TOKEN", "secret-token-xyz")
+    seen = {}
+
+    async def handler(request):
+        body = json.loads(request.content)
+        if body["method"] == "initialize":
+            return _rpc_response(body["id"], {})
+        if body["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        name = body["params"]["name"]
+        if name == "t3_thread_launch":
+            seen.update(body["params"]["arguments"])
+            return _rpc_response(body["id"], {"structuredContent": {"threadId": "x"}})
+        if name == "t3_thread_wait":
+            return _rpc_response(body["id"], {"structuredContent": {}})
+        if name == "t3_thread_read":
+            return _rpc_response(body["id"], {"structuredContent": {"messages": [
+                {"role": "assistant", "text": "PONG"}]}})
+        return _rpc_response(body["id"], {"structuredContent": {}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient.from_env()
+        client._client = transport
+        client._owns_client = False
+        await client.run("ping", **kwargs)
+    return seen
+
+
+@pytest.mark.asyncio
+async def test_launch_model_selection_defaults(monkeypatch):
+    monkeypatch.delenv("MULTICODE_MCP_INSTANCE", raising=False)
+    monkeypatch.delenv("MULTICODE_MCP_MODEL", raising=False)
+    args = await _launch_args(monkeypatch)
+    assert args["modelSelection"] == {"instanceId": "claudeAgent", "model": "claude-sonnet-5-5"}
+
+
+@pytest.mark.asyncio
+async def test_launch_model_selection_env_and_args(monkeypatch):
+    monkeypatch.setenv("MULTICODE_MCP_INSTANCE", "grok")
+    monkeypatch.setenv("MULTICODE_MCP_MODEL", "grok-4.7")
+    assert (await _launch_args(monkeypatch))["modelSelection"] == {
+        "instanceId": "grok", "model": "grok-4.7"}
+    args = await _launch_args(monkeypatch, instance="codex", model="gpt-6.1-sol", effort="high")
+    assert args["modelSelection"] == {
+        "instanceId": "codex", "model": "gpt-6.1-sol", "options": {"effort": "high"}}

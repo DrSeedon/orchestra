@@ -319,8 +319,13 @@ mcp = OrchestraMCP("orchestra")
 
 @mcp.tool()
 async def multicode_run(prompt: str, title: str = "Orchestra task",
-                        timeout_ms: int = 300_000) -> str:
+                        timeout_ms: int = 300_000, instance: str = "", model: str = "",
+                        effort: str = "") -> str:
     """Run prompt in a new MultiCode Hub thread and return its last assistant reply.
+
+    instance/model pick the Hub runtime (e.g. claudeAgent/claude-sonnet-5-5, grok/grok-4.7,
+    codex/gpt-6.1-sol); empty uses MULTICODE_MCP_INSTANCE/MULTICODE_MCP_MODEL, then
+    claudeAgent/claude-sonnet-5-5.
 
     Requires MULTICODE_MCP_BASE and MULTICODE_MCP_TOKEN in this MCP process. The Hub
     must be reachable at that base URL (for a loopback-only Hub, open an SSH -L tunnel).
@@ -330,7 +335,9 @@ async def multicode_run(prompt: str, title: str = "Orchestra task",
     token = os.environ.get("MULTICODE_MCP_TOKEN", "")
     try:
         async with MultiCodeClient.from_env() as client:
-            return await client.run(prompt, title=title, timeout_ms=timeout_ms)
+            return await client.run(prompt, title=title, timeout_ms=timeout_ms,
+                                     instance=instance or None, model=model or None,
+                                     effort=effort or None)
     except (MultiCodeError, ValueError) as error:
         safe_message = str(error).replace(token, "[redacted]") if token else str(error)
         raise ApiToolError(code="multicode_error", message=safe_message) from error

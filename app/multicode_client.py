@@ -9,6 +9,8 @@ from typing import Any
 import httpx
 
 PROTOCOL_VERSION = "2025-06-18"
+DEFAULT_INSTANCE = "claudeAgent"
+DEFAULT_MODEL = "claude-sonnet-5-5"
 CLIENT_INFO = {"name": "orchestra", "version": "1.0.0"}
 
 
@@ -145,14 +147,22 @@ class MultiCodeClient:
         return value
 
     async def run(self, prompt: str, *, title: str = "Orchestra task",
-                  timeout_ms: int = 300_000, wait_slice_ms: int = 10_000) -> str:
+                  timeout_ms: int = 300_000, wait_slice_ms: int = 10_000,
+                  instance: str | None = None, model: str | None = None,
+                  effort: str | None = None) -> str:
         if not prompt.strip():
             raise ValueError("prompt is required")
         if timeout_ms <= 0 or wait_slice_ms <= 0:
             raise ValueError("timeouts must be positive")
+        selection: dict[str, Any] = {
+            "instanceId": instance or os.environ.get("MULTICODE_MCP_INSTANCE") or DEFAULT_INSTANCE,
+            "model": model or os.environ.get("MULTICODE_MCP_MODEL") or DEFAULT_MODEL,
+        }
+        if effort:
+            selection["options"] = {"effort": effort}
         launched = await self.tool_call("t3_thread_launch", {
             "title": title, "message": prompt, "scratch": True,
-            "runtimeMode": "approval-required",
+            "runtimeMode": "approval-required", "modelSelection": selection,
         })
         thread_id = launched.get("threadId") if isinstance(launched, dict) else None
         if not isinstance(thread_id, str) or not thread_id:
