@@ -562,3 +562,82 @@ def test_idle_session_gets_no_reminder(checklist_db, monkeypatch):
     asyncio.run(session._watch_checklist_reminder(1, turn_key))
 
     session.send.assert_not_awaited()
+
+
+def _rows(db, session_id):
+    with db._conn() as connection:
+        return {
+            r["step_text"]: r for r in connection.execute(
+                "SELECT step_text,actual_seconds,distributed_seconds FROM checklist_step_metrics WHERE session_id=?",
+                (session_id,),
+            )
+        }
+
+
+def test_bulk_close_splits_measured_interval_and_marks_distributed(checklist_db):
+    db, checklists = checklist_db
+    _insert_session(db, "worker-bulk", "task-1")
+    start = datetime(2026, 10, 21, 12, tzinfo=timezone.utc)
+    items = ["A", "B", "C", "D"]
+    checklists.save_checklist(
+        "worker-bulk", "task-1", "t", items=items, completed=[], current=0,
+        estimates_minutes=[1, 1, 1, 1], now=start,
+    )
+    checklists.save_checklist(
+        "worker-bulk", "task-1", "t", items=items, completed=[0, 1, 2], current=3,
+        now=start + timedelta(seconds=300),
+    )
+    checklists.set_clock("worker-bulk", "task-1", False, now=start + timedelta(seconds=360))
+    rows = _rows(db, "worker-bulk")
+    assert [rows[k]["actual_seconds"] for k in "ABC"] == [100, 100, 100]
+    assert rows["A"]["distributed_seconds"] == 100
+    assert rows["D"]["actual_seconds"] == 60
+    assert rows["D"]["distributed_seconds"] is None
+    assert sum(r["actual_seconds"] for r in rows.values()) == 360
+
+
+def test_single_step_close_is_not_marked_distributed(checklist_db):
+    db, checklists = checklist_db
+    _insert_session(db, "worker-single", "task-1")
+    start = datetime(2026, 10, 21, 12, tzinfo=timezone.utc)
+    items = ["A", "B"]
+    checklists.save_checklist(
+        "worker-single", "task-1", "t", items=items, completed=[], current=0,
+        estimates_minutes=[1, 1], now=start,
+    )
+    checklists.save_checklist(
+        "worker-single", "task-1", "t", items=items, completed=[0], current=1,
+        now=start + timedelta(seconds=90),
+    )
+    rows = _rows(db, "worker-single")
+    assert rows["A"]["actual_seconds"] == 90
+    assert rows["A"]["distributed_seconds"] is None
+    assert rows["B"]["actual_seconds"] == 0
+
+
+@pytest.mark.parametrize("backend,model", [("claude", "claude-opus-5-5"), ("codex", "gpt-6-luna")])
+def test_clock_follows_turn_boundaries_for_every_backend(checklist_db, backend, model):
+    from app.session import AgentSession, AgentStatus
+
+    db, checklists = checklist_db
+    _insert_session(db, f"worker-{backend}", "task-1")
+    session = AgentSession(
+        id=f"worker-{backend}", name=backend, scope="/v858", cwd="/v858",
+        status=AgentStatus.IDLE, task_id="task-1", backend_type=backend, model=model,
+    )
+    checklists.save_checklist(
+        session.id, "task-1", "t", items=["A", "B"], completed=[], current=0, estimates_minutes=[1, 1],
+    )
+    session.status = AgentStatus.RUNNING
+    with db._conn() as connection:
+        opened = connection.execute(
+            "SELECT active_since FROM checklist_step_metrics WHERE session_id=? AND step_text='A'", (session.id,),
+        ).fetchone()
+    assert opened["active_since"] is not None
+    session.status = AgentStatus.IDLE
+    rows = _rows(db, session.id)
+    assert rows["A"]["actual_seconds"] is not None
+    with db._conn() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM checklist_step_metrics WHERE active_since IS NOT NULL"
+        ).fetchone()[0] == 0

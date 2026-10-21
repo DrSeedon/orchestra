@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS checklist_step_metrics (
     estimate_minutes REAL,
     actual_seconds REAL,
     active_since REAL,
+    distributed_seconds REAL,
     model TEXT NOT NULL DEFAULT '',
     project TEXT NOT NULL DEFAULT '',
     completed_at TEXT NOT NULL DEFAULT '',
@@ -60,6 +61,13 @@ CREATE INDEX IF NOT EXISTS idx_checklist_turns_reminders
 _SCHEMA_READY: set[str] = set()
 
 
+def _add_distributed_column(connection: sqlite3.Connection) -> None:
+    # Tables created from schema.sql before V-990 lack the column; the checklist DDL is owned here.
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(checklist_step_metrics)")}
+    if "distributed_seconds" not in columns:
+        connection.execute("ALTER TABLE checklist_step_metrics ADD COLUMN distributed_seconds REAL")
+
+
 def ensure_schema(connection: sqlite3.Connection | None = None) -> bool:
     if connection is None:
         path = str(Path(db.DB_PATH).resolve())
@@ -71,6 +79,7 @@ def ensure_schema(connection: sqlite3.Connection | None = None) -> bool:
             ).fetchone():
                 return False
             owned.executescript(_DDL)
+            _add_distributed_column(owned)
         _SCHEMA_READY.add(path)
         return True
     if not connection.execute(
@@ -78,6 +87,7 @@ def ensure_schema(connection: sqlite3.Connection | None = None) -> bool:
     ).fetchone():
         return False
     connection.executescript(_DDL)
+    _add_distributed_column(connection)
     return True
 
 
@@ -307,10 +317,42 @@ def save_checklist(
                WHERE session_id=? AND task_id=? AND active_since IS NOT NULL""",
             (session_id, task_id),
         ).fetchall()
+        newly_done = [
+            step["step_id"] for step in steps
+            if step["done"] and previous_by_id.get(step["step_id"], {}).get("done") is not True
+        ]
         for row in active_rows:
             if row["step_id"] == active_step_id:
                 continue
             elapsed = max(0.0, now_epoch - float(row["active_since"]))
+            if row["step_id"] in newly_done:
+                # Several steps closed in one save: the interval was spent on all of them, but only the
+                # step that happened to be current carried the clock. Split it with the unmeasured ones.
+                unmeasured = [
+                    step_id for step_id in newly_done
+                    if step_id != row["step_id"] and not (connection.execute(
+                        """SELECT actual_seconds FROM checklist_step_metrics
+                           WHERE session_id=? AND task_id=? AND step_id=?""",
+                        (session_id, task_id, step_id),
+                    ).fetchone() or [0])[0]
+                ]
+                if unmeasured:
+                    share = elapsed / (len(unmeasured) + 1)
+                    for step_id in unmeasured:
+                        connection.execute(
+                            """UPDATE checklist_step_metrics
+                               SET actual_seconds=?,distributed_seconds=?
+                               WHERE session_id=? AND task_id=? AND step_id=?""",
+                            (share, share, session_id, task_id, step_id),
+                        )
+                    connection.execute(
+                        """UPDATE checklist_step_metrics
+                           SET actual_seconds=COALESCE(actual_seconds,0)+?,active_since=NULL,
+                               distributed_seconds=COALESCE(distributed_seconds,0)+?
+                           WHERE session_id=? AND task_id=? AND step_id=?""",
+                        (share, share, session_id, task_id, row["step_id"]),
+                    )
+                    continue
             connection.execute(
                 """UPDATE checklist_step_metrics
                    SET actual_seconds=COALESCE(actual_seconds,0)+?,active_since=NULL
