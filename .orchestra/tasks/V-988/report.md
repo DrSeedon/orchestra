@@ -56,3 +56,7 @@ Read-only источник: `/home/kesha/orchestra/data/orchestra.db`, подк�
 | Compaction / worker kill | **Уже не зависит от prompt cache TTL** | 0. Увеличенное хранение кеша не заменяет живой контекст. |
 | OpenRouter harness 12h API retention | **Не брать в текущий harness** | Существенная смена endpoint/runtime с OpenRouter Chat Completions на прямой OpenAI Responses; появляется отдельный оплачиваемый API-класс, цена записи 2.5× input за 12h, и работа по адаптации streaming/tool calls/учёта. Разрешения на такой расход нет. |
 
+
+## Дополнение 21.10.2026 (после отчёта)
+
+Утверждение о бессрочном кеше для Codex подтвердил руководитель Codex в OpenAI: Thibault Sottiaux (@thsottiaux), 21.10.2026 02:10 по времени поста, «Day 16/»: «for logged in users across Codex & Work we keep cache forever and you don't have any penalty for coming back to an old conversation or resuming after a few hours and are now guaranteed to hit the cache». Источник — скриншот поста, присланный владельцем (`data/uploads/photo_20261021_092651_257836.jpg`); в документации OpenAI на дату отчёта этого нет. Поэтому вывод §1 «официального подтверждения нет» заменяется на «подтверждено публичным заявлением руководителя продукта, не документацией». Влияет ли запись такого кеша на квоту иначе, чем раньше, не опубликовано. Для нас следствие одно: приблизительный 30-минутный TTL Codex (`PROVIDER_METADATA.codex.cache_ttl_seconds = 1800` в `app/models.py`) больше не отражает поведение ChatGPT-входа, и индикатор помечает Codex-воркеров «остывшими» без причины.
