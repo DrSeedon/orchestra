@@ -99,6 +99,26 @@ def _safe_config_key(session_id: str | None) -> str:
     return f"anon-{uuid.uuid4().hex}"
 
 
+
+def capture_thinking_enabled() -> bool:
+    """Capture + show reasoning text (V-1007). The CLI default omits the text; asking for
+    a summary costs no extra reasoning tokens (probe 21.10.2026: thinking_tokens are billed
+    either way), so it is on unless ORCHESTRA_CAPTURE_THINKING=0."""
+    return os.environ.get("ORCHESTRA_CAPTURE_THINKING", "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _thinking_config(model: str | None, effort: str | None) -> dict | None:
+    name = model or ""
+    if "claude" not in name:
+        return None
+    if capture_thinking_enabled() and "haiku" not in name:
+        return {"type": "adaptive", "display": "summarized"}
+    if effort == "xhigh":
+        # xhigh отвергается API при выключенном thinking — включаем adaptive
+        # явно вместо прежнего тихого даунгрейда в high (проверено пробой 01.09.2026)
+        return {"type": "adaptive"}
+    return None
+
 class InheritedFdTransport(Transport):
     """Drive the Claude SDK over pipes we did NOT open (#230 T3).
 
@@ -1116,11 +1136,10 @@ class ClaudeBackend:
             options.tools = []
             options.allowed_tools = []
             options.disallowed_tools = ["*"]
+        thinking = _thinking_config(self.model, self._effort)
+        if thinking:
+            options.thinking = thinking
         if self._effort:
-            if self._effort == "xhigh" and "claude" in (self.model or ""):
-                # xhigh отвергается API при выключенном thinking — включаем adaptive
-                # явно вместо прежнего тихого даунгрейда в high (проверено пробой 01.09.2026)
-                options.thinking = {"type": "adaptive"}
             options.effort = self._effort
         if self._history_import:
             options.resume = self._history_import.session_id

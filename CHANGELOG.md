@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Added
+- **Claude worker reasoning text is captured** (`_thinking_config` in `app/backend_claude.py`; V-1007). The CLI default omits thinking text (empty `thinking_delta`, only `estimated_tokens`); workers now request `thinking={'type':'adaptive','display':'summarized'}` so `ThinkingBlock.thinking` is a non-empty summary, stored verbatim as a `thinking` log row and shown in the existing collapsed reasoning card. Reasoning tokens are billed the same either way (probe: `thinking_tokens` 11214 omitted vs 5162 summarized on different runs, both non-zero). `ORCHESTRA_CAPTURE_THINKING=0` restores the old request. Needs a restart to take effect.
 - **Delegate prompts to MultiCode Hub through official MCP** (`app/multicode_client.py`, `app/mcp_stdio.py`; V-1006). `multicode_run` creates a scratch thread with `approval-required`, retries timed-out waits, returns the last assistant message and archives the completed thread. The MCP HTTP base and bearer come from `MULTICODE_MCP_BASE` and `MULTICODE_MCP_TOKEN`; no token is logged or returned. Trigger: Orchestra orchestrators need to run a task in a MultiCode Hub thread and receive its answer without routing it through a token-stream model backend.
 
 ### Added

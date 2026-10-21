@@ -245,3 +245,20 @@ def test_omitted_thinking_still_streams_its_token_estimate():
         ("thinking_stream", "", 250)]
     assert b._convert(_stream({"type": "content_block_delta", "index": 0,
                                "delta": {"type": "thinking_delta", "thinking": ""}})) == []
+
+
+def test_summarized_thinking_text_maps_to_thinking_event_and_toggle_controls_request(monkeypatch):
+    from claude_agent_sdk import AssistantMessage, ThinkingBlock
+    from app.backend_claude import _thinking_config
+
+    b = _backend()
+    msg = AssistantMessage(content=[ThinkingBlock(thinking="weighing options", signature="s")],
+                           model="claude-sonnet-5-5")
+    assert [(e.type, e.content) for e in b._convert(msg)] == [("thinking", "weighing options")]
+
+    monkeypatch.delenv("ORCHESTRA_CAPTURE_THINKING", raising=False)
+    assert _thinking_config("claude-sonnet-5-5", "high") == {"type": "adaptive", "display": "summarized"}
+    assert _thinking_config("gpt-6", "high") is None
+    monkeypatch.setenv("ORCHESTRA_CAPTURE_THINKING", "0")
+    assert _thinking_config("claude-sonnet-5-5", "high") is None
+    assert _thinking_config("claude-sonnet-5-5", "xhigh") == {"type": "adaptive"}
