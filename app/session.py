@@ -60,6 +60,7 @@ from app.session_state import (  # noqa: F401 — re-exported: importers use app
 )
 from app.session_turns import (
     CRITICAL_AUTO_COMPACT_PCT,
+    injection_overflows_context,
     TurnManager,
     _auto_compact_threshold_pct,
 )
@@ -495,6 +496,8 @@ class AgentSession:
     _policy_violation_messages: set[str] = field(default_factory=set, repr=False)
     _output_tails: Any = field(default=None, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
+    _overflow_compact_scheduled: bool = field(default=False, repr=False)
+    _overflow_guard_tokens: int = field(default=-1, repr=False)
     _current_prompt: str = field(default="", repr=False)
     _template_hash: str = field(default="", repr=False)
     _temp_rules_fp: str | None = field(default=None, repr=False)
@@ -1390,7 +1393,33 @@ class AgentSession:
 
             self._note_next_precompact_activity()
             capabilities = get_runtime(self.backend_type).capabilities
-            if self._compacting:
+            if (
+                delivery is None
+                and not self._compacting
+                and not self._overflow_compact_scheduled
+                and self.status != AgentStatus.RUNNING
+                and self.backend_type == "claude"
+                and auto_compact_enabled()
+                and self._last_context.get("total_tokens") != self._overflow_guard_tokens
+                and injection_overflows_context(
+                    self,
+                    len(message) + (
+                        len(self._current_prompt)
+                        if self.session_id and not self._prompt_injected else 0
+                    ),
+                )
+            ):
+                # V-995: compact BEFORE the send; the refreshed prompt would overflow the window.
+                self._overflow_guard_tokens = self._last_context.get("total_tokens")
+                self._overflow_compact_scheduled = True
+                self._cancel_precompact_timer("overflow_guard")
+                self._log(
+                    "status",
+                    f"overflow guard: context {self._last_context.get('percentage')}% "
+                    "plus the refreshed prompt would exceed the window; compacting first",
+                )
+                self._spawn_bg(self._overflow_compact())
+            if self._compacting or self._overflow_compact_scheduled:
                 if delivery is not None and allow_running_delivery:
                     return
                 self._pending_messages.append(message)
@@ -3837,6 +3866,16 @@ class AgentSession:
             logger.debug(f"[{self.name}] context refresh timeout (5s)")
         except Exception as e:
             logger.debug(f"[{self.name}] context refresh failed: {e}")
+
+    async def _overflow_compact(self) -> None:
+        try:
+            await self.compact()
+        except Exception as e:
+            logger.warning(f"[{self.name}] overflow-guard compact failed: {e}")
+        finally:
+            self._overflow_compact_scheduled = False
+            if self._pending_messages and not self._compacting:
+                self._spawn_bg(self._flush_pending())
 
     async def _auto_compact(self, *, delay_seconds: float = 2) -> None:
         generation = (self._turn_gen, self._turn_start_cancel_gen)

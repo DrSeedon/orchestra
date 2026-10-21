@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.db import turn_usage_add
+from app.usage_contract import DeferredContext
 from app.events import AgentEvent, MessageProvenance
 from app.session_state import AgentStatus
 from app.turn_markers import is_successful_silent_turn
@@ -27,6 +28,22 @@ PRICE_MAY_BE_UNDERSTATED_MARKER = "[price_may_be_understated]"
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
 CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
+# V-995: a resumed Claude session gets the whole refreshed system prompt prepended to the
+# next message and the CLI re-attaches the instruction files on top. Measured on the
+# katya-work incident: ~934K live tokens + ~66K of this = "Prompt is too long" on a 1M window
+# while the displayed context stayed 93%. Bytes/2 over-counts Latin and fits Cyrillic.
+INJECTION_BYTES_PER_TOKEN = 2
+INJECTION_RESERVE_PCT = 4
+
+
+def injection_overflows_context(s: "AgentSession", incoming_chars: int) -> bool:
+    """True when the next send would not fit the window and must be preceded by compaction."""
+    tokens = s._last_context.get("total_tokens") or 0
+    max_tokens = s._last_context.get("max_tokens") or 0
+    if not s._last_context.get("known") or tokens <= 0 or max_tokens <= 0:
+        return False
+    extra = incoming_chars // INJECTION_BYTES_PER_TOKEN
+    return tokens + extra + max_tokens * INJECTION_RESERVE_PCT // 100 >= max_tokens
 
 
 def _auto_compact_threshold_pct(s: "AgentSession") -> int:
@@ -411,10 +428,15 @@ class TurnManager:
         allow_context_compaction = (
             not subscription_limited and not will_auto_continue
         )
+        # Deferred context (Claude) is only measured by this refresh, so the decision taken
+        # at turn end used the PREVIOUS turn's number; re-decide on the fresh one.
+        context_deferred = bool(meta.get("context_deferred")) or isinstance(
+            getattr(event.usage, "current", None), DeferredContext)
         s._spawn_bg(
             s._refresh_context_from_api(
                 schedule_compaction_on_success=(
-                    allow_context_compaction and not context_known
+                    allow_context_compaction
+                    and (not context_known or context_deferred)
                 ),
             )
         )
