@@ -14,6 +14,11 @@ from pathlib import Path
 # between the two limits for the API side.
 AGENTS_MEMORY_HIGH_SHARE = 0.75
 AGENTS_MEMORY_MAX_SHARE = 0.875
+# Long-running run jobs get half of each agents limit in a sibling leaf. Their
+# memory.high throttles the job before it can push agent CLI processes to the
+# agents parent limit; memory.max confines an eventual OOM to the jobs group.
+AGENT_JOBS_MEMORY_HIGH_SHARE = 0.5
+AGENT_JOBS_MEMORY_MAX_SHARE = 0.5
 # Agents may use at most a quarter of available host/service swap, with a 1 GiB ceiling.
 AGENTS_SWAP_MAX_SHARE = 0.25
 AGENTS_SWAP_MAX_CAP_BYTES = 1024 ** 3
@@ -51,7 +56,10 @@ def _systemd_delegate_enabled() -> bool | None:
 
 def initialize_agent_cgroup() -> tuple[Path | None, str, bool]:
     """Configure isolation when enabled; tolerate hosts without systemd delegation."""
-    for name in ("ORCHESTRA_AGENT_CGROUP", "ORCHESTRA_AGENT_ROOT", "ORCHESTRA_AGENT_CGROUP_REQUIRED"):
+    for name in (
+        "ORCHESTRA_AGENT_CGROUP", "ORCHESTRA_AGENT_JOB_CGROUP",
+        "ORCHESTRA_AGENT_ROOT", "ORCHESTRA_AGENT_CGROUP_REQUIRED",
+    ):
         os.environ.pop(name, None)
 
     if not _balancer_enabled():
@@ -78,6 +86,7 @@ def initialize_agent_cgroup() -> tuple[Path | None, str, bool]:
 
     os.environ["ORCHESTRA_AGENT_ROOT"] = str(agents)
     os.environ["ORCHESTRA_AGENT_CGROUP"] = str(agents / "workers")
+    os.environ["ORCHESTRA_AGENT_JOB_CGROUP"] = str(agents / "jobs")
     os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] = "1"
     return agents, "", True
 
@@ -172,6 +181,8 @@ def configure_agent_cgroup(service: Path | None = None) -> Path:
     agents.mkdir(exist_ok=True)
     workers = agents / "workers"
     workers.mkdir(exist_ok=True)
+    jobs = agents / "jobs"
+    jobs.mkdir(exist_ok=True)
     # agents becomes an internal node (per-workflow groups need memory accounting),
     # so every process must live in a leaf beneath it.
     if (agents / "cgroup.procs").exists():
@@ -201,6 +212,14 @@ def configure_agent_cgroup(service: Path | None = None) -> Path:
             if name != "memory.swap.max":
                 raise
             logger.warning("agent swap limit could not be applied; continuing without it: %s", error)
+    job_limits = {
+        "memory.high": str(int(int(values["memory.high"]) * AGENT_JOBS_MEMORY_HIGH_SHARE)),
+        "memory.max": str(int(int(values["memory.max"]) * AGENT_JOBS_MEMORY_MAX_SHARE)),
+    }
+    for name, value in job_limits.items():
+        path = jobs / name
+        if not path.exists() or path.read_text().strip() != value:
+            path.write_text(value)
     return agents
 
 

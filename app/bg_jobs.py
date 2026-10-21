@@ -465,11 +465,11 @@ class BgJobManager:
         env = dict(kwargs.pop("env", os.environ))
         if agent_workload:
             env["ORCHESTRA_AGENT_WORKLOAD"] = "1"
-            cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
+            cgroup = os.environ.get("ORCHESTRA_AGENT_JOB_CGROUP", "")
             if not cgroup and os.environ.get("ORCHESTRA_AGENT_CGROUP_REQUIRED") != "1":
-                logger.warning("starting workflow task without agent cgroup isolation")
+                logger.warning("starting run job without agent cgroup isolation")
             elif not cgroup or not (Path(cgroup) / "cgroup.procs").exists():
-                raise RuntimeError("delegated agent cgroup is unavailable; workflow task remains queued")
+                raise RuntimeError("delegated agent job cgroup is unavailable; job remains queued")
             else:
                 env["ORCHESTRA_AGENT_CGROUP"] = cgroup
         else:
