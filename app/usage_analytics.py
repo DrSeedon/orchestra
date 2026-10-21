@@ -248,6 +248,57 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
     return result
 
 
+def _claude_history_comparison(conn: sqlite3.Connection, since: str) -> list[dict]:
+    metrics = ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens")
+    history = conn.execute(
+        """SELECT day, project, COUNT(*) AS message_count,
+                  SUM(input_tokens) AS input_tokens,
+                  SUM(output_tokens) AS output_tokens,
+                  SUM(cache_read_tokens) AS cache_read_tokens,
+                  SUM(cache_write_tokens) AS cache_write_tokens
+           FROM claude_history_usage_messages
+           WHERE day >= date('now', ?)
+           GROUP BY day, project""",
+        (since,),
+    ).fetchall()
+    accounted = conn.execute(
+        """SELECT date(u.ts) AS day,
+                  COALESCE(NULLIF(s.cwd, ''), NULLIF(u.scope, ''), '(unknown)') AS project,
+                  COUNT(*) AS message_count,
+                  SUM(u.input_tokens) AS input_tokens,
+                  SUM(u.output_tokens) AS output_tokens,
+                  SUM(u.cache_read_tokens) AS cache_read_tokens,
+                  SUM(u.cache_create_tokens) AS cache_write_tokens
+           FROM turn_usage u LEFT JOIN sessions s ON s.id = u.session_id
+           WHERE u.runtime = 'claude' AND date(u.ts) >= date('now', ?)
+           GROUP BY day, project""",
+        (since,),
+    ).fetchall()
+    combined = {}
+    for source, rows in (("claude_history", history), ("orchestra", accounted)):
+        for row in rows:
+            item = combined.setdefault((row["day"], row["project"]), {
+                "day": row["day"], "project": row["project"],
+                "claude_history": {}, "orchestra": {}, "difference": {},
+            })
+            item[source] = {
+                "message_count": int(row["message_count"] or 0),
+                **{name: int(row[name] or 0) for name in metrics},
+            }
+    for item in combined.values():
+        for source in ("claude_history", "orchestra"):
+            if not item[source]:
+                item[source] = {"message_count": 0, **{name: 0 for name in metrics}}
+        item["difference"] = {
+            name: item["claude_history"][name] - item["orchestra"][name]
+            for name in metrics
+        }
+        item["difference"]["message_count"] = (
+            item["claude_history"]["message_count"] - item["orchestra"]["message_count"]
+        )
+    return sorted(combined.values(), key=lambda item: (item["day"], item["project"]))
+
+
 def daily_usage(days: int = 30, conn: sqlite3.Connection | None = None) -> list[dict]:
     """Return legacy daily totals plus provider-aware cache details."""
     days = max(1, min(int(days), 9999))
@@ -754,6 +805,7 @@ def build_usage_analytics(
         conn.execute("BEGIN")
         try:
             daily = _daily_usage(conn, days)
+            claude_history_comparison = _claude_history_comparison(conn, since)
             providers = _provider_rollup(daily)
             agents = _agent_rows(conn, since)
             models = _model_rows(conn, since)
@@ -797,6 +849,7 @@ def build_usage_analytics(
         },
         "providers": providers,
         "daily": daily,
+        "claude_history_comparison": claude_history_comparison,
         "agents": agents,
         "models": models,
         "model_speeds": model_speeds,

@@ -82,9 +82,25 @@ _USAGE_ANALYTICS_INDEXES = (
 )
 
 
-def _ensure_usage_analytics_indexes(connection: sqlite3.Connection) -> None:
+def _ensure_usage_analytics_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS claude_history_usage_messages (
+               message_id TEXT PRIMARY KEY,
+               day TEXT NOT NULL,
+               project TEXT NOT NULL,
+               model TEXT NOT NULL,
+               input_tokens INTEGER NOT NULL DEFAULT 0,
+               output_tokens INTEGER NOT NULL DEFAULT 0,
+               cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+               cache_write_tokens INTEGER NOT NULL DEFAULT 0
+           )"""
+    )
     for statement in _USAGE_ANALYTICS_INDEXES:
         connection.execute(statement)
+    connection.execute(
+        """CREATE INDEX IF NOT EXISTS idx_claude_history_usage_day_project
+           ON claude_history_usage_messages(day, project, model)"""
+    )
 
 
 
@@ -92,7 +108,7 @@ def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
         if version == SCHEMA_VERSION:
-            _ensure_usage_analytics_indexes(connection)
+            _ensure_usage_analytics_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -102,7 +118,7 @@ def init_db(path: Path | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
         connection.executemany('INSERT INTO kv(key,value) VALUES(?,?)',
             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
-        _ensure_usage_analytics_indexes(connection)
+        _ensure_usage_analytics_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 

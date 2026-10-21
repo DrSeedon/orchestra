@@ -547,6 +547,10 @@ class SessionManager:
             self._rules_link_task = asyncio.create_task(self._periodic_rules_link())
         if not getattr(self, '_temp_rules_task', None) or self._temp_rules_task.done():
             self._temp_rules_task = asyncio.create_task(self._periodic_temp_rules())
+        if not getattr(self, '_claude_history_usage_task', None) or self._claude_history_usage_task.done():
+            self._claude_history_usage_task = asyncio.create_task(
+                self._periodic_claude_history_usage()
+            )
 
     @staticmethod
     def _ownership_prompt(owned_dirs: list[str]) -> str:
@@ -2509,6 +2513,22 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"temp rules notice sweep failed: {e}")
             await asyncio.sleep(60)
+
+    async def _periodic_claude_history_usage(self) -> None:
+        interval = 6 * 60 * 60
+        while True:
+            try:
+                from app.claude_history_usage import collect_history_usage
+                result = await asyncio.to_thread(collect_history_usage)
+                logger.info(
+                    "Claude history usage collected: %d file(s), %d message(s), %d malformed line(s)",
+                    result["files"], result["messages"], result["malformed_lines"],
+                )
+            except asyncio.CancelledError:
+                return
+            except Exception as error:
+                logger.warning("Claude history usage collection failed: %s", error)
+            await asyncio.sleep(interval)
 
     async def drain_restart_persistence(self) -> dict:
         """Flush every current session's queued persistence before restart signalling."""

@@ -576,6 +576,20 @@ CREATE TABLE turn_usage (
                 source_records_json TEXT NOT NULL DEFAULT '[]'
             );
 
+CREATE TABLE claude_history_usage_messages (
+                message_id TEXT PRIMARY KEY,
+                day TEXT NOT NULL,
+                project TEXT NOT NULL,
+                model TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_write_tokens INTEGER NOT NULL DEFAULT 0
+            );
+
+CREATE INDEX idx_claude_history_usage_day_project
+                ON claude_history_usage_messages(day, project, model);
+
 CREATE TABLE undelivered_facts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL,

@@ -336,6 +336,24 @@ function _analyticsRenderOverview(body) {
                 </div>
             </article>
         </section>`;
+    const historyRows = (data.claude_history_comparison || []).map(item => {
+        const triple = key => {
+            const format = value => _analyticsNumber((value || {})[key] || 0);
+            return `${format(item.orchestra)} / ${format(item.claude_history)} / ${format(item.difference)}`;
+        };
+        return `<tr><td>${_analyticsEsc(item.day)}</td><td>${_analyticsEsc(item.project)}</td>
+            <td>${triple('input_tokens')}</td><td>${triple('output_tokens')}</td>
+            <td>${triple('cache_read_tokens')}</td><td>${triple('cache_write_tokens')}</td></tr>`;
+    }).join('');
+    body.querySelector('.analytics-overview-grid').insertAdjacentHTML('afterend', `
+        <section class="analytics-panel">
+            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Claude history')}</span><h3>${T('Orchestra / history / difference')}</h3></div></div>
+            <div class="analytics-table-wrap"><table class="analytics-table"><thead><tr>
+                <th>${T('Day')}</th><th>${T('Project')}</th><th>${T('Input')}</th><th>${T('Output')}</th>
+                <th>${T('Cache read')}</th><th>${T('Cache write')}</th>
+            </tr></thead><tbody>${historyRows || `<tr><td colspan="6">${T('No Claude history collected yet.')}</td></tr>`}</tbody></table></div>
+            <p class="analytics-footnote">${T('Each token cell is Orchestra / Claude history / history minus Orchestra.')}</p>
+        </section>`);
     const wakeButton = body.querySelector('[data-analytics-wake]');
     if (wakeButton) wakeButton.onclick = () => _analyticsScheduleWake(wakeButton);
     _analyticsRenderChart(data.daily || []);
