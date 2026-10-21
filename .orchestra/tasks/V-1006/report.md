@@ -27,3 +27,9 @@ Before a first live run, the owner must provide/configure the bearer, ensure it 
 Imported paths: `app` → `/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-multicode-client/app/__init__.py`; client → `/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-multicode-client/app/multicode_client.py`.
 
 Still required for a first live run: owner-provided bearer in the process environment, the outbound tunnel or a reachable configured HTTPS base, confirmation of the target Hub environment boundary, and an owner-authorized MCP process restart/reconnect after merge. The real Hub's response shape, token scope acceptance, and runtime behavior remain unverified by design in Phase 1.
+
+## Follow-up: thread read response shape
+
+The owner captured a live `t3_thread_read` response with messages in `structuredContent.items`; each item has `createdBy` and flat `text`, rather than the assumed `messages` and `role` fields. `_last_assistant_text` now scans `items` newest-first, skips entries marked as user by either `createdBy` or `role`, accepts non-empty text, and joins text blocks from `content` when flat text is absent. It retains `messages` as a compatibility fallback. The mock integration test now models the captured `items` shape with user and agent messages; a separate unit test covers content blocks.
+
+`uv run --frozen python -m pytest tests/test_multicode_client.py tests/test_mcp_stdio.py -q` → **147 passed**. With the committed regression test, restoring the old `messages`/`role` parser makes the happy-path test fail with `MultiCode thread has no assistant reply`. No Hub call or restart was made in this follow-up; the owner will verify PONG live.

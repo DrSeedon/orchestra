@@ -196,12 +196,23 @@ class MultiCodeClient:
 
 
 def _last_assistant_text(value: Any) -> str | None:
-    items = value.get("messages", []) if isinstance(value, dict) else value
+    items = value.get("items", value.get("messages", [])) if isinstance(value, dict) else value
     if isinstance(items, dict):
         items = items.get("items", [])
     if not isinstance(items, list):
         return None
     for item in reversed(items):
-        if isinstance(item, dict) and item.get("role") == "assistant" and isinstance(item.get("text"), str):
-            return item["text"]
+        if not isinstance(item, dict) or item.get("createdBy") == "user" or item.get("role") == "user":
+            continue
+        text = item.get("text")
+        if not isinstance(text, str) or not text.strip():
+            content = item.get("content")
+            if isinstance(content, list):
+                text = "".join(
+                    part["text"] for part in content
+                    if isinstance(part, dict) and part.get("type") == "text"
+                    and isinstance(part.get("text"), str)
+                )
+        if isinstance(text, str) and text.strip():
+            return text
     return None

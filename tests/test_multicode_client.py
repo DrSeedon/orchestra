@@ -49,11 +49,13 @@ async def test_handshake_run_wait_retry_reads_last_assistant_and_archives(monkey
             return _rpc_response(body["id"], {"structuredContent": {"timedOut": waits == 1}})
         if name == "t3_thread_read":
             assert args["view"] == "messages"
-            return _rpc_response(body["id"], {"structuredContent": {"messages": [
-                {"role": "user", "text": "prompt"},
-                {"role": "assistant", "text": "older"},
-                {"role": "assistant", "text": f"answer with {token}"},
-            ]}})
+            return _rpc_response(body["id"], {"structuredContent": {
+                "thread": {}, "recentRuns": [], "items": [
+                    {"createdBy": "user", "text": "prompt"},
+                    {"createdBy": "agent", "text": "older"},
+                    {"createdBy": "agent", "text": f"answer with {token}"},
+                ], "nextPosition": None, "hasMore": False,
+            }})
         if name == "t3_thread_organize":
             assert args == {"threadId": "thread-1", "action": "archive"}
             return _rpc_response(body["id"], {"structuredContent": {"ok": True}})
@@ -134,8 +136,10 @@ async def _launch_args(monkeypatch, **kwargs):
         if name == "t3_thread_wait":
             return _rpc_response(body["id"], {"structuredContent": {}})
         if name == "t3_thread_read":
-            return _rpc_response(body["id"], {"structuredContent": {"messages": [
-                {"role": "assistant", "text": "PONG"}]}})
+            return _rpc_response(body["id"], {"structuredContent": {"items": [
+                {"createdBy": "user", "text": "Reply ... PONG ..."},
+                {"createdBy": "agent", "text": "PONG"},
+            ]}})
         return _rpc_response(body["id"], {"structuredContent": {}})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
@@ -163,3 +167,15 @@ async def test_launch_model_selection_env_and_args(monkeypatch):
     args = await _launch_args(monkeypatch, instance="codex", model="gpt-6.1-sol", effort="high")
     assert args["modelSelection"] == {
         "instanceId": "codex", "model": "gpt-6.1-sol", "options": {"effort": "high"}}
+
+
+def test_last_assistant_text_reads_items_created_by_and_content():
+    from app.multicode_client import _last_assistant_text
+
+    assert _last_assistant_text({"items": [
+        {"createdBy": "agent", "text": "older"},
+        {"createdBy": "user", "text": "user reply"},
+        {"createdBy": "agent", "content": [
+            {"type": "text", "text": "latest "}, {"type": "text", "text": "answer"},
+        ]},
+    ]}) == "latest answer"
