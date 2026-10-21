@@ -2,6 +2,14 @@
 
 Implemented Phase 1 on 2026-10-22 using the owner-confirmed `/mcp` contract. No Hub call, token issuance, credential inspection, raw relay, or service restart was performed.
 
+## Ночь 22.10 — живые результаты (orchestrator)
+
+- **Канал A подтверждён вживую.** Orchestra через SSH-туннель (локальный порт ДОЛЖЕН совпадать с портом serve хаба 14606, иначе Host-404) достаёт `/mcp`, запускает `t3_thread_launch` c `modelSelection`, ждёт `t3_thread_wait`, читает `t3_thread_read`. Sonnet → `PONG`; Grok 4.7 → «I am Grok 4.7, created by xAI». Жжёт пул хаба, не наши подписки.
+- **Контракт (живьём):** `MULTICODE_MCP_BASE=http://127.0.0.1:<port>` БЕЗ `/mcp` (клиент добавляет сам); внешнему токену `/mcp` нужен subject `mcp-client`; `t3_thread_read` кладёт сообщения в `items` (не `messages`), без `role` — автор в `createdBy`, текст плоский в `text`.
+- **B (full-access автономный воркер) НЕ достижим headless.** `auth session issue`/`pair` с полным scope (terminal/filesystem/source-control) всё равно дают потолок `approval-required`; сервер режет запуск: `runtime_mode_escalation_denied: Child full-access is broader than parent approval-required`. Поднять потолок может только интерактивный OAuth (/oauth/mcp/authorize, PKCE S256). Защита от само-эскалации; обход не делал.
+- **Доступы (0600):** ключ `/home/kesha/.ssh/multicode_hub_vps`, токен `data/secrets/multicode-vps.token` (read/operate, до 2026-11-20), `<hub-user>@<hub-host>:22`, `/mcp` `127.0.0.1:14606`. Хаб: 16 CPU, 61 ГБ RAM без per-user лимита, `/mnt/claude-data` 393 ГБ, node/python/git есть, docker/sudo/uv нет.
+- **Осталось:** постоянный туннель + `.env` + рестарт (оживит `multicode_run` + мышление V-1007); OAuth для B. Рестарт отложен — ночью были заняты другие агенты.
+
 ## Integration seam
 
 This is a delegation/control-plane call, not a streaming model backend. `MultiCodeClient` in [app/multicode_client.py](../../../app/multicode_client.py#L19) owns MCP HTTP initialization, JSON-RPC `tools/call`, token-safe response handling, the launch/wait/read/archive lifecycle, and queued follow-up sends. The Orchestra entry point is `multicode_run` in [app/mcp_stdio.py](../../../app/mcp_stdio.py#L321), exposed to full-access MCP callers. It returns a completed assistant reply as one string. I kept it out of `BackendLike` and `app/models.py`: those represent a token-stream runtime session, while this feature creates and controls a remote Hub thread and returns a bounded result.
