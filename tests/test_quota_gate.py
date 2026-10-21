@@ -1120,3 +1120,49 @@ def test_exhausted_window_whose_reset_has_passed_does_not_hold():
     providers["codex"]["windows"][0]["resets_at"] = _iso(NOW - 60)
 
     assert _decide("gpt-6-luna", providers).state == "available"
+
+
+@pytest.mark.asyncio
+async def test_live_codex_snapshot_shape_holds_luna_until_the_five_hour_reset():
+    """V-993: форма живого снимка (21.10: 5h=100, reset в формате Z, 7d=45) через get_worker_admission."""
+    now = datetime(2026, 10, 21, 8, 31, tzinfo=timezone.utc).timestamp()
+    codex = {
+        "label": "Codex", "plan_type": "plus",
+        "windows": [
+            {"id": "primary", "label": "5h", "utilization": 100,
+             "window_minutes": 300, "resets_at": "2026-10-21T12:01:30Z"},
+            {"id": "secondary", "label": "7d", "utilization": 45,
+             "window_minutes": 10080, "resets_at": "2026-10-27T06:44:33Z"},
+        ],
+        "raw_payload": {"ordinaryUsageAllowed": False},
+    }
+
+    async def loader(*, required_provider):
+        return {"providers": {"codex": codex},
+                "observed_at_by_provider": {"codex": now - 5}}
+
+    real_time = quota_gate.time.time
+    quota_gate.time.time = lambda: now
+    try:
+        decision = await quota_gate.get_worker_admission("gpt-6-luna", loader)
+    finally:
+        quota_gate.time.time = real_time
+
+    assert decision.state == "blocked"
+    with pytest.raises(quota_gate.QuotaGateError):
+        require_worker_admission(decision)
+    assert decision.release_in_seconds == pytest.approx(
+        datetime(2026, 10, 21, 12, 1, 30, tzinfo=timezone.utc).timestamp() - now)
+
+
+def test_owner_gate_override_does_not_release_an_exhausted_codex_window(monkeypatch):
+    """V-993: 21.10 владелец снял гейт, и V-983 молча отключился — ходы Luna падали на 100%."""
+    monkeypatch.setattr(quota_gate, "gate_override_remaining", lambda now=None: 3600.0)
+
+    decision = _decide("gpt-6-luna", _codex_5h_and_weekly(100.0, 45.0))
+    below = _decide("gpt-6-luna", _codex_5h_and_weekly(98.0, 45.0))
+
+    assert decision.state == "blocked"
+    assert decision.release_status == "at_reset"
+    assert decision.release_in_seconds == CODEX_WINDOW_MINUTES * 60 * 0.5
+    assert below.state == "available"

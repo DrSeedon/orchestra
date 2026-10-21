@@ -1152,9 +1152,11 @@ def evaluate_worker_admission(
 
     # Решающее окно — самое длинное, поэтому исчерпанное короткое окно (5h на 100%
     # при недельном ниже стопа) его не останавливает, и доставка падала в мёртвый
-    # пул. Подтверждённое исчерпание = окно ≥100% с ещё не наступившим сбросом.
-    exhausted_reset = None if (override_left or bucket not in _CODEX_BUCKETS) else (
-        _exhausted_window_reset(provider, checked_at)
+    # пул. Снятие гейта владельцем (override) сюда не относится: исчерпанный провайдером
+    # пул не даёт ходу состояться (V-993: 21.10 override скрыл V-983 и ходы падали).
+    # Подтверждённое исчерпание = окно ≥100% с ещё не наступившим сбросом.
+    exhausted_reset = (
+        _exhausted_window_reset(provider, checked_at) if bucket in _CODEX_BUCKETS else None
     )
     if exhausted_reset is not None and state != "blocked":
         state = "blocked"
