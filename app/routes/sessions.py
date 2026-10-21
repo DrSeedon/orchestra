@@ -10,6 +10,7 @@ import sqlite3
 import subprocess
 import time
 import uuid
+from datetime import datetime
 from app.task_refs import task_ref as public_task_ref
 
 from contextlib import AsyncExitStack
@@ -24,6 +25,7 @@ from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator, 
 from app.db import (
     get_all_sessions,
     get_history_logs,
+    get_log_context,
     get_log,
     get_logs,
     get_logs_before,
@@ -31,6 +33,7 @@ from app.db import (
     get_runtime_handoff,
     get_session as get_session_row,
     get_session_by_name,
+    search_logs,
 )
 from app.deps import manager
 from app.backend_codex import CodexWriterConflictError
@@ -48,6 +51,57 @@ from app.user_message_display import add_user_message_time_prefix, annotate_user
 logger = logging.getLogger("orchestra.sessions")
 
 router = APIRouter()
+
+
+@router.get("/api/logs/search")
+async def search_logs_endpoint(query: str, scope: str | None = None,
+                              all_projects: bool = False, agent: str | None = None,
+                              date_from: str | None = None, date_to: str | None = None,
+                              limit: int = 20):
+    query = query.strip()
+    if not query or len(query) > 200:
+        return JSONResponse({"error": "query must contain 1–200 characters"}, status_code=400)
+    if all_projects and scope:
+        return JSONResponse({"error": "scope cannot be combined with all_projects"}, status_code=400)
+    if not all_projects and not scope:
+        return JSONResponse({"error": "scope is required unless all_projects=true"}, status_code=400)
+    for value in (date_from, date_to):
+        if value:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                return JSONResponse({"error": "dates must use YYYY-MM-DD"}, status_code=400)
+            try:
+                datetime.strptime(value, "%Y-%m-%d")
+            except ValueError:
+                return JSONResponse({"error": "dates must use YYYY-MM-DD"}, status_code=400)
+    if date_from and date_to and date_from > date_to:
+        return JSONResponse({"error": "date_from must be on or before date_to"}, status_code=400)
+    if agent is not None and (not agent.strip() or len(agent) > 100):
+        return JSONResponse({"error": "agent must contain 1–100 characters"}, status_code=400)
+    if agent is not None:
+        agent = agent.strip()
+    result = search_logs(
+        query, scope=None if all_projects else scope, agent=agent,
+        date_from=date_from, date_to=date_to, limit=max(1, min(limit, 50)),
+    )
+    return JSONResponse(result)
+
+
+@router.get("/api/logs/{log_id}/context")
+async def log_context_endpoint(log_id: int, scope: str | None = None,
+                              all_projects: bool = False, before: int = 5,
+                              after: int = 5):
+    if all_projects and scope:
+        return JSONResponse({"error": "scope cannot be combined with all_projects"}, status_code=400)
+    if not all_projects and not scope:
+        return JSONResponse({"error": "scope is required unless all_projects=true"}, status_code=400)
+    rows = get_log_context(log_id, scope=None if all_projects else scope,
+                           before=max(0, min(before, 10)), after=max(0, min(after, 10)))
+    if rows is None:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return JSONResponse([
+        {**row, "content": str(row.get("content") or "")[:4000]}
+        for row in rows
+    ])
 
 
 def _worker_not_found(name: str, scope: str) -> JSONResponse:

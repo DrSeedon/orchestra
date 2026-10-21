@@ -91,6 +91,8 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "list_agents",
     "list_orchestrators",
     "get_worker_logs",
+    "search_logs",
+    "get_log_context",
     "check_conflict",
     "worker_wip",
     "get_worker_info",
@@ -1879,6 +1881,51 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
         if formatted:
             lines.append(formatted)
     return "\n".join(lines) if lines else f"No meaningful logs for '{name}'"
+
+
+@mcp.tool()
+async def search_logs(query: str, date_from: str = "", date_to: str = "",
+                      agent: str = "", all_projects: bool = False,
+                      limit: int = 20) -> str:
+    """Search past user messages, voice transcripts, assistant text, tools, and agent messages.
+
+    Dates use YYYY-MM-DD. Searches this caller's project by default; set all_projects=true
+    explicitly to search every project. Results include log ids for get_log_context.
+    """
+    params: dict[str, Any] = {
+        "query": query,
+        "all_projects": all_projects,
+        "limit": max(1, min(limit, 50)),
+    }
+    if not all_projects:
+        params["scope"] = SCOPE
+    if date_from:
+        params["date_from"] = date_from
+    if date_to:
+        params["date_to"] = date_to
+    if agent:
+        params["agent"] = agent
+    result = await _api("GET", "/api/logs/search", params=params)
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def get_log_context(log_id: int, project: str = "", all_projects: bool = False,
+                          before: int = 5, after: int = 5) -> str:
+    """Fetch bounded surrounding messages for a log id returned by search_logs."""
+    params: dict[str, Any] = {
+        "before": max(0, min(before, 10)),
+        "after": max(0, min(after, 10)),
+        "all_projects": all_projects,
+    }
+    if not all_projects:
+        params["scope"] = project or SCOPE
+    result = await _api("GET", f"/api/logs/{log_id}/context", params=params)
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
 
 
 @mcp.tool()

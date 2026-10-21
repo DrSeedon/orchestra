@@ -127,6 +127,12 @@
   ]
  ],
  [
+  "/api/logs/search",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/logs/sync",
   [
    "GET"
@@ -134,6 +140,12 @@
  ],
  [
   "/api/logs/{log_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/logs/{log_id}/context",
   [
    "GET"
   ]

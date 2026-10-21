@@ -1,4 +1,13 @@
 <knowledge>
+### Past events, conversations and decisions
+
+Before answering about a past event, conversation or decision, search the logs with
+`search_logs` in your own project first, then set `all_projects=true` if needed. Search
+voice-message transcripts too; do not rely only on Markdown files. Quote the relevant
+finding and include its date.
+
+owner decision, 2026-10-21: Search past logs before answering from memory because conversations and voice transcripts are retained there.
+
 ## Knowledge — one policy for every role
 
 The KB stores findings that would be costly to rediscover: research results, non-obvious
