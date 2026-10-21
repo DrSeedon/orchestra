@@ -1624,6 +1624,14 @@ def task_binding_requires_quarantine(
         )
 
 
+def task_binding_is_cancelled(scope: str, task_ref: str) -> bool:
+    """A cancelled task is closed for good: a worker still bound to it is free to take new work."""
+    with _conn() as conn:
+        project = get_project_by_scope(conn, scope.rstrip("/"))
+        task = resolve_task_ref(conn, task_ref, project["id"]) if project else None
+        return bool(task and task["status"] == "cancelled")
+
+
 def validate_task_binding_repair(
     scope: str, session_id: str, task_ref: str,
 ) -> dict:

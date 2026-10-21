@@ -909,6 +909,22 @@ class SessionManager:
                 session.base_branch = durable.get("base_branch") or session.base_branch
                 session.task_id = durable.get("task_id") or ""
                 session.needs_switch = bool(durable.get("needs_switch") or 0)
+        if (
+            not session.needs_switch
+            and getattr(session, "task_id", "")
+            and session.status == AgentStatus.IDLE
+        ):
+            from app import tm
+
+            if await asyncio.to_thread(
+                tm.task_binding_is_cancelled, session.scope, session.task_id,
+            ):
+                # Cancelled task = closed, like after a complete merge: the next delivery
+                # starts a fresh branch instead of hitting "already bound" (V-996).
+                await self.persist_lifecycle(
+                    session, branch=session.branch, base_branch=session.base_branch,
+                    task_id="", needs_switch=True,
+                )
         if not session.needs_switch:
             return
         lifecycle = await asyncio.to_thread(self.lifecycle_quarantine, session)

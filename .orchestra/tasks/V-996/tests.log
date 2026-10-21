@@ -1,0 +1,100 @@
+........................................................................ [ 28%]
+.....................................................F.................. [ 56%]
+........................................................................ [ 84%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+_ TestEnsureLoadedSingleFlight.test_simultaneous_model_change_and_send_share_one_cold_load _
+
+self = <tests.test_manager.TestEnsureLoadedSingleFlight object at 0x7ddfb9389370>
+mgr = <app.manager.SessionManager object at 0x7ddfb46efe00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ddfb472a1b0>
+
+    @pytest.mark.asyncio
+    async def test_simultaneous_model_change_and_send_share_one_cold_load(
+        self, mgr, monkeypatch,
+    ):
+        row = self._row()
+        monkeypatch.setattr("app.manager.get_session_by_name", lambda *_args: row)
+        first_started = asyncio.Event()
+        release = asyncio.Event()
+        load_calls = 0
+    
+        class Session:
+            id = row["id"]
+            name = row["name"]
+            scope = row["scope"]
+            needs_switch = False
+    
+            def __init__(self):
+                self.changed = 0
+                self.sent = 0
+    
+            async def change_model(self, _model):
+                self.changed += 1
+    
+            async def send(self, _message, *, provenance):
+                assert provenance is USER_PROVENANCE
+                self.sent += 1
+    
+        async def load(_row):
+            nonlocal load_calls
+            load_calls += 1
+            first_started.set()
+            await release.wait()
+            session = Session()
+            mgr.sessions[session.id] = session
+            return session
+    
+        monkeypatch.setattr(mgr, "_load_from_db", load)
+    
+        async def change_model():
+            session = await mgr.ensure_loaded(row["name"], row["scope"])
+            await session.change_model("gpt-6-luna")
+            return session
+    
+        async def send():
+            session = await mgr.ensure_loaded(row["name"], row["scope"])
+            await mgr.send(session.id, "hello", provenance=USER_PROVENANCE)
+            return session
+    
+        change_task = asyncio.create_task(change_model())
+        await first_started.wait()
+        send_task = asyncio.create_task(send())
+        await asyncio.sleep(0)
+        release.set()
+>       changed, sent = await asyncio.gather(change_task, send_task)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_manager.py:2592: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_manager.py:2584: in send
+    await mgr.send(session.id, "hello", provenance=USER_PROVENANCE)
+app/manager.py:1075: in send
+    delivery_task.result()
+app/manager.py:1070: in deliver
+    await self._auto_switch_before_delivery(session)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.manager.SessionManager object at 0x7ddfb46efe00>
+session = <tests.test_manager.TestEnsureLoadedSingleFlight.test_simultaneous_model_change_and_send_share_one_cold_load.<locals>.Session object at 0x7ddfb46ed700>
+
+    async def _auto_switch_before_delivery(self, session: AgentSession) -> None:
+        if not getattr(session, "loaded", True):
+            durable = await asyncio.to_thread(get_session, session.id)
+            if durable:
+                session.branch = durable.get("branch") or session.branch
+                session.base_branch = durable.get("base_branch") or session.base_branch
+                session.task_id = durable.get("task_id") or ""
+                session.needs_switch = bool(durable.get("needs_switch") or 0)
+        if (
+            not session.needs_switch
+>           and session.task_id
+                ^^^^^^^^^^^^^^^
+            and session.status == AgentStatus.IDLE
+        ):
+E       AttributeError: 'Session' object has no attribute 'task_id'
+
+app/manager.py:914: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_manager.py::TestEnsureLoadedSingleFlight::test_simultaneous_model_change_and_send_share_one_cold_load
+1 failed, 255 passed in 68.53s (0:01:08)

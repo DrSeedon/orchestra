@@ -1,0 +1,5 @@
+== mutation: cancelled-binding drop disabled
+tests/test_v996_cancelled_task_binding.py:47: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v996_cancelled_task_binding.py::test_cancelled_task_binding_is_dropped_on_next_delivery
+1 failed, 1 passed in 4.47s

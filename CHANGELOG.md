@@ -7,6 +7,9 @@
 ## Unreleased
 
 ### Fixed
+- **A worker bound to a cancelled task takes new work like after a merge** (`app/manager.py` `_auto_switch_before_delivery`, `app/tm.py` `task_binding_is_cancelled`; V-996). Cancelling a task closed its run but left the worker's `task_id` and branch in place, so a new task sent to it was committed on the old `task-V-830/...` branch and then every acceptance path failed (`merge_worker`: `WORK_ASSIGNMENT_CHANGED`, `switch_worker_branch(promote_current)`: "session is already bound to a task"). Before each delivery an idle worker whose bound task is `cancelled` is now treated as completed: its binding is dropped and the existing auto-switch starts a fresh `adhoc-*` branch, which `merge_worker(task_id=<new>)` can promote. A task that is not cancelled behaves as before. Known tradeoff: a worker that already committed on the old branch before this fix is not repaired.
+
+### Fixed
 - **Video preview hides the player controls and cursor while playing** (`app/static/js/app.js` `_autoHideVideoControls`, called from the file preview; V-994). The native control bar permanently covered burned-in subtitles. Now controls and cursor hide 2 s after the last mouse move, touch, click, key or focus while the video plays, and reappear on any of those; paused/ended keeps them visible. Native seek/volume/fullscreen are unchanged (the same `<video>` element is used). Trigger: owner screenshot of an 8-minute explainer with the bar over the subtitles. Known tradeoff: on touch devices the first tap on hidden controls only reveals them. Frontend only, no restart. Test `test_video_preview_controls_autohide_while_playing` (real Chromium, ffmpeg-built webm), screenshots in `.orchestra/tasks/V-994/`.
 
 ### Changed
