@@ -1690,3 +1690,28 @@ def test_v955_index_walk_loader_finds_limited_agents_and_skips_the_rest(wake_db)
 
     assert sorted(found) == ["duplicate-end", "limited"]
     assert found["limited"]["limit_reset_at"].startswith("2026-10-18T10:30:00")
+
+
+def _limited_turn(origin: str, *extra: dict) -> list[dict]:
+    return [
+        {"id": 1, "type": "status", "content": "turn ended (stop_sequence, 1 turns)"},
+        {"id": 2, "type": "user_message", "content": "", "origin": origin},
+        {"id": 3, "type": "provider_limit",
+         "content": json.dumps({"status": "rejected", "rate_limit_type": "seven_day"})},
+        {"id": 4, "type": "status", "content": "turn ended (stop_sequence, 1 turns)"},
+        *extra,
+    ]
+
+
+@pytest.mark.parametrize("origin,woken", [
+    ("user", True), ("agent", True), ("platform", False), ("system", False),
+])
+def test_limit_turn_woken_only_when_triggered_by_a_person_or_agent(origin, woken):
+    from app.limit_wake import _latest_limit_turn
+    assert (_latest_limit_turn(_limited_turn(origin)) is not None) is woken
+
+
+def test_limit_turn_not_woken_after_manual_interrupt():
+    from app.limit_wake import _latest_limit_turn
+    rows = _limited_turn("user", {"id": 5, "type": "status", "content": "interrupt requested"})
+    assert _latest_limit_turn(rows) is None

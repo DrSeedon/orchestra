@@ -52,6 +52,28 @@ def _is_limit_wake_log(row: dict) -> bool:
     )
 
 
+def _not_worth_waking(ordered: list[dict], previous_key, latest_key, key) -> bool:
+    """True when nobody who needs the session answered woke the limit-stopped turn.
+
+    Either the turn was started only by platform/system notices (a rules_link reminder
+    burned the weekly limit and then waking it again cost another empty turn), or the
+    owner interrupted the session after the limit stop.
+    """
+    triggers = [
+        row for row in ordered
+        if row["type"] == "user_message"
+        and (previous_key is None or key(row) > previous_key)
+        and key(row) <= latest_key
+        and not _is_limit_wake_log(row)
+    ]
+    if triggers and all(row.get("origin") in ("platform", "system") for row in triggers):
+        return True
+    return any(
+        key(row) > latest_key and row["type"] == "status" and row["content"] == "interrupt requested"
+        for row in ordered
+    )
+
+
 def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
     info = _latest_limit_info(logs)
     return info[:2] if info else None
@@ -100,6 +122,8 @@ def _latest_limit_info(logs: list[dict]) -> tuple[str, int, str | None] | None:
     ]
     limits = [json.loads(row["content"]) for row in turn_logs if row["type"] == "provider_limit"]
     if limits:
+        if _not_worth_waking(ordered, previous_key, latest_key, key):
+            return None
         rejected = next((limit for limit in reversed(limits) if limit.get("status") == "rejected"), None)
         if rejected is None:
             return None
@@ -370,6 +394,15 @@ def build_wake_plan(
     }
 
 
+def _decode_detail(row: dict) -> dict:
+    if isinstance(row.get("origin_detail"), str):
+        try:
+            row["origin_detail"] = json.loads(row["origin_detail"])
+        except ValueError:
+            row["origin_detail"] = None
+    return row
+
+
 def _load_limit_stopped_agents() -> list[dict]:
     """Candidates read through the per-session index, never the whole log table.
 
@@ -401,12 +434,12 @@ def _load_limit_stopped_agents() -> list[dict]:
             if not ends:
                 continue
             rows = connection.execute(
-                "SELECT id, ts, type, "
+                "SELECT id, ts, type, origin, origin_detail, "
                 "CASE WHEN type IN ('provider_limit','error','status') THEN content ELSE '' END AS content "
                 "FROM logs WHERE session_id=? AND id >= ? ORDER BY ts, id",
                 (session["id"], ends[-1]["id"]),
             ).fetchall()
-            logs_by_session[session["id"]] = [dict(row) for row in rows]
+            logs_by_session[session["id"]] = [_decode_detail(dict(row)) for row in rows]
     return find_limit_stopped_agents(eligible, logs_by_session)
 
 
