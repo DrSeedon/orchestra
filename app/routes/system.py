@@ -2002,6 +2002,8 @@ async def build_quota_map() -> dict:
                 "release_status": decision.release_status,
                 "release_in_seconds": decision.release_in_seconds,
                 "reason": decision.reason,
+                "reason_key": decision.reason_key,
+                "reason_params": dict(decision.reason_params or {}),
                 "models": [],
             },
         )
@@ -2009,6 +2011,8 @@ async def build_quota_map() -> dict:
         if decision.state == "blocked":
             entry["blocked"] = True
             entry["reason"] = decision.reason
+            entry["reason_key"] = decision.reason_key
+            entry["reason_params"] = dict(decision.reason_params or {})
         entry["release_status"] = decision.release_status
         entry["release_in_seconds"] = decision.release_in_seconds
         entry["models"].append(decision.model)

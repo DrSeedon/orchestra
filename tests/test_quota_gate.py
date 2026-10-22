@@ -1166,3 +1166,40 @@ def test_owner_gate_override_does_not_release_an_exhausted_codex_window(monkeypa
     assert decision.release_status == "at_reset"
     assert decision.release_in_seconds == CODEX_WINDOW_MINUTES * 60 * 0.5
     assert below.state == "available"
+
+
+def test_decision_carries_stable_reason_key_for_open_and_closed_gate():
+    open_decision = _decide("sonnet", _providers(claude=10, progress=0.5))
+    assert open_decision.state == "available"
+    assert open_decision.reason_key == "within_line"
+    assert open_decision.reason_params["util"] == "10"
+    assert open_decision.reason == (
+        f"utilization 10% is at or below the line limit {open_decision.reason_params['limit']}%"
+    )
+
+    closed = _decide("sonnet", _providers(claude=90, progress=0.1))
+    assert closed.state == "blocked"
+    assert closed.reason_key == "above_line"
+    assert set(closed.reason_params) == {"util", "limit", "norm", "tolerance"}
+
+    hard = _decide("sonnet", _providers(claude=100, progress=0.5))
+    assert hard.state == "blocked"
+    assert hard.reason_key == "hard_stop"
+    assert hard.reason_params["lane"] == "claude"
+
+
+def test_reason_key_and_human_reason_are_both_serialized():
+    payload = _decide("sonnet", _providers(claude=90, progress=0.1)).to_dict()
+    assert payload["reason_key"] == "above_line"
+    assert payload["reason_params"]["util"] == "90"
+    # The human text stays for other consumers (429 body, MCP, logs).
+    assert payload["reason"].startswith("utilization 90% is above the line limit")
+
+
+def test_missing_telemetry_has_a_machine_reason_key():
+    decision = _decide("sonnet", {})
+    assert decision.state == "unknown"
+    assert decision.reason_key == "window_missing"
+    stale = _decide("sonnet", _providers(claude=10), observed_at=NOW - 10 * 24 * 3600)
+    assert stale.reason_key == "observation_stale"
+    assert stale.to_dict()["reason_params"] == {}

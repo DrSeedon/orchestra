@@ -24,6 +24,31 @@ const _QL_PANELS = [
      buckets: ['codex', 'codex_spark', 'anthropic']},
 ];
 
+// Stable server `reason_key` -> English template (the i18n dictionary key). The server's
+// `reason` stays the ready English sentence for other consumers; the panel renders
+// the template through T so the Russian locale reads Russian.
+const _QL_REASONS = {
+    hard_stop: "utilization {util}% is at or above the hard stop {hard_stop}% for lane '{lane}'",
+    above_line: 'utilization {util}% is above the line limit {limit}% (norm {norm}% + tolerance {tolerance} pp)',
+    no_reset_window: 'utilization {util}% is below the hard stop {hard_stop}%; the window has no parseable reset, so the line is not applied',
+    within_line: 'utilization {util}% is at or below the line limit {limit}%',
+    override_active: 'gate override active for {seconds} more seconds; utilization {util}% is below the hard stop {hard_stop}%',
+    lane_not_gated: "lane '{lane}' is not gated by the line; utilization {util}% is below the hard stop {hard_stop}%",
+    pool_exhausted: 'a pool window is exhausted (100%) until its reset at {reset_at}',
+    outside_policy: '{label} is outside the subscription quota policy',
+    observation_failed: 'quota observation failed: {error}',
+    timestamp_missing: 'observation timestamp is missing or malformed',
+    timestamp_future: 'observation timestamp is in the future',
+    observation_stale: 'observation is stale',
+    window_missing: 'deciding window is missing',
+    utilization_missing: 'utilization is missing or malformed',
+};
+
+function _qlReasonText(lane) {
+    const template = _QL_REASONS[lane?.reason_key];
+    return template ? T(template, lane.reason_params || {}) : String(lane?.reason || '');
+}
+
 const _QL_NO_RULE = T('no data — server did not send rule constants');
 
 let _quotaLinesData = null;
@@ -815,7 +840,7 @@ function _qlPanelHtml(panel) {
         return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(T(lane.label || lane.lane))}: <b>${word}</b>${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
     }).join('');
     const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)
-        .map(l => `<li><b>${_escHtml(T(l.label || l.lane))}</b> — ${_escHtml(l.reason)}</li>`).join('');
+        .map(l => `<li><b>${_escHtml(T(l.label || l.lane))}</b> — ${_escHtml(_qlReasonText(l))}</li>`).join('');
     const chart = _qlChartSvg(panel, rule);
     const traceNotices = (chart.traceNotices || [])
         .map(item => `<div class="ql-trace-msg" data-ql-trace-msg="${_escHtml(item.bucket)}">${T('{label}: no history for this window', {label: _escHtml(item.label)})}</div>`)
