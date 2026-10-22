@@ -418,3 +418,17 @@ def test_copy_defers_when_budget_is_spent(tmp_path: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr(backup, "_rsync_to_laptop", lambda *_a: pytest.fail("no budget left"))
 
     backup._copy_to_laptop(archive, manifest)
+
+
+def test_private_folder_is_archived_and_empty_one_is_skipped(tmp_path: Path):
+    root, out = tmp_path / "root", tmp_path / "backups"
+    out.mkdir()
+    private = root / ".orchestra" / "private"
+    private.mkdir(parents=True)
+    assert backup._backup_private(root, out) is None
+    (private / "report.md").write_text("secret-ish\n")
+    archive = backup._backup_private(root, out)
+    listing = subprocess.run(
+        ["tar", "--zstd", "-tf", str(archive)], check=True, capture_output=True, text=True
+    ).stdout
+    assert "private/report.md" in listing

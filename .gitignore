@@ -38,3 +38,6 @@ docs/vps-*.md
 
 # Manim writes media/ into the cwd
 media/
+
+# Secret artifacts of tasks (V-1014): a plain folder, never published; re-ignored after the `!.orchestra/**` above
+.orchestra/private

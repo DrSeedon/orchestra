@@ -40,4 +40,15 @@
   and comparing the returned SHA; otherwise report it as local only.
 - All changes committed to your LOCAL branch. Do NOT `git push` — merge is local (`merge_worker` squashes your branch in place) and task branches are not published. Push only if the task explicitly names a remote review workflow
 - Report DONE to orchestrator — they handle the merge
+
+### Private artifacts (owner decision, 2026-10-22)
+- `.orchestra/private/` is a plain folder, not a repository. Git ignores it in every project, and all
+  worktrees of a project share one real folder (a symlink to the main checkout's), so files written
+  there survive the worktree.
+- In a project whose repository is public, any artifact that must not be published (reports, scripts,
+  data, credentials-adjacent notes) goes to `.orchestra/private/`, never into tracked files.
+- In a private repository, whether such artifacts go there is the owner's call.
+- Files may be moved between `.orchestra/private/` and the tracked tree in either direction.
+- A forbidden-strings list kept outside git blocks `merge_worker` and the pre-push hook when a change
+  contains a listed string; the refusal names the rule. Fix the change, do not bypass the guard.
 </git-workflow>

@@ -21,9 +21,13 @@
 """
 
 import argparse
+import os
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app import forbidden_strings  # noqa: E402  (stdlib-only module; V-1014 publish guard)
 
 _ZERO = "0" * 40
 _GITLINK = "160000"
@@ -131,6 +135,10 @@ def _staged() -> list[str]:
     return [f for sha, path in _raw_entries("--cached") for f in _scan_blob(sha, path)]
 
 
+def _forbidden_rules() -> list[tuple[str, str]]:
+    return forbidden_strings.load_rules(forbidden_strings.list_path(os.getcwd()))
+
+
 def _pre_push() -> list[str]:
     """stdin: `<local ref> <local sha> <remote ref> <remote sha>` — контракт git.
 
@@ -139,6 +147,7 @@ def _pre_push() -> list[str]:
     сообщений коммитов — а они публикуются наравне с содержимым (ревью Luna, #453).
     """
     findings = []
+    rules = _forbidden_rules()
     for raw in sys.stdin.read().splitlines():
         parts = raw.split()
         if len(parts) != 4:
@@ -152,13 +161,15 @@ def _pre_push() -> list[str]:
             rev_args = (local_sha, "--not", "--remotes")  # новая ветка: что ещё не опубликовано
         for commit in _git("rev-list", "--reverse", *rev_args).split():
             short = commit[:8]
-            findings += scan_text(
-                _git("log", "-1", "--format=%B", commit), f"commit {short} message"
-            )
+            message = _git("log", "-1", "--format=%B", commit)
+            findings += scan_text(message, f"commit {short} message")
+            findings += forbidden_strings.scan_text(message, f"commit {short} message", rules)
             parents = _git("rev-list", "--parents", "-n", "1", commit).split()[1:]
             base = parents[0] if parents else _git("hash-object", "-t", "tree", "/dev/null").strip()
             for sha, path in _raw_entries(base, commit):
                 findings += _scan_blob(sha, f"{path} @{short}")
+                blob = _git_bytes("cat-file", "blob", sha).decode("utf-8", "replace")
+                findings += forbidden_strings.scan_text(blob, f"{path} @{short}", rules)
     return findings
 
 

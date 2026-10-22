@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     # циклической зависимости (pipeline ← workspace).
     from app.pipeline import Symlink, Worktree as WorktreeCfg
 
-from app import sparse_worktree
+from app import forbidden_strings, private_folder, sparse_worktree
 
 logger = logging.getLogger(__name__)
 
@@ -577,7 +577,9 @@ def _copy_file(src: Path, dst: Path) -> None:
 # AGENTS.md is mirrored from CLAUDE.md for codex workers (see create_worktree). Exclude so
 # it doesn't dirty the tree / block merge. info/exclude only affects UNTRACKED files, so a
 # repo that tracks its own AGENTS.md is unaffected (and we never overwrite an existing one).
-_WORKTREE_EXCLUDES = (".claude/", ".codex/", "codex_sessions.json", "*.round", "AGENTS.md")
+_WORKTREE_EXCLUDES = (
+    ".claude/", ".codex/", "codex_sessions.json", "*.round", "AGENTS.md", private_folder.EXCLUDE_PATTERN,
+)
 
 
 def tracked_paths(worktree_path: str | Path, rels: list[str]) -> set[str]:
@@ -836,6 +838,7 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
                     _apply_symlink(repo, wt_path, sl)
                     planted.append(sl.target)
             _exclude_worktree_artifacts(wt_path, planted)
+            private_folder.ensure_private(wt_path)
             sync_agents_md(str(wt_path))
         except Exception as setup_error:
             cleanup_errors: list[str] = []
@@ -1618,6 +1621,21 @@ def merge_worktree_to_main(
                 else:
                     if budget:
                         result = {"ok": False, "error": budget}
+            if result is None:
+                try:
+                    guard = forbidden_strings.scan_range(
+                        repo, target_branch, worker_head,
+                        forbidden_strings.load_rules(forbidden_strings.list_path(repo)),
+                    )
+                except RuntimeError as e:
+                    result = {"ok": False, "error": f"publish guard could not run: {e}"}
+                else:
+                    if guard:
+                        result = {
+                            "ok": False,
+                            "code": "FORBIDDEN_STRING",
+                            "error": forbidden_strings.block_message(guard),
+                        }
             if result is None:
                 child_error = _clean_worktree_error(wt, "worker")
                 if child_error:

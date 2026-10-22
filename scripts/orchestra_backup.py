@@ -471,6 +471,33 @@ def _sync_latest_laptop_backup(db_path: Path) -> None:
             )
 
 
+PRIVATE_REL = ".orchestra/private"
+
+
+def _backup_private(root: Path, directory: Path, keep: int = 2) -> Path | None:
+    """Archive `.orchestra/private/` (git ignores it, so nothing else holds it); None if empty."""
+    source = root / PRIVATE_REL
+    if not source.is_dir() or not any(source.iterdir()):
+        return None
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    archive = directory / f"orchestra-private-{day}.tar.zst"
+    fd, raw_temp = tempfile.mkstemp(prefix=f".private-{day}-", suffix=".zst", dir=directory)
+    os.close(fd)
+    temp = Path(raw_temp)
+    try:
+        _run([
+            "tar", "--zstd", "-cf", str(temp), "-C", str(source.parent), source.name,
+        ])
+        _run(["zstd", "-q", "-t", str(temp)])
+        os.chmod(temp, 0o600)
+        os.replace(temp, archive)
+    finally:
+        temp.unlink(missing_ok=True)
+    for old in sorted(directory.glob("orchestra-private-????-??-??.tar.zst"), reverse=True)[keep:]:
+        old.unlink()
+    return archive
+
+
 def _daily() -> None:
     db_path, _task_repo = _service_paths()
     directory = db_path.parent / "backups"
@@ -482,6 +509,10 @@ def _daily() -> None:
             _make_daily_backup(db_path, directory)
         except Exception as error:
             raise BackupError("local-database", str(error)) from error
+        try:
+            _backup_private(db_path.parent.parent, directory)
+        except Exception as error:
+            raise BackupError("private-folder", str(error)) from error
     # The laptop copy is left to the hourly --push-task-store run: archive creation
     # plus a transfer slice does not fit the 600 s job limit (V-962).
 
