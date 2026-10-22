@@ -20,6 +20,7 @@ from typing import AsyncIterator, Optional
 from uuid import uuid4
 
 from app import hub_workspace as hw
+from app.hub_activity import HubActivityStream
 from app.events import AgentEvent
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
@@ -36,7 +37,7 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-grok-4.7": ("grok", "grok-4.7"),
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
-WAIT_SLICE_MS = 20_000
+WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
 
 PREAMBLE = (
     "You are a worker on a remote machine. Your current directory is a private copy of a "
@@ -73,6 +74,13 @@ def hub_configured() -> str | None:
     return ("hub workers are not configured; set " + ", ".join(missing)) if missing else None
 
 
+def _relative(event: AgentEvent, remote_dir: str) -> AgentEvent:
+    """Show hub paths as worktree-relative ones: the chat is about the repo, not the hub's layout."""
+    if remote_dir and remote_dir in event.content:
+        event.content = event.content.replace(remote_dir + "/", "").replace(remote_dir, ".")
+    return event
+
+
 def _branch_task_ref(cwd: str) -> str:
     try:
         branch = subprocess.run(["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
@@ -102,6 +110,7 @@ class HubBackend:
         self._run_id: Optional[str] = None
         self._early_steer: list[str] = []
         self._turn_started: float | None = None
+        self._watch_status = ''
 
     @property
     def session_id(self) -> Optional[str]:
@@ -239,8 +248,15 @@ class HubBackend:
             async with _turn_slots():
                 run_id = await self._start(mc, state, prompt)
                 self._run_id = run_id
-                status = await self._wait(mc, state.thread_id, run_id)
+                stream = HubActivityStream(run_id, state.activity_pos or None)
+                async for event in self._watch(mc, state.thread_id, run_id, stream):
+                    yield _relative(event, state.remote_dir)
+                status = self._watch_status
                 reply = await self._read_reply(mc, state.thread_id, run_id)
+                for event in stream.finish(reply):
+                    yield _relative(event, state.remote_dir)
+                state.activity_pos = stream.cursor or 0
+                state.save()
             try:
                 sync = await self._sync_back(ssh, state, root, scratch)
             except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
@@ -262,7 +278,12 @@ class HubBackend:
         parts = list(self._early_steer) + [message]
         self._early_steer = []
         body = "\n\n".join(parts)
-        return PREAMBLE + body if first else body
+        if not first:
+            return body
+        task = _branch_task_ref(self.cwd).lstrip("#")
+        where = (f"Put any notes, reports or other task artifacts under .orchestra/tasks/{task}/ "
+                 "(create it); nowhere else outside the source tree.\n\n") if task != "hub" else ""
+        return PREAMBLE.replace("\n\nTask:\n", f"\n{where}Task:\n" if where else "\n\nTask:\n") + body
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
         if state.thread_id:
@@ -289,21 +310,45 @@ class HubBackend:
             raise MultiCodeError("MultiCode launch returned no runId")
         return run_id
 
-    async def _wait(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
+    async def _watch(self, mc: MultiCodeClient, thread_id: str, run_id: str,
+                     stream: HubActivityStream) -> AsyncIterator[AgentEvent]:
+        """Wait for the run, translating new timeline items into events every poll slice."""
         limit = float(os.environ.get("MULTICODE_HUB_TURN_TIMEOUT_S", "14400"))
         deadline = time.monotonic() + limit
         while True:
             waited = await mc.tool_call("t3_thread_wait", {
                 "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
             status = waited.get("status", "") if isinstance(waited, dict) else ""
-            if not (isinstance(waited, dict) and waited.get("timedOut")) and status in TERMINAL:
-                return status
+            terminal = not (isinstance(waited, dict) and waited.get("timedOut")) and status in TERMINAL
+            for event in await self._poll(mc, thread_id, stream):
+                yield event
+            if terminal:
+                self._watch_status = status
+                return
             if self._abort:
-                return "interrupted"
+                self._watch_status = "interrupted"
+                return
             if time.monotonic() > deadline:
                 with contextlib.suppress(Exception):
                     await mc.tool_call("t3_thread_interrupt", {"threadId": thread_id})
                 raise MultiCodeError("hub thread exceeded the turn time limit")
+
+    async def _poll(self, mc: MultiCodeClient, thread_id: str, stream: HubActivityStream) -> list[AgentEvent]:
+        """New timeline items since the cursor. A failed poll only loses live detail, never the turn."""
+        events: list[AgentEvent] = []
+        try:
+            for _ in range(20):
+                args = {"threadId": thread_id, "view": "activity", "limit": 100, "maxCharsPerItem": 6000}
+                if stream.cursor is not None:
+                    args["afterPosition"] = stream.cursor
+                page = await mc.tool_call("t3_thread_read", args)
+                items = page.get("items", []) if isinstance(page, dict) else []
+                events.extend(stream.feed(items))
+                if not (isinstance(page, dict) and page.get("hasMore")) or not items:
+                    break
+        except MultiCodeError as exc:
+            logger.warning("hub activity poll failed: %s", exc)
+        return events
 
     async def _read_reply(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
         read = await mc.tool_call("t3_thread_read", {
@@ -317,17 +362,20 @@ class HubBackend:
         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
         state.manifest = result.manifest
         state.turns += 1
-        commit = ""
+        commit, unstaged = "", []
         if result.changed or result.deleted:
             message = f"{_branch_task_ref(self.cwd)}: hub worker turn {state.turns} ({self.model})"
             try:
-                commit = await asyncio.to_thread(
+                commit, unstaged = await asyncio.to_thread(
                     hw.commit_sync, root, result.changed, result.deleted, message)
             except (hw.HubWorkspaceError, subprocess.SubprocessError) as exc:
                 commit = f"NOT COMMITTED ({exc})"
         state.save()
         lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
                  + (f", commit {commit}" if commit else "")]
+        if unstaged:
+            lines.append("left uncommitted in the worktree (git refused them): "
+                         + "; ".join(f"{p} ({why})" for p, why in unstaged[:20]))
         if result.conflicts:
             lines.append("conflicts (both sides changed, hub copy NOT applied): "
                          + ", ".join(result.conflicts[:20]))

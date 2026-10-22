@@ -163,7 +163,8 @@ def test_truncated_snapshot_does_not_delete_the_worktree(repo, tmp_path):
 def test_commit_lands_only_imported_paths_on_the_branch(repo):
     (repo / "calc.py").write_text("def add(a, b):\n    return a + b\n")
     (repo / "unrelated.txt").write_text("dirty\n")
-    sha = hw.commit_sync(repo, ["calc.py"], [], "#V-1: hub worker turn 1")
+    sha, failed = hw.commit_sync(repo, ["calc.py"], [], "#V-1: hub worker turn 1")
+    assert not failed
     assert sha and _git(repo, "log", "-1", "--format=%s").strip() == "#V-1: hub worker turn 1"
     assert _git(repo, "show", "--name-only", "--format=", "HEAD").split() == ["calc.py"]
     assert "unrelated.txt" in _git(repo, "status", "--porcelain")
@@ -232,6 +233,15 @@ class FakeMc:
         self.project_dir = ""
         self.project_deleted = False
         self.delete_is_a_noop = False
+        self.timeline: list[list[dict]] = []   # one snapshot of the hub timeline per poll
+        self.polls = 0
+
+    def activity_page(self, args):
+        snapshot = self.timeline[min(self.polls, len(self.timeline) - 1)] if self.timeline else []
+        self.polls += 1
+        after = args.get("afterPosition")
+        items = [i for i in snapshot if after is None or i["position"] > after]
+        return {"items": items, "hasMore": False, "nextPosition": None}
 
     async def tool_call(self, name, args):
         self.calls.append((name, args))
@@ -245,6 +255,8 @@ class FakeMc:
             if self.project_deleted or not self.project_dir:
                 return {"projects": [], "nextCursor": None}
             return {"projects": [{"id": "proj-1", "workspaceRoot": self.project_dir}], "nextCursor": None}
+        if name == "t3_thread_read" and args.get("view") == "activity":
+            return self.activity_page(args)
         if name == "t3_thread_read" and self.project_deleted:
             from app.multicode_client import MultiCodeError
             raise MultiCodeError('MultiCode tool t3_thread_read failed: {"code":"thread_not_found"}')
@@ -252,6 +264,9 @@ class FakeMc:
             self.hub_edit(Path(self.project_dir))
             return {"threadId": "thr-1", "runId": "run-1"}
         if name == "t3_thread_wait":
+            # while snapshots of the hub timeline remain to be shown, the run is still going
+            if self.polls < len(self.timeline):
+                return {"status": "running", "timedOut": True}
             return {"status": "completed", "timedOut": False}
         if name == "t3_thread_read":
             return {"items": [
@@ -387,7 +402,14 @@ async def test_real_agent_session_drives_a_hub_turn_like_any_runtime(repo, tmp_p
         (workdir / "calc.py").write_text("def add(a, b):\n    return a + b\n")
 
     mc = FakeMc(edit)
+    mc.timeline = [[_item(1, "command_execution", "running", "$ make"), ],
+                   [_item(1, "command_execution", "completed", "$ make\nok"),
+                    _item(2, "assistant_message", "completed", "fixed it")]]
     monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(mc)))
+    logged = []
+    original_log = AgentSession._log
+    monkeypatch.setattr(AgentSession, "_log", lambda self, kind, content, **k: (
+        logged.append((kind, content)), original_log(self, kind, content, **k))[1])
 
     session = AgentSession(
         id="hub-sess", name="hubw", scope=str(repo), cwd=str(repo),
@@ -402,6 +424,8 @@ async def test_real_agent_session_drives_a_hub_turn_like_any_runtime(repo, tmp_p
     assert session.status == AgentStatus.IDLE
     assert session.session_id.startswith("hub-")
     assert _git(repo, "log", "-1", "--format=%s").startswith("#V-1: hub worker turn 1")
+    kinds = [kind for kind, _ in logged if kind in ("tool", "text")]
+    assert kinds == ["tool", "text"]        # the tool card is logged once, before the final report
     await session._disconnect_backend()
 
 
@@ -586,3 +610,125 @@ def test_hub_sol_is_allowed_for_agents_while_our_own_sol_stays_refused(monkeypat
     with pytest.raises(ValueError):
         models.ensure_spawn_allowed(models.resolve_model("sol"))
     assert backend_hub.HUB_MODELS["hub-gpt-6.1-sol"] == ("codex", "gpt-6.1-sol")
+
+
+# ── live activity feed ───────────────────────────────────────────────────────────────
+
+
+def _item(position, kind, status, text, run="run-1", title=None):
+    return {"position": position, "itemId": f"it{position}", "runId": run, "type": kind,
+            "status": status, "text": text, "title": title}
+
+
+def _kinds(events):
+    return [(e.type, e.content[:40]) for e in events]
+
+
+def test_activity_stream_emits_each_item_once_in_order_across_polls():
+    from app.hub_activity import HubActivityStream
+
+    stream = HubActivityStream("run-1")
+    out = []
+    # poll 1: prompt, workspace noise, a running command, a running edit
+    out += stream.feed([_item(0, "user_message", "completed", "task"),
+                        _item(1, "command_execution", "completed", "$ Preparing", title="Workspace ready"),
+                        _item(2, "command_execution", "running", "$ pytest -q"),
+                        _item(3, "file_change", "running", "calc.py")])
+    assert stream.cursor == 1                      # stops before the oldest running item
+    # poll 2: the same items re-read, now finished, plus the next ones
+    out += stream.feed([_item(2, "command_execution", "completed", "$ pytest -q\n2 passed"),
+                        _item(3, "file_change", "completed", "calc.py\n+x"),
+                        _item(4, "assistant_message", "completed", "midway note"),
+                        _item(5, "command_execution", "completed", "$ echo done\ndone"),
+                        _item(6, "assistant_message", "completed", "final answer"),
+                        _item(7, "checkpoint", "completed", "[]")])
+    out += stream.feed([_item(2, "command_execution", "completed", "$ pytest -q\n2 passed")])   # re-read: no repeats
+    out += stream.finish("final answer")
+    assert _kinds(out) == [
+        ("tool_use", "Bash: pytest -q"), ("tool_use", "Edit: calc.py"),
+        ("tool_result", "2 passed\n".strip()), ("file_change", "update calc.py"), ("tool_result", "applied"),
+        ("text", "midway note"), ("tool_use", "Bash: echo done"), ("tool_result", "done"),
+    ]
+    assert stream.cursor == 7
+    ids = [e.metadata["tool_use_id"] for e in out if e.type in ("tool_use", "tool_result")]
+    assert ids == ["it2", "it3", "it2", "it3", "it5", "it5"]
+
+
+def test_activity_stream_ignores_other_runs_and_closes_unfinished_tools():
+    from app.hub_activity import HubActivityStream
+
+    stream = HubActivityStream("run-2")
+    out = stream.feed([_item(1, "command_execution", "completed", "$ old", run="run-1"),
+                       _item(2, "command_execution", "running", "$ sleep 99", run="run-2")])
+    out += stream.finish("")
+    assert _kinds(out) == [("tool_use", "Bash: sleep 99"), ("tool_result", "(not finished)")]
+    assert out[-1].metadata["is_error"] is True
+
+
+def test_activity_stream_translates_provider_tools_and_reasoning():
+    from app.hub_activity import HubActivityStream
+
+    tool = '{"toolName": "Read", "input": {"file_path": "/w/a.py"}, "output": "line1"}'
+    out = HubActivityStream("run-1").feed([
+        _item(1, "reasoning", "completed", "thinking it over"),
+        _item(2, "dynamic_tool", "completed", tool, title="Read /w/a.py")])
+    assert _kinds(out) == [("thinking", "thinking it over"), ("tool_use", 'Read: {"file_path": "/w/a.py"}'),
+                           ("tool_result", "line1")]
+
+
+@pytest.mark.asyncio
+async def test_turn_streams_hub_activity_before_the_final_report(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    running = [_item(1, "command_execution", "running", "$ make"), ]
+    done = [_item(1, "command_execution", "completed", "$ make\nok"),
+            _item(2, "assistant_message", "completed", "fixed it")]
+    mc.timeline = [running, done]
+    events = await _turn(backend, "go")
+    kinds = [e.type for e in events]
+    assert kinds.index("tool_use") < kinds.index("tool_result") < len(kinds) - 2
+    assert kinds[-2:] == ["text", "turn_end"]
+    texts = [e.content for e in events if e.type == "text"]
+    assert len(texts) == 1 and texts[0].startswith("fixed it")      # the final answer is not shown twice
+    assert backend._state.activity_pos == 2
+
+
+def test_commit_survives_paths_outside_the_sparse_cone(repo):
+    _git(repo, "sparse-checkout", "init", "--cone")
+    _git(repo, "sparse-checkout", "set", "src")
+    outside = repo / ".orchestra" / "tasks" / "dashboard-ui-locale" / "result.md"
+    outside.parent.mkdir(parents=True)
+    outside.write_text("report\n")
+    (repo / "src" / "keep.txt").write_text("edited\n")
+    sha, failed = hw.commit_sync(repo, [".orchestra/tasks/dashboard-ui-locale/result.md", "src/keep.txt"],
+                                 [], "#V-1: hub worker turn 1")
+    assert sha and not failed
+    committed = _git(repo, "show", "--name-only", "--format=", "HEAD").split()
+    assert sorted(committed) == [".orchestra/tasks/dashboard-ui-locale/result.md", "src/keep.txt"]
+
+
+def test_one_unstageable_path_does_not_cost_the_rest_of_the_turn(repo):
+    (repo / ".gitignore").write_text("secret.log\n")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-qm", "ignore")
+    (repo / "secret.log").write_text("x")           # git add refuses an ignored path
+    (repo / "calc.py").write_text("def add(a, b):\n    return a + b\n")
+    sha, failed = hw.commit_sync(repo, ["secret.log", "calc.py"], [], "#V-1: hub worker turn 1")
+    assert sha and [p for p, _ in failed] == ["secret.log"]
+    assert _git(repo, "show", "--name-only", "--format=", "HEAD").split() == ["calc.py"]
+
+
+@pytest.mark.asyncio
+async def test_first_prompt_names_the_task_artifact_directory(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    await _turn(backend, "do it")
+    launch = next(args for name, args in mc.calls if name == "t3_thread_launch")
+    assert ".orchestra/tasks/V-1/" in launch["message"] and launch["message"].rstrip().endswith("do it")
+
+
+def test_hub_paths_are_shown_relative_to_the_workspace():
+    from app.events import AgentEvent
+
+    event = AgentEvent("tool_use", "Edit: /h/orchestra-ws/x/hub-1/src/a.py")
+    assert backend_hub._relative(event, "/h/orchestra-ws/x/hub-1").content == "Edit: src/a.py"

@@ -558,6 +558,7 @@ class WorkspaceState:
     project_id: str = ""
     thread_id: str = ""
     turns: int = 0
+    activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)
 
     @staticmethod
@@ -599,20 +600,42 @@ def states_for_worktree(worktree: str) -> list[WorkspaceState]:
 # ── git commit of imported work ──────────────────────────────────────────────────────
 
 
-def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str) -> str:
-    """Commit the imported paths on the worker's own branch; returns the short SHA or ''.
-    The author comes from git config — never overridden."""
+def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
+                ) -> tuple[str, list[tuple[str, str]]]:
+    """Commit the imported paths on the worker's own branch; returns (short SHA or '', paths that
+    could not be staged with the reason). One unstageable path never costs the rest of the turn.
+
+    `--sparse` lets git stage files the hub created outside the worker's sparse-checkout cone
+    (a plain `git add` refuses them and used to abort the whole commit). The author comes from
+    git config — never overridden."""
     paths = sorted(set(changed) | set(deleted))
     if not paths:
-        return ""
+        return "", []
     base = ["git", "-C", str(root)]
-    subprocess.run(base + ["add", "-A", "--", *paths], check=True, capture_output=True, timeout=120)
-    done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *paths],
+
+    def add(batch: list[str]) -> subprocess.CompletedProcess:
+        return subprocess.run(base + ["add", "-A", "--sparse", "--", *batch],
+                              capture_output=True, text=True, timeout=120)
+
+    staged, failed = paths, []
+    if add(paths).returncode != 0:
+        staged = []
+        for path in paths:
+            done = add([path])
+            if done.returncode == 0:
+                staged.append(path)
+            else:
+                failed.append((path, (done.stderr or done.stdout).strip().splitlines()[-1][:200]
+                               if (done.stderr or done.stdout).strip() else "git add refused it"))
+    if not staged:
+        return "", failed
+    done = subprocess.run(base + ["commit", "-m", message, "--only", "--", *staged],
                           capture_output=True, text=True, timeout=300)
     if done.returncode != 0:
         raise HubWorkspaceError(f"git commit failed: {(done.stderr or done.stdout).strip()[-300:]}")
-    return subprocess.run(base + ["rev-parse", "--short", "HEAD"], capture_output=True,
-                          text=True, timeout=30).stdout.strip()
+    sha = subprocess.run(base + ["rev-parse", "--short", "HEAD"], capture_output=True,
+                         text=True, timeout=30).stdout.strip()
+    return sha, failed
 
 
 # ── lifecycle ────────────────────────────────────────────────────────────────────────
