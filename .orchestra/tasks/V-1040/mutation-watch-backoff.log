@@ -1,0 +1,21 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+FFFFFFFF..FF                                                             [100%]
+=========================== short test summary info ============================
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[RemoteProtocolError]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[ReadError]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[ConnectError]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[ReadTimeout]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[500]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[502]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[503]
+FAILED tests/test_backend_hub.py::test_watch_survives_transient_transport_or_session_error[599]
+FAILED tests/test_backend_hub.py::test_watch_bounds_retries_and_surfaces_last_redacted_error
+FAILED tests/test_backend_hub.py::test_watch_retries_exhausted_session_recovery
+10 failed, 2 passed, 48 deselected in 0.13s

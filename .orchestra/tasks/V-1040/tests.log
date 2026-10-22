@@ -1,0 +1,10 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+...........................................................              [100%]
+59 passed, 1 deselected in 0.19s

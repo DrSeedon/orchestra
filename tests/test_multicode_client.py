@@ -179,3 +179,146 @@ def test_last_assistant_text_reads_items_created_by_and_content():
             {"type": "text", "text": "latest "}, {"type": "text", "text": "answer"},
         ]},
     ]}) == "latest answer"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,detail", [
+    (400, "Unknown Mcp-Session-Id"),
+    (400, "SESSION expired"),
+    (400, "Not initialized"),
+    (404, "gone"),
+])
+async def test_long_lived_client_recovers_expired_session_once(status, detail):
+    calls = []
+    handshakes = 0
+    tools = 0
+
+    async def handler(request):
+        nonlocal handshakes, tools
+        body = json.loads(request.content)
+        session = request.headers.get("Mcp-Session-Id")
+        calls.append((body, session))
+        if body["method"] == "initialize":
+            assert session is None
+            handshakes += 1
+            return httpx.Response(200, json={"id": body["id"], "result": {}},
+                                  headers={"Mcp-Session-Id": f"session-{handshakes}"})
+        if body["method"] == "notifications/initialized":
+            assert session == f"session-{handshakes}"
+            return httpx.Response(202)
+        tools += 1
+        if tools == 2:  # The server forgot the session between two turns of this client.
+            assert session == "session-1"
+            return httpx.Response(status, text=detail)
+        return httpx.Response(200, json={"id": body["id"], "result": {
+            "structuredContent": {"ok": True}}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient("http://mock", "test-token", client=transport)
+        assert await client.tool_call("t3_thread_read", {"threadId": "first"}) == {"ok": True}
+        assert await client.tool_call("t3_thread_read", {"threadId": "next"}) == {"ok": True}
+        assert client._session_id == "session-2"
+        assert client._initialized
+    assert [body["method"] for body, _ in calls] == [
+        "initialize", "notifications/initialized", "tools/call", "tools/call",
+        "initialize", "notifications/initialized", "tools/call"]
+    assert calls[3][0] == calls[6][0]  # Same request, including its JSON-RPC id.
+    assert calls[6][1] == "session-2"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_session", [False, True])
+async def test_plain_http_400_has_redacted_bounded_body_without_retry(has_session):
+    token = "bearer-value-for-http-error-test"
+    # Include a token crossing the truncation boundary as well as one at the start.
+    body = f"invalid arguments: Bearer {token}; " + "x" * 240 + token + "tail" * 100
+    calls = []
+
+    async def handler(request):
+        calls.append(request)
+        return httpx.Response(400, text=body)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient("http://mock", token, client=transport)
+        client._initialized = True
+        client._session_id = "old" if has_session else None
+        with pytest.raises(MultiCodeError) as error:
+            await client.tool_call("t3_thread_send", {"message": "once"})
+    assert len(calls) == 1
+    assert str(error.value) == "MultiCode MCP returned HTTP 400: " + body.replace(token, "[redacted]")[:300]
+    assert token not in str(error.value)
+    assert "bearer-value" not in str(error.value)
+    assert not error.value.retryable
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("second_status,second_body", [
+    (400, "session still unknown"), (404, "still gone"),
+    (400, "invalid arguments after recovery"), (503, "upstream unavailable"),
+])
+async def test_second_session_failure_surfaces_without_another_initialize(second_status, second_body):
+    calls = []
+    token = "test-private-second-failure"
+
+    async def handler(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        if body["method"] == "initialize":
+            assert "Mcp-Session-Id" not in request.headers
+            return _rpc_response(body["id"], {})
+        if body["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        if len(calls) == 1:
+            return httpx.Response(400, text="session expired")
+        return httpx.Response(second_status, text=second_body + " " + token)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient("http://mock", token, client=transport)
+        client._initialized = True
+        client._session_id = "stale"
+        with pytest.raises(MultiCodeError) as error:
+            await client.tool_call("t3_thread_wait", {"threadId": "running"})
+        if second_status == 404 or "session" in second_body:
+            assert client._session_id is None
+            assert not client._initialized
+    assert [body["method"] for body in calls] == [
+        "tools/call", "initialize", "notifications/initialized", "tools/call"]
+    assert calls[0] == calls[3]
+    assert str(second_status) in str(error.value)
+    assert second_body in str(error.value)
+    assert token not in str(error.value)
+    assert "[redacted]" in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_session_400_without_session_header_is_not_retried():
+    calls = []
+
+    async def handler(request):
+        calls.append(request)
+        return httpx.Response(400, text="session not initialized")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient("http://mock", "test-token", client=transport)
+        with pytest.raises(MultiCodeError, match="session not initialized") as error:
+            await client.tool_call("t3_thread_read", {})
+    assert len(calls) == 1
+    assert not error.value.retryable
+
+
+@pytest.mark.asyncio
+async def test_failed_reinitialize_does_not_recurse():
+    calls = []
+
+    async def handler(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        return httpx.Response(400, text="session not initialized")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
+        client = MultiCodeClient("http://mock", "test-token", client=transport)
+        client._initialized = True
+        client._session_id = "stale"
+        with pytest.raises(MultiCodeError, match="session not initialized"):
+            await client.tool_call("t3_thread_read", {})
+    assert [body["method"] for body in calls] == ["tools/call", "initialize"]

@@ -157,6 +157,8 @@ def _provider_limit(value: object, *, failed: bool = True) -> str | None:
 
 def _workspace_lost(exc: Exception) -> bool:
     """The hub says the project it was asked to start in does not exist (any more)."""
+    if isinstance(exc, MultiCodeError) and exc.retryable:
+        return False
     text = str(exc).lower()
     return "orchestration_error" in text or "not_found" in text or "not found" in text
 
@@ -281,6 +283,8 @@ class HubBackend:
                     "threadId": state.thread_id, "message": message, "mode": "steer"})
                 return
             except MultiCodeError as exc:
+                if exc.retryable:
+                    raise  # Delivery may have succeeded; do not queue the same steer again.
                 logger.warning("hub steer failed, queuing instead: %s", exc)
         self._early_steer.append(message)
 
@@ -546,11 +550,17 @@ class HubBackend:
                         "threadId": state.thread_id, "modelSelection": selection})
                 sent = await mc.tool_call("t3_thread_send", {
                     "threadId": state.thread_id, "message": prompt, "mode": "auto"})
-                return sent["runId"]
-            except (MultiCodeError, KeyError, TypeError) as exc:
+            except MultiCodeError as exc:
+                # Delivery is uncertain on transport errors. Launching again can duplicate work.
+                if exc.retryable:
+                    raise
                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
                 state.thread_id = ""
                 prompt = self._preamble() + prompt
+            else:
+                if not isinstance(sent, dict) or not sent.get("runId"):
+                    raise MultiCodeError("MultiCode send returned no runId")
+                return sent["runId"]
         launched = await mc.tool_call("t3_thread_launch", {
             "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
             "runtimeMode": "full-access",
@@ -571,7 +581,7 @@ class HubBackend:
         limit = float(os.environ.get("MULTICODE_HUB_TURN_TIMEOUT_S", "14400"))
         deadline = time.monotonic() + limit
         while True:
-            waited = await mc.tool_call("t3_thread_wait", {
+            waited = await self._watch_call(mc, "t3_thread_wait", {
                 "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
             status = waited.get("status", "") if isinstance(waited, dict) else ""
             status_limit = _provider_limit(status)
@@ -590,6 +600,26 @@ class HubBackend:
                     await mc.tool_call("t3_thread_interrupt", {"threadId": thread_id})
                 raise MultiCodeError("hub thread exceeded the turn time limit")
 
+    async def _watch_call(self, mc: MultiCodeClient, name: str, arguments: dict):
+        """Bounded recovery for read calls only; never replay a send or launch here."""
+        last_error = None
+        try:
+            async with asyncio.timeout(60):
+                for attempt in range(5):
+                    try:
+                        return await mc.tool_call(name, arguments)
+                    except MultiCodeError as exc:
+                        if not exc.retryable or attempt == 4 or self._abort:
+                            raise
+                        last_error = exc
+                        delay = 2 ** attempt
+                        logger.warning("hub %s failed; retrying in %ss: %s", name, delay, exc)
+                        await asyncio.sleep(delay)
+        except TimeoutError:
+            if last_error is not None:
+                raise last_error from None
+            raise MultiCodeError("hub watch request exceeded 60 seconds", retryable=True) from None
+
     async def _poll(self, mc: MultiCodeClient, thread_id: str, stream: HubActivityStream) -> list[AgentEvent]:
         """New timeline items since the cursor. A failed poll only loses live detail, never the turn."""
         events: list[AgentEvent] = []
@@ -598,7 +628,7 @@ class HubBackend:
                 args = {"threadId": thread_id, "view": "activity", "limit": 100, "maxCharsPerItem": 6000}
                 if stream.cursor is not None:
                     args["afterPosition"] = stream.cursor
-                page = await mc.tool_call("t3_thread_read", args)
+                page = await self._watch_call(mc, "t3_thread_read", args)
                 items = page.get("items", []) if isinstance(page, dict) else []
                 events.extend(stream.feed(items))
                 if not (isinstance(page, dict) and page.get("hasMore")) or not items:
@@ -608,7 +638,7 @@ class HubBackend:
         return events
 
     async def _read_reply(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
-        read = await mc.tool_call("t3_thread_read", {
+        read = await self._watch_call(mc, "t3_thread_read", {
             "threadId": thread_id, "view": "messages", "limit": 100})
         if isinstance(read, dict):
             for run in read.get("runs") or []:

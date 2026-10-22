@@ -1,0 +1,20 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+FFFFFFFFF                                                                [100%]
+=========================== short test summary info ============================
+FAILED tests/test_multicode_client.py::test_long_lived_client_recovers_expired_session_once[400-Unknown Mcp-Session-Id]
+FAILED tests/test_multicode_client.py::test_long_lived_client_recovers_expired_session_once[400-SESSION expired]
+FAILED tests/test_multicode_client.py::test_long_lived_client_recovers_expired_session_once[400-Not initialized]
+FAILED tests/test_multicode_client.py::test_long_lived_client_recovers_expired_session_once[404-gone]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[400-session still unknown]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[404-still gone]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[400-invalid arguments after recovery]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[503-upstream unavailable]
+FAILED tests/test_multicode_client.py::test_failed_reinitialize_does_not_recurse
+9 failed, 51 deselected in 0.11s

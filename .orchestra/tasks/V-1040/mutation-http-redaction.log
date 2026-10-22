@@ -1,0 +1,18 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+FFFFFFF                                                                  [100%]
+=========================== short test summary info ============================
+FAILED tests/test_multicode_client.py::test_plain_http_400_has_redacted_bounded_body_without_retry[False]
+FAILED tests/test_multicode_client.py::test_plain_http_400_has_redacted_bounded_body_without_retry[True]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[400-session still unknown]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[404-still gone]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[400-invalid arguments after recovery]
+FAILED tests/test_multicode_client.py::test_second_session_failure_surfaces_without_another_initialize[503-upstream unavailable]
+FAILED tests/test_backend_hub.py::test_watch_bounds_retries_and_surfaces_last_redacted_error
+7 failed, 53 deselected in 0.14s

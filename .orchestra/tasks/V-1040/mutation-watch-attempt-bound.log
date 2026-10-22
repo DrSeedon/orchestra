@@ -1,0 +1,12 @@
+Sparse import stand-in: app.hub_workspace
+Sparse import stand-in: app.hub_activity
+Sparse import stand-in: app.hub_outbox
+Sparse import stand-in: app.events
+Sparse import stand-in: app.usage_contract
+Imported app namespace: ['<hub-workspace>', '<hub-workspace>']
+Imported app.backend_hub: <hub-workspace>
+Imported app.multicode_client: <hub-workspace>
+F                                                                        [100%]
+=========================== short test summary info ============================
+FAILED tests/test_backend_hub.py::test_watch_bounds_retries_and_surfaces_last_redacted_error
+1 failed, 59 deselected in 0.11s

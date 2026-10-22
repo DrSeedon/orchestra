@@ -1,0 +1,32 @@
+Collecting uv
+  Downloading uv-0.13.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+Collecting pytest
+  Downloading pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting pytest-asyncio
+  Downloading pytest_asyncio-1.4.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting iniconfig>=1.0.1 (from pytest)
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=22 (from pytest)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.5 (from pytest)
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.7.2 (from pytest)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting typing-extensions>=4.12 (from pytest-asyncio)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Downloading uv-0.13.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17.2/17.2 MB 161.7 MB/s  0:00:00
+Downloading pytest-9.1.1-py3-none-any.whl (386 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading pytest_asyncio-1.4.0-py3-none-any.whl (16 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 273.6 MB/s  0:00:00
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Installing collected packages: uv, typing-extensions, pygments, pluggy, packaging, iniconfig, pytest, pytest-asyncio
+
+Successfully installed iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.1.1 pytest-asyncio-1.4.0 typing-extensions-4.16.0 uv-0.13.5
+
+[notice] A new release of pip is available: 26.2.1 -> 26.2.2
+[notice] To update, run: /opt/whisper/venv/bin/python3 -m pip install --upgrade pip

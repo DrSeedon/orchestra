@@ -1,0 +1,14 @@
+session-recovery: exit=1; 9 failed, 51 deselected in 0.11s
+http-body: exit=1; 8 failed, 52 deselected in 0.12s
+http-redaction: exit=1; 7 failed, 53 deselected in 0.14s
+redact-before-truncation: exit=1; 2 failed, 58 deselected in 0.18s
+single-session-retry: exit=1; 2 failed, 2 passed, 56 deselected in 1.26s
+watch-backoff: exit=1; 10 failed, 2 passed, 48 deselected in 0.13s
+watch-read-backoff: exit=1; 2 failed, 58 deselected in 0.11s
+watch-attempt-bound: exit=1; 1 failed, 59 deselected in 0.11s
+watch-time-bound: exit=1; 1 failed, 59 deselected in 0.09s
+non-transient-watch-guard: exit=1; 3 failed, 57 deselected in 0.09s
+uncertain-send-guard: exit=1; 6 failed, 54 deselected in 0.12s
+uncertain-steer-guard: exit=1; 2 failed, 58 deselected in 0.09s
+explicit-refusal-fallback: exit=1; 6 failed, 54 deselected in 0.13s
+session-vs-workspace: exit=1; 3 failed, 57 deselected in 0.11s
