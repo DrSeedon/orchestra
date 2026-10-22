@@ -29,6 +29,20 @@ def empty_context() -> dict[str, int]:
     return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
 
 
+def platform_interruption_notice(reason: str, task_id: str = "") -> str:
+    """Explain a platform cut without turning it into an owner's refusal (V-1035)."""
+    task = f"task #{task_id}" if task_id else "your current task"
+    return (
+        f"Your turn was interrupted by the platform ({reason}), not stopped by anyone. "
+        "This was not a user refusal. If a tool result immediately before this "
+        "interruption said \"The user doesn't want to take this action right now\", "
+        "that result was caused by the platform interruption, not by the user. "
+        "The call may or may not have run; check its effect before repeating it. "
+        f"Check your working tree and continue {task}. "
+        "Continue without waiting for your orchestrator to say 'continue'."
+    )
+
+
 # Orchestrators get 2x idle time: they manage long-running workflows and get TG
 # messages from users, so premature hibernate kills useful context.
 IDLE_TIMEOUT_WORKER = 300

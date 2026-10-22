@@ -19,7 +19,7 @@ from typing import Awaitable, Callable, Optional
 from app.task_refs import task_ref as public_task_ref
 from app.session import AgentSession, AgentStatus
 from app.tool_scoping import parse_disabled_tools
-from app.session_state import ACTIVE_SESSION_STATUSES
+from app.session_state import ACTIVE_SESSION_STATUSES, platform_interruption_notice
 from app.events import InjectedMessage, MessageProvenance
 from app.kb_index import kb_index_block
 from app import temp_rules
@@ -480,7 +480,8 @@ def restart_notice_text(row: dict) -> str:
     """
     text = (
         "[system] Orchestra server restarted while your turn was running. "
-        "Commands running inside the turn were stopped; background jobs created with "
+        + platform_interruption_notice("Orchestra restart", row.get("task_id") or "")
+        + " Commands running inside the turn may have been stopped; background jobs created with "
         "bg_create keep running and report as usual. Continue your task from where you "
         "stopped: check files and external action outcomes first and do not blindly repeat "
         "the last operation."
@@ -2503,6 +2504,8 @@ class SessionManager:
         # Random stagger: if N agents resume simultaneously they'd all hit the SDK
         # concurrently and cause a connection storm; spread them over 15s
         await asyncio.sleep(3 + random.uniform(0, 12))
+        if getattr(session, "_manually_interrupted", False) is True:
+            return
         try:
             provenance = MessageProvenance(
                 origin="system", senders=("system",), subtype="restart",

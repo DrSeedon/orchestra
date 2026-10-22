@@ -912,9 +912,10 @@ class TestClaudeTurnLifecycle:
         await session._persistent_event_loop()
 
         assert backend.reconnects == 1
-        assert backend.sent == [
-            "[system] Connection was restored after interruption. Continue your work."
-        ]
+        assert len(backend.sent) == 1
+        assert "backend disconnect" in backend.sent[0]
+        assert "not a user refusal" in backend.sent[0]
+        assert "check its effect before repeating it" in backend.sent[0]
         session._admission_service.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -1019,9 +1020,10 @@ class TestClaudeTurnLifecycle:
 
         assert backend.history.report.snapshot_id > initial.report.snapshot_id
         assert "answer added after first connect" in repr(backend.history.entries)
-        assert backend.sent == [
-            "[system] Connection was restored after interruption. Continue your work."
-        ]
+        assert len(backend.sent) == 1
+        assert "backend disconnect" in backend.sent[0]
+        assert "not a user refusal" in backend.sent[0]
+        assert "check its effect before repeating it" in backend.sent[0]
         session._admission_service.assert_not_awaited()
 
     @pytest.mark.asyncio

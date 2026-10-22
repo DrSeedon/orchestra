@@ -57,6 +57,7 @@ from app.session_hibernate import HibernateManager
 from app.stall_signals import describe_event, watch_turn_start
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
+    platform_interruption_notice,
 )
 from app.session_turns import (
     CRITICAL_AUTO_COMPACT_PCT,
@@ -2529,7 +2530,7 @@ class AgentSession:
                     return
                 if self.status == AgentStatus.RUNNING:
                     await self.send(
-                        "[system] Connection was restored after interruption. Continue your work.",
+                        "[system] " + platform_interruption_notice("backend disconnect", self.task_id),
                         provenance=MessageProvenance(
                             origin="system", senders=("system",), subtype="runtime_reconnect",
                         ),

@@ -1,0 +1,41 @@
+test_heartbeat_reconnect_uses_same_honest_notice (tests.test_interruption_honest_v1035.DeliveryTests.test_heartbeat_reconnect_uses_same_honest_notice) ... ok
+test_heartbeat_without_task_metadata_still_delivers_continuation (tests.test_interruption_honest_v1035.DeliveryTests.test_heartbeat_without_task_metadata_still_delivers_continuation) ... ok
+test_idle_worker_is_not_told_it_was_cut (tests.test_interruption_honest_v1035.DeliveryTests.test_idle_worker_is_not_told_it_was_cut) ... ok
+test_limit_reset_does_not_override_manual_stop_or_newer_turn (tests.test_interruption_honest_v1035.DeliveryTests.test_limit_reset_does_not_override_manual_stop_or_newer_turn) ... ok
+test_limit_reset_resumes_worker_directly_with_current_task_for_both_providers (tests.test_interruption_honest_v1035.DeliveryTests.test_limit_reset_resumes_worker_directly_with_current_task_for_both_providers) ... ok
+test_manual_stop_during_restart_stagger_cancels_automatic_continuation (tests.test_interruption_honest_v1035.DeliveryTests.test_manual_stop_during_restart_stagger_cancels_automatic_continuation) ... ok
+test_reconnected_listener_sends_honest_continuation_with_provenance (tests.test_interruption_honest_v1035.DeliveryTests.test_reconnected_listener_sends_honest_continuation_with_provenance) ... ok
+test_replayed_claim_is_reconciled_without_another_wake (tests.test_interruption_honest_v1035.DeliveryTests.test_replayed_claim_is_reconciled_without_another_wake) ... ok
+test_restart_delivery_failure_still_reports_the_blocked_worker (tests.test_interruption_honest_v1035.DeliveryTests.test_restart_delivery_failure_still_reports_the_blocked_worker) ... ok
+test_restart_routes_to_cut_worker_without_parent_or_native_session (tests.test_interruption_honest_v1035.DeliveryTests.test_restart_routes_to_cut_worker_without_parent_or_native_session) ... ok
+test_unseen_claim_is_retried_once (tests.test_interruption_honest_v1035.DeliveryTests.test_unseen_claim_is_retried_once) ... ok
+test_backend_disconnect_is_honest_too (tests.test_interruption_honest_v1035.NoticeTests.test_backend_disconnect_is_honest_too) ... ok
+test_invalid_legacy_provenance_does_not_break_limit_scan (tests.test_interruption_honest_v1035.NoticeTests.test_invalid_legacy_provenance_does_not_break_limit_scan) ... ok
+test_legacy_limit_error_is_still_recoverable_after_restart (tests.test_interruption_honest_v1035.NoticeTests.test_legacy_limit_error_is_still_recoverable_after_restart) ... ok
+test_legacy_row_without_task_binding_does_not_invent_an_id (tests.test_interruption_honest_v1035.NoticeTests.test_legacy_row_without_task_binding_does_not_invent_an_id) ... ok
+test_manual_stop_still_blocks_limit_recovery (tests.test_interruption_honest_v1035.NoticeTests.test_manual_stop_still_blocks_limit_recovery) ... ok
+test_recovery_after_limit_is_not_filtered_as_an_incidental_system_notice (tests.test_interruption_honest_v1035.NoticeTests.test_recovery_after_limit_is_not_filtered_as_an_incidental_system_notice) ... ok
+test_saved_restart_explains_cli_refusal_before_restored_conversation (tests.test_interruption_honest_v1035.NoticeTests.test_saved_restart_explains_cli_refusal_before_restored_conversation) ... ok
+test_unsaved_restart_replays_only_the_cut_turn_in_order (tests.test_interruption_honest_v1035.NoticeTests.test_unsaved_restart_replays_only_the_cut_turn_in_order) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 0.525s
+
+OK
+Imported app: <hub-workspace>
+Offline check: exact recovery methods extracted from source; no real SDK or HTTP imports.
+Existing heartbeat regression passed (exact test body, isolated runtime metadata).
+KILLED: restart loses refusal explanation
+KILLED: restart sent to parent
+KILLED: cut worker never resumed
+KILLED: restart ignores manual stop
+KILLED: limit loses refusal explanation
+KILLED: limit sent to parent
+KILLED: limit loses task reference
+KILLED: restart continuation excluded from limit wake
+KILLED: limit ignores manual stop
+KILLED: limit duplicates a reconciled claim
+KILLED: listener loses honest notice
+KILLED: heartbeat loses honest notice
+KILLED: heartbeat requires optional task metadata
+All 13 mutations killed by behavioral assertions; source files unchanged.

@@ -18,7 +18,7 @@ from app.db import (
 )
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.session_state import AgentStatus
+from app.session_state import AgentStatus, platform_interruption_notice
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +52,22 @@ def _is_limit_wake_log(row: dict) -> bool:
     )
 
 
+def _is_interruption_recovery_log(row: dict) -> bool:
+    detail = row.get("origin_detail")
+    return (
+        row.get("origin") == "system"
+        and isinstance(detail, dict)
+        and detail.get("subtype") in ("restart", "runtime_reconnect")
+    )
+
+
 def _not_worth_waking(ordered: list[dict], previous_key, latest_key, key) -> bool:
     """True when nobody who needs the session answered woke the limit-stopped turn.
 
-    Either the turn was started only by platform/system notices (a rules_link reminder
-    burned the weekly limit and then waking it again cost another empty turn), or the
+    Either the turn was started only by incidental platform/system notices (a rules_link
+    reminder burned the weekly limit and waking it again cost another empty turn), or the
     owner interrupted the session after the limit stop.
+    Recovery notices continue existing work and must remain eligible for another reset.
     """
     triggers = [
         row for row in ordered
@@ -66,7 +76,11 @@ def _not_worth_waking(ordered: list[dict], previous_key, latest_key, key) -> boo
         and key(row) <= latest_key
         and not _is_limit_wake_log(row)
     ]
-    if triggers and all(row.get("origin") in ("platform", "system") for row in triggers):
+    if triggers and all(
+        row.get("origin") in ("platform", "system")
+        and not _is_interruption_recovery_log(row)
+        for row in triggers
+    ):
         return True
     return any(
         key(row) > latest_key and row["type"] == "status" and row["content"] == "interrupt requested"
@@ -930,7 +944,8 @@ async def run_wake_job(
             session = await session_manager.ensure_loaded(
                 target["name"], target["scope"]
             )
-            if not session or session.status == AgentStatus.RUNNING:
+            if (not session or session.status == AgentStatus.RUNNING
+                    or getattr(session, "_manually_interrupted", False) is True):
                 continue
             token = uuid4().hex
             deliveries[target_id] = {"state": "claimed", "token": token}
@@ -941,8 +956,8 @@ async def run_wake_job(
                 f"claiming {target['name']}",
             )
             message = (
-                f"{WAKE_MESSAGE_PREFIX}{token}] Лимит подписки сброшен. "
-                "Продолжай с того места, где остановился."
+                f"{WAKE_MESSAGE_PREFIX}{token}] Subscription capacity is available again. "
+                + platform_interruption_notice("subscription limit", agent.get("task_id") or "")
             )
             try:
                 provenance = MessageProvenance(

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from app.session_state import (
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
+    platform_interruption_notice,
 )
 from app.errtext import err_text
 from app.runtime_registry import get_runtime
@@ -198,7 +199,11 @@ class HibernateManager:
                         await s._reconnect_backend()
                         s._listen_task = asyncio.create_task(s._persistent_event_loop())
                         s._listen_task.add_done_callback(s._on_task_done)
-                        await s._backend.send("[system] Connection was restored after interruption. Continue your work.")
+                        await s._backend.send(
+                            "[system] " + platform_interruption_notice(
+                                "backend disconnect", getattr(s, "task_id", ""),
+                            ),
+                        )
                         logger.info(f"[{s.name}] heartbeat reconnect OK")
                     except Exception as e:
                         logger.error(f"[{s.name}] heartbeat reconnect failed: {err_text(e)}")
