@@ -2251,6 +2251,13 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
         row = await asyncio.to_thread(get_session, record["session_id"])
         worktree = (row or {}).get("worktree_path") or ""
         target = str((result.get("git") or {}).get("target_branch") or "")
+        if worktree:
+            from app.backend_hub import release_for_worktree
+
+            try:
+                await release_for_worktree(worktree)
+            except Exception:
+                logger.warning("hub workspace release failed operation_id=%s", operation_id, exc_info=True)
         if not worktree or not target:
             return
         repo = await asyncio.to_thread(_resolve_repo, worktree, worktree)

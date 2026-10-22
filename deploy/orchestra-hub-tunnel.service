@@ -1,0 +1,27 @@
+# Persistent SSH tunnel to the MultiCode hub (V-1008). Orchestra reaches the hub's /mcp on
+# 127.0.0.1:14606; the LOCAL port must equal the hub's serve port (the hub checks Host).
+#
+# INSTALLATION IS AN OPERATOR ACTION (system unit, daemon-reload). Not touched by agents.
+#   sudo cp deploy/orchestra-hub-tunnel.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now orchestra-hub-tunnel
+# It is independent of orchestra.service: restarting Orchestra does not drop the tunnel.
+[Unit]
+Description=SSH tunnel to the MultiCode hub /mcp (Orchestra hub workers)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kesha
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/ssh -N \
+  -i /home/kesha/.ssh/multicode_hub_vps -o IdentitiesOnly=yes -o BatchMode=yes \
+  -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+  -o ConnectTimeout=20 -o StrictHostKeyChecking=yes \
+  -L 127.0.0.1:14606:127.0.0.1:14606 \
+  <hub-user>@<hub-host>
+# Same OOM class as the other helpers; a tunnel is tiny and must outlive agents.
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target

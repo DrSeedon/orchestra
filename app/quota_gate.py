@@ -856,7 +856,7 @@ def _model_target(model: str) -> tuple[str, str | None, str]:
     resolved = resolve_model(model)
     runtime = backend_for_model(resolved)
     get_runtime(runtime)
-    if runtime in ("grok", "harness"):
+    if runtime in ("grok", "harness", "hub"):
         return resolved, None, runtime
     if runtime == "claude":
         return resolved, "anthropic", runtime
@@ -1043,8 +1043,8 @@ def evaluate_worker_admission(
         resolved, bucket, runtime = _model_target(model)
     except (TypeError, ValueError) as error:
         return unknown(str(error))
-    if runtime in ("grok", "harness") and bucket is None:
-        label = "Grok" if runtime == "grok" else "OpenRouter"
+    if runtime in ("grok", "harness", "hub") and bucket is None:
+        label = {"grok": "Grok", "hub": "MultiCode Hub"}.get(runtime, "OpenRouter")
         return QuotaDecision(
             state="not_applicable", model=resolved, provider=runtime, provider_label=label,
             lane=None, gated=False, utilization=None, progress=None,

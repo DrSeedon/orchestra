@@ -125,6 +125,28 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="grok-4.6", name="Grok 4.6",
         runtime="grok", provider="x-ai", context_length=500000,
     ),
+    # Models served by the MultiCode hub pool (runtime "hub"): the worker's files go to the hub
+    # and back through the platform broker; nothing is billed to our subscriptions.
+    ModelSpec(
+        id="hub-claude-haiku-5-5", name="Hub: Haiku 5.5",
+        runtime="hub", provider="multicode",
+    ),
+    ModelSpec(
+        id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
+        runtime="hub", provider="multicode",
+    ),
+    ModelSpec(
+        id="hub-claude-opus-5-5", name="Hub: Opus 5.5",
+        runtime="hub", provider="multicode",
+    ),
+    ModelSpec(
+        id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
+        runtime="hub", provider="multicode",
+    ),
+    ModelSpec(
+        id="hub-grok-4.7", name="Hub: Grok 4.7",
+        runtime="hub", provider="multicode",
+    ),
     ModelSpec(
         id="GigaChat-2", name="GigaChat 2",
         runtime="harness", provider="gigachat", context_length=128000,
@@ -204,6 +226,12 @@ ALIASES = {
     "codex": "gpt-6.1-sol",
     "grok": "grok-4.6",
     "grok4.6": "grok-4.6",
+    "hub": "hub-claude-sonnet-5-5",
+    "hubsonnet": "hub-claude-sonnet-5-5",
+    "hubhaiku": "hub-claude-haiku-5-5",
+    "hubopus": "hub-claude-opus-5-5",
+    "hubluna": "hub-gpt-6-luna",
+    "hubgrok": "hub-grok-4.7",
 }
 _GIGACHAT_ALIASES = {
     "gigachat": "GigaChat-2",
@@ -259,6 +287,14 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
         cache_ttl_seconds=0,
         cache_ttl_approximate=True,
         model_providers=("openrouter", "gigachat"),
+    ),
+    "hub": ProviderMetadata(
+        id="hub",
+        title="MultiCode Hub",
+        ui_provider="multicode",
+        cache_ttl_seconds=0,
+        cache_ttl_approximate=True,
+        model_providers=("multicode",),
     ),
     "unknown": ProviderMetadata(
         id="unknown",
@@ -629,6 +665,12 @@ def ensure_spawn_allowed(model_id: str) -> None:
     spec = get_model_spec(model_id)
     if spec.runtime == "harness":
         validate_harness_model_spec(spec)
+    if spec.runtime == "hub":
+        from app.backend_hub import hub_configured
+
+        problem = hub_configured()
+        if problem:
+            raise ValueError(problem)
     if not get_model_flags(model_id)["agents"]:
         raise ValueError(
             f"model '{model_id}' is disabled for agents — re-enable it in the "

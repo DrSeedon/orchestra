@@ -59,6 +59,8 @@ def test_selectable_models_match_the_curated_catalog():
         "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
         "gpt-6.1-sol", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
+        "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
+        "hub-gpt-6-luna", "hub-grok-4.7",
     }
     assert {spec.id for spec in SELECTABLE_MODEL_SPECS} == expected
     assert set(MODELS) == expected

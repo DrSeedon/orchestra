@@ -326,7 +326,19 @@ def _harness_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
-BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness")
+def _hub_factory(context: BackendBuildContext) -> BackendLike:
+    from app.backend_hub import HubBackend
+
+    return HubBackend(
+        model=context.model,
+        cwd=context.cwd,
+        system_prompt=context.system_prompt,
+        resume_session_id=context.resume_session_id,
+        effort=context.effort,
+    )
+
+
+BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness", "hub")
 
 register_runtime(RuntimeDefinition(
     id="claude",
@@ -380,4 +392,19 @@ register_runtime(RuntimeDefinition(
         model_retarget=True,
     ),
     factory=_harness_factory,
+))
+register_runtime(RuntimeDefinition(
+    id="hub",
+    capabilities=RuntimeCapabilities(
+        # The model runs on the MultiCode hub; one send() feeds one events() turn. A message
+        # sent mid-turn is steered into the running hub thread. Sessions resume by workspace id.
+        event_stream="per_turn",
+        mid_turn_inject=True,
+        reconnect=True,
+        hibernate=False,
+        resume_across_models=False,
+        model_retarget=False,
+        subagents=False,
+    ),
+    factory=_hub_factory,
 ))

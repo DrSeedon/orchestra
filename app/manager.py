@@ -90,6 +90,18 @@ def enc_cli_dir(cwd: str) -> str:
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
 # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
 LOCK_WAIT_LIMIT_SECONDS = 25.0
+async def _release_hub_workspaces(worktree: str, name: str) -> None:
+    """Drop the worker's on-demand copy on the MultiCode hub; never blocks a kill (V-1008)."""
+    from app.backend_hub import release_for_worktree
+
+    try:
+        cleaned = await release_for_worktree(worktree)
+        if cleaned:
+            logger.info("[%s] released hub workspaces %s", name, cleaned)
+    except Exception as exc:
+        logger.warning("[%s] hub workspace release incomplete (state kept for retry): %s", name, exc)
+
+
 class LockBusy(RuntimeError):
     """Лок сессии занят дольше отведённого: у вызова есть кто уступить и кому повторить."""
 
@@ -1243,6 +1255,7 @@ class SessionManager:
                 return
             session = self._hydrate_row(row)
         if session.worktree_path:
+            await _release_hub_workspaces(session.worktree_path, session.name)
             await asyncio.to_thread(
                 remove_worktree,
                 session.scope,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -36,8 +37,16 @@ class MultiCodeClient:
 
     @classmethod
     def from_env(cls) -> "MultiCodeClient":
-        return cls(os.environ.get("MULTICODE_MCP_BASE", ""),
-                   os.environ.get("MULTICODE_MCP_TOKEN", ""))
+        # MULTICODE_MCP_TOKEN_FILE is re-read on every construction, so a token renewed on
+        # disk (30-day OAuth) reaches the next hub turn without a restart.
+        token = os.environ.get("MULTICODE_MCP_TOKEN", "")
+        token_file = os.environ.get("MULTICODE_MCP_TOKEN_FILE", "").strip()
+        if not token and token_file:
+            try:
+                token = Path(token_file).read_text().strip()
+            except OSError:
+                token = ""
+        return cls(os.environ.get("MULTICODE_MCP_BASE", ""), token)
 
     async def __aenter__(self) -> "MultiCodeClient":
         if self._client is None:
@@ -195,7 +204,7 @@ class MultiCodeClient:
         })
 
 
-def _last_assistant_text(value: Any) -> str | None:
+def _last_assistant_text(value: Any, run_id: str | None = None) -> str | None:
     items = value.get("items", value.get("messages", [])) if isinstance(value, dict) else value
     if isinstance(items, dict):
         items = items.get("items", [])
@@ -203,6 +212,11 @@ def _last_assistant_text(value: Any) -> str | None:
         return None
     for item in reversed(items):
         if not isinstance(item, dict) or item.get("createdBy") == "user" or item.get("role") == "user":
+            continue
+        # Live shape: user messages sent over MCP also say createdBy "agent"; `type` tells them apart.
+        if item.get("type") not in (None, "assistant_message"):
+            continue
+        if run_id is not None and item.get("runId") != run_id:
             continue
         text = item.get("text")
         if not isinstance(text, str) or not text.strip():
