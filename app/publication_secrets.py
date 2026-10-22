@@ -3,8 +3,8 @@
 Stdlib only, including when called from another project's git hooks. Secret variable
 names and the minimum length live here; secret_mask and hub reuse them.
 This module imports only stdlib: hooks need no runtime-history or application setup.
-Git provider shapes belong exclusively to scripts/secret_scan.py; the shapes below
-are for hub uploads only and never participate in forbidden_strings matching.
+Plain Git text delegates provider shapes to scripts/secret_scan.py. Hub uploads
+and decoded archive payloads share the shapes below; plain-text policy is unchanged.
 """
 from __future__ import annotations
 
@@ -152,3 +152,21 @@ def content_findings(text: str, path: str, rules: list[tuple[str, str]], first_l
     matches = [(name, text.find(value)) for name, value in rules if value in text]
     return [safe_text(f"{path}:{first_line + text.count(chr(10), 0, offset)}: {name}", rules)
             for name, offset in matches]
+
+
+def archive_safe_text(text: str, rules: list[tuple[str, str]]) -> str:
+    """Archive member names, too, can contain credential literals or shapes."""
+    text = safe_text(text, rules)
+    for _, pattern in HUB_SECRET_SHAPES:
+        text = pattern.sub("[redacted]", text)
+    return text
+
+
+def archive_findings(text: str, path: str, rules: list[tuple[str, str]]) -> list[str]:
+    """Archive payloads bypass the canonical scanner's plain-text diff."""
+    found = content_findings(text, path, rules)
+    for name, pattern in HUB_SECRET_SHAPES:
+        if match := pattern.search(text):
+            line = 1 + text.count("\n", 0, match.start())
+            found.append(f"{path}:{line}: {name}")
+    return [archive_safe_text(row, rules) for row in found]

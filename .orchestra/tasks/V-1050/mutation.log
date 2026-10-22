@@ -1,0 +1,85 @@
+FFFFFFFFFF
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='tar.gz')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='tgz')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='gz')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='tar')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='zip')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='nested')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='bz2')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='xz')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='tar.bz2')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_scan_range_reads_original_blob_for_all_formats (archive_tests.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) (kind='tar.xz')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<worker-checkout>/.orchestra/tasks/V-1050/mutation-e1c3luki/tests/test_publish_guard_archives.py", line 313, in test_scan_range_reads_original_blob_for_all_formats
+    self.assertTrue(any('payload.bin!' in row for row in found))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 5.890s
+
+FAILED (failures=10)

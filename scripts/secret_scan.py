@@ -168,8 +168,10 @@ def _pre_push() -> list[str]:
             base = parents[0] if parents else _git("hash-object", "-t", "tree", "/dev/null").strip()
             for sha, path in _raw_entries(base, commit):
                 findings += _scan_blob(sha, f"{path} @{short}")
-                blob = _git_bytes("cat-file", "blob", sha).decode("utf-8", "replace")
-                findings += forbidden_strings.scan_text(blob, f"{path} @{short}", rules)
+                data = _git_bytes("cat-file", "blob", sha)
+                findings += forbidden_strings.scan_text(data.decode("utf-8", "replace"), f"{path} @{short}", rules)
+                # Сжатое содержимое как текст не читается (V-1050): архивы раскрывает guard.
+                findings += forbidden_strings.scan_archive(data, path, rules)
     return findings
 
 

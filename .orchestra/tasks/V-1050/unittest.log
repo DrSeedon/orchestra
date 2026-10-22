@@ -1,0 +1,35 @@
+test_removing_archive_scan_reddens_same_git_acceptance_test (__main__.ArchiveMutationTests.test_removing_archive_scan_reddens_same_git_acceptance_test) ... ok
+test_clean_archives_pass (__main__.ArchiveTests.test_clean_archives_pass) ... ok
+test_concatenated_streams_scan_across_boundaries (__main__.ArchiveTests.test_concatenated_streams_scan_across_boundaries) ... ok
+test_corrupt_archives_and_crc_fail_closed (__main__.ArchiveTests.test_corrupt_archives_and_crc_fail_closed) ... ok
+test_corrupt_later_tar_header_is_not_silently_ignored (__main__.ArchiveTests.test_corrupt_later_tar_header_is_not_silently_ignored) ... ok
+test_decompression_limit_and_exact_boundary (__main__.ArchiveTests.test_decompression_limit_and_exact_boundary) ... ok
+test_depth_limit_and_allowed_nesting (__main__.ArchiveTests.test_depth_limit_and_allowed_nesting) ... ok
+test_encrypted_and_unsupported_zip_fail_closed (__main__.ArchiveTests.test_encrypted_and_unsupported_zip_fail_closed) ... ok
+test_failure_messages_never_include_exception_payload (__main__.ArchiveTests.test_failure_messages_never_include_exception_payload) ... ok
+test_gzip_filename_metadata_and_concatenated_headers_are_scanned (__main__.ArchiveTests.test_gzip_filename_metadata_and_concatenated_headers_are_scanned) ... ok
+test_legacy_tar_and_pax_long_names (__main__.ArchiveTests.test_legacy_tar_and_pax_long_names) ... ok
+test_literal_and_all_shared_shapes_in_archive_payload (__main__.ArchiveTests.test_literal_and_all_shared_shapes_in_archive_payload) ... ok
+test_magic_detected_formats_and_nested_paths (__main__.ArchiveTests.test_magic_detected_formats_and_nested_paths) ... ok
+test_member_limits_include_empty_entries_and_streams (__main__.ArchiveTests.test_member_limits_include_empty_entries_and_streams) ... ok
+test_plaintext_policy_is_unchanged (__main__.ArchiveTests.test_plaintext_policy_is_unchanged) ... ok
+test_secret_member_names_are_redacted (__main__.ArchiveTests.test_secret_member_names_are_redacted) ... ok
+test_tar_metadata_and_hidden_headers_are_bounded (__main__.ArchiveTests.test_tar_metadata_and_hidden_headers_are_bounded) ... ok
+test_total_budget_shared_by_members_and_layers (__main__.ArchiveTests.test_total_budget_shared_by_members_and_layers) ... ok
+test_unknown_tar_member_type_payload_is_scanned (__main__.ArchiveTests.test_unknown_tar_member_type_payload_is_scanned) ... ok
+test_xz_dictionary_allocation_is_bounded (__main__.ArchiveTests.test_xz_dictionary_allocation_is_bounded) ... ok
+test_zip_bzip2_and_forged_sizes_cannot_bypass_decompression_cap (__main__.ArchiveTests.test_zip_bzip2_and_forged_sizes_cannot_bypass_decompression_cap) ... ok
+test_zip_member_limit_checked_before_directory_allocation (__main__.ArchiveTests.test_zip_member_limit_checked_before_directory_allocation) ... ok
+test_actual_merge_gate_refuses_archives_without_changing_refs (__main__.GitArchiveTests.test_actual_merge_gate_refuses_archives_without_changing_refs) ... skipped 'merge_worker workspace implementation excluded from worker copy'
+test_actual_pre_push_hook_scans_archives (__main__.GitArchiveTests.test_actual_pre_push_hook_scans_archives) ... skipped 'canonical secret_scan.py excluded from worker copy'
+test_clean_archive_and_deletion_of_old_leak_pass (__main__.GitArchiveTests.test_clean_archive_and_deletion_of_old_leak_pass) ... ok
+test_hook_import_and_archive_scan_are_stdlib_only (__main__.GitArchiveTests.test_hook_import_and_archive_scan_are_stdlib_only) ... ok
+test_local_env_literal_and_shape_in_archives (__main__.GitArchiveTests.test_local_env_literal_and_shape_in_archives) ... ok
+test_modification_and_root_commit_are_scanned (__main__.GitArchiveTests.test_modification_and_root_commit_are_scanned) ... ok
+test_oversized_archive_input_refused_without_reading_all (__main__.GitArchiveTests.test_oversized_archive_input_refused_without_reading_all) ... ok
+test_scan_range_reads_original_blob_for_all_formats (__main__.GitArchiveTests.test_scan_range_reads_original_blob_for_all_formats) ... ok
+
+----------------------------------------------------------------------
+Ran 30 tests in 11.933s
+
+OK (skipped=2)
