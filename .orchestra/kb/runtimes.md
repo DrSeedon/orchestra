@@ -15,8 +15,8 @@
 
 Не переносить порядок merge/trust на новую версию без проверки. Ценность опыта — разные
 области проверки doctor/list/session и найденный общий confound.
-Источник: [разбор Grok 1.0.3](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/workers/fix-grok-mcp.md);
-[отчёт #264](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/264/report.md).
+Источник: [разбор Grok 1.0.3](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/workers/fix-grok-mcp.md);
+[отчёт #264](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/tasks/264/report.md).
 
 ## Codex 0.153.4: наличие context-management tools проверяли контрольным запуском
 
@@ -30,7 +30,7 @@ get_context_remaining; без флага та же Astra перечислила 
 `loopback: Failed RTM_NEWADDR: Operation not permitted`. В этом окружении успешный код
 запуска не подтверждал настройку loopback. Запись не содержит полного повторяемого стенда;
 это историческое свидетельство, которое стоит проверить при аналогичной диагностике.
-Источник: [запись двух проб от 06.09](https://github.com/DrSeedon/orchestra/blob/3208ceeda5a1c76ce9e0ed147b0c3fbce38ac497/AGENTS.md).
+Источник: [запись двух проб от 06.09](https://github.com/DrSeedon/orchestra/blob/e8975183419197fac18060b13ae00ce7febbad4e/AGENTS.md).
 
 ## #537: копирование истории в новый тред отвергнуто, корень вылечен иначе (11.09.2026)
 
@@ -44,12 +44,12 @@ worktree`. Суть дефекта замысла: доказать «проце
 его ребёнок, и доказать «этот процесс мой» существующими средствами не удалось.
 
 Принятое лечение корня — держать деревья процессов рантайма внутри cgroup сервиса, чтобы
-сирот не возникало вовсе (коммит `e6da7e30` в main, «stop runtime trees with Orchestra and
+сирот не возникало вовсе (коммит `b5ca5b97` в main, «stop runtime trees with Orchestra and
 remove live adoption»); тогда механика подбора не нужна и удаляется. Цена названа заранее:
 длинные фоновые прогоны перестают переживать рестарт.
 
 Незаконченная реализация варианта C вместе с логами регрессий и `root-cause-plan.md` остаётся
-в ветке `task-537/fix-stuck-writer` (HEAD `2402e3d4`, 8 коммитов, в main НЕ вливалась).
+в ветке `task-537/fix-stuck-writer` (HEAD `4bf89c23`, 8 коммитов, в main НЕ вливалась).
 Ветку не удалять: это единственная копия доказательств, почему подход отвергнут.
 
 ## ARTEMIS (Google): управление Android из Claude Code — отклонён за отсутствием предмета (18.09.2026)
@@ -130,7 +130,7 @@ Codex CLI — 43/125. Один худший случай (`portfolio-history`, B
 итеративной починкой экранирования: между вызовами менялась ошибка, начиная с
 `python: command not found`. Префиксное совпадение поэтому плохо подходит для runaway
 детектора; полезнее сравнивать результат и прогресс. Замер и разбор сохранены в Git-коммите
-`9234cb571`, `TODO.md`.
+`5c02203dd`, `TODO.md`.
 
 ## ghidra-mcp: есть, но не ставим без конкретного бинаря (08.10.2026)
 

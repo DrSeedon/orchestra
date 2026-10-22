@@ -12,7 +12,7 @@ SQLite использовались для проверки full-cycle prompt. �
 создания/подключения. Различающей проверкой была доставка целого сценария, а не успешная
 сборка строки промпта. Прежний compatibility-контракт из отчёта не является рекомендацией
 восстановить старые пути сегодня.
-Источник: [сценарий, исключения и нулевые счётчики](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/430/prompt-assembly-cutover-measurement.md).
+Источник: [сценарий, исключения и нулевые счётчики](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/tasks/430/prompt-assembly-cutover-measurement.md).
 
 ## Глобальный AGENTS не попадал в managed Codex (V-570, 13.09.2026)
 

@@ -122,5 +122,5 @@ CLAUDE.md рядом — СИМЛИНК на него, а не копия, и у
 ## Исторический источник
 
 Полный прежний документ доступен в Git:
-`git show 9a1735f1695519a445f393802c2154bd37337e38:.orchestra/archive/instructions/2026-09-05-CLAUDE.md`.
+`git show 68d32a4b4a6ad0130d08894791f68c5e84152c2c:.orchestra/archive/instructions/2026-09-05-CLAUDE.md`.
 Это история, не действующие правила. Остальные исходники — по .orchestra/kb/history.md.
