@@ -1,0 +1,70 @@
+--- a/app/private_folder.py
++++ b/app/private_folder.py
+@@ -5,8 +5,11 @@
+ """
+ from __future__ import annotations
+ 
++import logging
+ import subprocess
+ from pathlib import Path
++
++logger = logging.getLogger(__name__)
+ 
+ PRIVATE_REL = ".orchestra/private"
+ # No trailing slash: in a worktree the entry is a symlink, which `private/` would not match.
+@@ -28,6 +31,36 @@
+     return main_checkout(path) / PRIVATE_REL
+ 
+ 
++def _ignore_private(wt: Path) -> None:
++    # info/exclude is shared by linked worktrees, but a project's .gitignore
++    # (notably !.orchestra/**) wins over it. A deeper ignore file wins in turn.
++    try:
++        ignored = subprocess.run(
++            ["git", "-C", str(wt), "check-ignore", "-q", "--", PRIVATE_REL],
++            capture_output=True, text=True,
++        )
++        if ignored.returncode == 0:
++            return
++        if ignored.returncode != 1:
++            raise RuntimeError(f"private ignore check failed: {ignored.stderr.strip()}")
++        ignore = wt / ".orchestra" / ".gitignore"
++        tracked = subprocess.run(
++            ["git", "-C", str(wt), "ls-files", "--", ".orchestra/.gitignore"],
++            capture_output=True, text=True,
++        )
++        if tracked.returncode:
++            raise RuntimeError(f"private ignore tracking check failed: {tracked.stderr.strip()}")
++        if tracked.stdout.strip() or ignore.is_symlink():
++            raise RuntimeError(f"{ignore} is tracked or a symlink; cannot modify it")
++        previous = ignore.read_text() if ignore.exists() else ""
++        separator = "\n" if previous and not previous.endswith("\n") else ""
++        # The generated file must also stay out of status; keep any existing rules.
++        ignore.write_text(previous + separator + "/private\n/.gitignore\n")
++    except (OSError, RuntimeError, UnicodeError) as error:
++        # Ignore metadata must not roll back an otherwise usable worker worktree.
++        logger.warning("Could not exclude %s from Git: %s", wt / PRIVATE_REL, error)
++
++
+ def ensure_private(wt_path: str | Path) -> Path | None:
+     """Create the shared folder and link it into the worktree; None if the repo tracks it or has no `.orchestra/`.
+ 
+@@ -43,10 +76,12 @@
+     if not shared.parent.is_dir():
+         return None  # no `.orchestra/` in the project: creating one would mark it Orchestra-managed
+     shared.mkdir(parents=True, exist_ok=True)
++    _ignore_private(shared.parent.parent)
+     link = wt / PRIVATE_REL
+     if wt.resolve() == shared.parent.parent.resolve():
+         return shared  # main checkout: the real folder is already here
+     if link.is_symlink() and link.resolve() == shared.resolve():
++        _ignore_private(wt)  # also repair worktrees created before V-1031
+         return shared
+     if link.exists() or link.is_symlink():
+         if link.is_dir() and not link.is_symlink() and not any(link.iterdir()):
+@@ -55,4 +90,5 @@
+             return None  # a real folder with content is never replaced
+     link.parent.mkdir(parents=True, exist_ok=True)
+     link.symlink_to(shared, target_is_directory=True)
++    _ignore_private(wt)
+     return shared
