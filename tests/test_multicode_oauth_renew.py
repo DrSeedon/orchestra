@@ -75,10 +75,84 @@ def test_expiration_skip_does_not_touch_hub(tmp_path, monkeypatch, capsys):
     payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
     token_path = tmp_path / "token"
     token_path.write_text(f"{payload}.signature")
-    monkeypatch.setattr(renewal, "TOKEN_PATH", token_path)
+    set_hub_env(monkeypatch, token_path)
     monkeypatch.setattr(renewal.time, "time", lambda: now_ms / 1000)
     monkeypatch.setattr(renewal, "ssh_run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Hub touched")))
     monkeypatch.setattr(renewal.subprocess, "Popen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Hub tunnel opened")))
 
     assert renewal.main(["--if-expiring-within-days", "9"]) == 0
     assert capsys.readouterr().out.strip() == "RENEW_SKIPPED 10.00"
+
+
+def set_hub_env(monkeypatch, token_path):
+    for name, value in {"MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k",
+                        "MULTICODE_HUB_BASE_DIR": "/d", "MULTICODE_MCP_BASE": "http://127.0.0.1:1234",
+                        "MULTICODE_MCP_TOKEN_FILE": str(token_path)}.items():
+        monkeypatch.setenv(name, value)
+
+
+def test_missing_hub_variable_fails_naming_it(tmp_path, monkeypatch):
+    import pytest
+    from scripts import multicode_oauth_renew as renewal
+
+    set_hub_env(monkeypatch, tmp_path / "token")
+    monkeypatch.delenv("MULTICODE_HUB_BASE_DIR")
+    with pytest.raises(RuntimeError, match="MULTICODE_HUB_BASE_DIR"):
+        renewal.configure(tmp_path / "absent.env")
+
+
+def _run_until_pairing(tmp_path, monkeypatch, endpoint_up):
+    from scripts import multicode_oauth_renew as renewal
+
+    claims = {"sub": "mcp-client", "sid": "sid1", "rtc": "full-access",
+              "scopes": list(renewal.SCOPES), "exp": 1}
+    payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
+    token_path = tmp_path / "token"
+    token_path.write_text(f"{payload}.signature")
+    token_path.chmod(0o600)
+    set_hub_env(monkeypatch, token_path)
+    popen_calls = []
+
+    class Stop(Exception):
+        pass
+
+    class FakeTunnel:
+        def poll(self):
+            return None
+
+        def terminate(self):
+            pass
+
+        def wait(self, timeout=None):
+            pass
+
+    def fake_popen(command, **kwargs):
+        popen_calls.append(command)
+        return FakeTunnel()
+
+    def fake_ssh(*arguments, **kwargs):
+        if arguments[:3] == ("t3", "auth", "session"):
+            return [{"sessionId": "sid1"}]
+        if arguments[:3] == ("t3", "auth", "pairing") and arguments[3] == "create":
+            raise Stop
+        return ""
+
+    monkeypatch.setattr(renewal, "ssh_run", fake_ssh)
+    monkeypatch.setattr(renewal.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(renewal, "hub_endpoint_up", lambda: endpoint_up())
+    monkeypatch.setattr(renewal.time, "sleep", lambda _: None)
+    try:
+        renewal.main([])
+    except Stop:
+        pass
+    return popen_calls
+
+
+def test_existing_endpoint_is_reused_without_tunnel(tmp_path, monkeypatch):
+    assert _run_until_pairing(tmp_path, monkeypatch, lambda: True) == []
+
+
+def test_tunnel_opened_only_when_nothing_listens(tmp_path, monkeypatch):
+    answers = iter([False, True])
+    calls = _run_until_pairing(tmp_path, monkeypatch, lambda: next(answers))
+    assert len(calls) == 1 and "-L" in calls[0] and "1234:127.0.0.1:1234" in calls[0]
