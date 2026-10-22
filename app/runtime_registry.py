@@ -342,6 +342,8 @@ def _hub_factory(context: BackendBuildContext) -> BackendLike:
         scope=context.scope,
         paths_source=context.owned_dirs_source,
         bridge=context.hub_bridge,
+        pipeline=context.pipeline,
+        role=context.role,
     )
 
 

@@ -1,0 +1,50 @@
+........................................................................ [ 72%]
+FF.........................                                              [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+repo = PosixPath('/home/<hub-user>/orchestra-ws/vmi3407579/hub-b3128d7d964a4725/.orchestra/tasks/V-1025/tmp/pytest/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/vmi3407579/hub-b3128d7d964a4725/.orchestra/tasks/V-1025/tmp/pytest/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x792285fc60c0>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+>       assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E       AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+
+tests/test_hub_workspace.py:1249: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:197 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+________ test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it _________
+
+repo = PosixPath('/home/<hub-user>/orchestra-ws/vmi3407579/hub-b3128d7d964a4725/.orchestra/tasks/V-1025/tmp/pytest/test_hub_prompt_has_no_outbox_0/wt')
+tmp_path = PosixPath('/home/<hub-user>/orchestra-ws/vmi3407579/hub-b3128d7d964a4725/.orchestra/tasks/V-1025/tmp/pytest/test_hub_prompt_has_no_outbox_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x792285fc59d0>
+
+    @pytest.mark.asyncio
+    async def test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        backend._bridge = None
+        await _turn(backend, "plain task")
+        prompt = _first_prompt(mc)
+>       assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt and "Do not run git push/clone/commit" in prompt
+E       AssertionError: assert ('.orchestra-outbox.jsonl' not in 'You are a w...\nplain task'
+E         
+E         '.orchestra-outbox.jsonl' is contained here:
+E           
+E           plain task and 'plain task' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...her task artifacts under .orchestra/tasks/V-1/ (create it); nowhere else outside the source tree.\n\nTask:\nplain task' and 'Do not run git push/clone/commit' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...her task artifacts under .orchestra/tasks/V-1/ (create it); nowhere else outside the source tree.\n\nTask:\nplain task')
+
+tests/test_hub_workspace.py:1267: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:197 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+FAILED tests/test_hub_workspace.py::test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it
+2 failed, 97 passed in 17.67s

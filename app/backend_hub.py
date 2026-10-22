@@ -154,10 +154,15 @@ def _branch_task_ref(cwd: str) -> str:
 class HubBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None, effort: str | None = None,
-                 paths: list[str] | None = None, scope: str = "", paths_source=None, bridge=None):
+                 paths: list[str] | None = None, scope: str = "", paths_source=None, bridge=None,
+                 pipeline: str = "", role: str = ""):
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
         self.model = model
+        self._effort = effort
+        self._pipeline = pipeline
+        self._role = role
+        self._effort_options: dict[tuple[str, str], tuple[str, tuple[str, ...]]] | None = None
         self.cwd = cwd
         self._resume = resume_session_id
         self._paths = paths
@@ -198,6 +203,34 @@ class HubBackend:
             self._mc = client
         return self._mc
 
+    async def _model_selection(self, mc: MultiCodeClient, model: str,
+                               effort: str | None) -> dict:
+        instance, hub_model = HUB_MODELS[model]
+        selection = {"instanceId": instance, "model": hub_model}
+        if effort is None:
+            return selection
+        if self._effort_options is None:
+            capabilities = await mc.tool_call("orchestrator_capabilities", {})
+            if not isinstance(capabilities, dict) or not isinstance(capabilities.get("providers"), list):
+                raise ValueError("hub capabilities contain no provider model options")
+            options = {}
+            for provider in capabilities["providers"]:
+                for advertised in provider.get("models", []):
+                    for option in advertised.get("options", []):
+                        # Codex/Grok use reasoningEffort; Claude advertises effort.
+                        if option.get("id") in ("reasoningEffort", "effort") and option.get("type") == "select":
+                            options[(provider["providerInstanceId"], advertised["id"])] = (
+                                option["id"], tuple(value["id"] for value in option.get("options", [])))
+                            break
+            self._effort_options = options
+        option_id, allowed = self._effort_options.get((instance, hub_model), ("reasoningEffort", ()))
+        if effort not in allowed:
+            raise ValueError(
+                f"hub model '{model}' does not support effort '{effort}'; "
+                f"allowed values: {', '.join(allowed) or '(none advertised)'}")
+        selection["options"] = {option_id: effort}
+        return selection
+
     async def send(self, message: str) -> None:
         if self._ssh is None:
             raise RuntimeError("HubBackend not connected")
@@ -225,13 +258,21 @@ class HubBackend:
             raise ValueError(f"unknown hub model '{model}'")
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
+        effort = self._effort
+        if self._pipeline and self._role:
+            from app.pipeline import get_role, resolve_effort
+            role = get_role(self._pipeline, self._role)
+            if role is not None:
+                effort = resolve_effort(role.effort, model, "hub")
         state = self._state
+        mc = await self._client() if effort is not None or (state and state.thread_id) else None
+        # Validation errors must propagate, not trigger the new-thread fallback.
+        selection = await self._model_selection(mc, model, effort)
         if state and state.thread_id:
-            instance, hub_model = HUB_MODELS[model]
             try:
-                await (await self._client()).tool_call("t3_thread_configure", {
+                await mc.tool_call("t3_thread_configure", {
                     "threadId": state.thread_id,
-                    "modelSelection": {"instanceId": instance, "model": hub_model}})
+                    "modelSelection": selection})
             except MultiCodeError as exc:
                 logger.warning("hub thread re-configure refused (%s); next turn starts a new thread", exc)
                 state.thread_id = ""
@@ -240,6 +281,7 @@ class HubBackend:
                     "[Note: the model was changed and the earlier hub conversation is not available "
                     "to you; the files in this directory contain the work done so far.]")
         self.model = model
+        self._effort = effort
 
     async def interrupt(self) -> None:
         self._abort = True
@@ -429,8 +471,13 @@ class HubBackend:
         return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+        # A reconstructed backend can resume a thread created with an older effort.
+        selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:
             try:
+                if self._effort is not None:
+                    await mc.tool_call("t3_thread_configure", {
+                        "threadId": state.thread_id, "modelSelection": selection})
                 sent = await mc.tool_call("t3_thread_send", {
                     "threadId": state.thread_id, "message": prompt, "mode": "auto"})
                 return sent["runId"]
@@ -438,11 +485,10 @@ class HubBackend:
                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
                 state.thread_id = ""
                 prompt = self._preamble() + prompt
-        instance, hub_model = HUB_MODELS[self.model]
         launched = await mc.tool_call("t3_thread_launch", {
             "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
             "runtimeMode": "full-access",
-            "modelSelection": {"instanceId": instance, "model": hub_model},
+            "modelSelection": selection,
         })
         if not isinstance(launched, dict) or not launched.get("threadId"):
             raise MultiCodeError("MultiCode launch returned no threadId")

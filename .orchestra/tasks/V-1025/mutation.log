@@ -1,0 +1,65 @@
+FF.....F..F..                                                            [100%]
+=================================== FAILURES ===================================
+__________________________ test_launch_carries_effort __________________________
+
+    @pytest.mark.asyncio
+    async def test_launch_carries_effort():
+        backend, hub, state = setup()
+        assert await backend._start(hub, state, "task") == "run"
+>       assert hub.calls[-1] == ("t3_thread_launch", {
+            "title": "workspace", "projectId": "project", "message": "task", "runtimeMode": "full-access",
+            "modelSelection": {"instanceId": "codex", "model": "gpt-6.1-sol",
+                               "options": {"reasoningEffort": "high"}}})
+E       AssertionError: assert ('t3_thread_l...access', ...}) == ('t3_thread_l...access', ...})
+E         
+E         At index 1 diff: {'title': 'workspace', 'projectId': 'project', 'message': 'task', 'runtimeMode': 'full-access', 'modelSelection': {'instanceId': 'codex', 'model': 'gpt-6.1-sol'}} != {'title': 'workspace', 'projectId': 'project', 'message': 'task', 'runtimeMode': 'full-access', 'modelSelection': {'instanceId': 'codex', 'model': 'gpt-6.1-sol', 'options': {'reasoningEffort': 'high'}}}
+E         Use -v to get more diff
+
+tests/test_hub_effort.py:47: AssertionError
+_______________ test_configure_carries_effort_and_reuses_catalog _______________
+
+    @pytest.mark.asyncio
+    async def test_configure_carries_effort_and_reuses_catalog():
+        backend, hub, state = setup()
+        await backend._start(hub, state, "task")
+        await backend.retarget_model("hub-gpt-6-luna")
+>       assert hub.calls[-1] == ("t3_thread_configure", {"threadId": "thread", "modelSelection": {
+            "instanceId": "codex", "model": "gpt-6-luna", "options": {"reasoningEffort": "high"}}})
+E       AssertionError: assert ('t3_thread_c...gpt-6-luna'}}) == ('t3_thread_c...t': 'high'}}})
+E         
+E         At index 1 diff: {'threadId': 'thread', 'modelSelection': {'instanceId': 'codex', 'model': 'gpt-6-luna'}} != {'threadId': 'thread', 'modelSelection': {'instanceId': 'codex', 'model': 'gpt-6-luna', 'options': {'reasoningEffort': 'high'}}}
+E         Use -v to get more diff
+
+tests/test_hub_effort.py:58: AssertionError
+____________ test_retarget_resolves_target_policy_and_claude_option ____________
+
+    @pytest.mark.asyncio
+    async def test_retarget_resolves_target_policy_and_claude_option():
+        backend, hub, state = setup(pipeline="default", role="worker")
+        await backend._start(hub, state, "task")
+        await backend.retarget_model("hub-claude-opus-5-5")
+>       assert hub.calls[-1][1]["modelSelection"]["options"] == {"effort": "medium"}
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'options'
+
+tests/test_hub_effort.py:109: KeyError
+___________ test_resumed_thread_receives_current_effort_before_send ____________
+
+    @pytest.mark.asyncio
+    async def test_resumed_thread_receives_current_effort_before_send():
+        backend, hub, state = setup("medium")
+        state.thread_id = "thread"
+        await backend._start(hub, state, "next turn")
+        assert [name for name, _ in hub.calls] == [
+            "orchestrator_capabilities", "t3_thread_configure", "t3_thread_send"]
+>       assert hub.calls[1][1]["modelSelection"]["options"] == {"reasoningEffort": "medium"}
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'options'
+
+tests/test_hub_effort.py:133: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_hub_effort.py::test_launch_carries_effort - AssertionError:...
+FAILED tests/test_hub_effort.py::test_configure_carries_effort_and_reuses_catalog
+FAILED tests/test_hub_effort.py::test_retarget_resolves_target_policy_and_claude_option
+FAILED tests/test_hub_effort.py::test_resumed_thread_receives_current_effort_before_send
+4 failed, 9 passed in 4.16s
