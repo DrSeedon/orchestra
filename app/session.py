@@ -81,6 +81,9 @@ from app.errtext import err_text
 logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
+# Ожидание уже поставленных в пул записей журнала. Ограничено: зависший пул или «застрявший»
+# в множестве фьючерс обязан дать предупреждение, а не мёртвую платформу (V-1020).
+_LOG_FUTURES_DRAIN_BUDGET_S = 10.0
 TURN_COMPLETION_RECHECK = 1.0
 # Ходы, начатые платформой, а не пользователем/агентом: квотный гейт их не блокирует (V-640).
 QUOTA_GATE_EXEMPT_ORIGINS = frozenset({"background_task", "platform", "system"})
@@ -1889,8 +1892,7 @@ class AgentSession:
         target_model: str,
         exclude_user_messages: tuple[str, ...] = (),
     ):
-        if self._log_futures:
-            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        await self._await_log_futures()
         loop = asyncio.get_running_loop()
         snapshot_id, rows = await loop.run_in_executor(
             _db_executor(), partial(get_history_logs, self.id)
@@ -1909,10 +1911,31 @@ class AgentSession:
             ),
         )
 
+    async def _await_log_futures(self) -> None:
+        """Wait once, with a time budget, for the log writes queued so far.
+
+        Never loops on the live set: a finished future that stayed in it (or producers that keep
+        adding) made `while set: await gather(...)` spin without yielding to the timeout that was
+        meant to rescue it — the loop was dead for ~16 min on 22.10 (V-1020). `asyncio.wait`
+        also leaves the pending writes alive on timeout instead of cancelling them.
+        """
+        snapshot = tuple(self._log_futures)
+        for future in snapshot:
+            if future.done():
+                self._log_futures.discard(future)
+        pending = {future for future in snapshot if not future.done()}
+        if not pending:
+            return
+        _, still = await asyncio.wait(pending, timeout=_LOG_FUTURES_DRAIN_BUDGET_S)
+        if still:
+            logger.warning(
+                "[%s] %d log write(s) still pending after %.0fs; continuing without them",
+                self.name, len(still), _LOG_FUTURES_DRAIN_BUDGET_S,
+            )
+
     async def _drain_handoff_log_writes(self) -> dict:
         await self._drain_persist()
-        while self._log_futures:
-            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        await self._await_log_futures()
         retried = 0
         deadline = time.monotonic() + _HANDOFF_LOG_RETRY_BUDGET_S
         for generation, (operation, previous_failure) in tuple(

@@ -1,0 +1,9 @@
+== mutation: old 'while set: await gather' restored
+  File "/usr/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+asyncio.exceptions.InvalidStateError: invalid state
+=========================== short test summary info ============================
+FAILED tests/test_v1020_log_drain_bounded.py::test_finished_future_left_in_the_set_does_not_hang_the_drain
+FAILED tests/test_v1020_log_drain_bounded.py::test_hung_write_degrades_to_a_warning_and_is_not_cancelled
+FAILED tests/test_v1020_log_drain_bounded.py::test_producers_that_keep_logging_cannot_extend_the_drain
+3 failed in 30.76s
