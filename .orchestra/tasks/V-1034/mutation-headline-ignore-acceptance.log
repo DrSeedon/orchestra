@@ -1,0 +1,30 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_squash_uses_acceptance_first_line_with_validated_refs __________
+
+git_repo = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_acceptance_fi0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_acceptance_fi0/worktrees')
+
+    def test_squash_uses_acceptance_first_line_with_validated_refs(git_repo, wt_root):
+        from app.workspace import merge_worktree_to_main
+        wt = worker(git_repo, wt_root)
+        result = merge_worktree_to_main(
+            wt.path, str(git_repo), expected_candidate_refs=['V-1034'],
+            validated_task_refs=['V-1034'], primary_task_ref='V-1034',
+            operation_id='receipt-id', acceptance_note='V-1034: Accepted the finished feature\nChecks passed.',
+        )
+        assert result['ok'], result
+>       assert git(git_repo, 'log', '-1', '--format=%s').strip() == 'V-1034: Accepted the finished feature'
+E       AssertionError: assert 'V-1034: WIP unfinished' == 'V-1034: Acce...ished feature'
+E         
+E         - V-1034: Accepted the finished feature
+E         + V-1034: WIP unfinished
+
+tests/test_merge_worker_v1034.py:41: AssertionError
+----------------------------- Captured stderr call -----------------------------
+_reset_worktree_to_ref: .orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_acceptance_fi0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker reset to main (a1029b19)
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:1487 _reset_worktree_to_ref: .orchestra/tasks/V-1034/mutation-tmp/test_squash_uses_acceptance_fi0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker reset to main (a1029b19)
+=========================== short test summary info ============================
+FAILED tests/test_merge_worker_v1034.py::test_squash_uses_acceptance_first_line_with_validated_refs
+1 failed in 6.32s

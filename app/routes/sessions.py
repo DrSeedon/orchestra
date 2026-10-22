@@ -2913,6 +2913,7 @@ async def execute_merge_session(
                         _resolve_candidate_refs if finalization is not None else None
                     ),
                     commit_receipt=commit_receipt,
+                    acceptance_note=str(req.get("acceptance_note") or ""),
                 )
             except Exception as e:
                 git_ms = max(0, round((time.perf_counter() - git_started) * 1000))

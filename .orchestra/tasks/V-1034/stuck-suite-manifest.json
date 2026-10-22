@@ -1,0 +1,29 @@
+{
+  "stuck-suite-core": [
+    "tests/test_merge_branch_drift.py",
+    "tests/test_merge_completion_watch.py",
+    "tests/test_merge_operations.py",
+    "tests/test_merge_stuck.py",
+    "tests/test_merge_recovery_wedge.py"
+  ],
+  "stuck-suite-guards": [
+    "tests/test_merge_conflict_report_423.py",
+    "tests/test_merge_foreign_task_ref.py",
+    "tests/test_merge_gate_mutation_702.py",
+    "tests/test_merge_progress_424.py",
+    "tests/test_merge_reason_preservation_416.py",
+    "tests/test_merge_ref_gate.py",
+    "tests/test_merge_target_oracle_386.py",
+    "tests/test_merge_worker_lifecycle_702.py",
+    "tests/test_merge_worker_v1034.py"
+  ],
+  "stuck-suite-gate": [
+    "tests/test_merge_test_gate.py"
+  ],
+  "stuck-suite-workspace": [
+    "tests/test_workspace.py"
+  ],
+  "stuck-suite-mcp": [
+    "tests/test_mcp_stdio.py"
+  ]
+}

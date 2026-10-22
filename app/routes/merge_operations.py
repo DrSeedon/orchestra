@@ -14,6 +14,7 @@ from app.merge_operations import (
     get_operation_record,
     operation_not_found_result,
     resolve_operation,
+    acceptance_input_error,
 )
 
 router = APIRouter(prefix="/api/merge-operations", tags=["merge-operations"])
@@ -86,7 +87,7 @@ async def create_merge_operation(req: dict, request: Request = None):
                 },
                 400,
             )
-        if not accepting_actor or not str(req.get("expected_head") or "").strip() or not str(req.get("acceptance_note") or "").strip():
+        if not accepting_actor:
             return _response(
                 {
                     "operation_state": "FAILED",
@@ -97,6 +98,13 @@ async def create_merge_operation(req: dict, request: Request = None):
                 },
                 409,
             )
+        input_error = acceptance_input_error(
+            str(req.get("expected_head") or ""), str(req.get("acceptance_note") or ""),
+        )
+        if input_error:
+            return _response({"operation_state": "FAILED", "error": {
+                "code": "WORK_ACCEPTANCE_REQUIRED", "message": input_error,
+            }}, 409)
         from app.routes.sessions import switch_branch
 
         promotion = await switch_branch(

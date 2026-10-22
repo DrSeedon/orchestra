@@ -21,6 +21,11 @@ _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 def measure_insertions(worktree: str, base_ref: str) -> int:
     """Insertions in worktree vs merge-base(HEAD, base_ref), plus untracked files."""
+    return measure_insertion_counts(worktree, base_ref)[0]
+
+
+def measure_insertion_counts(worktree: str, base_ref: str) -> tuple[int, int]:
+    """Return budgeted insertions and excluded task-evidence insertions."""
     wt = str(Path(worktree))
     mb = _run(["git", "merge-base", "HEAD", base_ref], wt)
     if mb.returncode != 0 or not mb.stdout.strip():
@@ -35,17 +40,29 @@ def measure_insertions(worktree: str, base_ref: str) -> int:
         base = _EMPTY_TREE
     else:
         base = mb.stdout.strip()
-    diff = _run(["git", "diff", "--numstat", base], wt)
+    diff = _run(["git", "diff", "--numstat", "-z", base], wt)
     if diff.returncode != 0:
         raise RuntimeError(
             f"git diff --numstat failed: {(diff.stderr or diff.stdout).strip()}"
         )
     insertions = 0
-    for line in diff.stdout.splitlines():
+    excluded = 0
+    records = iter(diff.stdout.split("\0"))
+    for line in records:
         fields = line.split("\t", 2)
-        if len(fields) != 3 or fields[0] == "-":
+        if len(fields) != 3:
             continue
-        insertions += int(fields[0])
+        if not fields[2]:
+            # -z emits rename/copy paths as separate old/new records. Account
+            # additions at the destination without changing Git's rename budget.
+            next(records, "")
+            fields[2] = next(records, "")
+        if fields[0] == "-":
+            continue
+        if fields[2].startswith(".orchestra/tasks/"):
+            excluded += int(fields[0])
+        else:
+            insertions += int(fields[0])
     untracked = _run(
         ["git", "ls-files", "--others", "--exclude-standard", "-z"], wt,
     )
@@ -55,10 +72,14 @@ def measure_insertions(worktree: str, base_ref: str) -> int:
                 continue
             path = Path(wt) / rel
             try:
-                insertions += path.read_text(encoding="utf-8", errors="replace").count("\n")
+                count = path.read_text(encoding="utf-8", errors="replace").count("\n")
+                if rel.startswith(".orchestra/tasks/"):
+                    excluded += count
+                else:
+                    insertions += count
             except OSError:
                 continue
-    return insertions
+    return insertions, excluded
 
 
 def budget_error(insertions: int, limit: int = MAX_DIFF_INSERTIONS) -> str:

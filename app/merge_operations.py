@@ -9,6 +9,7 @@ import copy
 import hashlib
 import json
 import logging
+import re
 import sqlite3
 import subprocess
 import time
@@ -242,6 +243,16 @@ def normalize_request(
 
 def request_hash(request: dict[str, Any]) -> str:
     return _hash(request)
+
+
+def acceptance_input_error(expected_head: str, acceptance_note: str) -> str:
+    """Validate a new acceptance; persisted operations keep their replay contract."""
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", expected_head.strip()):
+        return "expected_head must be the full 40-character SHA from worker_wip"
+    note = acceptance_note.strip()
+    if len(note) < 15 or note.casefold() in {"placeholder", "-", "tbd"}:
+        return "acceptance_note must contain a meaningful acceptance decision of at least 15 characters"
+    return ""
 
 
 def _operation_id(value: str) -> str:
@@ -1511,6 +1522,8 @@ def normalize_merge_result(
             "worker_head": raw.get("worker_head") or None,
             "conflicts": conflicts,
             "commits_merged": int(raw.get("commits_merged") or 0),
+            "diff_insertions": raw.get("diff_insertions"),
+            "diff_excluded_insertions": raw.get("diff_excluded_insertions"),
             # Класс дрейфа личности и запиннённый HEAD: поля ДОБАВЛЯЮТСЯ, старые не меняются,
             # поэтому старый читатель их просто не заметит.
             "head_drift": str(raw.get("head_drift") or "SAME"),
@@ -2298,20 +2311,8 @@ def ensure_operation_runner(operation_id: str) -> None:
 
 
 def _head_matches(expected: str, actual: str) -> bool:
-    """Принять сокращённый хеш так же, как его принимает git.
-
-    Агент берёт HEAD из вывода `worker_wip`, где он бывает укорочен, и раньше
-    получал «HEAD воркера отличается» на ТОТ ЖЕ коммит: отказ называл причиной
-    расхождение, которого не было. Семь знаков — граница самого git: короче
-    он и сам отказывается разрешать неоднозначный префикс.
-    """
-    expected = expected.strip().lower()
-    actual = actual.strip().lower()
-    if not expected or not actual:
-        return False
-    if len(expected) < 7:
-        return expected == actual
-    return actual.startswith(expected)
+    """Accept only the full worker_wip identity; old operations replay before this."""
+    return bool(re.fullmatch(r"[0-9a-fA-F]{40}", expected.strip())) and expected.strip().lower() == actual.strip().lower()
 
 
 async def accept_merge_operation(
@@ -2386,6 +2387,19 @@ async def accept_merge_operation(
             return drifted, 409
         return existing["result"], 200
 
+    input_error = acceptance_input_error(
+        request.get("expected_head", ""), request.get("acceptance_note", ""),
+    )
+    if input_error:
+        return _base_result(
+            canonical_id, "FAILED",
+            error=_error("WORK_ACCEPTANCE_REQUIRED", input_error, operation_id=canonical_id, status=409),
+            next_action=_action(
+                "FIX_ACCEPTANCE_THEN_NEW_OPERATION",
+                "Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.",
+            ),
+        ), 409
+
     row = await asyncio.to_thread(get_session_by_name, request["name"], request["scope"])
     if not row:
         error = _error(
@@ -2459,10 +2473,9 @@ async def accept_merge_operation(
     if task_run is not None:
         if not accepting_actor:
             return _base_result(canonical_id, "FAILED", error=_error("MERGE_ACCEPTOR_REQUIRED", "An authenticated acceptor is required (orchestrator, owner, or full-cycle parent into its own branch)", operation_id=canonical_id, status=403)), 403
-        if not request.get("expected_head") or not request.get("acceptance_note"):
-            return _base_result(canonical_id, "FAILED", error=_error("WORK_ACCEPTANCE_REQUIRED", "Inspect worker_wip, then provide its exact expected_head and an acceptance_note (including why no review was needed, if absent)", operation_id=canonical_id, status=409)), 409
-        if not _head_matches(request["expected_head"], accepted["worker_head"]):
-            return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", f"Worker HEAD is {accepted['worker_head']}, you accepted {request['expected_head']}; inspect the new result", operation_id=canonical_id, status=409)), 409
+    if not _head_matches(request["expected_head"], accepted["worker_head"]):
+        return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", f"Worker HEAD is {accepted['worker_head']}, you accepted {request['expected_head']}; inspect the new result", operation_id=canonical_id, status=409)), 409
+    if task_run is not None:
         if task_run["status"] != "requested" or review.get("task_run_id") != task_run["receipt_id"]:
             return _base_result(canonical_id, "FAILED", error=_error("WORK_ASSIGNMENT_CHANGED", "Cannot bind acceptance to the current task and snapshot; inspect worker_wip again", operation_id=canonical_id, status=409)), 409
         accepted["admission"]["acceptance_decision"] = {

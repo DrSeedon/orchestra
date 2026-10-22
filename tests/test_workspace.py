@@ -1591,7 +1591,7 @@ class TestMergeTarget:
             ["git", "rev-parse", "HEAD"], cwd=child.path,
             capture_output=True, text=True, check=True,
         ).stdout.strip()
-        (Path(parent.path) / "local-wip.txt").write_text("do not touch")
+        (Path(parent.path) / "child.txt").write_text("do not touch")
 
         result = merge_worktree_to_main(
             child.path, str(git_repo), target_branch=parent.branch,
@@ -1599,7 +1599,7 @@ class TestMergeTarget:
 
         assert result["ok"] is False
         assert "target working tree is dirty" in result["error"]
-        assert "local-wip.txt" in result["error"]
+        assert "child.txt" in result["error"]
         assert subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=parent.path,
             capture_output=True, text=True, check=True,
@@ -1608,7 +1608,7 @@ class TestMergeTarget:
             ["git", "rev-parse", "HEAD"], cwd=child.path,
             capture_output=True, text=True, check=True,
         ).stdout.strip() == child_head
-        assert (Path(parent.path) / "local-wip.txt").read_text() == "do not touch"
+        assert (Path(parent.path) / "child.txt").read_text() == "do not touch"
         assert subprocess.run(
             ["git", "stash", "list"], cwd=git_repo,
             capture_output=True, text=True, check=True,
@@ -1648,12 +1648,12 @@ class TestMergeTarget:
         from app.workspace import merge_worktree_to_main
 
         wt = self._wt_with_commit(git_repo, wt_root, "worker-4", "main")
-        (Path(git_repo) / "dirty.txt").write_text("dirty")
+        (Path(git_repo) / "new.txt").write_text("dirty")
 
         res = merge_worktree_to_main(wt.path, str(git_repo))
         assert res.get("ok") is False
         assert "target working tree is dirty" in res["error"]
-        assert "dirty.txt" in res["error"]
+        assert "new.txt" in res["error"]
         assert subprocess.run(
             ["git", "stash", "list"], cwd=git_repo,
             capture_output=True, text=True, check=True,
@@ -1688,14 +1688,14 @@ class TestMergeTarget:
             ["git", "commit", "-m", "second work"], cwd=second.path,
             capture_output=True, check=True,
         )
-        (Path(git_repo) / "human-wip.txt").write_text("do not hide me")
+        (Path(git_repo) / "second.txt").write_text("do not hide me")
         system._publish_bug_record("second external report")
 
         dirty_result = merge_worktree_to_main(second.path, str(git_repo))
 
         assert dirty_result["ok"] is False
         assert "target working tree is dirty" in dirty_result["error"]
-        assert "human-wip.txt" in dirty_result["error"]
+        assert "second.txt" in dirty_result["error"]
 
     def test_related_commit_failure_rolls_back_target_and_preserves_worker(
         self, git_repo, wt_root,

@@ -1,0 +1,269 @@
+...................................F.F.................................. [ 41%]
+.........F........................................F.FF.................. [ 83%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+_____________ test_abbreviated_head_is_the_same_commit_not_a_drift _____________
+
+work = (<module 'app.db' from 'app/db.py'...at 0x7a4771334e00>, {'artifact_bytes': None, 'artifact_exists': None, 'artifact_path': '', 'artifact_sha256': '', ...})
+
+    async def test_abbreviated_head_is_the_same_commit_not_a_drift(work):
+        """Сокращённый хеш — это git-способ назвать коммит, а не другой коммит.
+    
+        Раньше приёмка сравнивала строки байт в байт и на том же самом коммите
+        отвечала «HEAD воркера отличается»: причина в отказе называлась ложная.
+        """
+        _db,_ops,_repo,snapshot,_run=work
+        result,status=await submit(work,expected_head=snapshot('sid')['worker_head'][:12])
+>       assert status==202, result
+E       AssertionError: {'commit_point': 'NOT_REACHED', 'error': {'code': 'WORK_ACCEPTANCE_REQUIRED', 'details': {}, 'message': 'expected_head...s': [], 'status': 'FAILED', 'target_after': None, 'target_before': None, ...}, 'lifecycle': {'status': 'NOT_RUN'}, ...}
+E       assert 409 == 202
+
+tests/test_work_acceptance.py:77: AssertionError
+____________ test_caller_cannot_forge_acceptance_actor_in_http_body ____________
+
+work = (<module 'app.db' from 'app/db.py'...at 0x7a4771337d80>, {'artifact_bytes': None, 'artifact_exists': None, 'artifact_path': '', 'artifact_sha256': '', ...})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a47719a1940>
+
+    async def test_caller_cannot_forge_acceptance_actor_in_http_body(work,monkeypatch):
+        from app.routes.merge_operations import create_merge_operation
+        from app.mcp_proof import issue_mcp_proof
+        import app.auth as auth
+        monkeypatch.setattr(auth,'validate_session',lambda *_:False)
+        _db,_ops,repo,snapshot,_run=work
+        req=dict(operation_id=str(uuid.uuid4()),name='worker',scope=str(repo),expected_head=snapshot('sid')['worker_head'],acceptance_note='Ready',accepting_actor='owner')
+        request=Request({'type':'http','headers':[(b'x-orchestra-session-id',b'sid'),(b'x-orchestra-mcp-proof',issue_mcp_proof('sid').encode())]})
+        response=await create_merge_operation(req,request)
+        assert response.status_code==403
+        parent=Request({'type':'http','headers':[(b'x-orchestra-session-id',b'parent'),(b'x-orchestra-mcp-proof',issue_mcp_proof('parent').encode())]})
+        response=await create_merge_operation(req,parent)
+>       assert response.status_code==202
+E       assert 409 == 202
+E        +  where 409 = <starlette.responses.JSONResponse object at 0x7a4771a73c20>.status_code
+
+tests/test_work_acceptance.py:103: AssertionError
+_____________ TestCreateWorktree.test_different_repos_no_collision _____________
+
+self = <tests.test_workspace.TestCreateWorktree object at 0x7a47752ff8f0>
+tmp_path = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0')
+git_repo = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/worktrees')
+
+    def test_different_repos_no_collision(self, tmp_path, git_repo, wt_root):
+        from app.workspace import create_worktree
+        other = tmp_path / "other-repo"
+        other.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.name", "t"], cwd=other, check=True)
+        (other / "f.txt").write_text("x")
+        subprocess.run(["git", "add", "-A"], cwd=other, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=other, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=other, check=True)
+    
+        wt1 = create_worktree(str(git_repo), "worker-1")
+>       wt2 = create_worktree(str(other), "worker-1")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_workspace.py:468: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_path = '.orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/other-repo'
+name = 'worker-1', task_id = '', base_branch = '', worktree_cfg = None
+base_commit = '', sparse_task_id = ''
+
+    def create_worktree(repo_path: str, name: str, task_id: str = "",
+                        base_branch: str = "",
+                        worktree_cfg: "WorktreeCfg | None" = None,
+                        base_commit: str = "", sparse_task_id: str = "") -> Worktree:
+        repo = validate_repo_root(repo_path)
+        if base_branch and base_commit:
+            raise ValueError("pass either base_branch or base_commit, not both")
+        with repo_mutation_lock(repo):
+            if base_commit:
+                base_ref = _resolve_commit_oid(repo, base_commit)
+            else:
+                base_ref = resolve_base_branch(str(repo), base_branch)
+    
+            # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
+            # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
+            repo_slug = _slugify(str(repo))
+            wt_dir = WORKTREE_ROOT / repo_slug
+            _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
+            wt_path = wt_dir / name
+    
+            if task_id:
+                par = _normalize_task_id(task_id)
+                branch = f"task-{par}/{name}"
+            else:
+                branch = f"feat/{repo_slug}/{name}"
+    
+            if wt_path.exists():
+>               raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
+E               ValueError: worktree already exists: .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker-1. Remove session first.
+
+app/workspace.py:751: ValueError
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo — copy skipped
+'.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo — copy skipped
+'.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo — copy skipped
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:834 'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_different_repos_no_collis0/repo — copy skipped
+___ TestMergeTarget.test_dirty_checked_out_target_is_rejected_without_stash ____
+
+self = <tests.test_workspace.TestMergeTarget object at 0x7a47753069c0>
+git_repo = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/worktrees')
+
+    def test_dirty_checked_out_target_is_rejected_without_stash(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, merge_worktree_to_main
+    
+        parent = create_worktree(str(git_repo), "parent", base_branch="main")
+        child = create_worktree(
+            str(git_repo), "child", task_id="90", base_branch=parent.branch,
+        )
+        (Path(child.path) / "child.txt").write_text("child work")
+        subprocess.run(["git", "add", "child.txt"], cwd=child.path, check=True)
+        subprocess.run(["git", "commit", "-m", "child work"], cwd=child.path, check=True)
+        parent_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=parent.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        child_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        (Path(parent.path) / "local-wip.txt").write_text("do not touch")
+    
+        result = merge_worktree_to_main(
+            child.path, str(git_repo), target_branch=parent.branch,
+        )
+    
+>       assert result["ok"] is False
+E       assert True is False
+
+tests/test_workspace.py:1600: AssertionError
+----------------------------- Captured stdout call -----------------------------
+[task-90/child c5e45da] child work
+ 1 file changed, 1 insertion(+)
+ create mode 100644 child.txt
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+'.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+'.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+'.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+'.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+_reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/child reset to feat/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/parent (c5e45da9)
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:834 'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/repo — copy skipped
+INFO     app.workspace:workspace.py:1485 _reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_dirty_checked_out_target_0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/child reset to feat/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/parent (c5e45da9)
+_____ TestMergeTarget.test_dirty_primary_target_is_rejected_without_stash ______
+
+self = <tests.test_workspace.TestMergeTarget object at 0x7a47752e4710>
+git_repo = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/worktrees')
+
+    def test_dirty_primary_target_is_rejected_without_stash(self, git_repo, wt_root):
+        from app.workspace import merge_worktree_to_main
+    
+        wt = self._wt_with_commit(git_repo, wt_root, "worker-4", "main")
+        (Path(git_repo) / "dirty.txt").write_text("dirty")
+    
+        res = merge_worktree_to_main(wt.path, str(git_repo))
+>       assert res.get("ok") is False
+E       AssertionError: assert True is False
+E        +  where True = <built-in method get of dict object at 0x7a476a9dc9c0>('ok')
+E        +    where <built-in method get of dict object at 0x7a476a9dc9c0> = {'branch': 'feat/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker-4', 'commit_point': 'target_committed', 'commits_merged': 1, 'conflicts': [], ...}.get
+
+tests/test_workspace.py:1654: AssertionError
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo — copy skipped
+'.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo — copy skipped
+'.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo — copy skipped
+_reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker-4 reset to main (0a9cbc74)
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:834 'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/repo — copy skipped
+INFO     app.workspace:workspace.py:1485 _reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_dirty_primary_target_is_r0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/worker-4 reset to main (0a9cbc74)
+_ TestMergeTarget.test_external_bug_report_does_not_weaken_dirty_target_guard __
+
+self = <tests.test_workspace.TestMergeTarget object at 0x7a47752b8500>
+git_repo = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/worktrees')
+tmp_path = PosixPath('.orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a4770165b20>
+
+    def test_external_bug_report_does_not_weaken_dirty_target_guard(
+        self, git_repo, wt_root, tmp_path, monkeypatch,
+    ):
+        import app.routes.system as system
+        from app.workspace import create_worktree, merge_worktree_to_main
+    
+        monkeypatch.setattr(system, "_BUG_STATE_ROOT_CACHE", tmp_path / "state")
+        monkeypatch.setattr(system, "_BUG_VALIDATED_DIRS", {})
+        first = self._wt_with_commit(git_repo, wt_root, "bug-report-clean", "main")
+        system._publish_bug_record("external report")
+    
+        clean_result = merge_worktree_to_main(first.path, str(git_repo))
+    
+        assert clean_result["ok"] is True
+        assert subprocess.run(
+            ["git", "status", "--porcelain"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+    
+        second = create_worktree(str(git_repo), "bug-report-dirty", base_branch="main")
+        (Path(second.path) / "second.txt").write_text("second")
+        subprocess.run(
+            ["git", "add", "second.txt"], cwd=second.path,
+            capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "second work"], cwd=second.path,
+            capture_output=True, check=True,
+        )
+        (Path(git_repo) / "human-wip.txt").write_text("do not hide me")
+        system._publish_bug_record("second external report")
+    
+        dirty_result = merge_worktree_to_main(second.path, str(git_repo))
+    
+>       assert dirty_result["ok"] is False
+E       assert True is False
+
+tests/test_workspace.py:1696: AssertionError
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+'.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+'.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+_reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/bug-report-clean reset to main (e0a563ee)
+'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+'.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+'.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+_reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/bug-report-dirty reset to main (c6c12795)
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:834 'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+INFO     app.workspace:workspace.py:1485 _reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/bug-report-clean reset to main (e0a563ee)
+INFO     app.workspace:workspace.py:834 'CLAUDE.md' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.mcp.json' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+INFO     app.workspace:workspace.py:834 '.env' is tracked by .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/repo — copy skipped
+INFO     app.workspace:workspace.py:1485 _reset_worktree_to_ref: .orchestra/tasks/V-1034/pytest-tmp/test_external_bug_report_does_0/worktrees/home-<hub-user>-orchestra-ws-vmi3407579-hub-51c41c2e0f074a/bug-report-dirty reset to main (c6c12795)
+=========================== short test summary info ============================
+FAILED tests/test_work_acceptance.py::test_abbreviated_head_is_the_same_commit_not_a_drift
+FAILED tests/test_work_acceptance.py::test_caller_cannot_forge_acceptance_actor_in_http_body
+FAILED tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision
+FAILED tests/test_workspace.py::TestMergeTarget::test_dirty_checked_out_target_is_rejected_without_stash
+FAILED tests/test_workspace.py::TestMergeTarget::test_dirty_primary_target_is_rejected_without_stash
+FAILED tests/test_workspace.py::TestMergeTarget::test_external_bug_report_does_not_weaken_dirty_target_guard
+6 failed, 166 passed in 30.64s

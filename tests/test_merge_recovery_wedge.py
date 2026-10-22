@@ -73,7 +73,7 @@ async def _merge_then_rewind_to_crash(monkeypatch, tmp_path, *, worker: str):
             "UPDATE tm_tasks SET worker_session_id=? WHERE id=?", (worker, task["id"]),
         )
     worktree = workspace.create_worktree(scope, worker, task_id="42")
-    _commit_file(worktree.path, "wedge.txt", "#42: wedge recovery")
+    head = _commit_file(worktree.path, "wedge.txt", "#42: wedge recovery")
     _save_worker(
         session_id=worker, task_id="42", scope=scope,
         worktree_path=worktree.path, branch=worktree.branch,
@@ -99,6 +99,8 @@ async def _merge_then_rewind_to_crash(monkeypatch, tmp_path, *, worker: str):
         "scope": found.scope,
         "task_outcome": "complete",
         "merge_schema_version": 2,
+        "expected_head": head,
+        "acceptance_note": "Accepted after inspecting the worker result; recovery is under test.",
     }
     await merge_route.create_merge_operation(request)
     await asyncio.gather(*list(operations._runner_tasks.values()))

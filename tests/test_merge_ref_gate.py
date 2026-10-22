@@ -219,9 +219,9 @@ def test_one_task_number_is_named_once_in_the_squash_header():
     from app.workspace import _build_squash_message
 
     assert _build_squash_message("x", ["#248: a", "PAR-248: b"]).splitlines()[0] == (
-        "#248: a"
+        "#248: b"
     )
-    assert _build_squash_message("x", ["ORC-1: a", "#1: b"]).splitlines()[0] == "#1: a"
+    assert _build_squash_message("x", ["ORC-1: a", "#1: b"]).splitlines()[0] == "#1: b"
     assert _build_squash_message("x", ["#42: a", "#44: b"]).splitlines()[0] == (
-        "#42, #44: a"
+        "#42, #44: b"
     )

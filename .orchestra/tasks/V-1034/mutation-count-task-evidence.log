@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_evidence_excluded_and_reported_but_lookalike_counts ___________
+
+git_repo = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_evidence_excluded_and_rep0/repo')
+wt_root = PosixPath('.orchestra/tasks/V-1034/mutation-tmp/test_evidence_excluded_and_rep0/worktrees')
+
+    def test_evidence_excluded_and_reported_but_lookalike_counts(git_repo, wt_root):
+        from app.workspace import merge_worktree_to_main
+        from app.diff_budget import measure_insertion_counts, measure_insertions
+        wt = _commit_in_worktree(git_repo, wt_root, 'evidence', '.orchestra/tasks/V-1034/copied.patch', 'x\n' * 2200, 'V-1034: Evidence')
+        (Path(wt.path) / 'feature.txt').write_text('x\n' * 2000)
+        git(wt.path, 'add', '.')
+        git(wt.path, 'commit', '-m', 'V-1034: At the code budget')
+>       assert measure_insertion_counts(wt.path, 'main') == (2000, 2200)
+E       assert (4200, 0) == (2000, 2200)
+E         
+E         At index 0 diff: 4200 != 2000
+E         Use -v to get more diff
+
+tests/test_merge_worker_v1034.py:52: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_worker_v1034.py::test_evidence_excluded_and_reported_but_lookalike_counts
+1 failed in 4.74s

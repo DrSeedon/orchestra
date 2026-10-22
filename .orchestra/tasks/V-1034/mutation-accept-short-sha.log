@@ -1,0 +1,21 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_short_sha_is_refused_before_operation_creation ______________
+
+work = (<module 'app.db' from 'app/db.py'...at 0x7e3b7a92d760>, {'artifact_bytes': None, 'artifact_exists': None, 'artifact_path': '', 'artifact_sha256': '', ...})
+
+    @pytest.mark.asyncio
+    async def test_short_sha_is_refused_before_operation_creation(work):
+        from tests.test_work_acceptance import submit
+        result, status = await submit(work, expected_head=work[3]('sid')['worker_head'][:12])
+        assert status == 409, result
+>       assert result['error']['message'] == 'expected_head must be the full 40-character SHA from worker_wip'
+E       AssertionError: assert 'Worker HEAD ...he new result' == 'expected_hea...om worker_wip'
+E         
+E         - expected_head must be the full 40-character SHA from worker_wip
+E         + Worker HEAD is bbc762fdeda2b81998aed6fcd14a1ed2c6e9977e, you accepted bbc762fdeda2; inspect the new result
+
+tests/test_merge_worker_v1034.py:213: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_worker_v1034.py::test_short_sha_is_refused_before_operation_creation
+1 failed in 3.98s

@@ -12,7 +12,8 @@ import shutil
 import subprocess
 import tempfile
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Literal, NotRequired, TypedDict
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
 WORKFLOW_RUN_ROOT = Path(__file__).parent.parent / "data" / "workflow-runs"
+_merge_index: ContextVar[dict | None] = ContextVar("merge_index", default=None)
 # Files copied into each new worktree so workers get project config without
 # being on the main branch (CLAUDE.md = project rules, .env = secrets, .mcp.json = tools)
 PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
@@ -134,6 +136,11 @@ def _apply_symlink(repo: Path, wt_path: Path, sl: "Symlink") -> None:
 
 def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     """Run command as agent user if ORCHESTRA_AGENT_UID is set (cap_drop=ALL workaround)."""
+    index = _merge_index.get()
+    if index and Path(kwargs.get("cwd") or ".").resolve() == index["worktree"]:
+        env = {**(kwargs.get("env") or os.environ)}
+        env.setdefault("GIT_INDEX_FILE", index["path"])
+        kwargs["env"] = env
     agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
     if agent_uid:
         import shutil as _sh
@@ -1040,25 +1047,87 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
     return Path(fallback_repo).resolve()
 
 
-def _clean_worktree_error(path: Path, label: str) -> str | None:
+def _clean_worktree_error(
+    path: Path, label: str, changed_paths: list[str] | None = None,
+) -> str | None:
     status = _git_cmd(
-        ["git", "status", "--porcelain"],
+        ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
         cwd=str(path), capture_output=True, text=True,
     )
     if status.returncode != 0:
         detail = status.stderr.strip() or status.stdout.strip()
         return f"cannot inspect {label} working tree: {detail}"
-    dirty_lines = [line for line in status.stdout.splitlines() if line]
+    records = iter(status.stdout.split("\0"))
+    dirty_files = []
+    for record in records:
+        if not record:
+            continue
+        paths = [record[3:]]
+        if "R" in record[:2] or "C" in record[:2]:
+            paths.append(next(records, ""))
+        for dirty in paths:
+            if changed_paths is None or any(
+                dirty == changed or dirty.startswith(changed + "/")
+                or changed.startswith(dirty + "/") for changed in changed_paths
+            ):
+                dirty_files.append(dirty)
+    dirty_lines = dirty_files
     if not dirty_lines:
         return None
-    dirty_files = [line[3:] for line in dirty_lines[:10]]
     suffix = f", +{len(dirty_lines) - 10} more" if len(dirty_lines) > 10 else ""
     return (
         f"{label} working tree is dirty at '{path.resolve()}' "
         f"({len(dirty_lines)} file(s): "
-        f"{', '.join(dirty_files)}{suffix}) — commit or discard first"
-        + _sparse_hidden_hint(path, [line[3:] for line in dirty_lines])
+        f"{', '.join(dirty_files[:10])}{suffix}) — commit or discard first"
+        + _sparse_hidden_hint(path, dirty_files)
     )
+
+
+@contextmanager
+def _isolated_merge_index(path: Path):
+    """Keep unrelated staged work out of the squash, and preserve it on rollback."""
+    before = _git_cmd(["git", "rev-parse", "HEAD"], cwd=str(path), capture_output=True, text=True)
+    git_dir = _git_cmd(["git", "rev-parse", "--absolute-git-dir"], cwd=str(path), capture_output=True, text=True)
+    if before.returncode or git_dir.returncode:
+        raise RuntimeError("cannot prepare isolated merge index")
+    fd, filename = tempfile.mkstemp(prefix="orchestra-merge-index-", dir=git_dir.stdout.strip())
+    os.close(fd)
+    os.unlink(filename)  # read-tree needs either a valid index or an absent file.
+    index = {"worktree": path.resolve(), "path": filename, "status": ""}
+    token = _merge_index.set(index)
+    retain = False
+    try:
+        read = _git_cmd(["git", "read-tree", "HEAD"], cwd=str(path), capture_output=True, text=True)
+        status = _git_cmd(["git", "status", "--porcelain"], cwd=str(path), capture_output=True, text=True)
+        if read.returncode or status.returncode:
+            raise RuntimeError("cannot initialize isolated merge index")
+        index["status"] = status.stdout
+        yield
+    finally:
+        _merge_index.reset(token)
+        # Update only landed paths in the real index; unrelated staged/unstaged
+        # changes remain byte-for-byte as the owner left them.
+        changed = _git_cmd(
+            ["git", "diff", "--name-only", "--no-renames", "-z", before.stdout.strip(), "HEAD"],
+            cwd=str(path), capture_output=True, text=True,
+        )
+        try:
+            if changed.returncode:
+                raise RuntimeError("cannot inspect landed paths for index reconciliation")
+            paths = [p for p in changed.stdout.split("\0") if p]
+            if paths:
+                sync = _git_cmd(
+                    ["git", "--literal-pathspecs", "reset", "-q", "HEAD", "--pathspec-from-file=-", "--pathspec-file-nul"],
+                    input="\0".join(paths) + "\0", cwd=str(path), capture_output=True, text=True,
+                )
+                if sync.returncode:
+                    raise RuntimeError("cannot reconcile target index after merge")
+        except Exception:
+            retain = True
+            raise
+        finally:
+            if not retain:
+                Path(filename).unlink(missing_ok=True)
 
 
 def _sparse_hidden_hint(path: Path, dirty: list[str]) -> str:
@@ -1208,7 +1277,7 @@ def _strip_leading_task_refs(summary: str) -> str:
     return _HEADER_TASK_REFS_RE.sub("", summary, count=1).lstrip()
 
 
-def _build_squash_message(branch: str, messages: list[str]) -> str:
+def _build_squash_message(branch: str, messages: list[str], acceptance_note: str = "") -> str:
     """Build squash commit message with task refs prefix and message list.
 
     Squash merge collapses N worker commits into one clean main-branch commit.
@@ -1222,8 +1291,10 @@ def _build_squash_message(branch: str, messages: list[str]) -> str:
         if numeric not in all_refs:
             all_refs.append(numeric)
 
-    if messages:
-        summary = messages[-1] if len(messages) == 1 else messages[0]
+    if acceptance_note.strip():
+        summary = acceptance_note.strip().splitlines()[0]
+    elif messages:
+        summary = messages[-1]
     else:
         summary = f"merge {branch}"
     summary = _strip_leading_task_refs(summary)
@@ -1243,8 +1314,9 @@ def _validated_squash_message(
     candidate_refs: list[str],
     primary_task_ref: str,
     operation_id: str = "",
+    acceptance_note: str = "",
 ) -> str:
-    message = _build_squash_message(branch, messages)
+    message = _build_squash_message(branch, messages, acceptance_note)
     expected_refs = candidate_refs or ([primary_task_ref] if primary_task_ref else [])
     if not candidate_refs and primary_task_ref:
         message = f"{primary_task_ref if primary_task_ref.startswith('V-') else '#' + primary_task_ref}: {message}"
@@ -1269,8 +1341,10 @@ def _rollback_merge_target(repo: str, old_head: str, error: str) -> dict:
             "state": "rollback_failed",
             "error": f"{error}; rollback failed: original target HEAD is unknown",
         }
+    index = _merge_index.get()
+    isolated = index and Path(repo).resolve() == index["worktree"]
     reset = _git_cmd(
-        ["git", "reset", "--hard", old_head],
+        ["git", "reset", "--merge" if isolated else "--hard", old_head],
         cwd=repo, capture_output=True, text=True,
     )
     if reset.returncode != 0:
@@ -1292,7 +1366,7 @@ def _rollback_merge_target(repo: str, old_head: str, error: str) -> dict:
         head.returncode != 0
         or head.stdout.strip() != old_head
         or status.returncode != 0
-        or status.stdout.strip()
+        or status.stdout != (index["status"] if isolated else "")
     ):
         detail = status.stderr.strip() or status.stdout.strip() or head.stderr.strip()
         return {
@@ -1510,6 +1584,7 @@ def merge_worktree_to_main(
     prepare: Callable[[str, str], None] | None = None,
     resolve_refs: Callable[[list[str]], list[str]] | None = None,
     commit_receipt: Callable[[dict], dict] | None = None,
+    acceptance_note: str = "",
 ) -> MergeOutcome:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
@@ -1519,6 +1594,7 @@ def merge_worktree_to_main(
     worker_head = ""
     target_before = ""
     diff_insertions = None
+    diff_excluded_insertions = None
     target_after = ""
     worker_branch = ""
     mutation_started = False
@@ -1528,7 +1604,7 @@ def merge_worktree_to_main(
     prepared_squash_message = ""
     reset_worker_pending = False
 
-    with repo_mutation_lock(repo):
+    with repo_mutation_lock(repo), ExitStack() as merge_context:
         try:
             target_branch = resolve_base_branch(str(repo), target_branch)
         except Exception as e:
@@ -1608,9 +1684,9 @@ def merge_worktree_to_main(
                     from app.diff_budget import (
                         MAX_DIFF_INSERTIONS,
                         budget_error,
-                        measure_insertions,
+                        measure_insertion_counts,
                     )
-                    diff_insertions = measure_insertions(str(wt), target_branch)
+                    diff_insertions, diff_excluded_insertions = measure_insertion_counts(str(wt), target_branch)
                     budget = (
                         ""
                         if waive_diff_budget
@@ -1687,6 +1763,7 @@ def merge_worktree_to_main(
                                         "conflicts": [],
                                         "commits_merged": 0,
                                         "diff_insertions": diff_insertions,
+                                        "diff_excluded_insertions": diff_excluded_insertions,
                                     }
                         if result is None and (
                             expected_candidate_refs is not None or resolve_refs is not None
@@ -1717,6 +1794,7 @@ def merge_worktree_to_main(
                                     task_refs,
                                     primary_task_ref,
                                     operation_id,
+                                    acceptance_note,
                                 )
                             except (RuntimeError, ValueError) as e:
                                 result = {"ok": False, "error": str(e)}
@@ -1734,10 +1812,27 @@ def merge_worktree_to_main(
                                     "error": "worker branch cannot be merged into itself",
                                 }
                             else:
-                                target_error = _clean_worktree_error(target_wt, "target")
+                                base = _git_cmd(
+                                    ["git", "merge-base", target_before, worker_head],
+                                    cwd=str(wt), capture_output=True, text=True,
+                                )
+                                changed = _git_cmd(
+                                    ["git", "diff", "--name-only", "--no-renames", "-z",
+                                     base.stdout.strip() if base.returncode == 0 else "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+                                     worker_head],
+                                    cwd=str(wt), capture_output=True, text=True,
+                                )
+                                target_error = (
+                                    "cannot inspect branch changed paths"
+                                    if changed.returncode else _clean_worktree_error(
+                                        target_wt, "target", [p for p in changed.stdout.split("\0") if p],
+                                    )
+                                )
                                 if target_error:
                                     result = {"ok": False, "error": target_error}
                                 else:
+                                    if _clean_worktree_error(target_wt, "target"):
+                                        merge_context.enter_context(_isolated_merge_index(target_wt))
                                     if owner is None:
                                         # Цель ни в одном worktree не стоит — мержим в основном
                                         # checkout, запомнив его ветку для возврата в finally.
@@ -1920,7 +2015,9 @@ def merge_worktree_to_main(
                                                     worker_head,
                                                     old_head,
                                                     branch_name=branch,
-                                                    commit_message=prepared_squash_message,
+                                                    commit_message=(prepared_squash_message or _build_squash_message(
+                                                        branch, _get_commit_messages(merge_cwd, worker_head, ""), acceptance_note,
+                                                    )),
                                                 )
                                             else:
                                                 commits_result = _git_cmd(
@@ -1985,7 +2082,7 @@ def merge_worktree_to_main(
                                                         commit_msg = (
                                                             prepared_squash_message
                                                             or _build_squash_message(
-                                                                branch, messages,
+                                                                branch, messages, acceptance_note,
                                                             )
                                                         )
                                                         commit = _git_cmd(
@@ -2059,7 +2156,9 @@ def merge_worktree_to_main(
             )
             rollback_verified = (
                 final_target_status.returncode == 0
-                and not final_target_status.stdout.strip()
+                and final_target_status.stdout == (
+                    (_merge_index.get() or {}).get("status", "")
+                )
             )
 
         prior_state = result.get("state")
@@ -2109,6 +2208,7 @@ def merge_worktree_to_main(
             worker_head=worker_head,
             conflicts=result.get("conflicts", []),
             diff_insertions=diff_insertions,
+            diff_excluded_insertions=diff_excluded_insertions,
             diff_budget_limit=MAX_DIFF_INSERTIONS,
             diff_budget_waived=bool(waive_diff_budget),
             diff_budget_waived_by=waived_by if waive_diff_budget else "",

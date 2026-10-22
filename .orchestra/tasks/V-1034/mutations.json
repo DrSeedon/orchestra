@@ -1,0 +1,84 @@
+[
+  {
+    "case": "control",
+    "exit_code": 0,
+    "summary": "43 passed in 7.29s"
+  },
+  {
+    "case": "headline-first-commit",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_squash_uses_last_commit_subject"
+    ],
+    "summary": "1 failed in 6.00s"
+  },
+  {
+    "case": "headline-ignore-acceptance",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_squash_uses_acceptance_first_line_with_validated_refs"
+    ],
+    "summary": "1 failed in 6.32s"
+  },
+  {
+    "case": "count-task-evidence",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_evidence_excluded_and_reported_but_lookalike_counts"
+    ],
+    "summary": "1 failed in 4.74s"
+  },
+  {
+    "case": "block-all-target-dirt",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_unrelated_dirty_target_survives_and_stays_out_of_commit[False]",
+      "FAILED tests/test_merge_worker_v1034.py::test_unrelated_dirty_target_survives_and_stays_out_of_commit[True]"
+    ],
+    "summary": "2 failed in 4.59s"
+  },
+  {
+    "case": "accept-placeholder-note",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_acceptance_is_enforced_before_operation_creation[]",
+      "FAILED tests/test_merge_worker_v1034.py::test_acceptance_is_enforced_before_operation_creation[placeholder]",
+      "FAILED tests/test_merge_worker_v1034.py::test_acceptance_is_enforced_before_operation_creation[tbd]",
+      "FAILED tests/test_merge_worker_v1034.py::test_acceptance_is_enforced_before_operation_creation[-]",
+      "FAILED tests/test_merge_worker_v1034.py::test_acceptance_is_enforced_before_operation_creation[Too short]"
+    ],
+    "summary": "5 failed in 5.06s"
+  },
+  {
+    "case": "accept-short-sha",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_short_sha_is_refused_before_operation_creation"
+    ],
+    "summary": "1 failed in 3.98s"
+  },
+  {
+    "case": "full-output-by-default",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_compact_receipt_retains_only_failure_ids_and_required_fields"
+    ],
+    "summary": "1 failed in 3.62s"
+  },
+  {
+    "case": "ignore-verbose-option",
+    "exit_code": 1,
+    "killed": true,
+    "failing_ids": [
+      "FAILED tests/test_merge_worker_v1034.py::test_public_merge_worker_verbose_is_presentation_only"
+    ],
+    "summary": "1 failed in 3.22s"
+  }
+]

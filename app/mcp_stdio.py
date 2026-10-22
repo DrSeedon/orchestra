@@ -2500,7 +2500,56 @@ def _merge_payload_result(payload: Any) -> dict[str, Any]:
     return payload["result"]
 
 
-def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
+def _compact_merge_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Project durable detail into the receipt needed for the caller's next action."""
+    git = result.get("git") or {}
+    test = result.get("test_gate") or {}
+    mutation = result.get("mutation_gate") or test.get("mutation_gate") or {}
+
+    def gate(value: dict) -> dict:
+        return {
+            "status": value.get("status", "NOT_RUN"),
+            "reason": value.get("reason", ""),
+            "failed_tests": value.get("failed_tests", []) if value.get("status") == "FAILED" else [],
+        }
+
+    compact = {key: result[key] for key in (
+        "schema_version", "operation_id", "operation_state", "retryable", "commit_point",
+        "next_action", "completion", "progress", "is_terminal", "is_failure",
+    ) if key in result}
+    compact["git"] = {key: git[key] for key in (
+        "status", "target_branch", "target_after", "worker_branch", "commits_merged",
+        "head_drift", "worker_head", "worker_head_pinned", "diff_insertions", "diff_excluded_insertions",
+    ) if key in git}
+    compact["test_gate"] = gate(test)
+    compact["mutation_gate"] = gate(mutation)
+    error = result.get("error")
+    compact["error"] = None
+    if isinstance(error, dict):
+        compact["error"] = {key: error[key] for key in (
+            "code", "status", "retryable", "request_id", "retry_after_seconds", "outcome_unknown",
+        ) if key in error}
+        compact["error"]["message"] = str(error.get("message") or "")[:600]
+        exception_type = (error.get("details") or {}).get("exception_type")
+        if exception_type:
+            compact["error"]["details"] = {"exception_type": str(exception_type)[:100]}
+        if error.get("code") in {"TEST_GATE_FAILED", "TEST_GATE_INCONCLUSIVE", "TEST_MUTATION_GATE_FAILED"}:
+            compact["error"]["message"] = f"Merge gate {test.get('status', 'NOT_RUN')} ({test.get('reason', '')})"
+    elif error:
+        compact["error"] = str(error)[:600]
+    if result.get("warnings"):
+        compact["warnings"] = [
+            {"code": warning.get("code"), "message": str(warning.get("message") or "")[:300]}
+            for warning in result["warnings"][:5] if isinstance(warning, dict)
+        ]
+    return compact
+
+
+def _merge_tool_result(result: dict[str, Any], *, verbose: bool = False) -> CallToolResult:
+    return _merge_tool_result_full(result if verbose else _compact_merge_result(result))
+
+
+def _merge_tool_result_full(result: dict[str, Any]) -> CallToolResult:
     operation_id = str(result.get("operation_id") or "unknown")
     state = str(result.get("operation_state") or "UNKNOWN").upper()
     error = result.get("error")
@@ -2702,8 +2751,12 @@ async def merge_worker(
     expected_head: str = "",
     acceptance_note: str = "",
     task_id: str = "",
+    verbose: bool = False,
 ) -> CallToolResult:
-    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. On a taskless adhoc branch, task_id promotes committed work to the named task before merging; omitting task_id refuses a strict task-lifecycle merge."""
+    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. The default receipt is compact; verbose=true returns full gate output and durable detail. Acceptance needs a full 40-character SHA and a meaningful note of at least 15 characters. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. On a taskless adhoc branch, task_id promotes committed work to the named task before merging; omitting task_id refuses a strict task-lifecycle merge."""
+    def render(result: dict[str, Any]) -> CallToolResult:
+        return _merge_tool_result(result, verbose=True) if verbose else _merge_tool_result(result)
+
     task_id = task_id.strip()
     task_outcome = task_outcome.strip().lower()
     if task_id and not task_outcome:
@@ -2745,7 +2798,7 @@ async def merge_worker(
                     **capability_error.details,
                 },
             )
-            return _merge_tool_result(result)
+            return render(result)
         capabilities = (
             capability.get("capabilities", [])
             if isinstance(capability, dict) else []
@@ -2768,9 +2821,9 @@ async def merge_worker(
                 target=target,
                 details={"server_capability": capability},
             )
-            return _merge_tool_result(result)
+            return render(result)
         if (expected_head or acceptance_note) and "work-review-v2" not in capabilities:
-            return _merge_tool_result(_merge_local_result(operation_id, "FAILED", code="MERGE_API_UPGRADE_REQUIRED", message="The server cannot bind work acceptance to expected_head; reconnect after the server upgrade. No merge attempted.", retryable=False, outcome_unknown=False, target=target, details={"required_capability": "work-review-v2"}))
+            return render(_merge_local_result(operation_id, "FAILED", code="MERGE_API_UPGRADE_REQUIRED", message="The server cannot bind work acceptance to expected_head; reconnect after the server upgrade. No merge attempted.", retryable=False, outcome_unknown=False, target=target, details={"required_capability": "work-review-v2"}))
         merge_schema_version = 2 if task_outcome else None
     body = {
         "operation_id": operation_id,
@@ -2853,7 +2906,7 @@ async def merge_worker(
             if job_id and result.get("operation_state") not in {"PENDING", "RUNNING"}:
                 if await _cancel_completion_job(job_id):
                     result.pop("completion", None)
-        return _merge_tool_result(result)
+        return render(result)
     except Exception as exc:
         result = _merge_local_result(
             operation_id,
@@ -2865,7 +2918,7 @@ async def merge_worker(
             target=target,
             details={"exception_type": type(exc).__name__},
         )
-        return _merge_tool_result(result)
+        return render(result)
 
 
 @mcp.tool()

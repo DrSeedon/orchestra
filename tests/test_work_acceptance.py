@@ -66,16 +66,12 @@ async def test_acceptance_refuses_missing_authority_or_changed_subject(work,extr
         assert c.execute('SELECT count(*) FROM merge_operations').fetchone()[0]==0
 
 
-async def test_abbreviated_head_is_the_same_commit_not_a_drift(work):
-    """Сокращённый хеш — это git-способ назвать коммит, а не другой коммит.
-
-    Раньше приёмка сравнивала строки байт в байт и на том же самом коммите
-    отвечала «HEAD воркера отличается»: причина в отказе называлась ложная.
-    """
+async def test_abbreviated_head_requires_full_worker_wip_sha(work):
+    """V-1034: acceptance requires an unambiguous full worker_wip SHA."""
     _db,_ops,_repo,snapshot,_run=work
     result,status=await submit(work,expected_head=snapshot('sid')['worker_head'][:12])
-    assert status==202, result
-    assert result['admission']['acceptance_decision']['head']==snapshot('sid')['worker_head']
+    assert status==409, result
+    assert result['error']['message']=='expected_head must be the full 40-character SHA from worker_wip'
 
 
 async def test_real_drift_names_both_commits(work):
@@ -94,7 +90,7 @@ async def test_caller_cannot_forge_acceptance_actor_in_http_body(work,monkeypatc
     import app.auth as auth
     monkeypatch.setattr(auth,'validate_session',lambda *_:False)
     _db,_ops,repo,snapshot,_run=work
-    req=dict(operation_id=str(uuid.uuid4()),name='worker',scope=str(repo),expected_head=snapshot('sid')['worker_head'],acceptance_note='Ready',accepting_actor='owner')
+    req=dict(operation_id=str(uuid.uuid4()),name='worker',scope=str(repo),expected_head=snapshot('sid')['worker_head'],acceptance_note='Accepted after inspecting the diff',accepting_actor='owner')
     request=Request({'type':'http','headers':[(b'x-orchestra-session-id',b'sid'),(b'x-orchestra-mcp-proof',issue_mcp_proof('sid').encode())]})
     response=await create_merge_operation(req,request)
     assert response.status_code==403

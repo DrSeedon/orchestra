@@ -1,0 +1,44 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_t2_dirty_target_path_files_and_action_reach_merge_caller _________
+
+tmp_path = PosixPath('.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_dirty_target_path_file0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74943f9cb410>
+
+    def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
+        tmp_path, monkeypatch,
+    ):
+        import app.mcp_stdio as mcp
+        import app.merge_operations as operations
+        import app.workspace as workspace
+    
+        repo = _make_repo(tmp_path)
+        worktree_root = tmp_path / "worktrees"
+        worktree_root.mkdir()
+        monkeypatch.setattr(workspace, "WORKTREE_ROOT", worktree_root)
+        worker = workspace.create_worktree(
+            str(repo), "reason-worker", task_id="416", base_branch="main",
+        )
+        worker_path = Path(worker.path)
+        (worker_path / "worker.txt").write_text("worker payload\n")
+        _git(worker_path, "add", "worker.txt")
+        _git(worker_path, "commit", "-m", "#416: worker payload")
+        dirty_file = repo / "worker.txt"
+        dirty_file.write_text("untracked target WIP\n")
+        target_before = _git(repo, "rev-parse", "main").stdout.strip()
+    
+        raw = workspace.merge_worktree_to_main(
+            worker.path, str(repo), target_branch="main", waive_diff_budget=True,
+        )
+    
+        # The first assertion isolates the workspace message from normalization.
+>       assert str(repo.resolve()) in raw["error"]
+E       AssertionError: assert '.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_dirty_target_path_file0/repo' in 'target working tree is dirty (1 file(s): worker.txt) — commit or discard first'
+E        +  where '.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_dirty_target_path_file0/repo' = str(PosixPath('.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_dirty_target_path_file0/repo'))
+E        +    where PosixPath('.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_dirty_target_path_file0/repo') = resolve()
+E        +      where resolve = PosixPath('.orchestra/tasks/V-1034/v416-mutation-tmp/test_t2_dirty_target_path_file0/repo').resolve
+
+tests/test_merge_reason_preservation_416.py:106: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_reason_preservation_416.py::test_t2_dirty_target_path_files_and_action_reach_merge_caller
+1 failed in 3.84s

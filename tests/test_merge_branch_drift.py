@@ -90,11 +90,20 @@ def _target_commit_count(repo) -> int:
 
 async def _merge(env, operation_id: str) -> dict:
     operations = env["operations"]
+    record = operations.get_operation_record(operation_id)
+    acceptance = (
+        {key: record["request"][key] for key in ("expected_head", "acceptance_note") if key in record["request"]}
+        if record else {
+            "expected_head": _git(env["wt"], "rev-parse", "HEAD"),
+            "acceptance_note": "Accepted the worker result after checking its current HEAD.",
+        }
+    )
     result, _status = await operations.accept_merge_operation(
         operation_id=operation_id,
         name="drift-worker",
         scope=str(env["repo"]),
         target="main",
+        **acceptance,
     )
     task = operations._runner_tasks.get(result["operation_id"])
     if task is None:
@@ -363,4 +372,3 @@ async def test_finalize_action_no_longer_forbids_verification(drift_env):
     assert "do not manually apply the Git merge" in message
     assert "do not repeat or manually apply" not in message
     assert "worker_wip" in message
-

@@ -1,0 +1,26 @@
+[
+  {
+    "mutation": "omit-target-repo-path",
+    "detected": true,
+    "exit_code": 1,
+    "failed_tests": [
+      "FAILED tests/test_merge_reason_preservation_416.py::test_t2_dirty_target_path_files_and_action_reach_merge_caller"
+    ]
+  },
+  {
+    "mutation": "omit-overlap-guard",
+    "detected": true,
+    "exit_code": 1,
+    "failed_tests": [
+      "FAILED tests/test_merge_reason_preservation_416.py::test_t2_dirty_target_path_files_and_action_reach_merge_caller"
+    ]
+  },
+  {
+    "mutation": "block-unrelated-dirt",
+    "detected": true,
+    "exit_code": 1,
+    "failed_tests": [
+      "FAILED tests/test_merge_reason_preservation_416.py::test_t2_unrelated_dirty_target_allows_merge_and_preserves_file"
+    ]
+  }
+]

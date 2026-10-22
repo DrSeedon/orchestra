@@ -167,6 +167,8 @@ async def test_concurrent_keys_start_exactly_one_executor_and_survive_request_re
             name="worker",
             scope="/scope/",
             target="main",
+            expected_head="b" * 40,
+            acceptance_note="Accepted after inspecting the pinned worker result.",
         )
         for operation_id in ids
     ])
