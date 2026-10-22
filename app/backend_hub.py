@@ -416,6 +416,10 @@ class HubBackend:
             state.remote_dir = await ssh.dir_for(state.ws_id)
             self._state = state
             state.save()   # before any hub write, so a crash leaves a record the sweep can release
+            try:
+                await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc)
+            except Exception as exc:
+                logger.warning("hub previous workspace release incomplete (state kept for sweep): %s", exc)
         # A record exists from the first attempt on, but the workspace only from the first upload that
         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
         fresh = not (state.uploaded or state.manifest)
@@ -740,17 +744,19 @@ class HubBackend:
             project_docs=getattr(prepared, "project_docs", ()), mcp_servers={})
 
 
-async def release_for_worktree(worktree: str) -> list[str]:
-    """Remove every hub workspace that belongs to this worktree (worker killed or merged).
+async def release_for_worktree(worktree: str, *, keep_ws_id: str = "",
+                               ssh: hw.HubSsh | None = None, mc=None) -> list[str]:
+    """Remove the worktree's hub workspaces, optionally keeping its replacement.
+    Supplied transports belong to the caller and are not closed here.
     Returns the workspace ids that were cleaned; a failure is raised after the rest ran."""
-    states = hw.states_for_worktree(worktree)
+    states = [state for state in hw.states_for_worktree(worktree) if state.ws_id != keep_ws_id]
     if not states:
         return []
     cleaned: list[str] = []
     errors: list[str] = []
-    ssh = hw.HubSsh.from_env()
-    mc = None
-    if hub_configured() is None:
+    ssh = ssh or hw.HubSsh.from_env()
+    owns_client = mc is None and hub_configured() is None
+    if owns_client:
         mc = MultiCodeClient.from_env()
         await mc.__aenter__()
     try:
@@ -761,7 +767,7 @@ async def release_for_worktree(worktree: str) -> list[str]:
             except hw.HubWorkspaceError as exc:
                 errors.append(f"{state.ws_id}: {exc}")
     finally:
-        if mc is not None:
+        if owns_client:
             await mc.__aexit__(None, None, None)
     if errors:
         raise hw.HubWorkspaceError("; ".join(errors))
@@ -778,11 +784,12 @@ def _all_states() -> list[hw.WorkspaceState]:
             if (st := hw.WorkspaceState.load(p.stem)) is not None]
 
 
-async def sweep_orphans(live_worktrees: set[str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
+async def sweep_orphans(live_worktrees: set[str] | dict[str, str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
     """Release hub workspaces whose worker is gone, and hub leftovers that have no local record.
 
-    A workspace belongs to a live worker when its worktree is still registered for a session, so
-    an idle-but-alive worker keeps its copy. Hub-side debris (directories and projects under
+    The mapping identifies each worktree's current workspace; older copies of a live worker
+    are orphans too. Legacy set callers provide no ownership information, so keep their live
+    copies conservatively. Hub-side debris (directories and projects under
     our root with no record) is removed only when older than `min_age`, which is longer than any
     upload, because the record is written before the first hub write."""
     report: dict = {"released": [], "remote_dirs": [], "projects": [], "kept": 0, "errors": []}
@@ -792,10 +799,14 @@ async def sweep_orphans(live_worktrees: set[str], *, min_age: float = ORPHAN_MIN
             report["errors"].append(hub_configured())
         return report
     live = {os.path.realpath(p) for p in live_worktrees if p}
+    current = ({os.path.realpath(p): ws_id for p, ws_id in live_worktrees.items() if p}
+               if isinstance(live_worktrees, dict) else None)
     ssh = hw.HubSsh.from_env()
     async with MultiCodeClient.from_env() as mc:
         for state in states:
-            if os.path.realpath(state.worktree) in live and Path(state.worktree).is_dir():
+            worktree = os.path.realpath(state.worktree)
+            if (worktree in live and Path(state.worktree).is_dir()
+                    and (current is None or current.get(worktree) == state.ws_id)):
                 report["kept"] += 1
                 continue
             try:

@@ -1,0 +1,14 @@
+test_fresh_backend_releases_all_previous_copies_only (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_fresh_backend_releases_all_previous_copies_only) ... ok
+test_in_place_hub_model_switch_keeps_workspace (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_in_place_hub_model_switch_keeps_workspace) ... ok
+test_legacy_set_caller_conservatively_keeps_live_copy (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_legacy_set_caller_conservatively_keeps_live_copy) ... ok
+test_release_failure_does_not_block_new_turn_and_sweep_retries (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_release_failure_does_not_block_new_turn_and_sweep_retries) ... ok
+test_release_for_worktree_keeps_replacement_and_borrowed_client (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_release_for_worktree_keeps_replacement_and_borrowed_client) ... ok
+test_reprovision_after_failed_upload_releases_previous (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_reprovision_after_failed_upload_releases_previous) ... ok
+test_sweep_keeps_failed_record_and_current_copy (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_sweep_keeps_failed_record_and_current_copy) ... ok
+test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn) ... ok
+test_sweep_uses_current_id_even_for_existing_worktree (test_hub_switch_orphan.HubWorkspaceLifecycleTests.test_sweep_uses_current_id_even_for_existing_worktree) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.046s
+
+OK

@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import json
 import logging
+import os
 import re
 import sqlite3
 import shutil
@@ -2545,14 +2546,22 @@ class SessionManager:
 
 
     async def _periodic_hub_sweep(self) -> None:
-        """Release hub workspaces of vanished workers and hub debris without a local record (V-1008)."""
+        """Release superseded/vanished workers' hub workspaces and unrecorded debris."""
         from app.backend_hub import sweep_orphans
 
         await asyncio.sleep(120)
         while True:
             try:
                 rows = await asyncio.to_thread(get_all_sessions)   # archived rows are excluded
-                live = {r["worktree_path"] for r in rows if r.get("worktree_path")}
+                live = {os.path.realpath(r["worktree_path"]): r.get("session_id") or ""
+                        for r in rows if r.get("worktree_path")}
+                # A first hub turn owns its workspace before its turn_end persists the id.
+                # Read loaded sessions after the DB snapshot, without yielding before the sweep.
+                for session in self.sessions.values():
+                    worktree = os.path.realpath(session.worktree_path) if session.worktree_path else ""
+                    if worktree in live:
+                        live[worktree] = (
+                            getattr(session._backend, "session_id", None) or session.session_id or "")
                 report = await sweep_orphans(live)
                 if report["released"] or report["remote_dirs"] or report["projects"] or report["errors"]:
                     logger.info("hub sweep: %s", report)

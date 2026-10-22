@@ -4065,6 +4065,16 @@ class AgentSession:
         self._runtime_error = ""
         self._session_limit_hit = False
         self._cancel_precompact_timer("text_tail_model_switch")
+        if old_runtime == "hub":
+            from app.backend_hub import release_for_worktree
+
+            try:
+                await release_for_worktree(self.worktree_path or self.cwd)
+            except Exception as error:
+                logger.warning(
+                    "[%s] previous hub workspace release incomplete (state kept for sweep): %s",
+                    self.name, err_text(error),
+                )
         self._log(
             "status",
             f"model change: {old_model} ({old_runtime}) → "
