@@ -4776,6 +4776,7 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
         const T = (key, values = {}) => Object.entries(values).reduce(
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
+        const orchLocale = () => 'en-US';  // global from utils.js; _tagChatTimelineNode formats time with it
         let _chatFollow = true;
         let scrollAfterLoad = true;
         let _pendingChatRestore = null;
@@ -4887,6 +4888,7 @@ def test_chat_timeline_marker_height_tracks_message_height(
         const T = (key, values = {}) => Object.entries(values).reduce(
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
+        const orchLocale = () => 'en-US';  // global from utils.js; _tagChatTimelineNode formats time with it
         let _chatFollow = true;
         let scrollAfterLoad = true;
         let _pendingChatRestore = null;

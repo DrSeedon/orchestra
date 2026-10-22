@@ -354,7 +354,11 @@ def test_usage_control_keeps_spark_and_adds_grok_third_column(browser):
     page = _page(browser, True)
     page.locator("#usage-info-btn").hover()
 
-    expect(page.locator("[data-usage-provider]")).to_have_count(3)
+    # Hub pool (V-1012) is a deliberate fourth column; OpenRouter is absent without data.
+    expect(page.locator("[data-usage-provider]")).to_have_count(4)
+    assert page.eval_on_selector_all(
+        "[data-usage-provider]", "nodes => nodes.map(node => node.dataset.usageProvider)",
+    ) == ["claude", "codex", "grok", "hub"]
     expect(page.locator('[data-usage-provider="codex"]')).to_have_count(1)
     expect(page.locator('[data-usage-provider="grok"]')).to_have_count(1)
     page.close()
