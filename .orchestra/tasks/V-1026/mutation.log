@@ -1,0 +1,4 @@
+context-reset: exit=1
+deferred-gate: exit=1
+stale-refresh: exit=1
+All 3 mutants detected; original sources restored.

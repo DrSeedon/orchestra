@@ -428,8 +428,8 @@ class TurnManager:
         allow_context_compaction = (
             not subscription_limited and not will_auto_continue
         )
-        # Deferred context (Claude) is only measured by this refresh, so the decision taken
-        # at turn end used the PREVIOUS turn's number; re-decide on the fresh one.
+        # Deferred context (Claude) still holds the PREVIOUS turn's number;
+        # only the fresh API reading may schedule compaction for this turn.
         context_deferred = bool(meta.get("context_deferred")) or isinstance(
             getattr(event.usage, "current", None), DeferredContext)
         s._spawn_bg(
@@ -513,7 +513,9 @@ class TurnManager:
         self.after_turn_idle_actions(
             live_pct,
             allow_auto_report=server_error_retry is None,
-            allow_precompact=allow_context_compaction and context_known,
+            allow_precompact=(
+                allow_context_compaction and context_known and not context_deferred
+            ),
             subscription_limited=subscription_limited,
         )
         if server_error_retry is not None:

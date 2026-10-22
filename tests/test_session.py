@@ -2018,7 +2018,7 @@ class TestPrecompactTimer:
         )
 
     @pytest.mark.asyncio
-    async def test_claude_deferred_context_preserves_known_compaction_behavior(
+    async def test_claude_deferred_context_waits_for_fresh_compaction_reading(
         self, session, monkeypatch,
     ):
         from app.events import AgentEvent
@@ -2061,7 +2061,8 @@ class TestPrecompactTimer:
         await session._drain_persist()
 
         session._schedule_precompact_timer.assert_not_called()
-        assert "_auto_compact" in spawned
+        assert "_auto_compact" not in spawned
+        assert "_refresh_context_from_api" in spawned
 
     @pytest.mark.asyncio
     async def test_codex_known_context_keeps_native_precompact_behavior(

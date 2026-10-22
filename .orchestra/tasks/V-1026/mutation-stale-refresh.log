@@ -1,0 +1,124 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+____ test_refresh_from_previous_context_cannot_restore_high_usage[backend] _____
+
+session = AgentSession(id='compact-v1026', name='compact-v1026', scope='./...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+replacement = 'backend'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("replacement", ["backend", "session_id", "turn"])
+    async def test_refresh_from_previous_context_cannot_restore_high_usage(session, replacement):
+        s = session
+        entered = asyncio.Event()
+        release = asyncio.Event()
+    
+        async def old_usage():
+            entered.set()
+            await release.wait()
+            return {"percentage": 95, "total_tokens": 945_985, "max_tokens": 1_000_000}
+    
+        s._backend = SimpleNamespace(context_usage=old_usage)
+        s._auto_compact = AsyncMock()
+        task = asyncio.create_task(s._refresh_context_from_api(schedule_compaction_on_success=True))
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        if replacement == "backend":
+            s._backend = SimpleNamespace(context_usage=AsyncMock(return_value=None))
+        elif replacement == "session_id":
+            s.session_id = "fresh-native"
+        else:
+            s._turns.bump_turn_gen()
+        s._last_context.update(percentage=10, total_tokens=104_899)
+        release.set()
+        await asyncio.wait_for(task, timeout=1)
+    
+>       assert s._last_context["total_tokens"] == 104_899
+E       assert 945985 == 104899
+
+tests/test_double_compaction_v1026.py:189: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[compact-v1026] context corrected: 10% → 95%
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:3900 [compact-v1026] context corrected: 10% → 95%
+___ test_refresh_from_previous_context_cannot_restore_high_usage[session_id] ___
+
+session = AgentSession(id='compact-v1026', name='compact-v1026', scope='./...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+replacement = 'session_id'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("replacement", ["backend", "session_id", "turn"])
+    async def test_refresh_from_previous_context_cannot_restore_high_usage(session, replacement):
+        s = session
+        entered = asyncio.Event()
+        release = asyncio.Event()
+    
+        async def old_usage():
+            entered.set()
+            await release.wait()
+            return {"percentage": 95, "total_tokens": 945_985, "max_tokens": 1_000_000}
+    
+        s._backend = SimpleNamespace(context_usage=old_usage)
+        s._auto_compact = AsyncMock()
+        task = asyncio.create_task(s._refresh_context_from_api(schedule_compaction_on_success=True))
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        if replacement == "backend":
+            s._backend = SimpleNamespace(context_usage=AsyncMock(return_value=None))
+        elif replacement == "session_id":
+            s.session_id = "fresh-native"
+        else:
+            s._turns.bump_turn_gen()
+        s._last_context.update(percentage=10, total_tokens=104_899)
+        release.set()
+        await asyncio.wait_for(task, timeout=1)
+    
+>       assert s._last_context["total_tokens"] == 104_899
+E       assert 945985 == 104899
+
+tests/test_double_compaction_v1026.py:189: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[compact-v1026] context corrected: 10% → 95%
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:3900 [compact-v1026] context corrected: 10% → 95%
+______ test_refresh_from_previous_context_cannot_restore_high_usage[turn] ______
+
+session = AgentSession(id='compact-v1026', name='compact-v1026', scope='./...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+replacement = 'turn'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("replacement", ["backend", "session_id", "turn"])
+    async def test_refresh_from_previous_context_cannot_restore_high_usage(session, replacement):
+        s = session
+        entered = asyncio.Event()
+        release = asyncio.Event()
+    
+        async def old_usage():
+            entered.set()
+            await release.wait()
+            return {"percentage": 95, "total_tokens": 945_985, "max_tokens": 1_000_000}
+    
+        s._backend = SimpleNamespace(context_usage=old_usage)
+        s._auto_compact = AsyncMock()
+        task = asyncio.create_task(s._refresh_context_from_api(schedule_compaction_on_success=True))
+        await asyncio.wait_for(entered.wait(), timeout=1)
+        if replacement == "backend":
+            s._backend = SimpleNamespace(context_usage=AsyncMock(return_value=None))
+        elif replacement == "session_id":
+            s.session_id = "fresh-native"
+        else:
+            s._turns.bump_turn_gen()
+        s._last_context.update(percentage=10, total_tokens=104_899)
+        release.set()
+        await asyncio.wait_for(task, timeout=1)
+    
+>       assert s._last_context["total_tokens"] == 104_899
+E       assert 945985 == 104899
+
+tests/test_double_compaction_v1026.py:189: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[compact-v1026] context corrected: 10% → 95%
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:3900 [compact-v1026] context corrected: 10% → 95%
+=========================== short test summary info ============================
+FAILED tests/test_double_compaction_v1026.py::test_refresh_from_previous_context_cannot_restore_high_usage[backend]
+FAILED tests/test_double_compaction_v1026.py::test_refresh_from_previous_context_cannot_restore_high_usage[session_id]
+FAILED tests/test_double_compaction_v1026.py::test_refresh_from_previous_context_cannot_restore_high_usage[turn]
+3 failed in 3.71s

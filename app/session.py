@@ -3637,6 +3637,18 @@ class AgentSession:
                 self._persist()
                 self._turns.publish_turn_finished()
                 return {"ok": False, "error": error, "before_pct": before_pct}
+            # DeferredContext keeps the previous session's usage until the API refresh.
+            # Replace it before releasing compaction or persisting the new session id.
+            ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
+            post_tokens = max(0, self._context_token_total() - tokens_before_ack) // ack_calls
+            max_tokens = self._last_context.get("max_tokens", 0) or max_tokens
+            after_pct = round(post_tokens * 100 / max_tokens) if max_tokens else 0
+            self._last_context.update(
+                percentage=after_pct if post_tokens else 0,
+                total_tokens=post_tokens,
+                known=bool(post_tokens and max_tokens),
+            )
+            self._cancel_precompact_timer("compact_complete")
         except QuotaGateError as error:
             ack_deferred = True
             self.last_summary = _bounded_summary(summary)
@@ -3687,14 +3699,6 @@ class AgentSession:
                     subtype="compact_summary",
                 ),
             )
-        # Расход ack-хода — СУММА по всем его обращениям к модели. 23.09 у katya-work ход из
-        # 4 обращений по ~77 тыс. дал «post 307564» и «20% → 31%», хотя контекст ужался в 2.6 раза.
-        ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
-        post_tokens = max(0, self._context_token_total() - tokens_before_ack) // ack_calls
-        if post_tokens and max_tokens:
-            after_pct = round(post_tokens * 100 / max_tokens)
-        else:
-            after_pct = self._last_context.get("percentage", 0)
         dropped = max(0, pre_tokens - post_tokens)
         self._log_compact_event(
             compact_id,
@@ -3859,8 +3863,12 @@ class AgentSession:
     ) -> None:
         if not self._backend or not hasattr(self._backend, 'context_usage'):
             return
+        backend = self._backend
+        generation = (self._turn_gen, self.session_id)
         try:
-            usage = await asyncio.wait_for(self._backend.context_usage(), timeout=5)
+            usage = await asyncio.wait_for(backend.context_usage(), timeout=5)
+            if backend is not self._backend or generation != (self._turn_gen, self.session_id):
+                return
             if usage and usage.get("percentage") is not None:
                 raw_max = usage.get("raw_max_tokens") or usage.get("max_tokens")
                 context = current_context(
