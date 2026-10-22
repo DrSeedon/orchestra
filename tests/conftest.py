@@ -603,3 +603,16 @@ def live_harness_route():
 
     for model_id in seeded:
         unregister_model(model_id)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _bind_real_manager_into_route_modules():
+    """Route modules do `from app.deps import manager`, binding the name at first import.
+
+    A test that patches `app.deps.manager` with a fake and is the first to import a route
+    module (directly or through `app.main`) leaves that fake bound there for the rest of the
+    worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+    `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+    """
+    import app.routes.sessions  # noqa: F401
+    import app.main  # noqa: F401
