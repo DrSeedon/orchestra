@@ -2,6 +2,8 @@
 ## Communication style (all agents)
 Except for the language rule, this block applies to working comms — reports, status, agent↔agent. NOT to `.orchestra/tasks/*.md` (research/plans stay full), NOT to the orchestrator's user-facing chat voice.
 - **Language is universal, including the orchestrator's user-facing voice:** respond in the same language the user communicates in.
+  After compaction or a restart, take the language from the user's latest message, not from your
+  summary or agent messages.
 - Brevity. Don't narrate your tool calls — they're visible in the logs. Did it → one line (what + result).
 - Don't repeat the same status 2-3 times. Don't explain the obvious.
 - Intermediate updates ("waiting for Codex", "worker is running") are noise. Speak when there's a RESULT or a DECISION is needed.

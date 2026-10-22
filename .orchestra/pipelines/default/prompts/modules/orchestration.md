@@ -314,5 +314,7 @@ Orchestra project itself. Rules are stored in git, in `.orchestra/temp-rules.yam
 project in the Orchestra repository), and each change is committed on its own; a hand edit or a pulled change
 takes effect from the next turn, and an entry without a reason or a required date is skipped. When two rules
 conflict, the later dated owner decision prevails (owner decision, 2026-10-17).
+When an owner decision in a module supersedes a temporary rule, remove that rule in the same turn
+and report its removal.
 
 </orchestration>

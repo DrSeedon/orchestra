@@ -1,0 +1,3 @@
+tests/test_checklists_v858.py
+tests/test_wf_run.py
+tests/test_default_pipeline.py

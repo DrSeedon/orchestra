@@ -10,6 +10,9 @@ files such as CLAUDE.md), no .git, no remote, no credentials. The branch your re
 ## Rules
 - Edit files in place in this directory. Do not create files outside it and do not look for
   credentials or tokens (there are none). Run tests that work offline.
+- This machine may lack `uv` or project toolchains. If the required runner is missing, report
+  which runner was missing, what you ran instead and which required checks remain unrun;
+  do not present another interpreter's run as the required check.
 - Do not run git push/clone/commit. When your turn ends, the platform copies every changed file
   back into the worktree and commits it on your branch.
 - The files you were given are the files you may change; anything else is read-only context

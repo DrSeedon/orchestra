@@ -13,6 +13,9 @@
   current scope and preserve irreplaceable evidence; a proven rebuildable cache is not a source.
 - Do not remove trust-boundary validation, data-loss handling, security or availability
   protections in the name of simplifying code.
+- The quota gate and worker admission are platform policy: do not monkeypatch, stub or skip them
+  in scripts that call real model pools, or change a held worker's model just to escape the hold.
+  Report the hold and use the route `model-routing` names for that case; its listed hub route is allowed.
 - An empty command result does not prove absence: check that the source was readable and
   the command succeeded, including stderr, before interpreting its contents.
 

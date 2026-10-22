@@ -1,0 +1,13 @@
+PASS modules/user-values.md: insertion only, English addition, no quotes, unchanged tag structure, clean whitespace
+PASS modules/safety.md: insertion only, English addition, no quotes, unchanged tag structure, clean whitespace
+PASS hub/worker.md: insertion only, English addition, no quotes, unchanged tag structure, clean whitespace
+PASS modules/worker-lifecycle.md: insertion only, English addition, no quotes, unchanged tag structure, clean whitespace
+PASS modules/communication-style.md: insertion only, English addition, no quotes, unchanged tag structure, clean whitespace
+PASS modules/orchestration.md: insertion only, English addition, no quotes, unchanged tag structure, clean whitespace
+PASS hub worker template: original placeholders preserved; format() succeeds
+app import spec: None
+app namespace paths: ['<hub-workspace>']
+CONFIRMED contract script absent; app implementation limited to manager.py and quota_gate.py
+NOTE: system python3 static checks only; these do not replace uv/pytest or the instruction contract
+Imported app namespace absolute path: ['<hub-workspace>']
+Imported app.__file__: None

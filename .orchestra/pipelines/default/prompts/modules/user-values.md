@@ -19,6 +19,10 @@ them by name on 04.09.2026.
   whom the owner has delegated the restart in its own project's rules may restart automatically
   after a Python change is merged, in a way that does not cut running workers. Everyone else stays
   bound by the ban.
+  Ambiguous approval (an unclear voice transcription, a reply that could answer another question,
+  or approval for an earlier change) is not an explicit restart command: ask one question naming
+  the exact restart and what it will cut, then wait. A restart may not restore interrupted turns;
+  afterwards check `cut_names` and resume the cut workers yourself.
   The test is **Same goal, or a new one?** Same goal → do it and report the result, without asking:
   a defect in your own delivered work, an unfinished part of the stated goal, a change without
   which the stated result is not reached, another pass after a measurement shows it is not met.

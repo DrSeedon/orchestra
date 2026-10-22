@@ -20,6 +20,9 @@ legacy worker is treated as persistent, so the same activity test applies. Revie
 every `merge_worker(task_outcome="complete")` and at the beginning of every session, including
 after compaction or restart.
 
+A restart notice, or a tool result cut by a restart, is neither a stop order nor a user refusal;
+check the last action's outcome and continue the task.
+
 At each review, run `list_agents` and inspect every idle worker with no attached task:
 1. `lifecycle=one-shot` → kill immediately.
 2. `lifecycle=persistent` or unmarked → kill when the line has had no task for 72 hours and its
