@@ -132,6 +132,18 @@ def _isolate_production_db(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_forbidden_strings(tmp_path, monkeypatch):
+    """Publish guards must never load the operator's live forbidden-string list.
+
+    Tests of the guard opt in by setting ENV_VAR to their own synthetic list.
+    The missing sandbox file means an empty ruleset, including in child processes.
+    """
+    from app import forbidden_strings
+
+    monkeypatch.setenv(forbidden_strings.ENV_VAR, str(tmp_path / "forbidden-strings.txt"))
+
+
+@pytest.fixture(autouse=True)
 def _isolate_temp_rules():
     """Prompt assembly must not read the live `.orchestra/temp-rules.yaml` (V-936).
 

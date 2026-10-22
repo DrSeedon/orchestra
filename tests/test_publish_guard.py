@@ -4,6 +4,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from app import forbidden_strings, private_folder
 
 SECRET = "hub-user-7f3a91"
@@ -76,6 +78,62 @@ def test_allows_clean_change_and_removal_of_a_leak(tmp_path):
 
 def test_missing_list_allows_everything(tmp_path):
     assert forbidden_strings.load_rules(tmp_path / "absent.txt") == []
+
+
+def test_default_list_is_isolated_from_live_checkout(tmp_path):
+    repo = _repo(tmp_path)
+    path = forbidden_strings.list_path(repo)
+    assert path == tmp_path / "forbidden-strings.txt"
+    assert forbidden_strings.load_rules(path) == []
+
+
+@pytest.mark.parametrize("location", ["content", "shared_content", "path", "message", "clean"])
+def test_orphan_branch_is_scanned_without_a_merge_base(tmp_path, location):
+    repo = _repo(tmp_path)
+    if location == "shared_content":
+        (repo / "a.txt").write_text(f"login = {SECRET}\n")
+        _git(repo, "add", "a.txt")
+        _git(repo, "commit", "-qm", "existing content")
+    target_head = _git(repo, "rev-parse", "main")
+    _git(repo, "checkout", "-q", "--orphan", "orphan-worker")
+    _git(repo, "rm", "-rf", ".")
+    filename = f"{SECRET}.txt" if location == "path" else "orphan.txt"
+    if location == "shared_content":
+        filename = "a.txt"
+    content = f"login = {SECRET}\n" if location in {"content", "shared_content"} else "clean\n"
+    message = f"work {SECRET}" if location == "message" else "orphan work"
+    (repo / filename).write_text(content)
+    _git(repo, "add", filename)
+    _git(repo, "commit", "-qm", message)
+    worker_head = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+
+    found = forbidden_strings.scan_range(repo, "main", worker_head, _rules(tmp_path))
+
+    if location == "clean":
+        assert found == []
+    else:
+        assert found and "line 3 of forbidden.txt" in found[0]
+        if location != "path":
+            assert SECRET not in forbidden_strings.block_message(found)
+    assert _git(repo, "rev-parse", "main") == target_head
+    assert _git(repo, "rev-parse", "orphan-worker") == worker_head
+    assert _git(repo, "status", "--porcelain") == ""
+
+
+def test_merge_base_failure_is_not_treated_as_unrelated_history(tmp_path, monkeypatch):
+    repo = _repo(tmp_path)
+    head = _branch(repo, "w", "b.txt", "clean\n")
+    run = forbidden_strings.subprocess.run
+
+    def fail_merge_base(args, **kwargs):
+        if args[3] == "merge-base":
+            return subprocess.CompletedProcess(args, 128, b"", b"cannot read object")
+        return run(args, **kwargs)
+
+    monkeypatch.setattr(forbidden_strings.subprocess, "run", fail_merge_base)
+    with pytest.raises(RuntimeError, match="git merge-base failed"):
+        forbidden_strings.scan_range(repo, "main", head, _rules(tmp_path))
 
 
 def test_pre_push_hook_blocks_listed_string(tmp_path, monkeypatch):
@@ -159,6 +217,31 @@ def test_merge_gate_refuses_listed_string_and_names_rule(tmp_path, monkeypatch):
     assert res["ok"] is False and res["code"] == "FORBIDDEN_STRING"
     assert "forbidden-string line 1" in res["error"] and SECRET not in res["error"]
     assert not (repo / "note.txt").exists()
+
+
+def test_merge_gate_refuses_orphan_branch_with_listed_string(tmp_path, monkeypatch):
+    from app.workspace import merge_worktree_to_main
+
+    repo, wt = _merge_setup(tmp_path, monkeypatch, "clean\n")
+    worker = Path(wt.path)
+    _git(worker, "checkout", "-q", "--orphan", "orphan-worker")
+    _git(worker, "rm", "-rf", ".")
+    (worker / "orphan.txt").write_text(f"login = {SECRET}\n")
+    _git(worker, "add", "orphan.txt")
+    _git(worker, "commit", "-qm", "orphan work")
+    target_head = _git(repo, "rev-parse", "main")
+    worker_head = _git(worker, "rev-parse", "HEAD")
+
+    result = merge_worktree_to_main(wt.path, str(repo))
+
+    assert result["ok"] is False
+    assert result.get("code") == "FORBIDDEN_STRING", result
+    assert "forbidden-string line 1" in result["error"]
+    assert SECRET not in result["error"]
+    assert _git(repo, "rev-parse", "main") == target_head
+    assert _git(worker, "rev-parse", "HEAD") == worker_head
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _git(worker, "status", "--porcelain") == ""
 
 
 def test_merge_gate_lets_clean_change_land(tmp_path, monkeypatch):

@@ -101,6 +101,10 @@ class _Child:
         self.scope = "/repo"
         self._did_report = did_report
         self._turn_logs = list(turn_logs)
+        self.logs = []
+
+    def _log(self, kind, message):
+        self.logs.append((kind, message))
 
     async def on_idle(self, *a):
         return None
@@ -227,3 +231,5 @@ def test_tool_report_then_turn_end_is_one_terminal_and_one_wake(db, spy, monkeyp
     assert idle == [], (
         f"после тула ещё и on_idle={idle!r} — второе пробуждение мимо барьера"
     )
+    assert len(child.logs) == 1
+    assert child.logs[0][0] == "status"

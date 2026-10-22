@@ -62,7 +62,19 @@ def scan_range(repo: str | Path, base: str, head: str, rules: list[tuple[str, st
         return done.stdout.decode("utf-8", "replace")
 
     findings = scan_text(git("log", "--format=%B", f"{base}..{head}"), "commit message", rules)
-    patch = git("diff", "--no-renames", "-U0", f"{base}...{head}")
+    merge_base = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", base, head], capture_output=True,
+    )
+    if merge_base.returncode not in (0, 1):
+        raise RuntimeError(
+            f"git merge-base failed: {merge_base.stderr.decode('utf-8', 'replace').strip()}"
+        )
+    # Unrelated histories publish the worker's entire tree, including shared lines.
+    diff_refs = (
+        ("4b825dc642cb6eb9a060e54bf8d69288fbee4904", head)
+        if merge_base.returncode == 1 else (f"{base}...{head}",)
+    )
+    patch = git("diff", "--no-renames", "-U0", *diff_refs)
     path, added = "?", []
     for line in patch.splitlines():
         if line.startswith("+++ "):
