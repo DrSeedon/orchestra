@@ -1,0 +1,32 @@
+.EExecuting <Task finished name='Task-12' coro=<Edges.test_mcp_pending_tool_forwards_target() done, defined at <hub-workspace>:90> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.116 seconds
+.Executing <Task finished name='Task-17' coro=<Edges.test_mcp_still_raises_rejections_with_id() done, defined at <hub-workspace>:81> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.219 seconds
+.Executing <Task finished name='Task-22' coro=<Edges.test_receipt_text_reports_failure_and_quota_eta() done, defined at <hub-workspace>:96> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.124 seconds
+.Executing <Task finished name='Task-27' coro=<Edges.test_spawn_admission_precedes_every_allocation_and_skips_orchestrator() done, defined at <hub-workspace>:115> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.270 seconds
+.
+======================================================================
+ERROR: test_mcp_accepts_error_receipts_without_losing_identity (__main__.Edges.test_mcp_accepts_error_receipts_without_losing_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 79, in test_mcp_accepts_error_receipts_without_losing_identity
+    self.assertEqual(await mcp._api("POST", "/send"), payload)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "app/mcp_stdio.py", line 609, in _api
+    raise _response_error(method, path, response, payload, request_id)
+v1036_extracted.ApiToolError: original error; delivery_id=id
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.907s
+
+FAILED (errors=1)

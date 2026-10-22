@@ -1,0 +1,44 @@
+test_cancelled_initial_runner_wakes_sender (test_delivery_visible_1036.DeliveryVisibility.test_cancelled_initial_runner_wakes_sender) ... ok
+test_direct_failure_wakes_once_with_verbatim_error (test_delivery_visible_1036.DeliveryVisibility.test_direct_failure_wakes_once_with_verbatim_error) ... ok
+test_eta_missing_estimate_is_explicit_and_old_rows_work (test_delivery_visible_1036.DeliveryVisibility.test_eta_missing_estimate_is_explicit_and_old_rows_work) ... ok
+test_failed_wake_survives_recovery_and_concurrent_drains (test_delivery_visible_1036.DeliveryVisibility.test_failed_wake_survives_recovery_and_concurrent_drains) ... initial-delivery failure notification remains pending
+Traceback (most recent call last):
+  File "<hub-workspace>", line 736, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "<hub-workspace>", line 97, in send
+    raise RuntimeError("LayoutMigrationError: original\nsecond line")
+RuntimeError: LayoutMigrationError: original
+second line
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<hub-workspace>", line 763, in run_initial_delivery
+    await notify_message_delivery_failure(delivery_id, manager=manager)
+  File "<hub-workspace>", line 1073, in notify_message_delivery_failure
+    await task
+  File "<hub-workspace>", line 1058, in deliver
+    await sender_manager.send(
+  File "/usr/lib/python3.12/unittest/mock.py", line 2262, in _execute_mock_call
+    raise effect
+RuntimeError: sender offline
+ok
+test_initial_ambiguous_dispatch_is_loud_without_false_non_delivery (test_delivery_visible_1036.DeliveryVisibility.test_initial_ambiguous_dispatch_is_loud_without_false_non_delivery) ... ok
+test_initial_cancel_owner_state_boundary_and_idempotency (test_delivery_visible_1036.DeliveryVisibility.test_initial_cancel_owner_state_boundary_and_idempotency) ... ok
+test_initial_failure_wakes_actual_sender (test_delivery_visible_1036.DeliveryVisibility.test_initial_failure_wakes_actual_sender) ... ok
+test_legacy_acknowledged_notice_does_not_replay (test_delivery_visible_1036.DeliveryVisibility.test_legacy_acknowledged_notice_does_not_replay) ... ok
+test_logged_notice_with_lost_ack_does_not_wake_twice (test_delivery_visible_1036.DeliveryVisibility.test_logged_notice_with_lost_ack_does_not_wake_twice) ... ok
+test_old_failure_without_notice_recovers (test_delivery_visible_1036.DeliveryVisibility.test_old_failure_without_notice_recovers) ... ok
+test_orphaned_terminal_delivery_wakes_sender_on_recovery (test_delivery_visible_1036.DeliveryVisibility.test_orphaned_terminal_delivery_wakes_sender_on_recovery) ... ok
+test_pending_is_owned_filtered_80_chars_and_includes_initial (test_delivery_visible_1036.DeliveryVisibility.test_pending_is_owned_filtered_80_chars_and_includes_initial) ... ok
+test_queued_behind_quota_has_eta (test_delivery_visible_1036.DeliveryVisibility.test_queued_behind_quota_has_eta) ... ok
+test_quota_error_receipt_and_action_include_id_and_eta (test_delivery_visible_1036.DeliveryVisibility.test_quota_error_receipt_and_action_include_id_and_eta) ... ok
+test_repeated_failure_record_is_idempotent (test_delivery_visible_1036.DeliveryVisibility.test_repeated_failure_record_is_idempotent) ... ok
+test_retry_same_id_can_fail_loudly_again (test_delivery_visible_1036.DeliveryVisibility.test_retry_same_id_can_fail_loudly_again) ... ok
+test_success_and_quota_race_never_create_failure_wake (test_delivery_visible_1036.DeliveryVisibility.test_success_and_quota_race_never_create_failure_wake) ... Executing <Task finished name='Task-101' coro=<DeliveryVisibility.test_success_and_quota_race_never_create_failure_wake() done, defined at <hub-workspace>:197> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.136 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 1.482s
+
+OK

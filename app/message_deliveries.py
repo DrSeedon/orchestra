@@ -62,6 +62,79 @@ def _ensure_failure_notice_schema(connection: sqlite3.Connection) -> None:
     )
 
 
+def record_delivery_failure(connection, row, *, initial: bool = False,
+                            adopt_legacy: bool = False) -> None:
+    """Persist direct/initial failure notification in the state-change transaction.
+
+    A revision identifies a failed attempt, so retrying the same delivery id can
+    fail loudly again while recovery of the same attempt stays idempotent.
+    """
+    if row["origin"] != "agent":
+        return
+    if initial:
+        source = connection.execute(
+            "SELECT id FROM sessions WHERE name=? AND scope=?",
+            (row["sender"], row["scope"]),
+        ).fetchone()
+        source_id = source["id"] if source else None
+        target = row["worker_name"]
+    else:
+        source_id, target = row["source_session_id"], row["target_name"]
+    if not source_id:
+        return
+    _ensure_failure_notice_schema(connection)
+    previous = connection.execute(
+        "SELECT error_json FROM message_delivery_failure_notices WHERE delivery_id=?",
+        (row["delivery_id"],),
+    ).fetchone()
+    old = json.loads(previous["error_json"]) if previous else {}
+    if old.get("_notice_revision") == row["updated_at"]:
+        return
+    error = json.loads(row["error_json"] or "{}")
+    event_id = f"message-delivery-failed:{row['delivery_id']}"
+    if previous:
+        event_id += ":" + hashlib.sha256(row["updated_at"].encode()).hexdigest()[:16]
+    error.update(
+        _notice_revision=row["updated_at"], _notice_event_id=event_id,
+        delivery_state=row["state"], delivery_kind="initial" if initial else "message",
+    )
+    if adopt_legacy and previous and "_notice_revision" not in old:
+        # Adopt legacy notices without replaying wakes already acknowledged/logged.
+        error["_notice_event_id"] = f"message-delivery-failed:{row['delivery_id']}"
+        connection.execute(
+            "UPDATE message_delivery_failure_notices SET error_json=? WHERE delivery_id=?",
+            (json.dumps(error, ensure_ascii=False), row["delivery_id"]),
+        )
+        return
+    connection.execute(
+        """INSERT INTO message_delivery_failure_notices
+           (delivery_id, source_session_id, target_name, error_json, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(delivery_id) DO UPDATE SET error_json=excluded.error_json,
+               created_at=excluded.created_at, delivered_at=NULL""",
+        (row["delivery_id"], source_id, target, json.dumps(error, ensure_ascii=False), _now()),
+    )
+
+
+def _backfill_failure_notices(connection) -> None:
+    """Recover terminal failures written by older versions or interrupted runners."""
+    for table, states, initial in (
+        ("message_deliveries", ("FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED"), False),
+        ("initial_deliveries", ("FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN"), True),
+    ):
+        placeholders = ",".join("?" * len(states))
+        for row in connection.execute(
+            f"""SELECT d.* FROM {table} d
+                LEFT JOIN message_delivery_failure_notices n USING(delivery_id)
+                WHERE d.state IN ({placeholders}) AND d.origin='agent'
+                  AND (n.delivery_id IS NULL
+                       OR json_extract(n.error_json,'$._notice_revision') IS NULL
+                       OR json_extract(n.error_json,'$._notice_revision') != d.updated_at)""",
+            states,
+        ).fetchall():
+            record_delivery_failure(connection, row, initial=initial, adopt_legacy=True)
+
+
 def _payload_hash(**payload: object) -> str:
     encoded = json.dumps(
         {"protocol": "direct-message/v1", **payload},
@@ -168,13 +241,17 @@ def _next_action(
             and head["state"] == "WAITING_QUOTA"
             and head["delivery_id"] != row["delivery_id"]
         ):
+            wait = quota_wait_action(head)
             return {
                 "code": "BEHIND_QUOTA_WAIT",
+                "delivery_id": row["delivery_id"],
+                "eta_at": wait["eta_at"],
+                "eta": wait["eta"],
                 "retryable": False,
                 "message": (
                     "Accepted and durably queued behind an earlier message to the same "
                     "target that waits for the quota gate; it goes out in order once the "
-                    "gate opens. Do not resend and do not set a timer."
+                    f"gate opens — {wait['eta']}. Do not resend and do not set a timer."
                 ),
             }
         return {}
@@ -312,7 +389,7 @@ async def accept_message_delivery(
                        WHERE delivery_id=? AND state='FAILED_BEFORE_SUBMIT'""",
                     (
                         "WAITING_QUOTA" if quota_wait is not None else "PREPARING",
-                        json.dumps(wait_error(quota_wait), ensure_ascii=False)
+                        json.dumps(wait_error(quota_wait, delivery_id=delivery_id), ensure_ascii=False)
                         if quota_wait is not None else None,
                         now, delivery_id,
                     ),
@@ -345,7 +422,7 @@ async def accept_message_delivery(
                     message, rendered_message, message_kind, int(bool(wake)), payload_hash,
                     origin, origin_detail,
                     "WAITING_QUOTA" if quota_wait is not None else "QUEUED",
-                    json.dumps(wait_error(quota_wait), ensure_ascii=False)
+                    json.dumps(wait_error(quota_wait, delivery_id=delivery_id), ensure_ascii=False)
                     if quota_wait is not None else None,
                     now, now,
                 ),
@@ -445,6 +522,13 @@ def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = No
         ).fetchone()
         if row is None:
             raise KeyError(f"message delivery not found: {delivery_id}")
+        if (
+            state in {"FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED"}
+            and row["state"] == state
+            and json.loads(row["error_json"] or "{}") == (error or {})
+        ):
+            record_delivery_failure(connection, row, adopt_legacy=True)
+            return _resource(row, connection=connection)
         values = (provider_ref, json.dumps(error, ensure_ascii=False) if error else None,
                   _now(), delivery_id)
         connection.execute(
@@ -463,20 +547,8 @@ def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = No
         row = connection.execute(
             "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
         ).fetchone()
-        if (
-            state == "FAILED_BEFORE_SUBMIT"
-            and row["origin"] == "agent"
-            and row["source_session_id"]
-        ):
-            connection.execute(
-                """INSERT OR IGNORE INTO message_delivery_failure_notices
-                   (delivery_id, source_session_id, target_name, error_json, created_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (
-                    delivery_id, row["source_session_id"], row["target_name"],
-                    row["error_json"] or "{}", _now(),
-                ),
-            )
+        if state in {"FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED"}:
+            record_delivery_failure(connection, row)
         return _resource(row, connection=connection)
 
 
@@ -566,7 +638,7 @@ def mark_message_delivery_waiting_quota(delivery_id: str, decision) -> dict:
     if row is None or row["state"] != "PREPARING":
         return _resource(row) if row is not None else {}
     return _update_state(
-        delivery_id, "WAITING_QUOTA", error=wait_error(decision), clear_user_log=True,
+        delivery_id, "WAITING_QUOTA", error=wait_error(decision, delivery_id=delivery_id), clear_user_log=True,
     )
 
 
@@ -635,6 +707,38 @@ def list_waiting_deliveries(source_session_id: str | None = None) -> list[dict]:
         }
         for row in rows
     ]
+
+
+def list_pending_deliveries(source_session_id: str, target: str = "") -> list[dict]:
+    """Caller-owned cancellable deliveries, including initial tasks of existing workers."""
+    with db._conn() as connection:
+        rows = connection.execute(
+            """SELECT * FROM (
+                 SELECT delivery_id, target_name AS target, created_at, message,
+                        state, error_json, 'message' AS kind, target_session_id
+                 FROM message_deliveries WHERE source_session_id=?
+                 UNION ALL
+                 SELECT d.delivery_id, d.worker_name, d.created_at, d.message,
+                        d.state, d.error_json, 'initial', d.session_id
+                 FROM initial_deliveries d JOIN sessions s
+                   ON s.name=d.sender AND s.scope=d.scope WHERE s.id=?
+               ) WHERE state IN ('WAITING_QUOTA','QUEUED')
+                 AND (?='' OR target=?) ORDER BY created_at, delivery_id""",
+            (source_session_id, source_session_id, target, target),
+        ).fetchall()
+    pending = []
+    for row in rows:
+        action = quota_wait_action(row) if row["state"] == "WAITING_QUOTA" else {}
+        if row["state"] == "QUEUED" and row["kind"] == "message":
+            action = _next_action(row)
+        pending.append({
+            "delivery_id": row["delivery_id"], "target": row["target"],
+            "created_at": row["created_at"], "message_preview": row["message"][:80],
+            "delivery_state": row["state"], "kind": row["kind"],
+            "eta_at": action.get("eta_at"),
+            "eta": action.get("eta", "queued for dispatch; time unknown"),
+        })
+    return pending
 
 
 def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orphaned: bool = False) -> dict:
@@ -938,7 +1042,8 @@ async def notify_message_delivery_failure(delivery_id: str, manager=None) -> Non
         latest = _failure_notice(delivery_id)
         if latest is None or latest["delivered_at"]:
             return
-        event_id = f"message-delivery-failed:{delivery_id}"
+        details = json.loads(latest["error_json"])
+        event_id = details.get("_notice_event_id") or f"message-delivery-failed:{delivery_id}"
         with db._conn() as connection:
             already_logged = connection.execute(
                 "SELECT 1 FROM logs WHERE session_id=? AND event_id=? LIMIT 1",
@@ -948,13 +1053,15 @@ async def notify_message_delivery_failure(delivery_id: str, manager=None) -> Non
             with db._conn() as connection:
                 connection.execute(
                     "UPDATE message_delivery_failure_notices SET delivered_at=? "
-                    "WHERE delivery_id=? AND delivered_at IS NULL",
-                    (_now(), delivery_id),
+                    "WHERE delivery_id=? AND error_json=? AND delivered_at IS NULL",
+                    (_now(), delivery_id, latest["error_json"]),
                 )
             return
-        details = json.loads(latest["error_json"])
+        uncertain = details.get("outcome_unknown") is True
+        kind = "Initial task" if details.get("delivery_kind") == "initial" else "Message"
+        outcome = "has UNKNOWN delivery outcome" if uncertain else "was NOT delivered"
         text = (
-            f"Message to '{latest['target_name']}' was NOT delivered; "
+            f"{kind} to '{latest['target_name']}' {outcome}; "
             f"delivery_id={delivery_id}; code={details.get('code', 'DELIVERY_NOT_SUBMITTED')}: "
             f"{details.get('message', 'No error details available')}"
         )
@@ -975,8 +1082,8 @@ async def notify_message_delivery_failure(delivery_id: str, manager=None) -> Non
         with db._conn() as connection:
             connection.execute(
                 "UPDATE message_delivery_failure_notices SET delivered_at=? "
-                "WHERE delivery_id=? AND delivered_at IS NULL",
-                (_now(), delivery_id),
+                "WHERE delivery_id=? AND error_json=? AND delivered_at IS NULL",
+                (_now(), delivery_id, latest["error_json"]),
             )
 
     task = asyncio.create_task(deliver())
@@ -991,6 +1098,7 @@ async def notify_message_delivery_failure(delivery_id: str, manager=None) -> Non
 async def recover_message_delivery_failure_notices(manager=None) -> int:
     with db._conn() as connection:
         _ensure_failure_notice_schema(connection)
+        _backfill_failure_notices(connection)
         rows = connection.execute(
             "SELECT delivery_id FROM message_delivery_failure_notices "
             "WHERE delivered_at IS NULL ORDER BY created_at"

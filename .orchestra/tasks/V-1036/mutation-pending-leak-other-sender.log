@@ -1,0 +1,49 @@
+...initial-delivery failure notification remains pending
+Traceback (most recent call last):
+  File "<hub-workspace>", line 736, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "<hub-workspace>", line 97, in send
+    raise RuntimeError("LayoutMigrationError: original\nsecond line")
+RuntimeError: LayoutMigrationError: original
+second line
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<hub-workspace>", line 763, in run_initial_delivery
+    await notify_message_delivery_failure(delivery_id, manager=manager)
+  File "<hub-workspace>", line 1073, in notify_message_delivery_failure
+    await task
+  File "<hub-workspace>", line 1058, in deliver
+    await sender_manager.send(
+  File "/usr/lib/python3.12/unittest/mock.py", line 2262, in _execute_mock_call
+    raise effect
+RuntimeError: sender offline
+..Executing <Task finished name='Task-34' coro=<DeliveryVisibility.test_initial_cancel_owner_state_boundary_and_idempotency() done, defined at <hub-workspace>:284> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.104 seconds
+......F....Executing <Task finished name='Task-101' coro=<DeliveryVisibility.test_success_and_quota_race_never_create_failure_wake() done, defined at <hub-workspace>:197> result=None created at /usr/lib/python3.12/asyncio/runners.py:100> took 0.190 seconds
+.
+======================================================================
+FAIL: test_pending_is_owned_filtered_80_chars_and_includes_initial (test_delivery_visible_1036.DeliveryVisibility.test_pending_is_owned_filtered_80_chars_and_includes_initial)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-workspace>", line 272, in test_pending_is_owned_filtered_80_chars_and_includes_initial
+    self.assertEqual({r["delivery_id"] for r in pending}, {a["delivery_id"], b["delivery_id"]})
+AssertionError: Items in the first set but not the second:
+'0fd224cc-1baa-48d4-af5e-28b246aa912c'
+
+----------------------------------------------------------------------
+Ran 17 tests in 1.906s
+
+FAILED (failures=1)

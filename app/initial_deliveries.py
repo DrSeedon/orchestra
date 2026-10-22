@@ -286,7 +286,7 @@ async def accept_initial_delivery(
                     connection.execute(
                         "UPDATE initial_deliveries SET error_json=? WHERE delivery_id=? "
                         "AND state='WAITING_QUOTA'",
-                        (json.dumps(wait_error(quota_wait), ensure_ascii=False), delivery_id),
+                        (json.dumps(wait_error(quota_wait, delivery_id=delivery_id), ensure_ascii=False), delivery_id),
                     )
                 row = connection.execute(
                     "SELECT * FROM initial_deliveries WHERE delivery_id=?",
@@ -300,7 +300,7 @@ async def accept_initial_delivery(
         else:
             state = "WAITING_QUOTA" if quota_wait is not None else "QUEUED"
             error_json = (
-                json.dumps(wait_error(quota_wait), ensure_ascii=False)
+                json.dumps(wait_error(quota_wait, delivery_id=delivery_id), ensure_ascii=False)
                 if quota_wait is not None else None
             )
             connection.execute(
@@ -369,6 +369,8 @@ def cancel_initial_delivery(
                 or source.get("scope") != row["scope"]
             ):
                 return {"ok": False, "error": {"code": "NOT_FOUND"}}, 404
+        if row["state"] == "CANCELLED":
+            return _resource(row), 200
         if row["state"] not in {"WAITING_QUOTA", "QUEUED"}:
             return {
                 "ok": False,
@@ -585,7 +587,7 @@ def mark_initial_delivery_waiting_quota(delivery_id: str, decision) -> dict:
             """UPDATE initial_deliveries
                SET state='WAITING_QUOTA', error_json=?, updated_at=?
                WHERE delivery_id=? AND state='PREPARING'""",
-            (json.dumps(wait_error(decision), ensure_ascii=False), _now(), delivery_id),
+            (json.dumps(wait_error(decision, delivery_id=delivery_id), ensure_ascii=False), _now(), delivery_id),
         )
         if row["user_log_id"] is not None:
             connection.execute(
@@ -639,6 +641,9 @@ def mark_initial_delivery_failed_before_submit(
             "SELECT * FROM initial_deliveries WHERE delivery_id=?",
             (delivery_id,),
         ).fetchone()
+        from app.message_deliveries import record_delivery_failure
+
+        record_delivery_failure(connection, row, initial=True)
         return _resource(row)
 
 
@@ -675,6 +680,9 @@ def mark_initial_delivery_unknown(
             "SELECT * FROM initial_deliveries WHERE delivery_id=?",
             (delivery_id,),
         ).fetchone()
+        from app.message_deliveries import record_delivery_failure
+
+        record_delivery_failure(connection, row, initial=True)
         return _resource(row)
 
 
@@ -749,6 +757,12 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
             mark_initial_delivery_failed_before_submit(delivery_id, error)
         raise
     finally:
+        try:
+            from app.message_deliveries import notify_message_delivery_failure
+
+            await notify_message_delivery_failure(delivery_id, manager=manager)
+        except Exception:
+            logger.exception("initial-delivery failure notification remains pending")
         try:
             initial_delivery_events.ensure_runner(manager)
         except Exception:

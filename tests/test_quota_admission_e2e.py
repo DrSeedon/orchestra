@@ -104,13 +104,14 @@ async def _spawn(mgr, name, model, **over):
 @pytest.mark.parametrize("name, model", [
     ("claude", "claude-opus-5-5[1m]"),
 ])
-async def test_gated_worker_is_still_created_above_the_line(mgr, monkeypatch, name, model):
-    """V-678: спавн не отбивается гейтом — его первое задание ждёт в WAITING_QUOTA."""
+async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+    """V-1036: refuse before creating a worker whose first task would be held."""
     monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
 
-    session = await _spawn(mgr, f"{name}-above", model)
+    with pytest.raises(QuotaGateError, match="hub"):
+        await _spawn(mgr, f"{name}-above", model)
 
-    assert session.name == f"{name}-above"
+    assert mgr.get_by_name(f"{name}-above", "/s") is None
 
 
 @pytest.mark.asyncio
@@ -146,12 +147,38 @@ async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
     ("luna", "gpt-6-luna"),
     ("spark", "gpt-5.3-codex-spark"),
 ])
-async def test_luna_and_spark_are_still_created_at_the_hard_stop(mgr, monkeypatch, name, model):
+async def test_luna_and_spark_are_refused_at_the_hard_stop(mgr, monkeypatch, name, model):
     monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(99.0))
 
-    session = await _spawn(mgr, f"{name}-hard", model)
+    with pytest.raises(QuotaGateError):
+        await _spawn(mgr, f"{name}-hard", model)
 
-    assert session.name == f"{name}-hard"
+    assert mgr.get_by_name(f"{name}-hard", "/s") is None
+
+
+@pytest.mark.asyncio
+async def test_closed_gate_precedes_task_binding_session_and_worktree(mgr, monkeypatch, tmp_path):
+    from unittest.mock import AsyncMock, Mock
+
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE["claude"]))
+    monkeypatch.setattr("app.manager.validate_repo_root", lambda _path: tmp_path)
+    worktree = Mock(side_effect=AssertionError("worktree allocated before admission"))
+    task = Mock(side_effect=AssertionError("task allocated before admission"))
+    session = Mock(side_effect=AssertionError("session allocated before admission"))
+    capacity = AsyncMock()
+    monkeypatch.setattr("app.manager.create_worktree", worktree)
+    monkeypatch.setattr("app.manager.AgentSession", session)
+    monkeypatch.setattr("app.tm.create_task_for_scope", task)
+    monkeypatch.setattr("app.hub_pool.require_hub_capacity", capacity)
+
+    with pytest.raises(QuotaGateError):
+        await _spawn(mgr, "no-half-worker", "claude-opus-5-5[1m]",
+                     use_worktree=True, repo_path=str(tmp_path))
+
+    worktree.assert_not_called()
+    task.assert_not_called()
+    session.assert_not_called()
+    capacity.assert_not_awaited()
 
 
 @pytest.mark.asyncio

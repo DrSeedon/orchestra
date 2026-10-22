@@ -89,6 +89,7 @@ def publish_mcp_identity_canary(environ: dict[str, str] | None = None) -> Path |
 READ_ONLY_MCP_TOOLS = frozenset({
     "test_lock_status",
     "list_agents",
+    "list_pending_deliveries",
     "list_orchestrators",
     "get_worker_logs",
     "search_logs",
@@ -497,6 +498,10 @@ def _response_error(
         details["server"] = _safe_detail(server_details)
     elif response.text:
         details["response_body"] = _safe_response_text(response.text)
+    delivery_id = body.get("delivery_id") or server_error.get("delivery_id")
+    if delivery_id:
+        details["delivery_id"] = delivery_id
+        message += f"; delivery_id={delivery_id}"
     return ApiToolError(
         code=code,
         message=message,
@@ -506,7 +511,7 @@ def _response_error(
         retry_after_seconds=retry_after,
         outcome_unknown=outcome_unknown,
         details=details,
-        result=body.get("result"),
+        result=body.get("result") or (body if delivery_id else None),
     )
 
 
@@ -592,7 +597,15 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
 
     if response.status_code >= 400:
         raise _response_error(method, path, response, payload, request_id)
-    if isinstance(payload, dict) and payload.get("error") is not None:
+    # Delivery receipts carry their durable state/error even after acceptance.
+    # Treating that error as an HTTP failure discards the id and quota ETA.
+    accepted_delivery = (
+        isinstance(payload, dict)
+        and payload.get("ok") is True
+        and bool(payload.get("delivery_id"))
+        and bool(payload.get("delivery_state"))
+    )
+    if isinstance(payload, dict) and payload.get("error") is not None and not accepted_delivery:
         raise _response_error(method, path, response, payload, request_id)
     return payload
 
@@ -720,9 +733,11 @@ def _delivery_receipt_text(
     # терминальный отказ до отправки. «Task accepted» на нём — молчаливая потеря:
     # воркер создан и стоит без задания, а спавнящий читает приёмку и уходит.
     if state == "FAILED_BEFORE_SUBMIT":
+        error = delivery.get("error") or {}
         headline = (
             "Task was NOT delivered — the worker has no task yet. Resend the SAME task "
             f"text with retry_initial_delivery(name='{name}', delivery_id='{delivery_id}')."
+            f" {error.get('code', 'DELIVERY_NOT_SUBMITTED')}: {error.get('message', '')}"
         )
     elif state == "WAITING_QUOTA":
         action = delivery.get("next_action") if isinstance(delivery.get("next_action"), dict) else {}
@@ -1113,7 +1128,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1599,8 +1614,14 @@ def _ambiguous_message_delivery_error(
 
 
 @mcp.tool()
+async def list_pending_deliveries(target: str = "") -> dict[str, Any]:
+    """List your WAITING_QUOTA and QUEUED messages and initial tasks, optionally to one target. Includes delivery_id, target, created_at, first 80 characters and ETA. Use to clean up stale held deliveries with cancel_message_delivery; do not routinely poll."""
+    return await _api("GET", "/api/pending-deliveries", params={"target": target})
+
+
+@mcp.tool()
 async def cancel_message_delivery(delivery_id: str) -> dict[str, Any]:
-    """Withdraw your direct message that has not reached the target yet (state WAITING_QUOTA or QUEUED). A message already dispatched cannot be cancelled."""
+    """Withdraw your direct message or initial task in WAITING_QUOTA or QUEUED. A message already dispatched cannot be cancelled."""
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     try:
         delivery_id = str(uuid.UUID(delivery_id))

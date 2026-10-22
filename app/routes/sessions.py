@@ -1771,6 +1771,21 @@ async def cancel_message_delivery(delivery_id: str, request: Request = None):
     return JSONResponse(resource, status_code=status)
 
 
+@router.get("/api/pending-deliveries")
+async def list_pending_deliveries(target: str = "", request: Request = None):
+    """One-shot cleanup view of the authenticated sender's held deliveries."""
+    from app import message_deliveries
+
+    caller = _delivery_caller(request)
+    if caller is None:
+        return keyed_auth_required()
+    _operator, source_id = caller
+    if not source_id:
+        # An operator cookie has no sender identity; do not expose other callers.
+        return {"deliveries": []}
+    return {"deliveries": message_deliveries.list_pending_deliveries(source_id, target)}
+
+
 @router.post("/api/sessions/{name}/compact")
 async def compact_session(name: str, req: ScopeRequest):
     session = await manager.ensure_loaded(name, req.scope)
