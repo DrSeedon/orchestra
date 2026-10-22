@@ -1,0 +1,7 @@
+PASS request: claude-sonnet-5-5[1m]
+PASS request: hub-gpt-6.1-sol
+PASS request: hub-claude-sonnet-5-5
+PASS rejected mutation: missing model
+PASS rejected mutation: missing scope
+PASS rejected mutation: missing reason
+PASS static follow-up: dashboard_browser fixture, picker after every async test, both fixture names counted, expected inventory 105 retained.
