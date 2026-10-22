@@ -1,6 +1,6 @@
 # V-1006 — Orchestra client for MultiCode Hub MCP
 
-Implemented Phase 1 on 2026-10-22 using the owner-confirmed `/mcp` contract. No Hub call, token issuance, credential inspection, raw relay, or service restart was performed.
+Implemented Phase 1 on 2026-10-22 using the owner-confirmed `/mcp` contract. No Hub call, token issuance, credential inspection, raw relay, or service restart was performed during that implementation phase. Later live verification and OAuth renewal are recorded below.
 
 ## Ночь 22.10 — живые результаты (orchestrator)
 
@@ -17,7 +17,7 @@ This is a delegation/control-plane call, not a streaming model backend. `MultiCo
 
 The new thread is launched with `scratch: true` and `runtimeMode: "approval-required"`. Wait responses with `timedOut: true` are retried until the configured total timeout; a successful wait reads the latest assistant message and archives that thread. `send_follow_up(thread_id, message)` uses `mode: "queue"` for later turns. A timeout or read failure leaves the remote thread unarchived so that continuing work is not silently hidden.
 
-## Configuration and first live run
+## Configuration used for the initial integration
 
 Set `MULTICODE_MCP_BASE` to the hub base and `MULTICODE_MCP_TOKEN` to the out-of-band bearer. The client appends `/mcp`; for example, `MULTICODE_MCP_BASE=http://127.0.0.1:43773`. It sends the bearer only in the Authorization header and redacts it from returned text and protocol errors. Do not place the token in the base URL.
 
@@ -27,7 +27,7 @@ For the currently loopback-only Hub, open an outbound tunnel outside this client
 ssh -N -L 43773:127.0.0.1:<hub-port> <hub-alias>
 ```
 
-Before a first live run, the owner must provide/configure the bearer, ensure it has `orchestration:read` and `orchestration:operate`, and start the tunnel to the intended Hub. The Hub-side runtime/environment also needs to be appropriate for the task; V-1005 found that an agent may inherit access to the Hub user's on-remote setup, so do not connect a Hub environment that can reach the owner's laptop until that boundary is addressed. After the code is merged, the MCP process that loads `app.mcp_stdio` must be restarted/reconnected by the owner before the new tool appears. None of these live prerequisites were exercised here.
+Those prerequisites applied before the first live call. The renewal flow later opened its own SSH tunnel and issued its own short-lived pairing code; no Orchestra service was restarted.
 
 ## Verification and remaining work
 
@@ -35,13 +35,23 @@ Before a first live run, the owner must provide/configure the bearer, ensure it 
 
 Imported paths: `app` → `/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-multicode-client/app/__init__.py`; client → `/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-multicode-client/app/multicode_client.py`.
 
-Still required for a first live run: owner-provided bearer in the process environment, the outbound tunnel or a reachable configured HTTPS base, confirmation of the target Hub environment boundary, and an owner-authorized MCP process restart/reconnect after merge. The real Hub's response shape, token scope acceptance, and runtime behavior remain unverified by design in Phase 1.
+At the time of Phase 1, the first live call, token scope acceptance, and runtime behavior were unverified. The owner later captured the `items` response shape documented below; OAuth and full-access behavior were verified in the renewal run.
 
 ## Follow-up: thread read response shape
 
 The owner captured a live `t3_thread_read` response with messages in `structuredContent.items`; each item has `createdBy` and flat `text`, rather than the assumed `messages` and `role` fields. `_last_assistant_text` now scans `items` newest-first, skips entries marked as user by either `createdBy` or `role`, accepts non-empty text, and joins text blocks from `content` when flat text is absent. It retains `messages` as a compatibility fallback. The mock integration test now models the captured `items` shape with user and agent messages; a separate unit test covers content blocks.
 
 `uv run --frozen python -m pytest tests/test_multicode_client.py tests/test_mcp_stdio.py -q` → **147 passed**. With the committed regression test, restoring the old `messages`/`role` parser makes the happy-path test fail with `MultiCode thread has no assistant reply`. No Hub call or restart was made in this follow-up; the owner will verify PONG live.
+
+## Headless OAuth renewal and live verification
+
+Added `scripts/multicode_oauth_renew.py`. It dynamically registers a PKCE client, creates a 15-minute pairing code over SSH with `orchestration:read`, `orchestration:operate`, `settings:write`, and `source-control:write`, requests `full-access`, receives the callback on `127.0.0.1:18765`, and exchanges the code. It verifies the returned token claims and 30-day lifetime, then runs a full-access Haiku thread that writes and reads a marker file. Only after the thread completes with `pendingRequestCount=0` does the script atomically replace `/home/kesha/orchestra/data/secrets/multicode-oauth.token` at mode `0600` and revoke the previous session. A failed probe revokes its newly issued session without touching the existing token. `--if-expiring-within-days N` now reads `exp` locally and exits before SSH/Hub access when more than `N` days remain; otherwise it performs renewal. Cron output ends with `RENEW_SKIPPED <days-left>`, `RENEWED <expiresAt>`, or `RENEW_FAILED <reason>` (non-zero on failure).
+
+Live run on 2026-10-22 succeeded. The active session is `f528078d-8ece-454c-8573-e15425b715f5`, issued `2026-10-22T03:12:50.242Z`, expires `2026-11-21T03:12:50.242Z`, with the four scopes above. The previous session `ca65da4c-7f4e-4a88-ba2a-1ea93ce91f52` is absent from `t3 auth session list --json`. Probe thread `mcp:90ad5e71-9fa1-4017-97df-b7203cb72d64` completed with `pendingRequestCount=0` and output `orchestra-oauth-renew-ok`. The local token file is owned by `kesha` and mode `0600`. The redacted output is preserved in [renewal-live.json](renewal-live.json); no token was printed or committed.
+
+The live attempts exposed two transport details: the Hub returns `Mcp-Session-Id` with lowercase header keys through `urllib`, and a retry got `EADDRINUSE` binding the callback listener after an earlier request. The client now compares header names case-insensitively; the callback server enables address reuse on its loopback-only listener. Two sessions minted by earlier failed attempts (`94640da5-ff85-436f-b99d-49d092fb0786`, `5ff91def-45d5-485b-a3c3-fb8ab090d409`) were revoked after the successful probe; final session listing confirmed both and the previous session absent while the new session remained active.
+
+`uv run --frozen python -m pytest tests/test_multicode_oauth_renew.py -q` → **6 passed**. The committed tests cover PKCE, OAuth payloads, token claims, atomic mode-`0600` replacement, skip-before-Hub behavior, and the exact `N`-day decision boundary. Mutations changing mode `0600` to `0644` and changing the skip comparison from `>` to `>=` each make a committed test fail. No live renewal was repeated for the cron-flag change; the previously verified Hub session remains the current session.
 
 ## 22.10 утро — B доказан вживую
 

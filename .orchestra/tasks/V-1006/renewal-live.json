@@ -1,0 +1,21 @@
+{
+  "renewed": true,
+  "old_session_revoked": true,
+  "new_session": {
+    "sessionId": "f528078d-8ece-454c-8573-e15425b715f5",
+    "scopes": [
+      "orchestration:read",
+      "orchestration:operate",
+      "settings:write",
+      "source-control:write"
+    ],
+    "issuedAt": "2026-10-22T03:12:50.242Z",
+    "expiresAt": "2026-11-21T03:12:50.242Z"
+  },
+  "probe": {
+    "threadId": "mcp:90ad5e71-9fa1-4017-97df-b7203cb72d64",
+    "status": "completed",
+    "pendingRequestCount": 0,
+    "output": "orchestra-oauth-renew-ok"
+  }
+}
