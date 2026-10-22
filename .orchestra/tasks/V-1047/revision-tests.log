@@ -1,0 +1,33 @@
+test_default_list_path_also_carries_target_context (__main__.GateTests.test_default_list_path_also_carries_target_context) ... ok
+test_empty_filename_literal_and_binary_literals_are_checked (__main__.GateTests.test_empty_filename_literal_and_binary_literals_are_checked) ... ok
+test_existing_scanner_load_path_adds_target_env (__main__.GateTests.test_existing_scanner_load_path_adds_target_env) ... ok
+test_existing_stop_list_and_local_credentials_both_apply (__main__.GateTests.test_existing_stop_list_and_local_credentials_both_apply) ... ok
+test_generated_hook_ignores_foreign_venv_and_caller_python (__main__.GateTests.test_generated_hook_ignores_foreign_venv_and_caller_python) ... ok
+test_generated_hook_prefers_orchestra_venv (__main__.GateTests.test_generated_hook_prefers_orchestra_venv) ... ok
+test_history_added_then_removed_is_blocked_but_old_removal_passes (__main__.GateTests.test_history_added_then_removed_is_blocked_but_old_removal_passes) ... ok
+test_hub_pem_header_mentions_pass_but_body_requires_40_characters (__main__.GateTests.test_hub_pem_header_mentions_pass_but_body_requires_40_characters) ... ok
+test_hub_reuses_literal_inventory (__main__.GateTests.test_hub_reuses_literal_inventory) ... ok
+test_installer_cli_from_repository_with_existing_secret_scanner (__main__.GateTests.test_installer_cli_from_repository_with_existing_secret_scanner) ... ok
+test_installer_dispatches_existing_canonical_scanner_in_all_modes (__main__.GateTests.test_installer_dispatches_existing_canonical_scanner_in_all_modes) ... ok
+test_installer_idempotent_and_preserves_foreign_hooks (__main__.GateTests.test_installer_idempotent_and_preserves_foreign_hooks) ... ok
+test_inventory_refresh_and_read_failure (__main__.GateTests.test_inventory_refresh_and_read_failure) ... ok
+test_literal_in_path_message_and_multiline_content_is_redacted (__main__.GateTests.test_literal_in_path_message_and_multiline_content_is_redacted) ... ok
+test_merge_worker_allows_shape_mentions (__main__.GateTests.test_merge_worker_allows_shape_mentions) ... ok
+test_merge_worker_blocks_literal_without_changing_refs (__main__.GateTests.test_merge_worker_blocks_literal_without_changing_refs) ... ok
+test_minimal_hook_import_and_literal_inventory_use_only_stdlib (__main__.GateTests.test_minimal_hook_import_and_literal_inventory_use_only_stdlib) ... ok
+test_missing_stop_list_does_not_skip_platform_env_and_secret_files (__main__.GateTests.test_missing_stop_list_does_not_skip_platform_env_and_secret_files) ... ok
+test_names_placeholders_paths_quotes_and_interpolation (__main__.GateTests.test_names_placeholders_paths_quotes_and_interpolation) ... ok
+test_real_secret_scanner_pre_push_uses_literal_rules (__main__.GateTests.test_real_secret_scanner_pre_push_uses_literal_rules) ... skipped 'canonical secret_scan.py excluded from worker upload'
+test_redirects_and_symlinks_are_not_overwritten (__main__.GateTests.test_redirects_and_symlinks_are_not_overwritten) ... ok
+test_registered_scopes_install_and_foreign_scope_reports_error (__main__.GateTests.test_registered_scopes_install_and_foreign_scope_reports_error) ... ok
+test_rule_paths_keep_project_context_when_interleaved (__main__.GateTests.test_rule_paths_keep_project_context_when_interleaved) ... ok
+test_scan_range_does_not_apply_hub_shapes (__main__.GateTests.test_scan_range_does_not_apply_hub_shapes) ... ok
+test_secret_mask_uses_shared_names_and_length (__main__.GateTests.test_secret_mask_uses_shared_names_and_length) ... ok
+test_versioned_hook_shims_dispatch_canonical_scanner (__main__.GateTests.test_versioned_hook_shims_dispatch_canonical_scanner) ... ok
+test_worktree_reads_own_and_main_env (__main__.GateTests.test_worktree_reads_own_and_main_env) ... ok
+test_reverting_each_requested_guard_fails_its_behavioral_test (__main__.MutationTests.test_reverting_each_requested_guard_fails_its_behavioral_test) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 11.439s
+
+OK (skipped=1)

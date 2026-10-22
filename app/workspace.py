@@ -1706,10 +1706,11 @@ def merge_worktree_to_main(
                 try:
                     guard = forbidden_strings.scan_range(
                         repo, target_branch, worker_head,
-                        forbidden_strings.load_rules(forbidden_strings.list_path(repo)),
+                        forbidden_strings.load_rules(forbidden_strings.list_path(repo))
+                        + forbidden_strings.publication_secrets.literal_rules(wt),
                     )
-                except RuntimeError as e:
-                    result = {"ok": False, "error": f"publish guard could not run: {e}"}
+                except (RuntimeError, OSError, UnicodeError):
+                    result = {"ok": False, "error": "publish guard could not read credential inventory or git objects"}
                 else:
                     if guard:
                         result = {

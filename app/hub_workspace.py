@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.hub_outbox import MAX_OUTBOX_BYTES, OUTBOX_NAME
+from app import publication_secrets
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 STATE_DIR = DATA_DIR / "hub-workspaces"
@@ -69,19 +70,7 @@ BLOCKED_NAMES = frozenset({
 BLOCKED_SUFFIXES = (".pem", ".key", ".p12", ".pfx", ".token", ".keystore", ".jks", ".gpg")
 _ENV_OK_SUFFIXES = (".example", ".sample", ".template", ".dist")
 
-_SECRET_SHAPES = (
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}"),
-    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{40,}"),
-    re.compile(r"\bsk-(?:ant-)?[A-Za-z0-9_-]{24,}"),
-    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}"),
-    re.compile(r"\bAIza[0-9A-Za-z_-]{35}"),
-    re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{35}\b"),
-    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-)
-_SECRET_NAME_WORDS = ("TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY",
-                      "PRIVATE_KEY", "CREDENTIAL", "COOKIE", "DSN")
+_SECRET_SHAPES = tuple(pattern for _, pattern in publication_secrets.HUB_SECRET_SHAPES)
 
 
 def base_id_for(scope: str) -> str:
@@ -171,21 +160,11 @@ def blocked_reason(rel: str) -> str | None:
 def known_secret_values(extra: list[str] | None = None) -> list[str]:
     """Literal values of our own credentials: secret-looking environment variables and the
     files under data/secrets. A file or prompt containing one of them must not leave."""
-    values: set[str] = set(extra or [])
-    for key, value in os.environ.items():
-        if len(value) >= 12 and any(word in key.upper() for word in _SECRET_NAME_WORDS):
-            values.add(value.strip())
-    secrets_dir = DATA_DIR / "secrets"
-    if secrets_dir.is_dir():
-        for path in secrets_dir.iterdir():
-            try:
-                if not path.is_file() or path.stat().st_size > 64 * 1024:
-                    continue
-                text = path.read_text(errors="ignore").strip()
-            except OSError:
-                continue
-            values.add(text)
-    return sorted((v for v in values if len(v) >= 12), key=len, reverse=True)
+    values = {value for _, value in publication_secrets.literal_rules(
+        data_dir=DATA_DIR,
+    )}
+    values.update(extra or [])
+    return sorted((v for v in values if len(v) >= publication_secrets._MIN_LEN), key=len, reverse=True)
 
 
 def secret_in_text(text: str, known: list[str]) -> str | None:

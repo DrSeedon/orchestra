@@ -144,6 +144,9 @@ def scratch_repo(tmp_path):
     (root / "app" / "forbidden_strings.py").write_text(
         (REPO / "app" / "forbidden_strings.py").read_text()
     )
+    (root / "app" / "publication_secrets.py").write_text(
+        (REPO / "app" / "publication_secrets.py").read_text()
+    )
     (root / "scripts" / "install_git_hooks.py").write_text(
         (REPO / "scripts" / "install_git_hooks.py").read_text()
     )

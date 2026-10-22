@@ -144,6 +144,14 @@ def _isolate_forbidden_strings(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_publication_secrets(tmp_path, monkeypatch):
+    """Publication tests must never inventory the operator's .env or secret files."""
+    from app import publication_secrets
+
+    monkeypatch.setattr(publication_secrets, "PLATFORM_ROOT", tmp_path / "publication-platform")
+
+
+@pytest.fixture(autouse=True)
 def _isolate_temp_rules():
     """Prompt assembly must not read the live `.orchestra/temp-rules.yaml` (V-936).
 

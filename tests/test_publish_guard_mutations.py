@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # (module, original fragment, mutated fragment)
 MUTATIONS = [
-    ("forbidden_strings.py", "if value in text", "if False and value in text"),
-    ("forbidden_strings.py", 'elif line.startswith("+") and', 'elif False and'),
-    ("forbidden_strings.py", '    if not rules:\n        return []\n', '    return []\n'),
+    ("publication_secrets.py", "if value in text", "if False and value in text"),
+    ("forbidden_strings.py", 'added.append(line[1:])', 'added.append("")'),
+    ("forbidden_strings.py", '    return list(dict.fromkeys(found))', '    return []'),
     ("private_folder.py", "link.symlink_to(shared, target_is_directory=True)", "link.mkdir()"),
     ("workspace.py", "                    if guard:\n", "                    if False:\n"),
     ("private_folder.py", "return Path(done.stdout.strip()).parent", "return Path(path)"),

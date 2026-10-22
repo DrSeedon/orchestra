@@ -84,7 +84,7 @@ def test_default_list_is_isolated_from_live_checkout(tmp_path):
     repo = _repo(tmp_path)
     path = forbidden_strings.list_path(repo)
     assert path == tmp_path / "forbidden-strings.txt"
-    assert forbidden_strings.load_rules(path) == []
+    assert forbidden_strings.load_rules(path) == forbidden_strings.publication_secrets.literal_rules(repo)
 
 
 @pytest.mark.parametrize("location", ["content", "shared_content", "path", "message", "clean"])
