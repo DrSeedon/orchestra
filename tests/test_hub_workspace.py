@@ -214,7 +214,13 @@ class FakeSsh(hw.HubSsh):
     async def remove(self, remote_dir):
         self.removed.append(remote_dir)
         import shutil
-        shutil.rmtree(remote_dir)
+        shutil.rmtree(remote_dir, ignore_errors=True)
+
+    async def list_workspaces(self):
+        return [(p.name, p.stat().st_mtime) for p in sorted(self.base.glob("hub-*")) if p.is_dir()]
+
+    async def scrub_traces(self, ws_id, thread_id):
+        self.scrubbed = getattr(self, "scrubbed", []) + [(ws_id, thread_id)]
 
 
 class FakeMc:
@@ -224,12 +230,24 @@ class FakeMc:
         self.calls: list[tuple[str, dict]] = []
         self.hub_edit = hub_edit
         self.project_dir = ""
+        self.project_deleted = False
+        self.delete_is_a_noop = False
 
     async def tool_call(self, name, args):
         self.calls.append((name, args))
         if name == "t3_project_create":
             self.project_dir = args["workspaceRoot"]
             return {"id": "proj-1"}
+        if name == "t3_project_delete":
+            self.project_deleted = not self.delete_is_a_noop
+            return {}
+        if name == "t3_project_list":
+            if self.project_deleted or not self.project_dir:
+                return {"projects": [], "nextCursor": None}
+            return {"projects": [{"id": "proj-1", "workspaceRoot": self.project_dir}], "nextCursor": None}
+        if name == "t3_thread_read" and self.project_deleted:
+            from app.multicode_client import MultiCodeError
+            raise MultiCodeError('MultiCode tool t3_thread_read failed: {"code":"thread_not_found"}')
         if name in ("t3_thread_launch", "t3_thread_send"):
             self.hub_edit(Path(self.project_dir))
             return {"threadId": "thr-1", "runId": "run-1"}
@@ -410,3 +428,161 @@ def test_reply_is_the_assistant_message_of_this_run_not_the_prompt_or_an_older_t
     ]}
     assert _last_assistant_text(items, "r2") is None      # interrupted before any reply
     assert _last_assistant_text(items, "r1") == "answer one"
+
+
+# ── complete release, orphan sweep, routing hint ─────────────────────────────────────
+
+
+@pytest.fixture
+def no_wait(monkeypatch):
+    import time as _time
+    monkeypatch.setattr(hw.asyncio, "sleep", lambda *_: _sleep0())
+    real = _time.monotonic
+    ticks = iter(range(0, 10_000))
+    monkeypatch.setattr(hw.time, "monotonic", lambda: next(ticks) * 1.0)
+    return real
+
+
+async def _sleep0():
+    return None
+
+
+async def _worker_turn(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    await _turn(backend, "noop")
+    return backend._state, ssh, mc
+
+
+@pytest.mark.asyncio
+async def test_release_proves_project_thread_and_directory_are_gone(repo, tmp_path, monkeypatch, no_wait):
+    state, ssh, mc = await _worker_turn(repo, tmp_path, monkeypatch)
+    await hw.release_workspace(state, ssh, mc)
+    names = [name for name, _ in mc.calls]
+    assert names.index("t3_project_delete") < names.index("t3_project_list")
+    assert ssh.scrubbed == [(state.ws_id, "thr-1")]
+    assert not state.path().exists()
+
+
+@pytest.mark.asyncio
+async def test_release_keeps_the_record_when_the_hub_still_shows_the_project(repo, tmp_path, monkeypatch, no_wait):
+    state, ssh, mc = await _worker_turn(repo, tmp_path, monkeypatch)
+    mc.delete_is_a_noop = True
+    with pytest.raises(hw.HubWorkspaceError, match="project still listed"):
+        await hw.release_workspace(state, ssh, mc)
+    assert state.path().exists()
+
+
+def test_trace_scrub_removes_only_this_workspaces_provider_traces(tmp_path):
+    home = tmp_path / "home"
+    ws, other = "hub-0123456789abcdef", "hub-fedcba9876543210"
+    for root in (".claude/projects", ".cache/claude-cli-nodejs"):
+        for w in (ws, other):
+            (home / root / f"-home-u-orchestra-ws-{w}").mkdir(parents=True)
+            (home / root / f"-home-u-orchestra-ws-{w}" / "s.jsonl").write_text("x")
+    (home / ".codex/sessions/2026").mkdir(parents=True)
+    (home / ".codex/sessions/2026/mine.jsonl").write_text(f'{{"cwd":"/x/{ws}"}}')
+    (home / ".codex/sessions/2026/theirs.jsonl").write_text('{"cwd":"/owner/project"}')
+    (home / "provlogs").mkdir(parents=True)
+    (home / "provlogs/events.mcp-abc.log").write_text("x")
+    (home / "provlogs/events.mcp-other.log").write_text("x")
+    done = subprocess.run(["bash", "-s", "--", ws, "mcp:abc", str(home / "provlogs")], input=hw._SCRUB_SCRIPT, text=True,
+                          env={"HOME": str(home), "PATH": os.environ["PATH"]}, capture_output=True)
+    assert done.returncode == 0, done.stderr
+    left = sorted(str(p.relative_to(home)) for p in home.rglob("*") if p.is_file())
+    assert not any(ws in p for p in left)
+    assert ".codex/sessions/2026/theirs.jsonl" in left and "provlogs/events.mcp-other.log" in left
+    assert any(other in p for p in left)
+    assert ".codex/sessions/2026/mine.jsonl" not in left
+    assert "provlogs/events.mcp-abc.log" not in left
+
+
+@pytest.mark.asyncio
+async def test_sweep_releases_dead_workers_keeps_live_and_clears_unrecorded_debris(
+        repo, tmp_path, monkeypatch, no_wait):
+    import os, time
+    live, ssh, mc = await _worker_turn(repo, tmp_path, monkeypatch)
+    dead = hw.WorkspaceState(ws_id="hub-aaaaaaaaaaaaaaaa", worktree=str(tmp_path / "gone-worktree"),
+                             remote_dir=str(ssh.base / "hub-aaaaaaaaaaaaaaaa"))
+    dead.save()
+    (ssh.base / dead.ws_id).mkdir()
+    old = ssh.base / "hub-bbbbbbbbbbbbbbbb"
+    old.mkdir()
+    os.utime(old, (time.time() - 7200,) * 2)
+    fresh = ssh.base / "hub-cccccccccccccccc"
+    fresh.mkdir()
+    monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(mc)))
+    monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
+    report = await backend_hub.sweep_orphans({str(repo)})
+    assert report["released"] == [dead.ws_id] and report["kept"] == 1 and not report["errors"]
+    assert report["remote_dirs"] == [old.name]
+    assert Path(live.remote_dir).exists() and fresh.exists()
+    assert not (ssh.base / dead.ws_id).exists() and not old.exists()
+    assert live.path().exists() and not dead.path().exists()
+
+
+@pytest.mark.asyncio
+async def test_sweep_deletes_an_orphan_project_under_our_root_only(repo, tmp_path, monkeypatch, no_wait):
+    ssh = FakeSsh(tmp_path / "hub")
+    ssh.base.mkdir()
+    monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
+    monkeypatch.setenv("MULTICODE_MCP_BASE", "http://x")
+    monkeypatch.setenv("MULTICODE_MCP_TOKEN", "t")
+    projects = [{"id": "p-orphan", "workspaceRoot": f"{ssh.base}/hub-dddddddddddddddd"},
+                {"id": "p-owner", "workspaceRoot": "/home/u/owner-project"},
+                {"id": "p-foreign", "workspaceRoot": "/elsewhere/hub-eeeeeeeeeeeeeeee"}]
+    deleted = []
+
+    class Mc:
+        async def tool_call(self, name, args):
+            if name == "t3_project_list":
+                return {"projects": projects, "nextCursor": None}
+            if name == "t3_thread_list":
+                return {"threads": [{"threadId": "mcp:t1"}]}
+            if name == "t3_project_delete":
+                deleted.append(args["projectId"])
+            return {}
+    monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(Mc())))
+    report = await backend_hub.sweep_orphans(set())
+    assert deleted == ["p-orphan"] and report["projects"] == ["hub-dddddddddddddddd"]
+    assert ssh.scrubbed == [("hub-dddddddddddddddd", "mcp:t1")]
+
+
+def test_quota_hold_names_the_hub_alternative(monkeypatch):
+    from app.models import hub_alternative_hint
+
+    for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
+                       "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
+        monkeypatch.setenv(key, value)
+    assert "model='hubsol'" in hub_alternative_hint("luna")
+    assert "model='hubsonnet'" in hub_alternative_hint("opus")
+    assert hub_alternative_hint("grok") == ""
+    monkeypatch.delenv("MULTICODE_HUB_SSH")
+    assert hub_alternative_hint("opus") == ""
+
+
+def test_quota_refusal_message_carries_the_hint(monkeypatch):
+    from app.quota_gate import QuotaDecision, QuotaGateError
+
+    for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
+                       "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
+        monkeypatch.setenv(key, value)
+    decision = QuotaDecision(
+        state="blocked", model="gpt-6-luna", provider="codex", provider_label="Codex", lane="luna",
+        gated=True, utilization=99, progress=0.5, tolerance_pp=5, limit_pct=90, observed_at=0,
+        valid_until=1, reset_at=None, window_starts_at=None, reason="over")
+    assert "model='hubsol'" in str(QuotaGateError(decision))
+
+
+def test_hub_sol_is_allowed_for_agents_while_our_own_sol_stays_refused(monkeypatch):
+    from app import models
+
+    for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
+                       "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
+        monkeypatch.setenv(key, value)
+    assert models.resolve_model("hubsol") == "hub-gpt-6.1-sol"
+    models.ensure_spawn_allowed("hub-gpt-6.1-sol")
+    assert models.resolve_model("sol") == "gpt-6.1-sol"
+    with pytest.raises(ValueError):
+        models.ensure_spawn_allowed(models.resolve_model("sol"))
+    assert backend_hub.HUB_MODELS["hub-gpt-6.1-sol"] == ("codex", "gpt-6.1-sol")

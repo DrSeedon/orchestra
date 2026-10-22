@@ -699,6 +699,15 @@ def _file_delivery_status_path(event_id: str) -> str:
     return f"/api/tg/file-deliveries/{event_id}"
 
 
+def _hub_hint(model: str | None) -> str:
+    from app.models import hub_alternative_hint
+
+    try:
+        return hub_alternative_hint(model)
+    except Exception:
+        return ""
+
+
 def _delivery_receipt_text(
     name: str,
     model: str,
@@ -723,7 +732,8 @@ def _delivery_receipt_text(
         headline = (
             "Task delivery is deferred by the quota gate (WAITING_QUOTA); it will go out "
             f"automatically when the gate opens. Reason: {reason}. "
-            f"{_safe_response_text(str(action.get('message') or ''))}"
+            f"{_safe_response_text(str(action.get('message') or ''))} "
+            f"{_hub_hint(model)}".rstrip()
         )
     elif state in {"QUEUED", "PREPARING"}:
         headline = "Task accepted; delivery is proceeding now and the quota gate is not holding it."
@@ -1457,6 +1467,7 @@ def _message_delivery_receipt_text(
             f"delivery_id={delivery_id}; state={state}.\n"
             f"{_safe_response_text(str(action.get('message') or ''))}\n"
             f"Withdraw it with cancel_message_delivery(delivery_id=\"{delivery_id}\")."
+            f"{(chr(10) + _hub_hint(None)) if _hub_hint(None) else ''}"
         )
     elif state == "CANCELLED":
         output = f"Message cancelled{target}; delivery_id={delivery_id}; it was not sent."

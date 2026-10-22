@@ -555,6 +555,8 @@ class SessionManager:
             return
         if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
             self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
+        if not getattr(self, '_hub_sweep_task', None) or self._hub_sweep_task.done():
+            self._hub_sweep_task = asyncio.create_task(self._periodic_hub_sweep())
         if not getattr(self, '_rules_link_task', None) or self._rules_link_task.done():
             self._rules_link_task = asyncio.create_task(self._periodic_rules_link())
         if not getattr(self, '_temp_rules_task', None) or self._temp_rules_task.done():
@@ -2505,6 +2507,24 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"Periodic worktree cleanup failed: {e}")
 
+
+    async def _periodic_hub_sweep(self) -> None:
+        """Release hub workspaces of vanished workers and hub debris without a local record (V-1008)."""
+        from app.backend_hub import sweep_orphans
+
+        await asyncio.sleep(120)
+        while True:
+            try:
+                rows = await asyncio.to_thread(get_all_sessions)   # archived rows are excluded
+                live = {r["worktree_path"] for r in rows if r.get("worktree_path")}
+                report = await sweep_orphans(live)
+                if report["released"] or report["remote_dirs"] or report["projects"] or report["errors"]:
+                    logger.info("hub sweep: %s", report)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"hub sweep failed: {e}")
+            await asyncio.sleep(6 * 3600)
 
     async def _periodic_rules_link(self) -> None:
         from app import rules_link

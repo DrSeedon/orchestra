@@ -32,6 +32,7 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-claude-sonnet-5-5": ("claudeAgent", "claude-sonnet-5-5"),
     "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
+    "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
     "hub-grok-4.7": ("grok", "grok-4.7"),
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
@@ -204,6 +205,7 @@ class HubBackend:
                 paths=list(self._paths or []))
             state.remote_dir = await ssh.dir_for(state.ws_id)
             self._state = state
+            state.save()   # before any hub write, so a crash leaves a record the sweep can release
         plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known)
         yield AgentEvent("status", self._upload_note(fresh, plan))
         scratch = hw.local_scratch()
@@ -399,3 +401,78 @@ async def release_for_worktree(worktree: str) -> list[str]:
     if errors:
         raise hw.HubWorkspaceError("; ".join(errors))
     return cleaned
+
+
+ORPHAN_MIN_AGE_S = 3600
+
+
+def _all_states() -> list[hw.WorkspaceState]:
+    if not hw.STATE_DIR.is_dir():
+        return []
+    return [st for p in sorted(hw.STATE_DIR.glob("hub-*.json"))
+            if (st := hw.WorkspaceState.load(p.stem)) is not None]
+
+
+async def sweep_orphans(live_worktrees: set[str], *, min_age: float = ORPHAN_MIN_AGE_S) -> dict:
+    """Release hub workspaces whose worker is gone, and hub leftovers that have no local record.
+
+    A workspace belongs to a live worker when its worktree is still registered for a session, so
+    an idle-but-alive worker keeps its copy. Hub-side debris (directories and projects under
+    our root with no record) is removed only when older than `min_age`, which is longer than any
+    upload, because the record is written before the first hub write."""
+    report: dict = {"released": [], "remote_dirs": [], "projects": [], "kept": 0, "errors": []}
+    states = _all_states()
+    if hub_configured() is not None:
+        if states:
+            report["errors"].append(hub_configured())
+        return report
+    live = {os.path.realpath(p) for p in live_worktrees if p}
+    ssh = hw.HubSsh.from_env()
+    async with MultiCodeClient.from_env() as mc:
+        for state in states:
+            if os.path.realpath(state.worktree) in live and Path(state.worktree).is_dir():
+                report["kept"] += 1
+                continue
+            try:
+                await hw.release_workspace(state, ssh, mc)
+                report["released"].append(state.ws_id)
+            except hw.HubWorkspaceError as exc:
+                report["errors"].append(f"{state.ws_id}: {exc}")
+        known = {st.ws_id for st in _all_states()}
+        root = await ssh.root()
+        dirs = dict(await ssh.list_workspaces())
+        now = time.time()
+
+        def stale(ws_id: str) -> bool:
+            return ws_id not in known and (ws_id not in dirs or now - dirs[ws_id] > min_age)
+
+        cursor = None
+        while True:
+            page = await mc.tool_call("t3_project_list", {"limit": 100, **({"cursor": cursor} if cursor else {})})
+            for project in page.get("projects", []):
+                workspace = str(project.get("workspaceRoot") or "")
+                ws_id = os.path.basename(workspace)
+                if os.path.dirname(workspace) != root or not hw._WS_ID.match(ws_id) or not stale(ws_id):
+                    continue
+                threads = []
+                try:
+                    listed = await mc.tool_call("t3_thread_list", {"projectId": project["id"], "limit": 100})
+                    threads = [t["threadId"] for t in listed.get("threads", [])]
+                    await mc.tool_call("t3_project_delete", {"projectId": project["id"], "force": True})
+                    for thread_id in threads or [""]:
+                        await ssh.scrub_traces(ws_id, thread_id)
+                    report["projects"].append(ws_id)
+                except (MultiCodeError, hw.HubWorkspaceError) as exc:
+                    report["errors"].append(f"project {ws_id}: {exc}")
+            cursor = page.get("nextCursor")
+            if cursor is None:
+                break
+        for ws_id in sorted(dirs):
+            if stale(ws_id):
+                try:
+                    await ssh.remove(f"{root}/{ws_id}")
+                    await ssh.scrub_traces(ws_id, "")
+                    report["remote_dirs"].append(ws_id)
+                except hw.HubWorkspaceError as exc:
+                    report["errors"].append(f"dir {ws_id}: {exc}")
+    return report

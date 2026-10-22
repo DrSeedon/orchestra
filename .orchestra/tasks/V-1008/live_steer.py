@@ -1,12 +1,7 @@
 """Live: mid-turn steer and interrupt on a real hub thread (haiku, throwaway repo)."""
 import asyncio, os, sys, time
 sys.path.insert(0, ".")
-os.environ.update({
-    "MULTICODE_MCP_BASE": "http://127.0.0.1:14606",
-    "MULTICODE_MCP_TOKEN_FILE": "/home/kesha/orchestra/data/secrets/multicode-oauth.token",
-    "MULTICODE_HUB_SSH": "<hub-user>@<hub-host>",
-    "MULTICODE_HUB_SSH_KEY": "/home/kesha/.ssh/multicode_hub_vps",
-})
+# hub settings come from the process environment (MULTICODE_*), never from this file
 from app.backend_hub import HubBackend, release_for_worktree
 
 async def drain(b, label):

@@ -1,5 +1,7 @@
 # Persistent SSH tunnel to the MultiCode hub (V-1008). Orchestra reaches the hub's /mcp on
-# 127.0.0.1:14606; the LOCAL port must equal the hub's serve port (the hub checks Host).
+# 127.0.0.1:$MULTICODE_HUB_PORT; the LOCAL port must equal the hub's serve port (the hub checks Host).
+# Nothing about the hub is written here: MULTICODE_HUB_SSH (<hub-user>@<hub-host>), MULTICODE_HUB_SSH_KEY
+# and MULTICODE_HUB_PORT come from the EnvironmentFile below (plain KEY=VALUE lines, no `export`).
 #
 # INSTALLATION IS AN OPERATOR ACTION (system unit, daemon-reload). Not touched by agents.
 #   sudo cp deploy/orchestra-hub-tunnel.service /etc/systemd/system/
@@ -12,14 +14,15 @@ Wants=network-online.target
 
 [Service]
 User=kesha
+EnvironmentFile=/home/kesha/orchestra/data/hub-tunnel.env
 Restart=always
 RestartSec=5
 ExecStart=/usr/bin/ssh -N \
-  -i /home/kesha/.ssh/multicode_hub_vps -o IdentitiesOnly=yes -o BatchMode=yes \
+  -i ${MULTICODE_HUB_SSH_KEY} -o IdentitiesOnly=yes -o BatchMode=yes \
   -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
   -o ConnectTimeout=20 -o StrictHostKeyChecking=yes \
-  -L 127.0.0.1:14606:127.0.0.1:14606 \
-  <hub-user>@<hub-host>
+  -L 127.0.0.1:${MULTICODE_HUB_PORT}:127.0.0.1:${MULTICODE_HUB_PORT} \
+  ${MULTICODE_HUB_SSH}
 # Same OOM class as the other helpers; a tunnel is tiny and must outlive agents.
 OOMScoreAdjust=-500
 

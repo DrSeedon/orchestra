@@ -15,7 +15,7 @@ Per turn the broker (`app/hub_workspace.py`, driven by `app/backend_hub.py`):
 
 ### The open question: how to launch a thread in a directory we uploaded
 
-From the hub's own code (`/usr/lib/node_modules/t3/dist/binCli-*.mjs`, MCP toolkit `ProjectToolkit`, read-only) and confirmed live: `t3_project_create({title, workspaceRoot})` registers any existing directory (git not required; `createWorkspaceRootIfMissing` also exists), and `t3_thread_launch({projectId, workspaceStrategy omitted → root})` runs the agent in exactly that tree. `scratch:true` picks a folder the hub chooses, so it cannot be used for our files. `existing_worktree` must be one of the project's git worktrees, so it is not needed.
+From the hub's MCP tool schemas and a read-only look at its installed package, confirmed live: `t3_project_create({title, workspaceRoot})` registers any existing directory (git not required; `createWorkspaceRootIfMissing` also exists), and `t3_thread_launch({projectId, workspaceStrategy omitted → root})` runs the agent in exactly that tree. `scratch:true` picks a folder the hub chooses, so it cannot be used for our files. `existing_worktree` must be one of the project's git worktrees, so it is not needed.
 
 ## Acceptance
 
@@ -65,13 +65,15 @@ Differences the orchestrator will see:
 
 ## Persistent tunnel and the exact `.env` (NOT applied)
 
-`deploy/orchestra-hub-tunnel.service`: `ssh -N -L 127.0.0.1:14606:127.0.0.1:14606` with `ExitOnForwardFailure`, `ServerAliveInterval=15`, `Restart=always`, `User=kesha`, key `/home/kesha/.ssh/multicode_hub_vps`. Independent of `orchestra.service`, so Orchestra restarts do not drop it. Installation is an operator action (`cp` to `/etc/systemd/system`, `daemon-reload`, `enable --now`). The local port must equal the hub serve port 14606 (Host check). Note that `multicode_oauth_renew.py` (colleague `feat-multicode-client`) will replace the token file in place; `MULTICODE_MCP_TOKEN_FILE` is re-read on every client construction, so renewal needs no restart.
+`deploy/orchestra-hub-tunnel.service`: `ssh -N -L 127.0.0.1:$PORT:127.0.0.1:$PORT` (host, user, key and port come from `EnvironmentFile=/home/kesha/orchestra/data/hub-tunnel.env`, nothing is written in the unit) with `ExitOnForwardFailure`, `ServerAliveInterval=15`, `Restart=always`, `User=kesha`, Independent of `orchestra.service`, so Orchestra restarts do not drop it. Installation is an operator action (`cp` to `/etc/systemd/system`, `daemon-reload`, `enable --now`). The local port must equal the hub serve port (Host check). Note that `multicode_oauth_renew.py` (colleague `feat-multicode-client`) will replace the token file in place; `MULTICODE_MCP_TOKEN_FILE` is re-read on every client construction, so renewal needs no restart.
 
 ```
-MULTICODE_MCP_BASE=http://127.0.0.1:14606
+MULTICODE_MCP_BASE=http://127.0.0.1:<hub-serve-port>
 MULTICODE_MCP_TOKEN_FILE=/home/kesha/orchestra/data/secrets/multicode-oauth.token
 MULTICODE_HUB_SSH=<hub-user>@<hub-host>
-MULTICODE_HUB_SSH_KEY=/home/kesha/.ssh/multicode_hub_vps
+MULTICODE_HUB_SSH_KEY=<path-to-ssh-key>
+MULTICODE_HUB_PORT=<hub-serve-port>     # only for the tunnel unit; same number as in MULTICODE_MCP_BASE
+MULTICODE_HUB_PROVIDER_LOG_DIR=<hub-path-of-the-per-thread-provider-log-dir>   # optional, enables log scrubbing
 # optional
 MULTICODE_HUB_WORKSPACE_ROOT=      # default: $HOME/orchestra-ws on the hub
 MULTICODE_HUB_MAX_THREADS=3        # concurrent hub turns of the whole platform
@@ -94,3 +96,39 @@ MULTICODE_HUB_TURN_TIMEOUT_S=14400 # then the thread is interrupted and the turn
 * The hub is shared by ~80 users; a full-access agent there is bounded only by the hub's own user separation. The agent sees only our uploaded tree but is not sandboxed from the hub user's home (including the hub's own provider credentials, which are the hub's, not ours).
 * `_SECRET_SHAPES` can skip a legitimate fixture that looks like a JWT/token; skipped files are listed in the upload status line.
 * Probe scripts in this directory (`probe_*.py`, `live_*.py`, `cred_check.py`, `release_check.py`) read the token from `data/secrets/`; they print no secret values.
+
+
+## Part 2 — complete cleanup, orphan sweep, routing hint, hub Sol (22.10, later)
+
+### What `t3_project_delete(force)` really removes (code + live)
+
+* It deletes every live **and archived** thread of the project through the hub's `thread.delete` command, then the project. A background purge then deletes the threads' messages, turn items, runs, provider rows and attachments; only an id/title tombstone stays in the hub's own event store (the creation event, the last state event, command receipts, the thread/project rows). Live check with a unique marker word in the prompt: before release the marker is found in the hub store's messages and turn items; 3 s after `project_delete` a logical scan of every text column finds **no** row with the marker, only 4 tombstone rows carrying the workspace id/title. `t3_project_list` no longer lists the project, `t3_thread_list` for it is empty and `t3_thread_read` of the thread answers `thread_not_found`. There is no MCP tool to hard-delete a thread; the tombstones are the hub's own bookkeeping in a database shared with the owner's live sessions, so I do not touch it.
+* **Not removed by T3**, found live by searching the hub account's home for the workspace id: the uploaded directory (the hub says so itself), the provider's own session transcript for that working directory (Claude: a project transcript directory plus a CLI cache directory and a per-process session file; Codex/Grok keep rollouts in session directories), and a per-thread provider log containing the prompt. The broker now removes these itself (`HubSsh.scrub_traces`), keyed only by the unique workspace id or our thread id so nothing else can match. Residual, deliberately left: lines in the hub's shared rotating server trace (they carry the workspace id/title, not prompt content in the check I ran — the marker was absent), and, for `hub-gpt-*` threads, provider metadata rows in Codex's own state databases that cannot be cleaned without touching the account's other sessions.
+* `release_workspace` order: interrupt thread → `project_delete(force)` → remove directory → scrub traces → **verify** (project not in `t3_project_list` including paging, `t3_thread_read` says not found, directory gone; up to 20 s). The local record is deleted only if verification passes; otherwise the error is raised and the record stays for the sweep.
+* Live proof (Haiku, throwaway repos): released workspace → no directory, no project, no thread, no transcript/cache/session file/provider log mentioning its id (`find`/`grep -rlF` over the account home excluding only the hub store and the shared server trace → empty), marker gone from the hub store.
+
+### Orphan sweep
+
+`backend_hub.sweep_orphans(live_worktrees)`, run by `SessionManager._periodic_hub_sweep` 2 minutes after start and every 6 h:
+1. every local record (`data/hub-workspaces/`) whose worktree is not registered for a non-archived session, or no longer exists, is released with full verification; records of live workers (even idle) are kept (`kept`);
+2. hub projects under **our** root (`<home>/orchestra-ws/<host-tag>/`) with no local record, and directories there with no record, are removed only when older than 1 h (`ORPHAN_MIN_AGE_S`); projects of other people or outside the root are never touched. The default root is now per installation (`<home>/orchestra-ws/<hostname>`), so two Orchestra installations sharing one hub account do not sweep each other.
+The state record is now written **before** the first hub write, so a crash mid-upload leaves a record the sweep can release.
+Live: a dead worker's workspace was released while the live worker's was kept; an unrecorded 3-hour-old directory plus its project were removed; the live one stayed. Unit tests cover live/dead/unrecorded/fresh/foreign-project cases.
+
+One unexplained event, in the interest of honesty: during the live run a Sol proof workspace and its local record disappeared about 50 s after creation, between two of my commands, while a background test run was in progress. Re-running the same tests with a fresh live workspace, and the whole set of suspect suites, did not reproduce it, no code path of mine releases without a verification call, and a decoy record survived. I could not find the cause; the sweep's liveness rule and the 1 h floor would not have deleted a live worker's copy.
+
+### Routing hint when our quota holds a spawn
+
+`models.hub_alternative_hint(model)` returns one sentence naming the hub alternative (`hubsol` for Codex-runtime models, `hubsonnet` for Claude-runtime models, both for an unknown target, empty for Grok/harness/hub or when the hub is not configured). It is appended to the three places an orchestrator reads a quota hold: `QuotaGateError` (spawn refusal / 429 envelope), the `WAITING_QUOTA` initial-delivery receipt, and the `send_message` quota-wait receipt. It never raises into a refusal.
+
+### Hub Sol
+
+`hub-gpt-6.1-sol`, alias `hubsol`, maps to the hub's `gpt-6.1-sol`. `MANUAL_ONLY_MODEL_IDS` is an exact-id guard, so the hub id passes `ensure_spawn_allowed` while `sol` / `gpt-6.1-sol` (our own Codex) stays refused; both arms are in `test_hub_sol_is_allowed_for_agents_while_our_own_sol_stays_refused`. Live: a tiny `hubsol` turn changed a file and the platform committed it (`964ad63` in the throwaway repo).
+
+### Verification (part 2)
+
+`tests/test_hub_workspace.py` (27 tests) plus the quota/model/manager/merge/frontend suites that mention the changed lists: green. Mutations against committed tests, each reddened exactly one or two tests: verification skipped, trace scrub matching everything, sweep ignoring liveness, sweep ignoring the age floor, hint for non-gated runtimes, sweep touching projects outside our root.
+
+### Environment additions
+
+`MULTICODE_HUB_PROVIDER_LOG_DIR` (optional, hub path of the per-thread provider log directory) and, for the tunnel unit only, `MULTICODE_HUB_PORT` plus `data/hub-tunnel.env`. Restart needed for: sweep, verified release, scrub, hub Sol, hint (all Python).

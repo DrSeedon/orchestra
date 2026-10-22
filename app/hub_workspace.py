@@ -18,6 +18,7 @@ import os
 import re
 import shlex
 import shutil
+import socket
 import stat
 import subprocess
 import tarfile
@@ -35,6 +36,21 @@ MAX_TOTAL_BYTES = 300 * 1024 * 1024
 MAX_FILES = 20_000
 
 _WS_ID = re.compile(r"^hub-[0-9a-f]{16}$")
+_THREAD_ID = re.compile(r"^[A-Za-z0-9:_-]{1,80}$")
+_SCRUB_SCRIPT = r"""
+ws="$1"; tid="$2"
+for d in "$HOME/.claude/projects" "$HOME/.cache/claude-cli-nodejs"; do
+  [ -d "$d" ] && find "$d" -maxdepth 1 -mindepth 1 -type d -name "*$ws*" -exec rm -rf -- {} +
+done
+for d in "$HOME/.claude/sessions" "$HOME/.codex/sessions" "$HOME/.grok/sessions"; do
+  [ -d "$d" ] && grep -rlF -- "$ws" "$d" 2>/dev/null | xargs -r rm -f --
+done
+logdir="$3"
+if [ "$tid" != "-" ] && [ "$logdir" != "-" ] && [ -d "$logdir" ]; then
+  find "$logdir" -maxdepth 1 -type f -name "*$(printf %s "$tid" | tr ':' '-')*" -delete
+fi
+exit 0
+"""
 _SAFE_REMOTE = re.compile(r"^/[A-Za-z0-9_./-]+$")
 
 # Directory names that never travel in either direction.
@@ -63,6 +79,11 @@ _SECRET_SHAPES = (
 )
 _SECRET_NAME_WORDS = ("TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY",
                       "PRIVATE_KEY", "CREDENTIAL", "COOKIE", "DSN")
+
+
+def _install_tag() -> str:
+    """Several Orchestra installations may share one hub account; each sweeps only its own root."""
+    return re.sub(r"[^A-Za-z0-9_-]", "-", socket.gethostname())[:40] or "host"
 
 
 class HubWorkspaceError(RuntimeError):
@@ -295,7 +316,7 @@ class HubSsh:
         if self.workspace_root:
             root = self.workspace_root
         else:
-            root = f"{await self.home()}/orchestra-ws"
+            root = f"{await self.home()}/orchestra-ws/{_install_tag()}"
         if not _SAFE_REMOTE.match(root) or ".." in root.split("/") or root.count("/") < 3:
             raise HubWorkspaceError("hub workspace root must be an absolute path of our own area")
         return root
@@ -327,6 +348,37 @@ class HubSsh:
         _check_remote(remote_dir)
         await self.run(
             f"tar -cf - -C {shlex.quote(remote_dir)} --exclude=./.git .", stdout=out)
+
+    async def list_workspaces(self) -> list[tuple[str, float]]:
+        """(workspace id, mtime epoch) of every broker directory under our root."""
+        root = await self.root()
+        out = await self.run(
+            f"test -d {shlex.quote(root)} && find {shlex.quote(root)} -maxdepth 1 -mindepth 1 "
+            f"-type d -name 'hub-*' -printf '%f %T@\\n'; true", timeout=120)
+        found = []
+        for line in out.decode().splitlines():
+            name, _, mtime = line.partition(" ")
+            if _WS_ID.match(name):
+                found.append((name, float(mtime or 0)))
+        return found
+
+    async def scrub_traces(self, ws_id: str, thread_id: str) -> None:
+        """Delete what the hub's providers wrote about this workspace outside the T3 store:
+        Claude/Codex/Grok session transcripts and the per-thread provider log. Every match is
+        keyed by the unique workspace id (or our thread id), so nothing else can be hit. The
+        per-thread provider log directory is deployment-specific: MULTICODE_HUB_PROVIDER_LOG_DIR."""
+        if not _WS_ID.match(ws_id) or (thread_id and not _THREAD_ID.match(thread_id)):
+            raise HubWorkspaceError("invalid workspace or thread id")
+        script = Path(tempfile.mkstemp(prefix="hub-scrub-")[1])
+        try:
+            script.write_text(_SCRUB_SCRIPT)
+            logdir = os.environ.get("MULTICODE_HUB_PROVIDER_LOG_DIR", "").strip() or "-"
+            if logdir != "-" and not _SAFE_REMOTE.match(logdir):
+                raise HubWorkspaceError("MULTICODE_HUB_PROVIDER_LOG_DIR must be an absolute path")
+            await self.run(f"bash -s -- {shlex.quote(ws_id)} {shlex.quote(thread_id or '-')} "
+                           f"{shlex.quote(logdir)}", stdin=script, timeout=300)
+        finally:
+            script.unlink(missing_ok=True)
 
     async def remove(self, remote_dir: str) -> None:
         _check_remote(remote_dir)
@@ -566,20 +618,79 @@ def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
 # ── lifecycle ────────────────────────────────────────────────────────────────────────
 
 
+def _gone(exc: Exception) -> bool:
+    return "not_found" in str(exc) or "not found" in str(exc).lower()
+
+
+async def _project_listed(mcp, project_id: str) -> bool:
+    cursor = None
+    while True:
+        args = {"limit": 100, **({"cursor": cursor} if cursor else {})}
+        page = await mcp.tool_call("t3_project_list", args)
+        if any(p.get("id") == project_id for p in page.get("projects", [])):
+            return True
+        cursor = page.get("nextCursor")
+        if cursor is None:
+            return False
+
+
+async def verify_released(state: WorkspaceState, mcp, ssh: HubSsh | None, *, wait: float = 20) -> list[str]:
+    """Problems left on the hub for this workspace: [] means nothing is visible any more."""
+    problems: list[str] = []
+    deadline = time.monotonic() + wait
+    while True:
+        problems = []
+        if state.project_id and await _project_listed(mcp, state.project_id):
+            problems.append("project still listed")
+        if state.thread_id:
+            try:
+                await mcp.tool_call("t3_thread_read", {"threadId": state.thread_id, "view": "messages", "limit": 1})
+                problems.append("thread still readable")
+            except Exception as exc:   # noqa: BLE001 - only "not found" counts as gone
+                if not _gone(exc):
+                    problems.append(f"thread check failed: {exc}")
+        if not problems or time.monotonic() > deadline:
+            break
+        await asyncio.sleep(2)
+    if ssh is not None:
+        names = {name for name, _ in await ssh.list_workspaces()}
+        if state.ws_id in names:
+            problems.append("workspace directory still present")
+    return problems
+
+
 async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mcp=None) -> None:
-    """Delete everything the task left on the hub: project registration, thread, directory."""
+    """Remove everything the task left on the hub, then prove it is gone.
+
+    T3 `project.delete(force)` deletes every live and archived thread of the project; the hub then
+    purges their messages, turn items and attachments (only an id/title tombstone stays in its
+    own event store). What T3 does not own — the workspace directory and the providers' own
+    transcripts — is removed here. The local record is deleted only after the check passes."""
     ssh = ssh or HubSsh.from_env()
     errors: list[str] = []
-    if mcp is not None and state.project_id:
-        try:
-            await mcp.tool_call("t3_project_delete", {"projectId": state.project_id, "force": True})
-        except Exception as exc:   # noqa: BLE001 - cleanup continues with the directory
-            errors.append(f"project: {exc}")
+    if mcp is not None:
+        if state.thread_id:
+            try:
+                await mcp.tool_call("t3_thread_interrupt", {"threadId": state.thread_id})
+            except Exception:   # noqa: BLE001 - an idle or already gone thread is fine
+                pass
+        if state.project_id:
+            try:
+                await mcp.tool_call("t3_project_delete", {"projectId": state.project_id, "force": True})
+            except Exception as exc:   # noqa: BLE001
+                if not _gone(exc):
+                    errors.append(f"project: {exc}")
+    else:
+        errors.append("MultiCode client unavailable: project and threads not deleted")
     if ssh is not None:
-        try:
-            await ssh.remove(state.remote_dir)
-        except HubWorkspaceError as exc:
-            errors.append(f"directory: {exc}")
+        for what, action in (("directory", lambda: ssh.remove(state.remote_dir)),
+                             ("traces", lambda: ssh.scrub_traces(state.ws_id, state.thread_id))):
+            try:
+                await action()
+            except HubWorkspaceError as exc:
+                errors.append(f"{what}: {exc}")
+    if not errors and mcp is not None:
+        errors += [f"verify: {p}" for p in await verify_released(state, mcp, ssh)]
     if errors:
         raise HubWorkspaceError("hub cleanup incomplete: " + "; ".join(errors))
     state.path().unlink(missing_ok=True)

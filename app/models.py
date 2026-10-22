@@ -143,6 +143,12 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
         runtime="hub", provider="multicode",
     ),
+    # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026),
+    # while MANUAL_ONLY_MODEL_IDS keeps refusing the plain gpt-6.1-sol of our own subscription.
+    ModelSpec(
+        id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
+        runtime="hub", provider="multicode",
+    ),
     ModelSpec(
         id="hub-grok-4.7", name="Hub: Grok 4.7",
         runtime="hub", provider="multicode",
@@ -231,6 +237,7 @@ ALIASES = {
     "hubhaiku": "hub-claude-haiku-5-5",
     "hubopus": "hub-claude-opus-5-5",
     "hubluna": "hub-gpt-6-luna",
+    "hubsol": "hub-gpt-6.1-sol",
     "hubgrok": "hub-grok-4.7",
 }
 _GIGACHAT_ALIASES = {
@@ -658,6 +665,27 @@ def set_model_flags(
     flags_store[model_id] = entry
     kv_set(MODEL_FLAGS_KV_KEY, json.dumps(flags_store))
     return get_model_flags(model_id)
+
+
+def hub_alternative_hint(model_id: str | None = None) -> str:
+    """One sentence for orchestrators whose spawn/delivery is held by a quota gate: the hub pool
+    has its own quota. Empty when the hub is not configured here or the model is not gated."""
+    from app.backend_hub import hub_configured
+
+    if hub_configured() is not None:
+        return ""
+    runtime = None
+    if model_id:
+        try:
+            runtime = get_model_spec(resolve_model(model_id)).runtime
+        except ValueError:
+            return ""
+        if runtime not in ("claude", "codex"):
+            return ""
+    choice = {"codex": "'hubsol'", "claude": "'hubsonnet'"}.get(
+        runtime, "'hubsol' (Codex-class work) or 'hubsonnet' (Claude-class work)")
+    return (f"The MultiCode hub pool has its own quota: spawn the worker with model={choice} "
+            "instead of waiting.")
 
 
 def ensure_spawn_allowed(model_id: str) -> None:

@@ -834,9 +834,15 @@ class QuotaGateError(RuntimeError):
         if decision.state != "blocked":
             raise ValueError(f"cannot refuse quota decision {decision.state!r}")
         self.decision = decision
+        from app.models import hub_alternative_hint
+
+        try:
+            hint = hub_alternative_hint(getattr(decision, "model", None))
+        except Exception:   # a routing hint must never turn a refusal into a crash
+            hint = ""
         super().__init__(
             f"New worker turn blocked: {decision.provider_label} quota is "
-            f"{decision.utilization:g}% — {decision.reason}."
+            f"{decision.utilization:g}% — {decision.reason}. {hint}".rstrip()
         )
 
     def envelope(self) -> dict:

@@ -2,8 +2,7 @@
 import asyncio, os, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, ".")
-os.environ.update({"MULTICODE_HUB_SSH": "<hub-user>@<hub-host>",
-                   "MULTICODE_HUB_SSH_KEY": "/home/kesha/.ssh/multicode_hub_vps"})
+# hub settings come from the process environment (MULTICODE_*), never from this file
 from app import hub_workspace as hw
 
 async def main():
