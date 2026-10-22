@@ -22,6 +22,7 @@ from uuid import uuid4
 
 from app import hub_workspace as hw
 from app.hub_activity import HubActivityStream
+from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox
 from app.events import AgentEvent
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
@@ -40,15 +41,58 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
 WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
 
-PREAMBLE = (
+PREAMBLE_BASE = (
     "You are a worker on a remote machine. Your current directory is a private copy of a "
     "repository (no .git, no remote). Edit files in place with your normal tools; when you "
     "finish, the platform copies every changed file back and commits it, so do not run git "
     "push/clone/commit, do not look for credentials or tokens (there are none), and do not "
     "create files outside this directory. Run tests that work offline. End with a concise "
     "report: what you changed, what you ran and its result, anything unfinished.\n\n"
-    "Task:\n"
 )
+
+
+OUTBOX_SECTION = (
+    "<orchestra-link>\n"
+    "## Reaching Orchestra (optional)\n"
+    "You have no Orchestra tools. To reach it, append one JSON object per line to "
+    f"`{OUTBOX_NAME}` in the root of this directory; the platform runs the lines when your turn "
+    "ends. It is not part of your result and no answer arrives during this turn. Only these exist:\n"
+    "{send_line}"
+    '- `{{"tool":"update_progress","args":{{"percent":40,"status":"short phase description"}}}}`\n'
+    '- `{{"tool":"update_checklist","args":{{"items":["step"],"completed":[],"current":0,'
+    '"estimates_minutes":[5]}}}}` (each new or changed step needs a positive estimate in minutes)\n'
+    "Nothing else is available from here: the task text already holds everything you need, and "
+    "any other line in the file is dropped.\n"
+    "</orchestra-link>\n\n"
+)
+
+
+def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
+    """The trimmed prompt a hub model gets: role, task rules, the outbox tools, the report
+    contract. It leaves out everything that assumes native MCP tools or the full pipeline."""
+    from app.pipeline import DEFAULT_PIPELINE, prompt_path
+    from app.prompting import safe_format_prompt
+
+    parent = getattr(who, "parent_name", "") or ""
+    try:
+        role = prompt_path(getattr(who, "pipeline", "") or DEFAULT_PIPELINE, "hub/worker.md").read_text()
+    except OSError:
+        role = ""
+    if role:
+        role = safe_format_prompt(
+            role, worker_name=getattr(who, "name", "") or "worker",
+            orchestrator_name=parent or "orchestrator", scope=getattr(who, "scope", ""),
+            branch=getattr(who, "branch", "") or "your branch").rstrip() + "\n\n"
+    else:
+        role = PREAMBLE_BASE
+    where = (f"Put any notes, reports or other task artifacts under .orchestra/tasks/{task_ref}/ "
+             "(create it); nowhere else outside the source tree.\n\n") if task_ref else ""
+    link = ""
+    if has_link:
+        send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
+                f'{parent} only; any "to" is ignored\n') if parent else ""
+        link = OUTBOX_SECTION.replace("{send_line}", send).replace("{{", "{").replace("}}", "}")
+    return f"{role}{where}{link}Task:\n"
 
 
 _slots: asyncio.Semaphore | None = None
@@ -78,6 +122,12 @@ def hub_configured() -> str | None:
 _HISTORY = re.compile(r"(<prior-conversation>)(.*?)(</prior-conversation>)", re.S)
 
 
+def _workspace_lost(exc: Exception) -> bool:
+    """The hub says the project it was asked to start in does not exist (any more)."""
+    text = str(exc).lower()
+    return "orchestration_error" in text or "not_found" in text or "not found" in text
+
+
 def _redact_history(prompt: str, known: list[str]) -> str:
     """The conversation carried over from another runtime is masked, never refused; the rest of
     the prompt is still checked strictly by the caller."""
@@ -104,13 +154,17 @@ def _branch_task_ref(cwd: str) -> str:
 class HubBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None, effort: str | None = None,
-                 paths: list[str] | None = None, scope: str = ""):
+                 paths: list[str] | None = None, scope: str = "", paths_source=None, bridge=None):
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
         self.model = model
         self.cwd = cwd
         self._resume = resume_session_id
         self._paths = paths
+        # Live owner of the worker's owned_dirs: they change between turns (set_worker_owned_dirs), and the
+        # upload must follow them. `paths` stays as the fixed value for a caller without such an owner.
+        self._paths_source = paths_source
+        self._bridge = bridge        # hub_outbox.HubBridge: the worker's identity and its outbox executor
         self._scope = scope
         self._state: Optional[hw.WorkspaceState] = None
         self._mc: Optional[MultiCodeClient] = None
@@ -242,6 +296,11 @@ class HubBackend:
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
+        if state is not None and not state.path().exists():
+            # Released behind this backend's back (merge, task switch, sweep): the hub project and
+            # copy are gone, and saving this old record again would resurrect a dead workspace.
+            logger.info("hub workspace %s was released; starting a new one", state.ws_id)
+            state = self._state = None
         if state is None or not state.remote_dir:
             state = hw.WorkspaceState(
                 ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="")
@@ -251,49 +310,37 @@ class HubBackend:
         # A record exists from the first attempt on, but the workspace only from the first upload that
         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
         fresh = not (state.uploaded or state.manifest)
-        state.paths = list(self._paths or state.paths or [])
+        state.paths = self._current_paths(state)
         options = hw.project_options(self._scope)
+        hw.require_scope(state.paths, options)
         plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
         yield AgentEvent("status", self._upload_note(fresh, plan))
         scratch = hw.local_scratch()
         try:
-            tar_path = scratch / "in.tar"
-            if fresh and options.persistent:
-                sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
-                yield AgentEvent("status", f"hub: persistent project copy reused ({sent} changed files sent, "
-                                           f"{dropped} removed)")
-                state.manifest = dict(plan.manifest)
-                state.uploaded = True
-                state.save()
-            elif fresh:
-                await asyncio.to_thread(hw.write_tar, root, sorted(plan.manifest), tar_path)
-                await ssh.put(state.remote_dir, tar_path)
-                state.manifest = dict(plan.manifest)
-                state.uploaded = True
-                state.save()
-            else:
-                send, drop = hw.local_delta(root, plan, state.manifest)
-                if send:
-                    await asyncio.to_thread(hw.write_tar, root, send, tar_path)
-                    await ssh.put(state.remote_dir, tar_path)
-                await ssh.delete_files(state.remote_dir, drop)
-                for rel in send:
-                    state.manifest[rel] = plan.manifest[rel]
-                for rel in drop:
-                    state.manifest.pop(rel, None)
-                state.save()
-            if not state.project_id:
-                project = await mc.tool_call("t3_project_create", {
-                    "title": f"orchestra {state.ws_id}", "workspaceRoot": state.remote_dir})
-                state.project_id = project["id"] if isinstance(project, dict) else ""
-                if not state.project_id:
-                    raise hw.HubWorkspaceError("hub project registration returned no id")
-                state.save()
+            for note in await self._provision(mc, ssh, root, state, plan, options, fresh, scratch):
+                yield AgentEvent("status", note)
             prompt = self._prompt(message, first=not state.thread_id)
             prompt = _redact_history(prompt, known)
             hw.assert_no_secret(prompt, known, "the task prompt")
             async with _turn_slots():
-                run_id = await self._start(mc, state, prompt)
+                try:
+                    run_id = await self._start(mc, state, prompt)
+                except MultiCodeError as exc:
+                    if not _workspace_lost(exc):
+                        raise
+                    # The hub project (or its copy) no longer exists: build the workspace again, once.
+                    logger.warning("hub refused to start in %s (%s); recreating the project and re-uploading",
+                                   state.ws_id, exc)
+                    yield AgentEvent("status", "hub: the project is gone on the hub; recreating it and "
+                                               "uploading again")
+                    first_prompt = prompt if prompt.startswith(self._preamble()) else self._preamble() + prompt
+                    state.project_id = state.thread_id = ""
+                    state.manifest, state.hub_made, state.uploaded = {}, [], False
+                    await ssh.remove(state.remote_dir)
+                    plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
+                    for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
+                        yield AgentEvent("status", note)
+                    run_id = await self._start(mc, state, first_prompt)
                 self._run_id = run_id
                 stream = HubActivityStream(run_id, state.activity_pos or None)
                 async for event in self._watch(mc, state.thread_id, run_id, stream):
@@ -316,6 +363,48 @@ class HubBackend:
             self._run_id = None
             hw.rmtree_quiet(scratch)
 
+    async def _provision(self, mc: MultiCodeClient, ssh: hw.HubSsh, root: Path, state: hw.WorkspaceState,
+                         plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
+        """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
+        notes: list[str] = []
+        tar_path = scratch / "in.tar"
+        if fresh and options.persistent:
+            sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
+            notes.append(f"hub: persistent project copy reused ({sent} changed files sent, {dropped} removed)")
+            state.manifest = dict(plan.manifest)
+            state.uploaded = True
+            state.save()
+        elif fresh:
+            await asyncio.to_thread(hw.write_tar, root, sorted(plan.manifest), tar_path)
+            await ssh.put(state.remote_dir, tar_path)
+            state.manifest = dict(plan.manifest)
+            state.uploaded = True
+            state.save()
+        else:
+            send, drop = hw.local_delta(root, plan, state.manifest, keep=set(state.hub_made))
+            if send:
+                await asyncio.to_thread(hw.write_tar, root, send, tar_path)
+                await ssh.put(state.remote_dir, tar_path)
+            await ssh.delete_files(state.remote_dir, drop)
+            for rel in send:
+                state.manifest[rel] = plan.manifest[rel]
+            for rel in drop:
+                state.manifest.pop(rel, None)
+            state.save()
+        if not state.project_id:
+            project = await mc.tool_call("t3_project_create", {
+                "title": f"orchestra {state.ws_id}", "workspaceRoot": state.remote_dir})
+            state.project_id = project["id"] if isinstance(project, dict) else ""
+            if not state.project_id:
+                raise hw.HubWorkspaceError("hub project registration returned no id")
+            state.save()
+        return notes
+
+    def _current_paths(self, state: hw.WorkspaceState) -> list[str]:
+        if self._paths_source is not None:
+            return list(self._paths_source() or [])      # empty = ownership cleared = no narrowing
+        return list(self._paths or state.paths or [])
+
     def _upload_note(self, fresh: bool, plan: hw.UploadPlan) -> str:
         skipped = f", {len(plan.skipped)} excluded (credentials/limits)" if plan.skipped else ""
         kind = "uploading" if fresh else "refreshing"
@@ -327,10 +416,12 @@ class HubBackend:
         body = "\n\n".join(parts)
         if not first:
             return body
+        return self._preamble() + body
+
+    def _preamble(self) -> str:
         task = _branch_task_ref(self.cwd).lstrip("#")
-        where = (f"Put any notes, reports or other task artifacts under .orchestra/tasks/{task}/ "
-                 "(create it); nowhere else outside the source tree.\n\n") if task != "hub" else ""
-        return PREAMBLE.replace("\n\nTask:\n", f"\n{where}Task:\n" if where else "\n\nTask:\n") + body
+        who = self._bridge.identity() if self._bridge is not None else None
+        return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
         if state.thread_id:
@@ -341,7 +432,7 @@ class HubBackend:
             except (MultiCodeError, KeyError, TypeError) as exc:
                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
                 state.thread_id = ""
-                prompt = PREAMBLE + prompt
+                prompt = self._preamble() + prompt
         instance, hub_model = HUB_MODELS[self.model]
         launched = await mc.tool_call("t3_thread_launch", {
             "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
@@ -406,9 +497,13 @@ class HubBackend:
                          scratch: Path) -> str:
         out = scratch / "out.tar"
         await ssh.get(state.remote_dir, out)
+        before = dict(state.manifest)
         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
         state.manifest = result.manifest
+        state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
+                                                         if before.get(r) != d}) & set(result.manifest))
         state.turns += 1
+        outbox_line = await self._run_outbox(ssh, state, result.outbox)
         commit, unstaged = "", []
         if result.changed or result.deleted:
             message = f"{_branch_task_ref(self.cwd)}: hub worker turn {state.turns} ({self.model})"
@@ -420,6 +515,8 @@ class HubBackend:
         state.save()
         lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
                  + (f", commit {commit}" if commit else "")]
+        if outbox_line:
+            lines.append(outbox_line)
         if unstaged:
             lines.append("left uncommitted in the worktree (git refused them): "
                          + "; ".join(f"{p} ({why})" for p, why in unstaged[:20]))
@@ -429,6 +526,26 @@ class HubBackend:
         if result.rejected:
             lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
         return "\n".join(lines)
+
+    async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
+        """Run what the hub agent queued for Orchestra, then empty the file on the hub."""
+        if not data.strip():
+            return ""
+        entries, dropped = parse_outbox(data)
+        report = OutboxReport(dropped=dropped)
+        try:
+            await ssh.delete_files(state.remote_dir, [OUTBOX_NAME])   # each entry runs at most once
+        except hw.HubWorkspaceError as exc:
+            report.dropped.append(f"outbox not cleared on the hub, entries skipped: {exc}")
+            entries = []
+        if entries and self._bridge is None:
+            report.dropped.append(f"{len(entries)} entries: this worker has no Orchestra link")
+        elif entries:
+            ran = await self._bridge.run(entries)
+            report.done, report.dropped = ran.done, report.dropped + ran.dropped
+        for reason in report.dropped:
+            logger.warning("hub outbox of %s: dropped %s", state.ws_id, reason)
+        return report.summary()
 
     # ── accounting ──
 

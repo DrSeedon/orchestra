@@ -900,6 +900,14 @@ class AgentSession:
     def is_orchestrator(self, value: bool) -> None:
         self._is_orchestrator = value
 
+    def _hub_bridge(self):
+        """The hub runtime's only link back to Orchestra: this worker's identity and outbox executor."""
+        from app.hub_outbox import HubBridge, Identity
+
+        return HubBridge(lambda: Identity(
+            session_id=self.id, name=self.name, scope=self.scope, parent_name=self.parent_name or "",
+            role=self.role, branch=self.branch or "", pipeline=self.pipeline or ""))
+
     def _make_backend(
         self,
         force_fresh: bool = False,
@@ -941,6 +949,8 @@ class AgentSession:
             history_import=history_import,
             validation_profile=validation_profile,
             owned_dirs=tuple(self.owned_dirs or ()),
+            owned_dirs_source=lambda: tuple(self.owned_dirs or ()),
+            hub_bridge=self._hub_bridge() if runtime == "hub" else None,
             config_dir_override=(
                 self._handoff_config_dir
                 if config_dir_override is None

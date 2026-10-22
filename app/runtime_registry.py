@@ -72,6 +72,8 @@ class BackendBuildContext:
     validation_profile: bool = False
     config_dir_override: str = ""
     owned_dirs: tuple = ()
+    hub_bridge: object | None = None            # hub_outbox.HubBridge, only read by the hub runtime
+    owned_dirs_source: Callable[[], object] | None = None   # live owned_dirs for backends that outlive a turn
 
 
 @dataclass(frozen=True)
@@ -338,6 +340,8 @@ def _hub_factory(context: BackendBuildContext) -> BackendLike:
         effort=context.effort,
         paths=list(context.owned_dirs),
         scope=context.scope,
+        paths_source=context.owned_dirs_source,
+        bridge=context.hub_bridge,
     )
 
 

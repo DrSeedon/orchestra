@@ -28,6 +28,8 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.hub_outbox import MAX_OUTBOX_BYTES, OUTBOX_NAME
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 STATE_DIR = DATA_DIR / "hub-workspaces"
 
@@ -126,6 +128,18 @@ def project_options(scope: str) -> ProjectOptions:
     )
 
 
+def require_scope(paths: list[str] | None, options: ProjectOptions) -> None:
+    """Copy only what the worker needs: only a persistent project may go to the hub without
+    an owned_dirs list. Refused before anything is uploaded."""
+    if paths or options.persistent:
+        return
+    raise HubWorkspaceError(
+        "this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.json "
+        "go to the hub whole. Nothing was uploaded. The orchestrator must set owned_dirs: call "
+        "set_worker_owned_dirs for this worker with the directories (or files) the task touches; "
+        "repo-level files such as CLAUDE.md and pyproject.toml always go along.")
+
+
 class HubWorkspaceError(RuntimeError):
     """Safe-to-display failure of the broker."""
 
@@ -135,6 +149,8 @@ class HubWorkspaceError(RuntimeError):
 
 def blocked_reason(rel: str) -> str | None:
     """Why a worktree-relative path must not cross the boundary, by name alone."""
+    if rel == OUTBOX_NAME:
+        return "broker outbox file"
     parts = rel.split("/")
     for part in parts[:-1]:
         if part in BLOCKED_DIRS:
@@ -519,6 +535,7 @@ class SyncResult:
     conflicts: list[str] = field(default_factory=list)    # both sides changed: hub copy NOT applied
     rejected: list[tuple[str, str]] = field(default_factory=list)
     manifest: dict[str, str] = field(default_factory=dict)  # updated manifest after the sync
+    outbox: bytes = b""     # the worker's outbox file (never imported as a file; the broker executes it)
 
 
 def _member_path(name: str) -> str | None:
@@ -550,6 +567,10 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
                 continue
             if not member.isreg():
                 result.rejected.append((rel, "not a regular file (link or special)"))
+                continue
+            if rel == OUTBOX_NAME:
+                handle = archive.extractfile(member)
+                result.outbox = handle.read(MAX_OUTBOX_BYTES + 1) if handle else b""
                 continue
             reason = blocked_reason(rel)
             if reason:
@@ -635,11 +656,16 @@ def _prune_empty(root: Path, directory: Path) -> None:
         directory = directory.parent
 
 
-def local_delta(root: Path, plan: UploadPlan, manifest: dict[str, str]
+def local_delta(root: Path, plan: UploadPlan, manifest: dict[str, str], keep: frozenset[str] | set[str] = frozenset()
                 ) -> tuple[list[str], list[str]]:
-    """Files to (re)send and to delete on the hub so it matches the worktree again."""
+    """Files to (re)send and to delete on the hub so it matches the worktree again.
+
+    `keep` are files the hub itself created and the broker imported (a task report under
+    .orchestra/tasks/, say): they sit outside the upload scope, but they are not stale, so they stay
+    on the hub and in the manifest. Dropping them forgot their baseline, and the next turn's
+    rewrite of the same file looked like a change on both sides."""
     send = [rel for rel, digest in plan.manifest.items() if manifest.get(rel) != digest]
-    drop = [rel for rel in manifest if rel not in plan.manifest]
+    drop = [rel for rel in manifest if rel not in plan.manifest and rel not in keep]
     return sorted(send), sorted(drop)
 
 
@@ -656,6 +682,7 @@ class WorkspaceState:
     project_id: str = ""
     thread_id: str = ""
     turns: int = 0
+    hub_made: list[str] = field(default_factory=list)  # files the hub created or changed and the broker imported
     uploaded: bool = False  # the first upload reached the hub; until then the workspace is not established
     activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)

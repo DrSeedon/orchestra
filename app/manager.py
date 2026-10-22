@@ -1595,6 +1595,7 @@ class SessionManager:
         needs_switch: bool,
     ) -> None:
         """Persist one Git lifecycle snapshot for loaded or detached sessions."""
+        previous = (session.branch, session.task_id)
         if session.loaded:
             await session._drain_persist()
         session.branch = branch
@@ -1618,6 +1619,17 @@ class SessionManager:
                 task_id=task_id,
                 needs_switch=int(needs_switch),
             )
+        await self._release_stale_hub_workspace(session, previous)
+
+    @staticmethod
+    async def _release_stale_hub_workspace(session: AgentSession, previous: tuple[str, str]) -> None:
+        """A hub copy belongs to one branch/task: after a switch the old one is only a stale
+        project (V-1008). The persistent warm copy of a project is not per worker and stays."""
+        if (session.branch, session.task_id) == previous or session.status == AgentStatus.RUNNING:
+            return
+        worktree = getattr(session, "worktree_path", "")
+        if worktree:
+            await _release_hub_workspaces(worktree, session.name)
 
     async def transition_lifecycle(
         self,
@@ -1649,6 +1661,7 @@ class SessionManager:
                 needs_switch=needs_switch,
             )
             return
+        previous = (session.branch, session.task_id)
         if session.loaded:
             await session._drain_persist()
         snapshot = session._to_db_dict()
@@ -1695,6 +1708,7 @@ class SessionManager:
                     system_prompt=new_prompt or "",
                     prompt_overlay=new_overlay,
                 )
+        await self._release_stale_hub_workspace(session, previous)
 
     def _scope_ownership_lock(self, scope: str) -> asyncio.Lock:
         """One ownership critical section per scope — overlap is a scope-wide invariant."""
