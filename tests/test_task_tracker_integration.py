@@ -686,7 +686,9 @@ async def test_t2_repo_lock_recheck_rejects_substituted_or_foreign_ref(monkeypat
     monkeypatch.setattr(
         workspace,
         "_build_squash_message",
-        lambda branch, messages: real_builder(branch, messages).replace("#42", "#77"),
+        lambda branch, messages, acceptance_note="": real_builder(
+            branch, messages, acceptance_note,
+        ).replace("#42", "#77"),
     )
 
     result = await sessions_route.execute_merge_session(
@@ -1888,9 +1890,12 @@ async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcom
         "scope": found.scope,
         "task_outcome": "complete",
         "merge_schema_version": 2,
+        "expected_head": worker_head,
+        "acceptance_note": "Accepted durable task closure after inspecting the worker result.",
     }
 
-    await merge_route.create_merge_operation(request)
+    accepted = await merge_route.create_merge_operation(request)
+    assert accepted.status_code == 202, accepted.body.decode()
     await asyncio.gather(*list(operations._runner_tasks.values()))
     first = await merge_route.get_merge_operation(operation_id)
     partial = json.loads(first.body)["result"]
@@ -1957,7 +1962,7 @@ async def test_t3_first_post_git_checkpoint_loss_recovers_by_exact_trailer(
             ("checkpoint-worker", task["id"]),
         )
     worktree = workspace.create_worktree(scope, "checkpoint-worker", task_id="42")
-    _commit_file(worktree.path, "checkpoint.txt", "#42: checkpoint recovery")
+    worker_head = _commit_file(worktree.path, "checkpoint.txt", "#42: checkpoint recovery")
     _save_worker(
         session_id="checkpoint-worker", task_id="42", scope=scope,
         worktree_path=worktree.path, branch=worktree.branch,
@@ -2019,9 +2024,12 @@ async def test_t3_first_post_git_checkpoint_loss_recovers_by_exact_trailer(
         "scope": found.scope,
         "task_outcome": "complete",
         "merge_schema_version": 2,
+        "expected_head": worker_head,
+        "acceptance_note": "Accepted checkpoint recovery after inspecting the worker result.",
     }
 
-    await merge_route.create_merge_operation(request)
+    accepted = await merge_route.create_merge_operation(request)
+    assert accepted.status_code == 202, accepted.body.decode()
     await asyncio.gather(*list(operations._runner_tasks.values()))
     first = await merge_route.get_merge_operation(operation_id)
     partial = json.loads(first.body)["result"]
@@ -2039,7 +2047,7 @@ async def test_t3_first_post_git_checkpoint_loss_recovers_by_exact_trailer(
         check=True, capture_output=True, text=True,
     ).stdout.strip().splitlines()
     parent = subprocess.run(
-        ["git", "rev-parse", f"{target_after}^"], cwd=repo,
+        ["git", "log", "-1", "--format=%P", target_after], cwd=repo,
         check=True, capture_output=True, text=True,
     ).stdout.strip()
     tree = subprocess.run(

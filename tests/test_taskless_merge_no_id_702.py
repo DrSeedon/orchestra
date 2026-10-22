@@ -69,6 +69,8 @@ async def test_taskless_merge_without_task_id_returns_promotion_action(monkeypat
         name=found.name,
         target="main",
         task_outcome="complete",
+        expected_head=_head,
+        acceptance_note="Inspected the adhoc changes; they are ready for task promotion.",
     )
 
     result = output.structuredContent["result"]

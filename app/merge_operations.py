@@ -2387,19 +2387,6 @@ async def accept_merge_operation(
             return drifted, 409
         return existing["result"], 200
 
-    input_error = acceptance_input_error(
-        request.get("expected_head", ""), request.get("acceptance_note", ""),
-    )
-    if input_error:
-        return _base_result(
-            canonical_id, "FAILED",
-            error=_error("WORK_ACCEPTANCE_REQUIRED", input_error, operation_id=canonical_id, status=409),
-            next_action=_action(
-                "FIX_ACCEPTANCE_THEN_NEW_OPERATION",
-                "Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.",
-            ),
-        ), 409
-
     row = await asyncio.to_thread(get_session_by_name, request["name"], request["scope"])
     if not row:
         error = _error(
@@ -2421,6 +2408,21 @@ async def accept_merge_operation(
             "pre_operation": _elapsed_ms(pre_operation_started),
         }
         return result, status
+
+    # Arbitration and the bounded idle wait keep their precedence over a new
+    # acceptance. Validate before any Git snapshot or admission work starts.
+    input_error = acceptance_input_error(
+        request.get("expected_head", ""), request.get("acceptance_note", ""),
+    )
+    if input_error:
+        return _base_result(
+            canonical_id, "FAILED",
+            error=_error("WORK_ACCEPTANCE_REQUIRED", input_error, operation_id=canonical_id, status=409),
+            next_action=_action(
+                "FIX_ACCEPTANCE_THEN_NEW_OPERATION",
+                "Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.",
+            ),
+        ), 409
 
     phase_durations: dict[str, int] = {}
     snapshot_started = time.perf_counter()
