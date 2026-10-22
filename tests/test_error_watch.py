@@ -243,3 +243,145 @@ def test_record_fix_persists_task_commit_and_process_start(tmp_path, capsys):
 def test_v952_merge_refused_for_busy_worker_is_expected_noise():
     message = "Merge operation x: FAILED — Worker is waiting; wait until it is idle, then start a new merge operation."
     assert watch.classify_noise(watch.normalize_signature(message)) == "merge refused: worker not idle"
+
+
+def test_hub_turn_failure_signatures_preserve_error_class_and_http_status():
+    causes = [
+        ("ReadError('connection reset')", "ReadError"),
+        ("httpx.RemoteProtocolError: peer disconnected", "RemoteProtocolError"),
+        ("MultiCode MCP returned HTTP 400 for request 123", "HTTP 400"),
+        ("MultiCode MCP returned HTTP 503 for request 456", "HTTP 503"),
+        ("hub thread ended with status failed (thread 789)", "hub thread ended with status failed"),
+    ]
+    signatures = []
+    for cause, expected in causes:
+        message = f"WARNING:app.session:[worker-a] turn FAILED: (no output)\nHub worker turn failed: {cause}"
+        signature = watch.normalize_signature(message)
+        assert signature == f"Hub worker turn failed: {expected}"
+        assert watch.normalize_signature(signature) == signature
+        signatures.append(signature)
+    assert len(set(signatures)) == len(causes)
+
+
+def test_hub_turn_failure_signatures_drop_volatile_details():
+    pairs = [
+        (
+            "ReadError('request 123 /home/worker/a 0123456789abcdef')",
+            "httpx.ReadError: request 456 /srv/work/b fedcba9876543210",
+        ),
+        (
+            "MultiCode MCP returned HTTP 400: request 123 /home/worker/a",
+            "MultiCode MCP returned HTTP 400: thread 456 /srv/work/b",
+        ),
+        (
+            "hub thread ended with status failed: id=123 /home/worker/a",
+            "hub thread ended with status failed: id=456 /srv/work/b",
+        ),
+        (
+            "unknown hub failure: /home/worker/a 123 0123456789abcdef",
+            "unknown hub failure: /srv/work/b 456 fedcba9876543210",
+        ),
+    ]
+    for left, right in pairs:
+        a = watch.normalize_signature("Hub worker turn failed: " + left)
+        b = watch.normalize_signature("Hub worker turn failed: " + right)
+        assert a == b
+        assert "123" not in a and "/home/worker/a" not in a
+
+
+def _expected_hub_failures():
+    return [
+        "Hub worker turn failed: Hub claude usage limit; use model='hubsol'",
+        "Hub worker turn failed: RuntimeError: (no output); stop_reason=hub_provider_limit",
+        "hub_provider_limit",
+        "usage limit",
+        "the task prompt contains a credential-shaped string; refusing to send it to the hub",
+        "Hub worker turn failed: RuntimeError: the task prompt contains a credential-shaped string; refusing to send it to the hub",
+    ]
+
+
+def test_expected_hub_failures_never_become_recurring_findings():
+    for message in _expected_hub_failures():
+        events = [_event(message, i, source="logs") for i in range(10)]
+        candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=10)
+        assert candidates == [], message
+        assert sum(item["count"] for item in noise) == 10
+        assert {item["noise"] for item in noise} <= {
+            "hub provider limit", "hub credential guard refusal",
+        }
+
+
+def test_expected_hub_failures_never_count_as_post_fix_recurrences():
+    started = datetime(2026, 9, 27, 11, 0, tzinfo=timezone.utc)
+    for message in _expected_hub_failures():
+        events = [_event(message, i, source="logs") for i in range(10)]
+        signature = watch.normalize_signature(message)
+        assert watch.post_fix_verdict(events, signature, started, 24)["count"] == 0, message
+        # Older state may still contain the mixed, empty-output bucket.
+        assert watch.post_fix_verdict(events, "(no output)", started, 24)["count"] == 0
+
+
+def test_real_hub_transport_error_reaches_threshold_and_recurs_after_fix():
+    messages = [
+        "Hub worker turn failed: ReadError('connection reset for request 123 /home/worker/a')",
+        "Hub worker turn failed: httpx.ReadError: peer closed connection 456 /srv/work/b",
+        "Hub worker turn failed: ReadError('broken stream, thread 789')",
+    ]
+    now = datetime.now(timezone.utc)
+    events = [_event(message, i, source="logs") for i, message in enumerate(messages)]
+    assert watch.aggregate(events[:2], now, threshold=3) == ([], [])
+    candidates, noise = watch.aggregate(events, now, threshold=3)
+    assert noise == []
+    assert [(item["signature"], item["count"]) for item in candidates] == [
+        ("Hub worker turn failed: ReadError", 3),
+    ]
+    started = datetime(2026, 9, 27, 12, 1, tzinfo=timezone.utc)
+    assert watch.post_fix_verdict(events, candidates[0]["signature"], started, 24)["count"] == 2
+
+
+def test_expected_hub_outcome_beyond_output_wrapper_is_still_excluded():
+    for message in _expected_hub_failures():
+        wrapped = "Hub worker turn failed: RuntimeError: " + "(no output) " * 100 + message
+        signature = watch.normalize_signature(wrapped)
+        candidates, noise = watch.aggregate([_event(wrapped)], datetime.now(timezone.utc), threshold=1)
+        assert candidates == []
+        assert len(noise) == 1
+        started = datetime(2026, 9, 27, 11, 0, tzinfo=timezone.utc)
+        assert watch.post_fix_verdict([_event(wrapped)], signature, started, 24)["count"] == 0
+
+
+def test_hub_scan_keeps_legacy_fix_state_and_only_reports_real_recurrence(tmp_path, monkeypatch, capsys):
+    transport = "Hub worker turn failed: ReadError('connection reset')"
+    signature = watch.normalize_signature(transport)
+    fixes = {
+        key: {
+            "task": "V-1040", "commit": "example", "started_at": datetime.now(timezone.utc).isoformat(),
+            "window_hours": 168,
+        }
+        for key in ["(no output)", signature] + [watch.normalize_signature(m) for m in _expected_hub_failures()]
+    }
+    state_path = tmp_path / "error_watch.json"
+    watch._write_state(state_path, {"alerts": {"(no output)": {"count": 12}}, "fixes": fixes})
+    current = {"events": []}
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: current["events"])
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    args = SimpleNamespace(db=str(tmp_path / "orchestra.db"), window_hours=168, threshold=3, dry_run=False)
+    stamp = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
+    current["events"] = [dict(_event(m, source="logs"), ts=stamp) for m in _expected_hub_failures()]
+    watch.scan(args)
+    assert capsys.readouterr().out == "No new error-watch findings\n"
+    state = watch._load_state(state_path)
+    assert state["alerts"] == {}
+    assert all(not fix.get("recurrence_reported") for fix in state["fixes"].values())
+
+    current["events"].append(dict(_event(transport, source="logs"), ts=stamp))
+    watch.scan(args)
+    output = capsys.readouterr().out
+    assert "post-fix V-1040 example: повторилась 1 раз" in output
+    assert f"сигнатура: {signature}" in output
+    state = watch._load_state(state_path)
+    assert set(state["fixes"]) == set(fixes)
+    assert {key for key, fix in state["fixes"].items() if fix.get("recurrence_reported")} == {signature}
+    watch.scan(args)
+    assert capsys.readouterr().out == "No new error-watch findings\n"

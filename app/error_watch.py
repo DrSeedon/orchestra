@@ -23,7 +23,14 @@ DEFAULT_THRESHOLD = 10
 _ORCHESTRA_SCOPE = str(Path(__file__).resolve().parents[1])
 _PYTEST_SIGNATURE = "<PATH>: No module named pytest"
 _FOREIGN_PROJECT_PYTEST_NOISE = "pytest missing outside Orchestra scope"
+_HUB_PROVIDER_LIMIT = re.compile(r"\bhub_provider_limit\b|\busage limit\b", re.I)
+_HUB_CREDENTIAL_REFUSAL = re.compile(
+    r"the task prompt contains a credential-shaped string; refusing to send it to the hub", re.I,
+)
+_EXPECTED_HUB_NOISE = {"hub provider limit", "hub credential guard refusal"}
 _NOISE = (
+    ("hub provider limit", _HUB_PROVIDER_LIMIT),
+    ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
     ("quota/rate limit", re.compile(r"quota|rate[_ -]?limit|rate_limited|subscription limit", re.I)),
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
@@ -69,11 +76,36 @@ _SESSION_NAME = re.compile(r"\[([A-Za-z0-9_.-]+)\]")
 _LISTENER_STATUS = re.compile(r"status=AgentStatus\.([A-Z]+)")
 _URL = re.compile(r"(?:https?://|tg://)\S+", re.I)
 _EMAIL = re.compile(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b")
+_HUB_TURN_FAILURE = re.compile(r"\bHub worker turn failed:\s*(.*)", re.I | re.S)
+_HUB_HTTP_STATUS = re.compile(r"\bHTTP\s+([1-5]\d{2})\b", re.I)
+_HUB_THREAD_FAILED = re.compile(r"\bhub thread ended with status failed\b", re.I)
+_HUB_EXCEPTION = re.compile(r"\b([A-Za-z_]\w*(?:Error|Timeout|Exception))\b")
 
 
 def normalize_signature(message: str) -> str:
     """Drop volatile logger prefixes, identifiers and values while retaining cause."""
     value = mask_secrets(message or "")
+    # Keep expected outcomes even when a generic exception or '(no output)'
+    # wrapper precedes the real hub failure. Check before truncating the text.
+    if _HUB_PROVIDER_LIMIT.search(value):
+        return "Hub worker turn failed: hub_provider_limit"
+    if _HUB_CREDENTIAL_REFUSAL.search(value):
+        return (
+            "Hub worker turn failed: the task prompt contains a credential-shaped string; "
+            "refusing to send it to the hub"
+        )
+    hub_failure = _HUB_TURN_FAILURE.search(value)
+    if hub_failure:
+        cause = hub_failure.group(1)
+        # HTTP status is a cause, not a volatile number. Return it before _NUMBER.
+        if status := _HUB_HTTP_STATUS.search(cause):
+            return f"Hub worker turn failed: HTTP {status.group(1)}"
+        if _HUB_THREAD_FAILED.search(cause):
+            return "Hub worker turn failed: hub thread ended with status failed"
+        if exception := _HUB_EXCEPTION.search(cause):
+            return f"Hub worker turn failed: {exception.group(1)}"
+        # Preserve unrecognised causes through the usual normalisation below.
+        value = "Hub worker turn failed: " + cause
     value = _SECRET_MARK.sub("<SECRET>", value)
     value = _URL.sub("<URL>", value)
     value = _EMAIL.sub("<EMAIL>", value)
@@ -239,7 +271,8 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
 def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, window_hours: int) -> dict:
     matches = [
         event for event in events
-        if normalize_signature(event["message"]) == signature
+        if (event_signature := normalize_signature(event["message"])) == signature
+        and classify_noise(event_signature) not in _EXPECTED_HUB_NOISE
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
     ]
