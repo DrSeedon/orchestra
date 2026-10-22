@@ -408,7 +408,12 @@ class HubBackend:
     def _upload_note(self, fresh: bool, plan: hw.UploadPlan) -> str:
         skipped = f", {len(plan.skipped)} excluded (credentials/limits)" if plan.skipped else ""
         kind = "uploading" if fresh else "refreshing"
-        return f"hub: {kind} {len(plan.manifest)} files ({plan.total_bytes // 1024} KiB){skipped}"
+        extra = ""
+        if plan.materialized:
+            extra += f"; added to the sparse checkout: {', '.join(plan.materialized)}"
+        if plan.new_paths:
+            extra += f"; new: {', '.join(plan.new_paths)}"
+        return f"hub: {kind} {len(plan.manifest)} files ({plan.total_bytes // 1024} KiB){skipped}{extra}"
 
     def _prompt(self, message: str, *, first: bool) -> str:
         parts = list(self._early_steer) + [message]

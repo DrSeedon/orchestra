@@ -1422,3 +1422,106 @@ async def test_a_branch_or_task_switch_releases_the_hub_copy_but_a_plain_save_do
     assert released == [("/wt", "w")]
     await move(session(AgentStatus.RUNNING), "task-V-3/z", "V-3")   # never under a running turn
     assert released == [("/wt", "w")]
+
+
+# ── owned paths outside the sparse checkout (V-1008) ──────────────────────────────────
+
+
+@pytest.fixture
+def sparse_repo(repo):
+    """A worktree whose cone holds only src/: artifacts/ and docs/ are committed but not on disk."""
+    for rel, text in (("artifacts/report.md", "r\n"), ("artifacts/data/rows.csv", "1,2\n"), ("docs/guide.md", "g\n")):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "more")
+    _git(repo, "sparse-checkout", "init", "--cone")
+    _git(repo, "sparse-checkout", "set", "src")
+    assert not (repo / "artifacts").exists() and not (repo / "docs").exists()
+    return repo
+
+
+def test_an_owned_dir_outside_the_cone_is_materialized_and_uploaded(sparse_repo):
+    plan = hw.plan_upload(sparse_repo, ["artifacts"], [])
+    assert {"artifacts/report.md", "artifacts/data/rows.csv"} <= set(plan.manifest)
+    assert plan.materialized == ["artifacts"] and plan.new_paths == []
+    assert (sparse_repo / "artifacts" / "report.md").exists()
+    assert "artifacts" in _git(sparse_repo, "sparse-checkout", "list").split()
+    assert not (sparse_repo / "docs").exists()                  # only what the worker owns
+
+
+def test_an_owned_file_outside_a_cone_comes_with_its_directory(sparse_repo):
+    plan = hw.plan_upload(sparse_repo, ["docs/guide.md"], [])
+    assert "docs/guide.md" in plan.manifest and plan.materialized == ["docs/guide.md"]
+
+
+def test_an_owned_path_outside_a_non_cone_sparse_checkout_is_materialized(repo):
+    (repo / "artifacts").mkdir()
+    (repo / "artifacts" / "report.md").write_text("r\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "more")
+    _git(repo, "sparse-checkout", "init", "--no-cone")
+    _git(repo, "sparse-checkout", "set", "/src/")
+    assert not (repo / "artifacts").exists()
+    plan = hw.plan_upload(repo, ["artifacts/report.md"], [])
+    assert "artifacts/report.md" in plan.manifest and plan.materialized == ["artifacts/report.md"]
+
+
+def test_a_path_inside_the_cone_is_left_alone(sparse_repo):
+    plan = hw.plan_upload(sparse_repo, ["src"], [])
+    assert plan.materialized == [] and "src/keep.txt" in plan.manifest
+    assert _git(sparse_repo, "sparse-checkout", "list").split() == ["src"]
+
+
+def test_a_path_that_is_not_in_head_is_allowed_and_reported_as_new(sparse_repo):
+    plan = hw.plan_upload(sparse_repo, ["src", "tools/brand_new/"], [])
+    assert plan.new_paths == ["tools/brand_new/"] and plan.materialized == []
+    assert "src/keep.txt" in plan.manifest                                           # the rest still goes
+    assert not (sparse_repo / "tools").exists()                              # nothing is invented locally
+
+
+@pytest.mark.asyncio
+async def test_the_upload_status_line_names_new_and_materialized_paths(sparse_repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    backend, ssh, mc = _backend(sparse_repo, tmp_path, monkeypatch, lambda d: None)
+    backend._paths = ["artifacts", "out/fresh.txt"]
+    events = await _turn(backend, "go")
+    note = next(e.content for e in events if e.type == "status" and e.content.startswith("hub: uploading"))
+    assert "new: out/fresh.txt" in note and "added to the sparse checkout: artifacts" in note
+    assert (Path(backend._state.remote_dir) / "artifacts" / "report.md").read_text() == "r\n"
+
+
+def test_an_empty_plan_for_owned_paths_that_exist_in_head_is_refused_by_name(repo):
+    (repo / "src" / "keep.txt").unlink()                        # committed, gone from the worktree
+    with pytest.raises(hw.HubWorkspaceError) as caught:
+        hw.plan_upload(repo, ["src"], [])
+    assert "src" in str(caught.value) and "Nothing was uploaded" in str(caught.value)
+
+
+def test_an_empty_plan_is_refused_when_every_owned_file_is_excluded(repo):
+    (repo / "keys").mkdir()
+    (repo / "keys" / ".env").write_text("A=1\n")
+    _git(repo, "add", "-f", ".")
+    _git(repo, "commit", "-qm", "env")
+    with pytest.raises(hw.HubWorkspaceError, match="keys"):
+        hw.plan_upload(repo, ["keys"], [])
+
+
+def test_one_good_owned_path_keeps_the_turn_alive_and_only_all_new_paths_pass(repo):
+    (repo / "src" / "keep.txt").unlink()
+    plan = hw.plan_upload(repo, ["src", "calc.py"], [])            # calc.py produced a file
+    assert "calc.py" in plan.manifest
+    plan = hw.plan_upload(repo, ["brand/new.py"], [])              # nothing in HEAD: not a refusal
+    assert plan.new_paths == ["brand/new.py"]
+
+
+def test_a_refused_scope_uploads_nothing_through_the_backend(repo, tmp_path, monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    (repo / "src" / "keep.txt").unlink()
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    backend._paths = ["src"]
+    events = asyncio.run(_turn(backend, "go"))
+    assert events[-1].metadata["ok"] is False and any("src" in e.content for e in events if e.type == "error")
+    assert not any(n == "t3_project_create" for n, _ in mc.calls)

@@ -230,6 +230,8 @@ class UploadPlan:
     manifest: dict[str, str] = field(default_factory=dict)   # rel path -> sha256
     skipped: list[tuple[str, str]] = field(default_factory=list)
     total_bytes: int = 0
+    new_paths: list[str] = field(default_factory=list)       # owned paths that are not in HEAD at all
+    materialized: list[str] = field(default_factory=list)    # owned paths pulled in from the sparse cone
 
 
 def _git_files(root: Path) -> list[str] | None:
@@ -243,6 +245,67 @@ def _git_files(root: Path) -> list[str] | None:
     return sorted({p for p in out.decode("utf-8", "surrogateescape").split("\0") if p})
 
 
+def _git_out(root: Path, *args: str) -> subprocess.CompletedProcess | None:
+    try:
+        return subprocess.run(["git", "-C", str(root), *args], capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _head_files(root: Path, rel: str) -> list[str]:
+    """Files committed in HEAD under `rel` (a file or a directory); [] when none or no HEAD yet."""
+    done = _git_out(root, "ls-tree", "-r", "--name-only", "-z", "HEAD", "--", rel)
+    if done is None or done.returncode != 0:
+        return []
+    return [p for p in done.stdout.decode("utf-8", "surrogateescape").split("\0") if p]
+
+
+def _sparse_state(root: Path) -> tuple[bool, bool]:
+    """(sparse checkout enabled, cone mode)."""
+    def flag(key: str) -> bool:
+        done = _git_out(root, "config", "--get", key)
+        return bool(done and done.returncode == 0 and done.stdout.strip().lower() == b"true")
+    return flag("core.sparseCheckout"), flag("core.sparseCheckoutCone")
+
+
+def prepare_scope(root: Path, prefixes: list[str]) -> tuple[list[str], list[str], list[str]]:
+    """Make every owned path usable before the upload is planned.
+
+    Returns (in_head, new, materialized):
+    * a path with files in HEAD that a sparse checkout left off disk is added to the cone, so the
+      hub gets the worker's real work area instead of an empty copy (V-1008);
+    * a path that is not in HEAD at all is allowed (the worker may create it) and reported as new.
+    A non-git directory has no HEAD, so nothing is known and nothing is changed."""
+    if _git_out(root, "rev-parse", "--git-dir") is None:
+        return [], [], []
+    sparse, cone = _sparse_state(root)
+    in_head: list[str] = []
+    new: list[str] = []
+    materialized: list[str] = []
+    for rel in prefixes:
+        files = _head_files(root, rel)
+        if not files:
+            if not (root / rel).exists():
+                new.append(rel)
+            continue
+        in_head.append(rel)
+        if not sparse or all(os.path.lexists(root / f) for f in files):
+            continue
+        # In cone mode only directories can be added: a file asks for its parent directory.
+        target = rel.rstrip("/")
+        if cone and files == [target]:
+            target = target.rpartition("/")[0]
+        if target:
+            done = _git_out(root, "sparse-checkout", "add", "--", target)
+            if done is None or done.returncode != 0:
+                detail = done.stderr.decode("utf-8", "replace").strip() if done else "git unavailable"
+                raise HubWorkspaceError(
+                    f"owned path {rel!r} is committed but outside this worktree's sparse checkout, and "
+                    f"`git sparse-checkout add {target}` failed: {detail}. Nothing was uploaded.")
+        materialized.append(rel)
+    return in_head, new, materialized
+
+
 def _walk_files(root: Path) -> list[str]:
     found: list[str] = []
     for current, dirs, files in os.walk(root):
@@ -250,6 +313,10 @@ def _walk_files(root: Path) -> list[str]:
         for name in files:
             found.append(os.path.relpath(os.path.join(current, name), root))
     return sorted(found)
+
+
+def _owned_by(rel: str, prefixes: list[str]) -> bool:
+    return any(rel == p.rstrip("/") or rel.startswith(p.rstrip("/") + "/") for p in prefixes)
 
 
 def _under(rel: str, prefixes: list[str] | None) -> bool:
@@ -274,6 +341,9 @@ def plan_upload(root: Path, paths: list[str] | None = None,
     prefixes = [_clean_rel(p) for p in paths] if paths else None
     known = known_secret_values() if known is None else known
     plan = UploadPlan()
+    in_head: list[str] = []
+    if prefixes:
+        in_head, plan.new_paths, plan.materialized = prepare_scope(root, prefixes)
     candidates = _git_files(root)
     if candidates is None:
         candidates = _walk_files(root)
@@ -323,6 +393,13 @@ def plan_upload(root: Path, paths: list[str] | None = None,
             f"naming only the directories the task touches (or set_worker_owned_dirs), use a sparse "
             f"checkout, or raise this project's limits in the hub projects file (max_total_mb / max_files). "
             f"Largest top-level entries: {biggest}")
+    if in_head and not any(_owned_by(rel, in_head) for rel in plan.manifest):
+        why = f" ({len(plan.skipped)} files were excluded: credentials, limits or symlinks)" if plan.skipped else ""
+        raise HubWorkspaceError(
+            f"none of the worker's owned paths that exist in HEAD produced a file to upload: "
+            f"{', '.join(in_head)}{why}. Nothing was uploaded: an empty copy would look like missing "
+            f"files to the hub worker. Check owned_dirs (set_worker_owned_dirs) and that these paths "
+            f"are checked out and not deleted in the worktree.")
     return plan
 
 
