@@ -17,8 +17,13 @@ function _runtimeStatusDetail(session) {
     };
     return [labels[session.runtime_connection], (typeof session.runtime_error === 'object' ? session.runtime_error?.message : session.runtime_error), session.lifecycle_status?.message,
         session.delivery_uncertain
-            ? T('delivery not confirmed; restart this agent\'s CLI to free the queue (without resending)') : '']
+            ? T('delivery not confirmed; restart this agent\'s CLI to free the queue (without resending)') : '',
+        session.report_quota_hold ? _reportHoldLabel(session.report_quota_hold) : '']
         .filter(Boolean).join(' · ');
+}
+
+function _reportHoldLabel(hold) {
+    return T('Report held by quota gate → {parent}', {parent: hold.parent_name});
 }
 
 // Client task/payment amounts use the configured billing currency; model costs are stored in USD.

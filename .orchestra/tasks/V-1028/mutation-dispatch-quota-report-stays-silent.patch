@@ -1,0 +1,11 @@
+--- app/message_deliveries.py
++++ app/message_deliveries.py
+@@ -896,7 +896,7 @@
+             mark_message_delivery_waiting_quota(delivery_id, error.decision)
+             from app import report_holds
+ 
+-            report_holds.ensure_runner(manager)
++            pass
+             if intercepted and intercepted["released"]:
+                 fan_barrier.rearm_wake(intercepted["fan_id"])
+             return

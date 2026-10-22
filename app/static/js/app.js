@@ -3302,6 +3302,13 @@ function createAgentItem(s) {
     }
 
     info.append(nameRow, meta);
+    if (s.report_quota_hold) {
+        const held = document.createElement('div');
+        held.className = 'agent-report-hold text-xs mt-0.5 text-amber-400';
+        held.textContent = _reportHoldLabel(s.report_quota_hold);
+        held.title = `${s.report_quota_hold.reason} ${s.report_quota_hold.hint}`;
+        info.appendChild(held);
+    }
     if (s.limit_wake) {
         const mark = document.createElement('div');
         mark.className = 'agent-limit-wake text-xs mt-0.5';

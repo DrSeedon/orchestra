@@ -1,0 +1,11 @@
+--- app/report_holds.py
++++ app/report_holds.py
+@@ -43,7 +43,7 @@
+     with db._conn() as connection:
+         signals = connection.execute(
+             "SELECT id, worker_session_id, last_error FROM turn_signals "
+-            "WHERE state='pending' AND last_error LIKE 'QuotaGateError:%'"
++            "WHERE state='pending' AND 0 AND last_error LIKE 'QuotaGateError:%'"
+         ).fetchall()
+         messages = connection.execute(
+             "SELECT delivery_id, source_session_id, target_session_id, error_json, state "

@@ -1,0 +1,11 @@
+--- app/session_turns.py
++++ app/session_turns.py
+@@ -253,7 +253,7 @@
+                     "Message is waiting for the target's next turn",
+                     "Message delivery is deferred by a quota gate",
+                 ))
+-            if not accepted:
++            if False:
+                 return
+             s._did_report = True
+ 

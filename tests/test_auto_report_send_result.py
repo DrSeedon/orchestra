@@ -21,12 +21,13 @@ async def test_explicit_send_message_counts_only_after_success(is_error, reporte
     session._submit_db_write = Mock()
 
     session._handle_event(AgentEvent(
-        "tool_use", "send_message", {"tool_name": "mcp__orchestra__send_message", "tool_use_id": "call-1"},
+        "tool_use", 'mcp__orchestra__send_message: {"to":"parent","message":"DONE"}',
+        {"tool_name": "mcp__orchestra__send_message", "tool_use_id": "call-1"},
     ))
     assert session._did_report is False
 
     session._handle_event(AgentEvent(
-        "tool_result", "delivery result", {"tool_use_id": "call-1", "is_error": is_error},
+        "tool_result", "Message sent to 'parent'", {"tool_use_id": "call-1", "is_error": is_error},
     ))
     assert session._did_report is reported
 

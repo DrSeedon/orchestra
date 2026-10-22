@@ -1,0 +1,11 @@
+--- app/session_turns.py
++++ app/session_turns.py
+@@ -232,7 +232,7 @@
+                 return
+             target = args.get("to")
+             parent = s.parent_name or s.parent_id or s.last_task_sender
+-            if target and target in {parent, s.parent_id}:
++            if target:
+                 s._report_calls[call_id] = s._turn_gen
+         elif event.type == "tool_result":
+             generation = s._report_calls.pop(call_id, None)

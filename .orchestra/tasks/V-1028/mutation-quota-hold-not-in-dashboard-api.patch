@@ -1,0 +1,11 @@
+--- app/manager.py
++++ app/manager.py
+@@ -2309,7 +2309,7 @@
+             if r["id"] in uncertain_targets:
+                 r["delivery_uncertain"] = True
+             if r["id"] in report_holds:
+-                r["report_quota_hold"] = report_holds[r["id"]]
++                pass
+             r["last_turn_ts"] = turn_map.get(r["id"])
+             r.update(cache_policy_for_runtime(runtime_for_record(r)))
+             lifecycle = self.lifecycle_quarantine(r)

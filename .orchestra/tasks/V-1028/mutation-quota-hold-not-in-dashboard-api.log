@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_list_sessions_exposes_hold_for_detached_worker_and_clears_on_delivery __
+
+tree = {'add_worker': <function world.<locals>.add_worker at 0x70b8c60e5620>, 'manager': <tests.test_v1028_report_holds.Manag...5894f0>, 'parent_id': 'e73de494-826b-4cee-8725-07ce79dc1f9a', 'worker_id': 'b5a15500-958c-486d-9443-ceb45378879d', ...}
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_exposes_hold_for_detached_worker_and_clears_on_delivery(tree):
+        from app.manager import SessionManager
+    
+        await _signal(tree)
+        manager = SessionManager()
+        manager.lifecycle_quarantine = lambda *_: None
+        listed = {r["id"]: r for r in manager.list_sessions("/proj")}
+        hold = listed[tree["worker_id"]].get("report_quota_hold")
+>       assert hold is not None
+E       assert None is not None
+
+tests/test_v1028_report_holds.py:313: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Auto-report: w1 recorded as turn signal 1
+turn signal [1] not delivered to boss: QuotaGateError: QuotaGateError: New worker turn blocked: Claude quota is 43.1332% — utilization 43.1332% is above the line limit 23.13% (norm 14.03% + tolerance 9.1 pp).
+------------------------------ Captured log call -------------------------------
+INFO     app.manager:manager.py:2225 Auto-report: w1 recorded as turn signal 1
+WARNING  orchestra.turn_signals:turn_signals.py:223 turn signal [1] not delivered to boss: QuotaGateError: QuotaGateError: New worker turn blocked: Claude quota is 43.1332% — utilization 43.1332% is above the line limit 23.13% (norm 14.03% + tolerance 9.1 pp).
+=========================== short test summary info ============================
+FAILED tests/test_v1028_report_holds.py::test_list_sessions_exposes_hold_for_detached_worker_and_clears_on_delivery
+1 failed, 12 deselected in 4.21s

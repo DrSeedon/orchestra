@@ -2283,6 +2283,7 @@ class SessionManager:
     def list_sessions(self, scope: str | None = None) -> list[dict]:
         from app.db import get_last_turn_map
         from app.message_deliveries import targets_with_uncertain_delivery
+        from app.report_holds import status_map
         result = []
         seen = set()
         for s in self.sessions.values():
@@ -2302,10 +2303,13 @@ class SessionManager:
         # Cache-timer metadata is runtime-derived; Codex exposes only an approximate window.
         turn_map = get_last_turn_map()
         uncertain_targets = targets_with_uncertain_delivery()
+        report_holds = status_map()
         for r in result:
             r.setdefault("runtime_connection", "not_loaded")
             if r["id"] in uncertain_targets:
                 r["delivery_uncertain"] = True
+            if r["id"] in report_holds:
+                r["report_quota_hold"] = report_holds[r["id"]]
             r["last_turn_ts"] = turn_map.get(r["id"])
             r.update(cache_policy_for_runtime(runtime_for_record(r)))
             lifecycle = self.lifecycle_quarantine(r)

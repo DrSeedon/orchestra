@@ -1,0 +1,76 @@
+{
+  "imported_app": "app/__init__.py",
+  "syntax_and_restored_source_checks": "passed",
+  "publication_filter": "app.secret_mask.mask_secrets",
+  "normalized_or_masked_artifacts": [],
+  "verified_files": [
+    {
+      "file": "app/session.py",
+      "sha256": "90bbd8baffeacdb33d0eda078344a769f05d0f7fcfda32ed06b6791c0b0c176d"
+    },
+    {
+      "file": "app/session_turns.py",
+      "sha256": "c103b447329bbdb9d82c809c7c6cea3f09d9e40e309eb8179653fd014cd894f9"
+    },
+    {
+      "file": "app/message_deliveries.py",
+      "sha256": "715945de904d57cd2d3c3f37bf7a4be3741b12d9dcc2ff20ff1b3fa6f2d99214"
+    },
+    {
+      "file": "app/hub_outbox.py",
+      "sha256": "b14bbc47a4a8a3af55973f1d195b58c83de57672768ab80e59408179c33da51e"
+    },
+    {
+      "file": "app/report_holds.py",
+      "sha256": "4e18cd362bad9ab3702f18e875a2a0ce0e62f7b15119e88bdfb0ac2c0d747138"
+    },
+    {
+      "file": "app/turn_signals.py",
+      "sha256": "35683d85e4919aa7269cc5ef17a63414fc444f66d6928e1199337990b46b3830"
+    },
+    {
+      "file": "app/quota_queue.py",
+      "sha256": "da77c141871c538d15217434c585158475323f24c08e51d9befcce1a71dec9e8"
+    },
+    {
+      "file": "app/manager.py",
+      "sha256": "aed93d165cd7f84b8a399343ad4aab430ad28704699b146a7c20dc5907ebe3c0"
+    },
+    {
+      "file": "app/harness/loop.py",
+      "sha256": "fe1aaca798e207426b86b6c46c751baa9cd9d2436a5fae6be386bb6115c0a6ef"
+    },
+    {
+      "file": "app/static/js/app.js",
+      "sha256": "3b2286e7a1bd6c67fd390212489cae0bd1c89f8207e9a562210b2bb132d32f6b"
+    },
+    {
+      "file": "app/static/js/utils.js",
+      "sha256": "2712820309028144265ec09e98e46dd6f48c7d52c1c0e3f9fb8c56b7ba8bd097"
+    },
+    {
+      "file": "app/static/js/i18n.js",
+      "sha256": "b10382203ab6164a1249a43bfb3a4e7f501b64f6f30e56c384590ae91b35042e"
+    },
+    {
+      "file": "tests/test_auto_report_send_result.py",
+      "sha256": "4a8a8a4e73d20c326f63e7063ee10c678f448d6537f9b4b34aa451c9469e07cf"
+    },
+    {
+      "file": "tests/test_v1028_auto_report.py",
+      "sha256": "d51023aab9000bb49d71f34c3b5b6ee0f1c99428603ed13e6f977ad873106621"
+    },
+    {
+      "file": "tests/test_v1028_report_holds.py",
+      "sha256": "b9a08537ccadd4d677a11b6b5dfe270304f0afa565768585005ceb0ef1caaa12"
+    },
+    {
+      "file": "tests/test_v1028_report_hold_frontend.py",
+      "sha256": "39c2e1f8cffe43c402a1144ad539b36c493077af59696d9a98477930ede5cd91"
+    },
+    {
+      "file": "tests/test_v1028_hub_outbox_report.py",
+      "sha256": "4da98197944f785ddddac4ec5bc43b17b47ca48c44a9a0e23cd95bc4d852a04c"
+    }
+  ]
+}

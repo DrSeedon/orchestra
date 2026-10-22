@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 from urllib.parse import quote
 
+from app.message_deliveries import report_receipt_accepted
+
 logger = logging.getLogger(__name__)
 
 OUTBOX_NAME = ".orchestra-outbox.jsonl"
@@ -41,6 +43,7 @@ class Identity:
     role: str = "worker"
     branch: str = ""
     pipeline: str = ""
+    turn_gen: int = 0
 
 
 @dataclass
@@ -135,6 +138,11 @@ async def execute(entries: list[dict], who: Identity, call: ApiCall) -> OutboxRe
             report.dropped.append(f"{tool}: {type(exc).__name__}: {str(exc)[:120]}")
             continue
         error = result.get("error") if isinstance(result, dict) else None
+        if tool == "send_message":
+            if report_receipt_accepted(result):
+                error = None  # WAITING_QUOTA's error metadata describes a retained receipt.
+            else:
+                error = error or "parent report was not accepted"
         if error:
             report.dropped.append(f"{tool}: {str(error)[:160]}")
         else:
@@ -170,9 +178,11 @@ async def local_api_call(who: Identity, method: str, path: str, body: dict) -> o
 class HubBridge:
     """What the session gives its hub backend: who the worker is and how its outbox is run."""
 
-    def __init__(self, identity: Callable[[], Identity], call: ApiCall | None = None):
+    def __init__(self, identity: Callable[[], Identity], call: ApiCall | None = None,
+                 *, on_parent_report: Callable[[Identity], None] | None = None):
         self._identity = identity
         self._call = call
+        self._on_parent_report = on_parent_report
 
     def identity(self) -> Identity:
         return self._identity()
@@ -182,6 +192,15 @@ class HubBridge:
 
         async def call(method: str, path: str, body: dict) -> object:
             if self._call is not None:
-                return await self._call(method, path, body)
-            return await local_api_call(who, method, path, body)
+                result = await self._call(method, path, body)
+            else:
+                result = await local_api_call(who, method, path, body)
+            if (
+                self._on_parent_report is not None
+                and method == "POST"
+                and path == f"/api/sessions/{quote(who.parent_name, safe='')}/send"
+                and report_receipt_accepted(result)
+            ):
+                self._on_parent_report(who)
+            return result
         return await execute(entries, who, call)

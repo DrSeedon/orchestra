@@ -21,6 +21,7 @@
     var DEFAULT_LANG = 'ru';
 
     var RU = {
+    'Report held by quota gate → {parent}': 'Отчёт удержан квотой → {parent}',
     ' (CLI cost, includes cache)': ' (стоимость CLI, включая кеш)',
     ' (telemetry stale)': ' (телеметрия устарела)',
     ' (w/o cache)': ' (без кеша)',

@@ -1,0 +1,11 @@
+--- app/hub_outbox.py
++++ app/hub_outbox.py
+@@ -199,7 +199,7 @@
+                 self._on_parent_report is not None
+                 and method == "POST"
+                 and path == f"/api/sessions/{quote(who.parent_name, safe='')}/send"
+-                and report_receipt_accepted(result)
++                and True
+             ):
+                 self._on_parent_report(who)
+             return result

@@ -1,0 +1,130 @@
+...FFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+_ test_only_successful_parent_send_suppresses_auto_report[sibling-False-claude] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72d5b85af560>, 'manager': <tests.test_turn_signals.FakeManager...3073e0>, 'parent_id': '38e413cb-99d0-4465-93b3-57b0341e980c', 'worker_id': '664afd4a-e8b0-4b96-a9ab-ce5794dff89b', ...}
+runtime = 'claude', target = 'sibling', reported = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "codex", "harness"])
+    @pytest.mark.parametrize("target,reported", [("boss", True), ("sibling", False), ("w1", False)])
+    async def test_only_successful_parent_send_suppresses_auto_report(world, runtime, target, reported):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        _tool(session, name="send_message" if runtime == "harness" else "mcp__orchestra__send_message",
+              target=target)
+>       assert session._did_report is reported
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='664afd4a-e8b0-4b96-a9ab-ce5794dff89b', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:34: AssertionError
+_ test_only_successful_parent_send_suppresses_auto_report[sibling-False-codex] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72d5b53225c0>, 'manager': <tests.test_turn_signals.FakeManager...392390>, 'parent_id': '66b1f215-23d0-4736-81cf-b6440e2f9c11', 'worker_id': 'c754f553-39c4-4fb6-b05f-6f3e8da5ad7e', ...}
+runtime = 'codex', target = 'sibling', reported = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "codex", "harness"])
+    @pytest.mark.parametrize("target,reported", [("boss", True), ("sibling", False), ("w1", False)])
+    async def test_only_successful_parent_send_suppresses_auto_report(world, runtime, target, reported):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        _tool(session, name="send_message" if runtime == "harness" else "mcp__orchestra__send_message",
+              target=target)
+>       assert session._did_report is reported
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='c754f553-39c4-4fb6-b05f-6f3e8da5ad7e', name='w1', scope='/proj', cwd='/proj', model='gpt-6-luna', mod...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:34: AssertionError
+_ test_only_successful_parent_send_suppresses_auto_report[sibling-False-harness] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72d5b5323560>, 'manager': <tests.test_turn_signals.FakeManager...3a53d0>, 'parent_id': 'c8fff345-df0e-41cf-9540-88953bd48790', 'worker_id': '9b7798e6-9808-4a1d-ba6d-59f7966bbc8b', ...}
+runtime = 'harness', target = 'sibling', reported = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "codex", "harness"])
+    @pytest.mark.parametrize("target,reported", [("boss", True), ("sibling", False), ("w1", False)])
+    async def test_only_successful_parent_send_suppresses_auto_report(world, runtime, target, reported):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        _tool(session, name="send_message" if runtime == "harness" else "mcp__orchestra__send_message",
+              target=target)
+>       assert session._did_report is reported
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='9b7798e6-9808-4a1d-ba6d-59f7966bbc8b', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:34: AssertionError
+___ test_only_successful_parent_send_suppresses_auto_report[w1-False-claude] ___
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72d5b5323ba0>, 'manager': <tests.test_turn_signals.FakeManager...3a7fe0>, 'parent_id': '1941bb99-a2fd-40d9-9883-d26651fb82d7', 'worker_id': '682306b2-f097-45c1-b797-9f44663dab16', ...}
+runtime = 'claude', target = 'w1', reported = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "codex", "harness"])
+    @pytest.mark.parametrize("target,reported", [("boss", True), ("sibling", False), ("w1", False)])
+    async def test_only_successful_parent_send_suppresses_auto_report(world, runtime, target, reported):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        _tool(session, name="send_message" if runtime == "harness" else "mcp__orchestra__send_message",
+              target=target)
+>       assert session._did_report is reported
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='682306b2-f097-45c1-b797-9f44663dab16', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:34: AssertionError
+___ test_only_successful_parent_send_suppresses_auto_report[w1-False-codex] ____
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72d5b5370720>, 'manager': <tests.test_turn_signals.FakeManager...3bf110>, 'parent_id': 'd9d41f1f-96a9-4a8c-8975-eb1812fc2eb3', 'worker_id': '79b49bc4-2083-4dde-9971-409b31c0e117', ...}
+runtime = 'codex', target = 'w1', reported = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "codex", "harness"])
+    @pytest.mark.parametrize("target,reported", [("boss", True), ("sibling", False), ("w1", False)])
+    async def test_only_successful_parent_send_suppresses_auto_report(world, runtime, target, reported):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        _tool(session, name="send_message" if runtime == "harness" else "mcp__orchestra__send_message",
+              target=target)
+>       assert session._did_report is reported
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='79b49bc4-2083-4dde-9971-409b31c0e117', name='w1', scope='/proj', cwd='/proj', model='gpt-6-luna', mod...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:34: AssertionError
+__ test_only_successful_parent_send_suppresses_auto_report[w1-False-harness] ___
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72d5b5323560>, 'manager': <tests.test_turn_signals.FakeManager...3a43b0>, 'parent_id': '1970a84c-7e2e-4eb9-982a-5269987eee5f', 'worker_id': '1704f6b1-96b0-4161-82dc-faa560d19edf', ...}
+runtime = 'harness', target = 'w1', reported = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runtime", ["claude", "codex", "harness"])
+    @pytest.mark.parametrize("target,reported", [("boss", True), ("sibling", False), ("w1", False)])
+    async def test_only_successful_parent_send_suppresses_auto_report(world, runtime, target, reported):
+        session = _session(world)
+        session.backend_type = runtime
+        if runtime == "codex":
+            session.model = "gpt-6-luna"
+        _tool(session, name="send_message" if runtime == "harness" else "mcp__orchestra__send_message",
+              target=target)
+>       assert session._did_report is reported
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='1704f6b1-96b0-4161-82dc-faa560d19edf', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:34: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_auto_report.py::test_only_successful_parent_send_suppresses_auto_report[sibling-False-claude]
+FAILED tests/test_v1028_auto_report.py::test_only_successful_parent_send_suppresses_auto_report[sibling-False-codex]
+FAILED tests/test_v1028_auto_report.py::test_only_successful_parent_send_suppresses_auto_report[sibling-False-harness]
+FAILED tests/test_v1028_auto_report.py::test_only_successful_parent_send_suppresses_auto_report[w1-False-claude]
+FAILED tests/test_v1028_auto_report.py::test_only_successful_parent_send_suppresses_auto_report[w1-False-codex]
+FAILED tests/test_v1028_auto_report.py::test_only_successful_parent_send_suppresses_auto_report[w1-False-harness]
+6 failed, 3 passed, 29 deselected in 4.31s

@@ -1,0 +1,61 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_notice_recovery_and_crash_after_acceptance_do_not_lose_or_repeat_notice[after] _
+
+tree = {'add_worker': <function world.<locals>.add_worker at 0x79ff3dfd8860>, 'manager': <tests.test_v1028_report_holds.Manag...89fb90>, 'parent_id': '7206aea8-34cd-4679-b2ab-0d28034668bc', 'worker_id': 'cd17843d-e27a-40a1-9e52-34a558b68335', ...}
+failure = 'after'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure", ["before", "after"])
+    async def test_notice_recovery_and_crash_after_acceptance_do_not_lose_or_repeat_notice(
+        tree, failure,
+    ):
+        manager = tree["manager"]
+        manager.notice_failure = failure
+        await _signal(tree)
+        assert _notice_rows()[0]["notified_at"] is None
+        manager.notice_failure = ""
+        report_holds._inflight.clear()  # a fresh process
+        # Signals are still in backoff: recovery must not wait for their due date.
+        assert await turn_signals.deliver_due(manager, []) == 0
+        await _settle_notices()
+        assert _notice_rows()[0]["notified_at"]
+>       assert len(manager.sent) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([('top', InjectedMessage(text='Report held by quota gate: w1 → boss; turn_signal:1. QuotaGateError: QuotaGateError: Ne...l:1'), MessageProvenance(origin='platform', senders=('Orchestra',), subtype='report_quota_hold', ref='turn_signal:1'))])
+E        +    where [('top', InjectedMessage(text='Report held by quota gate: w1 → boss; turn_signal:1. QuotaGateError: QuotaGateError: Ne...l:1'), MessageProvenance(origin='platform', senders=('Orchestra',), subtype='report_quota_hold', ref='turn_signal:1'))] = <tests.test_v1028_report_holds.Manager object at 0x79ff3c89fb90>.sent
+
+tests/test_v1028_report_holds.py:140: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Auto-report: w1 recorded as turn signal 1
+turn signal [1] not delivered to boss: QuotaGateError: QuotaGateError: New worker turn blocked: Claude quota is 43.1321% — utilization 43.1321% is above the line limit 23.13% (norm 14.03% + tolerance 9.1 pp).
+report quota-hold notice remains pending: turn_signal:1
+Traceback (most recent call last):
+  File "./app/report_holds.py", line 163, in recover
+    await asyncio.wait_for(send_notice(), timeout=10.0)
+  File "/usr/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "./app/report_holds.py", line 158, in send_notice
+    await manager.send(
+  File "./tests/test_v1028_report_holds.py", line 32, in send
+    raise RuntimeError("crash after acceptance")
+RuntimeError: crash after acceptance
+------------------------------ Captured log call -------------------------------
+INFO     app.manager:manager.py:2225 Auto-report: w1 recorded as turn signal 1
+WARNING  orchestra.turn_signals:turn_signals.py:223 turn signal [1] not delivered to boss: QuotaGateError: QuotaGateError: New worker turn blocked: Claude quota is 43.1321% — utilization 43.1321% is above the line limit 23.13% (norm 14.03% + tolerance 9.1 pp).
+ERROR    app.report_holds:report_holds.py:170 report quota-hold notice remains pending: turn_signal:1
+Traceback (most recent call last):
+  File "./app/report_holds.py", line 163, in recover
+    await asyncio.wait_for(send_notice(), timeout=10.0)
+  File "/usr/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "./app/report_holds.py", line 158, in send_notice
+    await manager.send(
+  File "./tests/test_v1028_report_holds.py", line 32, in send
+    raise RuntimeError("crash after acceptance")
+RuntimeError: crash after acceptance
+=========================== short test summary info ============================
+FAILED tests/test_v1028_report_holds.py::test_notice_recovery_and_crash_after_acceptance_do_not_lose_or_repeat_notice[after]
+1 failed, 1 passed, 11 deselected in 3.84s

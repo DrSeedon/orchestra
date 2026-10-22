@@ -5,6 +5,7 @@ All state stays on the session (persistence and event loop read it directly).
 """
 
 import asyncio
+import json
 import logging
 import math
 import time
@@ -211,6 +212,51 @@ class TurnManager:
     def publish_turn_finished(self) -> None:
         self.s._turn_finished_event.set()
 
+    def track_parent_report(self, event: AgentEvent, tool_name: str) -> None:
+        """Only a successful send to this worker's parent suppresses its auto-report.
+
+        All runtimes supply the complete tool arguments in `tool_use` content. A
+        failed MCP call may still arrive as a normal text result (older harnesses).
+        Unknown/missing arguments cannot establish that the parent was told.
+        """
+        s = self.s
+        call_id = str(event.metadata.get("tool_use_id") or "")
+        if not call_id:
+            return
+        if event.type == "tool_use" and tool_name in {"send_message", "mcp__orchestra__send_message"}:
+            try:
+                args = json.loads(event.content.partition(":")[2])
+            except (TypeError, ValueError):
+                return
+            if not isinstance(args, dict):
+                return
+            target = args.get("to")
+            parent = s.parent_name or s.parent_id or s.last_task_sender
+            if target and target in {parent, s.parent_id}:
+                s._report_calls[call_id] = s._turn_gen
+        elif event.type == "tool_result":
+            generation = s._report_calls.pop(call_id, None)
+            if generation is None or generation != s._turn_gen or event.metadata.get("is_error"):
+                return
+            result = event.content.strip()
+            try:
+                receipt = json.loads(result)
+            except (TypeError, ValueError):
+                receipt = None
+            if isinstance(receipt, dict):
+                from app.message_deliveries import report_receipt_accepted
+
+                accepted = report_receipt_accepted(receipt)
+            else:
+                accepted = result.startswith((
+                    "Message sent", "Message accepted", "Message was submitted",
+                    "Message is waiting for the target's next turn",
+                    "Message delivery is deferred by a quota gate",
+                ))
+            if not accepted:
+                return
+            s._did_report = True
+
     def fire_auto_report(self, *, include_owner_initiated: bool = False) -> None:
         """Send auto-report to parent immediately when worker goes idle.
         Orchestrators don't auto-report — they reply to user directly.
@@ -221,11 +267,20 @@ class TurnManager:
         leave the orchestrator waiting forever for a signal that never comes.
         """
         s = self.s
-        if s.is_orchestrator or not s.on_idle or s._manually_interrupted:
+
+        def skipped(reason: str) -> None:
+            s._log("status", f"auto-report skipped: {reason}")
+
+        if s.is_orchestrator or not s.on_idle:
+            return
+        if s._manually_interrupted:
+            skipped("manual interrupt")
             return
         if s._pending_messages or s._compacting:
+            skipped("pending messages" if s._pending_messages else "compacting")
             return
         if s._last_turn_ok and not s._turn_logs:
+            skipped("successful turn without output")
             return
         silent_turn = is_successful_silent_turn(
             getattr(s, "_last_text_output", None), s._last_turn_ok
@@ -233,7 +288,8 @@ class TurnManager:
         # An unparented worker started directly from dashboard/TG has nobody to report
         # to. A parented child must still report: parent_name survives service restarts
         # even when the transient last_task_sender metadata does not.
-        if not s.last_task_sender and not s.parent_name:
+        if not s.last_task_sender and not (s.parent_name or s.parent_id):
+            skipped("no parent")
             return
         # #219 T1b, ГЕЙТ 2 из 2: молчаливое завершение хода. Через
         # `send_message` этот путь НЕ идёт, поэтому гейт в роуте его не ловит,
@@ -283,8 +339,10 @@ class TurnManager:
             getattr(s, "_owner_initiated_turn", False)
             and not include_owner_initiated
         ):
+            skipped("owner initiated turn")
             return
         if s._did_report or silent_turn:
+            skipped("explicit report to parent" if s._did_report else "silent turn marker")
             return
 
         last_texts = s._turn_logs[-5:] if s._turn_logs else []
@@ -591,6 +649,9 @@ class TurnManager:
         # really "done", so reporting now spams a half-status to the orchestrator.
         if allow_auto_report and s.status != AgentStatus.WAITING:
             self.fire_auto_report()
+        elif s.on_idle and not s.is_orchestrator:
+            reason = "background jobs pending" if s.status == AgentStatus.WAITING else "server error retry pending"
+            s._log("status", f"auto-report skipped: {reason}")
 
         if s._pending_messages:
             s._spawn_bg(s._flush_pending())

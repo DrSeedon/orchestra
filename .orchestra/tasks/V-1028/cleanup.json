@@ -1,0 +1,11 @@
+{
+  "removed_generated_test_and_tooling_directories": [
+    ".orchestra/tasks/V-1028/tmp",
+    ".orchestra/tasks/V-1028/uv-cache",
+    ".orchestra/tasks/V-1028/tooling",
+    ".pytest_cache",
+    "data",
+    ".venv"
+  ],
+  "source_and_task_evidence_preserved": true
+}

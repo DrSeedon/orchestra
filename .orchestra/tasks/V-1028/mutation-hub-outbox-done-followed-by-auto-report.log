@@ -1,0 +1,44 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_hub_outbox_done_to_parent_prevents_second_auto_report __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x72ce35044b80>, 'manager': <tests.test_turn_signals.FakeManager...1e3560>, 'parent_id': '0fe63ac2-5383-4129-a989-56ccc97748f7', 'worker_id': '7f46d0c6-198f-400f-92cc-8afc1963b533', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72ce37666ae0>
+
+    @pytest.mark.asyncio
+    async def test_hub_outbox_done_to_parent_prevents_second_auto_report(world, monkeypatch):
+        session, backend = _backend(world)
+        calls = []
+    
+        async def api(who, method, path, body):
+            calls.append((method, path, body))
+            await world["manager"].send(world["parent_id"], body["message"], provenance=MessageProvenance(
+                "agent", (who.name,), subtype="direct_message", ref=body["delivery_id"],
+            ))
+            return {"ok": True, "delivery_state": "SUBMITTED"}
+    
+        monkeypatch.setattr(hub_outbox, "local_api_call", api)
+        await _outbox(backend, [{"tool": "send_message", "args": {
+            "to": "somebody-else", "message": "DONE: completed work",
+        }}])
+        assert calls[0][1] == "/api/sessions/boss/send", "outbox authority forces the own parent"
+        session._handle_event(AgentEvent("text", "DONE: completed work"))
+        session._handle_event(AgentEvent("turn_end", metadata={
+            "ok": True, "stop_reason": "end_turn", "cost_usd": 0, "num_turns": 1,
+        }))
+        await _settle(session)
+>       assert len(world["manager"].sent) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([('0fe63ac2-5383-4129-a989-56ccc97748f7', 'DONE: completed work', MessageProvenance(origin='agent', senders=('w1',), s...ONE: completed work', MessageProvenance(origin='agent', senders=('w1',), subtype='auto_report', ref='turn_signal[1]'))])
+E        +    where [('0fe63ac2-5383-4129-a989-56ccc97748f7', 'DONE: completed work', MessageProvenance(origin='agent', senders=('w1',), s...ONE: completed work', MessageProvenance(origin='agent', senders=('w1',), subtype='auto_report', ref='turn_signal[1]'))] = <tests.test_turn_signals.FakeManager object at 0x72ce351e3560>.sent
+
+tests/test_v1028_hub_outbox_report.py:54: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Auto-report: w1 recorded as turn signal 1
+turn signal [1] delivered to boss
+------------------------------ Captured log call -------------------------------
+INFO     app.manager:manager.py:2225 Auto-report: w1 recorded as turn signal 1
+INFO     orchestra.turn_signals:turn_signals.py:232 turn signal [1] delivered to boss
+=========================== short test summary info ============================
+FAILED tests/test_v1028_hub_outbox_report.py::test_hub_outbox_done_to_parent_prevents_second_auto_report
+1 failed, 13 deselected in 3.74s

@@ -1,0 +1,196 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_________ test_failed_hub_outbox_send_keeps_fallback_report[receipt0] __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7d9f2df04ae0>, 'manager': <tests.test_turn_signals.FakeManager...beb1d0>, 'parent_id': '9658dfd8-b613-45cf-bef3-1368d6f52189', 'worker_id': '522c24f6-b666-4d56-ae6c-b19b3697d870', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d9f30526510>
+receipt = {'ok': False}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("receipt", [
+        {"ok": False},
+        {"error": "connection refused"},
+        {"ok": True, "delivery_state": "FAILED_BEFORE_SUBMIT", "error": {"message": "failed"}},
+        {"ok": True, "delivery_state": "CANCELLED"},
+        {"ok": True, "delivery_state": "DELIVERY_UNKNOWN"},
+        {},
+    ])
+    async def test_failed_hub_outbox_send_keeps_fallback_report(world, monkeypatch, receipt):
+        session, backend = _backend(world)
+        monkeypatch.setattr(hub_outbox, "local_api_call", AsyncMock(return_value=receipt))
+        summary = await _outbox(backend, [{"tool": "send_message", "args": {"message": "DONE"}}])
+        assert "dropped" in summary
+>       assert session._did_report is False
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='522c24f6-b666-4d56-ae6c-b19b3697d870', name='w1', scope='/proj', cwd='/proj', model='hub-gpt-6.1-sol'...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._did_report
+
+tests/test_v1028_hub_outbox_report.py:91: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub outbox of w1: dropped send_message: parent report was not accepted
+hub outbox of test-worker: dropped send_message: parent report was not accepted
+------------------------------ Captured log call -------------------------------
+WARNING  app.hub_outbox:hub_outbox.py:151 hub outbox of w1: dropped send_message: parent report was not accepted
+WARNING  app.backend_hub:backend_hub.py:670 hub outbox of test-worker: dropped send_message: parent report was not accepted
+_________ test_failed_hub_outbox_send_keeps_fallback_report[receipt1] __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7d9f2df05760>, 'manager': <tests.test_turn_signals.FakeManager...0efef0>, 'parent_id': '37b4f12d-1b2d-44d9-aae3-9bc6e9a5334c', 'worker_id': 'f0e996c9-763c-49d9-a6ec-cacddd2fbfb4', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d9f305264b0>
+receipt = {'error': 'connection refused'}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("receipt", [
+        {"ok": False},
+        {"error": "connection refused"},
+        {"ok": True, "delivery_state": "FAILED_BEFORE_SUBMIT", "error": {"message": "failed"}},
+        {"ok": True, "delivery_state": "CANCELLED"},
+        {"ok": True, "delivery_state": "DELIVERY_UNKNOWN"},
+        {},
+    ])
+    async def test_failed_hub_outbox_send_keeps_fallback_report(world, monkeypatch, receipt):
+        session, backend = _backend(world)
+        monkeypatch.setattr(hub_outbox, "local_api_call", AsyncMock(return_value=receipt))
+        summary = await _outbox(backend, [{"tool": "send_message", "args": {"message": "DONE"}}])
+        assert "dropped" in summary
+>       assert session._did_report is False
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='f0e996c9-763c-49d9-a6ec-cacddd2fbfb4', name='w1', scope='/proj', cwd='/proj', model='hub-gpt-6.1-sol'...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._did_report
+
+tests/test_v1028_hub_outbox_report.py:91: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub outbox of w1: dropped send_message: connection refused
+hub outbox of test-worker: dropped send_message: connection refused
+------------------------------ Captured log call -------------------------------
+WARNING  app.hub_outbox:hub_outbox.py:151 hub outbox of w1: dropped send_message: connection refused
+WARNING  app.backend_hub:backend_hub.py:670 hub outbox of test-worker: dropped send_message: connection refused
+_________ test_failed_hub_outbox_send_keeps_fallback_report[receipt2] __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7d9f2df04860>, 'manager': <tests.test_turn_signals.FakeManager...0ee390>, 'parent_id': '585c8807-ceb7-45f4-9122-c9602ac07d46', 'worker_id': '06ddb53d-3f61-4b32-ab73-0869d3f3ca9a', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d9f2d372db0>
+receipt = {'delivery_state': 'FAILED_BEFORE_SUBMIT', 'error': {'message': 'failed'}, 'ok': True}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("receipt", [
+        {"ok": False},
+        {"error": "connection refused"},
+        {"ok": True, "delivery_state": "FAILED_BEFORE_SUBMIT", "error": {"message": "failed"}},
+        {"ok": True, "delivery_state": "CANCELLED"},
+        {"ok": True, "delivery_state": "DELIVERY_UNKNOWN"},
+        {},
+    ])
+    async def test_failed_hub_outbox_send_keeps_fallback_report(world, monkeypatch, receipt):
+        session, backend = _backend(world)
+        monkeypatch.setattr(hub_outbox, "local_api_call", AsyncMock(return_value=receipt))
+        summary = await _outbox(backend, [{"tool": "send_message", "args": {"message": "DONE"}}])
+        assert "dropped" in summary
+>       assert session._did_report is False
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='06ddb53d-3f61-4b32-ab73-0869d3f3ca9a', name='w1', scope='/proj', cwd='/proj', model='hub-gpt-6.1-sol'...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._did_report
+
+tests/test_v1028_hub_outbox_report.py:91: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub outbox of w1: dropped send_message: {'message': 'failed'}
+hub outbox of test-worker: dropped send_message: {'message': 'failed'}
+------------------------------ Captured log call -------------------------------
+WARNING  app.hub_outbox:hub_outbox.py:151 hub outbox of w1: dropped send_message: {'message': 'failed'}
+WARNING  app.backend_hub:backend_hub.py:670 hub outbox of test-worker: dropped send_message: {'message': 'failed'}
+_________ test_failed_hub_outbox_send_keeps_fallback_report[receipt3] __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7d9f2d108ea0>, 'manager': <tests.test_turn_signals.FakeManager...178380>, 'parent_id': '0bdb9433-9b34-4d9a-af62-92260a9179d2', 'worker_id': 'e46149c3-b149-4f49-b258-11a558e9f170', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d9f2d3730b0>
+receipt = {'delivery_state': 'CANCELLED', 'ok': True}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("receipt", [
+        {"ok": False},
+        {"error": "connection refused"},
+        {"ok": True, "delivery_state": "FAILED_BEFORE_SUBMIT", "error": {"message": "failed"}},
+        {"ok": True, "delivery_state": "CANCELLED"},
+        {"ok": True, "delivery_state": "DELIVERY_UNKNOWN"},
+        {},
+    ])
+    async def test_failed_hub_outbox_send_keeps_fallback_report(world, monkeypatch, receipt):
+        session, backend = _backend(world)
+        monkeypatch.setattr(hub_outbox, "local_api_call", AsyncMock(return_value=receipt))
+        summary = await _outbox(backend, [{"tool": "send_message", "args": {"message": "DONE"}}])
+        assert "dropped" in summary
+>       assert session._did_report is False
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='e46149c3-b149-4f49-b258-11a558e9f170', name='w1', scope='/proj', cwd='/proj', model='hub-gpt-6.1-sol'...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._did_report
+
+tests/test_v1028_hub_outbox_report.py:91: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub outbox of w1: dropped send_message: parent report was not accepted
+hub outbox of test-worker: dropped send_message: parent report was not accepted
+------------------------------ Captured log call -------------------------------
+WARNING  app.hub_outbox:hub_outbox.py:151 hub outbox of w1: dropped send_message: parent report was not accepted
+WARNING  app.backend_hub:backend_hub.py:670 hub outbox of test-worker: dropped send_message: parent report was not accepted
+_________ test_failed_hub_outbox_send_keeps_fallback_report[receipt4] __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7d9f2d109760>, 'manager': <tests.test_turn_signals.FakeManager...18e390>, 'parent_id': 'e290d1a8-f239-47ec-8620-32a6658a7e6f', 'worker_id': 'b7d6acdd-a659-48a7-8861-3933dc046465', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d9f2d3732f0>
+receipt = {'delivery_state': 'DELIVERY_UNKNOWN', 'ok': True}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("receipt", [
+        {"ok": False},
+        {"error": "connection refused"},
+        {"ok": True, "delivery_state": "FAILED_BEFORE_SUBMIT", "error": {"message": "failed"}},
+        {"ok": True, "delivery_state": "CANCELLED"},
+        {"ok": True, "delivery_state": "DELIVERY_UNKNOWN"},
+        {},
+    ])
+    async def test_failed_hub_outbox_send_keeps_fallback_report(world, monkeypatch, receipt):
+        session, backend = _backend(world)
+        monkeypatch.setattr(hub_outbox, "local_api_call", AsyncMock(return_value=receipt))
+        summary = await _outbox(backend, [{"tool": "send_message", "args": {"message": "DONE"}}])
+        assert "dropped" in summary
+>       assert session._did_report is False
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='b7d6acdd-a659-48a7-8861-3933dc046465', name='w1', scope='/proj', cwd='/proj', model='hub-gpt-6.1-sol'...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._did_report
+
+tests/test_v1028_hub_outbox_report.py:91: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub outbox of w1: dropped send_message: parent report was not accepted
+hub outbox of test-worker: dropped send_message: parent report was not accepted
+------------------------------ Captured log call -------------------------------
+WARNING  app.hub_outbox:hub_outbox.py:151 hub outbox of w1: dropped send_message: parent report was not accepted
+WARNING  app.backend_hub:backend_hub.py:670 hub outbox of test-worker: dropped send_message: parent report was not accepted
+_________ test_failed_hub_outbox_send_keeps_fallback_report[receipt5] __________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7d9f2d10a200>, 'manager': <tests.test_turn_signals.FakeManager...1a3fb0>, 'parent_id': '191156ae-967d-45c0-91d3-cfedb7eb8c06', 'worker_id': 'b138b61d-8e00-4ed4-a371-e63cd7ec3db7', ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d9f2d15b5f0>
+receipt = {}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("receipt", [
+        {"ok": False},
+        {"error": "connection refused"},
+        {"ok": True, "delivery_state": "FAILED_BEFORE_SUBMIT", "error": {"message": "failed"}},
+        {"ok": True, "delivery_state": "CANCELLED"},
+        {"ok": True, "delivery_state": "DELIVERY_UNKNOWN"},
+        {},
+    ])
+    async def test_failed_hub_outbox_send_keeps_fallback_report(world, monkeypatch, receipt):
+        session, backend = _backend(world)
+        monkeypatch.setattr(hub_outbox, "local_api_call", AsyncMock(return_value=receipt))
+        summary = await _outbox(backend, [{"tool": "send_message", "args": {"message": "DONE"}}])
+        assert "dropped" in summary
+>       assert session._did_report is False
+E       AssertionError: assert True is False
+E        +  where True = AgentSession(id='b138b61d-8e00-4ed4-a371-e63cd7ec3db7', name='w1', scope='/proj', cwd='/proj', model='hub-gpt-6.1-sol'...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._did_report
+
+tests/test_v1028_hub_outbox_report.py:91: AssertionError
+----------------------------- Captured stderr call -----------------------------
+hub outbox of w1: dropped send_message: parent report was not accepted
+hub outbox of test-worker: dropped send_message: parent report was not accepted
+------------------------------ Captured log call -------------------------------
+WARNING  app.hub_outbox:hub_outbox.py:151 hub outbox of w1: dropped send_message: parent report was not accepted
+WARNING  app.backend_hub:backend_hub.py:670 hub outbox of test-worker: dropped send_message: parent report was not accepted
+=========================== short test summary info ============================
+FAILED tests/test_v1028_hub_outbox_report.py::test_failed_hub_outbox_send_keeps_fallback_report[receipt0]
+FAILED tests/test_v1028_hub_outbox_report.py::test_failed_hub_outbox_send_keeps_fallback_report[receipt1]
+FAILED tests/test_v1028_hub_outbox_report.py::test_failed_hub_outbox_send_keeps_fallback_report[receipt2]
+FAILED tests/test_v1028_hub_outbox_report.py::test_failed_hub_outbox_send_keeps_fallback_report[receipt3]
+FAILED tests/test_v1028_hub_outbox_report.py::test_failed_hub_outbox_send_keeps_fallback_report[receipt4]
+FAILED tests/test_v1028_hub_outbox_report.py::test_failed_hub_outbox_send_keeps_fallback_report[receipt5]
+6 failed, 8 deselected in 3.84s

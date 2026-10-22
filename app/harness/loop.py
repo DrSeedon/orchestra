@@ -426,7 +426,7 @@ class AgentLoop:
                        "bash and write their real output instead.")
 
         # Bash owns its status header; text printed by the command follows that header.
-        failed = result.startswith((f"[{name} error]", "[error]"))
+        failed = result.startswith((f"[{name} error]", "[error]", "[mcp error]"))
         if name == "bash" and result.startswith("exit_code="):
             failed = result.splitlines()[0] != "exit_code=0"
         yield AgentEvent("tool_result", result, metadata={**metadata, "is_error": failed})

@@ -1,0 +1,11 @@
+--- app/report_holds.py
++++ app/report_holds.py
+@@ -150,7 +150,7 @@
+                     "SELECT 1 FROM logs WHERE session_id=? AND event_id=?",
+                     (upstream["id"], event_id),
+                 ).fetchone()
+-            if not accepted:
++            if True:
+                 async def send_notice():
+                     loaded = await manager.ensure_loaded_by_id(upstream["id"])
+                     if loaded is None:

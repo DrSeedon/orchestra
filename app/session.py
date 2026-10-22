@@ -495,6 +495,7 @@ class AgentSession:
     )
     _last_context: dict = field(default_factory=empty_context, repr=False)
     _did_report: bool = field(default=False, repr=False)
+    _report_calls: dict = field(default_factory=dict, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
     _last_text_output: Optional[str] = field(default=None, repr=False)
     _tool_names_by_id: dict = field(default_factory=dict, repr=False)
@@ -906,9 +907,14 @@ class AgentSession:
         """The hub runtime's only link back to Orchestra: this worker's identity and outbox executor."""
         from app.hub_outbox import HubBridge, Identity
 
+        def reported(who):
+            if who.turn_gen == self._turn_gen and who.parent_name == self.parent_name:
+                self._did_report = True
+
         return HubBridge(lambda: Identity(
             session_id=self.id, name=self.name, scope=self.scope, parent_name=self.parent_name or "",
-            role=self.role, branch=self.branch or "", pipeline=self.pipeline or ""))
+            role=self.role, branch=self.branch or "", pipeline=self.pipeline or "", turn_gen=self._turn_gen),
+            on_parent_report=reported)
 
     def _make_backend(
         self,
@@ -1198,6 +1204,7 @@ class AgentSession:
         """Publish the single in-memory/DB transition into a running turn."""
         self._manually_interrupted = False
         self._did_report = False
+        self._report_calls.clear()
         self._owner_initiated_turn = owner_initiated
         self._turns.bump_turn_gen()
         if compact_ack:
@@ -2703,6 +2710,7 @@ class AgentSession:
             broker.publish(self.id, {"type": "subagent_event", "event_type": event.type,
                                      "content": event.content[:2000], "subagent_id": sub_id})
             return
+        self._turns.track_parent_report(event, tool_name_for_log)
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
@@ -2763,12 +2771,6 @@ class AgentSession:
                 tool_name=tool_name_for_log or None,
                 tool_is_error=bool(event.metadata.get("is_error")),
             )
-            if (
-                not event.metadata.get("is_error")
-                and ("send_message" in tool_name_for_log
-                     or "mcp__orchestra__send_message" in tool_name_for_log)
-            ):
-                self._did_report = True
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")

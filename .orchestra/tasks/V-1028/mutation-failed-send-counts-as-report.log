@@ -1,0 +1,256 @@
+FFFFFFFFF.                                                               [100%]
+=================================== FAILURES ===================================
+_ test_failed_parent_send_still_creates_durable_signal[[mcp error] parent unavailable-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb9641b16c0>, 'manager': <tests.test_turn_signals.FakeManager...668470>, 'parent_id': '0dc5d711-477b-4933-91fd-c0d5de01b0fb', 'worker_id': 'ee5fc2ed-b7be-4d9c-9452-b62b354355d8', ...}
+result = '[mcp error] parent unavailable', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='ee5fc2ed-b7be-4d9c-9452-b62b354355d8', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+__ test_failed_parent_send_still_creates_durable_signal[[error] denied-False] __
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb9633dad40>, 'manager': <tests.test_turn_signals.FakeManager...471130>, 'parent_id': '4543c405-2adc-4f2a-8e1e-037889a3246a', 'worker_id': '34b2a1a2-8b65-4012-846c-80ac0c66bf33', ...}
+result = '[error] denied', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='34b2a1a2-8b65-4012-846c-80ac0c66bf33', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[Send failed: quota blocked-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb963421620>, 'manager': <tests.test_turn_signals.FakeManager...473e30>, 'parent_id': '78739fd9-f967-41f0-9311-c3bfb6216d54', 'worker_id': '35d6a7a9-c16c-4413-aa02-804d5541a631', ...}
+result = 'Send failed: quota blocked', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='35d6a7a9-c16c-4413-aa02-804d5541a631', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[{"ok":false,"error":"denied"}-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb963421940>, 'manager': <tests.test_turn_signals.FakeManager...482f60>, 'parent_id': 'e23eb8da-3608-42e1-93ae-9ff3114804ef', 'worker_id': 'e255ea50-596d-495d-8b9d-a4782c7b9a49', ...}
+result = '{"ok":false,"error":"denied"}', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='e255ea50-596d-495d-8b9d-a4782c7b9a49', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[Message was NOT delivered; state=FAILED_BEFORE_SUBMIT-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb963422480>, 'manager': <tests.test_turn_signals.FakeManager...495df0>, 'parent_id': 'eb300f5b-74f1-4021-8543-1f6b4264ad64', 'worker_id': 'f27071a0-d7d4-4c6d-977a-54a0ec242c1e', ...}
+result = 'Message was NOT delivered; state=FAILED_BEFORE_SUBMIT', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='f27071a0-d7d4-4c6d-977a-54a0ec242c1e', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[Message cancelled; it was not sent-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb963422c00>, 'manager': <tests.test_turn_signals.FakeManager...4b0fb0>, 'parent_id': 'f9586f83-6ac1-4bb0-847a-f58099f22538', 'worker_id': '27154c93-5338-4f06-9a6d-6ad9f5bc682c', ...}
+result = 'Message cancelled; it was not sent', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='27154c93-5338-4f06-9a6d-6ad9f5bc682c', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[Message delivery outcome is unknown-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb964ce4c20>, 'manager': <tests.test_turn_signals.FakeManager...483ef0>, 'parent_id': '11535cd0-1549-4b93-a75e-dda233b3dbe8', 'worker_id': '3e403848-7d3a-433f-b4d8-6b6ce31ca92d', ...}
+result = 'Message delivery outcome is unknown', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='3e403848-7d3a-433f-b4d8-6b6ce31ca92d', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[Message NOT delivered; target queue blocked-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb9634232e0>, 'manager': <tests.test_turn_signals.FakeManager...480380>, 'parent_id': '3bd29ae6-261a-47ae-992c-524da0b7b5a9', 'worker_id': 'b2f76918-ce85-4af8-9b51-d30a77ab6f78', ...}
+result = 'Message NOT delivered; target queue blocked', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='b2f76918-ce85-4af8-9b51-d30a77ab6f78', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+_ test_failed_parent_send_still_creates_durable_signal[unexpected opaque response-False] _
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7eb963422020>, 'manager': <tests.test_turn_signals.FakeManager...470bc0>, 'parent_id': '18c901f2-a79e-465f-8b5d-b67ddaee1ffd', 'worker_id': '49c8b940-b2a7-46fc-84f0-903cf8c1ae14', ...}
+result = 'unexpected opaque response', error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("result,error", [
+        ("[mcp error] parent unavailable", False),
+        ("[error] denied", False),
+        ("Send failed: quota blocked", False),
+        ('{"ok":false,"error":"denied"}', False),
+        ("Message was NOT delivered; state=FAILED_BEFORE_SUBMIT", False),
+        ("Message cancelled; it was not sent", False),
+        ("Message delivery outcome is unknown", False),
+        ("Message NOT delivered; target queue blocked", False),
+        ("unexpected opaque response", False),
+        ("denied", True),
+    ])
+    async def test_failed_parent_send_still_creates_durable_signal(world, result, error):
+        session = _session(world)
+        session._submit_db_write = Mock()
+        _tool(session, result=result, error=error)
+>       assert not session._did_report
+E       AssertionError: assert not True
+E        +  where True = AgentSession(id='49c8b940-b2a7-46fc-84f0-903cf8c1ae14', name='w1', scope='/proj', cwd='/proj', model='claude-sonnet-5-...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=1)._did_report
+
+tests/test_v1028_auto_report.py:57: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[[mcp error] parent unavailable-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[[error] denied-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[Send failed: quota blocked-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[{"ok":false,"error":"denied"}-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[Message was NOT delivered; state=FAILED_BEFORE_SUBMIT-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[Message cancelled; it was not sent-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[Message delivery outcome is unknown-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[Message NOT delivered; target queue blocked-False]
+FAILED tests/test_v1028_auto_report.py::test_failed_parent_send_still_creates_durable_signal[unexpected opaque response-False]
+9 failed, 1 passed, 28 deselected in 3.73s

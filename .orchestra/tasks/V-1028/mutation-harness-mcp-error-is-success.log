@@ -1,0 +1,34 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_harness_mcp_error_is_error_and_does_not_suppress_fallback ________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7b9579325760>, 'manager': <tests.test_turn_signals.FakeManager...539940>, 'parent_id': '41ca225a-9f01-4404-92e3-b850087a1ea3', 'worker_id': '90ac7079-8de6-4e1b-9711-e35ea30b9be1', ...}
+
+    @pytest.mark.asyncio
+    async def test_harness_mcp_error_is_error_and_does_not_suppress_fallback(world):
+        class MCP:
+            def display_name(self, name):
+                return f"mcp__orchestra__{name}"
+    
+            def has_tool(self, name):
+                return name == "send_message"
+    
+            async def call(self, name, args):
+                return "[mcp error] parent unavailable"
+    
+        session = _session(world)
+        session.backend_type = "harness"
+        session._submit_db_write = Mock()
+        loop = AgentLoop(None, MCP(), ".", [], "system", [])
+        events = [event async for event in loop._dispatch_tool({
+            "id": "harness-send", "function": {
+                "name": "send_message", "arguments": '{"to":"boss","message":"DONE"}',
+            },
+        })]
+>       assert events[-1].metadata["is_error"] is True
+E       assert False is True
+
+tests/test_v1028_auto_report.py:84: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_auto_report.py::test_harness_mcp_error_is_error_and_does_not_suppress_fallback
+1 failed, 37 deselected in 3.54s

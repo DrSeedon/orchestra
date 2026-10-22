@@ -24,6 +24,18 @@ _target_delivery_locks: dict[str, asyncio.Lock] = {}
 _failure_notice_tasks: dict[str, asyncio.Task] = {}
 
 
+def report_receipt_accepted(result: object) -> bool:
+    """Whether a parent report was delivered or retained by a durable delivery owner."""
+    if not isinstance(result, dict) or result.get("ok") is not True or result.get("isError"):
+        return False
+    state = result.get("delivery_state")
+    if state is not None:
+        return state in {
+            "QUEUED", "PREPARING", "DISPATCHING", "WAITING_QUOTA", "WAITING_NEXT_TURN", "SUBMITTED",
+        }
+    return not result.get("error")
+
+
 class TargetTaskChangedError(RuntimeError):
     """The accepted target lifecycle generation no longer matches."""
 
@@ -371,6 +383,10 @@ async def accept_message_delivery(
             ensure_target_runner(target_session_id)
         except Exception as error:
             logger.warning("message delivery runner wake failed: %s", err_text(error))
+    if resource and resource["delivery_state"] in {"WAITING_QUOTA", "QUEUED"}:
+        from app import report_holds
+
+        report_holds.ensure_runner()
     return resource, 202
 
 
@@ -878,6 +894,9 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
             mark_message_delivery_unknown(delivery_id, error)
         elif isinstance(error, QuotaGateError):
             mark_message_delivery_waiting_quota(delivery_id, error.decision)
+            from app import report_holds
+
+            report_holds.ensure_runner(manager)
             if intercepted and intercepted["released"]:
                 fan_barrier.rearm_wake(intercepted["fan_id"])
             return

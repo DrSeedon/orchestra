@@ -209,6 +209,9 @@ async def release_waiting() -> int:
     и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
     """
     from app import deps, initial_deliveries, initial_delivery_events, message_deliveries
+    from app import report_holds
+
+    report_holds.ensure_runner(deps.manager)
 
     released = 0
     async with _release_lock:

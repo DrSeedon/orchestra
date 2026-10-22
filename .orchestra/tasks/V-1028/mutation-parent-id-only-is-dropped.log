@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_parent_id_alone_is_sufficient_to_report _________________
+
+world = {'add_worker': <function world.<locals>.add_worker at 0x7461790a9760>, 'manager': <tests.test_turn_signals.FakeManager...2fede0>, 'parent_id': 'bc59711e-59ac-4c79-b9a6-43e43f98d38d', 'worker_id': 'ab83a6c3-2042-43a2-ad6c-79be98927577', ...}
+
+    @pytest.mark.asyncio
+    async def test_parent_id_alone_is_sufficient_to_report(world):
+        session = _session(world)
+        session.parent_name = ""
+        session.last_task_sender = ""
+        session._turns.fire_auto_report()
+        await _settle(session)
+>       assert len(world["manager"].sent) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_turn_signals.FakeManager object at 0x7461792fede0>.sent
+
+tests/test_v1028_auto_report.py:152: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v1028_auto_report.py::test_parent_id_alone_is_sufficient_to_report
+1 failed, 37 deselected in 3.74s

@@ -1,0 +1,11 @@
+--- app/static/js/app.js
++++ app/static/js/app.js
+@@ -3302,7 +3302,7 @@
+     }
+ 
+     info.append(nameRow, meta);
+-    if (s.report_quota_hold) {
++    if (false) {
+         const held = document.createElement('div');
+         held.className = 'agent-report-hold text-xs mt-0.5 text-amber-400';
+         held.textContent = _reportHoldLabel(s.report_quota_hold);
