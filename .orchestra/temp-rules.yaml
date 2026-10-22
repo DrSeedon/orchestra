@@ -18,21 +18,3 @@ rules:
     regardless of remaining quota, Opus and Sonnet for important creative work or on the user''s request;
     personal and project prompts must not carry their own model routing, the default lives in Orchestra.
     Permanent by the owner''s word.'
-- id: rule-b8560caf96
-  project: '*'
-  mode: permanent
-  targets:
-  - orchestrators
-  author: Orchestra-orchestrator
-  created_at: '2026-10-22T11:57:19.491505+00:00'
-  text: 'Every worker that runs on the MultiCode hub (hubsol, hubsonnet, hubopus, hubhaiku) is killed
-    with kill_worker once its line of work is done. A line is done when its result is merged with task_outcome="complete"
-    (or its research result is saved) and no follow-up is expected: the user or you sent it no new task
-    in the last 24 h and nothing for it is queued. Then check worker_wip and kill it. Keep a hub worker
-    while its line is still active, for example a board or document the user keeps revising this evening,
-    and kill it when that stops. Hub workers doing game design are exempt. This overrides the persistent-lifecycle
-    default for hub workers; the kill gate still applies.'
-  reason: 'Owner decision 2026-10-22 18:43 KRS: hub workers other than game-design ones are deleted after
-    their work is done. Refined the same evening after the V-1032 audit (katya-work, seedon, University):
-    killing right after each merge broke lines the user revises several times an evening and workers the
-    user talks to directly.'
