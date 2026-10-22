@@ -21,3 +21,18 @@ rules:
     можно сколько угодно юзать дали добро типо приоритет на них если кодекс. а если сонет или опус то
     у тоже с хаба». Хаб-воркеры (V-1008) включены рестартом 22.10 ~11:00 КРС; постоянное правило — в model-routing
     (V-1013).'
+- id: rule-ec2b127b8d
+  project: '*'
+  mode: review
+  expires_at: '2026-10-24T09:00:00+00:00'
+  targets:
+  - orchestrators
+  author: Orchestra-orchestrator
+  created_at: '2026-10-22T09:54:31.840154+00:00'
+  text: 'Hub default is now `hubsol` (GPT-6.1 Sol on the MultiCode hub) for any work, including Claude-class
+    work. Use `hubsonnet`/`hubopus` only when the task truly needs Claude: the hub Claude pool is nearly
+    exhausted (most accounts at their weekly limit). Project-level Sol bans still win. If a hub Claude
+    turn fails on a usage or rate limit, switch that worker to `hubsol` with change_worker_model.'
+  reason: Owner decision 2026-10-22 16:52 (burn the hub Codex pool first, default Sol 6.1). At 09:53 UTC
+    6 of 10 hub Claude accounts were at their weekly limit, while hub Codex accounts were at 28-95% weekly.
+    Holds until the V-1024 platform gate lands.
