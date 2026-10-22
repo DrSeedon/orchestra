@@ -15,6 +15,17 @@ from app import backend_hub, hub_workspace as hw
 SECRET = "sekret-value-0123456789abcdef"
 
 
+@pytest.fixture(autouse=True)
+def _offline_hub_pool(monkeypatch):
+    from app import hub_pool
+
+    async def pool(**kwargs):
+        return {"available": True, "providers": {
+            provider: {"accounts": 2, "usable": 1, "threshold_pct": 100}
+            for provider in ("claude", "codex")}}
+    monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+
+
 def _git(root: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True,
                           text=True).stdout
@@ -1525,3 +1536,110 @@ def test_a_refused_scope_uploads_nothing_through_the_backend(repo, tmp_path, mon
     events = asyncio.run(_turn(backend, "go"))
     assert events[-1].metadata["ok"] is False and any("src" in e.content for e in events if e.type == "error")
     assert not any(n == "t3_project_create" for n, _ in mc.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model,alternative", [
+    ("hub-claude-sonnet-5-5", "hubsol"), ("hub-gpt-6.1-sol", "hubsonnet"),
+])
+@pytest.mark.parametrize("source", ["reply", "status", "exception"])
+async def test_provider_limit_fails_turn_and_notifies_exact_parent(
+    repo, tmp_path, monkeypatch, model, alternative, source,
+):
+    from app.hub_outbox import HubBridge, Identity
+    from app.multicode_client import MultiCodeError
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    backend.model = model
+    original = mc.tool_call
+    calls = []
+
+    async def call(name, args):
+        if source == "exception" and name == "t3_thread_launch":
+            raise MultiCodeError("rate_limit_exceeded for private@example.invalid")
+        if name == "t3_thread_wait":
+            if source == "status":
+                return {"status": "failed", "error": {"code": "usage_limit_reached",
+                                                        "message": "private@example.invalid"}}
+            return {"status": "completed"}
+        if source == "reply" and name == "t3_thread_read" and args.get("view") == "messages":
+            return {"items": [{"createdBy": "agent", "type": "assistant_message", "runId": "run-1",
+                               "text": "You've hit your usage limit. Try again after reset."}]}
+        return await original(name, args)
+
+    async def api(method, path, body):
+        calls.append((method, path, body))
+        return {"ok": True}
+
+    mc.tool_call = call
+    backend._bridge = HubBridge(lambda: Identity("worker-id", "worker", "/scope", parent_name="parent"), api)
+    events = await _turn(backend, "go")
+    error = next(e for e in events if e.type == "error")
+    assert "limit" in error.content and f"model='{alternative}'" in error.content
+    assert error.metadata["hub_provider_limit"] is True
+    assert events[-1].metadata["ok"] is False
+    assert events[-1].metadata["stop_reason"] == "hub_provider_limit"
+    assert len(calls) == 1
+    assert calls[0][1] == "/api/sessions/parent/send"
+    assert calls[0][2]["sender"] == "worker" and calls[0][2]["scope"] == "/scope"
+    assert f"model='{alternative}'" in calls[0][2]["message"]
+    assert "private@example.invalid" not in error.content + calls[0][2]["message"]
+
+
+@pytest.mark.asyncio
+async def test_pool_refusal_prevents_upload_and_new_hub_turn(repo, tmp_path, monkeypatch):
+    from app import hub_pool
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+
+    async def pool(**kwargs):
+        return {"available": True, "providers": {"claude": {
+            "usable": 0, "accounts": 10, "threshold_pct": 100}}}
+    monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+    events = await _turn(backend, "go")
+    assert any(e.type == "error" and "model='hubsol'" in e.content for e in events)
+    assert not mc.calls and backend._state is None
+    assert events[-1].metadata["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_relay_unavailable_is_visible_and_turn_still_runs(repo, tmp_path, monkeypatch):
+    from app import hub_pool
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+
+    async def pool(**kwargs):
+        return {"available": False, "providers": {}}
+    monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+    events = await _turn(backend, "go")
+    assert any(e.type == "status" and "pool unavailable" in e.content for e in events)
+    assert events[-1].metadata["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_successful_limit_implementation_report_is_not_provider_failure(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    original = mc.tool_call
+
+    async def call(name, args):
+        if name == "t3_thread_read" and args.get("view") == "messages":
+            return {"items": [{"createdBy": "agent", "type": "assistant_message", "runId": "run-1",
+                               "text": "Implemented usage limit detection and rate limit tests."}]}
+        return await original(name, args)
+    mc.tool_call = call
+    events = await _turn(backend, "go")
+    assert events[-1].metadata["ok"] is True
+    assert not any(e.type == "error" for e in events)
+
+
+@pytest.mark.parametrize("detail,kind", [
+    ("Weekly usage limit reached", "Weekly usage limit"),
+    ("5-hour limit reached", "5h usage limit"),
+    ("rate_limit_exceeded", "rate limit"),
+    ("usage_limit_reached", "usage limit"),
+    ("context_limit_reached", None),
+    ("max_turns_limit_exceeded", None),
+    ("connection reset", None),
+])
+def test_limit_errors_name_the_window_and_exclude_other_failures(detail, kind):
+    assert backend_hub._provider_limit(detail) == kind

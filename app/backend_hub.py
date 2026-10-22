@@ -122,6 +122,39 @@ def hub_configured() -> str | None:
 _HISTORY = re.compile(r"(<prior-conversation>)(.*?)(</prior-conversation>)", re.S)
 
 
+class HubProviderLimit(hw.HubWorkspaceError):
+    """Provider refused this turn because a usage or rate limit was reached."""
+
+
+def _provider_limit(value: object, *, failed: bool = True) -> str | None:
+    """Extract a safe limit category, without forwarding provider account identifiers."""
+    if isinstance(value, dict):
+        for key in ("error", "errorMessage", "lastError", "failureReason", "message", "code", "status"):
+            found = _provider_limit(value.get(key), failed=failed)
+            if found:
+                return found
+        return None
+    if not isinstance(value, str):
+        return None
+    if not failed and not re.search(
+        r"^\s*(?:error[: ]|rate[_ -]?limit|usage[_ -]?limit|too many requests|"
+        r"you(?:'ve| have) (?:hit|reached)|(?:weekly|5h|5-hour) limit|"
+        r"quota (?:exceeded|exhausted))", value, re.I,
+    ):
+        return None
+    if re.search(r"context[_ -]?(?:length[_ -]?)?limit|token[_ -]?limit|max[_ -]?turns", value, re.I):
+        return None
+    patterns = (
+        (r"rate[_ -]?limit|too many requests|\b429\b", "rate limit"),
+        (r"weekly.{0,30}limit|limit.{0,30}weekly", "Weekly usage limit"),
+        (r"(?:5h|5.hour|five.hour).{0,30}limit", "5h usage limit"),
+        (r"usage[_ -]?(?:limit|cap)|quota[_ -]?(?:exceeded|exhausted)|"
+         r"insufficient_quota|limit[_ -]?(?:reached|exceeded)|"
+         r"you(?:'ve| have) hit your limit", "usage limit"),
+    )
+    return next((label for pattern, label in patterns if re.search(pattern, value, re.I)), None)
+
+
 def _workspace_lost(exc: Exception) -> bool:
     """The hub says the project it was asked to start in does not exist (any more)."""
     text = str(exc).lower()
@@ -181,6 +214,7 @@ class HubBackend:
         self._early_steer: list[str] = []
         self._turn_started: float | None = None
         self._watch_status = ''
+        self._watch_limit: str | None = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -258,6 +292,9 @@ class HubBackend:
             raise ValueError(f"unknown hub model '{model}'")
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
+        from app.hub_pool import require_hub_capacity
+
+        await require_hub_capacity(model)
         effort = self._effort
         if self._pipeline and self._role:
             from app.pipeline import get_role, resolve_effort
@@ -323,8 +360,24 @@ class HubBackend:
             self._turn_active = False
             raise
         except (hw.HubWorkspaceError, MultiCodeError, ValueError, OSError) as exc:
-            ok, stop_reason, detail = False, "hub_error", str(exc)
-            yield AgentEvent("error", f"Hub worker turn failed: {detail}")
+            limit = str(exc) if isinstance(exc, HubProviderLimit) else _provider_limit(str(exc))
+            ok, stop_reason, detail = False, "hub_provider_limit" if limit else "hub_error", str(exc)
+            if limit:
+                from app.hub_pool import alternative_model, provider_for_model
+
+                detail = (f"Hub {provider_for_model(self.model) or 'provider'} {limit}; "
+                          f"use model='{alternative_model(self.model)}'")
+                if self._bridge is not None:
+                    try:
+                        report = await self._bridge.run([
+                            {"tool": "send_message", "args": {"message": detail}}])
+                        if report.dropped:
+                            detail += "; parent notification failed"
+                    except Exception:
+                        logger.exception("hub limit parent notification failed")
+                        detail += "; parent notification failed"
+            yield AgentEvent("error", f"Hub worker turn failed: {detail}",
+                             metadata={"hub_provider_limit": bool(limit)})
         finally:
             self._turn_active = False
         if self._abort:
@@ -332,6 +385,16 @@ class HubBackend:
         yield self._turn_end(ok, stop_reason, detail)
 
     async def _run_turn(self, message: str) -> AsyncIterator[AgentEvent]:
+        from app.hub_pool import require_hub_capacity
+        from app.quota_gate import QuotaGateError
+
+        try:
+            warning = await require_hub_capacity(self.model)
+        except QuotaGateError as exc:
+            raise hw.HubWorkspaceError(str(exc)) from exc
+        if warning:
+            yield AgentEvent("status", warning)
+        self._watch_limit = None
         mc = await self._client()
         ssh = self._ssh
         assert ssh is not None
@@ -399,6 +462,9 @@ class HubBackend:
                 sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
             text = reply or f"(hub thread ended with status {status} without a reply)"
             yield AgentEvent("text", f"{text}\n\n{sync}".strip())
+            limit = self._watch_limit or _provider_limit(reply, failed=status == "failed")
+            if limit:
+                raise HubProviderLimit(limit)
             if status in {"failed", "cancelled", "rolled_back"}:
                 raise hw.HubWorkspaceError(f"hub thread ended with status {status}")
         finally:
@@ -508,10 +574,12 @@ class HubBackend:
             waited = await mc.tool_call("t3_thread_wait", {
                 "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
             status = waited.get("status", "") if isinstance(waited, dict) else ""
-            terminal = not (isinstance(waited, dict) and waited.get("timedOut")) and status in TERMINAL
+            status_limit = _provider_limit(status)
+            terminal = not (isinstance(waited, dict) and waited.get("timedOut")) and (status in TERMINAL or status_limit is not None)
             for event in await self._poll(mc, thread_id, stream):
                 yield event
             if terminal:
+                self._watch_limit = self._watch_limit or status_limit or _provider_limit(waited)
                 self._watch_status = status
                 return
             if self._abort:
@@ -542,6 +610,10 @@ class HubBackend:
     async def _read_reply(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
         read = await mc.tool_call("t3_thread_read", {
             "threadId": thread_id, "view": "messages", "limit": 100})
+        if isinstance(read, dict):
+            for run in read.get("runs") or []:
+                if isinstance(run, dict) and (run.get("id") or run.get("runId")) == run_id:
+                    self._watch_limit = self._watch_limit or _provider_limit(run)
         return _last_assistant_text(read, run_id) or ""
 
     async def _sync_back(self, ssh: hw.HubSsh, state: hw.WorkspaceState, root: Path,

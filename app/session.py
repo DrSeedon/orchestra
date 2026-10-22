@@ -421,6 +421,8 @@ class AgentSession:
     scope: str
     cwd: str
     model: str = "claude-sonnet-5-5[1m]"
+    model_reason: str = field(default="", kw_only=True)
+    _pending_model_reason: tuple[str, str] | None = field(default=None, init=False, repr=False)
     system_prompt: str = ""
     prompt_overlay: str | None = None
     status: AgentStatus = AgentStatus.IDLE
@@ -3950,11 +3952,32 @@ class AgentSession:
         history = render_chat_history(list(reversed(visible)))
         return f"Source Orchestra session: {self.id}\n{history}" if history else ""
 
-    async def change_model(self, new_model: str) -> dict:
+    @property
+    def effective_model_reason(self) -> str:
+        pending = self._pending_model_reason
+        return pending[1] if pending and pending[0] == self.model else self.model_reason
+
+    async def change_model(self, new_model: str, model_reason: str = "") -> dict:
+        from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+
         async with self._lifecycle_lock:
             if self._compacting:
                 return {"ok": False, "error": "cannot change model while compacting"}
-            return await self._change_model_locked(new_model)
+            try:
+                reason = validate_model_reason(new_model, model_reason)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc), "error_code": HUB_CLAUDE_REASON_RULE}
+            self._pending_model_reason = (new_model, reason)
+            try:
+                result = await self._change_model_locked(new_model)
+            finally:
+                if self.model == new_model:
+                    self.model_reason = reason
+                self._pending_model_reason = None
+            if result.get("ok"):
+                self._persist()  # Also persist a new reason when the model itself was already selected.
+                result["model_reason"] = self.model_reason
+            return result
 
     async def _change_runtime_chat_locked(
         self,
@@ -4239,6 +4262,14 @@ class AgentSession:
             }
         if self.status == AgentStatus.RUNNING:
             return {"ok": False, "error": "cannot change model while running"}
+
+        from app.hub_pool import require_hub_capacity
+        from app.quota_gate import QuotaGateError
+
+        try:
+            await require_hub_capacity(new_model)
+        except QuotaGateError as exc:
+            return {"ok": False, "error": str(exc), "error_code": "hub_pool_exhausted"}
 
         old_runtime = self.backend_type or backend_for_model(old_model)
         new_runtime = get_model_spec(new_model).runtime
@@ -4795,7 +4826,8 @@ class AgentSession:
     def _to_db_dict(self) -> dict:
         return {
             "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
-            "model": self.model, "system_prompt": self.system_prompt,
+            "model": self.model, "model_reason": self.effective_model_reason,
+            "system_prompt": self.system_prompt,
             "prompt_overlay": self.prompt_overlay,
             "status": self.status.value, "session_id": self.session_id,
             "provider_cost_baseline_usd": self._last_cost,
@@ -4879,6 +4911,7 @@ class AgentSession:
             "id": self.id, "name": self.name, "scope": self.scope,
             "cwd": self.cwd, "worktree_path": self.worktree_path,
             "status": "broken" if writer_error is not None else self._display_status(), "model": self.model,
+            "model_reason": self.effective_model_reason,
             "runtime_connection": runtime_connection,
             "runtime_error": writer_error.envelope() if writer_error else self._runtime_error or None,
             "cost_usd": round(self.cost_usd, 4),

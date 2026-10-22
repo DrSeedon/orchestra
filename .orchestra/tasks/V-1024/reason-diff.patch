@@ -1,0 +1,795 @@
+--- a/.orchestra/pipelines/default/prompts/modules/model-routing.md
++++ b/.orchestra/pipelines/default/prompts/modules/model-routing.md
+@@ -39,6 +39,6 @@
+   Orchestrators stay on Opus until the owner decides otherwise.
+ - **Spark** — optional narrow fast/overflow leaf route with a separate but small quota wallet, not free capacity. At the current preview limit, #222 measured only 25 identical benchmark batches per week (250 starts, 200 usage-bearing turns, 125 strict PASS). Its dollar price is UNKNOWN (research-preview rates; local price=None), so any money summary that includes Spark is incomplete. Use Spark only when the Codex pool is the binding constraint and all hold: text-only; ≤2 named files; ≤100K total initial context (system prompt + task + supplied files); every correctness-critical decision and value is explicit; an independent pre-existing oracle mechanically covers every correctness-critical criterion. Spark silently invents missing data: in #222 it did so 2/2 times and missed both future oracles (19/42 and 18/42), while Luna stopped and asked 2/2 times; any missing fact or decision forbids this route. At ~164K Spark failed loudly before any answer in 2/2 runs, so keep the ≤100K headroom; the measured context failure was not silent corruption. The excluded classes are explicit: semantic prose, prompt work without literal anchors, review, research, architecture, vision, and security are forbidden. After any failed or incomplete Spark attempt, never retry Spark; hand the ticket to the hub or Sonnet; agent-side Astra and Sol runs remain unavailable.
+ - **Fable** — retained in the manual model catalog; the existing agent-routing rule remains “do not use.”
+-- **MultiCode hub — the FIRST route.** Owner decision, 2026-10-22: the hub pool is free for us and the owner permits unlimited use, while our own subscription pools are scarce, so spawn on the hub by default. The default hub route for any work is `hubsol`; burn the hub Codex pool first. Use `hubsonnet` or `hubopus` only when the task really needs Claude and the hub Claude pool has headroom. The platform checks usable accounts across both 5-hour and Weekly windows and tells the parent when a hub turn hits a provider limit. Project-level Sol bans, including katya-work lesson restrictions, still take precedence. Do not use Luna for workers. Fall back to our own subscriptions (Sonnet) only when the hub is unavailable or unconfigured, or the task must not leave our machines: secrets, credentials, private client or personal data stay on our subscriptions. The hub runs the worker on a separate machine from a copy of the repo. It has no Orchestra tools (no `send_message`/`update_progress`; you see only status lines and the final report), and Orchestra's role prompt does not reach it, so put everything needed in the task text. Its changes come back as commits in the worker's branch and go through the usual `merge_worker`; the remote workspace is cleaned up on release. Credential-like files are excluded from the upload, but treat the machine as foreign. Basis: `.orchestra/tasks/V-1008/report.md`.
++- **MultiCode hub — the FIRST route.** Owner decision, 2026-10-22: **the default hub route for every task is `hubsol`.** This is permanent policy. Sol 6.1 handles technical work well, including bug fixes, features, tests, refactors, research and reports. **Claude on the hub is the exception:** use `hubsonnet`, or `hubopus` for known-heavy work, only with a named reason why the task needs Claude. Sol is weak at creative work such as creative prose, video and scene direction, and visual/aesthetic judgment. The existing Opus-only cases above remain reasons for `hubopus`. Pass a non-empty `model_reason` to `spawn_worker` and `change_worker_model` for `hubsonnet`, `hubopus` or `hubhaiku`; the platform refuses these calls without it under `hub_claude_reason_required`, stores the reason on the session and displays it beside the model. Hub Sol and our own models require no reason. Project-level Sol bans, including katya-work lesson restrictions, still take precedence. The platform checks headroom across both 5-hour and Weekly windows for the whole pool: even a named Claude reason does not permit work when no hub Claude account is usable; use `hubsol` then. A provider-limit failure notifies the worker's parent and suggests the other hub route. The hub pool is free for us and the owner permits unlimited use; our own subscription pools are scarce. Do not use Luna for workers. Fall back to our own subscriptions (Sonnet) only when the hub is unavailable or unconfigured, or the task must not leave our machines: secrets, credentials, private client or personal data stay on our subscriptions. The hub runs the worker on a separate machine from a copy of the repo. It has no Orchestra tools (no `send_message`/`update_progress`; you see only status lines and the final report), and Orchestra's role prompt does not reach it, so put everything needed in the task text. Its changes come back as commits in the worker's branch and go through the usual `merge_worker`; the remote workspace is cleaned up on release. Credential-like files are excluded from the upload, but treat the machine as foreign. Basis: `.orchestra/tasks/V-1008/report.md` and `.orchestra/tasks/V-1024/report.md`.
+ - **Orchestrators** — when selecting a worker, apply the same priority above; the orchestrator role does not override it.
+ </model-routing>
+--- a/app/db.py
++++ b/app/db.py
+@@ -104,11 +104,27 @@
+ 
+ 
+ 
++def _ensure_session_model_reasons_schema(connection: sqlite3.Connection) -> None:
++    # Additive metadata; existing v3 databases keep their canonical sessions table unchanged.
++    connection.execute("""CREATE TABLE IF NOT EXISTS session_model_reasons (
++        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
++        model TEXT NOT NULL,
++        reason TEXT NOT NULL
++    )""")
++
++
++_SESSION_SELECT = """SELECT sessions.*, COALESCE((
++    SELECT reason FROM session_model_reasons
++    WHERE session_id=sessions.id AND model=sessions.model
++), '') AS model_reason FROM sessions"""
++
++
+ def init_db(path: Path | None = None) -> None:
+     with _conn(path) as connection:
+         version = connection.execute('PRAGMA user_version').fetchone()[0]
+         if version == SCHEMA_VERSION:
+             _ensure_usage_analytics_schema(connection)
++            _ensure_session_model_reasons_schema(connection)
+             return
+         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
+             raise RuntimeError('database schema needs offline migration before starting Orchestra')
+@@ -119,6 +135,7 @@
+         connection.executemany('INSERT INTO kv(key,value) VALUES(?,?)',
+             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
+         _ensure_usage_analytics_schema(connection)
++        _ensure_session_model_reasons_schema(connection)
+         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
+ 
+ 
+@@ -370,6 +387,7 @@
+     s.setdefault("base_branch", "")
+     s.setdefault("needs_switch", 0)
+     s.setdefault("prompt_overlay", None)
++    s.setdefault("model_reason", "")
+     connection_scope = (
+         nullcontext(_connection) if _connection is not None else _conn()
+     )
+@@ -444,6 +462,9 @@
+                 history_import_source=excluded.history_import_source,
+                 last_summary=excluded.last_summary
+         """, s)
++        c.execute("""INSERT INTO session_model_reasons(session_id, model, reason)
++            VALUES (:id, :model, :model_reason)
++            ON CONFLICT(session_id) DO UPDATE SET model=excluded.model, reason=excluded.reason""", s)
+ 
+ 
+ def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
+@@ -595,14 +616,14 @@
+ 
+ def get_session(session_id: str) -> dict | None:
+     with _conn() as c:
+-        row = c.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
++        row = c.execute(_SESSION_SELECT + " WHERE id = ?", (session_id,)).fetchone()
+         return dict(row) if row else None
+ 
+ 
+ def get_session_by_name(name: str, scope: str) -> dict | None:
+     with _conn() as c:
+         row = c.execute(
+-            "SELECT * FROM sessions WHERE name = ? AND scope = ? AND status != 'archived'",
++            _SESSION_SELECT + " WHERE name = ? AND scope = ? AND status != 'archived'",
+             (name, scope),
+         ).fetchone()
+         return dict(row) if row else None
+@@ -651,11 +672,11 @@
+         archived_filter = "" if include_archived else " AND status != 'archived'"
+         if scope:
+             rows = c.execute(
+-                f"SELECT * FROM sessions WHERE scope = ?{archived_filter} ORDER BY created_at DESC", (scope,)
++                _SESSION_SELECT + f" WHERE scope = ?{archived_filter} ORDER BY created_at DESC", (scope,)
+             ).fetchall()
+         else:
+             rows = c.execute(
+-                f"SELECT * FROM sessions WHERE 1=1{archived_filter} ORDER BY created_at DESC"
++                _SESSION_SELECT + f" WHERE 1=1{archived_filter} ORDER BY created_at DESC"
+             ).fetchall()
+         return [dict(r) for r in rows]
+ 
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -618,7 +618,8 @@
+                              tg_topic: bool = False,
+                              planned_initial_turn: bool = False,
+                              initial_task_title: str = "",
+-                             model_policy_override_reason: str = "") -> AgentSession:
++                             model_policy_override_reason: str = "",
++                             model_reason: str = "") -> AgentSession:
+         normalized_scope = scope.rstrip("/")
+         key = (normalized_scope, name)
+         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
+@@ -648,6 +649,7 @@
+                 planned_initial_turn=planned_initial_turn,
+                 initial_task_title=initial_task_title,
+                 model_policy_override_reason=model_policy_override_reason,
++                model_reason=model_reason,
+             )
+ 
+     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
+@@ -664,10 +666,14 @@
+                              tg_topic: bool = False,
+                              planned_initial_turn: bool = False,
+                              initial_task_title: str = "",
+-                             model_policy_override_reason: str = "") -> AgentSession:
++                             model_policy_override_reason: str = "",
++                             model_reason: str = "") -> AgentSession:
+         scope = scope.rstrip("/")
+         cwd = cwd.rstrip("/")
+         model = resolve_model(model)
++        from app.models import validate_model_reason
++
++        model_reason = validate_model_reason(model, model_reason)
+         # #366: agent-spawned workers are gated by the `agents` level; anything
+         # created from the dashboard (orchestrators, manual sessions) — by the
+         # `dashboard` level. Internal routes never pass through here.
+@@ -809,6 +815,7 @@
+             backend_type=bt, effort=effort, task_id=task_id, description=description,
+             base_branch=base_branch,
+             owned_dirs=owned_dirs,
++            model_reason=model_reason,
+             tg_topic=tg_topic,
+         )
+         session.is_orchestrator = is_orch
+@@ -2084,7 +2091,7 @@
+         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
+         session = AgentSession(
+             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
+-            model=model, system_prompt=current_prompt,
++            model=model, model_reason=db_row.get("model_reason", ""), system_prompt=current_prompt,
+             prompt_overlay=prompt_overlay,
+             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
+             cost_usd_cached=db_row.get("cost_usd_cached", 0),
+--- a/app/mcp_stdio.py
++++ b/app/mcp_stdio.py
+@@ -1111,14 +1111,22 @@
+                        owned_dirs: str = "",
+                        tg_topic: bool = False,
+                        delivery_id: str = "",
+-                       disabled_tools: list[str] | None = None) -> str:
+-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
++                       disabled_tools: list[str] | None = None,
++                       model_reason: str = "") -> str:
++    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
+     if not model:
+         raise ApiToolError(
+             code="invalid_argument",
+             message="model is required; choose it by the <model-routing> block in your prompt",
+             details={"field": "model"},
+         )
++    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
++
++    try:
++        model_reason = validate_model_reason(model, model_reason)
++    except ValueError as exc:
++        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
++                           details={"field": "model_reason"}) from exc
+     scope = SCOPE or repo_path
+     body = {
+         "name": name, "scope": scope, "cwd": repo_path,
+@@ -1130,6 +1138,8 @@
+         "initial_task_title": task,
+         "disabled_tools": parse_disabled_tools(disabled_tools),
+     }
++    if model_reason:
++        body["model_reason"] = model_reason
+     if mcp_servers:
+         import json
+         try:
+@@ -2372,14 +2382,22 @@
+ 
+ 
+ @mcp.tool()
+-async def change_worker_model(name: str, model: str) -> str:
++async def change_worker_model(name: str, model: str, model_reason: str = "") -> str:
+     """Change an idle worker's model while preserving its dialog. Within one runtime the
+     native session continues. Between Claude and Codex, recent chat history is handed off
+     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
+-    running or compacting."""
+-    result = await _api("POST", f"/api/sessions/{name}/change-model", json={
+-        "scope": SCOPE, "model": model, "via": "mcp",
+-    })
++    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the permanent default."""
++    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
++
++    try:
++        model_reason = validate_model_reason(model, model_reason)
++    except ValueError as exc:
++        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
++                           details={"field": "model_reason"}) from exc
++    body = {"scope": SCOPE, "model": model, "via": "mcp"}
++    if model_reason:
++        body["model_reason"] = model_reason
++    result = await _api("POST", f"/api/sessions/{name}/change-model", json=body)
+     if isinstance(result, dict) and result.get("error"):
+         return f"Model change failed: {result['error']}"
+     if isinstance(result, dict) and result.get("changed"):
+--- a/app/models.py
++++ b/app/models.py
+@@ -1060,3 +1060,24 @@
+         except ValueError:
+             pass
+     return "unknown"
++
++
++HUB_CLAUDE_REASON_RULE = "hub_claude_reason_required"
++
++
++def requires_model_reason(model: str) -> bool:
++    """Hub Claude is an explicit exception to the permanent hub Sol default."""
++    try:
++        return resolve_model(model).startswith("hub-claude-")
++    except (ValueError, AttributeError):
++        return False  # Model validity belongs to the existing model admission checks.
++
++
++def validate_model_reason(model: str, reason: str = "") -> str:
++    if not requires_model_reason(model):
++        return ""
++    if not isinstance(reason, str) or not reason.strip():
++        raise ValueError(
++            f"{HUB_CLAUDE_REASON_RULE}: default hub route for every task is hubsol; "
++            "hub Claude requires a non-empty model_reason naming why this task needs Claude")
++    return reason.strip()
+--- a/app/routes/sessions.py
++++ b/app/routes/sessions.py
+@@ -270,6 +270,7 @@
+     initial_task_title: str = ""
+     initial_delivery_id: str = ""
+     model_policy_override_reason: str = ""
++    model_reason: str = ""
+ 
+     @field_validator("name")
+     @classmethod
+@@ -549,6 +550,7 @@
+             planned_initial_turn=req.planned_initial_turn,
+             initial_task_title=req.initial_task_title,
+             model_policy_override_reason=req.model_policy_override_reason,
++            model_reason=req.model_reason,
+         )
+         if req.initial_delivery_id:
+             from app import initial_deliveries
+@@ -2008,7 +2010,8 @@
+     found = await manager.ensure_loaded(name, scope)
+     if not found:
+         return _worker_not_found(name, scope)
+-    result = await found.change_model(new_model)
++    result = await found.change_model(new_model, **(
++        {"model_reason": req["model_reason"]} if "model_reason" in req else {}))
+     if not result.get("ok"):
+         return JSONResponse(result, status_code=409)
+     if result.get("changed"):
+--- a/app/schema.sql
++++ b/app/schema.sql
+@@ -356,6 +356,12 @@
+                 UNIQUE(name, scope)
+             );
+ 
++CREATE TABLE session_model_reasons (
++                session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
++                model TEXT NOT NULL,
++                reason TEXT NOT NULL
++            );
++
+ CREATE TABLE subagents (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+--- a/app/session.py
++++ b/app/session.py
+@@ -421,6 +421,8 @@
+     scope: str
+     cwd: str
+     model: str = "claude-sonnet-5-5[1m]"
++    model_reason: str = field(default="", kw_only=True)
++    _pending_model_reason: tuple[str, str] | None = field(default=None, init=False, repr=False)
+     system_prompt: str = ""
+     prompt_overlay: str | None = None
+     status: AgentStatus = AgentStatus.IDLE
+@@ -3950,11 +3952,32 @@
+         history = render_chat_history(list(reversed(visible)))
+         return f"Source Orchestra session: {self.id}\n{history}" if history else ""
+ 
+-    async def change_model(self, new_model: str) -> dict:
++    @property
++    def effective_model_reason(self) -> str:
++        pending = self._pending_model_reason
++        return pending[1] if pending and pending[0] == self.model else self.model_reason
++
++    async def change_model(self, new_model: str, model_reason: str = "") -> dict:
++        from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
++
+         async with self._lifecycle_lock:
+             if self._compacting:
+                 return {"ok": False, "error": "cannot change model while compacting"}
+-            return await self._change_model_locked(new_model)
++            try:
++                reason = validate_model_reason(new_model, model_reason)
++            except ValueError as exc:
++                return {"ok": False, "error": str(exc), "error_code": HUB_CLAUDE_REASON_RULE}
++            self._pending_model_reason = (new_model, reason)
++            try:
++                result = await self._change_model_locked(new_model)
++            finally:
++                if self.model == new_model:
++                    self.model_reason = reason
++                self._pending_model_reason = None
++            if result.get("ok"):
++                self._persist()  # Also persist a new reason when the model itself was already selected.
++                result["model_reason"] = self.model_reason
++            return result
+ 
+     async def _change_runtime_chat_locked(
+         self,
+@@ -4803,7 +4826,8 @@
+     def _to_db_dict(self) -> dict:
+         return {
+             "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
+-            "model": self.model, "system_prompt": self.system_prompt,
++            "model": self.model, "model_reason": self.effective_model_reason,
++            "system_prompt": self.system_prompt,
+             "prompt_overlay": self.prompt_overlay,
+             "status": self.status.value, "session_id": self.session_id,
+             "provider_cost_baseline_usd": self._last_cost,
+@@ -4887,6 +4911,7 @@
+             "id": self.id, "name": self.name, "scope": self.scope,
+             "cwd": self.cwd, "worktree_path": self.worktree_path,
+             "status": "broken" if writer_error is not None else self._display_status(), "model": self.model,
++            "model_reason": self.effective_model_reason,
+             "runtime_connection": runtime_connection,
+             "runtime_error": writer_error.envelope() if writer_error else self._runtime_error or None,
+             "cost_usd": round(self.cost_usd, 4),
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -1835,10 +1835,12 @@
+     const role = 'orchestrator';
+     const errEl = $('#orch-error');
+     if (!name || !cwd) { errEl.textContent = T('Name and project path required'); errEl.classList.remove('hidden'); return; }
++    const modelReason = _modelReasonForSelection(model);
++    if (modelReason === null) return;
+     const btn = $('#create-orch-btn');
+     btn.disabled = true; btn.textContent = T('Creating...'); errEl.classList.add('hidden');
+     try {
+-        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true }) });
++        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true, model_reason: modelReason }) });
+         closeModal(); $('#orch-name').value = ''; $('#orch-cwd').value = '';
+         currentScope = null;
+         await loadOrchestrators();
+@@ -2832,6 +2834,23 @@
+     addChatEntry(rendered.type, rendered.text);
+ }
+ 
++function _modelReasonForSelection(model) {
++    if (!model.startsWith('hub-claude-')) return '';
++    const reason = window.prompt(T('Why does this task need Claude?'));
++    return reason?.trim() || null;
++}
++
++function _modelReasonBadge(reason) {
++    if (!reason) return null;
++    const span = document.createElement('span');
++    span.className = 'model-reason';
++    span.dataset.i18nSkip = '1';
++    span.style.cssText = 'font-size:10px;color:var(--ink-dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
++    span.textContent = reason;
++    span.title = `${T('Model reason')}: ${reason}`;
++    return span;
++}
++
+ async function _showModelPicker(agentName, currentModel, anchor) {
+     const existing = document.getElementById('model-picker-dd');
+     if (existing) { existing.remove(); return; }
+@@ -2853,7 +2872,11 @@
+                 e.stopPropagation();
+                 dd.remove();
+                 try {
+-                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
++                    const body = { model: m.id, scope: currentScope };
++                    const reason = _modelReasonForSelection(m.id);
++                    if (reason === null) return;
++                    if (reason) body.model_reason = reason;
++                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                     if (resp && !resp.error) {
+                         $('#ai-model').textContent = m.id;
+                         _showHistoryTransfer(resp.history_transfer);
+@@ -2919,6 +2942,12 @@
+     const modelEl = $('#ai-model');
+     modelEl.textContent = session.model || '-';
+     modelEl.style.color = session.model ? modelColorVar(session.model) : '';
++    document.getElementById('ai-model-reason')?.remove();
++    const modelReason = _modelReasonBadge(session.model_reason);
++    if (modelReason) {
++        modelReason.id = 'ai-model-reason';
++        modelEl.after(modelReason);
++    }
+     let changeBtn = $('#ai-model-change');
+     if (!changeBtn) {
+         changeBtn = document.createElement('span');
+@@ -3260,6 +3289,8 @@
+     const pill = _cachePill(s);
+     if (pill) meta.appendChild(pill);
+     meta.appendChild(modelBadge(s.model || ''));
++    const modelReason = _modelReasonBadge(s.model_reason);
++    if (modelReason) meta.appendChild(modelReason);
+     if (isHubModel(s.model)) meta.appendChild(hubBadge());
+     if (s.cost_usd > 0) {
+         const costSpan = document.createElement('span');
+--- a/app/static/js/i18n.js
++++ b/app/static/js/i18n.js
+@@ -392,6 +392,8 @@
+     'Hub pool unavailable': 'Пул хаба недоступен',
+     'left': 'осталось',
+     'Reset credits': 'Кредиты сброса',
++    'Model reason': 'Причина выбора модели',
++    'Why does this task need Claude?': 'Почему этой задаче нужен Claude?',
+     '{usable}/{total} accounts usable': 'аккаунтов доступно: {usable}/{total}',
+     '{loaded}/{total} accounts ready': 'аккаунтов готово: {loaded}/{total}',
+     'Limit in': 'Лимит через',
+--- a/tests/test_hub_pool.py
++++ b/tests/test_hub_pool.py
+@@ -209,16 +209,6 @@
+     assert _FakeHub.calls == 1
+ 
+ 
+-def test_routing_keeps_sol_default_and_project_bans():
+-    from pathlib import Path
+-
+-    routing = (Path(__file__).resolve().parents[1] /
+-               ".orchestra/pipelines/default/prompts/modules/model-routing.md").read_text()
+-    bullet = routing.split("- **MultiCode hub")[1].split("\n- **Orchestrators")[0]
+-    assert "default hub route for any work is `hubsol`" in bullet
+-    assert "really needs Claude" in bullet and "pool has headroom" in bullet
+-    assert "Project-level Sol bans" in bullet
+-
+ 
+ def test_inactive_credentials_do_not_hide_an_account_with_headroom(monkeypatch):
+     _pool(monkeypatch, [_account(creds_loaded=False)], [])
+--- a/tests/test_quota_admission_e2e.py
++++ b/tests/test_quota_admission_e2e.py
+@@ -207,11 +207,11 @@
+             "accounts": 4, "usable": usable, "threshold_pct": 100}}}
+     monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+     if usable:
+-        session = await _spawn(mgr, "hub-allowed", model)
++        session = await _spawn(mgr, "hub-allowed", model, model_reason="Visual judgment")
+         assert session.name == "hub-allowed"
+         return
+     with pytest.raises(QuotaGateError, match=f"model='{alternative}'"):
+-        await _spawn(mgr, "hub-blocked", model)
++        await _spawn(mgr, "hub-blocked", model, model_reason="Visual judgment")
+     assert mgr.get_by_name("hub-blocked", "/s") is None
+ 
+ 
+@@ -230,7 +230,7 @@
+         return {"available": True, "providers": {"claude": {
+             "accounts": 4, "usable": usable, "threshold_pct": 100}}}
+     monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+-    result = await session.change_model("hub-claude-sonnet-5-5")
++    result = await session.change_model("hub-claude-sonnet-5-5", model_reason="Visual judgment")
+     assert result["ok"] is bool(usable)
+     if usable:
+         change.assert_awaited_once()
+--- /dev/null
++++ b/tests/test_hub_model_reason.py
+@@ -0,0 +1,230 @@
++"""V-1024: hub Claude is a reasoned exception; a reason never bypasses pool admission."""
++from pathlib import Path
++from unittest.mock import AsyncMock
++
++import pytest
++
++from app.models import HUB_CLAUDE_REASON_RULE, validate_model_reason
++
++CLAUDE = ['hubsonnet', 'hubopus', 'hubhaiku', 'hub-claude-sonnet-5-5']
++REASON = 'Creative scene direction and visual judgment'
++
++
++@pytest.mark.parametrize('model', CLAUDE)
++@pytest.mark.parametrize('reason', ['', '  \n ', None])
++def test_claude_exception_requires_a_nonempty_reason(model, reason):
++    with pytest.raises(ValueError, match=HUB_CLAUDE_REASON_RULE):
++        validate_model_reason(model, reason)
++
++
++@pytest.mark.parametrize('model', CLAUDE)
++def test_claude_exception_accepts_a_named_reason(model):
++    assert validate_model_reason(model, '  ' + REASON + '  ') == REASON
++
++
++@pytest.mark.parametrize('model', ['hubsol', 'hub-gpt-6.1-sol', 'sonnet', 'opus', 'sol'])
++def test_default_hub_and_own_models_need_no_reason(model):
++    assert validate_model_reason(model) == ''
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize('tool', ['spawn', 'change'])
++@pytest.mark.parametrize('model', CLAUDE[:3])
++async def test_tools_refuse_missing_reason_before_any_api_call(monkeypatch, tool, model):
++    from app import mcp_stdio as mcp
++
++    api = AsyncMock()
++    monkeypatch.setattr(mcp, '_api', api)
++    with pytest.raises(mcp.ApiToolError) as caught:
++        if tool == 'spawn':
++            await mcp.spawn_worker('worker', 'task', '/repo', model)
++        else:
++            await mcp.change_worker_model('worker', model)
++    assert caught.value.code == HUB_CLAUDE_REASON_RULE
++    assert HUB_CLAUDE_REASON_RULE in str(caught.value)
++    api.assert_not_awaited()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize('tool', ['spawn', 'change'])
++@pytest.mark.parametrize('model,reason', [('hubsonnet', REASON), ('hubopus', REASON),
++                                         ('hubhaiku', REASON), ('hubsol', ''), ('sonnet', '')])
++async def test_tools_forward_named_reason_and_allow_other_models_without_one(monkeypatch, tool, model, reason):
++    from app import mcp_stdio as mcp
++
++    api = AsyncMock(return_value={'ok': True, 'model': model, 'branch': 'task-V-1/worker',
++                                 'worktree_path': '/repo/wt', 'repo_path': '/repo',
++                                 'git_common_dir': '/repo/.git'})
++    monkeypatch.setattr(mcp, '_api', api)
++    monkeypatch.setattr(mcp, '_post_initial_delivery', AsyncMock(return_value={'state': 'SENT'}))
++    monkeypatch.setattr(mcp, '_cross_repo_note', lambda *args: '')
++    if tool == 'spawn':
++        await mcp.spawn_worker('worker', 'task', '/repo', model, model_reason=reason)
++    else:
++        await mcp.change_worker_model('worker', model, model_reason=reason)
++    assert api.await_count == 1
++    assert api.call_args.kwargs['json'].get('model_reason', '') == reason
++
++
++@pytest.fixture
++def manager(tmp_path, monkeypatch):
++    from app import db, hub_pool, pipeline
++    from app.manager import SessionManager
++
++    monkeypatch.setattr(db, 'DB_PATH', tmp_path / 'test.db')
++    db.init_db()
++    monkeypatch.setattr(pipeline, 'PIPELINES_DIR', Path(__file__).resolve().parents[1] / '.orchestra/pipelines')
++    pipeline.load_pipeline.cache_clear()
++
++    async def pool(**kwargs):
++        return {'available': True, 'providers': {
++            p: {'usable': 1, 'accounts': 2, 'threshold_pct': 100} for p in ('claude', 'codex')}}
++    monkeypatch.setattr(hub_pool, 'get_hub_pool', pool)
++    yield SessionManager()
++    pipeline.load_pipeline.cache_clear()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize('model', CLAUDE[:3])
++async def test_direct_spawn_cannot_bypass_the_reason_rule(manager, tmp_path, model):
++    with pytest.raises(ValueError, match=HUB_CLAUDE_REASON_RULE):
++        await manager.create_session('worker', str(tmp_path), str(tmp_path), model)
++    assert not manager.sessions
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize('model,reason', [('hubsonnet', REASON), ('hubsol', ''), ('sonnet', '')])
++async def test_spawn_reason_survives_database_reload_and_both_dashboard_lists(
++    manager, tmp_path, model, reason,
++):
++    from app import db
++    from app.manager import SessionManager
++
++    worker = await manager.create_session('worker', str(tmp_path), str(tmp_path), model, model_reason=reason)
++    await worker._drain_persist()
++    row = db.get_session(worker.id)
++    assert row['model_reason'] == reason
++    assert db.get_session_by_name('worker', str(tmp_path))['model_reason'] == reason
++    assert worker.to_dict()['model_reason'] == reason
++    assert manager.list_sessions(str(tmp_path))[0]['model_reason'] == reason
++    # A detached dashboard row and a genuinely reconstructed session use the same persisted value.
++    reloaded_manager = SessionManager()
++    assert reloaded_manager.list_sessions(str(tmp_path))[0]['model_reason'] == reason
++    loaded = await reloaded_manager._load_from_db(row)
++    assert loaded.model_reason == reason and loaded.to_dict()['model_reason'] == reason
++    await loaded._drain_persist()
++
++
++@pytest.mark.asyncio
++async def test_direct_model_change_refuses_missing_reason_and_preserves_previous_reason(manager, monkeypatch):
++    from app.session import AgentSession
++
++    worker = AgentSession(id='worker', name='worker', cwd='/repo', scope='/repo',
++                          model='hub-gpt-6.1-sol', backend_type='hub')
++    change = AsyncMock()
++    monkeypatch.setattr(worker, '_change_model_locked', change)
++    result = await worker.change_model('hub-claude-sonnet-5-5')
++    assert result['error_code'] == HUB_CLAUDE_REASON_RULE
++    change.assert_not_awaited()
++    assert worker.model == 'hub-gpt-6.1-sol' and worker.model_reason == ''
++
++
++@pytest.mark.asyncio
++async def test_model_change_persists_reason_atomically_and_clears_it_on_sol(manager, monkeypatch):
++    from app import db
++    from app.session import AgentSession
++
++    worker = AgentSession(id='worker', name='worker', cwd='/repo', scope='/repo',
++                          model='hub-gpt-6.1-sol', backend_type='hub')
++    db.save_session(worker._to_db_dict())
++
++    async def change(model):
++        worker.model = model
++        # Existing model transition code persists before its wrapper returns.
++        db.save_session(worker._to_db_dict())
++        assert db.get_session(worker.id)['model_reason'] == (REASON if 'claude' in model else '')
++        return {'ok': True, 'changed': True}
++    monkeypatch.setattr(worker, '_change_model_locked', change)
++    assert (await worker.change_model('hub-claude-sonnet-5-5', REASON))['ok']
++    await worker._drain_persist()
++    assert db.get_session(worker.id)['model_reason'] == REASON
++    assert worker.to_dict()['model_reason'] == REASON
++    assert (await worker.change_model('hub-gpt-6.1-sol'))['ok']
++    await worker._drain_persist()
++    assert db.get_session(worker.id)['model_reason'] == ''
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize('operation', ['spawn', 'change'])
++async def test_named_reason_does_not_bypass_an_exhausted_claude_pool(manager, tmp_path, monkeypatch, operation):
++    from app import hub_pool
++    from app.quota_gate import QuotaGateError
++    from app.session import AgentSession
++
++    async def pool(**kwargs):
++        return {'available': True, 'providers': {'claude': {
++            'usable': 0, 'accounts': 10, 'threshold_pct': 100}}}
++    monkeypatch.setattr(hub_pool, 'get_hub_pool', pool)
++    if operation == 'spawn':
++        with pytest.raises(QuotaGateError, match="model='hubsol'"):
++            await manager.create_session('worker', str(tmp_path), str(tmp_path), 'hubsonnet', model_reason=REASON)
++        assert not manager.sessions
++    else:
++        worker = AgentSession(id='worker', name='worker', cwd='/repo', scope='/repo',
++                              model='hub-gpt-6.1-sol', backend_type='hub')
++        result = await worker.change_model('hub-claude-sonnet-5-5', REASON)
++        assert result['ok'] is False and "model='hubsol'" in result['error']
++        assert worker.model_reason == ''
++
++
++def test_existing_v3_database_gets_additive_reason_storage_without_losing_sessions(manager):
++    from app import db
++    from app.session import AgentSession
++
++    worker = AgentSession(id='worker', name='worker', cwd='/repo', scope='/repo')
++    db.save_session(worker._to_db_dict())
++    with db._conn() as conn:
++        conn.execute('DROP TABLE session_model_reasons')
++    db.init_db()
++    db.init_db()
++    assert db.get_session('worker')['name'] == 'worker'
++    assert db.get_session('worker')['model_reason'] == ''
++
++
++@pytest.mark.asyncio
++async def test_failed_claude_switch_keeps_previous_reason(manager, monkeypatch):
++    from app.session import AgentSession
++
++    worker = AgentSession(id='worker', name='worker', scope='/repo', cwd='/repo',
++                          model='hub-claude-sonnet-5-5', model_reason=REASON, backend_type='hub')
++    result = await worker.change_model('hub-claude-opus-5-5', ' ')
++    assert result['error_code'] == HUB_CLAUDE_REASON_RULE
++    assert worker.model_reason == REASON
++    monkeypatch.setattr(worker, '_change_model_locked', AsyncMock(return_value={'ok': False, 'error': 'refused'}))
++    result = await worker.change_model('hub-claude-opus-5-5', 'A different named reason')
++    assert result['ok'] is False and worker.model_reason == REASON
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize('reason', ['', REASON])
++async def test_change_model_api_enforces_reason_and_forwards_it(manager, monkeypatch, reason):
++    from app.routes import sessions as routes
++    from app.session import AgentSession
++
++    worker = AgentSession(id='worker', name='worker', scope='/repo', cwd='/repo',
++                          model='hub-gpt-6.1-sol', backend_type='hub')
++    monkeypatch.setattr(routes.manager, 'ensure_loaded', AsyncMock(return_value=worker))
++    async def change(model):
++        worker.model = model
++        return {'ok': True, 'changed': True}
++    change_mock = AsyncMock(side_effect=change)
++    monkeypatch.setattr(worker, '_change_model_locked', change_mock)
++    response = await routes.change_model('worker', {'model': 'hubsonnet', 'model_reason': reason})
++    if reason:
++        assert response['ok'] is True and worker.model_reason == REASON
++        change_mock.assert_awaited_once()
++        await worker._drain_persist()
++    else:
++        assert response.status_code == 409
++        assert HUB_CLAUDE_REASON_RULE in response.body.decode()
++        change_mock.assert_not_awaited()
+--- /dev/null
++++ b/tests/test_hub_model_reason_frontend.py
+@@ -0,0 +1,62 @@
++"""Execute dashboard rendering and selection logic offline with a minimal DOM."""
++from pathlib import Path
++import json
++import shutil
++import subprocess
++
++import pytest
++
++
++def test_reason_is_visible_next_to_model_and_claude_selection_requires_input():
++    node = shutil.which('node')
++    if not node:
++        pytest.skip('node unavailable')
++    source = (Path(__file__).resolve().parents[1] / 'app/static/js/app.js').read_text()
++    helpers = source[source.index('function _modelReasonForSelection('):source.index('async function _showModelPicker(')]
++    header = source[source.index("    const modelEl = $('#ai-model');"):source.index('    let changeBtn =', source.index("    const modelEl = $('#ai-model');"))]
++    card_start = source.index("    meta.appendChild(modelBadge(s.model || ''));")
++    card = source[card_start:source.index('    if (isHubModel', card_start)]
++    script = r'''
++const assert = require('assert/strict');
++const parts = JSON.parse(require('fs').readFileSync(0,'utf8'));
++function T(s) { return s; }
++const document = {
++    createElement() { return {style:{}, dataset:{}}; },
++    getElementById() { return null; },
++};
++const window = { prompt() { throw Error('Unexpected prompt for Sol or own models'); } };
++eval(parts.helpers);
++assert.equal(_modelReasonForSelection('hub-gpt-6.1-sol'), '');
++assert.equal(_modelReasonForSelection('claude-sonnet-5-5[1m]'), '');
++window.prompt = () => null;
++assert.equal(_modelReasonForSelection('hub-claude-sonnet-5-5'), null);
++window.prompt = () => '   ';
++assert.equal(_modelReasonForSelection('hub-claude-opus-5-5'), null);
++window.prompt = () => '  Creative scene direction  ';
++assert.equal(_modelReasonForSelection('hub-claude-haiku-5-5'), 'Creative scene direction');
++const reason = '<img src=x onerror=alert(1)> creative direction';
++const badge = _modelReasonBadge(reason);
++assert.equal(badge.textContent, reason);
++assert.equal(badge.innerHTML, undefined);  // Reason is treated as data, not markup.
++assert.equal(badge.title, 'Model reason: ' + reason);
++assert.equal(_modelReasonBadge(''), null);
++const appended = [];
++const modelElement = {style:{}, after(node) { appended.push(node); }};
++function $(selector) { assert.equal(selector,'#ai-model'); return modelElement; }
++function modelColorVar() { return 'color'; }
++const session = {model:'hub-claude-sonnet-5-5', model_reason:reason};
++eval(parts.header);
++assert.equal(modelElement.textContent, session.model);
++assert.equal(appended.length, 1);
++assert.equal(appended[0].textContent, reason);
++const children = [];
++const meta = {appendChild(node) { children.push(node); }};
++function modelBadge(model) { return {textContent:model}; }
++const s = session;
++eval(parts.card);
++assert.deepEqual(children.map(n => n.textContent), [session.model, reason]);
++console.log('header/card reason and model selection: passed');
++'''
++    result = subprocess.run([node, '-e', script], input=json.dumps(dict(helpers=helpers, header=header, card=card)),
++                            text=True, capture_output=True, timeout=15)
++    assert result.returncode == 0, result.stdout + result.stderr
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,13 +7,16 @@
+ ## Unreleased
+ 
+ ### Added
++- **Named hub Claude exceptions** (V-1024). `spawn_worker` and `change_worker_model` require a non-empty `model_reason` for hub Sonnet, Opus and Haiku under `hub_claude_reason_required`; server-side spawn/model-change paths enforce the same rule. The reason is persisted with the selected model, survives session reloads, and appears next to the model in dashboard cards and the active-session header. Sol and our own models need no reason.
+ - **Outbox for hub workers** (`app/hub_outbox.py`, `HubBackend._run_outbox`; V-1008). A hub agent has no Orchestra tools and no path back; it appends JSON lines `{"tool","args"}` to `.orchestra-outbox.jsonl` in its copy. When the turn is synced back the broker reads that file (it never reaches the worktree or git), empties it on the hub, and runs only `send_message` (always to the worker's own parent; `to`, `file_path` and other arguments are ignored), `update_progress` and `update_checklist` as the worker's own identity through the local API. Anything else is dropped, logged and named in the turn's sync summary. The hub link stays outbound only.
+ - **Lighter prompt for hub models** (`prompts/hub/worker.md`, `hub_preamble`). The hub model gets the role, task rules, the outbox tools and the commit/report contract instead of nothing but a one-paragraph preamble; nothing that assumes native MCP tools.
+ 
+ ### Changed
++- **Permanent hub Sol default** (`modules/model-routing.md`; V-1024). Every task defaults to `hubsol`, including technical work, research and reports. Hub Claude requires a named task-specific reason; creative work and the existing Opus-only cases are exceptions. Project-level Sol bans retain priority.
+ - **Copy only what the worker needs** (`hw.require_scope`; V-1008). A hub turn with empty `owned_dirs` in a project that is not `persistent` in `data/hub-projects.json` is refused before anything is uploaded, with an error telling the orchestrator to call `set_worker_owned_dirs`. Persistent projects may still go whole.
+ 
+ ### Fixed
++- **Pool-wide hub admission and limit reporting** (`app/hub_pool.py`, `app/backend_hub.py`; V-1024). An exhausted active account no longer hides other accounts with headroom: admission and the dashboard use usable counts across the pool, requiring both 5h and Weekly usage below a configurable threshold. An unavailable relay warns and allows work. Exhausted pools refuse spawn, model change and new turns with the alternate hub model hint; a Claude reason does not bypass this gate. Provider usage/rate-limit failures produce a clear worker error and a notice to its parent.
+ - **Owned paths outside the sparse checkout reached the hub as an empty copy** (`hw.prepare_scope`; V-1008, from katya-work). Before the upload is planned, an owned path that is committed in HEAD but left off disk by a sparse checkout is added with `git sparse-checkout add` (a file in cone mode adds its directory); an owned path that is not in HEAD at all is allowed and named in the upload status line (`new: <path>`); and if the owned paths that exist in HEAD yield no file at all, the turn is refused with their names instead of sending an empty copy.
+ - **A changed `owned_dirs` now reaches the hub** (`HubBackend._paths_source`, `BackendBuildContext.owned_dirs_source`; V-1008). The backend kept the list it was built with, so `set_worker_owned_dirs` between turns changed nothing on the hub (a worker with `["app/x.py","tests/"]` kept a copy with that one file after being given `["app/","tests/"]`). The upload follows the session's live list every turn; deletions stay governed by the manifest.
+ - **Stale workspace after merge / task switch** (V-1008). A live hub backend kept its in-memory record after merge released the hub copy, re-saved it, and every later `t3_thread_launch` failed with `orchestration_error` against a project that no longer existed. A backend now starts a new workspace when its record has been released; `switch_worker_branch` and every other branch/task change release the hub copy of an idle worker (the persistent warm copy is not per worker and stays); and a launch refused with `orchestration_error` / not-found recreates the project and uploads again once before failing the turn.

@@ -1,0 +1,12 @@
+R1 central reason rule disabled: KILLED — 12 failed, 39 deselected in 4.13s
+R2 spawn tool drops reason: KILLED — 3 failed, 2 passed, 46 deselected in 4.55s
+R3 change tool drops reason: KILLED — 3 failed, 2 passed, 46 deselected in 5.34s
+R4 direct spawn bypasses reason rule: KILLED — 3 failed, 48 deselected in 4.64s
+R5 session model change bypasses reason rule: KILLED — 1 failed, 50 deselected, 1 warning in 4.24s
+R6 reason not persisted: KILLED — 1 failed, 2 passed, 48 deselected in 4.17s
+R7 restored session loses reason: KILLED — 1 failed, 2 passed, 48 deselected in 5.09s
+R8 model transition persists previous reason: KILLED — 1 failed, 50 deselected in 5.23s
+R9 card hides reason: KILLED — 1 failed in 5.07s
+R10 header hides reason: KILLED — 1 failed in 4.84s
+R11 change API drops reason: KILLED — 1 failed, 1 passed, 49 deselected in 5.08s
+R12 named reason bypasses pool gate: KILLED — 1 failed, 50 deselected in 4.93s

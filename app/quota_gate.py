@@ -847,6 +847,9 @@ class QuotaGateError(RuntimeError):
             hint = hub_alternative_hint(getattr(decision, "model", None))
         except Exception:   # a routing hint must never turn a refusal into a crash
             hint = ""
+        if decision.provider.startswith("hub_"):
+            super().__init__(decision.reason)
+            return
         super().__init__(
             f"New worker turn blocked: {decision.provider_label} quota is "
             f"{decision.utilization:g}% — {decision.reason}. {hint}".rstrip()
@@ -1225,6 +1228,10 @@ async def get_worker_admission(
     model: str,
     observation_loader: ObservationLoader | None = None,
 ) -> QuotaDecision:
+    from app.hub_pool import provider_for_model, hub_admission
+
+    if provider_for_model(model) is not None:
+        return await hub_admission(model)
     try:
         bucket = quota_bucket_for_model(model)
     except (TypeError, ValueError):

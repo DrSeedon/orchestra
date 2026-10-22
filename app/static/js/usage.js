@@ -579,7 +579,7 @@ function _hubPoolHtml(pool) {
         const p = pool.providers?.[id];
         if (!p) continue;
         html += `<div data-usage-hub-provider="${id}" style="margin-bottom:9px">`
-            + `<div style="color:var(--provider-multicode);font-weight:600;margin-bottom:2px">${escHtml(id)} · ${T('{loaded}/{total} accounts ready', {loaded: p.creds_loaded, total: p.accounts})}</div>`;
+            + `<div style="color:var(--provider-multicode);font-weight:600;margin-bottom:2px">${escHtml(id)} · ${T('{usable}/{total} accounts usable', {usable: p.usable, total: p.accounts})}</div>`;
         html += (p.windows || []).map(_hubPoolWindowHtml).join('')
             || `<div style="color:var(--ink-dim);font-style:italic">${T('Limit data unavailable')}</div>`;
         const credits = p.reset_credits;

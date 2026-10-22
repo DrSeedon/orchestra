@@ -1111,14 +1111,22 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        owned_dirs: str = "",
                        tg_topic: bool = False,
                        delivery_id: str = "",
-                       disabled_tools: list[str] | None = None) -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
+                       disabled_tools: list[str] | None = None,
+                       model_reason: str = "") -> str:
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
             message="model is required; choose it by the <model-routing> block in your prompt",
             details={"field": "model"},
         )
+    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+
+    try:
+        model_reason = validate_model_reason(model, model_reason)
+    except ValueError as exc:
+        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
+                           details={"field": "model_reason"}) from exc
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -1130,6 +1138,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "initial_task_title": task,
         "disabled_tools": parse_disabled_tools(disabled_tools),
     }
+    if model_reason:
+        body["model_reason"] = model_reason
     if mcp_servers:
         import json
         try:
@@ -2372,14 +2382,22 @@ async def update_checklist(
 
 
 @mcp.tool()
-async def change_worker_model(name: str, model: str) -> str:
+async def change_worker_model(name: str, model: str, model_reason: str = "") -> str:
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting."""
-    result = await _api("POST", f"/api/sessions/{name}/change-model", json={
-        "scope": SCOPE, "model": model, "via": "mcp",
-    })
+    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the permanent default."""
+    from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+
+    try:
+        model_reason = validate_model_reason(model, model_reason)
+    except ValueError as exc:
+        raise ApiToolError(code=HUB_CLAUDE_REASON_RULE, message=str(exc),
+                           details={"field": "model_reason"}) from exc
+    body = {"scope": SCOPE, "model": model, "via": "mcp"}
+    if model_reason:
+        body["model_reason"] = model_reason
+    result = await _api("POST", f"/api/sessions/{name}/change-model", json=body)
     if isinstance(result, dict) and result.get("error"):
         return f"Model change failed: {result['error']}"
     if isinstance(result, dict) and result.get("changed"):

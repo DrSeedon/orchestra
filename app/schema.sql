@@ -356,6 +356,12 @@ CREATE TABLE sessions (
                 UNIQUE(name, scope)
             );
 
+CREATE TABLE session_model_reasons (
+                session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+                model TEXT NOT NULL,
+                reason TEXT NOT NULL
+            );
+
 CREATE TABLE subagents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

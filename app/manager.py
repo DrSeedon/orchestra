@@ -618,7 +618,8 @@ class SessionManager:
                              tg_topic: bool = False,
                              planned_initial_turn: bool = False,
                              initial_task_title: str = "",
-                             model_policy_override_reason: str = "") -> AgentSession:
+                             model_policy_override_reason: str = "",
+                             model_reason: str = "") -> AgentSession:
         normalized_scope = scope.rstrip("/")
         key = (normalized_scope, name)
         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
@@ -648,6 +649,7 @@ class SessionManager:
                 planned_initial_turn=planned_initial_turn,
                 initial_task_title=initial_task_title,
                 model_policy_override_reason=model_policy_override_reason,
+                model_reason=model_reason,
             )
 
     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
@@ -664,10 +666,14 @@ class SessionManager:
                              tg_topic: bool = False,
                              planned_initial_turn: bool = False,
                              initial_task_title: str = "",
-                             model_policy_override_reason: str = "") -> AgentSession:
+                             model_policy_override_reason: str = "",
+                             model_reason: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
+        from app.models import validate_model_reason
+
+        model_reason = validate_model_reason(model, model_reason)
         # #366: agent-spawned workers are gated by the `agents` level; anything
         # created from the dashboard (orchestrators, manual sessions) — by the
         # `dashboard` level. Internal routes never pass through here.
@@ -749,9 +755,13 @@ class SessionManager:
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
-        # Гейт квот здесь НЕ отказывает (V-678): первое задание принимается durable-доставкой и,
+        # Гейт наших подписок здесь НЕ отказывает (V-678): первое задание принимается durable-доставкой и,
         # если гейт закрыт, ждёт его в `WAITING_QUOTA` (app/quota_queue.py). Раньше спавн
         # отбивался 429, и оркестратор ставил таймер «повтори спавн».
+
+        from app.hub_pool import require_hub_capacity
+
+        await require_hub_capacity(model)
 
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
@@ -805,6 +815,7 @@ class SessionManager:
             backend_type=bt, effort=effort, task_id=task_id, description=description,
             base_branch=base_branch,
             owned_dirs=owned_dirs,
+            model_reason=model_reason,
             tg_topic=tg_topic,
         )
         session.is_orchestrator = is_orch
@@ -2080,7 +2091,7 @@ class SessionManager:
         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
-            model=model, system_prompt=current_prompt,
+            model=model, model_reason=db_row.get("model_reason", ""), system_prompt=current_prompt,
             prompt_overlay=prompt_overlay,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
             cost_usd_cached=db_row.get("cost_usd_cached", 0),

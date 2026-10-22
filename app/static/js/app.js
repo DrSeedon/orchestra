@@ -1835,10 +1835,12 @@ async function createOrchestrator() {
     const role = 'orchestrator';
     const errEl = $('#orch-error');
     if (!name || !cwd) { errEl.textContent = T('Name and project path required'); errEl.classList.remove('hidden'); return; }
+    const modelReason = _modelReasonForSelection(model);
+    if (modelReason === null) return;
     const btn = $('#create-orch-btn');
     btn.disabled = true; btn.textContent = T('Creating...'); errEl.classList.add('hidden');
     try {
-        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true }) });
+        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true, model_reason: modelReason }) });
         closeModal(); $('#orch-name').value = ''; $('#orch-cwd').value = '';
         currentScope = null;
         await loadOrchestrators();
@@ -2832,6 +2834,23 @@ function _showHistoryTransfer(transfer) {
     addChatEntry(rendered.type, rendered.text);
 }
 
+function _modelReasonForSelection(model) {
+    if (!model.startsWith('hub-claude-')) return '';
+    const reason = window.prompt(T('Why does this task need Claude?'));
+    return reason?.trim() || null;
+}
+
+function _modelReasonBadge(reason) {
+    if (!reason) return null;
+    const span = document.createElement('span');
+    span.className = 'model-reason';
+    span.dataset.i18nSkip = '1';
+    span.style.cssText = 'font-size:10px;color:var(--ink-dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    span.textContent = reason;
+    span.title = `${T('Model reason')}: ${reason}`;
+    return span;
+}
+
 async function _showModelPicker(agentName, currentModel, anchor) {
     const existing = document.getElementById('model-picker-dd');
     if (existing) { existing.remove(); return; }
@@ -2853,7 +2872,11 @@ async function _showModelPicker(agentName, currentModel, anchor) {
                 e.stopPropagation();
                 dd.remove();
                 try {
-                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
+                    const body = { model: m.id, scope: currentScope };
+                    const reason = _modelReasonForSelection(m.id);
+                    if (reason === null) return;
+                    if (reason) body.model_reason = reason;
+                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
                     if (resp && !resp.error) {
                         $('#ai-model').textContent = m.id;
                         _showHistoryTransfer(resp.history_transfer);
@@ -2919,6 +2942,12 @@ function updateAgentInfo(session) {
     const modelEl = $('#ai-model');
     modelEl.textContent = session.model || '-';
     modelEl.style.color = session.model ? modelColorVar(session.model) : '';
+    document.getElementById('ai-model-reason')?.remove();
+    const modelReason = _modelReasonBadge(session.model_reason);
+    if (modelReason) {
+        modelReason.id = 'ai-model-reason';
+        modelEl.after(modelReason);
+    }
     let changeBtn = $('#ai-model-change');
     if (!changeBtn) {
         changeBtn = document.createElement('span');
@@ -3260,6 +3289,8 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     meta.appendChild(modelBadge(s.model || ''));
+    const modelReason = _modelReasonBadge(s.model_reason);
+    if (modelReason) meta.appendChild(modelReason);
     if (isHubModel(s.model)) meta.appendChild(hubBadge());
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
