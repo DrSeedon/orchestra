@@ -12,7 +12,7 @@
 - **Lighter prompt for hub models** (`prompts/hub/worker.md`, `hub_preamble`). The hub model gets the role, task rules, the outbox tools and the commit/report contract instead of nothing but a one-paragraph preamble; nothing that assumes native MCP tools.
 
 ### Changed
-- **Permanent hub Sol default** (`modules/model-routing.md`; V-1024). Every task defaults to `hubsol`, including technical work, research and reports. Hub Claude requires a named task-specific reason; creative work and the existing Opus-only cases are exceptions. Project-level Sol bans retain priority.
+- **Permanent hub Sol default** (`modules/model-routing.md`; V-1024, corrected by V-1029). Per the 2026-10-22 18:30 KRS decision, routing belongs only to Orchestra. The hub pool is effectively unlimited: `hubsol` handles any work regardless of remaining pool, including when our own subscription gate is closed. Hub Sonnet and Opus serve important creative work or an explicit user model request with `model_reason`; the known-heavy Opus restriction applies to our own pool. Removes the earlier project-ban exception while retaining whole-pool admission checks and keeping sensitive data off the hub.
 - **Copy only what the worker needs** (`hw.require_scope`; V-1008). A hub turn with empty `owned_dirs` in a project that is not `persistent` in `data/hub-projects.json` is refused before anything is uploaded, with an error telling the orchestrator to call `set_worker_owned_dirs`. Persistent projects may still go whole.
 
 ### Fixed
