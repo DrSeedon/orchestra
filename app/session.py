@@ -940,6 +940,7 @@ class AgentSession:
             ),
             history_import=history_import,
             validation_profile=validation_profile,
+            owned_dirs=tuple(self.owned_dirs or ()),
             config_dir_override=(
                 self._handoff_config_dir
                 if config_dir_override is None

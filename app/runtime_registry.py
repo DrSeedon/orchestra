@@ -71,6 +71,7 @@ class BackendBuildContext:
     history_import: object | None = None
     validation_profile: bool = False
     config_dir_override: str = ""
+    owned_dirs: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -335,6 +336,8 @@ def _hub_factory(context: BackendBuildContext) -> BackendLike:
         system_prompt=context.system_prompt,
         resume_session_id=context.resume_session_id,
         effort=context.effort,
+        paths=list(context.owned_dirs),
+        scope=context.scope,
     )
 
 
@@ -402,8 +405,8 @@ register_runtime(RuntimeDefinition(
         mid_turn_inject=True,
         reconnect=True,
         hibernate=False,
-        resume_across_models=False,
-        model_retarget=False,
+        resume_across_models=True,
+        model_retarget=True,
         subagents=False,
     ),
     factory=_hub_factory,

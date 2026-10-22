@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import re
 import subprocess
 import tarfile
 import time
@@ -74,6 +75,15 @@ def hub_configured() -> str | None:
     return ("hub workers are not configured; set " + ", ".join(missing)) if missing else None
 
 
+_HISTORY = re.compile(r"(<prior-conversation>)(.*?)(</prior-conversation>)", re.S)
+
+
+def _redact_history(prompt: str, known: list[str]) -> str:
+    """The conversation carried over from another runtime is masked, never refused; the rest of
+    the prompt is still checked strictly by the caller."""
+    return _HISTORY.sub(lambda m: m.group(1) + hw.redact_secrets(m.group(2), known) + m.group(3), prompt)
+
+
 def _relative(event: AgentEvent, remote_dir: str) -> AgentEvent:
     """Show hub paths as worktree-relative ones: the chat is about the repo, not the hub's layout."""
     if remote_dir and remote_dir in event.content:
@@ -94,13 +104,14 @@ def _branch_task_ref(cwd: str) -> str:
 class HubBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None, effort: str | None = None,
-                 paths: list[str] | None = None):
+                 paths: list[str] | None = None, scope: str = ""):
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
         self.model = model
         self.cwd = cwd
         self._resume = resume_session_id
         self._paths = paths
+        self._scope = scope
         self._state: Optional[hw.WorkspaceState] = None
         self._mc: Optional[MultiCodeClient] = None
         self._ssh: Optional[hw.HubSsh] = None
@@ -151,6 +162,30 @@ class HubBackend:
             except MultiCodeError as exc:
                 logger.warning("hub steer failed, queuing instead: %s", exc)
         self._early_steer.append(message)
+
+    async def retarget_model(self, model: str) -> None:
+        """Switch the hub model of this worker: the workspace stays, and the live hub thread is
+        re-configured so its own history is kept. If the hub refuses (e.g. across providers), the
+        next turn opens a new thread and says so, instead of failing the switch."""
+        if model not in HUB_MODELS:
+            raise ValueError(f"unknown hub model '{model}'")
+        if self._turn_active:
+            raise RuntimeError("cannot retarget a hub worker while a turn is active")
+        state = self._state
+        if state and state.thread_id:
+            instance, hub_model = HUB_MODELS[model]
+            try:
+                await (await self._client()).tool_call("t3_thread_configure", {
+                    "threadId": state.thread_id,
+                    "modelSelection": {"instanceId": instance, "model": hub_model}})
+            except MultiCodeError as exc:
+                logger.warning("hub thread re-configure refused (%s); next turn starts a new thread", exc)
+                state.thread_id = ""
+                state.save()
+                self._early_steer.append(
+                    "[Note: the model was changed and the earlier hub conversation is not available "
+                    "to you; the files in this directory contain the work done so far.]")
+        self.model = model
 
     async def interrupt(self) -> None:
         self._abort = True
@@ -207,29 +242,40 @@ class HubBackend:
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
-        fresh = state is None or not state.remote_dir
-        if fresh:
+        if state is None or not state.remote_dir:
             state = hw.WorkspaceState(
-                ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="",
-                paths=list(self._paths or []))
+                ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="")
             state.remote_dir = await ssh.dir_for(state.ws_id)
             self._state = state
             state.save()   # before any hub write, so a crash leaves a record the sweep can release
-        plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known)
+        # A record exists from the first attempt on, but the workspace only from the first upload that
+        # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
+        fresh = not (state.uploaded or state.manifest)
+        state.paths = list(self._paths or state.paths or [])
+        options = hw.project_options(self._scope)
+        plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
         yield AgentEvent("status", self._upload_note(fresh, plan))
         scratch = hw.local_scratch()
         try:
             tar_path = scratch / "in.tar"
-            if fresh:
-                await asyncio.to_thread(hw.write_tar, root, sorted(plan.manifest), tar_path)
-                await ssh.put(state.remote_dir, tar_path, fresh=True)
+            if fresh and options.persistent:
+                sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
+                yield AgentEvent("status", f"hub: persistent project copy reused ({sent} changed files sent, "
+                                           f"{dropped} removed)")
                 state.manifest = dict(plan.manifest)
+                state.uploaded = True
+                state.save()
+            elif fresh:
+                await asyncio.to_thread(hw.write_tar, root, sorted(plan.manifest), tar_path)
+                await ssh.put(state.remote_dir, tar_path)
+                state.manifest = dict(plan.manifest)
+                state.uploaded = True
                 state.save()
             else:
                 send, drop = hw.local_delta(root, plan, state.manifest)
                 if send:
                     await asyncio.to_thread(hw.write_tar, root, send, tar_path)
-                    await ssh.put(state.remote_dir, tar_path, fresh=False)
+                    await ssh.put(state.remote_dir, tar_path)
                 await ssh.delete_files(state.remote_dir, drop)
                 for rel in send:
                     state.manifest[rel] = plan.manifest[rel]
@@ -244,6 +290,7 @@ class HubBackend:
                     raise hw.HubWorkspaceError("hub project registration returned no id")
                 state.save()
             prompt = self._prompt(message, first=not state.thread_id)
+            prompt = _redact_history(prompt, known)
             hw.assert_no_secret(prompt, known, "the task prompt")
             async with _turn_slots():
                 run_id = await self._start(mc, state, prompt)

@@ -1,0 +1,15 @@
+>>> [claude-haiku-5-5 / claude] Remember this code word: PELICAN-4417. Create a file notes.txt containing it. Reply 'ok'.
+    tool: Write: {"file_path": ".../notes.txt"}
+    reply: ok
+{'ok': True, 'model': 'hub-claude-sonnet-5-5', 'old_model': 'claude-haiku-5-5', 'runtime': 'hub', 'old_runtime': 'claude', 'runtime_changed': True, 'native_session_reset': True, 'history_transfer': {'mode': 'chat_history_v1', 'chars': 1174, 'max_messages': 100}, 'changed': True}
+
+>>> [hub-claude-sonnet-5-5 / hub] What code word did I ask you to remember earlier? Also add a line 'hub was here' to notes.txt and tell me the new line count.
+    tool: Bash: pwd; ls -la; cat notes.txt 2>/dev/null
+    tool: Bash: echo 'hub was here' >> notes.txt; wc -l notes.txt; cat notes.txt
+    reply: The code word you asked me to remember was **PELICAN-4417**.  I added the line `hub was here` to `notes.txt`, which now has 2 lines ... [hub sync] changed 1, deleted 0, commit 7a62a62
+{'ok': True, 'model': 'claude-haiku-5-5', 'old_model': 'hub-claude-sonnet-5-5', 'runtime': 'claude', 'old_runtime': 'hub', 'runtime_changed': True, 'native_session_reset': True, 'history_transfer': {'mode': 'chat_history_v1', 'chars': 3075, 'max_messages': 100}, 'changed': True}
+
+>>> [claude-haiku-5-5 / claude] Which line did the previous agent add to notes.txt, and which code word was it asked about? Answer briefly from the conversation.
+    reply: Code word: **PELICAN-4417**. The line added to notes.txt was **"hub was here"**.
+
+RESULT hub knew the earlier native turn: True | native knew the hub turn: True

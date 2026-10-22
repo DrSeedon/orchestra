@@ -1,7 +1,9 @@
 """Core of hub-backed workers (V-1008): what leaves, what returns, who cleans up."""
 
 import io
+import json
 import os
+import shlex as _shlex
 import subprocess
 import tarfile
 from pathlib import Path
@@ -67,7 +69,7 @@ def test_upload_excludes_credentials_by_name_and_by_value(repo):
 
 def test_upload_paths_subset_and_no_escape(repo):
     plan = hw.plan_upload(repo, ["src"], known=[])
-    assert set(plan.manifest) == {"src/keep.txt"}
+    assert set(plan.manifest) == {"src/keep.txt", "calc.py"}      # the subset plus repo-level files
     for bad in ("../etc", "/etc", "src/../../x"):
         with pytest.raises(hw.HubWorkspaceError):
             hw.plan_upload(repo, [bad], known=[])
@@ -174,10 +176,15 @@ def test_commit_lands_only_imported_paths_on_the_branch(repo):
 
 
 @pytest.mark.asyncio
-async def test_remote_remove_is_confined_to_broker_workspaces():
+async def test_remote_remove_is_confined_to_broker_workspaces(monkeypatch):
     ssh = hw.HubSsh("u@h", "/k", "/home/u/orchestra-ws")
+
+    async def must_not_run(self, remote, **kw):
+        raise AssertionError(f"a refused removal reached the hub: {remote}")
+    monkeypatch.setattr(hw.HubSsh, "run", must_not_run)
     for bad in ("/home/u", "/home/u/orchestra-ws", "/home/u/orchestra-ws/../x/hub-0123456789abcdef",
-                "/home/u/other/hub-0123456789abcdef", "/home/u/orchestra-ws/notmine"):
+                "/home/u/other/hub-0123456789abcdef", "/home/u/orchestra-ws/notmine",
+                "/home/u/orchestra-ws/proj-0123456789ab"):      # the persistent warm copy of a project
         with pytest.raises(hw.HubWorkspaceError):
             await ssh.remove(bad)
     with pytest.raises(hw.HubWorkspaceError):
@@ -185,6 +192,10 @@ async def test_remote_remove_is_confined_to_broker_workspaces():
 
 
 # ── whole turn with a fake hub, and lifecycle ────────────────────────────────────────
+
+
+def shlex_split(command):
+    return _shlex.split(command)
 
 
 class FakeSsh(hw.HubSsh):
@@ -198,9 +209,9 @@ class FakeSsh(hw.HubSsh):
     async def root(self):
         return str(self.base)
 
-    async def put(self, remote_dir, tar_path, *, fresh):
+    async def put(self, remote_dir, tar_path):
         d = Path(remote_dir)
-        d.mkdir(parents=True, exist_ok=not fresh)
+        d.mkdir(parents=True, exist_ok=True)
         with tarfile.open(tar_path) as archive:
             archive.extractall(d, filter="data")
 
@@ -216,6 +227,19 @@ class FakeSsh(hw.HubSsh):
         self.removed.append(remote_dir)
         import shutil
         shutil.rmtree(remote_dir, ignore_errors=True)
+
+    async def base_dir_for(self, scope):
+        return str(self.base / hw.base_id_for(scope))
+
+    async def copy_dir(self, source, dest):
+        import shutil
+        shutil.copytree(source, dest, dirs_exist_ok=True)
+
+    async def run(self, remote, **kw):
+        if remote.startswith("mkdir -p --"):
+            Path(shlex_split(remote)[3]).mkdir(parents=True, exist_ok=True)
+            return b""
+        raise AssertionError(f"unexpected remote command {remote!r}")
 
     async def list_workspaces(self):
         return [(p.name, p.stat().st_mtime) for p in sorted(self.base.glob("hub-*")) if p.is_dir()]
@@ -732,3 +756,206 @@ def test_hub_paths_are_shown_relative_to_the_workspace():
 
     event = AgentEvent("tool_use", "Edit: /h/orchestra-ws/x/hub-1/src/a.py")
     assert backend_hub._relative(event, "/h/orchestra-ws/x/hub-1").content == "Edit: src/a.py"
+
+
+# ── large repos, owned_dirs, first-turn failure, empty errors ────────────────────────
+
+
+def _big_tree(repo):
+    (repo / "big").mkdir()
+    for i in range(5):
+        (repo / "big" / f"blob{i}.bin").write_bytes(b"x" * 400)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "big")
+
+
+def test_a_big_tree_outside_owned_dirs_is_neither_uploaded_nor_deleted_on_sync(repo, tmp_path):
+    _big_tree(repo)
+    small = hw.ProjectOptions(max_total_bytes=1000)
+    plan = hw.plan_upload(repo, ["src"], known=[], options=small)
+    assert not any(p.startswith("big/") for p in plan.manifest) and "src/keep.txt" in plan.manifest
+    snapshot = _tar_of({"src/keep.txt": b"edited\n", "calc.py": b"def add(a, b):\n    return a + b\n"}, tmp_path)
+    result = hw.apply_changes(snapshot, repo, plan.manifest, known=[])
+    assert result.deleted == [] and len(list((repo / "big").glob("*.bin"))) == 5     # never "deleted"
+
+
+def test_too_large_error_tells_the_orchestrator_how_to_narrow(repo):
+    _big_tree(repo)
+    small = hw.ProjectOptions(max_total_bytes=1000)
+    with pytest.raises(hw.HubWorkspaceError) as caught:
+        hw.plan_upload(repo, None, known=[], options=small)
+    text = str(caught.value)
+    assert "owned_dirs" in text and "big" in text
+    with pytest.raises(hw.HubWorkspaceError, match="already set"):
+        hw.plan_upload(repo, ["big"], known=[], options=small)
+
+
+def test_dot_directories_survive_owned_dirs_normalisation():
+    assert hw._clean_rel("./.orchestra/tasks") == ".orchestra/tasks"
+    assert hw._clean_rel(".orchestra/tasks") == ".orchestra/tasks"
+
+
+def test_project_options_come_from_the_projects_file(tmp_path, monkeypatch):
+    table = tmp_path / "projects.json"
+    table.write_text(json.dumps({str(tmp_path / "big-project"): {
+        "max_total_mb": 1024, "max_files": 90000, "persistent": True}}))
+    monkeypatch.setenv("MULTICODE_HUB_PROJECTS_FILE", str(table))
+    big = hw.project_options(str(tmp_path / "big-project"))
+    assert (big.max_total_bytes, big.max_files, big.persistent) == (1024 * 1024 * 1024, 90000, True)
+    other = hw.project_options(str(tmp_path / "other"))
+    assert other == hw.ProjectOptions() and other.persistent is False
+
+
+@pytest.mark.asyncio
+async def test_upload_command_creates_the_workspace_if_it_is_missing(monkeypatch):
+    """A first attempt that died before the upload left a record but no directory (seedon)."""
+    ssh = hw.HubSsh("u@h", "/k", "/home/u/orchestra-ws/x")
+    seen = []
+
+    async def fake_run(self, remote, **kw):
+        seen.append(remote)
+        return b""
+    monkeypatch.setattr(hw.HubSsh, "run", fake_run)
+    await ssh.put("/home/u/orchestra-ws/x/hub-0123456789abcdef", Path("/dev/null"))
+    assert seen and "mkdir -p" in seen[0] and "test -d" not in seen[0]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_first_turn_is_retried_as_a_first_upload(repo, tmp_path, monkeypatch):
+    _big_tree(repo)
+    table = tmp_path / "projects.json"
+    table.write_text(json.dumps({str(repo): {"max_total_mb": 0.0005}}))      # ~500 bytes: too small
+    monkeypatch.setenv("MULTICODE_HUB_PROJECTS_FILE", str(table))
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    backend._scope = str(repo)
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    events = await _turn(backend, "go")
+    assert events[-1].metadata["ok"] is False and "owned_dirs" in "".join(e.content for e in events)
+    assert backend._state.uploaded is False and not Path(backend._state.remote_dir).exists()
+    table.write_text(json.dumps({str(repo): {"max_total_mb": 50}}))          # the project limit is raised
+    events = await _turn(backend, "again")
+    assert events[-1].metadata["ok"] is True
+    assert (Path(backend._state.remote_dir) / "big" / "blob0.bin").exists() and backend._state.uploaded
+
+
+@pytest.mark.asyncio
+async def test_ssh_failures_always_say_what_failed(monkeypatch):
+    ssh = hw.HubSsh("u@h", "/k", "/home/u/orchestra-ws/x")
+    monkeypatch.setattr(hw.HubSsh, "_argv", lambda self, remote: ["bash", "-c", remote])
+    with pytest.raises(hw.HubWorkspaceError) as caught:
+        await ssh.run("test -d /definitely/not/here")
+    assert "rc=1" in str(caught.value) and "no output" in str(caught.value) and "test -d" in str(caught.value)
+    with pytest.raises(hw.HubWorkspaceError, match="boom"):
+        await ssh.run("echo boom >&2; exit 3")
+
+
+# ── persistent project copy ──────────────────────────────────────────────────────────
+
+
+def _persistent(tmp_path, monkeypatch, repo):
+    table = tmp_path / "projects.json"
+    table.write_text(json.dumps({str(repo): {"persistent": True}}))
+    monkeypatch.setenv("MULTICODE_HUB_PROJECTS_FILE", str(table))
+
+
+@pytest.mark.asyncio
+async def test_persistent_project_copy_is_reused_and_only_the_delta_is_sent(repo, tmp_path, monkeypatch):
+    _persistent(tmp_path, monkeypatch, repo)
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    sent: list[list[str]] = []
+    first, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    first._scope = str(repo)
+    real_put = FakeSsh.put
+
+    async def spy(self, remote_dir, tar_path):
+        with tarfile.open(tar_path) as archive:
+            sent.append(sorted(archive.getnames()))
+        await real_put(self, remote_dir, tar_path)
+    monkeypatch.setattr(FakeSsh, "put", spy)
+    await _turn(first, "one")
+    state1 = first._state
+    assert sorted(sent[0]) == ["calc.py", "src/keep.txt"]            # the first worker uploads everything
+    (repo / "extra.txt").write_text("new\n")                         # the repo moved on before worker 2
+    (repo / "calc.py").write_text("def add(a, b):\n    return a * b\n")
+    second = backend_hub.HubBackend("hub-claude-haiku-5-5", str(repo), scope=str(repo))
+    second._client = first._client
+    await _turn(second, "two")
+    assert sent[1] == ["calc.py", "extra.txt"]                        # only what changed vs the warm copy
+    assert (Path(second._state.remote_dir) / "src" / "keep.txt").exists()   # the rest came from the copy
+    # releasing a worker never touches the warm copy, and neither does the sweep
+    await hw.release_workspace(state1, ssh, mc)
+    await hw.release_workspace(second._state, ssh, mc)
+    base_dir = Path(await ssh.base_dir_for(str(repo)))
+    assert (base_dir / "calc.py").exists() and hw.BaseState.load(str(repo)).manifest
+    monkeypatch.setattr(backend_hub.MultiCodeClient, "from_env", classmethod(lambda cls: _Entering(mc)))
+    monkeypatch.setattr(hw.HubSsh, "from_env", classmethod(lambda cls: ssh))
+    old = base_dir
+    import os as _os, time as _time
+    _os.utime(old, (_time.time() - 99999,) * 2)
+    await backend_hub.sweep_orphans(set())
+    assert base_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_non_persistent_projects_do_not_leave_a_warm_copy(repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    backend._scope = str(repo)
+    await _turn(backend, "one")
+    assert not list(ssh.base.glob("proj-*"))
+
+
+# ── model change ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_hub_model_change_reconfigures_the_thread_or_says_it_started_a_new_one(repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    await _turn(backend, "one")
+    await backend.retarget_model("hub-claude-opus-5-5")
+    assert backend.model == "hub-claude-opus-5-5" and backend._state.thread_id == "thr-1"
+    assert ("t3_thread_configure", {"threadId": "thr-1", "modelSelection": {
+        "instanceId": "claudeAgent", "model": "claude-opus-5-5"}}) in mc.calls
+
+    async def refuse(name, args):
+        if name == "t3_thread_configure":
+            from app.multicode_client import MultiCodeError
+            raise MultiCodeError("cannot switch provider")
+        return await FakeMc.tool_call(mc, name, args)
+    mc.tool_call = refuse
+    await backend.retarget_model("hub-gpt-6.1-sol")
+    assert backend._state.thread_id == "" and "earlier hub conversation is not available" in backend._early_steer[0]
+    with pytest.raises(ValueError):
+        await backend.retarget_model("claude-sonnet-5-5[1m]")
+
+
+@pytest.mark.asyncio
+async def test_conversation_carried_from_another_runtime_is_masked_not_refused(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [FakeMc._token])
+    handoff = (f"[Orchestra conversation handoff]\n<prior-conversation>\nuser said {FakeMc._token} once\n"
+               f"</prior-conversation>\n\n<current-user-message>\ncontinue\n</current-user-message>")
+    events = await _turn(backend, handoff)
+    assert events[-1].metadata["ok"] is True
+    launch = next(args for name, args in mc.calls if name == "t3_thread_launch")["message"]
+    assert FakeMc._token not in launch and "[redacted]" in launch and "user said" in launch
+    # a credential outside the quoted history is still refused
+    backend2, ssh2, mc2 = _backend(repo, tmp_path / "b", monkeypatch, lambda d: None)
+    events = await _turn(backend2, f"use {FakeMc._token}")
+    assert events[-1].metadata["ok"] is False
+
+
+def test_session_hands_owned_dirs_and_scope_to_the_hub_backend(monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.session import AgentSession
+
+    for key, value in {"MULTICODE_MCP_BASE": "http://x", "MULTICODE_MCP_TOKEN": "t",
+                       "MULTICODE_HUB_SSH": "u@h", "MULTICODE_HUB_SSH_KEY": "/k"}.items():
+        monkeypatch.setenv(key, value)
+    session = AgentSession(id="i", name="w", scope="/p/big", cwd="/p/big/wt", model="hub-claude-haiku-5-5",
+                           system_prompt="x", role="worker", owned_dirs=["src", "docs"],
+                           created_at=datetime.now(timezone.utc))
+    backend = session._make_backend()
+    assert backend._paths == ["src", "docs"] and backend._scope == "/p/big"

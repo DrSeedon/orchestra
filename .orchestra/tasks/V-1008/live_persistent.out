@@ -1,0 +1,11 @@
+worker 1:
+    hub: uploading 41 files (20 KiB)
+    hub: persistent project copy reused (41 changed files sent, 0 removed)
+    reply: ready  [hub sync] changed 0, deleted 0
+worker 1 released; warm copy kept: 41 files in the base manifest
+worker 2:
+    hub: uploading 42 files (20 KiB)
+    hub: persistent project copy reused (2 changed files sent, 0 removed)
+    reply: 333  [hub sync] changed 0, deleted 0
+hub dirs: ['hub-45f8b24e3a7445cf', 'hub-5ebcb21b1f6a4a24', 'hub-9be52245acf642b9', 'proj-34fcaded80cf']
+after release + drop_base: ['hub-45f8b24e3a7445cf', 'hub-5ebcb21b1f6a4a24']

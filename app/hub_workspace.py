@@ -36,6 +36,7 @@ MAX_TOTAL_BYTES = 300 * 1024 * 1024
 MAX_FILES = 20_000
 
 _WS_ID = re.compile(r"^hub-[0-9a-f]{16}$")
+_BASE_ID = re.compile(r"^proj-[0-9a-f]{12}$")
 _THREAD_ID = re.compile(r"^[A-Za-z0-9:_-]{1,80}$")
 _SCRUB_SCRIPT = r"""
 ws="$1"; tid="$2"
@@ -81,9 +82,48 @@ _SECRET_NAME_WORDS = ("TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKE
                       "PRIVATE_KEY", "CREDENTIAL", "COOKIE", "DSN")
 
 
+def base_id_for(scope: str) -> str:
+    return "proj-" + hashlib.sha256(os.path.realpath(scope).encode()).hexdigest()[:12]
+
+
 def _install_tag() -> str:
     """Several Orchestra installations may share one hub account; each sweeps only its own root."""
     return re.sub(r"[^A-Za-z0-9_-]", "-", socket.gethostname())[:40] or "host"
+
+
+@dataclass(frozen=True)
+class ProjectOptions:
+    """Per-project hub settings (data/hub-projects.json, keyed by the project's scope path)."""
+
+    max_total_bytes: int = MAX_TOTAL_BYTES
+    max_files: int = MAX_FILES
+    max_file_bytes: int = MAX_FILE_BYTES
+    persistent: bool = False   # keep a warm copy of the project on the hub between workers
+
+
+def project_options(scope: str) -> ProjectOptions:
+    """Settings for the project at `scope`; the file is read per turn, so edits need no restart."""
+    path = Path(os.environ.get("MULTICODE_HUB_PROJECTS_FILE", "").strip() or DATA_DIR / "hub-projects.json")
+    try:
+        table = json.loads(path.read_text())
+        entry = next((v for k, v in table.items()
+                      if os.path.realpath(k) == os.path.realpath(scope or "")), None)
+    except (OSError, ValueError, AttributeError):
+        entry = None
+    if not isinstance(entry, dict):
+        return ProjectOptions()
+    mb = 1024 * 1024
+
+    def number(key: str, default: int, unit: int = 1) -> int:
+        value = entry.get(key)
+        return int(value * unit) if isinstance(value, (int, float)) and value > 0 else default
+
+    return ProjectOptions(
+        max_total_bytes=number("max_total_mb", MAX_TOTAL_BYTES, mb),
+        max_files=number("max_files", MAX_FILES),
+        max_file_bytes=number("max_file_mb", MAX_FILE_BYTES, mb),
+        persistent=entry.get("persistent") is True,
+    )
 
 
 class HubWorkspaceError(RuntimeError):
@@ -142,6 +182,16 @@ def secret_in_text(text: str, known: list[str]) -> str | None:
     return None
 
 
+def redact_secrets(text: str, known: list[str]) -> str:
+    """Mask credentials inside quoted history. A model switch must not be blocked for good by an
+    old chat line, but the credential itself never goes to the hub."""
+    for value in known:
+        text = text.replace(value, "[redacted]")
+    for shape in _SECRET_SHAPES:
+        text = shape.sub("[redacted]", text)
+    return text
+
+
 def assert_no_secret(text: str, known: list[str], what: str) -> None:
     reason = secret_in_text(text, known)
     if reason:
@@ -189,20 +239,30 @@ def _walk_files(root: Path) -> list[str]:
 def _under(rel: str, prefixes: list[str] | None) -> bool:
     if not prefixes:
         return True
+    if "/" not in rel:      # repo-level files (CLAUDE.md, pyproject...) always come with a subset
+        return True
     return any(rel == p or rel.startswith(p.rstrip("/") + "/") for p in prefixes)
 
 
 def plan_upload(root: Path, paths: list[str] | None = None,
-                known: list[str] | None = None) -> UploadPlan:
+                known: list[str] | None = None,
+                options: ProjectOptions | None = None) -> UploadPlan:
     """Pick the files that may go to the hub: tracked + untracked-not-ignored, restricted to
-    `paths` when the orchestrator named a subset, minus everything credential-like."""
+    `paths` (the worker's owned_dirs) when set, minus everything credential-like.
+
+    Only what is checked out is considered: a sparse worktree lists skip-worktree entries in
+    the index but they are absent on disk, so the cone is honoured. Paths that are not uploaded
+    are not in the manifest, so a later sync never treats them as deleted."""
     root = root.resolve()
+    options = options or ProjectOptions()
     prefixes = [_clean_rel(p) for p in paths] if paths else None
     known = known_secret_values() if known is None else known
     plan = UploadPlan()
     candidates = _git_files(root)
     if candidates is None:
         candidates = _walk_files(root)
+    over: dict[str, int] = {}          # bytes per top-level entry, filled once a limit is hit
+    limit_hit = False
     for rel in candidates:
         if not _under(rel, prefixes):
             continue
@@ -219,17 +279,34 @@ def plan_upload(root: Path, paths: list[str] | None = None,
         if reason:
             plan.skipped.append((rel, reason))
             continue
-        if info.st_size > MAX_FILE_BYTES:
+        if info.st_size > options.max_file_bytes:
             plan.skipped.append((rel, "larger than the per-file limit"))
+            continue
+        if not limit_hit and (plan.total_bytes + info.st_size > options.max_total_bytes
+                              or len(plan.manifest) >= options.max_files):
+            limit_hit = True
+            for done in plan.manifest:
+                top = done.split("/", 1)[0] if "/" in done else "(top-level files)"
+                over[top] = over.get(top, 0) + (root / done).stat().st_size
+        if limit_hit:
+            top = rel.split("/", 1)[0] if "/" in rel else "(top-level files)"
+            over[top] = over.get(top, 0) + info.st_size
             continue
         if _file_has_secret(full, known):
             plan.skipped.append((rel, "contains a credential"))
             continue
-        if plan.total_bytes + info.st_size > MAX_TOTAL_BYTES or len(plan.manifest) >= MAX_FILES:
-            raise HubWorkspaceError(
-                "repository is too large to upload to the hub (file count or size limit)")
         plan.manifest[rel] = sha256_file(full)
         plan.total_bytes += info.st_size
+    if limit_hit:
+        biggest = ", ".join(f"{name} ({size // (1024 * 1024)} MiB)"
+                            for name, size in sorted(over.items(), key=lambda kv: -kv[1])[:5])
+        scope = "owned_dirs is already set but still too big" if prefixes else "no owned_dirs is set"
+        raise HubWorkspaceError(
+            f"the checked-out tree is too large for the hub (limit {options.max_total_bytes // (1024 * 1024)} MiB / "
+            f"{options.max_files} files; {scope}). Narrow what the worker gets: spawn it with owned_dirs=[...] "
+            f"naming only the directories the task touches (or set_worker_owned_dirs), use a sparse "
+            f"checkout, or raise this project's limits in the hub projects file (max_total_mb / max_files). "
+            f"Largest top-level entries: {biggest}")
     return plan
 
 
@@ -237,7 +314,7 @@ def _clean_rel(rel: str) -> str:
     rel = rel.strip().replace("\\", "/")
     if not rel or rel.startswith("/") or ".." in rel.split("/") or "\0" in rel:
         raise HubWorkspaceError(f"path {rel!r} is not a path inside the worktree")
-    return rel.lstrip("./") if rel.startswith("./") else rel
+    return rel.removeprefix("./")
 
 
 def _file_has_secret(path: Path, known: list[str]) -> bool:
@@ -303,8 +380,7 @@ class HubSsh:
                 await proc.wait()
                 raise HubWorkspaceError("hub SSH command timed out") from None
         if proc.returncode != 0:
-            detail = (err or b"").decode("utf-8", "replace").strip()[-300:]
-            raise HubWorkspaceError(f"hub SSH command failed rc={proc.returncode}: {detail}")
+            raise HubWorkspaceError(_ssh_failure(remote, proc.returncode, out, err, stdout is not None))
         if stdout is not None and stdout.stat().st_size > max_out:
             raise HubWorkspaceError("hub workspace download exceeds the size limit")
         return out or b""
@@ -326,12 +402,12 @@ class HubSsh:
             raise HubWorkspaceError("invalid workspace id")
         return f"{await self.root()}/{ws_id}"
 
-    async def put(self, remote_dir: str, tar_path: Path, *, fresh: bool) -> None:
+    async def put(self, remote_dir: str, tar_path: Path) -> None:
+        """Unpack a tar into the workspace, creating it when this is the first upload (or an
+        earlier upload died before the directory existed)."""
         _check_remote(remote_dir)
         q = shlex.quote(remote_dir)
-        make = f"mkdir -p -- {shlex.quote(os.path.dirname(remote_dir))} && mkdir {q}" if fresh \
-            else f"test -d {q}"
-        await self.run(f"{make} && tar -xf - -C {q}", stdin=tar_path)
+        await self.run(f"mkdir -p -- {q} && tar -xf - -C {q}", stdin=tar_path)
 
     async def delete_files(self, remote_dir: str, rels: list[str]) -> None:
         _check_remote(remote_dir)
@@ -380,18 +456,40 @@ class HubSsh:
         finally:
             script.unlink(missing_ok=True)
 
+    async def base_dir_for(self, scope: str) -> str:
+        return f"{await self.root()}/{base_id_for(scope)}"
+
+    async def copy_dir(self, source: str, dest: str) -> None:
+        """Copy a persistent base into a fresh worker workspace, entirely on the hub."""
+        _check_remote(source)
+        _check_remote(dest, base_ok=False)
+        await self.run(f"mkdir -p -- {shlex.quote(dest)} && "
+                       f"cp -a --reflink=auto -- {shlex.quote(source)}/. {shlex.quote(dest)}/", timeout=1800)
+
     async def remove(self, remote_dir: str) -> None:
-        _check_remote(remote_dir)
+        _check_remote(remote_dir, base_ok=False)
         root = await self.root()
         if os.path.dirname(remote_dir) != root:
             raise HubWorkspaceError("refusing to remove a path outside the workspace root")
         await self.run(f"rm -rf -- {shlex.quote(remote_dir)}", timeout=300)
 
 
-def _check_remote(remote_dir: str) -> None:
+def _ssh_failure(remote: str, rc: int, out: bytes | None, err: bytes | None, streamed: bool) -> str:
+    """An SSH failure message that always says what was run and what came back."""
+    said = (err or b"").decode("utf-8", "replace").strip()
+    if not said and not streamed:
+        said = (out or b"").decode("utf-8", "replace").strip()
+    said = said[-300:] or "no output (the remote command failed silently)"
+    words = remote.split()
+    kind = " ".join(words[:2]) if words else "?"
+    return f"hub SSH command failed rc={rc}: {said} [remote command: {kind[:60]}]"
+
+
+def _check_remote(remote_dir: str, *, base_ok: bool = True) -> None:
     if not _SAFE_REMOTE.match(remote_dir) or ".." in remote_dir.split("/"):
         raise HubWorkspaceError("unsafe remote path")
-    if not _WS_ID.match(os.path.basename(remote_dir)):
+    name = os.path.basename(remote_dir)
+    if not (_WS_ID.match(name) or (base_ok and _BASE_ID.match(name))):
         raise HubWorkspaceError("remote path is not a broker workspace")
 
 
@@ -558,6 +656,7 @@ class WorkspaceState:
     project_id: str = ""
     thread_id: str = ""
     turns: int = 0
+    uploaded: bool = False  # the first upload reached the hub; until then the workspace is not established
     activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)
 
@@ -583,6 +682,72 @@ class WorkspaceState:
             return cls(**data)
         except (OSError, ValueError, TypeError):
             return None
+
+
+@dataclass
+class BaseState:
+    """The warm, persistent copy of one project on the hub (never touched by release or the sweep)."""
+
+    base_id: str
+    scope: str
+    manifest: dict[str, str] = field(default_factory=dict)
+
+    def path(self) -> Path:
+        return STATE_DIR / f"base-{self.base_id}.json"
+
+    def save(self) -> None:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = self.path().with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.__dict__, sort_keys=True))
+        os.replace(tmp, self.path())
+
+    @classmethod
+    def load(cls, scope: str) -> "BaseState":
+        base_id = base_id_for(scope)
+        try:
+            return cls(**json.loads((STATE_DIR / f"base-{base_id}.json").read_text()))
+        except (OSError, ValueError, TypeError):
+            return cls(base_id=base_id, scope=os.path.realpath(scope))
+
+
+_BASE_LOCKS: dict[str, asyncio.Lock] = {}
+
+
+async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadPlan,
+                              dest_dir: str) -> tuple[int, int]:
+    """Make the project's warm copy on the hub match `plan` by sending only what changed, then
+    copy it into the worker's own directory on the hub. Returns (files sent, files dropped).
+
+    The base is updated and copied under one lock, so two workers of a project never see it half
+    changed; each worker then edits its own copy and the base itself is never edited."""
+    lock = _BASE_LOCKS.setdefault(base_id_for(scope), asyncio.Lock())
+    async with lock:
+        base = BaseState.load(scope)
+        base_dir = await ssh.base_dir_for(scope)
+        send, drop = local_delta(root, plan, base.manifest)
+        scratch = local_scratch()
+        try:
+            if send:
+                tar_path = scratch / "base.tar"
+                await asyncio.to_thread(write_tar, root, send, tar_path)
+                await ssh.put(base_dir, tar_path)
+            else:
+                await ssh.run(f"mkdir -p -- {shlex.quote(base_dir)}")
+            await ssh.delete_files(base_dir, drop)
+            base.manifest = dict(plan.manifest)
+            base.save()
+            await ssh.copy_dir(base_dir, dest_dir)
+        finally:
+            rmtree_quiet(scratch)
+    return len(send), len(drop)
+
+
+async def drop_base(scope: str, ssh: HubSsh | None = None) -> None:
+    """Turn the persistent copy of a project off for good: delete it on the hub and locally."""
+    ssh = ssh or HubSsh.from_env()
+    base_dir = await ssh.base_dir_for(scope)
+    await ssh.run(f"rm -rf -- {shlex.quote(base_dir)}", timeout=600)
+    BaseState.load(scope).path().unlink(missing_ok=True)
 
 
 def states_for_worktree(worktree: str) -> list[WorkspaceState]:
