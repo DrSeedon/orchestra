@@ -34,3 +34,23 @@ rules:
   reason: 'Owner decision 2026-10-22 18:43 and 19:02 KRS: the hub is temporary work; all work must be
     merged and saved in the main repo, and the hub worker is then deleted. The 18:55 refinement that kept
     active lines was rejected by the owner at 19:02.'
+- id: rule-9c4419609f
+  project: '*'
+  mode: permanent
+  targets:
+  - all
+  author: Orchestra-orchestrator
+  created_at: '2026-10-22T16:51:58.310067+00:00'
+  text: 'Image generation goes to the MultiCode hub first: spawn a `hubsol` worker and have it draw with
+    Codex''s built-in image generator (gpt-image-2). This applies to any picture or design work: icons,
+    illustrations, mockups, UI/visual designs, video frames. It costs our money nothing and ranked above
+    Nano Banana 2.1 on Arena text-to-image (1383 vs 1328, October 2026). For a set of related images,
+    ask for one sheet per set in one request, then cut it up if needed. Paid generators (OpenRouter via
+    the websearch MCP `generate_image`, any API key of ours) are only a fallback: use them when the hub
+    is unavailable, for a live chat reply that cannot wait about 40 seconds, or when the task data must
+    not leave our machines. Do not use the hub''s DostupAI credits until the owner clarifies whose they
+    are.'
+  reason: 'Owner decision 2026-10-22 23:51 KRS: katya-work showed that a hub Sol worker drew a 9-image
+    sheet in 40 s with Codex''s built-in gpt-image-2 without our money; the owner ordered using it as
+    much as possible instead of our paid generator, for any images and designs, as a permanent rule for
+    everyone.'
