@@ -106,12 +106,26 @@ async def _spawn(mgr, name, model, **over):
 ])
 async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
     """V-1036: refuse before creating a worker whose first task would be held."""
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
     monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
 
-    with pytest.raises(QuotaGateError, match="hub"):
+    with pytest.raises(QuotaGateError, match="hub") as exc:
         await _spawn(mgr, f"{name}-above", model)
 
+    assert "spawn the worker with model='hubsol'" in str(exc.value)
     assert mgr.get_by_name(f"{name}-above", "/s") is None
+
+
+@pytest.mark.asyncio
+async def test_gated_worker_is_refused_without_hub_hint_when_unconfigured(mgr, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: "not configured")
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE["claude"]))
+
+    with pytest.raises(QuotaGateError) as exc:
+        await _spawn(mgr, "claude-above-no-hub", "claude-opus-5-5[1m]")
+
+    assert "hub" not in str(exc.value).lower()
+    assert mgr.get_by_name("claude-above-no-hub", "/s") is None
 
 
 @pytest.mark.asyncio

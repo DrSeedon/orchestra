@@ -668,13 +668,12 @@ def set_model_flags(
 
 
 def hub_alternative_hint(model_id: str | None = None) -> str:
-    """One sentence for orchestrators whose spawn/delivery is held by a quota gate: the hub pool
+    """Hint for orchestrators whose spawn/delivery is held by a quota gate: the hub pool
     has its own quota. Empty when the hub is not configured here or the model is not gated."""
     from app.backend_hub import hub_configured
 
     if hub_configured() is not None:
         return ""
-    runtime = None
     if model_id:
         try:
             runtime = get_model_spec(resolve_model(model_id)).runtime
@@ -682,10 +681,9 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
             return ""
         if runtime not in ("claude", "codex"):
             return ""
-    choice = {"codex": "'hubsol'", "claude": "'hubsonnet'"}.get(
-        runtime, "'hubsol' (Codex-class work) or 'hubsonnet' (Claude-class work)")
-    return (f"The MultiCode hub pool has its own quota: spawn the worker with model={choice} "
-            "instead of waiting.")
+    return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol' "
+            "for any work instead of waiting. Use model='hubsonnet' only for important creative "
+            "work, with a non-empty model_reason explaining why Claude is needed.")
 
 
 def ensure_spawn_allowed(model_id: str) -> None:

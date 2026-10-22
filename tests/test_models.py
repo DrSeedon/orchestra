@@ -4,9 +4,34 @@ from app.models import (
     ALIASES, BACKENDS, CONTEXT_LIMITS, DEFAULT_MODEL,
     MODELS, RETIRED_SELECTABLE_MODEL_IDS, SELECTABLE_MODEL_SPECS,
     TOKEN_PRICES, ensure_spawn_allowed,
-    get_model_flags, get_model_spec, resolve_model,
+    get_model_flags, get_model_spec, hub_alternative_hint, resolve_model,
 )
 from app.routes import sessions as sessmod
+
+
+@pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol", "sonnet", "sol"])
+def test_hub_alternative_hint_defaults_to_sol_for_any_work(model, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
+
+    hint = hub_alternative_hint(model)
+
+    assert "spawn the worker with model='hubsol' for any work" in hint
+    assert "model='hubsonnet' only for important creative work" in hint
+    assert "non-empty model_reason" in hint
+
+
+@pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol"])
+def test_hub_alternative_hint_is_empty_when_unconfigured(model, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: "not configured")
+
+    assert hub_alternative_hint(model) == ""
+
+
+@pytest.mark.parametrize("model", ["hubsol", "hubsonnet", "grok", "missing-model"])
+def test_hub_alternative_hint_is_empty_for_other_runtimes_and_unknown_models(model, monkeypatch):
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
+
+    assert hub_alternative_hint(model) == ""
 
 
 @pytest.mark.parametrize(
