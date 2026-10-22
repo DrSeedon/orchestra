@@ -1,5 +1,10 @@
 /* utils.js — pure helpers, marked setup, autolink. Loaded before app.js. */
 
+// Read the UI language at formatting time; standalone consumers default to English.
+function orchLocale() {
+    return typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
+}
+
 function _runtimeStatusDetail(session) {
     const labels = {
         not_loaded: T('runtime not loaded'),

@@ -43,11 +43,10 @@ function _krskReset(isoStr) {
     if (!isoStr) return '';
     const at = new Date(isoStr);
     if (Number.isNaN(at.getTime())) return '';
-    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(orchLocale(), {
         timeZone: 'Asia/Krasnoyarsk',
         weekday: 'short', day: 'numeric', month: 'short',
-        hour: '2-digit', minute: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(at);
 }
 
@@ -519,9 +518,9 @@ function renderUsageBar() {
                 h += claudeHtml + codexHtml + grokHtml + orHtml + hubHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
-                    h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+                    h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, '#22c55e');
                     if (typeof _usageData.voice_cost_usd === 'number') {
-                        h += `<div style="font-size:10px">${_row(T('🎤 Voice'), `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
+                        h += `<div style="font-size:10px">${_row(T('🎤 Voice'), `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, '#94a3b8')}</div>`;
                     }
                     // Subscription price comes from SUBSCRIPTION_COST (.env). Not set — no row:
                     // hardcoded constant was already wrong, and among calculated numbers a fake
@@ -908,7 +907,7 @@ function _renderSparklines(slot, providerFilter = null) {
         const since0 = _sparkOldestTs || data[0]?.ts;
         const firstTs = since0 ? new Date(since0) : null;
         const since = firstTs && !isNaN(firstTs)
-            ? T(' Tracking since {date}.', {date: firstTs.toLocaleDateString()})
+            ? T(' Tracking since {date}.', {date: firstTs.toLocaleDateString(orchLocale())})
             : '';
         slot.innerHTML = '<div style="font-size:10px;color:var(--ink-ghost);font-style:italic"></div>';
         slot.firstChild.textContent = hasPoints

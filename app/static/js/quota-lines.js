@@ -15,7 +15,7 @@ const _QL_RESET_HISTORY_HOURS = 252, _QL_RESET_HISTORY_STEP_MINUTES = 30;
 const _QL_RESET_HISTORY_CACHE_MS = 300000;
 const _QL_LABEL_STEP = 12;
 const _QL_LABEL_TOP_PAD = 8;
-const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat('en-GB', {
+const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat(orchLocale(), {
     timeZone: 'Asia/Krasnoyarsk', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 });
 
@@ -317,7 +317,7 @@ function _qlGateState() {
     const left = Number(rule.override_seconds_left) || 0;
     if (left > 0) {
         const until = rule.override_until
-            ? new Date(rule.override_until).toLocaleString()
+            ? new Date(rule.override_until).toLocaleString(orchLocale())
             : T('{min} min', {min: Math.ceil(left / 60)});
         return {
             state: 'override',
@@ -428,8 +428,7 @@ function _qlTimelineSvg(panel, rule) {
         p.push(`<line class="ql-grid" x1="${_QL_ML}" y1="${y(pct)}" x2="${_QL_ML + _QL_PW}" y2="${y(pct)}"/>`);
         p.push(`<text class="ql-axis" x="${_QL_ML - 10}" y="${y(pct) + 4}" text-anchor="end">${pct}%</text>`);
     }
-    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
-    const tickFormat = new Intl.DateTimeFormat(locale, {timeZone: 'Asia/Krasnoyarsk', weekday: 'short', hour: '2-digit', hourCycle: 'h23'});
+    const tickFormat = new Intl.DateTimeFormat(orchLocale(), {timeZone: 'Asia/Krasnoyarsk', weekday: 'short', hour: '2-digit', hourCycle: 'h23'});
     const twoHours = 2 * 3600000;
     const firstTick = Math.ceil((from + zoneOffset) / twoHours) * twoHours - zoneOffset;
     for (let tick = firstTick; tick <= to; tick += twoHours) {

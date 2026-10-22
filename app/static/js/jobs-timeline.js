@@ -90,8 +90,8 @@
 
     /** Абсолютное время в Красноярске (UTC+7). */
     function krsk(at) {
-        return new Intl.DateTimeFormat('ru-RU', {
-            timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+        return new Intl.DateTimeFormat(orchLocale(), {
+            timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
         }).format(at) + ' КРСК';
     }
 
@@ -250,9 +250,9 @@
         const marker = () => `<div class="job-now">▶ СЕЙЧАС · ${escHtml(krsk(now))}</div>`;
         for (const e of events) {
             if (!nowDone && e.at >= now) { out.push(marker()); nowDone = true; }
-            const day = new Intl.DateTimeFormat('ru-RU', {timeZone: TZ, weekday: 'short', day: 'numeric', month: 'long'}).format(e.at);
+            const day = new Intl.DateTimeFormat(orchLocale(), {timeZone: TZ, weekday: 'short', day: 'numeric', month: 'long'}).format(e.at);
             if (day !== prevDay) { out.push(`<div class="job-day">${escHtml(day)}</div>`); prevDay = day; }
-            const hm = new Intl.DateTimeFormat('ru-RU', {timeZone: TZ, hour: '2-digit', minute: '2-digit'}).format(e.at);
+            const hm = new Intl.DateTimeFormat(orchLocale(), {timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false}).format(e.at);
             out.push(`<div class="job-ev ${e.future ? 'is-future' : 'is-past'}"><div class="job-ev-t">${hm}<br><span>${escHtml(rel(e.at, now))}</span></div>
                 <div class="job-ev-c">${_card(e.job, now, true)}</div></div>`);
         }
