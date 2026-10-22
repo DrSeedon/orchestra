@@ -64,6 +64,19 @@ jobs:
           export PATH="$bin_dir:$PATH"
           echo "$bin_dir" >> "$GITHUB_PATH"
           ffprobe -version || exit 1
+      # `test_committed_css_matches_current_sources` зовёт `npx tailwindcss@3.4.17`, и холодный
+      # кеш npm тянул пакет с реестра прямо внутри теста с 30-секундным лимитом (CI main
+      # 22.10 03:03 UTC: реестр ответил медленно, тест завис). Греем кеш здесь, с ретраями.
+      - name: Warm npm cache for the Tailwind build
+        timeout-minutes: 4
+        run: |
+          for attempt in 1 2 3; do
+            if timeout --kill-after=10s 90s npx --yes tailwindcss@3.4.17 --help >/dev/null; then
+              exit 0
+            fi
+            echo "npx attempt $attempt failed"
+          done
+          echo "npm cache warm-up failed; the test falls back to its own download"
       # Некоторые не помеченные browser тесты всё же запускают Chromium напрямую.
       # Здесь скачиваем только браузер; apt-зависимости остаются в отдельной browser job.
       - name: Install Chromium for shard tests

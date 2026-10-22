@@ -32,6 +32,8 @@ def test_play_cdn_compiler_is_gone():
     assert "tailwind.config =" not in dashboard, "конфиг живёт в tailwind.config.js"
 
 
+# Холодный кеш npm скачивает пакет с реестра: 30 с общего лимита мало, subprocess ниже держит 300.
+@pytest.mark.timeout(330)
 @pytest.mark.skipif(shutil.which("npx") is None, reason="npx недоступен — сборку не проверить")
 def test_committed_css_matches_current_sources(tmp_path):
     """Пересборка из текущих исходников должна дать байт-в-байт закоммиченный файл."""
