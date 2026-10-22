@@ -21,3 +21,21 @@ rules:
     можно сколько угодно юзать дали добро типо приоритет на них если кодекс. а если сонет или опус то
     у тоже с хаба». Хаб-воркеры (V-1008) включены рестартом 22.10 ~11:00 КРС; постоянное правило — в model-routing
     (V-1013).'
+- id: rule-a5085d8acb
+  project: '*'
+  mode: review
+  expires_at: '2026-10-24T09:00:00+00:00'
+  targets:
+  - orchestrators
+  author: Orchestra-orchestrator
+  created_at: '2026-10-22T10:11:05.338276+00:00'
+  text: 'Default worker route is `hubsol` (GPT-6.1 Sol on the MultiCode hub) for every task: Sol handles
+    technical work well (bug fixes, features, tests, refactors, research, reports). Choose Claude on the
+    hub (`hubsonnet`; `hubopus` for known-heavy work) only with a named reason, stated in your spawn/change
+    message: Sol is weak at creative work (creative prose, video/scene direction, visual or aesthetic
+    judgment). Project-level Sol bans still win. If a hub Claude turn fails on a usage/rate limit, switch
+    that worker to `hubsol`.'
+  reason: 'Owner decision 2026-10-22 17:10: this is the permanent default, not a temporary measure; Claude
+    needs an argued reason, Sol does technical work fine and is weak only at creative work. This rule
+    bridges until V-1024 puts the policy into model-routing and adds a mandatory reason argument for hub
+    Claude spawns; remove it then.'
