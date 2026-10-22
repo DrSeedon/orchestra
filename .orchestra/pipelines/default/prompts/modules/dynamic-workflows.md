@@ -4,7 +4,9 @@ Use the `dynamic_workflow` tool for bounded one-shot batches: independent tasks,
 
 `budget_usd` limits cumulative model spend; `max_calls` separately limits dispatched model calls. A partial run reports `partial_reason=budget` when the dollar cap is exhausted and `partial_reason=call_limit` when the call-count cap is exhausted.
 
-Choose `parallel` when tasks do not depend on each other. Choose `chain` when each task should receive the previous task's result as structured input. Choose `stages` when each task in a stage should receive all results from the preceding stage. Luna is the default; choose other models only as allowed by model-routing. Astra and Sol remain owner-selectable for manual orchestrator sessions, but dynamic-workflow tasks using either are refused.
+Choose `parallel` when tasks do not depend on each other. Choose `chain` when each task should receive the previous task's result as structured input. Choose `stages` when each task in a stage should receive all results from the preceding stage.
+
+Select each task model through `model-routing` and pass it explicitly, or inherit an explicit stage model. The tool currently falls back to `luna` when neither the task nor its stage supplies a model; this implementation fallback does not override routing policy. Astra and Sol remain owner-selectable for manual orchestrator sessions, but dynamic-workflow tasks using either in our own Codex pool are refused.
 
 Claude API credits are opt-in per task (or as a stage default): set `billing: "api_credit"` only when explicitly requested; without that field, Claude tasks use the subscription route. Exhausted or expired credits refuse the selected task and never switch it to subscription.
 

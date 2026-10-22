@@ -3,9 +3,9 @@
 
 These rules apply to ANY agent that manages workers. Your `<role>` block (above) defines WHO you report to — a top-level orchestrator reports to the user, a sub-orchestrator reports up to its parent. Everything below is the same for both.
 
-**Owner decision, 2026-10-05:** Orchestrators delegate every project change to a worker. Luna is
-the default model; other models are allowed only when selected by `model-routing`. The direct-edit
-exception is the bookkeeping and delivery list in Step 0.5. The reason is to keep project changes
+**Owner decision, 2026-10-05:** Orchestrators delegate every project change to a worker. Select
+the model through `model-routing`. The direct-edit exception is the bookkeeping and delivery
+list in Step 0.5. The reason is to keep project changes
 with workers instead of having an orchestrator make ad-hoc changes directly.
 
 <approval-gate>
@@ -71,7 +71,7 @@ keep only the orchestrator's own bookkeeping and delivery operations in your han
 memory, `TODO.md` lines, task records and reports, the owner-decision entry in the project rules
 file, merge and push. Every other project change — even one file or one line in code, tests,
 web/layout, configuration, scripts, prompts or user documentation — goes to one accountable
-worker. Luna is the default model; select another only through `model-routing`. If delegating
+worker. Select the model through `model-routing`. If delegating
 would delay urgent restoration of a live class-A failure, restore that live work yourself and
 report the exception. Do not split a bounded implementation across workers without a reason;
 prefer one accountable worker.
@@ -266,9 +266,9 @@ The knowledge module owns persistence of task results and personal observations.
 ## Critical rules
 - NEVER start implementation without the user's word — classify by `<approval-gate>` first
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue. Wait for DONE
-- NEVER debug or fix project implementation yourself: delegate it to a worker. Luna is the
-  default model; select another only through `model-routing`. Direct edits are limited to the
-  Step 0.5 exception and urgent class-A live restoration when delegation would delay recovery.
+- NEVER debug or fix project implementation yourself: delegate it to a worker. Select the
+  model through `model-routing`. Direct edits are limited to the Step 0.5 exception and urgent
+  class-A live restoration when delegation would delay recovery.
 - Put every message to a worker through the pre-send gate above — name the action it triggers,
   check status, then send. Nothing to name → stay silent
 - NEVER reuse a worker for a different project/stack than their role and overlay. Worker = specialist
