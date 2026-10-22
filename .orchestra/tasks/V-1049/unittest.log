@@ -1,0 +1,21 @@
+test_branch_reset_replaces_generated_ignore_and_sparse_reapply (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_branch_reset_replaces_generated_ignore_and_sparse_reapply) ... ok
+test_dangling_link_and_git_inspection_failure_fail_closed (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_dangling_link_and_git_inspection_failure_fail_closed) ... ok
+test_existing_link_repair_still_recreates_generated_ignore (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_existing_link_repair_still_recreates_generated_ignore) ... ok
+test_git_status_failure_is_preserved (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_git_status_failure_is_preserved) ... ok
+test_hub_roundtrip_and_merge_with_exposed_link (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_hub_roundtrip_and_merge_with_exposed_link) ... ok
+test_kill_guard_allows_only_the_platform_link (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_kill_guard_allows_only_the_platform_link) ... skipped 'full route dependencies unavailable: fastapi'
+test_missing_tracked_metadata_does_not_collapse_user_files (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_missing_tracked_metadata_does_not_collapse_user_files) ... ok
+test_nul_rename_source_is_never_mistaken_for_untracked_record (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_nul_rename_source_is_never_mistaken_for_untracked_record) ... ok
+test_ordinary_hub_roundtrip_does_not_remove_generated_ignore (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_ordinary_hub_roundtrip_does_not_remove_generated_ignore) ... ok
+test_other_links_files_directories_and_lookalikes_are_not_hidden (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_other_links_files_directories_and_lookalikes_are_not_hidden) ... ok
+test_real_private_directory_in_main_is_not_filtered (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_real_private_directory_in_main_is_not_filtered) ... ok
+test_real_user_file_still_blocks_wip_merge_and_switch (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_real_user_file_still_blocks_wip_merge_and_switch) ... ok
+test_reinclude_with_missing_generated_ignore (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_reinclude_with_missing_generated_ignore) ... ok
+test_staged_link_addition_is_preserved (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_staged_link_addition_is_preserved) ... ok
+test_tracked_link_changes_are_preserved (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_tracked_link_changes_are_preserved) ... ok
+test_tracked_project_ignore_cannot_be_repaired (test_private_symlink_dirty_v1049.PrivateSymlinkDirtyTests.test_tracked_project_ignore_cannot_be_repaired) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 23.962s
+
+OK (skipped=1)

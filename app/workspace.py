@@ -156,6 +156,17 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
+def _worktree_status(path: str | Path, *, nul: bool = False) -> subprocess.CompletedProcess:
+    """One clean-check contract for WIP, merge, branch switch and recovery."""
+    args = ["git", "status", "--porcelain", "--untracked-files=all"]
+    if nul:
+        args.append("-z")
+    result = _git_cmd(args, cwd=str(path), capture_output=True, text=True)
+    if result.returncode == 0:
+        result.stdout = private_folder.filter_worktree_status(path, result.stdout, nul=nul)
+    return result
+
+
 def _merge_conflict_result(branch: str, conflicts: list[str]) -> dict[str, object]:
     shown = ", ".join(conflicts[:10])
     if len(conflicts) > 10:
@@ -1050,10 +1061,7 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
 def _clean_worktree_error(
     path: Path, label: str, changed_paths: list[str] | None = None,
 ) -> str | None:
-    status = _git_cmd(
-        ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
-        cwd=str(path), capture_output=True, text=True,
-    )
+    status = _worktree_status(str(path), nul=True)
     if status.returncode != 0:
         detail = status.stderr.strip() or status.stdout.strip()
         return f"cannot inspect {label} working tree: {detail}"
@@ -1098,7 +1106,7 @@ def _isolated_merge_index(path: Path):
     retain = False
     try:
         read = _git_cmd(["git", "read-tree", "HEAD"], cwd=str(path), capture_output=True, text=True)
-        status = _git_cmd(["git", "status", "--porcelain"], cwd=str(path), capture_output=True, text=True)
+        status = _worktree_status(str(path))
         if read.returncode or status.returncode:
             raise RuntimeError("cannot initialize isolated merge index")
         index["status"] = status.stdout
@@ -1358,10 +1366,7 @@ def _rollback_merge_target(repo: str, old_head: str, error: str) -> dict:
         ["git", "rev-parse", "HEAD"],
         cwd=repo, capture_output=True, text=True,
     )
-    status = _git_cmd(
-        ["git", "status", "--porcelain"],
-        cwd=repo, capture_output=True, text=True,
-    )
+    status = _worktree_status(repo)
     if (
         head.returncode != 0
         or head.stdout.strip() != old_head
@@ -2150,10 +2155,7 @@ def merge_worktree_to_main(
         target_changed = target_after != target_before
         rollback_verified = False
         if mutation_started and merge_cwd and target_snapshot_known and not target_changed:
-            final_target_status = _git_cmd(
-                ["git", "status", "--porcelain"],
-                cwd=merge_cwd, capture_output=True, text=True,
-            )
+            final_target_status = _worktree_status(merge_cwd)
             rollback_verified = (
                 final_target_status.returncode == 0
                 and final_target_status.stdout == (
@@ -2474,10 +2476,7 @@ def promote_worktree_branch(
                 "state": "invalid_target_branch",
                 "error": f"invalid branch '{new_branch}': {name_error}",
             }
-        status = _git_cmd(
-            ["git", "status", "--porcelain"], cwd=str(wt),
-            capture_output=True, text=True,
-        )
+        status = _worktree_status(str(wt))
         if status.returncode != 0:
             detail = status.stderr.strip() or status.stdout.strip()
             return {"ok": False, "state": "git_status_failed", "error": detail}
@@ -2674,9 +2673,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         if name_error:
             return {"ok": False, "error": f"invalid branch '{new_branch}': {name_error}"}
 
-        status = _git_cmd(
-            ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
-        )
+        status = _worktree_status(str(wt))
         if status.returncode != 0:
             detail = status.stderr.strip() or status.stdout.strip() or f"exit code {status.returncode}"
             return {"ok": False, "error": f"git status failed: {detail}"}
@@ -2930,9 +2927,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 actual_head_result.stdout.strip()
                 if actual_head_result.returncode == 0 else ""
             )
-            final_status = _git_cmd(
-                ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
-            )
+            final_status = _worktree_status(str(wt))
             final_merge_head = _git_cmd(
                 ["git", "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
@@ -3045,9 +3040,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         actual_head_result = _git_cmd(
             ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
         )
-        final_status = _git_cmd(
-            ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
-        )
+        final_status = _worktree_status(str(wt))
         actual_branch = (
             actual_branch_result.stdout.strip()
             if actual_branch_result.returncode == 0 else "HEAD"
@@ -3115,7 +3108,7 @@ def convert_worktree_to_sparse(
         return {"state": "skipped", "reason": "sparse rule is off for this project"}
     if sparse_worktree.is_orchestra_sparse(wt, _git_cmd):
         return {"state": "skipped", "reason": "already sparse"}
-    status = _git_cmd(["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True)
+    status = _worktree_status(str(wt))
     if status.returncode != 0:
         return {"state": "refused", "reason": f"git status failed: {status.stderr.strip()}"}
     if status.stdout.strip():
@@ -3144,7 +3137,7 @@ def convert_worktree_to_sparse(
         if error:
             _git_cmd(["git", "sparse-checkout", "disable"], cwd=str(wt), capture_output=True, text=True)
             return {"state": "failed", "reason": error, **result}
-    after = _git_cmd(["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True)
+    after = _worktree_status(str(wt))
     left = {d.strip("/"): _dir_mb(wt / d.strip("/")) for d in rule.exclude if (wt / d.strip("/")).is_dir()}
     return {"state": "converted", "status_clean": not after.stdout.strip(),
             "left_on_disk_mb": left, **result}
@@ -3265,10 +3258,7 @@ def cleanup_stale_worktrees() -> list[str]:
             git_file = wt_dir / ".git"
             if not (git_file.exists() and git_file.is_file()):
                 continue
-            dirty = _git_cmd(
-                ["git", "status", "--porcelain"],
-                cwd=str(wt_dir), capture_output=True, text=True,
-            )
+            dirty = _worktree_status(str(wt_dir))
             if dirty.returncode != 0 or dirty.stdout.strip():
                 logger.info(f"stale worktree skipped (dirty): {wt_dir}")
                 continue
@@ -3499,9 +3489,7 @@ def branch_wip_status(worktree_path: str, base_ref: str = "") -> dict:
     Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
     wt = Path(worktree_path).resolve()
     base_ref = resolve_base_branch(str(wt), base_ref)
-    dirty = _git_cmd(
-        ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
-    )
+    dirty = _worktree_status(str(wt))
     if dirty.returncode != 0:
         return {"error": f"git status failed: {dirty.stderr.strip()}"}
     uncommitted = [line[3:] for line in dirty.stdout.splitlines() if line]

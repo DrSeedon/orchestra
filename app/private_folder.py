@@ -31,6 +31,40 @@ def shared_private_dir(path: str | Path) -> Path:
     return main_checkout(path) / PRIVATE_REL
 
 
+def filter_worktree_status(path: str | Path, status: str, *, nul: bool = False) -> str:
+    """Remove only the platform's untracked shared-private link from porcelain v1.
+
+    Callers must request --untracked-files=all: a collapsed directory could also contain
+    user files. Ignore files are only a convenience; checkout/reset can replace the local
+    generated .gitignore with a tracked one. Tracked changes always remain visible.
+    Inspection failures leave status untouched (fail closed).
+    """
+    separator = "\0" if nul else "\n"
+    candidate = f"?? {PRIVATE_REL}"
+    if candidate not in status.split(separator):
+        return status
+    wt = Path(path)
+    link = wt / PRIVATE_REL
+    try:
+        if not link.is_symlink():
+            return status
+        shared = shared_private_dir(wt)
+        if (wt.resolve() == shared.parent.parent.resolve()
+                or not shared.is_dir() or link.resolve() != shared.resolve()):
+            return status
+    except (OSError, RuntimeError, subprocess.SubprocessError):
+        return status
+    records = iter(status.split(separator))
+    kept = []
+    for record in records:
+        if record != candidate:
+            kept.append(record)
+        # In -z format rename/copy source paths are separate tokens, not status records.
+        if nul and ("R" in record[:2] or "C" in record[:2]):
+            kept.append(next(records, ""))
+    return separator.join(kept)
+
+
 def _ignore_private(wt: Path) -> None:
     # info/exclude is shared by linked worktrees, but a project's .gitignore
     # (notably !.orchestra/**) wins over it. A deeper ignore file wins in turn.

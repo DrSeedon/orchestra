@@ -2207,7 +2207,7 @@ async def delete_session(name: str, scope: str, force: bool = False):
         wt = found.worktree_path
         if wt and Path(wt).is_dir():
             status_proc = await asyncio.create_subprocess_exec(
-                "git", "status", "--porcelain", cwd=wt,
+                "git", "status", "--porcelain", "--untracked-files=all", cwd=wt,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             try:
@@ -2217,7 +2217,8 @@ async def delete_session(name: str, scope: str, force: bool = False):
                 return JSONResponse({"error": "git status timed out in worktree. Use force=true if certain"}, status_code=400)
             if status_proc.returncode != 0:
                 return JSONResponse({"error": f"git status failed: {stderr.decode().strip()}. Use force=true if certain"}, status_code=400)
-            dirty = stdout.decode().strip()
+            from app.private_folder import filter_worktree_status
+            dirty = await asyncio.to_thread(filter_worktree_status, wt, stdout.decode())
             if dirty:
                 files = [l[3:] for l in dirty.splitlines()[:10]]
                 return JSONResponse({"error": f"worker has uncommitted changes: {', '.join(files)}. Commit or discard first (or force=true)"}, status_code=400)

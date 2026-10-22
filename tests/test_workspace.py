@@ -1264,7 +1264,7 @@ class TestSwitchWorktreeBranch:
         real_git_cmd = workspace._git_cmd
 
         def fail_status(args, **kwargs):
-            if args == ["git", "status", "--porcelain"]:
+            if args[:3] == ["git", "status", "--porcelain"]:
                 return subprocess.CompletedProcess(args, 128, "", "status exploded")
             return real_git_cmd(args, **kwargs)
 

@@ -1,0 +1,3 @@
+PASS: actual delete handler body permits the shared untracked link; rejects a user file,
+a wrong-target link and a staged link. Disabling the filter restores the erroneous refusal.
+HTTP routing and full application imports were not exercised.
