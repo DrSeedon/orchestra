@@ -92,7 +92,7 @@ class ChangeScopeRequest(BaseModel):
 async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {
         "currency_symbol": os.getenv("CURRENCY_SYMBOL", "₽"),
-        "hide_thinking": is_auth_enabled(),
+        "hide_thinking": not is_owner_mode(),
         "is_auth_enabled": is_auth_enabled(),
         "is_owner_mode": is_owner_mode(),
         "client_name": os.getenv("CLIENT_NAME", "Client"),
