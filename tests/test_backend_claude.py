@@ -1,5 +1,6 @@
 """Task #39 Fix 6 — ClaudeBackend cleans up client on connect/reconnect failure (no zombie CLI)."""
 
+from pathlib import Path
 import asyncio
 import logging
 import threading
@@ -59,9 +60,11 @@ def test_imported_resume_uses_session_store_and_current_system_prompt():
 
     assert options.resume == history.session_id
     assert options.session_store is not None
-    assert options.system_prompt["append"] == (
-        "CURRENT ROLE\n\n" + HISTORICAL_TOOL_INSTRUCTION
-    )
+    # V-1021: the appended text travels via --append-system-prompt-file, not inline.
+    assert "append" not in options.system_prompt
+    assert Path(options.extra_args["append-system-prompt-file"]).read_text(
+        encoding="utf-8",
+    ) == "CURRENT ROLE\n\n" + HISTORICAL_TOOL_INSTRUCTION
 
 
 def test_ordinary_resume_options_are_unchanged_without_import_marker():
