@@ -23,6 +23,10 @@ class RuleCreate(BaseModel):
 class RuleUpdate(BaseModel):
     expires_at: str = ""
     keep: bool = False
+    text: str | None = None
+    reason: str | None = None
+    targets: list[str] | None = None
+    mode: str | None = None
 
 
 def _actor(request: Request) -> dict | None:
@@ -54,7 +58,7 @@ def list_rules(request: Request, include_inactive: bool = False):
 @router.put("/{rule_id}")
 def update_rule(rule_id: str, req: RuleUpdate, request: Request):
     return _run(lambda: temp_rules.update_rule(
-        _actor(request), rule_id, expires_at=req.expires_at, keep=req.keep))
+        _actor(request), rule_id, **req.model_dump()))
 
 
 @router.delete("/{rule_id}")

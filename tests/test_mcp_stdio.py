@@ -3402,3 +3402,24 @@ async def test_v955_list_agents_and_orchestrators_show_the_limit_wake_mark(monke
     assert lines and "⏳ лимит, проснётся ~12:00 UTC" in lines[0]
     assert "⏳" not in next(line for line in agents.splitlines() if "my-coder" in line)
     assert "⏳ лимит, проснётся ~12:00 UTC" in orchestrators
+
+
+@pytest.mark.asyncio
+async def test_temp_rule_update_protocol_forwards_edits_and_omits_unsupplied_fields(monkeypatch):
+    import app.mcp_stdio as m
+
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs["json"]))
+        return {"id": "rule-stable", "expires_at": None}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    edits = {"text": "new text", "reason": "new reason", "targets": ["workers"], "mode": "permanent"}
+    result = await _protocol_call(m, "temp_rule_update", {"rule_id": "rule-stable", **edits})
+    assert not result.isError
+    assert calls.pop() == ("PUT", "/api/temp-rules/rule-stable", {"expires_at": "", "keep": False, **edits})
+    for fields in ({"keep": True}, {"expires_at": "2099-01-01T00:00:00+00:00"}, {"reason": ""}, {"targets": []}):
+        result = await _protocol_call(m, "temp_rule_update", {"rule_id": "rule-stable", **fields})
+        assert not result.isError
+        assert calls.pop()[2] == {"expires_at": "", "keep": False, **fields}

@@ -2014,9 +2014,17 @@ async def temp_rule_list(include_inactive: bool = False) -> str:
 
 
 @mcp.tool()
-async def temp_rule_update(rule_id: str, expires_at: str = "", keep: bool = False) -> str:
-    """Orchestrators only. Extend a temporary rule to a new expires_at (ISO UTC), or keep=true to keep it with no deadline."""
-    result = await _api("PUT", f"/api/temp-rules/{rule_id}", json={"expires_at": expires_at, "keep": keep})
+async def temp_rule_update(
+    rule_id: str, expires_at: str = "", keep: bool = False,
+    text: str | None = None, reason: str | None = None,
+    targets: list[str] | None = None, mode: str | None = None,
+) -> str:
+    """Orchestrators only. Edit a rule in place, preserving its id. Omitted text, reason, targets and mode stay unchanged. Text and reason must be non-empty; targets follow temp_rule_set. Extend expires_at (ISO UTC), or use keep=true / mode=permanent to clear its deadline. Modes expires/review require a date (the existing date is reused when available); permanent forbids a supplied date. Only your project's rules may be edited; only the Orchestra project orchestrator may edit all-project rules."""
+    fields = {"expires_at": expires_at, "keep": keep}
+    fields.update({key: value for key, value in {
+        "text": text, "reason": reason, "targets": targets, "mode": mode,
+    }.items() if value is not None})
+    result = await _api("PUT", f"/api/temp-rules/{rule_id}", json=fields)
     return f"Rule {result['id']} now until {result['expires_at'] or 'no deadline'}"
 
 

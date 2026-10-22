@@ -1,0 +1,25 @@
+Imported app: <hub-workspace>
+test_authority (__main__.StorageChecks.test_authority) ... ok
+test_commit_and_rollback (__main__.StorageChecks.test_commit_and_rollback) ... ok
+test_concurrent_partial_updates (__main__.StorageChecks.test_concurrent_partial_updates) ... ok
+test_identity_prompt_and_storage (__main__.StorageChecks.test_identity_prompt_and_storage) ... ok
+test_overdue_review_edit_and_expired_revival (__main__.StorageChecks.test_overdue_review_edit_and_expired_revival) ... ok
+test_targets_reason_modes_and_legacy (__main__.StorageChecks.test_targets_reason_modes_and_legacy) ... ok
+test_validation_no_write (__main__.StorageChecks.test_validation_no_write) ... ok
+test_http_handler_forwards_all_model_fields (__main__.WiringChecks.test_http_handler_forwards_all_model_fields) ... ok
+test_real_mcp_function_body_and_signature (__main__.WiringChecks.test_real_mcp_function_body_and_signature) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.254s
+
+OK
+
+KILLED identity_changed (4 assertion failures, 2 errors)
+KILLED empty_reason_allowed (1 assertion failures, 1 errors)
+KILLED global_authority_removed (1 assertion failures, 0 errors)
+KILLED date_requirement_removed (1 assertion failures, 0 errors)
+KILLED permanent_date_allowed (2 assertion failures, 1 errors)
+KILLED targets_ignored (3 assertion failures, 1 errors)
+KILLED persistence_skipped (2 assertion failures, 5 errors)
+KILLED commit_path_broadened (1 assertion failures, 0 errors)
+8/8 mutations killed

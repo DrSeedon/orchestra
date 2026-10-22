@@ -465,3 +465,159 @@ def test_project_without_orchestra_layout_is_refused_not_broken(env):
     with pytest.raises(temp_rules.RuleError, match="layout"):
         temp_rules.add_rule(other, "x", "why", ["all"], "expires", iso(1))
     assert not (Path(B_SCOPE) / ".orchestra").exists()
+
+
+def test_update_text_preserves_identity_and_refreshes_next_assembly(env):
+    rule = temp_rules.add_rule(env["orch"], "BEFORE-EDIT", "original reason", ["all"], "review", iso(1))
+    agent = dict(role="worker", is_orch=False, scope=ORCH_SCOPE, name="w1")
+    before = temp_rules.with_block("BASE", **agent)
+    old_fingerprint = temp_rules.block_fingerprint(before)
+    updated = temp_rules.update_rule(env["orch"], rule["id"], text="  AFTER-EDIT  ")
+    assert updated == {**rule, "text": "AFTER-EDIT"}
+    after = temp_rules.with_block(before, **agent)
+    assert "AFTER-EDIT" in after and "BEFORE-EDIT" not in after
+    assert temp_rules.block_fingerprint(after) != old_fingerprint
+    assert [r["id"] for r in temp_rules.list_rules(env["orch"])] == [rule["id"]]
+
+
+@pytest.mark.parametrize("changes, message", [
+    ({"reason": ""}, "reason"),
+    ({"reason": " \n "}, "reason"),
+    ({"text": " "}, "text"),
+    ({"text": "</temporary-rules>"}, "tag"),
+    ({"text": "<temporary-rules>"}, "tag"),
+    ({"targets": []}, "targets"),
+    ({"targets": [" "]}, "targets"),
+    ({"mode": "unknown"}, "mode"),
+    ({"mode": ""}, "mode"),
+    ({"mode": "permanent", "expires_at": iso(1)}, "permanent"),
+    ({"keep": True, "expires_at": iso(1)}, "permanent"),
+    ({"keep": True, "mode": "review"}, "keep"),
+    ({"expires_at": iso(-1)}, "past"),
+    ({"expires_at": "2099-01-01T00:00:00"}, "timezone"),
+    ({"expires_at": "bad-date"}, "ISO"),
+    ({}, "pass"),
+])
+def test_invalid_update_is_atomic(env, changes, message):
+    rule = temp_rules.add_rule(env["orch"], "ORIGINAL", "why", ["all"], "review", iso(1))
+    original = rules_file(ORCH_SCOPE).read_bytes()
+    head = git(ORCH_SCOPE, "rev-parse", "HEAD")
+    with pytest.raises(temp_rules.RuleError, match=message) as caught:
+        temp_rules.update_rule(env["orch"], rule["id"], **changes)
+    assert caught.value.status_code == 422
+    assert rules_file(ORCH_SCOPE).read_bytes() == original
+    assert git(ORCH_SCOPE, "rev-parse", "HEAD") == head
+
+
+def test_update_reason_targets_and_modes(env, monkeypatch):
+    rule = temp_rules.add_rule(env["orch"], "EDITABLE", "why", ["all"], "review", iso(1))
+    updated = temp_rules.update_rule(env["orch"], rule["id"], reason="  revised  ", targets=[" agent:w2 "])
+    assert updated["reason"] == "revised" and updated["targets"] == ["agent:w2"]
+    assert "EDITABLE" not in block(name="w1")
+    assert "EDITABLE" in block(name="w2") and "revised" in block(name="w2")
+    expiring = temp_rules.update_rule(env["orch"], rule["id"], mode="expires")
+    assert expiring["expires_at"] == rule["expires_at"]
+    reviewing = temp_rules.update_rule(env["orch"], rule["id"], mode="review", expires_at=iso(2))
+    assert reviewing["mode"] == "review" and reviewing["expires_at"] != rule["expires_at"]
+    permanent = temp_rules.update_rule(env["orch"], rule["id"], mode="permanent")
+    assert permanent["expires_at"] is None and "expires_at" not in temp_rules._read(ORCH_SCOPE)[0]
+    for mode in ("review", "expires"):
+        with pytest.raises(temp_rules.RuleError, match="required"):
+            temp_rules.update_rule(env["orch"], rule["id"], mode=mode)
+    with pytest.raises(temp_rules.RuleError, match="permanent"):
+        temp_rules.update_rule(env["orch"], rule["id"], expires_at=iso(1))
+    resumed = temp_rules.update_rule(env["orch"], rule["id"], mode="review", expires_at=iso(1))
+    later = datetime.now(timezone.utc) + timedelta(hours=2)
+    monkeypatch.setattr(temp_rules, "_now", lambda: later)
+    assert "EDITABLE" in block(name="w2")  # overdue review still applies
+    edited = temp_rules.update_rule(env["orch"], rule["id"], text="OVERDUE-EDIT")
+    assert edited["expires_at"] == resumed["expires_at"]
+    assert "OVERDUE-EDIT" in block(name="w2")
+
+
+def test_update_permissions_and_global_authority(env):
+    local = temp_rules.add_rule(env["orch"], "LOCAL", "why", ["all"], "permanent")
+    global_rule = temp_rules.add_rule(env["root"], "GLOBAL", "why", ["all"], "permanent", project="*")
+    for actor, rule in ((env["other"], local), (env["root"], local),
+                        (env["worker"], local), (env["orch"], global_rule),
+                        (env["other"], global_rule)):
+        with pytest.raises(temp_rules.RuleError) as caught:
+            temp_rules.update_rule(actor, rule["id"], text="FORBIDDEN")
+        assert caught.value.status_code in (403, 404)
+    assert "FORBIDDEN" not in rules_file(ORCH_SCOPE).read_text()
+    assert "FORBIDDEN" not in rules_file(ROOT).read_text()
+    updated = temp_rules.update_rule(env["root"], global_rule["id"], text="GLOBAL-EDIT")
+    assert updated["id"] == global_rule["id"] and updated["project"] == "*"
+    assert "GLOBAL-EDIT" in block(scope=B_SCOPE)
+
+
+def test_update_commits_only_rules_and_failed_commit_restores_bytes(env):
+    rule = temp_rules.add_rule(env["orch"], "ORIGINAL", "why", ["all"], "permanent")
+    (Path(ORCH_SCOPE) / "README").write_text("foreign staged change")
+    git(ORCH_SCOPE, "add", "README")
+    count = int(git(ORCH_SCOPE, "rev-list", "--count", "HEAD"))
+    temp_rules.update_rule(env["orch"], rule["id"], text="COMMITTED")
+    assert int(git(ORCH_SCOPE, "rev-list", "--count", "HEAD")) == count + 1
+    assert git(ORCH_SCOPE, "show", "--format=", "--name-only", "HEAD").strip() == ".orchestra/temp-rules.yaml"
+    assert git(ORCH_SCOPE, "log", "-1", "--format=%s").startswith("V-1037:")
+    assert "M  README" in git(ORCH_SCOPE, "status", "--porcelain")
+    original = rules_file(ORCH_SCOPE).read_bytes()
+    head = git(ORCH_SCOPE, "rev-parse", "HEAD")
+    hook = Path(ORCH_SCOPE) / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 1\n")
+    hook.chmod(0o755)
+    with pytest.raises(temp_rules.RuleError, match="commit"):
+        temp_rules.update_rule(env["orch"], rule["id"], text="FAILED")
+    assert rules_file(ORCH_SCOPE).read_bytes() == original
+    assert git(ORCH_SCOPE, "rev-parse", "HEAD") == head
+    assert "M  README" in git(ORCH_SCOPE, "status", "--porcelain")
+
+
+def test_concurrent_partial_updates_preserve_both_fields(env):
+    rule = temp_rules.add_rule(env["orch"], "ORIGINAL", "why", ["all"], "permanent")
+    errors = []
+
+    def update(**fields):
+        try:
+            temp_rules.update_rule(env["orch"], rule["id"], **fields)
+        except Exception as error:
+            errors.append(error)
+
+    threads = [threading.Thread(target=update, kwargs={"text": "CONCURRENT"}),
+               threading.Thread(target=update, kwargs={"reason": "concurrent reason"})]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+    assert not errors and not any(t.is_alive() for t in threads)
+    [updated] = temp_rules.list_rules(env["orch"])
+    assert updated["text"] == "CONCURRENT" and updated["reason"] == "concurrent reason"
+
+
+def test_http_update_forwards_new_fields_and_enforces_scope(env, monkeypatch):
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.temp_rules import router
+
+    monkeypatch.setenv("INTERNAL_TOKEN", "tok-927")
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+    rule = temp_rules.add_rule(env["orch"], "HTTP-BEFORE", "why", ["all"], "permanent")
+    url = f"/api/temp-rules/{rule['id']}"
+
+    def headers(actor):
+        return {"x-orchestra-session-id": actor["id"],
+                "x-orchestra-mcp-proof": issue_mcp_proof(actor["id"])}
+
+    fields = {"text": "HTTP-AFTER", "reason": "revised", "targets": ["workers"],
+              "mode": "review", "expires_at": iso(1)}
+    assert client.put(url, json=fields).status_code == 403
+    assert client.put(url, json=fields, headers=headers(env["other"])).status_code == 404
+    response = client.put(url, json=fields, headers=headers(env["orch"]))
+    assert response.status_code == 200
+    assert response.json()["id"] == rule["id"]
+    for key, value in fields.items():
+        assert response.json()[key] == value
+    assert "HTTP-AFTER" in block() and "HTTP-BEFORE" not in block()
+    assert client.put(url, json={"reason": ""}, headers=headers(env["orch"])).status_code == 422
+    assert client.put(url, json={"targets": []}, headers=headers(env["orch"])).status_code == 422

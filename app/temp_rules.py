@@ -289,31 +289,46 @@ def _check_targets(targets: list[str]) -> list[str]:
     return cleaned
 
 
-def add_rule(
-    actor: dict | None, text: str, reason: str, targets: list[str], mode: str,
-    expires_at: str = "", *, project: str = "",
-) -> dict:
-    actor = _require_orchestrator(actor)
+def _check_text(text: str) -> str:
     text = (text or "").strip()
     if not text:
         raise RuleError(422, "rule text is required")
     if "</temporary-rules>" in text or "<temporary-rules>" in text:
         raise RuleError(422, "rule text must not contain the temporary-rules tag")
+    return text
+
+
+def _check_reason(reason: str) -> str:
     reason = (reason or "").strip()
     if not reason:
         raise RuleError(422, "reason is required: why the rule exists and what caused it")
+    return reason
+
+
+def _check_deadline(mode: str, expires_at, *, future: bool = True) -> str | None:
     if mode not in MODES:
         raise RuleError(422, f"mode must be {'|'.join(MODES)}")
     if mode == "permanent":
         if expires_at:
             raise RuleError(422, "a permanent rule has no expires_at")
-        deadline = None
+        return None
     else:
         if not expires_at:
             raise RuleError(422, f"expires_at is required for mode {mode}")
         deadline = _parse_utc(expires_at)
-        if deadline <= _now():
+        if future and deadline <= _now():
             raise RuleError(422, "expires_at is already in the past")
+        return deadline.isoformat()
+
+
+def add_rule(
+    actor: dict | None, text: str, reason: str, targets: list[str], mode: str,
+    expires_at: str = "", *, project: str = "",
+) -> dict:
+    actor = _require_orchestrator(actor)
+    text = _check_text(text)
+    reason = _check_reason(reason)
+    deadline = _check_deadline(mode, expires_at)
     project = (project or actor.get("scope") or "").strip()
     stored_project = GLOBAL if project == GLOBAL else THIS
     if project != GLOBAL and _norm(project) != _norm(actor.get("scope")):
@@ -324,7 +339,7 @@ def add_rule(
     entry = {
         "id": f"rule-{hashlib.sha1(f'{created.isoformat()}{text}'.encode()).hexdigest()[:10]}",
         "project": stored_project, "mode": mode,
-        "expires_at": deadline.isoformat() if deadline else None,
+        "expires_at": deadline,
         "targets": _check_targets(targets), "author": actor["name"],
         "created_at": created.isoformat(), "text": text, "reason": reason,
     }
@@ -394,33 +409,44 @@ def remove_rule(actor: dict | None, rule_id: str) -> dict:
 
 def update_rule(
     actor: dict | None, rule_id: str, *, expires_at: str = "", keep: bool = False,
+    text: str | None = None, reason: str | None = None,
+    targets: list[str] | None = None, mode: str | None = None,
 ) -> dict:
-    """Extend the date (re-arms the one-time notice) or make the rule permanent."""
+    """Edit supplied fields in place; a new date re-arms the one-time notice."""
     actor = _require_orchestrator(actor)
-    if bool(expires_at) == bool(keep):
-        raise RuleError(422, "pass either expires_at (extend) or keep=true")
-    deadline = None
-    if expires_at:
-        deadline = _parse_utc(expires_at)
-        if deadline <= _now():
-            raise RuleError(422, "expires_at is already in the past")
+    if not (expires_at or keep or any(v is not None for v in (text, reason, targets, mode))):
+        raise RuleError(422, "pass a field to update, expires_at (extend), or keep=true")
+    if keep and mode not in (None, "permanent"):
+        raise RuleError(422, "keep=true requires mode permanent")
     file_scope, found = _locate(actor, rule_id)
     _authorize(actor, found["project"], file_scope)
 
     def change(entries):
         for e in entries:
             if str(e.get("id")) == rule_id:
-                if keep:
-                    e["mode"] = "permanent"
+                _authorize(actor, e["project"], file_scope)
+                new_mode = "permanent" if keep else mode if mode is not None else e["mode"]
+                # An explicit transition to permanent clears the inherited date,
+                # but a caller-supplied date is always forbidden in that mode.
+                date = expires_at or (e.get("expires_at") if new_mode != "permanent" else None)
+                updated = {
+                    "text": _check_text(e["text"] if text is None else text),
+                    "reason": _check_reason(e["reason"] if reason is None else reason),
+                    "targets": _check_targets(e["targets"] if targets is None else targets),
+                    "mode": new_mode,
+                }
+                deadline = _check_deadline(new_mode, date, future=bool(expires_at) or mode is not None)
+                e.update(updated)
+                if deadline is None:
                     e.pop("expires_at", None)
                 else:
-                    e["expires_at"] = deadline.isoformat()
+                    e["expires_at"] = deadline
                 return e
         raise RuleError(404, f"no such rule: {rule_id}")
 
     entry = _mutate(
         file_scope, change,
-        lambda e: f"temp-rules: {'keep ' + rule_id + ' permanent' if keep else 'extend ' + rule_id + ' to ' + e['expires_at']}",
+        lambda e: f"V-1037: temp-rules: update {rule_id} ({e['mode']})",
     )
     return _view(entry, file_scope)
 
