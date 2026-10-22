@@ -1,0 +1,22 @@
+Imported app directory: <hub-workspace>
+Complete source module: <hub-workspace>
+test_archived_target_is_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_archived_target_is_acknowledged_without_wake) ... ok
+test_existing_live_notice_is_not_filtered_by_backfill (test_message_failure_backfill_1045.FailureNoticeBackfill.test_existing_live_notice_is_not_filtered_by_backfill) ... ok
+test_failed_recent_wake_is_retried_once_on_recovery (test_message_failure_backfill_1045.FailureNoticeBackfill.test_failed_recent_wake_is_retried_once_on_recovery) ... message delivery failure notice 8c95afdc-88e2-4d21-9946-7db2ead5aedf remains pending: sender temporarily unavailable
+ok
+test_fresh_failure_wakes_live_sender_exactly_once (test_message_failure_backfill_1045.FailureNoticeBackfill.test_fresh_failure_wakes_live_sender_exactly_once) ... ok
+test_invalid_and_future_dates_are_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_invalid_and_future_dates_are_acknowledged_without_wake) ... ok
+test_legacy_acknowledged_notice_keeps_ack_and_does_not_replay (test_message_failure_backfill_1045.FailureNoticeBackfill.test_legacy_acknowledged_notice_keeps_ack_and_does_not_replay) ... ok
+test_legacy_naive_utc_and_offset_dates_can_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_legacy_naive_utc_and_offset_dates_can_wake) ... ok
+test_live_notice_path_ignores_backfill_age_and_target_filters (test_message_failure_backfill_1045.FailureNoticeBackfill.test_live_notice_path_ignores_backfill_age_and_target_filters) ... ok
+test_missing_target_is_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_missing_target_is_acknowledged_without_wake) ... ok
+test_old_failure_is_acknowledged_without_wake (test_message_failure_backfill_1045.FailureNoticeBackfill.test_old_failure_is_acknowledged_without_wake) ... ok
+test_old_pending_legacy_notice_is_screened_on_adoption (test_message_failure_backfill_1045.FailureNoticeBackfill.test_old_pending_legacy_notice_is_screened_on_adoption) ... ok
+test_second_backfill_never_replays_skipped_or_delivered_rows (test_message_failure_backfill_1045.FailureNoticeBackfill.test_second_backfill_never_replays_skipped_or_delivered_rows) ... ok
+test_skipped_revision_does_not_prevent_fresh_failure_of_same_id (test_message_failure_backfill_1045.FailureNoticeBackfill.test_skipped_revision_does_not_prevent_fresh_failure_of_same_id) ... ok
+test_window_uses_updated_at_with_inclusive_24_hour_boundary (test_message_failure_backfill_1045.FailureNoticeBackfill.test_window_uses_updated_at_with_inclusive_24_hour_boundary) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.036s
+
+OK

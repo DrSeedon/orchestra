@@ -9,7 +9,7 @@ import logging
 import sqlite3
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app import db
 from app.errtext import err_text
@@ -18,6 +18,7 @@ from app.quota_queue import quota_wait_action, wait_error
 
 logger = logging.getLogger("orchestra.message_deliveries")
 SCHEMA_VERSION = 2
+FAILURE_NOTICE_BACKFILL_MAX_AGE = timedelta(hours=24)
 _STEERED_PROVIDER_REF_PREFIX = "steered:"
 _target_runner_tasks: dict[str, asyncio.Task[bool]] = {}
 _target_delivery_locks: dict[str, asyncio.Lock] = {}
@@ -117,7 +118,11 @@ def record_delivery_failure(connection, row, *, initial: bool = False,
 
 
 def _backfill_failure_notices(connection) -> None:
-    """Recover terminal failures written by older versions or interrupted runners."""
+    """Recover recent failures to live targets; acknowledge history without wakes.
+
+    Existing revision-owned notices retain the live recovery/retry contract.
+    """
+    now = datetime.now(timezone.utc)
     for table, states, initial in (
         ("message_deliveries", ("FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED"), False),
         ("initial_deliveries", ("FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN"), True),
@@ -133,6 +138,38 @@ def _backfill_failure_notices(connection) -> None:
             states,
         ).fetchall():
             record_delivery_failure(connection, row, initial=initial, adopt_legacy=True)
+            notice = connection.execute(
+                "SELECT error_json FROM message_delivery_failure_notices "
+                "WHERE delivery_id=? AND delivered_at IS NULL",
+                (row["delivery_id"],),
+            ).fetchone()
+            if notice is None:
+                continue
+            reason = None
+            try:
+                updated_at = datetime.fromisoformat(row["updated_at"])
+                if updated_at.tzinfo is None:
+                    updated_at = updated_at.replace(tzinfo=timezone.utc)
+                if not now - FAILURE_NOTICE_BACKFILL_MAX_AGE <= updated_at <= now:
+                    reason = "outside_recent_window"
+            except (TypeError, ValueError):
+                reason = "invalid_updated_at"
+            target = connection.execute(
+                "SELECT status FROM sessions WHERE id=?",
+                (row["session_id"] if initial else row["target_session_id"],),
+            ).fetchone()
+            if target is None:
+                reason = "target_missing"
+            elif target["status"] == "archived":
+                reason = "target_archived"
+            if reason:
+                details = json.loads(notice["error_json"])
+                details["_notice_skipped_reason"] = reason
+                connection.execute(
+                    "UPDATE message_delivery_failure_notices SET delivered_at=?, error_json=? "
+                    "WHERE delivery_id=? AND delivered_at IS NULL",
+                    (now.isoformat(), json.dumps(details, ensure_ascii=False), row["delivery_id"]),
+                )
 
 
 def _payload_hash(**payload: object) -> str:
