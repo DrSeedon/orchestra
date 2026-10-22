@@ -1060,3 +1060,24 @@ def runtime_for_record(record: dict) -> str:
         except ValueError:
             pass
     return "unknown"
+
+
+HUB_CLAUDE_REASON_RULE = "hub_claude_reason_required"
+
+
+def requires_model_reason(model: str) -> bool:
+    """Hub Claude is an explicit exception to the permanent hub Sol default."""
+    try:
+        return resolve_model(model).startswith("hub-claude-")
+    except (ValueError, AttributeError):
+        return False  # Model validity belongs to the existing model admission checks.
+
+
+def validate_model_reason(model: str, reason: str = "") -> str:
+    if not requires_model_reason(model):
+        return ""
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError(
+            f"{HUB_CLAUDE_REASON_RULE}: default hub route for every task is hubsol; "
+            "hub Claude requires a non-empty model_reason naming why this task needs Claude")
+    return reason.strip()

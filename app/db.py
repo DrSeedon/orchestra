@@ -104,11 +104,27 @@ def _ensure_usage_analytics_schema(connection: sqlite3.Connection) -> None:
 
 
 
+def _ensure_session_model_reasons_schema(connection: sqlite3.Connection) -> None:
+    # Additive metadata; existing v3 databases keep their canonical sessions table unchanged.
+    connection.execute("""CREATE TABLE IF NOT EXISTS session_model_reasons (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        model TEXT NOT NULL,
+        reason TEXT NOT NULL
+    )""")
+
+
+_SESSION_SELECT = """SELECT sessions.*, COALESCE((
+    SELECT reason FROM session_model_reasons
+    WHERE session_id=sessions.id AND model=sessions.model
+), '') AS model_reason FROM sessions"""
+
+
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
         if version == SCHEMA_VERSION:
             _ensure_usage_analytics_schema(connection)
+            _ensure_session_model_reasons_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -119,6 +135,7 @@ def init_db(path: Path | None = None) -> None:
         connection.executemany('INSERT INTO kv(key,value) VALUES(?,?)',
             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
         _ensure_usage_analytics_schema(connection)
+        _ensure_session_model_reasons_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 
@@ -370,6 +387,7 @@ def save_session(
     s.setdefault("base_branch", "")
     s.setdefault("needs_switch", 0)
     s.setdefault("prompt_overlay", None)
+    s.setdefault("model_reason", "")
     connection_scope = (
         nullcontext(_connection) if _connection is not None else _conn()
     )
@@ -444,6 +462,9 @@ def save_session(
                 history_import_source=excluded.history_import_source,
                 last_summary=excluded.last_summary
         """, s)
+        c.execute("""INSERT INTO session_model_reasons(session_id, model, reason)
+            VALUES (:id, :model, :model_reason)
+            ON CONFLICT(session_id) DO UPDATE SET model=excluded.model, reason=excluded.reason""", s)
 
 
 def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
@@ -595,14 +616,14 @@ def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) 
 
 def get_session(session_id: str) -> dict | None:
     with _conn() as c:
-        row = c.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        row = c.execute(_SESSION_SELECT + " WHERE id = ?", (session_id,)).fetchone()
         return dict(row) if row else None
 
 
 def get_session_by_name(name: str, scope: str) -> dict | None:
     with _conn() as c:
         row = c.execute(
-            "SELECT * FROM sessions WHERE name = ? AND scope = ? AND status != 'archived'",
+            _SESSION_SELECT + " WHERE name = ? AND scope = ? AND status != 'archived'",
             (name, scope),
         ).fetchone()
         return dict(row) if row else None
@@ -651,11 +672,11 @@ def get_all_sessions(scope: str | None = None, include_archived: bool = False) -
         archived_filter = "" if include_archived else " AND status != 'archived'"
         if scope:
             rows = c.execute(
-                f"SELECT * FROM sessions WHERE scope = ?{archived_filter} ORDER BY created_at DESC", (scope,)
+                _SESSION_SELECT + f" WHERE scope = ?{archived_filter} ORDER BY created_at DESC", (scope,)
             ).fetchall()
         else:
             rows = c.execute(
-                f"SELECT * FROM sessions WHERE 1=1{archived_filter} ORDER BY created_at DESC"
+                _SESSION_SELECT + f" WHERE 1=1{archived_filter} ORDER BY created_at DESC"
             ).fetchall()
         return [dict(r) for r in rows]
 

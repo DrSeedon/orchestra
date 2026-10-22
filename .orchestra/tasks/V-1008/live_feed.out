@@ -1,0 +1,13 @@
+  0.1s [status]  'hub: uploading 1 files (0 KiB)'
+  4.3s [tool_use] R6zTKf 'Bash: sleep 8 && echo step-one'
+  8.4s [tool_use] ycvJrj 'Read: {"file_path": "m.py"}'
+  8.4s [tool_result] ycvJrj '{"type": "text", "file": {"filePath": "m.py", "content": "def g():\\n    return 1\\n", "numL'
+ 12.4s [tool_result] R6zTKf 'step-one'
+ 16.5s [tool_use] uS46in 'Edit: m.py'
+ 16.5s [file_change]  'update m.py'
+ 16.5s [tool_result] uS46in 'applied'
+ 16.5s [tool_use] XkndGX 'Bash: sleep 8 && echo step-two'
+ 24.6s [tool_result] XkndGX 'step-two'
+ 25.0s [text]  'I ran both sleep commands, which printed step-one and step-two, and changed `g()` in `m.py'
+ 25.0s [turn_end]
+tool_use ids unique: True | every use has one result: True

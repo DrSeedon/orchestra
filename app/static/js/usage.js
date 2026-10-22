@@ -43,11 +43,10 @@ function _krskReset(isoStr) {
     if (!isoStr) return '';
     const at = new Date(isoStr);
     if (Number.isNaN(at.getTime())) return '';
-    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(orchLocale(), {
         timeZone: 'Asia/Krasnoyarsk',
         weekday: 'short', day: 'numeric', month: 'short',
-        hour: '2-digit', minute: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
     }).format(at);
 }
 
@@ -512,12 +511,16 @@ function renderUsageBar() {
                 }
 
                 h += '<div id="usage-sparkline-slot" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">';
-                h += claudeHtml + codexHtml + grokHtml + orHtml + '</div>';
+                const hubMeta = _PROVIDER_META.hub;
+                const hubHtml = '<section data-usage-provider="hub" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">'
+                    + `<div style="color:${_usageProviderAccent('hub')};font-weight:700;margin-bottom:7px">${T(hubMeta.usageTitle)}</div>`
+                    + `<div data-usage-hub-pool style="color:var(--ink-dim);font-style:italic">${T('Loading…')}</div></section>`;
+                h += claudeHtml + codexHtml + grokHtml + orHtml + hubHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
-                    h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+                    h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 0, maximumFractionDigits: 0})}`, '#22c55e');
                     if (typeof _usageData.voice_cost_usd === 'number') {
-                        h += `<div style="font-size:10px">${_row(T('🎤 Voice'), `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
+                        h += `<div style="font-size:10px">${_row(T('🎤 Voice'), `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, '#94a3b8')}</div>`;
                     }
                     // Subscription price comes from SUBSCRIPTION_COST (.env). Not set — no row:
                     // hardcoded constant was already wrong, and among calculated numbers a fake
@@ -540,6 +543,7 @@ function renderUsageBar() {
                 tip.addEventListener('mouseleave', () => { delayedHide(); });
                 document.body.appendChild(tip);
                 _loadSparkline(tip);
+                _loadHubPool(tip);
             }, 200);
         };
         infoBtn.addEventListener('mouseenter', showTip);
@@ -550,6 +554,53 @@ function renderUsageBar() {
         });
         infoBtn.addEventListener('mouseleave', () => { infoBtn.style.color = '#475569'; delayedHide(); });
     }
+}
+
+// Hub pool: /api/usage/hub-pool is cached on the server for 5 minutes and redacted there
+// (no account ids or e-mails), so the card only formats what it is given.
+function _hubPoolWindowHtml(window) {
+    const used = Number(window.used_pct);
+    const hasUsed = Number.isFinite(used);
+    const left = hasUsed ? Math.max(0, Math.min(100, 100 - used)) : null;
+    const color = left == null ? '#64748b' : left < 20 ? '#ef4444' : left < 50 ? '#eab308' : '#22c55e';
+    const name = window.label || window.kind || '';
+    const reset = window.resets_at ? _resetCountdown(window.resets_at) : '';
+    return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escHtml(String(name))}</span>`
+        + `<span style="color:${color}">${left == null ? '–' : _formatPercent(left) + '% ' + T('left')}`
+        + `${reset ? ` <span style="color:#64748b">· ${T('Reset in')} ${escHtml(reset)}</span>` : ''}</span></div>`;
+}
+
+function _hubPoolHtml(pool) {
+    if (!pool || !pool.available) {
+        return `<div style="color:var(--ink-dim);font-style:italic">${T('Hub pool unavailable')}</div>`;
+    }
+    let html = '';
+    for (const id of ['claude', 'codex', 'grok']) {
+        const p = pool.providers?.[id];
+        if (!p) continue;
+        html += `<div data-usage-hub-provider="${id}" style="margin-bottom:9px">`
+            + `<div style="color:var(--provider-multicode);font-weight:600;margin-bottom:2px">${escHtml(id)} · ${T('{usable}/{total} accounts usable', {usable: p.usable, total: p.accounts})}</div>`;
+        html += (p.windows || []).map(_hubPoolWindowHtml).join('')
+            || `<div style="color:var(--ink-dim);font-style:italic">${T('Limit data unavailable')}</div>`;
+        const credits = p.reset_credits;
+        if (credits && Number(credits.available) > 0) {
+            html += `<div style="color:#64748b">${T('Reset credits')}: ${escHtml(String(credits.available))}</div>`;
+        }
+        html += '</div>';
+    }
+    return html || `<div style="color:var(--ink-dim);font-style:italic">${T('Hub pool unavailable')}</div>`;
+}
+
+async function _loadHubPool(tipEl) {
+    const slot = tipEl.querySelector('[data-usage-hub-pool]');
+    if (!slot) return;
+    let pool = null;
+    try {
+        pool = await api('/api/usage/hub-pool', { timeoutMs: 30000 });
+    } catch (e) { /* shown as unavailable below */ }
+    if (!slot.isConnected) return;
+    slot.style.cssText = '';
+    slot.innerHTML = _hubPoolHtml(pool);
 }
 
 let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {}, _sparkError = '', _sparkStepMin = 5;
@@ -856,7 +907,7 @@ function _renderSparklines(slot, providerFilter = null) {
         const since0 = _sparkOldestTs || data[0]?.ts;
         const firstTs = since0 ? new Date(since0) : null;
         const since = firstTs && !isNaN(firstTs)
-            ? T(' Tracking since {date}.', {date: firstTs.toLocaleDateString()})
+            ? T(' Tracking since {date}.', {date: firstTs.toLocaleDateString(orchLocale())})
             : '';
         slot.innerHTML = '<div style="font-size:10px;color:var(--ink-ghost);font-style:italic"></div>';
         slot.firstChild.textContent = hasPoints

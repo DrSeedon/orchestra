@@ -13,7 +13,7 @@ def _run(script: str):
     node = shutil.which("node")
     if not node:
         pytest.skip("node недоступен")
-    code = f"global.window = {{}}; require({json.dumps(str(JS))}); const V = window.JobsView; {script}"
+    code = f"global.window = {{}}; global.orchLocale = () => 'ru-RU'; require({json.dumps(str(JS))}); const V = window.JobsView; {script}"
     out = subprocess.run([node, "-e", code], capture_output=True, text=True, timeout=30, check=True)
     return json.loads(out.stdout)
 

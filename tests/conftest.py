@@ -207,6 +207,21 @@ def no_real_exit_guard(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _offline_hub_pool_fetch(monkeypatch):
+    """Every test starts with fake hub capacity; relay parser tests opt in with a fake transport."""
+    from app import hub_pool
+
+    async def available():
+        return {"available": True, "reason": None, "providers": {
+            provider: {"accounts": 1, "usable": 1, "unknown": 0, "threshold_pct": 100}
+            for provider in hub_pool.PROVIDERS}}
+
+    monkeypatch.setattr(hub_pool, "_cache", {"payload": None, "ts": 0.0, "ttl": 0.0})
+    monkeypatch.setattr(hub_pool, "_lock", None)
+    monkeypatch.setattr(hub_pool, "_fetch_relay_limits", available)
+
+
+@pytest.fixture(autouse=True)
 def _stable_worker_quota(request, monkeypatch):
     """Ordinary tests never read live subscription telemetry."""
     if request.node.path.name in {

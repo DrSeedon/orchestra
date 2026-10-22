@@ -1,0 +1,12 @@
+M1 active account only: KILLED — 3 failed, 25 deselected in 4.54s
+M2 either window suffices: KILLED — 6 failed, 3 passed, 19 deselected in 4.46s
+M3 threshold inclusive: KILLED — 1 failed, 2 passed, 25 deselected in 4.41s
+M4 unavailable relay blocks: KILLED — 1 failed, 27 deselected in 4.13s
+M5 session admission bypasses hub: KILLED — 1 failed, 27 deselected in 4.50s
+M6 spawn bypasses gate: KILLED — 2 failed, 2 passed, 10 deselected in 7.75s
+M7 model switch bypasses gate: KILLED — 1 failed, 1 passed, 12 deselected in 4.33s
+M8 backend turn bypasses gate: KILLED — 1 failed, 88 deselected in 4.67s
+M9 reply limit ignored: KILLED — 2 failed, 87 deselected in 5.83s
+M10 status limit ignored: KILLED — 2 failed, 87 deselected in 5.67s
+M11 parent notice omitted: KILLED — 6 failed, 83 deselected in 7.63s
+M12 dashboard counts loaded credentials: KILLED — 1 failed in 5.30s

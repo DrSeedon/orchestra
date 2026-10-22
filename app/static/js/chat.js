@@ -1204,7 +1204,7 @@ function _showImageOverlay(src) {
 function addTimestamp(el, ts) {
     if (!el || !ts || el.querySelector('.chat-time')) return;
     const d = new Date(ts);
-    const local = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const local = d.toLocaleTimeString(orchLocale(), { hour: '2-digit', minute: '2-digit', hour12: false, second: '2-digit' });
     const time = document.createElement('span');
     time.className = 'chat-time';
     time.textContent = local;
@@ -1976,7 +1976,7 @@ const _TASK_PRIORITY_META = {
 function _taskMoney(value) {
     if (value == null || value === '') return '';
     if (typeof value === 'number') {
-        return String(Math.abs(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return Math.abs(value).toLocaleString(orchLocale(), {maximumFractionDigits: 20});
     }
     return DOMPurify.sanitize(String(value));
 }
@@ -3082,7 +3082,7 @@ function _renderWorkflowStatus(card, data) {
     const isPartial = Boolean(data.finished && !data.complete);
     const tone = counts.failed ? '#f87171' : isComplete ? '#4ade80' : '#38bdf8';
     status.style.color = tone;
-    status.textContent = `${isComplete ? T('✅ Complete') : isPartial ? T('⚠️ Partial') : T('⏳ In progress')} · ${T('{completed}/{total} ready', {completed: counts.completed || 0, total})} · ${T('{running} running', {running: counts.running || 0})} · ${T('{waiting} waiting', {waiting: counts.waiting || 0})} · ${T('{failed} failed', {failed: counts.failed || 0})} · ${MODEL_COST_CURRENCY}${Number(data.spent_usd || 0).toFixed(2)} / ${MODEL_COST_CURRENCY}${Number(data.budget_usd || 0).toFixed(2)} · ${_workflowElapsed(data.elapsed_seconds)}`;
+    status.textContent = `${isComplete ? T('✅ Complete') : isPartial ? T('⚠️ Partial') : T('⏳ In progress')} · ${T('{completed}/{total} ready', {completed: counts.completed || 0, total})} · ${T('{running} running', {running: counts.running || 0})} · ${T('{waiting} waiting', {waiting: counts.waiting || 0})} · ${T('{failed} failed', {failed: counts.failed || 0})} · ${MODEL_COST_CURRENCY}${Number(data.spent_usd || 0).toLocaleString(orchLocale(), {minimumFractionDigits: 2, maximumFractionDigits: 2})} / ${MODEL_COST_CURRENCY}${Number(data.budget_usd || 0).toLocaleString(orchLocale(), {minimumFractionDigits: 2, maximumFractionDigits: 2})} · ${_workflowElapsed(data.elapsed_seconds)}`;
     detail.replaceChildren();
     const scheduler = data.scheduler || {};
     if (scheduler.limit != null) {
@@ -4260,7 +4260,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     lastTool.appendChild(sEl);
                 }
             } else if (tn === 'mcp__orchestra__task_update') {
-                const _kr = (v) => typeof v === 'number' ? String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : v;
+                const _kr = (v) => typeof v === 'number' ? Math.abs(v).toLocaleString(orchLocale(), {maximumFractionDigits: 20}) : v;
                 const changes = [];
                 if (parsed.old_status && parsed.new_status && parsed.old_status !== parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
                 if (parsed.updated) {
@@ -4386,7 +4386,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 if (parsed.task_id) _row(T('Task'), `#${parsed.task_id}`, '#a78bfa');
                 if (parsed.total_turns) _row(T('Turns'), parsed.total_turns);
                 if (parsed.total_tool_calls) _row(T('Tool calls'), parsed.total_tool_calls);
-                if (parsed.total_input_tokens || parsed.total_output_tokens) _row(T('Tokens'), `${(parsed.total_input_tokens||0).toLocaleString()} ${T('in')} / ${(parsed.total_output_tokens||0).toLocaleString()} ${T('out')}`);
+                if (parsed.total_input_tokens || parsed.total_output_tokens) _row(T('Tokens'), `${(parsed.total_input_tokens||0).toLocaleString(orchLocale())} ${T('in')} / ${(parsed.total_output_tokens||0).toLocaleString(orchLocale())} ${T('out')}`);
                 lastTool.appendChild(grid);
                 if (parsed.description) {
                     const descEl = document.createElement('div');
@@ -5176,7 +5176,7 @@ function _renderCompactEvent(type, content, ts, anchor, insertAndFollow, payload
             }
             const metrics = [];
             if (Number.isFinite(row.seconds)) metrics.push(`${row.seconds}s`);
-            if (Number.isFinite(row.cost_usd)) metrics.push(`$${row.cost_usd.toFixed(2)}`);
+            if (Number.isFinite(row.cost_usd)) metrics.push(`$${row.cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
             if (metrics.length) {
                 const metricLine = document.createElement('p');
                 metricLine.className = 'text-xs text-slate-400';
@@ -5191,9 +5191,9 @@ function _renderCompactEvent(type, content, ts, anchor, insertAndFollow, payload
         if (finish.before_pct != null && finish.after_pct != null)
             metrics.push(`${T('Context')}: ${finish.before_pct}% → ${finish.after_pct}%`);
         if (finish.pre_tokens != null && finish.post_tokens != null)
-            metrics.push(`${finish.pre_tokens.toLocaleString()} → ${finish.post_tokens.toLocaleString()} tokens`);
+            metrics.push(`${finish.pre_tokens.toLocaleString(orchLocale())} → ${finish.post_tokens.toLocaleString(orchLocale())} tokens`);
         if (Number.isFinite(finish.seconds)) metrics.push(`${finish.seconds}s`);
-        if (Number.isFinite(finish.cost_usd)) metrics.push(`$${finish.cost_usd.toFixed(2)}`);
+        if (Number.isFinite(finish.cost_usd)) metrics.push(`$${finish.cost_usd.toLocaleString(orchLocale(), {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
         if (metrics.length) {
             const footer = document.createElement('p');
             footer.className = 'border-t border-slate-700 pt-2 text-xs text-slate-400';
@@ -5326,7 +5326,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         // Claude with thinking display omitted streams only a token estimate.
         if (payload && payload.estimated_tokens) {
             _codexThinkingLive.querySelector('.codex-live-label').textContent =
-                T('◇ Reasoning live · ~{n} tokens', {n: Number(payload.estimated_tokens).toLocaleString()});
+                T('◇ Reasoning live · ~{n} tokens', {n: Number(payload.estimated_tokens).toLocaleString(orchLocale())});
         }
         return;
     }

@@ -63,27 +63,6 @@ HTML_ARTIFACT_CSP = (
 )
 
 
-def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result():
-    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
-    helper = source.split("function _historyTransferMessage", 1)[1].split(
-        "async function _showModelPicker", 1,
-    )[0]
-    picker = source.split("async function _showModelPicker", 1)[1].split(
-        "function updateAgentInfo", 1,
-    )[0]
-
-    assert "server state packet" in helper
-    assert "bounded fallback packet" in helper
-    assert "native provider thread resumed after total-context preflight" in helper
-    assert "dialog switch blocked; source retained" in helper
-    assert "transfer.mode === 'native_in_place'" in helper
-    assert "transfer.mode === 'chat_history_v1'" in helper
-    assert "raw snapshot remains operator-only and untrusted" in helper
-    assert "body: JSON.stringify({ model: m.id, scope: currentScope })" in picker
-    assert "_showHistoryTransfer(resp.history_transfer);" in picker
-    assert "body.error_code" in picker
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("suffix", [".html", ".HTM"])
 async def test_raw_html_response_has_sandbox_csp(tmp_path, monkeypatch, suffix):
@@ -602,6 +581,74 @@ def _repo_scope():
         cwd=Path(__file__).parent, capture_output=True, text=True, check=True,
     ).stdout.strip()
     return str(Path(common).parent)
+
+
+@pytest.mark.parametrize("target_model, reason", [
+    ("claude-sonnet-5-5[1m]", None),
+    ("hub-gpt-6.1-sol", None),
+    ("hub-claude-sonnet-5-5", "Creative scene direction"),
+])
+def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result(
+    dashboard_browser: Browser, target_model, reason,
+):
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    helper = source.split("function _historyTransferMessage", 1)[1].split(
+        "async function _showModelPicker", 1,
+    )[0]
+    picker = source.split("async function _showModelPicker", 1)[1].split(
+        "function updateAgentInfo", 1,
+    )[0]
+
+    assert "server state packet" in helper
+    assert "bounded fallback packet" in helper
+    assert "native provider thread resumed after total-context preflight" in helper
+    assert "dialog switch blocked; source retained" in helper
+    assert "transfer.mode === 'native_in_place'" in helper
+    assert "transfer.mode === 'chat_history_v1'" in helper
+    assert "raw snapshot remains operator-only and untrusted" in helper
+    assert "_showHistoryTransfer(resp.history_transfer);" in picker
+    assert "body.error_code" in picker
+
+    reason_helper = source.split("function _modelReasonForSelection", 1)[1].split(
+        "function _modelReasonBadge", 1,
+    )[0]
+    page = dashboard_browser.new_page()
+    try:
+        page.set_content("<button id='anchor'>Models</button><span id='ai-model'></span>")
+        page.evaluate("""({model, reason}) => {
+            window._MODELS = [{id: model, label: 'Target model'}];
+            window.currentScope = 'picker-test-scope';
+            window.$ = selector => document.querySelector(selector);
+            window.T = text => text;
+            window._ensureModels = async () => {};
+            window.prompt = () => {
+                if (reason === null) throw new Error('Unexpected reason prompt');
+                return reason;
+            };
+            window.requests = [];
+            window.api = async (url, options) => {
+                window.requests.push({url, method: options.method, body: JSON.parse(options.body)});
+                return {};
+            };
+            window._showHistoryTransfer = () => {};
+            window.loadSessions = () => {};
+        }""", {"model": target_model, "reason": reason})
+        page.add_script_tag(content=(
+            "function _modelReasonForSelection" + reason_helper
+            + "async function _showModelPicker" + picker
+        ))
+        page.evaluate("_showModelPicker('picker-worker', 'claude-opus-5-5', $('#anchor'))")
+        page.locator("#model-picker-dd > div").click()
+        expected_body = {"model": target_model, "scope": "picker-test-scope"}
+        if reason is not None:
+            expected_body["model_reason"] = reason
+        assert page.evaluate("window.requests") == [{
+            "url": "/api/sessions/picker-worker/change-model",
+            "method": "POST",
+            "body": expected_body,
+        }]
+    finally:
+        page.close()
 
 
 def test_dashboard_loads(dashboard_page: Page):
@@ -4776,6 +4823,7 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
         const T = (key, values = {}) => Object.entries(values).reduce(
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
+        const orchLocale = () => 'en-US';  // global from utils.js; _tagChatTimelineNode formats time with it
         let _chatFollow = true;
         let scrollAfterLoad = true;
         let _pendingChatRestore = null;
@@ -4887,6 +4935,7 @@ def test_chat_timeline_marker_height_tracks_message_height(
         const T = (key, values = {}) => Object.entries(values).reduce(
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
+        const orchLocale = () => 'en-US';  // global from utils.js; _tagChatTimelineNode formats time with it
         let _chatFollow = true;
         let scrollAfterLoad = true;
         let _pendingChatRestore = null;

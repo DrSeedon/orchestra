@@ -270,6 +270,7 @@ class CreateSessionRequest(BaseModel):
     initial_task_title: str = ""
     initial_delivery_id: str = ""
     model_policy_override_reason: str = ""
+    model_reason: str = ""
 
     @field_validator("name")
     @classmethod
@@ -549,6 +550,7 @@ async def create_session(req: CreateSessionRequest):
             planned_initial_turn=req.planned_initial_turn,
             initial_task_title=req.initial_task_title,
             model_policy_override_reason=req.model_policy_override_reason,
+            model_reason=req.model_reason,
         )
         if req.initial_delivery_id:
             from app import initial_deliveries
@@ -2008,7 +2010,8 @@ async def change_model(name: str, req: dict):
     found = await manager.ensure_loaded(name, scope)
     if not found:
         return _worker_not_found(name, scope)
-    result = await found.change_model(new_model)
+    result = await found.change_model(new_model, **(
+        {"model_reason": req["model_reason"]} if "model_reason" in req else {}))
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
     if result.get("changed"):

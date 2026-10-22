@@ -158,8 +158,8 @@ const _LIVE_TOOL_INPUT_TAIL = 20_000;
 function _liveToolInputStats(card) {
     const chars = card._chars || 0;
     const elapsed = card._elapsedMs || 0;
-    const parts = [T('{n} chars', {n: chars.toLocaleString()})];
-    if (elapsed >= 500) parts.push(T('{n} chars/s', {n: Math.round(chars / (elapsed / 1000)).toLocaleString()}));
+    const parts = [T('{n} chars', {n: chars.toLocaleString(orchLocale())})];
+    if (elapsed >= 500) parts.push(T('{n} chars/s', {n: Math.round(chars / (elapsed / 1000)).toLocaleString(orchLocale())}));
     parts.push(liveFormatClock(elapsed));
     return parts.join(' · ');
 }

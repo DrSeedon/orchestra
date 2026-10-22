@@ -81,6 +81,9 @@ from app.errtext import err_text
 logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
+# Ожидание уже поставленных в пул записей журнала. Ограничено: зависший пул или «застрявший»
+# в множестве фьючерс обязан дать предупреждение, а не мёртвую платформу (V-1020).
+_LOG_FUTURES_DRAIN_BUDGET_S = 10.0
 TURN_COMPLETION_RECHECK = 1.0
 # Ходы, начатые платформой, а не пользователем/агентом: квотный гейт их не блокирует (V-640).
 QUOTA_GATE_EXEMPT_ORIGINS = frozenset({"background_task", "platform", "system"})
@@ -418,6 +421,8 @@ class AgentSession:
     scope: str
     cwd: str
     model: str = "claude-sonnet-5-5[1m]"
+    model_reason: str = field(default="", kw_only=True)
+    _pending_model_reason: tuple[str, str] | None = field(default=None, init=False, repr=False)
     system_prompt: str = ""
     prompt_overlay: str | None = None
     status: AgentStatus = AgentStatus.IDLE
@@ -897,6 +902,14 @@ class AgentSession:
     def is_orchestrator(self, value: bool) -> None:
         self._is_orchestrator = value
 
+    def _hub_bridge(self):
+        """The hub runtime's only link back to Orchestra: this worker's identity and outbox executor."""
+        from app.hub_outbox import HubBridge, Identity
+
+        return HubBridge(lambda: Identity(
+            session_id=self.id, name=self.name, scope=self.scope, parent_name=self.parent_name or "",
+            role=self.role, branch=self.branch or "", pipeline=self.pipeline or ""))
+
     def _make_backend(
         self,
         force_fresh: bool = False,
@@ -937,6 +950,9 @@ class AgentSession:
             ),
             history_import=history_import,
             validation_profile=validation_profile,
+            owned_dirs=tuple(self.owned_dirs or ()),
+            owned_dirs_source=lambda: tuple(self.owned_dirs or ()),
+            hub_bridge=self._hub_bridge() if runtime == "hub" else None,
             config_dir_override=(
                 self._handoff_config_dir
                 if config_dir_override is None
@@ -1889,8 +1905,7 @@ class AgentSession:
         target_model: str,
         exclude_user_messages: tuple[str, ...] = (),
     ):
-        if self._log_futures:
-            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        await self._await_log_futures()
         loop = asyncio.get_running_loop()
         snapshot_id, rows = await loop.run_in_executor(
             _db_executor(), partial(get_history_logs, self.id)
@@ -1909,10 +1924,31 @@ class AgentSession:
             ),
         )
 
+    async def _await_log_futures(self) -> None:
+        """Wait once, with a time budget, for the log writes queued so far.
+
+        Never loops on the live set: a finished future that stayed in it (or producers that keep
+        adding) made `while set: await gather(...)` spin without yielding to the timeout that was
+        meant to rescue it — the loop was dead for ~16 min on 22.10 (V-1020). `asyncio.wait`
+        also leaves the pending writes alive on timeout instead of cancelling them.
+        """
+        snapshot = tuple(self._log_futures)
+        for future in snapshot:
+            if future.done():
+                self._log_futures.discard(future)
+        pending = {future for future in snapshot if not future.done()}
+        if not pending:
+            return
+        _, still = await asyncio.wait(pending, timeout=_LOG_FUTURES_DRAIN_BUDGET_S)
+        if still:
+            logger.warning(
+                "[%s] %d log write(s) still pending after %.0fs; continuing without them",
+                self.name, len(still), _LOG_FUTURES_DRAIN_BUDGET_S,
+            )
+
     async def _drain_handoff_log_writes(self) -> dict:
         await self._drain_persist()
-        while self._log_futures:
-            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        await self._await_log_futures()
         retried = 0
         deadline = time.monotonic() + _HANDOFF_LOG_RETRY_BUDGET_S
         for generation, (operation, previous_failure) in tuple(
@@ -3601,6 +3637,18 @@ class AgentSession:
                 self._persist()
                 self._turns.publish_turn_finished()
                 return {"ok": False, "error": error, "before_pct": before_pct}
+            # DeferredContext keeps the previous session's usage until the API refresh.
+            # Replace it before releasing compaction or persisting the new session id.
+            ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
+            post_tokens = max(0, self._context_token_total() - tokens_before_ack) // ack_calls
+            max_tokens = self._last_context.get("max_tokens", 0) or max_tokens
+            after_pct = round(post_tokens * 100 / max_tokens) if max_tokens else 0
+            self._last_context.update(
+                percentage=after_pct if post_tokens else 0,
+                total_tokens=post_tokens,
+                known=bool(post_tokens and max_tokens),
+            )
+            self._cancel_precompact_timer("compact_complete")
         except QuotaGateError as error:
             ack_deferred = True
             self.last_summary = _bounded_summary(summary)
@@ -3651,14 +3699,6 @@ class AgentSession:
                     subtype="compact_summary",
                 ),
             )
-        # Расход ack-хода — СУММА по всем его обращениям к модели. 23.09 у katya-work ход из
-        # 4 обращений по ~77 тыс. дал «post 307564» и «20% → 31%», хотя контекст ужался в 2.6 раза.
-        ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
-        post_tokens = max(0, self._context_token_total() - tokens_before_ack) // ack_calls
-        if post_tokens and max_tokens:
-            after_pct = round(post_tokens * 100 / max_tokens)
-        else:
-            after_pct = self._last_context.get("percentage", 0)
         dropped = max(0, pre_tokens - post_tokens)
         self._log_compact_event(
             compact_id,
@@ -3823,8 +3863,12 @@ class AgentSession:
     ) -> None:
         if not self._backend or not hasattr(self._backend, 'context_usage'):
             return
+        backend = self._backend
+        generation = (self._turn_gen, self.session_id)
         try:
-            usage = await asyncio.wait_for(self._backend.context_usage(), timeout=5)
+            usage = await asyncio.wait_for(backend.context_usage(), timeout=5)
+            if backend is not self._backend or generation != (self._turn_gen, self.session_id):
+                return
             if usage and usage.get("percentage") is not None:
                 raw_max = usage.get("raw_max_tokens") or usage.get("max_tokens")
                 context = current_context(
@@ -3916,11 +3960,32 @@ class AgentSession:
         history = render_chat_history(list(reversed(visible)))
         return f"Source Orchestra session: {self.id}\n{history}" if history else ""
 
-    async def change_model(self, new_model: str) -> dict:
+    @property
+    def effective_model_reason(self) -> str:
+        pending = self._pending_model_reason
+        return pending[1] if pending and pending[0] == self.model else self.model_reason
+
+    async def change_model(self, new_model: str, model_reason: str = "") -> dict:
+        from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+
         async with self._lifecycle_lock:
             if self._compacting:
                 return {"ok": False, "error": "cannot change model while compacting"}
-            return await self._change_model_locked(new_model)
+            try:
+                reason = validate_model_reason(new_model, model_reason)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc), "error_code": HUB_CLAUDE_REASON_RULE}
+            self._pending_model_reason = (new_model, reason)
+            try:
+                result = await self._change_model_locked(new_model)
+            finally:
+                if self.model == new_model:
+                    self.model_reason = reason
+                self._pending_model_reason = None
+            if result.get("ok"):
+                self._persist()  # Also persist a new reason when the model itself was already selected.
+                result["model_reason"] = self.model_reason
+            return result
 
     async def _change_runtime_chat_locked(
         self,
@@ -4205,6 +4270,14 @@ class AgentSession:
             }
         if self.status == AgentStatus.RUNNING:
             return {"ok": False, "error": "cannot change model while running"}
+
+        from app.hub_pool import require_hub_capacity
+        from app.quota_gate import QuotaGateError
+
+        try:
+            await require_hub_capacity(new_model)
+        except QuotaGateError as exc:
+            return {"ok": False, "error": str(exc), "error_code": "hub_pool_exhausted"}
 
         old_runtime = self.backend_type or backend_for_model(old_model)
         new_runtime = get_model_spec(new_model).runtime
@@ -4761,7 +4834,8 @@ class AgentSession:
     def _to_db_dict(self) -> dict:
         return {
             "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
-            "model": self.model, "system_prompt": self.system_prompt,
+            "model": self.model, "model_reason": self.effective_model_reason,
+            "system_prompt": self.system_prompt,
             "prompt_overlay": self.prompt_overlay,
             "status": self.status.value, "session_id": self.session_id,
             "provider_cost_baseline_usd": self._last_cost,
@@ -4845,6 +4919,7 @@ class AgentSession:
             "id": self.id, "name": self.name, "scope": self.scope,
             "cwd": self.cwd, "worktree_path": self.worktree_path,
             "status": "broken" if writer_error is not None else self._display_status(), "model": self.model,
+            "model_reason": self.effective_model_reason,
             "runtime_connection": runtime_connection,
             "runtime_error": writer_error.envelope() if writer_error else self._runtime_error or None,
             "cost_usd": round(self.cost_usd, 4),

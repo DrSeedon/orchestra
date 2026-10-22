@@ -1,0 +1,3 @@
+B1 absent 5h window blocks Weekly-only accounts: KILLED — 1 failed, 37 deselected in 4.52s
+B2 no reported windows grants capacity: KILLED — 2 failed, 36 deselected in 4.21s
+B3 shared fixture no longer stubs relay fetching: KILLED — 1 failed, 37 deselected in 4.51s

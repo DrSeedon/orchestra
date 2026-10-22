@@ -1,0 +1,6 @@
+PASS request: claude-sonnet-5-5[1m]
+PASS request: hub-gpt-6.1-sol
+PASS request: hub-claude-sonnet-5-5
+PASS rejected mutation: missing model
+PASS rejected mutation: missing scope
+PASS rejected mutation: missing reason

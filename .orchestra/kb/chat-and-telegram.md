@@ -7,7 +7,7 @@
 плечи перехватывали одинаково. Событие response приходило и при попадании в кеш, поэтому
 подсчёт таких событий не измерял передачу по сети; исследовали Resource Timing transferSize.
 Применять значения transferSize к другому origin нужно с учётом доступности его таймингов,
-а не считать любой ноль доказанным cache hit. Источники: [разбор опытов audit-front](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/audit-front.md); [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/frontend.md).
+а не считать любой ноль доказанным cache hit. Источники: [разбор опытов audit-front](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/archive/knowledge-20260909/workers/audit-front.md); [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/archive/knowledge-20260909/workers/frontend.md).
 
 ## Scroll anchoring выглядел как пользовательская прокрутка
 
@@ -16,7 +16,7 @@
 автопрокрутки. Проверка только программного scrollTo не воспроизводила всю причину: нужен
 рост/изменение содержимого при сохранённой позиции чтения. Версия браузера в короткой записи
 не закреплена; это гипотеза для воспроизведения на новом браузере, не универсальная гарантия.
-Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/frontend.md).
+Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/archive/knowledge-20260909/workers/frontend.md).
 
 ## Конечная SSE-заглушка оказалась полезным тестом повторной доставки
 
@@ -25,7 +25,7 @@
 в опыте получилось 8 уведомлений вместо 1. Таким образом проверка одного успешного события
 не покрывала поведение после реконнекта. Для независимых порций использовали последовательность
 пачек на подключения, чтобы отличить работающую дедупликацию от прекратившейся доставки.
-Задержка реконнекта относится к тому клиенту, а не к стандарту SSE. Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/frontend.md).
+Задержка реконнекта относится к тому клиенту, а не к стандарту SSE. Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/archive/knowledge-20260909/workers/frontend.md).
 
 ## Нулевые dropped не исключали исчезновения текста
 
@@ -34,4 +34,4 @@
 различимых сообщений при объединении, а не отказа очереди. Наблюдение полезно при диагностике
 буферов с coalescing: счётчик отказов не измеряет все способы потери информации.
 Исходная реализация могла измениться; актуальный ключ из этой записи не восстанавливается.
-Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/frontend.md).
+Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/68d32a4b4a6ad0130d08894791f68c5e84152c2c/.orchestra/archive/knowledge-20260909/workers/frontend.md).

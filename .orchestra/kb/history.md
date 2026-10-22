@@ -1,9 +1,9 @@
 # История источников: Git вместо папок-свалок
 
-Полный снимок до очистки: `9a1735f1695519a445f393802c2154bd37337e38`. Коммит достижим из main и содержит прежние workers,
+Полный снимок до очистки: `68d32a4b4a6ad0130d08894791f68c5e84152c2c`. Коммит достижим из main и содержит прежние workers,
 tasks, archive, guides, artifacts. ```bash
-git grep -n -i -F '<точный якорь>' 9a1735f1695519a445f393802c2154bd37337e38 -- .orchestra/workers .orchestra/tasks .orchestra/archive .orchestra/guides .orchestra/artifacts
-git show 9a1735f1695519a445f393802c2154bd37337e38:.orchestra/tasks/<id>/<file>
+git grep -n -i -F '<точный якорь>' 68d32a4b4a6ad0130d08894791f68c5e84152c2c -- .orchestra/workers .orchestra/tasks .orchestra/archive .orchestra/guides .orchestra/artifacts
+git show 68d32a4b4a6ad0130d08894791f68c5e84152c2c:.orchestra/tasks/<id>/<file>
 ```
 
 Это адреса исходников, не действующие инструкции или правила ведения KB.

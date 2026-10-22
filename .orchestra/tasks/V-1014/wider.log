@@ -1,0 +1,8 @@
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_knowledge_instruction_source.py::test_original_rules_are_preserved_byte_for_byte
+FAILED tests/test_knowledge_instruction_source.py::test_historical_source_snapshot_remains_reachable
+FAILED tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots
+3 failed, 873 passed, 9 skipped, 4139 deselected, 2 warnings in 122.27s (0:02:02)

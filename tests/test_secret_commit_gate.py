@@ -139,6 +139,11 @@ def scratch_repo(tmp_path):
         dst.write_text((REPO / "scripts" / "hooks" / name).read_text())
         dst.chmod(0o755)
     (root / "scripts" / "secret_scan.py").write_text(SCANNER.read_text())
+    (root / "app").mkdir()
+    (root / "app" / "__init__.py").write_text("")
+    (root / "app" / "forbidden_strings.py").write_text(
+        (REPO / "app" / "forbidden_strings.py").read_text()
+    )
     (root / "scripts" / "install_git_hooks.py").write_text(
         (REPO / "scripts" / "install_git_hooks.py").read_text()
     )

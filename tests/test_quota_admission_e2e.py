@@ -190,3 +190,51 @@ async def test_unknown_quota_admits_the_spawn_and_the_following_send(mgr, monkey
     assert session.name == "blind-worker"
     # Тот же вопрос, который задаёт `/send` следующим шагом.
     require_worker_admission(await blind("gpt-6-luna"))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model,provider,alternative", [
+    ("hubsol", "codex", "hubsonnet"), ("hubsonnet", "claude", "hubsol"),
+])
+@pytest.mark.parametrize("usable", [0, 1])
+async def test_hub_spawn_checks_provider_pool_before_session_creation(
+    mgr, monkeypatch, model, provider, alternative, usable,
+):
+    from app import hub_pool
+
+    async def pool(**kwargs):
+        return {"available": True, "providers": {provider: {
+            "accounts": 4, "usable": usable, "threshold_pct": 100}}}
+    monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+    if usable:
+        session = await _spawn(mgr, "hub-allowed", model, model_reason="Visual judgment")
+        assert session.name == "hub-allowed"
+        return
+    with pytest.raises(QuotaGateError, match=f"model='{alternative}'"):
+        await _spawn(mgr, "hub-blocked", model, model_reason="Visual judgment")
+    assert mgr.get_by_name("hub-blocked", "/s") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("usable", [0, 1])
+async def test_hub_model_change_checks_target_pool_before_mutation(monkeypatch, usable):
+    from unittest.mock import AsyncMock
+    from app import hub_pool
+    from app.session import AgentSession
+
+    session = AgentSession(id="worker-id", name="worker", scope="/s", cwd="/s", model="hub-gpt-6.1-sol", backend_type="hub")
+    change = AsyncMock(return_value={"ok": True, "changed": True})
+    monkeypatch.setattr(session, "_change_model_in_place_locked", change)
+
+    async def pool(**kwargs):
+        return {"available": True, "providers": {"claude": {
+            "accounts": 4, "usable": usable, "threshold_pct": 100}}}
+    monkeypatch.setattr(hub_pool, "get_hub_pool", pool)
+    result = await session.change_model("hub-claude-sonnet-5-5", model_reason="Visual judgment")
+    assert result["ok"] is bool(usable)
+    if usable:
+        change.assert_awaited_once()
+    else:
+        change.assert_not_awaited()
+        assert "model='hubsol'" in result["error"]
+        assert session.model == "hub-gpt-6.1-sol"

@@ -1,0 +1,5 @@
+pytest*/
+tmp/
+bootstrap.log
+environment.log
+regression.log

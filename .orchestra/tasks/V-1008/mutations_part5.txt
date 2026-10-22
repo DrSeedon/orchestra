@@ -1,0 +1,22 @@
+M1 no scope refusal
+3 failed, 61 passed in 9.96s
+M2 persistent ignored (always refuse empty)
+3 failed, 61 passed in 9.15s
+M3 send_message honours 'to'
+2 failed, 62 passed in 9.48s
+M4 every tool allowed
+2 failed, 62 passed in 10.70s
+M5 outbox not cleared on hub
+1 failed, 63 passed in 9.90s
+M6 outbox synced like a file
+3 failed, 61 passed in 9.30s
+M7 file_path/extra args forwarded
+1 failed, 63 passed in 9.56s
+M8 old one-line preamble (no link section)
+1 failed, 63 passed in 10.16s
+M9 role file ignored
+2 failed, 62 passed in 10.02s
+M10 session doesn't hand a bridge
+1 failed, 63 passed in 10.05s
+baseline
+64 passed in 9.97s

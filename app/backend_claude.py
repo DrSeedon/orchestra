@@ -683,6 +683,9 @@ def _oversized_ints(value, path: str = ""):
 
 
 class ClaudeBackend:
+    # Class-level default so disconnect() works on a backend built without __init__.
+    _append_prompt_path: Path | None = None
+
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
@@ -745,6 +748,7 @@ class ClaudeBackend:
             + "-" + uuid.uuid4().hex[:8]
         )
         self._mcp_config_path: Path | None = None
+        self._append_prompt_path: Path | None = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -1071,6 +1075,46 @@ class ClaudeBackend:
         self._mcp_config_path = path
         return path
 
+    def _set_appended_system_prompt(self, options, text: str) -> None:
+        """Deliver the appended system prompt through a file, never through argv.
+
+        The SDK turns preset ``append`` into ONE argv value, and Linux caps a single argument
+        at MAX_ARG_STRLEN (131072 bytes; Cyrillic costs 2 bytes per character), so a long
+        memory plus handoff summary failed the start with ``[Errno 7] Argument list too
+        long`` (V-1021). The preset therefore carries no ``append``; the text goes via
+        ``--append-system-prompt-file``. The file is rewritten on every connect.
+        """
+        root = Path.home() / ".orchestra" / "system-prompts"
+        root.mkdir(parents=True, exist_ok=True)
+        os.chmod(root, 0o700)
+        path = root / f"{self._mcp_config_key}.md"
+        tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            os.chmod(tmp, 0o600)
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+        self._append_prompt_path = path
+        options.system_prompt = {"type": "preset", "preset": "claude_code"}
+        options.extra_args = {
+            **(options.extra_args or {}), "append-system-prompt-file": str(path),
+        }
+
+    def _remove_append_prompt(self) -> None:
+        if self._append_prompt_path is None:
+            return
+        try:
+            self._append_prompt_path.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning(
+                "could not remove system prompt file %s: %s", self._append_prompt_path, exc,
+            )
+        self._append_prompt_path = None
+
     def _remove_mcp_config(self) -> None:
         if self._mcp_config_path is None:
             return
@@ -1144,15 +1188,13 @@ class ClaudeBackend:
         if self._history_import:
             options.resume = self._history_import.session_id
             options.session_store = ClaudeLogSessionStore(self._history_import)
-            options.system_prompt = {
-                "type": "preset",
-                "preset": "claude_code",
-                "append": f"{self.system_prompt}\n\n{HISTORICAL_TOOL_INSTRUCTION}",
-            }
+            self._set_appended_system_prompt(
+                options, f"{self.system_prompt}\n\n{HISTORICAL_TOOL_INSTRUCTION}",
+            )
         elif resume_id:
             options.resume = resume_id
         else:
-            options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
+            self._set_appended_system_prompt(options, self.system_prompt)
         # MCP merge order: user < scope < instance — more specific wins.
         # Instance (Orchestra's own server) always overrides to prevent hijacking.
         merged_mcp = {
@@ -1377,6 +1419,7 @@ class ClaudeBackend:
             # Владелец жизненного цикла конфига — сам бэкенд: файл обязан жить
             # весь коннект и удаляться даже при ошибке SDK disconnect.
             self._remove_mcp_config()
+            self._remove_append_prompt()
 
     async def context_usage(self) -> dict | None:
         if not self._client:

@@ -92,7 +92,7 @@ class ChangeScopeRequest(BaseModel):
 async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {
         "currency_symbol": os.getenv("CURRENCY_SYMBOL", "₽"),
-        "hide_thinking": is_auth_enabled(),
+        "hide_thinking": not is_owner_mode(),
         "is_auth_enabled": is_auth_enabled(),
         "is_owner_mode": is_owner_mode(),
         "client_name": os.getenv("CLIENT_NAME", "Client"),
@@ -1452,6 +1452,16 @@ async def get_usage():
     return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
 
 
+@router.get("/api/usage/hub-pool")
+async def get_usage_hub_pool():
+    """Remaining capacity of the MultiCode hub pool (redacted; see app/hub_pool.py)."""
+    if not is_owner_mode():
+        raise HTTPException(status_code=404, detail="not found")
+    from app.hub_pool import get_hub_pool
+
+    return await get_hub_pool()
+
+
 @router.get("/api/usage/card")
 async def get_usage_card():
     """Render the canonical `/limits` PNG for trusted local clients.
@@ -1992,6 +2002,8 @@ async def build_quota_map() -> dict:
                 "release_status": decision.release_status,
                 "release_in_seconds": decision.release_in_seconds,
                 "reason": decision.reason,
+                "reason_key": decision.reason_key,
+                "reason_params": dict(decision.reason_params or {}),
                 "models": [],
             },
         )
@@ -1999,6 +2011,8 @@ async def build_quota_map() -> dict:
         if decision.state == "blocked":
             entry["blocked"] = True
             entry["reason"] = decision.reason
+            entry["reason_key"] = decision.reason_key
+            entry["reason_params"] = dict(decision.reason_params or {})
         entry["release_status"] = decision.release_status
         entry["release_in_seconds"] = decision.release_in_seconds
         entry["models"].append(decision.model)

@@ -5,7 +5,11 @@
 // на каждом кадре. 200 узлов ≈ 44 000 px при той же странице входа в 100 сообщений;
 // старшее уходит из DOM, но не из истории — оно возвращается кнопкой «загрузить ещё».
 const MAX_CHAT_NODES = 200;
-function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
+function fmtCost(v) {
+    v = Number(v) || 0;
+    const digits = v !== 0 && v < 0.01 ? 4 : 2;
+    return MODEL_COST_CURRENCY + v.toLocaleString(orchLocale(), {minimumFractionDigits: digits, maximumFractionDigits: digits});
+}
 function _modelMeta(id) {
     return _MODELS.find(m => m.id === id) || null;
 }
@@ -591,7 +595,7 @@ function _tagChatTimelineNode(node, type, ts) {
     let time = '';
     if (ts) {
         const date = new Date(ts);
-        if (!Number.isNaN(date.getTime())) time = `, ${date.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}`;
+        if (!Number.isNaN(date.getTime())) time = `, ${date.toLocaleTimeString(orchLocale(), {hour: '2-digit', minute: '2-digit', hour12: false})}`;
     }
     node.dataset.chatTimelineType = type;
     node.dataset.chatNavBaseKind = kind;
@@ -1831,10 +1835,12 @@ async function createOrchestrator() {
     const role = 'orchestrator';
     const errEl = $('#orch-error');
     if (!name || !cwd) { errEl.textContent = T('Name and project path required'); errEl.classList.remove('hidden'); return; }
+    const modelReason = _modelReasonForSelection(model);
+    if (modelReason === null) return;
     const btn = $('#create-orch-btn');
     btn.disabled = true; btn.textContent = T('Creating...'); errEl.classList.add('hidden');
     try {
-        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true }) });
+        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true, model_reason: modelReason }) });
         closeModal(); $('#orch-name').value = ''; $('#orch-cwd').value = '';
         currentScope = null;
         await loadOrchestrators();
@@ -2828,6 +2834,23 @@ function _showHistoryTransfer(transfer) {
     addChatEntry(rendered.type, rendered.text);
 }
 
+function _modelReasonForSelection(model) {
+    if (!model.startsWith('hub-claude-')) return '';
+    const reason = window.prompt(T('Why does this task need Claude?'));
+    return reason?.trim() || null;
+}
+
+function _modelReasonBadge(reason) {
+    if (!reason) return null;
+    const span = document.createElement('span');
+    span.className = 'model-reason';
+    span.dataset.i18nSkip = '1';
+    span.style.cssText = 'font-size:10px;color:var(--ink-dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    span.textContent = reason;
+    span.title = `${T('Model reason')}: ${reason}`;
+    return span;
+}
+
 async function _showModelPicker(agentName, currentModel, anchor) {
     const existing = document.getElementById('model-picker-dd');
     if (existing) { existing.remove(); return; }
@@ -2849,7 +2872,11 @@ async function _showModelPicker(agentName, currentModel, anchor) {
                 e.stopPropagation();
                 dd.remove();
                 try {
-                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
+                    const body = { model: m.id, scope: currentScope };
+                    const reason = _modelReasonForSelection(m.id);
+                    if (reason === null) return;
+                    if (reason) body.model_reason = reason;
+                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
                     if (resp && !resp.error) {
                         $('#ai-model').textContent = m.id;
                         _showHistoryTransfer(resp.history_transfer);
@@ -2915,6 +2942,12 @@ function updateAgentInfo(session) {
     const modelEl = $('#ai-model');
     modelEl.textContent = session.model || '-';
     modelEl.style.color = session.model ? modelColorVar(session.model) : '';
+    document.getElementById('ai-model-reason')?.remove();
+    const modelReason = _modelReasonBadge(session.model_reason);
+    if (modelReason) {
+        modelReason.id = 'ai-model-reason';
+        modelEl.after(modelReason);
+    }
     let changeBtn = $('#ai-model-change');
     if (!changeBtn) {
         changeBtn = document.createElement('span');
@@ -2932,7 +2965,7 @@ function updateAgentInfo(session) {
     $('#ai-role').textContent = T(session.role || 'worker');
     // Cost is virtual (API-equivalent), not real spend — subscription model
     $('#ai-cost').textContent = fmtCost(session.cost_usd);
-    $('#ai-cost').title = `${MODEL_COST_CURRENCY}${(session.cost_usd || 0).toFixed(4)}`
+    $('#ai-cost').title = `${MODEL_COST_CURRENCY}${(session.cost_usd || 0).toLocaleString(orchLocale(), {minimumFractionDigits: 4, maximumFractionDigits: 4})}`
         + T(' (CLI cost, includes cache)');
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
@@ -3256,6 +3289,9 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     meta.appendChild(modelBadge(s.model || ''));
+    const modelReason = _modelReasonBadge(s.model_reason);
+    if (modelReason) meta.appendChild(modelReason);
+    if (isHubModel(s.model)) meta.appendChild(hubBadge());
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
         costSpan.className = 'text-green-400';
@@ -3272,7 +3308,7 @@ function createAgentItem(s) {
         mark.style.color = '#f59e0b';
         const at = s.limit_wake.wake_at ? new Date(s.limit_wake.wake_at) : null;
         mark.textContent = at && !Number.isNaN(at.getTime())
-            ? T('⏳ limit, wakes ~{time}', {time: at.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})})
+            ? T('⏳ limit, wakes ~{time}', {time: at.toLocaleTimeString(orchLocale(), {hour: '2-digit', minute: '2-digit', hour12: false})})
             : s.limit_wake.label;
         mark.title = s.limit_wake.label;
         mark.dataset.i18nSkip = '1';
@@ -3627,7 +3663,7 @@ async function refreshSessions() {
 
 function _renderSessionsAndStats(sessions, stats) {
     $('#stats-line').innerHTML = T('{active} active · {total} total', {active: stats.active, total: stats.total_sessions})
-        + `<br><span style="color:var(--ink-dim);font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd}${T(' (w/o cache)')}</span>`;
+        + `<br><span style="color:var(--ink-dim);font-size:10px">${MODEL_COST_CURRENCY}${Number(stats.total_cost_usd).toLocaleString(orchLocale(), {maximumFractionDigits: 20})}${T(' (w/o cache)')}</span>`;
     renderAgentList(sessions);
 }
 
@@ -3967,7 +4003,7 @@ function toggleMobileInfoPanel(open) {
 function _infoTime(value) {
     if (!value) return '';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString(orchLocale(), {hour: '2-digit', minute: '2-digit', hour12: false});
 }
 
 let _infoChecklistTimer = null;
@@ -4011,7 +4047,7 @@ function _checklistCardHtml(session) {
         const label = item.done ? T('Done') : item.current ? T('Current step') : T('Remaining');
         const estimate = item.estimate_minutes == null
             ? T('No estimate')
-            : `<span class="info-check-estimate" data-estimate-minutes="${Number(item.estimate_minutes)}">${T('Estimate')}: ${new Intl.NumberFormat(undefined, {maximumFractionDigits: 1}).format(item.estimate_minutes)} ${T('min')}</span>`;
+            : `<span class="info-check-estimate" data-estimate-minutes="${Number(item.estimate_minutes)}">${T('Estimate')}: ${new Intl.NumberFormat(orchLocale(), {maximumFractionDigits: 1}).format(item.estimate_minutes)} ${T('min')}</span>`;
         const activeSince = Number.isFinite(Number(item.active_since)) && item.active_since != null
             ? ` data-active-since="${Number(item.active_since)}"` : '';
         const actual = item.actual_seconds == null
@@ -4046,7 +4082,7 @@ function _cacheWarmthHtml(session, usage) {
         const ageMinutes = (Date.now() - ts.getTime()) / 60000;
         tier = _cacheWarmthTier(ageMinutes, pin);
         const ageLabel = Number.isFinite(ageMinutes) && ageMinutes >= 0
-            ? T('{n} min ago', {n: new Intl.NumberFormat(undefined, {maximumFractionDigits: 0}).format(ageMinutes)})
+            ? T('{n} min ago', {n: new Intl.NumberFormat(orchLocale(), {maximumFractionDigits: 0}).format(ageMinutes)})
             : T('time unavailable');
         if (tier === 'provider-pin') {
             state = T('Manual provider pin configured — OpenRouter sticky routing is not applied. Cache state is not inferred from these boundaries.');
@@ -4059,14 +4095,14 @@ function _cacheWarmthHtml(session, usage) {
         }
         const cacheTotal = Number(turn.input_tokens || 0) + Number(turn.cache_read_tokens || 0);
         const cacheShare = cacheTotal > 0
-            ? `${new Intl.NumberFormat(undefined, {style: 'percent', maximumFractionDigits: 1}).format(Number(turn.cache_read_tokens || 0) / cacheTotal)}`
+            ? `${new Intl.NumberFormat(orchLocale(), {style: 'percent', maximumFractionDigits: 1}).format(Number(turn.cache_read_tokens || 0) / cacheTotal)}`
             : T('not measurable');
         const records = Array.isArray(turn.provider_source_records) ? turn.provider_source_records : [];
         const response = records.at(-1)?.response || {};
         const actualProvider = response.provider_name || response.provider || T('unknown');
         const actualModel = response.model || turn.model || model || T('unknown');
         const cost = turn.cost_unaccounted || turn.cost_usd == null ? T('unknown') : fmtCost(turn.cost_usd);
-        details = `<div>${T('Last successful turn')}: ${escHtml(ageLabel)} · ${escHtml(ts.toLocaleString())}</div>
+        details = `<div>${T('Last successful turn')}: ${escHtml(ageLabel)} · ${escHtml(ts.toLocaleString(orchLocale()))}</div>
             <div>${T('Provider / model')}: ${escHtml(actualProvider)} · ${escHtml(actualModel)}</div>
             <div>${T('Measured cache share')}: ${escHtml(cacheShare)} · ${T('Turn cost')}: ${escHtml(cost)}</div>`;
     }
@@ -4189,8 +4225,8 @@ async function _renderClientModal() {
             html += `<div class="text-[10px] text-slate-500 mb-2 uppercase tracking-wider font-bold">${T('Models ({n})', {n: models.length})}</div>`;
             for (const m of models) {
                 const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k` : '';
-                const priceIn = m.price_input != null ? `${MODEL_COST_CURRENCY}${m.price_input}/M` : '';
-                const priceOut = m.price_output != null ? `${MODEL_COST_CURRENCY}${m.price_output}/M` : '';
+                const priceIn = m.price_input != null ? `${MODEL_COST_CURRENCY}${Number(m.price_input).toLocaleString(orchLocale(), {maximumFractionDigits: 20})}/M` : '';
+                const priceOut = m.price_output != null ? `${MODEL_COST_CURRENCY}${Number(m.price_output).toLocaleString(orchLocale(), {maximumFractionDigits: 20})}/M` : '';
                 html += `<div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-2">
                     <div class="flex items-center justify-between">
                         <span class="font-medium text-slate-200 text-xs">${escHtml(m.name)}</span>
@@ -4860,7 +4896,7 @@ function _catalogMatches(m) {
   return true;
 }
 
-function _fmtPrice(p) { return p == null ? '—' : (p === 0 ? T('free') : `$${p}/M`); }
+function _fmtPrice(p) { return p == null ? '—' : (p === 0 ? T('free') : `${Number(p).toLocaleString(orchLocale(), {maximumFractionDigits: 20})}/M`); }
 function _catalogIsFree(m) {
   return typeof m.is_free === 'boolean' ? m.is_free : String(m.id || '').endsWith(':free');
 }

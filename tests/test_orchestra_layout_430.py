@@ -401,7 +401,7 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
         assert not (ROOT / path).exists(), f"T3 old root remains: {path}"
 
     receipt_path = ROOT / ".orchestra" / "tasks" / "430" / "move-receipt.json"
-    receipt = json.loads(subprocess.check_output(["git", "show", "9a1735f1695519a445f393802c2154bd37337e38:.orchestra/tasks/430/move-receipt.json"], cwd=ROOT))
+    receipt = json.loads(subprocess.check_output(["git", "show", "68d32a4b4a6ad0130d08894791f68c5e84152c2c:.orchestra/tasks/430/move-receipt.json"], cwd=ROOT))
     assert receipt["mismatches"] == []
     assert receipt["fields"] == ["mode", "lines", "bytes", "sha256"]
 

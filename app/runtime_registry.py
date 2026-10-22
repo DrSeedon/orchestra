@@ -71,6 +71,9 @@ class BackendBuildContext:
     history_import: object | None = None
     validation_profile: bool = False
     config_dir_override: str = ""
+    owned_dirs: tuple = ()
+    hub_bridge: object | None = None            # hub_outbox.HubBridge, only read by the hub runtime
+    owned_dirs_source: Callable[[], object] | None = None   # live owned_dirs for backends that outlive a turn
 
 
 @dataclass(frozen=True)
@@ -335,6 +338,12 @@ def _hub_factory(context: BackendBuildContext) -> BackendLike:
         system_prompt=context.system_prompt,
         resume_session_id=context.resume_session_id,
         effort=context.effort,
+        paths=list(context.owned_dirs),
+        scope=context.scope,
+        paths_source=context.owned_dirs_source,
+        bridge=context.hub_bridge,
+        pipeline=context.pipeline,
+        role=context.role,
     )
 
 
@@ -402,8 +411,8 @@ register_runtime(RuntimeDefinition(
         mid_turn_inject=True,
         reconnect=True,
         hibernate=False,
-        resume_across_models=False,
-        model_retarget=False,
+        resume_across_models=True,
+        model_retarget=True,
         subagents=False,
     ),
     factory=_hub_factory,

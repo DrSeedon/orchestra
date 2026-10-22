@@ -23,12 +23,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-HUB_KEY = "/home/kesha/.ssh/multicode_hub_vps"
-HUB = "<hub-user>@<hub-host>"
-HUB_BASE_DIR = "/home/<hub-user>/.t3"
-BASE = "http://127.0.0.1:14606"
+ENV_FILE = Path("/home/kesha/orchestra/.env")
+REQUIRED_ENV = ("MULTICODE_HUB_SSH", "MULTICODE_HUB_SSH_KEY", "MULTICODE_HUB_BASE_DIR",
+                "MULTICODE_MCP_BASE", "MULTICODE_MCP_TOKEN_FILE")
+HUB = HUB_KEY = HUB_BASE_DIR = BASE = ""
+TUNNEL_PORT = 0
 CALLBACK_PORT = 18765
-TOKEN_PATH = Path("/home/kesha/orchestra/data/secrets/multicode-oauth.token")
+TOKEN_PATH = Path()
 SCOPES = ("orchestration:read", "orchestration:operate", "settings:write", "source-control:write")
 CLIENT_NAME = "Orchestra VPS"
 PROTOCOL_VERSION = "2025-06-18"
@@ -76,6 +77,32 @@ def token_claims(token: str) -> dict[str, Any]:
     if not isinstance(claims, dict) or claims.get("sub") != "mcp-client" or not claims.get("sid"):
         raise RuntimeError("Existing token is not an MCP client session")
     return claims
+
+
+def configure(env_file: Path = ENV_FILE) -> None:
+    global HUB, HUB_KEY, HUB_BASE_DIR, BASE, TOKEN_PATH, TUNNEL_PORT
+    if any(not os.environ.get(name) for name in REQUIRED_ENV):
+        from dotenv import load_dotenv
+        load_dotenv(env_file)
+    for name in REQUIRED_ENV:
+        if not os.environ.get(name):
+            raise RuntimeError(f"missing environment variable {name}")
+    HUB = os.environ["MULTICODE_HUB_SSH"]
+    HUB_KEY = os.environ["MULTICODE_HUB_SSH_KEY"]
+    HUB_BASE_DIR = os.environ["MULTICODE_HUB_BASE_DIR"]
+    BASE = os.environ["MULTICODE_MCP_BASE"].rstrip("/")
+    TOKEN_PATH = Path(os.environ["MULTICODE_MCP_TOKEN_FILE"])
+    TUNNEL_PORT = urllib.parse.urlparse(BASE).port
+    if not TUNNEL_PORT:
+        raise RuntimeError("MULTICODE_MCP_BASE must include a port")
+
+
+def hub_endpoint_up() -> bool:
+    try:
+        request_json(f"{BASE}/.well-known/oauth-authorization-server", timeout=2)
+        return True
+    except RuntimeError:
+        return False
 
 
 def renewal_decision(expires_at_ms: int, threshold_days: int,
@@ -300,6 +327,7 @@ def main(argv: list[str] | None = None) -> int:
             raise
         raise RuntimeError("invalid command-line arguments") from None
 
+    configure()
     old_token = TOKEN_PATH.read_text(encoding="ascii").strip()
     old_claims = token_claims(old_token)
     if options.if_expiring_within_days is not None:
@@ -319,9 +347,9 @@ def main(argv: list[str] | None = None) -> int:
     if not any(session.get("sessionId") == old_session_id for session in sessions):
         raise RuntimeError("Existing token session is not active on the Hub; refusing to renew")
 
-    tunnel = subprocess.Popen(["ssh", "-i", HUB_KEY, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
+    tunnel = None if hub_endpoint_up() else subprocess.Popen(["ssh", "-i", HUB_KEY, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
                                "-o", "ExitOnForwardFailure=yes", "-o", "ServerAliveInterval=15", "-N",
-                               "-L", "14606:127.0.0.1:14606", HUB],
+                               "-L", f"{TUNNEL_PORT}:127.0.0.1:{TUNNEL_PORT}", HUB],
                               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     pairing_id: str | None = None
     new_session_id: str | None = None
@@ -329,13 +357,11 @@ def main(argv: list[str] | None = None) -> int:
     callback_server: CallbackServer | None = None
     try:
         for _ in range(30):
-            if tunnel.poll() is not None:
+            if tunnel is not None and tunnel.poll() is not None:
                 raise RuntimeError("Hub SSH tunnel exited before connecting")
-            try:
-                request_json(f"{BASE}/.well-known/oauth-authorization-server", timeout=2)
+            if hub_endpoint_up():
                 break
-            except RuntimeError:
-                time.sleep(1)
+            time.sleep(1)
         else:
             raise RuntimeError("Hub OAuth endpoint did not become available through the SSH tunnel")
 
@@ -449,11 +475,12 @@ def main(argv: list[str] | None = None) -> int:
                 ssh_run("t3", "auth", "pairing", "revoke", "--base-dir", HUB_BASE_DIR, pairing_id)
             except Exception:
                 pass
-        tunnel.terminate()
-        try:
-            tunnel.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            tunnel.kill()
+        if tunnel is not None:
+            tunnel.terminate()
+            try:
+                tunnel.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                tunnel.kill()
 
 
 if __name__ == "__main__":

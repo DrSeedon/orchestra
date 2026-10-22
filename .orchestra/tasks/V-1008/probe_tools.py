@@ -13,5 +13,5 @@ async def main():
         if not want:
             print(sorted(names))
         for w in want:
-            print(json.dumps(names[w], indent=1)[:3500])
+            print(json.dumps(names[w], indent=1)[:int(__import__("os").environ.get("N","3500"))])
 asyncio.run(main())

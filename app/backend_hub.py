@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import re
 import subprocess
 import tarfile
 import time
@@ -20,6 +21,8 @@ from typing import AsyncIterator, Optional
 from uuid import uuid4
 
 from app import hub_workspace as hw
+from app.hub_activity import HubActivityStream
+from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox
 from app.events import AgentEvent
 from app.multicode_client import MultiCodeClient, MultiCodeError, _last_assistant_text
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
@@ -36,17 +39,60 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
     "hub-grok-4.7": ("grok", "grok-4.7"),
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
-WAIT_SLICE_MS = 20_000
+WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
 
-PREAMBLE = (
+PREAMBLE_BASE = (
     "You are a worker on a remote machine. Your current directory is a private copy of a "
     "repository (no .git, no remote). Edit files in place with your normal tools; when you "
     "finish, the platform copies every changed file back and commits it, so do not run git "
     "push/clone/commit, do not look for credentials or tokens (there are none), and do not "
     "create files outside this directory. Run tests that work offline. End with a concise "
     "report: what you changed, what you ran and its result, anything unfinished.\n\n"
-    "Task:\n"
 )
+
+
+OUTBOX_SECTION = (
+    "<orchestra-link>\n"
+    "## Reaching Orchestra (optional)\n"
+    "You have no Orchestra tools. To reach it, append one JSON object per line to "
+    f"`{OUTBOX_NAME}` in the root of this directory; the platform runs the lines when your turn "
+    "ends. It is not part of your result and no answer arrives during this turn. Only these exist:\n"
+    "{send_line}"
+    '- `{{"tool":"update_progress","args":{{"percent":40,"status":"short phase description"}}}}`\n'
+    '- `{{"tool":"update_checklist","args":{{"items":["step"],"completed":[],"current":0,'
+    '"estimates_minutes":[5]}}}}` (each new or changed step needs a positive estimate in minutes)\n'
+    "Nothing else is available from here: the task text already holds everything you need, and "
+    "any other line in the file is dropped.\n"
+    "</orchestra-link>\n\n"
+)
+
+
+def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
+    """The trimmed prompt a hub model gets: role, task rules, the outbox tools, the report
+    contract. It leaves out everything that assumes native MCP tools or the full pipeline."""
+    from app.pipeline import DEFAULT_PIPELINE, prompt_path
+    from app.prompting import safe_format_prompt
+
+    parent = getattr(who, "parent_name", "") or ""
+    try:
+        role = prompt_path(getattr(who, "pipeline", "") or DEFAULT_PIPELINE, "hub/worker.md").read_text()
+    except OSError:
+        role = ""
+    if role:
+        role = safe_format_prompt(
+            role, worker_name=getattr(who, "name", "") or "worker",
+            orchestrator_name=parent or "orchestrator", scope=getattr(who, "scope", ""),
+            branch=getattr(who, "branch", "") or "your branch").rstrip() + "\n\n"
+    else:
+        role = PREAMBLE_BASE
+    where = (f"Put any notes, reports or other task artifacts under .orchestra/tasks/{task_ref}/ "
+             "(create it); nowhere else outside the source tree.\n\n") if task_ref else ""
+    link = ""
+    if has_link:
+        send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
+                f'{parent} only; any "to" is ignored\n') if parent else ""
+        link = OUTBOX_SECTION.replace("{send_line}", send).replace("{{", "{").replace("}}", "}")
+    return f"{role}{where}{link}Task:\n"
 
 
 _slots: asyncio.Semaphore | None = None
@@ -73,6 +119,61 @@ def hub_configured() -> str | None:
     return ("hub workers are not configured; set " + ", ".join(missing)) if missing else None
 
 
+_HISTORY = re.compile(r"(<prior-conversation>)(.*?)(</prior-conversation>)", re.S)
+
+
+class HubProviderLimit(hw.HubWorkspaceError):
+    """Provider refused this turn because a usage or rate limit was reached."""
+
+
+def _provider_limit(value: object, *, failed: bool = True) -> str | None:
+    """Extract a safe limit category, without forwarding provider account identifiers."""
+    if isinstance(value, dict):
+        for key in ("error", "errorMessage", "lastError", "failureReason", "message", "code", "status"):
+            found = _provider_limit(value.get(key), failed=failed)
+            if found:
+                return found
+        return None
+    if not isinstance(value, str):
+        return None
+    if not failed and not re.search(
+        r"^\s*(?:error[: ]|rate[_ -]?limit|usage[_ -]?limit|too many requests|"
+        r"you(?:'ve| have) (?:hit|reached)|(?:weekly|5h|5-hour) limit|"
+        r"quota (?:exceeded|exhausted))", value, re.I,
+    ):
+        return None
+    if re.search(r"context[_ -]?(?:length[_ -]?)?limit|token[_ -]?limit|max[_ -]?turns", value, re.I):
+        return None
+    patterns = (
+        (r"rate[_ -]?limit|too many requests|\b429\b", "rate limit"),
+        (r"weekly.{0,30}limit|limit.{0,30}weekly", "Weekly usage limit"),
+        (r"(?:5h|5.hour|five.hour).{0,30}limit", "5h usage limit"),
+        (r"usage[_ -]?(?:limit|cap)|quota[_ -]?(?:exceeded|exhausted)|"
+         r"insufficient_quota|limit[_ -]?(?:reached|exceeded)|"
+         r"you(?:'ve| have) hit your limit", "usage limit"),
+    )
+    return next((label for pattern, label in patterns if re.search(pattern, value, re.I)), None)
+
+
+def _workspace_lost(exc: Exception) -> bool:
+    """The hub says the project it was asked to start in does not exist (any more)."""
+    text = str(exc).lower()
+    return "orchestration_error" in text or "not_found" in text or "not found" in text
+
+
+def _redact_history(prompt: str, known: list[str]) -> str:
+    """The conversation carried over from another runtime is masked, never refused; the rest of
+    the prompt is still checked strictly by the caller."""
+    return _HISTORY.sub(lambda m: m.group(1) + hw.redact_secrets(m.group(2), known) + m.group(3), prompt)
+
+
+def _relative(event: AgentEvent, remote_dir: str) -> AgentEvent:
+    """Show hub paths as worktree-relative ones: the chat is about the repo, not the hub's layout."""
+    if remote_dir and remote_dir in event.content:
+        event.content = event.content.replace(remote_dir + "/", "").replace(remote_dir, ".")
+    return event
+
+
 def _branch_task_ref(cwd: str) -> str:
     try:
         branch = subprocess.run(["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
@@ -86,13 +187,23 @@ def _branch_task_ref(cwd: str) -> str:
 class HubBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None, effort: str | None = None,
-                 paths: list[str] | None = None):
+                 paths: list[str] | None = None, scope: str = "", paths_source=None, bridge=None,
+                 pipeline: str = "", role: str = ""):
         if model not in HUB_MODELS:
             raise ValueError(f"unknown hub model '{model}'")
         self.model = model
+        self._effort = effort
+        self._pipeline = pipeline
+        self._role = role
+        self._effort_options: dict[tuple[str, str], tuple[str, tuple[str, ...]]] | None = None
         self.cwd = cwd
         self._resume = resume_session_id
         self._paths = paths
+        # Live owner of the worker's owned_dirs: they change between turns (set_worker_owned_dirs), and the
+        # upload must follow them. `paths` stays as the fixed value for a caller without such an owner.
+        self._paths_source = paths_source
+        self._bridge = bridge        # hub_outbox.HubBridge: the worker's identity and its outbox executor
+        self._scope = scope
         self._state: Optional[hw.WorkspaceState] = None
         self._mc: Optional[MultiCodeClient] = None
         self._ssh: Optional[hw.HubSsh] = None
@@ -102,6 +213,8 @@ class HubBackend:
         self._run_id: Optional[str] = None
         self._early_steer: list[str] = []
         self._turn_started: float | None = None
+        self._watch_status = ''
+        self._watch_limit: str | None = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -124,6 +237,34 @@ class HubBackend:
             self._mc = client
         return self._mc
 
+    async def _model_selection(self, mc: MultiCodeClient, model: str,
+                               effort: str | None) -> dict:
+        instance, hub_model = HUB_MODELS[model]
+        selection = {"instanceId": instance, "model": hub_model}
+        if effort is None:
+            return selection
+        if self._effort_options is None:
+            capabilities = await mc.tool_call("orchestrator_capabilities", {})
+            if not isinstance(capabilities, dict) or not isinstance(capabilities.get("providers"), list):
+                raise ValueError("hub capabilities contain no provider model options")
+            options = {}
+            for provider in capabilities["providers"]:
+                for advertised in provider.get("models", []):
+                    for option in advertised.get("options", []):
+                        # Codex/Grok use reasoningEffort; Claude advertises effort.
+                        if option.get("id") in ("reasoningEffort", "effort") and option.get("type") == "select":
+                            options[(provider["providerInstanceId"], advertised["id"])] = (
+                                option["id"], tuple(value["id"] for value in option.get("options", [])))
+                            break
+            self._effort_options = options
+        option_id, allowed = self._effort_options.get((instance, hub_model), ("reasoningEffort", ()))
+        if effort not in allowed:
+            raise ValueError(
+                f"hub model '{model}' does not support effort '{effort}'; "
+                f"allowed values: {', '.join(allowed) or '(none advertised)'}")
+        selection["options"] = {option_id: effort}
+        return selection
+
     async def send(self, message: str) -> None:
         if self._ssh is None:
             raise RuntimeError("HubBackend not connected")
@@ -142,6 +283,42 @@ class HubBackend:
             except MultiCodeError as exc:
                 logger.warning("hub steer failed, queuing instead: %s", exc)
         self._early_steer.append(message)
+
+    async def retarget_model(self, model: str) -> None:
+        """Switch the hub model of this worker: the workspace stays, and the live hub thread is
+        re-configured so its own history is kept. If the hub refuses (e.g. across providers), the
+        next turn opens a new thread and says so, instead of failing the switch."""
+        if model not in HUB_MODELS:
+            raise ValueError(f"unknown hub model '{model}'")
+        if self._turn_active:
+            raise RuntimeError("cannot retarget a hub worker while a turn is active")
+        from app.hub_pool import require_hub_capacity
+
+        await require_hub_capacity(model)
+        effort = self._effort
+        if self._pipeline and self._role:
+            from app.pipeline import get_role, resolve_effort
+            role = get_role(self._pipeline, self._role)
+            if role is not None:
+                effort = resolve_effort(role.effort, model, "hub")
+        state = self._state
+        mc = await self._client() if effort is not None or (state and state.thread_id) else None
+        # Validation errors must propagate, not trigger the new-thread fallback.
+        selection = await self._model_selection(mc, model, effort)
+        if state and state.thread_id:
+            try:
+                await mc.tool_call("t3_thread_configure", {
+                    "threadId": state.thread_id,
+                    "modelSelection": selection})
+            except MultiCodeError as exc:
+                logger.warning("hub thread re-configure refused (%s); next turn starts a new thread", exc)
+                state.thread_id = ""
+                state.save()
+                self._early_steer.append(
+                    "[Note: the model was changed and the earlier hub conversation is not available "
+                    "to you; the files in this directory contain the work done so far.]")
+        self.model = model
+        self._effort = effort
 
     async def interrupt(self) -> None:
         self._abort = True
@@ -183,8 +360,24 @@ class HubBackend:
             self._turn_active = False
             raise
         except (hw.HubWorkspaceError, MultiCodeError, ValueError, OSError) as exc:
-            ok, stop_reason, detail = False, "hub_error", str(exc)
-            yield AgentEvent("error", f"Hub worker turn failed: {detail}")
+            limit = str(exc) if isinstance(exc, HubProviderLimit) else _provider_limit(str(exc))
+            ok, stop_reason, detail = False, "hub_provider_limit" if limit else "hub_error", str(exc)
+            if limit:
+                from app.hub_pool import alternative_model, provider_for_model
+
+                detail = (f"Hub {provider_for_model(self.model) or 'provider'} {limit}; "
+                          f"use model='{alternative_model(self.model)}'")
+                if self._bridge is not None:
+                    try:
+                        report = await self._bridge.run([
+                            {"tool": "send_message", "args": {"message": detail}}])
+                        if report.dropped:
+                            detail += "; parent notification failed"
+                    except Exception:
+                        logger.exception("hub limit parent notification failed")
+                        detail += "; parent notification failed"
+            yield AgentEvent("error", f"Hub worker turn failed: {detail}",
+                             metadata={"hub_provider_limit": bool(limit)})
         finally:
             self._turn_active = False
         if self._abort:
@@ -192,93 +385,176 @@ class HubBackend:
         yield self._turn_end(ok, stop_reason, detail)
 
     async def _run_turn(self, message: str) -> AsyncIterator[AgentEvent]:
+        from app.hub_pool import require_hub_capacity
+        from app.quota_gate import QuotaGateError
+
+        try:
+            warning = await require_hub_capacity(self.model)
+        except QuotaGateError as exc:
+            raise hw.HubWorkspaceError(str(exc)) from exc
+        if warning:
+            yield AgentEvent("status", warning)
+        self._watch_limit = None
         mc = await self._client()
         ssh = self._ssh
         assert ssh is not None
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
-        fresh = state is None or not state.remote_dir
-        if fresh:
+        if state is not None and not state.path().exists():
+            # Released behind this backend's back (merge, task switch, sweep): the hub project and
+            # copy are gone, and saving this old record again would resurrect a dead workspace.
+            logger.info("hub workspace %s was released; starting a new one", state.ws_id)
+            state = self._state = None
+        if state is None or not state.remote_dir:
             state = hw.WorkspaceState(
-                ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="",
-                paths=list(self._paths or []))
+                ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="")
             state.remote_dir = await ssh.dir_for(state.ws_id)
             self._state = state
             state.save()   # before any hub write, so a crash leaves a record the sweep can release
-        plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known)
+        # A record exists from the first attempt on, but the workspace only from the first upload that
+        # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
+        fresh = not (state.uploaded or state.manifest)
+        state.paths = self._current_paths(state)
+        options = hw.project_options(self._scope)
+        hw.require_scope(state.paths, options)
+        plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
         yield AgentEvent("status", self._upload_note(fresh, plan))
         scratch = hw.local_scratch()
         try:
-            tar_path = scratch / "in.tar"
-            if fresh:
-                await asyncio.to_thread(hw.write_tar, root, sorted(plan.manifest), tar_path)
-                await ssh.put(state.remote_dir, tar_path, fresh=True)
-                state.manifest = dict(plan.manifest)
-                state.save()
-            else:
-                send, drop = hw.local_delta(root, plan, state.manifest)
-                if send:
-                    await asyncio.to_thread(hw.write_tar, root, send, tar_path)
-                    await ssh.put(state.remote_dir, tar_path, fresh=False)
-                await ssh.delete_files(state.remote_dir, drop)
-                for rel in send:
-                    state.manifest[rel] = plan.manifest[rel]
-                for rel in drop:
-                    state.manifest.pop(rel, None)
-                state.save()
-            if not state.project_id:
-                project = await mc.tool_call("t3_project_create", {
-                    "title": f"orchestra {state.ws_id}", "workspaceRoot": state.remote_dir})
-                state.project_id = project["id"] if isinstance(project, dict) else ""
-                if not state.project_id:
-                    raise hw.HubWorkspaceError("hub project registration returned no id")
-                state.save()
+            for note in await self._provision(mc, ssh, root, state, plan, options, fresh, scratch):
+                yield AgentEvent("status", note)
             prompt = self._prompt(message, first=not state.thread_id)
+            prompt = _redact_history(prompt, known)
             hw.assert_no_secret(prompt, known, "the task prompt")
             async with _turn_slots():
-                run_id = await self._start(mc, state, prompt)
+                try:
+                    run_id = await self._start(mc, state, prompt)
+                except MultiCodeError as exc:
+                    if not _workspace_lost(exc):
+                        raise
+                    # The hub project (or its copy) no longer exists: build the workspace again, once.
+                    logger.warning("hub refused to start in %s (%s); recreating the project and re-uploading",
+                                   state.ws_id, exc)
+                    yield AgentEvent("status", "hub: the project is gone on the hub; recreating it and "
+                                               "uploading again")
+                    first_prompt = prompt if prompt.startswith(self._preamble()) else self._preamble() + prompt
+                    state.project_id = state.thread_id = ""
+                    state.manifest, state.hub_made, state.uploaded = {}, [], False
+                    await ssh.remove(state.remote_dir)
+                    plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
+                    for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
+                        yield AgentEvent("status", note)
+                    run_id = await self._start(mc, state, first_prompt)
                 self._run_id = run_id
-                status = await self._wait(mc, state.thread_id, run_id)
+                stream = HubActivityStream(run_id, state.activity_pos or None)
+                async for event in self._watch(mc, state.thread_id, run_id, stream):
+                    yield _relative(event, state.remote_dir)
+                status = self._watch_status
                 reply = await self._read_reply(mc, state.thread_id, run_id)
+                for event in stream.finish(reply):
+                    yield _relative(event, state.remote_dir)
+                state.activity_pos = stream.cursor or 0
+                state.save()
             try:
                 sync = await self._sync_back(ssh, state, root, scratch)
             except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
                 sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
             text = reply or f"(hub thread ended with status {status} without a reply)"
             yield AgentEvent("text", f"{text}\n\n{sync}".strip())
+            limit = self._watch_limit or _provider_limit(reply, failed=status == "failed")
+            if limit:
+                raise HubProviderLimit(limit)
             if status in {"failed", "cancelled", "rolled_back"}:
                 raise hw.HubWorkspaceError(f"hub thread ended with status {status}")
         finally:
             self._run_id = None
             hw.rmtree_quiet(scratch)
 
+    async def _provision(self, mc: MultiCodeClient, ssh: hw.HubSsh, root: Path, state: hw.WorkspaceState,
+                         plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
+        """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
+        notes: list[str] = []
+        tar_path = scratch / "in.tar"
+        if fresh and options.persistent:
+            sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
+            notes.append(f"hub: persistent project copy reused ({sent} changed files sent, {dropped} removed)")
+            state.manifest = dict(plan.manifest)
+            state.uploaded = True
+            state.save()
+        elif fresh:
+            await asyncio.to_thread(hw.write_tar, root, sorted(plan.manifest), tar_path)
+            await ssh.put(state.remote_dir, tar_path)
+            state.manifest = dict(plan.manifest)
+            state.uploaded = True
+            state.save()
+        else:
+            send, drop = hw.local_delta(root, plan, state.manifest, keep=set(state.hub_made))
+            if send:
+                await asyncio.to_thread(hw.write_tar, root, send, tar_path)
+                await ssh.put(state.remote_dir, tar_path)
+            await ssh.delete_files(state.remote_dir, drop)
+            for rel in send:
+                state.manifest[rel] = plan.manifest[rel]
+            for rel in drop:
+                state.manifest.pop(rel, None)
+            state.save()
+        if not state.project_id:
+            project = await mc.tool_call("t3_project_create", {
+                "title": f"orchestra {state.ws_id}", "workspaceRoot": state.remote_dir})
+            state.project_id = project["id"] if isinstance(project, dict) else ""
+            if not state.project_id:
+                raise hw.HubWorkspaceError("hub project registration returned no id")
+            state.save()
+        return notes
+
+    def _current_paths(self, state: hw.WorkspaceState) -> list[str]:
+        if self._paths_source is not None:
+            return list(self._paths_source() or [])      # empty = ownership cleared = no narrowing
+        return list(self._paths or state.paths or [])
+
     def _upload_note(self, fresh: bool, plan: hw.UploadPlan) -> str:
         skipped = f", {len(plan.skipped)} excluded (credentials/limits)" if plan.skipped else ""
         kind = "uploading" if fresh else "refreshing"
-        return f"hub: {kind} {len(plan.manifest)} files ({plan.total_bytes // 1024} KiB){skipped}"
+        extra = ""
+        if plan.materialized:
+            extra += f"; added to the sparse checkout: {', '.join(plan.materialized)}"
+        if plan.new_paths:
+            extra += f"; new: {', '.join(plan.new_paths)}"
+        return f"hub: {kind} {len(plan.manifest)} files ({plan.total_bytes // 1024} KiB){skipped}{extra}"
 
     def _prompt(self, message: str, *, first: bool) -> str:
         parts = list(self._early_steer) + [message]
         self._early_steer = []
         body = "\n\n".join(parts)
-        return PREAMBLE + body if first else body
+        if not first:
+            return body
+        return self._preamble() + body
+
+    def _preamble(self) -> str:
+        task = _branch_task_ref(self.cwd).lstrip("#")
+        who = self._bridge.identity() if self._bridge is not None else None
+        return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
 
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+        # A reconstructed backend can resume a thread created with an older effort.
+        selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:
             try:
+                if self._effort is not None:
+                    await mc.tool_call("t3_thread_configure", {
+                        "threadId": state.thread_id, "modelSelection": selection})
                 sent = await mc.tool_call("t3_thread_send", {
                     "threadId": state.thread_id, "message": prompt, "mode": "auto"})
                 return sent["runId"]
             except (MultiCodeError, KeyError, TypeError) as exc:
                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
                 state.thread_id = ""
-                prompt = PREAMBLE + prompt
-        instance, hub_model = HUB_MODELS[self.model]
+                prompt = self._preamble() + prompt
         launched = await mc.tool_call("t3_thread_launch", {
             "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
             "runtimeMode": "full-access",
-            "modelSelection": {"instanceId": instance, "model": hub_model},
+            "modelSelection": selection,
         })
         if not isinstance(launched, dict) or not launched.get("threadId"):
             raise MultiCodeError("MultiCode launch returned no threadId")
@@ -289,51 +565,110 @@ class HubBackend:
             raise MultiCodeError("MultiCode launch returned no runId")
         return run_id
 
-    async def _wait(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
+    async def _watch(self, mc: MultiCodeClient, thread_id: str, run_id: str,
+                     stream: HubActivityStream) -> AsyncIterator[AgentEvent]:
+        """Wait for the run, translating new timeline items into events every poll slice."""
         limit = float(os.environ.get("MULTICODE_HUB_TURN_TIMEOUT_S", "14400"))
         deadline = time.monotonic() + limit
         while True:
             waited = await mc.tool_call("t3_thread_wait", {
                 "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
             status = waited.get("status", "") if isinstance(waited, dict) else ""
-            if not (isinstance(waited, dict) and waited.get("timedOut")) and status in TERMINAL:
-                return status
+            status_limit = _provider_limit(status)
+            terminal = not (isinstance(waited, dict) and waited.get("timedOut")) and (status in TERMINAL or status_limit is not None)
+            for event in await self._poll(mc, thread_id, stream):
+                yield event
+            if terminal:
+                self._watch_limit = self._watch_limit or status_limit or _provider_limit(waited)
+                self._watch_status = status
+                return
             if self._abort:
-                return "interrupted"
+                self._watch_status = "interrupted"
+                return
             if time.monotonic() > deadline:
                 with contextlib.suppress(Exception):
                     await mc.tool_call("t3_thread_interrupt", {"threadId": thread_id})
                 raise MultiCodeError("hub thread exceeded the turn time limit")
 
+    async def _poll(self, mc: MultiCodeClient, thread_id: str, stream: HubActivityStream) -> list[AgentEvent]:
+        """New timeline items since the cursor. A failed poll only loses live detail, never the turn."""
+        events: list[AgentEvent] = []
+        try:
+            for _ in range(20):
+                args = {"threadId": thread_id, "view": "activity", "limit": 100, "maxCharsPerItem": 6000}
+                if stream.cursor is not None:
+                    args["afterPosition"] = stream.cursor
+                page = await mc.tool_call("t3_thread_read", args)
+                items = page.get("items", []) if isinstance(page, dict) else []
+                events.extend(stream.feed(items))
+                if not (isinstance(page, dict) and page.get("hasMore")) or not items:
+                    break
+        except MultiCodeError as exc:
+            logger.warning("hub activity poll failed: %s", exc)
+        return events
+
     async def _read_reply(self, mc: MultiCodeClient, thread_id: str, run_id: str) -> str:
         read = await mc.tool_call("t3_thread_read", {
             "threadId": thread_id, "view": "messages", "limit": 100})
+        if isinstance(read, dict):
+            for run in read.get("runs") or []:
+                if isinstance(run, dict) and (run.get("id") or run.get("runId")) == run_id:
+                    self._watch_limit = self._watch_limit or _provider_limit(run)
         return _last_assistant_text(read, run_id) or ""
 
     async def _sync_back(self, ssh: hw.HubSsh, state: hw.WorkspaceState, root: Path,
                          scratch: Path) -> str:
         out = scratch / "out.tar"
         await ssh.get(state.remote_dir, out)
+        before = dict(state.manifest)
         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
         state.manifest = result.manifest
+        state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
+                                                         if before.get(r) != d}) & set(result.manifest))
         state.turns += 1
-        commit = ""
+        outbox_line = await self._run_outbox(ssh, state, result.outbox)
+        commit, unstaged = "", []
         if result.changed or result.deleted:
             message = f"{_branch_task_ref(self.cwd)}: hub worker turn {state.turns} ({self.model})"
             try:
-                commit = await asyncio.to_thread(
+                commit, unstaged = await asyncio.to_thread(
                     hw.commit_sync, root, result.changed, result.deleted, message)
             except (hw.HubWorkspaceError, subprocess.SubprocessError) as exc:
                 commit = f"NOT COMMITTED ({exc})"
         state.save()
         lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
                  + (f", commit {commit}" if commit else "")]
+        if outbox_line:
+            lines.append(outbox_line)
+        if unstaged:
+            lines.append("left uncommitted in the worktree (git refused them): "
+                         + "; ".join(f"{p} ({why})" for p, why in unstaged[:20]))
         if result.conflicts:
             lines.append("conflicts (both sides changed, hub copy NOT applied): "
                          + ", ".join(result.conflicts[:20]))
         if result.rejected:
             lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
         return "\n".join(lines)
+
+    async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
+        """Run what the hub agent queued for Orchestra, then empty the file on the hub."""
+        if not data.strip():
+            return ""
+        entries, dropped = parse_outbox(data)
+        report = OutboxReport(dropped=dropped)
+        try:
+            await ssh.delete_files(state.remote_dir, [OUTBOX_NAME])   # each entry runs at most once
+        except hw.HubWorkspaceError as exc:
+            report.dropped.append(f"outbox not cleared on the hub, entries skipped: {exc}")
+            entries = []
+        if entries and self._bridge is None:
+            report.dropped.append(f"{len(entries)} entries: this worker has no Orchestra link")
+        elif entries:
+            ran = await self._bridge.run(entries)
+            report.done, report.dropped = ran.done, report.dropped + ran.dropped
+        for reason in report.dropped:
+            logger.warning("hub outbox of %s: dropped %s", state.ws_id, reason)
+        return report.summary()
 
     # ── accounting ──
 

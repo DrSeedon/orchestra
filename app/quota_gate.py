@@ -793,6 +793,11 @@ class QuotaDecision:
     release_status: str = "open"
     release_in_seconds: float | None = None
     override_seconds_left: float = 0.0
+    # Стабильный машинный код причины + уже отформатированные подстановки: панель
+    # переводит их через i18n.js, а `reason` остаётся готовой английской строкой для
+    # остальных потребителей (ошибки 429, MCP, логи).
+    reason_key: str = "unknown"
+    reason_params: Mapping[str, str] | None = None
 
     @property
     def allowed(self) -> bool:
@@ -817,6 +822,8 @@ class QuotaDecision:
             "reset_at": self.reset_at,
             "window_starts_at": self.window_starts_at,
             "reason": self.reason,
+            "reason_key": self.reason_key,
+            "reason_params": dict(self.reason_params or {}),
             "release_status": self.release_status,
             "release_in_seconds": self.release_in_seconds,
             "override_seconds_left": self.override_seconds_left,
@@ -840,6 +847,9 @@ class QuotaGateError(RuntimeError):
             hint = hub_alternative_hint(getattr(decision, "model", None))
         except Exception:   # a routing hint must never turn a refusal into a crash
             hint = ""
+        if decision.provider.startswith("hub_"):
+            super().__init__(decision.reason)
+            return
         super().__init__(
             f"New worker turn blocked: {decision.provider_label} quota is "
             f"{decision.utilization:g}% — {decision.reason}. {hint}".rstrip()
@@ -1032,6 +1042,7 @@ def evaluate_worker_admission(
         lane: str | None = None,
         observed_at: float | None = None,
         utilization: float | None = None,
+        reason_key: str = "unknown",
     ) -> QuotaDecision:
         return QuotaDecision(
             state="unknown", model=resolved or str(model), provider=bucket,
@@ -1043,6 +1054,7 @@ def evaluate_worker_admission(
             window_starts_at=None, reason=reason,
             hard_limit_pct=lane_hard_stop(lane),
             override_seconds_left=override_left,
+            reason_key=reason_key,
         )
 
     try:
@@ -1071,23 +1083,28 @@ def evaluate_worker_admission(
     observed_at = parse_quota_timestamp(observed_at_by_provider.get(bucket))
     if observed_at is None:
         return unknown("observation timestamp is missing or malformed",
-                       resolved=resolved, bucket=bucket, label=label, lane=lane)
+                       resolved=resolved, bucket=bucket, label=label, lane=lane,
+                       reason_key="timestamp_missing")
     age = checked_at - observed_at
     if age < 0:
         return unknown("observation timestamp is in the future", resolved=resolved,
-                       bucket=bucket, label=label, lane=lane, observed_at=observed_at)
+                       bucket=bucket, label=label, lane=lane, observed_at=observed_at,
+                       reason_key="timestamp_future")
     if age >= QUOTA_OBSERVATION_MAX_AGE:
         return unknown("observation is stale", resolved=resolved, bucket=bucket,
-                       label=label, lane=lane, observed_at=observed_at)
+                       label=label, lane=lane, observed_at=observed_at,
+                       reason_key="observation_stale")
 
     window = deciding_window(provider, bucket)
     if window is None:
         return unknown("deciding window is missing", resolved=resolved, bucket=bucket,
-                       label=label, lane=lane, observed_at=observed_at)
+                       label=label, lane=lane, observed_at=observed_at,
+                       reason_key="window_missing")
     utilization = _utilization(window.get("utilization"))
     if utilization is None:
         return unknown("utilization is missing or malformed", resolved=resolved,
-                       bucket=bucket, label=label, lane=lane, observed_at=observed_at)
+                       bucket=bucket, label=label, lane=lane, observed_at=observed_at,
+                       reason_key="utilization_missing")
 
     progress, started_at = window_progress(window, checked_at)
     reset_at = parse_quota_timestamp(window.get("resets_at"))
@@ -1121,39 +1138,58 @@ def evaluate_worker_admission(
         policy_history=policy_history,
     )
 
+    util_text = f"{utilization:g}"
     if utilization >= hard_stop:
         state = "blocked"
+        reason_key = "hard_stop"
+        reason_params = {"util": util_text, "hard_stop": f"{hard_stop:g}", "lane": str(lane)}
         reason = (
-            f"utilization {utilization:g}% is at or above the hard stop "
-            f"{hard_stop:g}% for lane '{lane}'"
+            f"utilization {util_text}% is at or above the hard stop "
+            f"{reason_params['hard_stop']}% for lane '{lane}'"
         )
     elif limit is not None and utilization > limit:
         state = "blocked"
+        reason_key = "above_line"
+        reason_params = {
+            "util": util_text, "limit": f"{limit:.4g}",
+            "norm": f"{limit - tolerance:.4g}", "tolerance": f"{tolerance:.4g}",
+        }
         reason = (
-            f"utilization {utilization:g}% is above the line limit {limit:.4g}% "
-            f"(norm {limit - tolerance:.4g}% + tolerance {tolerance:.4g} pp)"
+            f"utilization {util_text}% is above the line limit {reason_params['limit']}% "
+            f"(norm {reason_params['norm']}% + tolerance {reason_params['tolerance']} pp)"
         )
     elif gated and limit is None:
         state = "available"
+        reason_key = "no_reset_window"
+        reason_params = {"util": util_text, "hard_stop": f"{hard_stop:g}"}
         reason = (
-            f"utilization {utilization:g}% is below the hard stop {hard_stop:g}%; "
+            f"utilization {util_text}% is below the hard stop {reason_params['hard_stop']}%; "
             "the window has no parseable reset, so the line is not applied"
         )
     elif gated:
         state = "available"
-        reason = f"utilization {utilization:g}% is at or below the line limit {limit:.4g}%"
+        reason_key = "within_line"
+        reason_params = {"util": util_text, "limit": f"{limit:.4g}"}
+        reason = f"utilization {util_text}% is at or below the line limit {reason_params['limit']}%"
     elif override_left:
         # Отказ снят рукой владельца — говорим это прямо, а не выдаём за обычный допуск.
         state = "available"
+        reason_key = "override_active"
+        reason_params = {
+            "seconds": f"{override_left:.0f}", "util": util_text,
+            "hard_stop": f"{hard_stop:g}",
+        }
         reason = (
-            f"gate override active for {override_left:.0f} more seconds; utilization "
-            f"{utilization:g}% is below the hard stop {hard_stop:g}%"
+            f"gate override active for {reason_params['seconds']} more seconds; utilization "
+            f"{util_text}% is below the hard stop {reason_params['hard_stop']}%"
         )
     else:
         state = "available"
+        reason_key = "lane_not_gated"
+        reason_params = {"lane": str(lane), "util": util_text, "hard_stop": f"{hard_stop:g}"}
         reason = (
-            f"lane '{lane}' is not gated by the line; utilization {utilization:g}% "
-            f"is below the hard stop {hard_stop:g}%"
+            f"lane '{lane}' is not gated by the line; utilization {util_text}% "
+            f"is below the hard stop {reason_params['hard_stop']}%"
         )
 
     # Решающее окно — самое длинное, поэтому исчерпанное короткое окно (5h на 100%
@@ -1169,6 +1205,8 @@ def evaluate_worker_admission(
         reset_at_str = datetime.fromtimestamp(exhausted_reset, timezone.utc).isoformat()
         release_status, release_in_seconds = "at_reset", max(0.0, exhausted_reset - checked_at)
         reason = f"a pool window is exhausted (100%) until its reset at {reset_at_str}"
+        reason_key = "pool_exhausted"
+        reason_params = {"reset_at": reset_at_str}
 
     return QuotaDecision(
         state=state, model=resolved, provider=bucket, provider_label=label,
@@ -1179,6 +1217,7 @@ def evaluate_worker_admission(
         release_status=release_status, release_in_seconds=release_in_seconds,
         hard_limit_pct=hard_stop,
         override_seconds_left=override_left,
+        reason_key=reason_key, reason_params=reason_params,
     )
 
 
@@ -1189,6 +1228,10 @@ async def get_worker_admission(
     model: str,
     observation_loader: ObservationLoader | None = None,
 ) -> QuotaDecision:
+    from app.hub_pool import provider_for_model, hub_admission
+
+    if provider_for_model(model) is not None:
+        return await hub_admission(model)
     try:
         bucket = quota_bucket_for_model(model)
     except (TypeError, ValueError):
@@ -1205,6 +1248,8 @@ async def get_worker_admission(
         return replace(
             evaluate_worker_admission(model, {}, {}),
             reason=f"quota observation failed: {type(error).__name__}: {error}",
+            reason_key="observation_failed",
+            reason_params={"error": f"{type(error).__name__}: {error}"},
         )
     providers = observation.get("providers")
     timestamps = observation.get("observed_at_by_provider")

@@ -404,7 +404,7 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
         }"""
     )
     task_money = page.locator("#task-money").inner_text()
-    assert "1 200 €" in task_money
+    assert "1,200 €" in task_money
     assert "$" not in task_money
     page.close()
 
@@ -904,3 +904,14 @@ def test_leaf_module_does_not_call_legacy_analytics_endpoints():
     assert "/api/usage/daily" not in source
     assert "/api/usage/daily/agents" not in source
     assert "/api/stats" not in source
+
+
+def test_hub_pool_card_and_worker_badge_code_exist():
+    """Usage tooltip has a MultiCode Hub card fed by the redacted endpoint; hub workers get a badge."""
+    usage = USAGE_JS.read_text()
+    assert "/api/usage/hub-pool" in usage
+    assert 'data-usage-provider="hub"' in usage and "_loadHubPool(tip)" in usage
+    assert "100 - used" in usage and "resets_at" in usage
+    theme = UTILS_JS.with_name("theme.js").read_text()
+    assert "startsWith('hub-')" in theme and "function hubBadge()" in theme
+    assert "if (isHubModel(s.model)) meta.appendChild(hubBadge());" in APP_JS.read_text()

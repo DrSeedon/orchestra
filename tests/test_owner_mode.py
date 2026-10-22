@@ -97,3 +97,35 @@ def test_login_gate_stays_on_auth_not_owner(monkeypatch):
     monkeypatch.setenv("OWNER_MODE", "1")
     assert is_auth_enabled() is True
     assert requires_auth("/api/sessions", "GET") is True
+
+
+def _dashboard_hide_thinking(monkeypatch):
+    import asyncio
+
+    seen = {}
+
+    class _Templates:
+        def TemplateResponse(self, request, name, context, headers=None):
+            seen.update(context)
+            return None
+
+    monkeypatch.setattr(system_routes, "templates", _Templates())
+    asyncio.run(system_routes.dashboard(None))
+    return seen["hide_thinking"]
+
+
+def test_owner_sees_thinking_even_with_login_enabled(monkeypatch):
+    """Наш VPS (логин + OWNER_MODE=1): thinking агентов показывается владельцу."""
+    _set_auth(monkeypatch)
+    monkeypatch.setenv("OWNER_MODE", "1")
+    assert _dashboard_hide_thinking(monkeypatch) is False
+
+
+def test_client_install_hides_thinking(monkeypatch):
+    """Клиентская инсталляция (логин без OWNER_MODE): thinking скрыт, как задумано."""
+    _set_auth(monkeypatch)
+    assert _dashboard_hide_thinking(monkeypatch) is True
+
+
+def test_dev_laptop_shows_thinking(monkeypatch):
+    assert _dashboard_hide_thinking(monkeypatch) is False

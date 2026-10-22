@@ -1,0 +1,23 @@
+M11 hub-made files dropped from manifest (baseline lost)
+1 failed, 69 passed in 11.32s
+M12 hub_made never recorded
+1 failed, 69 passed in 11.36s
+M13 released state reused
+1 failed, 69 passed in 11.51s
+M14 no recovery on lost project
+1 failed, 69 passed in 10.28s
+M15 recovery drops only the baseline reset (the fresh flag alone still re-uploads): survives, redundant by design
+M16 recovery loses the preamble
+1 failed, 69 passed in 11.29s
+M17 switch does not release
+1 failed, 69 passed in 11.66s
+M18 release during a running turn
+1 failed, 69 passed in 11.62s
+M19 release on every save
+1 failed, 69 passed in 11.02s
+baseline
+70 passed in 11.48s
+M15b recovery with fresh=False only (baseline reset still re-uploads): survives, redundant by design
+M15c recovery with neither baseline reset nor fresh upload
+1 failed, 69 passed
+- broad run: 5 failures in unrelated files (route census finds no /api routes, worktree path collision, uvloop liveness) — sandbox/venv, not hub code

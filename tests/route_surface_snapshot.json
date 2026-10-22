@@ -697,6 +697,12 @@
   ]
  ],
  [
+  "/api/usage/hub-pool",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/usage/quota-map",
   [
    "GET"
