@@ -46,6 +46,16 @@ def test_frontend_provider_metadata_is_exhaustive():
     assert {pid for pid in color_ids if f"--provider-{pid}:" not in tokens} == set()
 
 
+def test_frontend_knows_the_hub_provider():
+    """Hub workers' usage rows need a title, a provider id and a colour token to render."""
+    block = UTILS_JS.read_text().split("const _PROVIDER_META = {", 1)[1].split(
+        "\n};\nconst _PROVIDER_CAPACITY_KEY", 1)[0]
+    hub = block.split("    hub: {", 1)[1].split("\n    },", 1)[0]
+    assert "provider: 'multicode'" in hub and "title: 'MultiCode Hub'" in hub
+    assert "multicode: 'var(--provider-multicode)'" in UTILS_JS.with_name("theme.js").read_text()
+    assert "--provider-multicode:" in (ROOT / "app/static/css/design-system.css").read_text()
+
+
 @pytest.fixture(scope="module")
 def browser():
     with sync_playwright() as playwright:

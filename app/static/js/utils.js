@@ -124,6 +124,13 @@ const _PROVIDER_META = {
         // the openrouter bar in usage.js owns it (#368), so no window rows.
         windows: () => [],
     },
+    hub: {
+        title: 'MultiCode Hub', usageTitle: 'MultiCode Hub',
+        runtime: 'Hub pool · workers', provider: 'multicode', capacityKey: null,
+        windowAccent: 'var(--provider-multicode)',
+        historyProviders: ['hub'],
+        windows: () => [],
+    },
     unknown: {
         title: 'Unknown', usageTitle: 'Unknown runtime',
         runtime: 'Unclassified historical rows', provider: 'unknown', capacityKey: null,

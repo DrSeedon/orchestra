@@ -24,7 +24,7 @@ const _MODEL_FAMILY_RULES = [
 const _PROVIDER_COLORS = {
     anthropic: 'var(--provider-anthropic)', openai: 'var(--provider-openai)', 'x-ai': 'var(--provider-x-ai)',
     openrouter: 'var(--provider-openrouter)', gigachat: 'var(--provider-gigachat)', deepseek: 'var(--provider-deepseek)',
-    unknown: 'var(--provider-unknown)',
+    multicode: 'var(--provider-multicode)', unknown: 'var(--provider-unknown)',
 };
 
 function modelFamily(id) {
