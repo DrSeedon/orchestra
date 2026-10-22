@@ -1452,6 +1452,16 @@ async def get_usage():
     return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
 
 
+@router.get("/api/usage/hub-pool")
+async def get_usage_hub_pool():
+    """Remaining capacity of the MultiCode hub pool (redacted; see app/hub_pool.py)."""
+    if not is_owner_mode():
+        raise HTTPException(status_code=404, detail="not found")
+    from app.hub_pool import get_hub_pool
+
+    return await get_hub_pool()
+
+
 @router.get("/api/usage/card")
 async def get_usage_card():
     """Render the canonical `/limits` PNG for trusted local clients.

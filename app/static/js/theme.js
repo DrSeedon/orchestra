@@ -93,6 +93,22 @@ function modelBadge(id, {label, pill = false, className = ''} = {}) {
     return badge;
 }
 
+// Hub workers are sessions whose model id starts with `hub-` (MultiCode hub pool).
+function isHubModel(id) {
+    return typeof id === 'string' && id.startsWith('hub-');
+}
+
+function hubBadge() {
+    const badge = document.createElement('span');
+    badge.className = 'ds-model ds-pill';
+    badge.style.setProperty('--ds-c', 'var(--provider-multicode)');
+    badge.textContent = 'Hub';
+    badge.title = 'MultiCode Hub';
+    badge.dataset.hubBadge = '1';
+    badge.dataset.i18nSkip = '1';
+    return badge;
+}
+
 function modelBadgeHtml(id, opts = {}) {
     return modelBadge(id, opts).outerHTML;
 }

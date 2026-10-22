@@ -3256,6 +3256,7 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     meta.appendChild(modelBadge(s.model || ''));
+    if (isHubModel(s.model)) meta.appendChild(hubBadge());
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
         costSpan.className = 'text-green-400';
