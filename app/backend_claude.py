@@ -683,6 +683,9 @@ def _oversized_ints(value, path: str = ""):
 
 
 class ClaudeBackend:
+    # Class-level default so disconnect() works on a backend built without __init__.
+    _append_prompt_path: Path | None = None
+
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
