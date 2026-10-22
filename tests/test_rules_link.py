@@ -202,3 +202,20 @@ def test_sweep_heals_silently_without_alert(kv, tmp_path, monkeypatch):
     manager = FakeManager()
     assert asyncio.run(rules_link.sweep(manager)) == {str(root): "converted"}
     assert manager.sent == [] and (root / "AGENTS.md").is_symlink()
+
+
+def test_blocked_alerts_once_per_detail_not_daily(kv):
+    t0 = 1_000_000.0
+    stuck = rules_link.Outcome("blocked", "checked-out branch is dev, not mainline main")
+    assert rules_link.due_for_alert("/p", stuck, t0)
+    assert not rules_link.due_for_alert("/p", stuck, t0 + rules_link.REALERT_SECONDS * 3)
+    other = rules_link.Outcome("blocked", "HEAD is detached")
+    assert rules_link.due_for_alert("/p", other, t0 + rules_link.REALERT_SECONDS * 3 + 1)
+
+
+def test_diverged_still_realerts_after_a_day(kv):
+    t0 = 1_000_000.0
+    bad = rules_link.Outcome("diverged", "x")
+    assert rules_link.due_for_alert("/p", bad, t0)
+    assert not rules_link.due_for_alert("/p", bad, t0 + 3600)
+    assert rules_link.due_for_alert("/p", bad, t0 + rules_link.REALERT_SECONDS + 1)

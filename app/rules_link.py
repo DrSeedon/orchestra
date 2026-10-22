@@ -241,7 +241,7 @@ def alert_text(scope: str, outcome: Outcome) -> str:
 
 
 def due_for_alert(scope: str, outcome: Outcome, now: float | None = None) -> bool:
-    """Daily reminder, immediately when the kind of problem changes; a fixed scope forgets itself."""
+    """Daily reminder (once per detail for `blocked`), immediately when the kind of problem changes; a fixed scope forgets itself."""
     from app.db import kv_delete, kv_get, kv_set
 
     key = f"rules_link_alert:{scope}"
@@ -254,9 +254,15 @@ def due_for_alert(scope: str, outcome: Outcome, now: float | None = None) -> boo
         last = json.loads(kv_get(key) or "{}")
     except ValueError:
         last = {}
-    if last.get("state") == outcome.state and now - float(last.get("at", 0)) < REALERT_SECONDS:
-        return False
-    kv_set(key, json.dumps({"state": outcome.state, "at": now}))
+    if last.get("state") == outcome.state:
+        # `blocked` is something the orchestrator cannot fix (e.g. an intentional non-main
+        # branch): tell it once per distinct detail instead of burning a turn daily.
+        if outcome.state == "blocked":
+            if last.get("detail") == outcome.detail:
+                return False
+        elif now - float(last.get("at", 0)) < REALERT_SECONDS:
+            return False
+    kv_set(key, json.dumps({"state": outcome.state, "detail": outcome.detail, "at": now}))
     return True
 
 
