@@ -40,6 +40,8 @@ _NOISE = (
     ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
     ("external app tool argument", re.compile(r"This app tool requires", re.I)),
     ("external app unknown tool", re.compile(r"codex_apps/.*Unknown tool", re.I)),
+    # The hub's t3-code preview browser needs the hub owner's PC; agents probing it get this.
+    ("hub preview browser unavailable", re.compile(r"Preview automation open failed", re.I)),
     # Case-sensitive on purpose: a missing real `Bash` tool must still surface.
     ("agent misspelled tool name", re.compile(r"No such tool available: bash(?:_placeholder)?\b")),
     ("TG polling cut by shutdown", re.compile(r"Failed to fetch updates.*ServerDisconnectedError", re.I)),
