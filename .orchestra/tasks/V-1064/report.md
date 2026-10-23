@@ -158,3 +158,11 @@ Only this worker's generated local test sandboxes were removed before export;
 all source/tests/reports and full normalized run logs remain. The copy has no Git
 metadata for a local `git diff`; the changed transport, sync error handling,
 legacy-preservation logic, new tests and CHANGELOG entry were inspected directly.
+
+## Host acceptance — 2026-10-24
+
+The entire reported 38-module selection passed on the VPS: 825 tests, 21 subtests, 2 existing multiprocessing warnings, 121.08 s. Imported app: `/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-hub-download/app/__init__.py`. Raw host output is retained privately in `.orchestra/private/V-1064/host-tests.txt`. No exclusions were added for the four worker-copy limitations; all those cases ran in the real checkout.
+
+My independent mutations removed the return-directory exclusions and disabled propagation of sync failure. Each made its intended committed behavioral test fail, with no collection/import failure. Source bytes restored in finally; raw evidence retained at `.orchestra/private/V-1064/host-mutation-*.txt`. All 17 changed files passed the local literal/forbidden and secret-form scans. Normal merge test and mutation gates passed; no model review under owner freeze.
+
+Merged into main. GitHub publication/CI and loading Python via the authorized idle watcher remain separate checks. The actual Obelisk sync incident was already recovered through Seedon's independently verified SDK cleanup plus normal sync; do not attribute that restoration to this patch. No live retained-workspace recovery recipe, restart or remote operation was executed for this acceptance.
