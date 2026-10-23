@@ -47,7 +47,8 @@ PREAMBLE_BASE = (
     "repository (no .git, no remote). Edit files in place with your normal tools; when you "
     "finish, the platform copies every changed file back and commits it, so do not run git "
     "push/clone/commit, do not look for credentials or tokens (there are none), and do not "
-    "create files outside this directory. Run tests that work offline. End with a concise "
+    "create files outside this directory except uv's own cache as described below. "
+    "Tests themselves must work offline. End with a concise "
     "report: what you changed, what you ran and its result, anything unfinished.\n\n"
 )
 
@@ -93,7 +94,7 @@ def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
         send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
                 f'{parent} only; any "to" is ignored\n') if parent else ""
         link = OUTBOX_SECTION.replace("{send_line}", send).replace("{{", "{").replace("}}", "}")
-    return f"{role}{where}{link}Task:\n"
+    return f"{role}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
 
 
 _slots: asyncio.Semaphore | None = None
@@ -270,6 +271,7 @@ class HubBackend:
         self._watch_limit: str | None = None
         self._run_evidence: _RunEvidence | None = None
         self._sync_no_work = False
+        self._uv_ready = False
 
     @property
     def session_id(self) -> Optional[str]:
@@ -564,6 +566,10 @@ class HubBackend:
                          plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
         """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
         notes: list[str] = []
+        self._uv_ready = False
+        if {"pyproject.toml", "uv.lock"} <= plan.manifest.keys():
+            await ssh.ensure_uv(scratch)
+            self._uv_ready = True
         tar_path = scratch / "in.tar"
         if fresh and options.persistent:
             sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
@@ -617,7 +623,8 @@ class HubBackend:
         self._early_steer = []
         body = "\n\n".join(parts)
         if not first:
-            return body
+            # Also update a thread that predates uv provisioning, or resumed without PATH.
+            return (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body
         return self._preamble() + body
 
     def _preamble(self) -> str:

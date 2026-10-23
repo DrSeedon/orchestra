@@ -1,0 +1,35 @@
+Host: Linux x86_64, CPython 3.12.3; PyPI and files.pythonhosted.org reachable.
+Bootstrap: PyPI uv 0.11.28 wheel, SHA-256 verified against release metadata:
+49fe42df9f42056037473f3876adec1615709b57d3470ed39178ff420f3afb9f
+Production HubSsh.ensure_uv executed on this hub with local shell transport.
+Only transport/import-only dependencies were substituted; binary/version/hash checks are real.
+HOME sandbox is inside the task directory; two provisions uploaded once.
+Installed binary SHA-256: 1cb9cd0a1749debf6049d7d2bb933882cc52d81016326ee6d99a786d6c988b03
+No system files changed. pyproject.toml and uv.lock present, unchanged.
+The first frozen run installed all 76 locked packages, including pytest.
+Only the forbidden absolute home prefix is replaced with <hub-home> below; other output verbatim.
+
+$ export PATH="$HOME/.local/share/orchestra/tools/uv/0.11.28/bin:$PATH"
+$ uv --version
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+$ uv run --frozen python -m pytest tests/test_hub_uv.py -q
+
+==================================== ERRORS ====================================
+____________________ ERROR collecting tests/test_hub_uv.py _____________________
+ImportError while importing test module '<hub-home>/orchestra-ws/vmi3407579/hub-a7f8a9c310d34420/tests/test_hub_uv.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_hub_uv.py:13: in <module>
+    from app import hub_workspace as hw
+app/hub_workspace.py:31: in <module>
+    from app.hub_outbox import MAX_OUTBOX_BYTES, OUTBOX_NAME
+E   ModuleNotFoundError: No module named 'app.hub_outbox'
+=========================== short test summary info ============================
+ERROR tests/test_hub_uv.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.16s
+
+Exit status: 2

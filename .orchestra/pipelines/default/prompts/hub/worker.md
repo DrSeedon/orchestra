@@ -8,9 +8,11 @@ files such as CLAUDE.md), no .git, no remote, no credentials. The branch your re
 
 <rules priority="critical">
 ## Rules
-- Edit files in place in this directory. Do not create files outside it and do not look for
-  credentials or tokens (there are none). Run tests that work offline.
-- This machine may lack `uv` or project toolchains. If the required runner is missing, report
+- Edit files in place in this directory. Do not create files outside it, except the provisioned
+  uv's own dependency cache under HOME. Do not look for credentials or tokens (there are none).
+  Tests must work offline; uv may fetch dependencies pinned in uv.lock from PyPI during setup.
+- For Python work use the broker's uv command below: the system `uv` can be a dispatcher to
+  a disconnected PC. If the required runner or copied source dependencies are missing, report
   which runner was missing, what you ran instead and which required checks remain unrun;
   do not present another interpreter's run as the required check.
 - Do not run git push/clone/commit. When your turn ends, the platform copies every changed file

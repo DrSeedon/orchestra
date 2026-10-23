@@ -1,0 +1,5 @@
+$ uv run --frozen python .orchestra/tasks/V-1055/offline-check.py
+Import-only isolation and --noconftest; see REPORT.md and offline-check.py.
+
+..........................                                               [100%]
+26 passed in 0.80s

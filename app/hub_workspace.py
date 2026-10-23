@@ -38,6 +38,21 @@ MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_TOTAL_BYTES = 300 * 1024 * 1024
 MAX_FILES = 20_000
 
+# Copied from the VPS, never resolved through PATH (the hub's uv is a PC relay).
+HUB_UV_VERSION = "0.11.28"
+HUB_UV_BIN = f".local/share/orchestra/tools/uv/{HUB_UV_VERSION}/bin"
+HUB_UV_INSTRUCTIONS = (
+    "For a Python copy with pyproject.toml and uv.lock, the broker provisions real uv "
+    f"{HUB_UV_VERSION}. In each test shell run:\n"
+    f'export PATH="$HOME/{HUB_UV_BIN}:$PATH"\n'
+    "uv run --frozen python -m pytest <paths> -q\n"
+    "The system uv is a dispatcher to a connected PC; use the provisioned binary. "
+    "uv may fetch the locked dependencies from PyPI and write its own cache under HOME; "
+    "tests themselves must stay offline. Keep the environment at the default .venv. "
+    "If setup or imports fail, report the exact blocker and unrun checks; never replace "
+    "the lock or claim another runner is the required check.\n\n"
+)
+
 _WS_ID = re.compile(r"^hub-[0-9a-f]{16}$")
 _BASE_ID = re.compile(r"^proj-[0-9a-f]{12}$")
 _THREAD_ID = re.compile(r"^[A-Za-z0-9:_-]{1,80}$")
@@ -202,6 +217,29 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _uv_snapshot(scratch: Path) -> tuple[Path, str, str]:
+    """Freeze the trusted VPS binary so hashing, validation and upload use the same bytes."""
+    source = Path.home() / ".local/bin/uv"
+    snapshot = scratch / "uv-upload"
+    try:
+        shutil.copyfile(source, snapshot)
+        with snapshot.open("rb") as handle:
+            header = handle.read(20)
+        if header[:6] != b"\x7fELF\x02\x01" or header[18:20] != b"\x3e\x00":
+            raise HubWorkspaceError("hub uv source ~/.local/bin/uv must be a Linux x86_64 ELF binary")
+        snapshot.chmod(0o700)
+        result = subprocess.run([str(snapshot), "--version"], capture_output=True, text=True,
+                                check=True, timeout=20)
+        version = result.stdout.strip()
+        if version.split()[:2] != ["uv", HUB_UV_VERSION] or "\n" in version:
+            raise HubWorkspaceError(f"hub uv source must be version {HUB_UV_VERSION}")
+        return snapshot, sha256_file(snapshot), version
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise HubWorkspaceError(
+            f"cannot prepare hub uv {HUB_UV_VERSION} from ~/.local/bin/uv ({type(exc).__name__})"
+        ) from None
 
 
 @dataclass
@@ -460,6 +498,47 @@ class HubSsh:
     async def home(self) -> str:
         return (await self.run('printf %s "$HOME"', timeout=60)).decode().strip()
 
+    async def ensure_uv(self, scratch: Path) -> None:
+        """Verify on every turn; upload once, or repair corruption, with an atomic rename.
+
+        Only our home-directory tool area is touched. Parallel workers have unique temporary
+        files and publish only a complete, checksum- and version-verified executable.
+        """
+        snapshot = scratch / "uv-upload"
+        try:
+            payload, digest, version = await asyncio.to_thread(_uv_snapshot, scratch)
+            binary = f'"$HOME/{HUB_UV_BIN}/uv"'
+            check = (
+                f'test -x {binary} && '
+                f'test "$(sha256sum {binary} | cut -d " " -f 1)" = {shlex.quote(digest)} && '
+                f'test "$({binary} --version)" = {shlex.quote(version)}'
+            )
+            probe = (
+                'test "$(uname -sm)" = "Linux x86_64" || '
+                '{ echo "hub uv requires Linux x86_64" >&2; exit 1; }; '
+                f'if {check}; then printf ready; else printf install; fi'
+            )
+            status = await self.run(probe, timeout=60)
+            if status == b"ready":
+                return
+            if status != b"install":
+                raise HubWorkspaceError("unexpected hub uv verification response")
+            install = (
+                f'set -eu; umask 077; mkdir -p -- "$HOME/{HUB_UV_BIN}"; '
+                f'tmp=$(mktemp "$HOME/{HUB_UV_BIN}/.uv.XXXXXXXX"); '
+                "trap 'rm -f -- \"$tmp\"' EXIT; "
+                'cat > "$tmp"; '
+                f'test "$(sha256sum "$tmp" | cut -d " " -f 1)" = {shlex.quote(digest)} || '
+                '{ echo "hub uv upload checksum mismatch" >&2; exit 1; }; '
+                'chmod 700 "$tmp"; '
+                f'test "$("$tmp" --version)" = {shlex.quote(version)} || '
+                '{ echo "hub uv upload version mismatch" >&2; exit 1; }; '
+                f'mv -f -- "$tmp" {binary}'
+            )
+            await self.run(install, stdin=payload, timeout=180)
+        finally:
+            snapshot.unlink(missing_ok=True)
+
     async def root(self) -> str:
         if self.workspace_root:
             root = self.workspace_root
@@ -495,7 +574,7 @@ class HubSsh:
     async def get(self, remote_dir: str, out: Path) -> None:
         _check_remote(remote_dir)
         await self.run(
-            f"tar -cf - -C {shlex.quote(remote_dir)} --exclude=./.git .", stdout=out)
+            f"tar -cf - -C {shlex.quote(remote_dir)} --exclude=./.git --exclude=./.venv .", stdout=out)
 
     async def list_workspaces(self) -> list[tuple[str, float]]:
         """(workspace id, mtime epoch) of every broker directory under our root."""
