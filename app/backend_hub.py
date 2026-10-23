@@ -566,6 +566,8 @@ class HubBackend:
                          plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
         """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
         notes: list[str] = []
+        # Freeze old upload provenance before refreshing the mutable sync baseline.
+        hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
         self._uv_ready = False
         if {"pyproject.toml", "uv.lock"} <= plan.manifest.keys():
             await ssh.ensure_uv(scratch)
@@ -758,7 +760,9 @@ class HubBackend:
         out = scratch / "out.tar"
         await ssh.get(state.remote_dir, out)
         before = dict(state.manifest)
-        result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
+        hw.capture_inputs(root, state, state.manifest)
+        result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest,
+                                        inputs=state.input_manifest)
         no_work = not (result.changed or result.deleted or result.conflicts
                        or result.rejected or result.outbox or result.manifest != before)
         state.manifest = result.manifest

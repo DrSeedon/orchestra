@@ -1,0 +1,2 @@
+original_dirty_refusal: exit=1; behavioral mutant killed=True
+ignore_input_digest: exit=1; behavioral mutant killed=True

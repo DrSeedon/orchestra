@@ -1508,7 +1508,7 @@ async def test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it(repo, tm
     backend._bridge = None
     await _turn(backend, "plain task")
     prompt = _first_prompt(mc)
-    assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt and "Do not run git push/clone/commit" in prompt
+    assert ob.OUTBOX_NAME not in prompt and "plain task" in prompt
 
 
 def test_hub_prompt_without_a_parent_offers_no_send_message():

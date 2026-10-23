@@ -24,8 +24,13 @@ def measure_insertions(worktree: str, base_ref: str) -> int:
     return measure_insertion_counts(worktree, base_ref)[0]
 
 
-def measure_insertion_counts(worktree: str, base_ref: str) -> tuple[int, int]:
-    """Return budgeted insertions and excluded task-evidence insertions."""
+def measure_insertion_counts(worktree: str, base_ref: str, *,
+                             input_paths: set[str] | None = None) -> tuple[int, int]:
+    """Return budgeted insertions and excluded task-evidence insertions.
+
+    Merge may supply exact, validated hub input paths: these untracked originals
+    are not published. Ordinary WIP callers still count all untracked files.
+    """
     wt = str(Path(worktree))
     mb = _run(["git", "merge-base", "HEAD", base_ref], wt)
     if mb.returncode != 0 or not mb.stdout.strip():
@@ -68,7 +73,7 @@ def measure_insertion_counts(worktree: str, base_ref: str) -> tuple[int, int]:
     )
     if untracked.returncode == 0 and untracked.stdout:
         for rel in untracked.stdout.split("\0"):
-            if not rel:
+            if not rel or (input_paths and rel in input_paths):
                 continue
             path = Path(wt) / rel
             try:

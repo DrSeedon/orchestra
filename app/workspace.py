@@ -1060,6 +1060,7 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
 
 def _clean_worktree_error(
     path: Path, label: str, changed_paths: list[str] | None = None,
+    *, hub_inputs: dict[str, str] | None = None,
 ) -> str | None:
     status = _worktree_status(str(path), nul=True)
     if status.returncode != 0:
@@ -1069,6 +1070,8 @@ def _clean_worktree_error(
     dirty_files = []
     for record in records:
         if not record:
+            continue
+        if record[:2] == "??" and hub_inputs and record[3:] in hub_inputs:
             continue
         paths = [record[3:]]
         if "R" in record[:2] or "C" in record[:2]:
@@ -1684,6 +1687,14 @@ def merge_worktree_to_main(
                     "ok": False,
                     "error": f"cannot get branch: {branch_result.stderr.strip()}",
                 }
+            inputs = {}
+            if result is None:
+                from app import hub_workspace
+
+                try:
+                    inputs = hub_workspace.merge_inputs(wt, worker_head, target_branch)
+                except (hub_workspace.HubWorkspaceError, OSError, ValueError) as exc:
+                    result = {"ok": False, "error": f"cannot preserve hub inputs: {exc}"}
             if result is None:
                 try:
                     from app.diff_budget import (
@@ -1691,7 +1702,8 @@ def merge_worktree_to_main(
                         budget_error,
                         measure_insertion_counts,
                     )
-                    diff_insertions, diff_excluded_insertions = measure_insertion_counts(str(wt), target_branch)
+                    diff_insertions, diff_excluded_insertions = measure_insertion_counts(
+                        str(wt), target_branch, **({"input_paths": set(inputs)} if inputs else {}))
                     budget = (
                         ""
                         if waive_diff_budget
@@ -1725,7 +1737,13 @@ def merge_worktree_to_main(
                             "error": forbidden_strings.block_message(guard),
                         }
             if result is None:
-                child_error = _clean_worktree_error(wt, "worker")
+                from app import hub_workspace
+
+                try:
+                    inputs = hub_workspace.merge_inputs(wt, worker_head, target_branch)
+                    child_error = _clean_worktree_error(wt, "worker", hub_inputs=inputs)
+                except (hub_workspace.HubWorkspaceError, OSError, ValueError) as exc:
+                    child_error = f"cannot preserve hub inputs: {exc}"
                 if child_error:
                     result = {"ok": False, "error": child_error}
                 if result is None:
@@ -2680,7 +2698,28 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         if name_error:
             return {"ok": False, "error": f"invalid branch '{new_branch}': {name_error}"}
 
-        status = _worktree_status(str(wt))
+        from app import hub_workspace
+
+        try:
+            inputs = hub_workspace.merge_inputs(wt, "HEAD", from_ref)
+        except (hub_workspace.HubWorkspaceError, OSError, ValueError) as exc:
+            return {"ok": False, "error": f"cannot preserve hub inputs: {exc}"}
+
+        def switch_status():
+            status = _worktree_status(str(wt))
+            if status.returncode == 0 and inputs:
+                try:
+                    current = hub_workspace.merge_inputs(wt)
+                    dirty = _clean_worktree_error(wt, "worker", hub_inputs=current)
+                except (hub_workspace.HubWorkspaceError, OSError, ValueError) as exc:
+                    status.returncode = 1
+                    status.stderr = f"cannot preserve hub inputs: {exc}"
+                else:
+                    if dirty is None:
+                        status.stdout = ""
+            return status
+
+        status = switch_status()
         if status.returncode != 0:
             detail = status.stderr.strip() or status.stdout.strip() or f"exit code {status.returncode}"
             return {"ok": False, "error": f"git status failed: {detail}"}
@@ -2735,6 +2774,11 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
             return {"ok": False, "error": str(e)}
         target_existed = target_head is not None
         target_created = False
+        if inputs and target_head:
+            try:
+                hub_workspace.merge_inputs(wt, target_head)
+            except (hub_workspace.HubWorkspaceError, OSError, ValueError) as exc:
+                return {"ok": False, "error": f"cannot preserve hub inputs: {exc}"}
         if target_existed and _is_branch_checked_out_elsewhere(str(repo), new_branch, wt):
             return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
         if original_branch == new_branch:
@@ -2934,7 +2978,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 actual_head_result.stdout.strip()
                 if actual_head_result.returncode == 0 else ""
             )
-            final_status = _worktree_status(str(wt))
+            final_status = switch_status()
             final_merge_head = _git_cmd(
                 ["git", "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
@@ -3047,7 +3091,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         actual_head_result = _git_cmd(
             ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
         )
-        final_status = _worktree_status(str(wt))
+        final_status = switch_status()
         actual_branch = (
             actual_branch_result.stdout.strip()
             if actual_branch_result.returncode == 0 else "HEAD"

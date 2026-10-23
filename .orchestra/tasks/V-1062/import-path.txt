@@ -1,0 +1,6 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 80ms
+/remote/workspace/app/__init__.py

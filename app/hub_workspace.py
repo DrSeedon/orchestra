@@ -686,11 +686,14 @@ def _member_path(name: str) -> str | None:
 
 
 def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
-                  known: list[str] | None = None) -> SyncResult:
+                  known: list[str] | None = None,
+                  inputs: dict[str, str] | None = None) -> SyncResult:
     """Import a hub workspace snapshot into the worktree, touching only regular files that
     changed relative to `manifest`, never leaving `root`, never importing credentials."""
     root = root.resolve()
     known = known_secret_values() if known is None else known
+    inputs = inputs or {}
+    input_parents = _parents(inputs)
     result = SyncResult(manifest=dict(manifest))
     seen: set[str] = set()
     total = 0
@@ -738,6 +741,15 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
             handle = archive.extractfile(member)
             data = handle.read() if handle else b""
             digest = hashlib.sha256(data).hexdigest()
+            # Upload-origin, untracked files are read-only inputs. Never import or
+            # stage a hub rewrite, deletion, or output colliding with one of them.
+            if _collides(str(Path(rel)), inputs, input_parents):
+                if inputs.get(rel) != digest:
+                    result.rejected.append((rel, "collides with a read-only hub input"))
+                    # Forget the remote baseline, not the immutable provenance:
+                    # the next upload must restore the local original on the hub.
+                    result.manifest.pop(str(Path(rel)), None)
+                continue
             if manifest.get(rel) == digest:
                 continue
             total += member.size
@@ -754,6 +766,10 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
         new = hashlib.sha256(data).hexdigest()
         if target.is_symlink() or (target.exists() and not target.is_file()):
             result.rejected.append((rel, "worktree path is not a regular file"))
+            continue
+        destination = str(Path(os.path.realpath(target)).relative_to(root))
+        if _collides(destination, inputs, input_parents):
+            result.rejected.append((rel, "resolves to a read-only hub input"))
             continue
         if local is not None and local != new and local != manifest.get(rel):
             result.conflicts.append(rel)
@@ -772,12 +788,22 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
         result.changed.append(rel)
         result.manifest[rel] = new
     gone = [rel for rel in manifest if rel not in seen]
-    if gone and len(gone) > 20 and len(gone) * 2 > len(manifest):
-        result.rejected.append(("*", f"{len(gone)} deletions look like a truncated snapshot; ignored"))
+    missing_count = len(gone)
+    for rel in gone:
+        if rel in inputs:
+            result.rejected.append((rel, "read-only hub input missing from snapshot; preserved"))
+            result.manifest.pop(rel, None)  # resend the original on the next upload
+    gone = [rel for rel in gone if rel not in inputs]
+    if missing_count > 20 and missing_count * 2 > len(manifest):
+        result.rejected.append(("*", f"{missing_count} deletions look like a truncated snapshot; ignored"))
         gone = []
     for rel in gone:
         target = root / rel
         if not _contained(root, target) or target.is_symlink():
+            continue
+        destination = str(Path(os.path.realpath(target)).relative_to(root))
+        if _collides(destination, inputs, input_parents):
+            result.rejected.append((rel, "resolves to a read-only hub input; preserved"))
             continue
         if not target.exists():
             result.manifest.pop(rel, None)
@@ -840,6 +866,7 @@ class WorkspaceState:
     uploaded: bool = False  # the first upload reached the hub; until then the workspace is not established
     activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)
+    input_manifest: dict[str, str] | None = None  # immutable upload-origin untracked files; None = legacy
 
     @staticmethod
     def new_id() -> str:
@@ -941,6 +968,75 @@ def states_for_worktree(worktree: str) -> list[WorkspaceState]:
         if state and os.path.realpath(state.worktree) == real:
             found.append(state)
     return found
+
+
+def _parents(paths) -> set[str]:
+    return {str(parent) for p in paths for parent in Path(p).parents if str(parent) != "."}
+
+
+def _collides(rel: str, paths, parents: set[str]) -> bool:
+    return rel in paths or rel in parents or any(str(p) in paths for p in Path(rel).parents)
+
+
+def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+    """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+
+    Old records already distinguish hub-made paths. Only uploaded paths still
+    untracked in the index qualify; no directory exemption or Git ignore is used.
+    """
+    if state.input_manifest is not None:
+        return
+    if state.manifest:
+        staged = _git_out(root, "diff", "--cached", "--quiet")
+        if staged is None or staged.returncode:
+            # A staged original temporarily looks tracked. Do not permanently
+            # forget its provenance: retry migration after the index is clean.
+            raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+    done = _git_out(root, "ls-files", "--cached", "-z")
+    if done is None or done.returncode:
+        raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+    tracked = set(done.stdout.decode("utf-8", "surrogateescape").split("\0"))
+    state.input_manifest = {p: d for p, d in manifest.items()
+                            if p not in tracked and p not in state.hub_made}
+
+
+def merge_inputs(root: Path, *refs: str) -> dict[str, str]:
+    """Return the exact unchanged input files merge may leave untracked.
+
+    Validate every input, including missing/ignored ones which Git status cannot
+    report, and both trees before reset --hard can overwrite untracked data.
+    """
+    inputs: dict[str, str] = {}
+    for state in states_for_worktree(str(root)):
+        capture_inputs(root, state, state.manifest)
+        state.save()  # migrate existing live workers without another upload
+        for rel, digest in (state.input_manifest or {}).items():
+            if rel in inputs and inputs[rel] != digest:
+                raise HubWorkspaceError(f"conflicting hub input provenance: {rel}")
+            inputs[rel] = digest
+    if not inputs:
+        return inputs
+    for rel, digest in inputs.items():
+        full = root / rel
+        try:
+            regular = stat.S_ISREG(full.lstat().st_mode)
+            # Parent symlinks are changes too, even when they point inside root.
+            direct = full.resolve() == full.absolute()
+            unchanged = regular and direct and sha256_file(full) == digest
+        except OSError:
+            unchanged = False
+        if not unchanged:
+            raise HubWorkspaceError(f"hub input changed or missing: {rel}; restore the uploaded original")
+    for ref in refs:
+        done = _git_out(root, "ls-tree", "-r", "--name-only", "-z", ref)
+        if done is None or done.returncode:
+            raise HubWorkspaceError("cannot inspect merge trees for hub input collisions")
+        tree = set(done.stdout.decode("utf-8", "surrogateescape").split("\0")) - {""}
+        parents = _parents(tree)
+        for rel in inputs:
+            if _collides(rel, tree, parents):
+                raise HubWorkspaceError(f"hub input/output path collision in merge tree: {rel}")
+    return inputs
 
 
 # ── git commit of imported work ──────────────────────────────────────────────────────

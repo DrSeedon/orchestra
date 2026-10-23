@@ -1,0 +1,51 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+.................................F                                       [100%]
+=================================== FAILURES ===================================
+_ test_branch_switch_preserves_only_verified_inputs_and_rollback[checkout-failure] _
+
+env = (PosixPath('/remote/workspace/.orchestra/tasks/V-106...': 'f7392ce655eab645c23cf3e8c984aebcb86240452089055534a2cd41a1375b83'}, activity_pos=0, created_at=1792768963.1627154))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76d921880e60>
+kind = 'checkout-failure'
+
+    @pytest.mark.parametrize('kind', ['unchanged', 'changed', 'output', 'collision', 'checkout-failure'])
+    def test_branch_switch_preserves_only_verified_inputs_and_rollback(env, monkeypatch, kind):
+        repo, root, state = env
+        # Outputs are already committed. A continued task may choose a new branch.
+        original_branch = git(root, 'branch', '--show-current').strip()
+        original_head = git(root, 'rev-parse', 'HEAD')
+        if kind == 'changed':
+            (root / INPUT).write_text('changed input\n')
+        elif kind == 'output':
+            (root / 'new-output.txt').write_text('not committed\n')
+        elif kind == 'collision':
+            (repo / 'sources').mkdir()
+            (repo / INPUT).write_text('colliding target output\n')
+            git(repo, 'add', INPUT)
+            git(repo, 'commit', '-qm', 'target collision')
+        elif kind == 'checkout-failure':
+            real_git = workspace._git_cmd
+            def fail_checkout(args, **kwargs):
+                if args == ['git', 'checkout', 'continued-task']:
+                    import subprocess
+                    return subprocess.CompletedProcess(args, 1, '', 'injected checkout failure')
+                return real_git(args, **kwargs)
+            monkeypatch.setattr(workspace, '_git_cmd', fail_checkout)
+        result = workspace.switch_worktree_branch(str(root), 'continued-task', 'main', force=True)
+        assert result['ok'] == (kind == 'unchanged'), result
+        if kind != 'changed':
+            assert (root / INPUT).read_text() == RAW
+        assert INPUT not in git(root, 'ls-files').splitlines()
+        if kind == 'checkout-failure':
+>           assert result.get('state') != 'rollback_failed', result
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: {'actual_branch': 'feat/remote-workspace/input-worker'...created target ref remains at 8c2a20617356112f7d9c0841473eacb7f20b8792; new target ref still exists', 'ok': False, ...}
+E           assert 'rollback_failed' == 'failed'
+E             
+E             - failed
+E             + rollback_failed
+
+tests/test_hub_inputs_v1062.py:336: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1062.py::test_branch_switch_preserves_only_verified_inputs_and_rollback[checkout-failure]
+1 failed, 33 passed in 68.30s (0:01:08)

@@ -1,0 +1,64 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_merge_refuses_dirty_or_colliding_work_without_losing_data[changed-input] _
+
+env = (PosixPath('/remote/workspace/.orchestra/tasks/V-106....2722292, input_manifest={'sources/raw rows.txt': 'f7392ce655eab645c23cf3e8c984aebcb86240452089055534a2cd41a1375b83'}))
+kind = 'changed-input'
+
+    @pytest.mark.parametrize('kind', [
+        'tracked', 'staged-output', 'new-output', 'changed-input', 'deleted-input',
+        'staged-input', 'committed-input', 'symlink-input', 'parent-symlink',
+        'ignored-changed-input', 'changed-after-refresh', 'same-directory-output',
+    ])
+    def test_merge_refuses_dirty_or_colliding_work_without_losing_data(env, kind):
+        repo, root, state = env
+        if kind == 'tracked':
+            (root / 'README.md').write_text('dirty tracked\n')
+        elif kind in {'staged-output', 'new-output', 'same-directory-output'}:
+            path = 'sources/new.txt' if kind == 'same-directory-output' else 'new.txt'
+            (root / path).write_text('uncommitted output\n')
+            if kind == 'staged-output':
+                git(root, 'add', path)
+        elif kind in {'changed-input', 'ignored-changed-input', 'changed-after-refresh'}:
+            (root / INPUT).write_text('changed original\n')
+            if kind == 'ignored-changed-input':
+                common = Path(git(root, 'rev-parse', '--git-common-dir').strip())
+                if not common.is_absolute():
+                    common = root / common
+                (common / 'info/exclude').write_text('sources/\n')
+            if kind == 'changed-after-refresh':
+                # A later upload's mutable manifest must not authorize an edited input.
+                plan = hw.plan_upload(root, known=[])
+                hw.capture_inputs(root, state, plan.manifest)
+                state.manifest = plan.manifest
+                state.save()
+        elif kind == 'deleted-input':
+            (root / INPUT).unlink()
+        elif kind in {'staged-input', 'committed-input'}:
+            git(root, 'add', INPUT)
+            if kind == 'committed-input':
+                git(root, 'commit', '-qm', 'accidentally tracked source')
+        elif kind == 'symlink-input':
+            (root / INPUT).unlink()
+            (root / INPUT).symlink_to('../README.md')
+        elif kind == 'parent-symlink':
+            (root / 'sources').rename(root / 'moved-sources')
+            (root / 'sources').symlink_to('moved-sources', target_is_directory=True)
+        before_target = git(repo, 'rev-parse', 'HEAD')
+        before_worker = git(root, 'rev-parse', 'HEAD')
+        before_status = git(root, 'status', '--porcelain', '--untracked-files=all')
+        result = merge(env)
+>       assert not result['ok'], result
+E       AssertionError: {'branch': 'feat/remote-workspace/input-worker', 'commit_point': 'target_committed', 'commits_merged': 1, 'conflicts': [], ...}
+E       assert not True
+
+tests/test_hub_inputs_v1062.py:98: AssertionError
+----------------------------- Captured stderr call -----------------------------
+_reset_worktree_to_ref: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-7/test_merge_refuses_dirty_or_co0/worktrees/remote-workspace/input-worker reset to main (35609630)
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: /remote/workspace/.orchestra/tasks/V-1062/tmp/pytest-of-remote-user/pytest-7/test_merge_refuses_dirty_or_co0/worktrees/remote-workspace/input-worker reset to main (35609630)
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1062.py::test_merge_refuses_dirty_or_colliding_work_without_losing_data[changed-input]
+1 failed in 10.25s

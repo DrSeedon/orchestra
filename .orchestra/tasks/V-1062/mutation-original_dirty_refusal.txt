@@ -1,0 +1,20 @@
+[Publication-redacted evidence: remote installation prefixes are shown as /remote/workspace; derived installation slugs/account labels are neutralized. Source-relative paths, synthetic test suffixes and actual results are preserved.]
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_unchanged_input_and_committed_output_merge_preserves_original ______
+
+env = (PosixPath('/remote/workspace/.orchestra/tasks/V-106....6633594, input_manifest={'sources/raw rows.txt': 'f7392ce655eab645c23cf3e8c984aebcb86240452089055534a2cd41a1375b83'}))
+
+    def test_unchanged_input_and_committed_output_merge_preserves_original(env):
+        repo, root, state = env
+        before = (root / INPUT).stat().st_mtime_ns
+        result = merge(env)
+>       assert result['ok'], result
+E       AssertionError: {'commit_point': 'not_reached', 'conflicts': [], 'diff_budget_limit': 2000, 'diff_budget_waived': False, ...}
+E       assert False
+
+tests/test_hub_inputs_v1062.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1062.py::test_unchanged_input_and_committed_output_merge_preserves_original
+1 failed in 8.92s
