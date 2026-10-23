@@ -120,3 +120,5 @@
 
 - V-964: 12 deliveries stuck in QUEUED (wake=1, oldest 2026-10-05): 7 to archived sessions, 5 to idle session decision-cost; no failure notice, no sweeper. Diagnose cause; consider age-based sweeper + transition table in message_deliveries._update_state (see .orchestra/tasks/V-964/report.md).
 - Полный набор тестов перезаписывает отслеживаемые скриншоты задач (`.orchestra/tasks/V-860/screenshots/recording.png`, `V-862/quota-override-form.png`, `V-967/tool-cards-*.png`, `V-994/*-controls-*.png`): после прогона в worktree воркера они числятся изменёнными и блокируют merge_worker. Найдено 22.10 при приёмке V-1048; тесты должны писать во временный каталог.
+
+- V-1062: `_slugify` truncates absolute repository paths to the first 80 characters; two repos with a shared long prefix collide at create_worktree. Reproduced in the hub synthetic test scratch; host short-path tests pass. Follow up with a collision-resistant repo identity; evidence: `.orchestra/tasks/V-1062/report.md`, `regression-final.txt`. Outside the input-only merge fix.

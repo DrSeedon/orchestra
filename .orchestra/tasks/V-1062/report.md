@@ -109,3 +109,11 @@ All task artifacts were checked for the remote installation prefix and account-d
 Follow-up validation: the provisioned uv command `uv run --frozen python -m pytest tests/test_hub_workspace.py::test_hub_prompt_has_no_outbox_section_when_nothing_can_run_it -q` passed **1 test in 4.73 s** (`delivery-followup-test.txt`). Production source fingerprints remain unchanged (4/4); the other prompt-sentence assertion and all unrelated tests were retained. No broad suite, provider run or restart was launched. The original 424/3 result remains historical evidence from before this one-assertion delivery correction.
 
 Delivery HEAD is assigned by the platform when it imports/commits this private copy; there is no `.git` here and that post-turn SHA cannot be read or fabricated by this worker. The orchestrator must report the imported branch HEAD from its host repository. Concise diff: neutralize remote installation/account prefixes in task artifacts, label redacted evidence, and remove only the specified exact-sentence assertion while retaining absent-outbox and task-delivery checks.
+
+## Host acceptance — 2026-10-23
+
+All 427 selected hub/workspace/merge/continuation/diff-budget tests passed on the VPS in 59.58 seconds. Imported app: `/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-hub-inputs/app/__init__.py`. My own two mutations each failed a committed behavioral test: restoring blanket dirty refusal; removing the input digest comparison. Source bytes were restored in finally. Detailed host logs are retained privately at `.orchestra/private/V-1062/host-tests.txt` and `host-mutation-*.txt`; they are not public fixtures. The follow-up changed no production source. The normal merge test and mutation gates also passed. No model review ran under the owner freeze.
+
+Read-only check of the reported live worker metadata: one matching workspace record; all 994 untracked files were covered by its manifest, all 994 hashes matched, no unaccounted files. This verifies availability of migration provenance, not the actual live merge. No real originals were modified.
+
+Merged into main. Pending: running Python must load the change via the existing authorized idle-restart watcher; then Seedon must verify a new merge operation against its current worker HEAD. Do not equate this merge with live restoration.
