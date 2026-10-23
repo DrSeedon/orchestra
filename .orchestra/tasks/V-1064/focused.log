@@ -1,0 +1,30 @@
+....F.....                                                               [100%]
+=================================== FAILURES ===================================
+_______ test_sync_failure_is_visible_as_failed_turn_without_model_resend _______
+
+repo = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/pytest/test_sync_failure_is_visible_a0/wt')
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/pytest/test_sync_failure_is_visible_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x719f203154f0>
+
+    @pytest.mark.asyncio
+    async def test_sync_failure_is_visible_as_failed_turn_without_model_resend(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda _: None)
+        async def refused(*args):
+            raise hw.HubWorkspaceError("synthetic transport refusal")
+        monkeypatch.setattr(ssh, "get", refused)
+        events = await _turn(backend, "go")
+        assert events[-1].type == "turn_end" and events[-1].metadata["ok"] is False
+        assert any("hub sync FAILED" in event.content for event in events)
+        assert backend._state.path().exists() and not ssh.removed
+>       assert len(mc.threads) == 1
+                   ^^^^^^^^^^
+E       AttributeError: 'FakeMc' object has no attribute 'threads'
+
+tests/test_hub_download_v1064.py:173: AttributeError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:288 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_download_v1064.py::test_sync_failure_is_visible_as_failed_turn_without_model_resend
+1 failed, 9 passed in 5.93s

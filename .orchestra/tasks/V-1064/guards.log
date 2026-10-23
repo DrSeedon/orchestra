@@ -1,0 +1,397 @@
+............................................................F........... [  8%]
+........................................F............................... [ 17%]
+........................................................................ [ 26%]
+...................................................................... [ 34%]
+........................................................................ [ 43%]
+........................................................................ [ 52%]
+........................................................................ [ 60%]
+.....................................F..............F......F............ [ 69%]
+............................................................................................................................. [ 84%]
+..................................F..................................... [ 93%]
+.....................................................                    [100%]
+=================================== FAILURES ===================================
+_______ test_download_timeout_and_failed_tar_do_not_apply_partial_output _______
+
+fut = <_GatheringFuture finished exception=CancelledError()>, timeout = 0.05
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/hub_workspace.py:491: in download
+    while chunk := await proc.stdout.read(min(65536, max_out - received + 1)):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/streams.py:713: in read
+    await self._wait_for_data('read')
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <StreamReader eof transport=<_UnixReadPipeTransport closed fd=16 closed>>
+func_name = 'read'
+
+    async def _wait_for_data(self, func_name):
+        """Wait until feed_data() or feed_eof() is called.
+    
+        If stream was paused, automatically resume it.
+        """
+        # StreamReader uses a future to link the protocol feed_data() method
+        # to a read coroutine. Running two read coroutines at the same time
+        # would have an unexpected behaviour. It would not possible to know
+        # which coroutine would get the next data.
+        if self._waiter is not None:
+            raise RuntimeError(
+                f'{func_name}() called while another coroutine is '
+                f'already waiting for incoming data')
+    
+        assert not self._eof, '_wait_for_data after EOF'
+    
+        # Waiting for data while paused will make deadlock, so prevent it.
+        # This is essential for readexactly(n) for case when n > self._limit.
+        if self._paused:
+            self._paused = False
+            self._transport.resume_reading()
+    
+        self._waiter = self._loop.create_future()
+        try:
+>           await self._waiter
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/streams.py:545: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+repo = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_download_timeout_and_fail0/wt')
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_download_timeout_and_fail0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a43348ac4a0>
+
+    @pytest.mark.asyncio
+    async def test_download_timeout_and_failed_tar_do_not_apply_partial_output(repo, tmp_path, monkeypatch):
+        monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+        state = hw.WorkspaceState("hub-0123456789abcdef", str(repo), str(tmp_path / "hub-0123456789abcdef"),
+                                  manifest=hw.plan_upload(repo, known=[]).manifest, input_manifest={})
+        state.save()
+        before = state.path().read_bytes()
+        ssh = ShellSsh()
+        backend = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo))
+        # Missing directory / tar failure is fatal, even if stdout created a partial file.
+        with pytest.raises(hw.HubWorkspaceError, match="retained workspace"):
+            await backend._sync_back(ssh, state, repo, tmp_path)
+        assert state.path().read_bytes() == before
+        assert (repo / "calc.py").exists()
+        with pytest.raises(hw.HubWorkspaceError, match="timed out"):
+>           await ssh.run("exec tail -f /dev/null", stdout=tmp_path / "timeout", timeout=0.05)
+
+tests/test_hub_download_v1064.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_uv.py:31: in run
+    return await super().run(remote, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/hub_workspace.py:505: in run
+    out, err, _ = await asyncio.wait_for(asyncio.gather(*readers), timeout)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7a4333d16c40>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+______________________ test_ssh_cancellation_reaps_child _______________________
+
+item = <Coroutine test_ssh_cancellation_reaps_child>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_call(item: Any) -> Generator[None, Any, None]:
+        if _soft_scope is None:
+            yield
+            return
+        hard_failure: Optional[BaseException] = None
+        with _soft_scope() as errors:
+            try:
+                yield
+            except BaseException as exc:
+                hard_failure = exc
+        if not errors:
+            if hard_failure is not None:
+>               raise hard_failure
+
+.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:107: in pytest_runtest_call
+    yield
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest
+    super().runtest()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner
+    runner.run(coro, context=context)
+/usr/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/base_events.py:674: in run_until_complete
+    self.run_forever()
+/usr/lib/python3.12/asyncio/base_events.py:641: in run_forever
+    self._run_once()
+/usr/lib/python3.12/asyncio/base_events.py:1949: in _run_once
+    event_list = self._selector.select(timeout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <selectors.EpollSelector object at 0x7a4333cd3e30>, timeout = -1
+
+    def select(self, timeout=None):
+        if timeout is None:
+            timeout = -1
+        elif timeout <= 0:
+            timeout = 0
+        else:
+            # epoll_wait() has a resolution of 1 millisecond, round away
+            # from zero to wait *at least* timeout seconds.
+            timeout = math.ceil(timeout * 1e3) * 1e-3
+    
+        # epoll_wait() expects `maxevents` to be greater than zero;
+        # we want to make sure that `select()` can be called when no
+        # FD is registered.
+        max_ev = max(len(self._fd_to_key), 1)
+    
+        ready = []
+        try:
+>           fd_event_list = self._selector.poll(timeout, max_ev)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: Timeout (>90.0s) from pytest-timeout.
+
+/usr/lib/python3.12/selectors.py:468: Failed
+---------------------------- Captured log teardown -----------------------------
+ERROR    asyncio:base_events.py:1821 unhandled exception during asyncio.run() shutdown
+task: <Task finished name='Task-323' coro=<test_ssh_cancellation_reaps_child() done, defined at /remote/workspace/tests/test_hub_image.py:393> exception=AssertionError('Expected mock to have been awaited once. Awaited 0 times.')>
+Traceback (most recent call last):
+  File "/remote/workspace/tests/test_hub_image.py", line 413, in test_ssh_cancellation_reaps_child
+    process.wait.assert_awaited_once()
+  File "/usr/lib/python3.12/unittest/mock.py", line 2305, in assert_awaited_once
+    raise AssertionError(msg)
+AssertionError: Expected mock to have been awaited once. Awaited 0 times.
+________________ test_ci_pytest_does_not_stop_at_first_failure _________________
+
+    def test_ci_pytest_does_not_stop_at_first_failure():
+        """Финальный прогон CI без -x: один красный не прячет хвост."""
+>       text = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_merge_test_gate.py:97: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('.github/workflows/ci.yml'), mode = 'r', buffering = -1
+encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '.github/workflows/ci.yml'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+_______________ test_run_pytest_isolates_live_state_environment ________________
+
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_run_pytest_isolates_live_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a43319614c0>
+
+    def test_run_pytest_isolates_live_state_environment(tmp_path, monkeypatch):
+        from app import merge_test_gate as gate
+    
+        seen = {}
+    
+        def fake_run(argv, **kwargs):
+            seen.update(kwargs["env"])
+            return subprocess.CompletedProcess(argv, 0, "passed", "")
+    
+        monkeypatch.setenv("ORCHESTRA_DB_PATH", "/production/orchestra.db")
+        monkeypatch.setenv("ORCHESTRA_TASK_REPOSITORY", "/production/tasks")
+        monkeypatch.setenv("ORCHESTRA_TASK_PREFIX", "V-")
+        monkeypatch.setenv("QUOTA_GATED_LANES", "claude")
+        monkeypatch.setattr(gate, "_git", lambda *_args: None)
+        monkeypatch.setattr(gate.subprocess, "run", fake_run)
+    
+        result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
+    
+        assert result["status"] == gate.PASSED
+>       assert seen["ORCHESTRA_DB_PATH"].startswith("/tmp/")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0x7a4330c2fab0>('/tmp/')
+E        +    where <built-in method startswith of str object at 0x7a4330c2fab0> = '/remote/workspace/.orchestra/tasks/V-1064/tmp/orchestra-merge-gate-hfdp_r7i/orchestra.db'.startswith
+
+tests/test_merge_test_gate.py:501: AssertionError
+____________ test_orchestra_worktree_is_detected_by_git_common_dir _____________
+
+    def test_orchestra_worktree_is_detected_by_git_common_dir():
+        from app.merge_test_gate import _is_orchestra_worktree
+    
+        root = Path(__file__).resolve().parents[1]
+>       assert _is_orchestra_worktree(str(root)) is True
+E       AssertionError: assert False is True
+E        +  where False = <function _is_orchestra_worktree at 0x7a4330cec4a0>('/remote/workspace')
+E        +    where '/remote/workspace' = str(PosixPath('/remote/workspace'))
+
+tests/test_merge_test_gate.py:697: AssertionError
+_____________ TestCreateWorktree.test_different_repos_no_collision _____________
+
+self = <tests.test_workspace.TestCreateWorktree object at 0x7a4335faeb10>
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0')
+git_repo = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo')
+wt_root = PosixPath('/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/worktrees')
+
+    def test_different_repos_no_collision(self, tmp_path, git_repo, wt_root):
+        from app.workspace import create_worktree
+        other = tmp_path / "other-repo"
+        other.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.name", "t"], cwd=other, check=True)
+        (other / "f.txt").write_text("x")
+        subprocess.run(["git", "add", "-A"], cwd=other, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=other, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=other, check=True)
+    
+        wt1 = create_worktree(str(git_repo), "worker-1")
+>       wt2 = create_worktree(str(other), "worker-1")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_workspace.py:468: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_path = '/remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/other-repo'
+name = 'worker-1', task_id = '', base_branch = '', worktree_cfg = None
+base_commit = '', sparse_task_id = ''
+
+    def create_worktree(repo_path: str, name: str, task_id: str = "",
+                        base_branch: str = "",
+                        worktree_cfg: "WorktreeCfg | None" = None,
+                        base_commit: str = "", sparse_task_id: str = "") -> Worktree:
+        repo = validate_repo_root(repo_path)
+        if base_branch and base_commit:
+            raise ValueError("pass either base_branch or base_commit, not both")
+        with repo_mutation_lock(repo):
+            if base_commit:
+                base_ref = _resolve_commit_oid(repo, base_commit)
+            else:
+                base_ref = resolve_base_branch(str(repo), base_branch)
+    
+            # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
+            # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
+            repo_slug = _slugify(str(repo))
+            wt_dir = WORKTREE_ROOT / repo_slug
+            _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
+            wt_path = wt_dir / name
+    
+            if task_id:
+                par = _normalize_task_id(task_id)
+                branch = f"task-{par}/{name}"
+            else:
+                branch = f"feat/{repo_slug}/{name}"
+    
+            if wt_path.exists():
+>               raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
+E               ValueError: worktree already exists: /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/worktrees/remote-workspace/worker-1. Remove session first.
+
+app/workspace.py:764: ValueError
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo — copy skipped
+'.mcp.json' is tracked by /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo — copy skipped
+'.env' is tracked by /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo — copy skipped
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:847 'CLAUDE.md' is tracked by /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:847 '.mcp.json' is tracked by /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:847 '.env' is tracked by /remote/workspace/.orchestra/tasks/V-1064/tmp/guards/test_different_repos_no_collis0/repo — copy skipped
+=============================== warnings summary ===============================
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2725043) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_hub_download_v1064.py::test_download_timeout_and_failed_tar_do_not_apply_partial_output
+FAILED tests/test_hub_image.py::test_ssh_cancellation_reaps_child - Failed: T...
+FAILED tests/test_merge_test_gate.py::test_ci_pytest_does_not_stop_at_first_failure
+FAILED tests/test_merge_test_gate.py::test_run_pytest_isolates_live_state_environment
+FAILED tests/test_merge_test_gate.py::test_orchestra_worktree_is_detected_by_git_common_dir
+FAILED tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision
+6 failed, 818 passed, 2 warnings, 21 subtests passed in 507.04s (0:08:27)

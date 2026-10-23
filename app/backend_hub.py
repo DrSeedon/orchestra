@@ -524,10 +524,12 @@ class HubBackend:
                     state.activity_pos = stream.cursor or 0
                     state.save()
                     self._sync_no_work = False
+                    sync_error = None
                     try:
                         sync = await self._sync_back(ssh, state, root, scratch)
                     except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
                         sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
+                        sync_error = sync
                     failure = f"hub thread ended with status {status}; {evidence.description()}"
                     text = reply or f"(hub thread ended with status {status} without a reply)"
                     if not reply and status in {"failed", "cancelled", "rolled_back"}:
@@ -536,6 +538,8 @@ class HubBackend:
                     limit = self._watch_limit or evidence.limit or _provider_limit(reply, failed=status == "failed")
                     if limit:
                         raise HubProviderLimit(limit)
+                    if sync_error:
+                        raise hw.HubWorkspaceError(sync_error)
                     if (status in {"failed", "cancelled"} and not reply and not self._abort
                             and not evidence.tool_activity and evidence.activity_complete
                             and self._sync_no_work and attempt < NO_WORK_RETRIES):
@@ -781,6 +785,8 @@ class HubBackend:
         state.save()
         lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
                  + (f", commit {commit}" if commit else "")]
+        lines.append(f"return archive {out.stat().st_size} bytes; "
+                     f"transport limit {hw.MAX_TOTAL_BYTES * 2} bytes; workspace {state.ws_id}")
         if outbox_line:
             lines.append(outbox_line)
         if unstaged:

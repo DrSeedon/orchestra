@@ -480,22 +480,51 @@ class HubSsh:
             proc = await asyncio.create_subprocess_exec(
                 *self._argv(remote),
                 stdin=fin if fin else asyncio.subprocess.DEVNULL,
-                stdout=fout if fout else asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
+
+            async def download() -> bytes:
+                # Bound the temporary file while receiving, not after an unlimited write.
+                # One extra byte distinguishes an exact-limit archive from an overflow.
+                received = 0
+                while chunk := await proc.stdout.read(min(65536, max_out - received + 1)):
+                    received += len(chunk)
+                    if received > max_out:
+                        raise HubWorkspaceError(
+                            f"hub workspace download exceeds the size limit: received at least "
+                            f"{received} bytes, limit {max_out} bytes (transfer stopped)")
+                    fout.write(chunk)
+                return b""
+
+            readers = []
             try:
-                out, err = await asyncio.wait_for(proc.communicate(), timeout)
-            except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
+                if fout:
+                    readers = [asyncio.create_task(download()), asyncio.create_task(proc.stderr.read()),
+                               asyncio.create_task(proc.wait())]
+                    out, err, _ = await asyncio.wait_for(asyncio.gather(*readers), timeout)
+                else:
+                    out, err = await asyncio.wait_for(proc.communicate(), timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError, HubWorkspaceError, OSError) as exc:
                 if proc.returncode is None:
                     proc.kill()
-                await proc.wait()
-                if isinstance(exc, asyncio.CancelledError):
-                    raise
-                raise HubWorkspaceError("hub SSH command timed out") from None
+                # A failed reader must not leave a pending pipe task or SSH process.
+                for reader in readers:
+                    reader.cancel()
+                await asyncio.gather(*readers, return_exceptions=True)
+                if fout:
+                    await proc.communicate()
+                else:
+                    await proc.wait()
+                if isinstance(exc, asyncio.TimeoutError):
+                    raise HubWorkspaceError("hub SSH command timed out") from None
+                raise
         if proc.returncode != 0:
             raise HubWorkspaceError(_ssh_failure(remote, proc.returncode, out, err, stdout is not None))
         if stdout is not None and stdout.stat().st_size > max_out:
-            raise HubWorkspaceError("hub workspace download exceeds the size limit")
+            raise HubWorkspaceError(
+                f"hub workspace download exceeds the size limit: received {stdout.stat().st_size} "
+                f"bytes, limit {max_out} bytes")
         return out or b""
 
     async def home(self) -> str:
@@ -576,8 +605,18 @@ class HubSsh:
 
     async def get(self, remote_dir: str, out: Path) -> None:
         _check_remote(remote_dir)
-        await self.run(
-            f"tar -cf - -C {shlex.quote(remote_dir)} --exclude=./.git --exclude=./.venv .", stdout=out)
+        # GNU tar's unanchored exclusions match these exact path components at
+        # every depth. Do not consult .gitignore or exclude arbitrary output names.
+        # Keep pyvenv.cfg as evidence: apply_changes uses it to preserve legacy
+        # manifest entries under custom-named environments instead of deleting them.
+        excludes = " ".join(f"--exclude={shlex.quote(name)}" for name in sorted(BLOCKED_DIRS))
+        try:
+            await self.run(
+                f"tar -cf - -C {shlex.quote(remote_dir)} --no-anchored {excludes} "
+                "--exclude-tag=pyvenv.cfg .", stdout=out, max_out=MAX_TOTAL_BYTES * 2)
+        except HubWorkspaceError as exc:
+            raise HubWorkspaceError(
+                f"{exc}; retained workspace {os.path.basename(remote_dir)} for sync-back retry") from exc
 
     async def list_workspaces(self) -> list[tuple[str, float]]:
         """(workspace id, mtime epoch) of every broker directory under our root."""
@@ -696,6 +735,9 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
     input_parents = _parents(inputs)
     result = SyncResult(manifest=dict(manifest))
     seen: set[str] = set()
+    # Name-blocked directories are omitted by the return packager. Their absence
+    # is never evidence of an intentional deletion, including in legacy records.
+    seen.update(rel for rel in manifest if (blocked_reason(rel) or "").startswith("directory"))
     total = 0
     pending: list[tuple[str, bytes, int]] = []
     with tarfile.open(tar_path, "r:") as archive:

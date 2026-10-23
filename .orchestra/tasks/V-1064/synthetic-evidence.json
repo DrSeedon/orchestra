@@ -1,0 +1,29 @@
+{
+  "imported_app_path_normalized": "/remote/workspace/app/__init__.py",
+  "kind": "synthetic only; not the real failed workspace",
+  "new_archive_bytes": 30720,
+  "new_archive_regular_files": {
+    ".env.example": 20,
+    ".orchestra/tasks/V-1/report.md": 7,
+    "calc.py": 13,
+    "media/demo.mp4": 22,
+    "results/result.json": 13,
+    "src/keep.txt": 5,
+    "tmp/ghidra-early.rep/idata/annotations": 16,
+    "tmp/ghidra.zip": 22,
+    "tmp/sdk/tool": 33,
+    "tools/custom-env-sibling/keep.py": 11,
+    "tools/custom-env/pyvenv.cfg": 18,
+    "web/node_modules-notes/keep.txt": 11
+  },
+  "old_full_archive_bytes": 1105920,
+  "old_stopped_temporary_file_bytes": 131072,
+  "real_failure_archive_size_and_composition": "unknown; parent/Seedon inventories separately",
+  "remote_large_cache_files_still_present": {
+    "nested/.venv/lib/huge.bin": 262144,
+    "tools/custom-env/lib/huge.bin": 262144,
+    "venv/huge.bin": 262144,
+    "web/node_modules/pkg/huge.bin": 262144
+  },
+  "scaled_transport_limit_bytes": 131072
+}
