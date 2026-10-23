@@ -2768,7 +2768,7 @@ def _record_restart_outcome(outcome: dict) -> None:
     for session_id in outcome["cut_ids"]:
         add_log(session_id, ts, "system",
                 f"{summary}. Твой ход прерван; сессия восстановится после запуска, "
-                "автоматического повтора самого хода нет.")
+                "получит уведомление и продолжит задачу с проверкой результатов действий.")
 
 
 async def _record_restart_outcome_bounded(outcome: dict) -> dict | None:

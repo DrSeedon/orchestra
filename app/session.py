@@ -556,6 +556,7 @@ class AgentSession:
     _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
+    _restart_cut_pending: bool = field(default=False, repr=False)
     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
     _precompact_timer: dict | None = field(default=None, repr=False)
     # Одна строка в журнал на сессию: решение принимается каждый ход, а причина не меняется.
@@ -3037,6 +3038,10 @@ class AgentSession:
             self._turns.cancel_auto_report()
             self._cancel_precompact_timer("interrupt")
             self._manually_interrupted = True
+            if getattr(self, "_restart_cut_pending", False):
+                from app.db import acknowledge_restart_cut_turns
+                acknowledge_restart_cut_turns([self.id])
+                self._restart_cut_pending = False
             self._log("status", "interrupt requested")
             self._persist()
 

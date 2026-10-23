@@ -220,7 +220,7 @@ class DeliveryTests(IsolatedDatabase, unittest.IsolatedAsyncioTestCase):
                 manager.send = AsyncMock()
                 manager.reconcile_live_colors = Mock()
                 manager._signal_restart_cut_turns = Mock()
-                session = SimpleNamespace(id="worker-id", name="worker")
+                session = SimpleNamespace(id="worker-id", name="worker", _drain_persist=AsyncMock())
                 manager._load_from_db = AsyncMock(return_value=session)
                 spawned = []
                 with patch.object(manager_module, "spawn_supervised",

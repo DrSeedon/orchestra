@@ -2434,8 +2434,22 @@ class SessionManager:
             # 'running' — не успел (SIGKILL/OOM). Оба означают одно: ход прерван
             # рестартом. Читать только 'running' значило будить лишь тех, кого
             # застал аварийный путь (#160).
+            # Capture before resetting statuses, in the same transaction. Loading
+            # and the staggered wake-up both await; another crash there must not
+            # turn a cut turn into a permanently idle session (V-1057).
+            c.execute(
+                "INSERT OR IGNORE INTO restart_cut_turns(session_id) "
+                "SELECT id FROM sessions WHERE status IN ('running', 'interrupted')"
+            )
+            # Archived/terminal agents and agents now waiting on their own bg job
+            # must not be revived by an obligation from an earlier startup.
+            c.execute(
+                "DELETE FROM restart_cut_turns WHERE session_id IN "
+                "(SELECT id FROM sessions WHERE status NOT IN ('running', 'interrupted', 'idle'))"
+            )
             was_running_rows = [dict(r) for r in c.execute(
-                "SELECT * FROM sessions WHERE status IN ('running', 'interrupted')"
+                "SELECT * FROM sessions WHERE id IN "
+                "(SELECT session_id FROM restart_cut_turns)"
             ).fetchall()]
             was_running = {r["id"] for r in was_running_rows}
             was_waiting = {r["id"] for r in c.execute(
@@ -2446,7 +2460,7 @@ class SessionManager:
             resumable = [dict(r) for r in c.execute(
                 "SELECT * FROM sessions WHERE (session_id IS NOT NULL "
                 "AND status IN ('running', 'interrupted', 'idle', 'waiting')) "
-                "OR status IN ('running', 'interrupted')"
+                "OR id IN (SELECT session_id FROM restart_cut_turns)"
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' "
                       "WHERE status IN ('running', 'interrupted', 'waiting')")
@@ -2479,6 +2493,7 @@ class SessionManager:
                             session.status = AgentStatus.WAITING
                             session._persist()
                     elif row["id"] in was_running:
+                        session._restart_cut_pending = True
                         spawn_supervised(
                             self._inject_restart_notice(session, row),
                             f"уведомление о рестарте для {session.name}",
@@ -2491,25 +2506,32 @@ class SessionManager:
         # made orchestrators intervene while the worker was already continuing (V-919).
         # The continued turn reports its own end; only a turn that cannot continue is
         # signalled here.
-        self._signal_restart_cut_turns(not_continued)
+        if self._signal_restart_cut_turns(not_continued) and not_continued:
+            from app.db import acknowledge_restart_cut_turns
+            acknowledge_restart_cut_turns([row["id"] for row in not_continued])
 
     @staticmethod
-    def _signal_restart_cut_turns(rows: list[dict]) -> None:
+    def _signal_restart_cut_turns(rows: list[dict]) -> bool:
         if not rows:
-            return
+            return True
         from app import turn_signals
         try:
             turn_signals.record_interrupted_by_restart(rows)
+            return True
         except Exception as error:
             logger.error("turn signals for restart-interrupted turns failed: %s: %s",
                          type(error).__name__, error)
+            return False
 
     async def _inject_restart_notice(self, session: AgentSession, row: dict) -> None:
+        from app.db import acknowledge_restart_cut_turns
         import random
         # Random stagger: if N agents resume simultaneously they'd all hit the SDK
         # concurrently and cause a connection storm; spread them over 15s
         await asyncio.sleep(3 + random.uniform(0, 12))
         if getattr(session, "_manually_interrupted", False) is True:
+            acknowledge_restart_cut_turns([session.id])
+            session._restart_cut_pending = False
             return
         try:
             provenance = MessageProvenance(
@@ -2518,10 +2540,17 @@ class SessionManager:
             await self.send(
                 session.id, restart_notice_text(row), provenance=provenance,
             )
+            # The new running/finished state must reach disk before dropping the
+            # recovery obligation. Cancellation keeps it pending for next startup.
+            await session._drain_persist()
+            acknowledge_restart_cut_turns([session.id])
+            session._restart_cut_pending = False
             logger.info(f"Restart notice injected: {session.name}")
         except Exception as e:
             logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
-            self._signal_restart_cut_turns([row])
+            if self._signal_restart_cut_turns([row]):
+                acknowledge_restart_cut_turns([session.id])
+                session._restart_cut_pending = False
 
     async def _periodic_worktree_cleanup(self) -> None:
         WT_CLEANUP_INTERVAL = 24 * 3600

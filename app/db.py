@@ -113,6 +113,22 @@ def _ensure_session_model_reasons_schema(connection: sqlite3.Connection) -> None
     )""")
 
 
+def _ensure_restart_cut_turns_schema(connection: sqlite3.Connection) -> None:
+    # A startup may itself be cut after sessions have been loaded as idle, before
+    # their staggered restart notices run. Keep that obligation across generations.
+    connection.execute("""CREATE TABLE IF NOT EXISTS restart_cut_turns (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE
+    )""")
+
+
+def acknowledge_restart_cut_turns(session_ids: list[str]) -> None:
+    with _conn() as connection:
+        connection.executemany(
+            "DELETE FROM restart_cut_turns WHERE session_id=?",
+            [(session_id,) for session_id in session_ids],
+        )
+
+
 _SESSION_SELECT = """SELECT sessions.*, COALESCE((
     SELECT reason FROM session_model_reasons
     WHERE session_id=sessions.id AND model=sessions.model
@@ -125,6 +141,7 @@ def init_db(path: Path | None = None) -> None:
         if version == SCHEMA_VERSION:
             _ensure_usage_analytics_schema(connection)
             _ensure_session_model_reasons_schema(connection)
+            _ensure_restart_cut_turns_schema(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -136,6 +153,7 @@ def init_db(path: Path | None = None) -> None:
             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
         _ensure_usage_analytics_schema(connection)
         _ensure_session_model_reasons_schema(connection)
+        _ensure_restart_cut_turns_schema(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 

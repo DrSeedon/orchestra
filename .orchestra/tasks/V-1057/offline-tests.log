@@ -1,0 +1,28 @@
+test_abrupt_stop_running_is_resumed_once_without_cut_names (offline_tests_1057.RestartCutRecoveryTests.test_abrupt_stop_running_is_resumed_once_without_cut_names) ... ok
+test_acknowledgement_waits_for_session_persistence (offline_tests_1057.RestartCutRecoveryTests.test_acknowledgement_waits_for_session_persistence) ... ok
+test_archived_agent_does_not_keep_a_pending_wake (offline_tests_1057.RestartCutRecoveryTests.test_archived_agent_does_not_keep_a_pending_wake) ... ok
+test_cancellation_during_notice_does_not_acknowledge (offline_tests_1057.RestartCutRecoveryTests.test_cancellation_during_notice_does_not_acknowledge) ... ok
+test_crash_while_loading_retains_first_turn_without_native_id (offline_tests_1057.RestartCutRecoveryTests.test_crash_while_loading_retains_first_turn_without_native_id) ... ok
+test_existing_database_gets_recovery_table_on_init (offline_tests_1057.RestartCutRecoveryTests.test_existing_database_gets_recovery_table_on_init) ... ok
+test_failed_parent_notification_survives_another_boot (offline_tests_1057.RestartCutRecoveryTests.test_failed_parent_notification_survives_another_boot) ... Failed to resume worker worker: offline load failed
+turn signals for restart-interrupted turns failed: RuntimeError: signal database unavailable
+Failed to resume worker worker: offline load failed
+ok
+test_load_failure_notifies_parent_once (offline_tests_1057.RestartCutRecoveryTests.test_load_failure_notifies_parent_once) ... Failed to resume worker worker: offline load failed
+ok
+test_manual_stop_cancels_pending_recovery_before_another_crash (offline_tests_1057.RestartCutRecoveryTests.test_manual_stop_cancels_pending_recovery_before_another_crash) ... ok
+test_missing_working_directory_notifies_parent_once (offline_tests_1057.RestartCutRecoveryTests.test_missing_working_directory_notifies_parent_once) ... ok
+test_notice_failure_notifies_parent_once (offline_tests_1057.RestartCutRecoveryTests.test_notice_failure_notifies_parent_once) ... Failed to inject restart notice to worker: provider not invoked
+ok
+test_prepared_restart_resumes_once (offline_tests_1057.RestartCutRecoveryTests.test_prepared_restart_resumes_once) ... ok
+test_recovery_schema_is_additive_idempotent_and_follows_session_deletion (offline_tests_1057.RestartCutRecoveryTests.test_recovery_schema_is_additive_idempotent_and_follows_session_deletion) ... ok
+test_repeated_startup_in_same_manager_does_not_schedule_twice (offline_tests_1057.RestartCutRecoveryTests.test_repeated_startup_in_same_manager_does_not_schedule_twice) ... ok
+test_second_crash_before_staggered_notice_keeps_cut_turn (offline_tests_1057.RestartCutRecoveryTests.test_second_crash_before_staggered_notice_keeps_cut_turn) ... ok
+test_waiting_agent_is_not_cut_even_with_an_old_obligation (offline_tests_1057.RestartCutRecoveryTests.test_waiting_agent_is_not_cut_even_with_an_old_obligation) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.947s
+
+OK
+app namespace: ['<hub-copy>/app']
+Mode: extracted production methods + minimal offline schema/import stubs
