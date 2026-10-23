@@ -1,0 +1,500 @@
+commit 3ba8544c432c3e532f4cb66087572d6395869532
+
+#V-1051: hub worker turn 1 (hub-gpt-6.1-sol)
+
+
+diff --git a/app/backend_hub.py b/app/backend_hub.py
+index 2cb695f23..00c6e7400 100644
+--- a/app/backend_hub.py
++++ b/app/backend_hub.py
+@@ -40,6 +40,7 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
+ }
+ TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
+ WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
++NO_WORK_RETRIES = 2
+ 
+ PREAMBLE_BASE = (
+     "You are a worker on a remote machine. Your current directory is a private copy of a "
+@@ -126,6 +127,56 @@ class HubProviderLimit(hw.HubWorkspaceError):
+     """Provider refused this turn because a usage or rate limit was reached."""
+ 
+ 
++class _RunEvidence:
++    """Run-scoped evidence; incomplete activity must never authorize replaying work."""
++
++    def __init__(self, run_id: str):
++        self.run_id = run_id
++        self.reasons: list[str] = []
++        self.limit: str | None = None
++        self.tool_activity = False
++        self.activity_complete = True
++
++    def failure(self, value: object) -> None:
++        self.limit = self.limit or _provider_limit(value)
++        if isinstance(value, dict):
++            for key in ("error", "errorMessage", "lastError", "failureReason", "reason", "message", "code"):
++                self.failure(value.get(key))
++        elif isinstance(value, list):
++            for part in value:
++                self.failure(part)
++        elif isinstance(value, str) and value.strip() and value not in self.reasons:
++            self.reasons.append(value.strip())
++
++    def page(self, page: object) -> None:
++        if not isinstance(page, dict):
++            return
++        # T3 currently returns recentRuns; also accept the runs field our client used.
++        for run in (page.get("recentRuns") or []) + (page.get("runs") or []):
++            if isinstance(run, dict) and (run.get("runId") or run.get("id")) == self.run_id:
++                self.failure(run)
++        thread = page.get("thread")
++        if (isinstance(thread, dict) and thread.get("latestRunId") == self.run_id
++                and thread.get("status") in {"failed", "cancelled", "rolled_back"}):
++            self.failure(thread)
++        for item in page.get("items") or []:
++            if not isinstance(item, dict) or item.get("runId") != self.run_id:
++                continue
++            kind = str(item.get("type", "")).lower()
++            # This broker-generated item is present before the provider starts.
++            preparation = ":native-item:workspace-preparation" in str(item.get("itemId", ""))
++            if not preparation and any(word in kind for word in (
++                    "tool", "command", "file_change", "file_edit", "web_search", "image_generation")):
++                self.tool_activity = True
++            if item.get("status") == "failed" or "error" in kind:
++                self.failure(item)
++                self.failure(item.get("text"))
++                self.failure(item.get("title"))
++
++    def description(self) -> str:
++        return "hub reason: " + "; ".join(self.reasons) if self.reasons else "no reason exposed by hub"
++
++
+ def _provider_limit(value: object, *, failed: bool = True) -> str | None:
+     """Extract a safe limit category, without forwarding provider account identifiers."""
+     if isinstance(value, dict):
+@@ -217,6 +268,8 @@ class HubBackend:
+         self._turn_started: float | None = None
+         self._watch_status = ''
+         self._watch_limit: str | None = None
++        self._run_evidence: _RunEvidence | None = None
++        self._sync_no_work = False
+ 
+     @property
+     def session_id(self) -> Optional[str]:
+@@ -453,28 +506,56 @@ class HubBackend:
+                     plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
+                     for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
+                         yield AgentEvent("status", note)
+-                    run_id = await self._start(mc, state, first_prompt)
+-                self._run_id = run_id
+-                stream = HubActivityStream(run_id, state.activity_pos or None)
+-                async for event in self._watch(mc, state.thread_id, run_id, stream):
+-                    yield _relative(event, state.remote_dir)
+-                status = self._watch_status
+-                reply = await self._read_reply(mc, state.thread_id, run_id)
+-                for event in stream.finish(reply):
+-                    yield _relative(event, state.remote_dir)
+-                state.activity_pos = stream.cursor or 0
+-                state.save()
+-            try:
+-                sync = await self._sync_back(ssh, state, root, scratch)
+-            except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
+-                sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
+-            text = reply or f"(hub thread ended with status {status} without a reply)"
+-            yield AgentEvent("text", f"{text}\n\n{sync}".strip())
+-            limit = self._watch_limit or _provider_limit(reply, failed=status == "failed")
+-            if limit:
+-                raise HubProviderLimit(limit)
+-            if status in {"failed", "cancelled", "rolled_back"}:
+-                raise hw.HubWorkspaceError(f"hub thread ended with status {status}")
++                    prompt = first_prompt
++                    run_id = await self._start(mc, state, prompt)
++                for attempt in range(NO_WORK_RETRIES + 1):
++                    self._run_id = run_id
++                    self._watch_limit = None
++                    evidence = self._run_evidence = _RunEvidence(run_id)
++                    stream = HubActivityStream(run_id, state.activity_pos or None)
++                    async for event in self._watch(mc, state.thread_id, run_id, stream):
++                        yield _relative(event, state.remote_dir)
++                    status = self._watch_status
++                    reply = await self._read_reply(mc, state.thread_id, run_id)
++                    for event in stream.finish(reply):
++                        yield _relative(event, state.remote_dir)
++                    state.activity_pos = stream.cursor or 0
++                    state.save()
++                    self._sync_no_work = False
++                    try:
++                        sync = await self._sync_back(ssh, state, root, scratch)
++                    except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
++                        sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
++                    failure = f"hub thread ended with status {status}; {evidence.description()}"
++                    text = reply or f"(hub thread ended with status {status} without a reply)"
++                    if not reply and status in {"failed", "cancelled", "rolled_back"}:
++                        text += f"\n{evidence.description()}"
++                    yield AgentEvent("text", f"{text}\n\n{sync}".strip())
++                    limit = self._watch_limit or evidence.limit or _provider_limit(reply, failed=status == "failed")
++                    if limit:
++                        raise HubProviderLimit(limit)
++                    if (status in {"failed", "cancelled"} and not reply and not self._abort
++                            and not evidence.tool_activity and evidence.activity_complete
++                            and self._sync_no_work and attempt < NO_WORK_RETRIES):
++                        delay = attempt + 1
++                        note = (f"hub: {failure}; no work detected; retry {attempt + 1}/{NO_WORK_RETRIES} "
++                                f"on the same thread in {delay}s")
++                        logger.warning("%s", note)
++                        yield AgentEvent("status", note)
++                        await asyncio.sleep(delay)
++                        if self._abort:
++                            return
++                        # Never use _start here: its refused-thread fallback can change threads.
++                        # An uncertain send is propagated, never replayed.
++                        sent = await mc.tool_call("t3_thread_send", {
++                            "threadId": state.thread_id, "message": prompt, "mode": "auto"})
++                        if not isinstance(sent, dict) or not sent.get("runId"):
++                            raise MultiCodeError("MultiCode retry send returned no runId")
++                        run_id = sent["runId"]
++                        continue
++                    if status in {"failed", "cancelled", "rolled_back"}:
++                        raise hw.HubWorkspaceError(failure)
++                    break
+         finally:
+             self._run_id = None
+             hw.rmtree_quiet(scratch)
+@@ -593,6 +674,8 @@ class HubBackend:
+             for event in await self._poll(mc, thread_id, stream):
+                 yield event
+             if terminal:
++                if self._run_evidence is not None:
++                    self._run_evidence.failure(waited)
+                 self._watch_limit = self._watch_limit or status_limit or _provider_limit(waited)
+                 self._watch_status = status
+                 return
+@@ -633,11 +716,22 @@ class HubBackend:
+                 if stream.cursor is not None:
+                     args["afterPosition"] = stream.cursor
+                 page = await self._watch_call(mc, "t3_thread_read", args)
++                if self._run_evidence is not None:
++                    self._run_evidence.page(page)
++                    if not isinstance(page, dict) or not isinstance(page.get("items"), list):
++                        self._run_evidence.activity_complete = False
+                 items = page.get("items", []) if isinstance(page, dict) else []
+                 events.extend(stream.feed(items))
+                 if not (isinstance(page, dict) and page.get("hasMore")) or not items:
++                    if isinstance(page, dict) and page.get("hasMore") and self._run_evidence is not None:
++                        self._run_evidence.activity_complete = False
+                     break
++            else:
++                if self._run_evidence is not None:
++                    self._run_evidence.activity_complete = False
+         except MultiCodeError as exc:
++            if self._run_evidence is not None:
++                self._run_evidence.activity_complete = False
+             logger.warning("hub activity poll failed: %s", exc)
+         return events
+ 
+@@ -645,7 +739,9 @@ class HubBackend:
+         read = await self._watch_call(mc, "t3_thread_read", {
+             "threadId": thread_id, "view": "messages", "limit": 100})
+         if isinstance(read, dict):
+-            for run in read.get("runs") or []:
++            if self._run_evidence is not None:
++                self._run_evidence.page(read)
++            for run in (read.get("recentRuns") or []) + (read.get("runs") or []):
+                 if isinstance(run, dict) and (run.get("id") or run.get("runId")) == run_id:
+                     self._watch_limit = self._watch_limit or _provider_limit(run)
+         return _last_assistant_text(read, run_id) or ""
+@@ -656,6 +752,8 @@ class HubBackend:
+         await ssh.get(state.remote_dir, out)
+         before = dict(state.manifest)
+         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
++        no_work = not (result.changed or result.deleted or result.conflicts
++                       or result.rejected or result.outbox or result.manifest != before)
+         state.manifest = result.manifest
+         state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
+                                                          if before.get(r) != d}) & set(result.manifest))
+@@ -682,6 +780,7 @@ class HubBackend:
+                          + ", ".join(result.conflicts[:20]))
+         if result.rejected:
+             lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
++        self._sync_no_work = no_work
+         return "\n".join(lines)
+ 
+     async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
+diff --git a/app/hub_workspace.py b/app/hub_workspace.py
+index f57b4bd3c..474331d81 100644
+--- a/app/hub_workspace.py
++++ b/app/hub_workspace.py
+@@ -614,6 +614,19 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
+     total = 0
+     pending: list[tuple[str, bytes, int]] = []
+     with tarfile.open(tar_path, "r:") as archive:
++        # Inspect names first: pyvenv.cfg can follow its siblings in a tar snapshot.
++        # Match directory boundaries, independent of the environment's chosen name.
++        venvs = {str(Path(rel).parent) for member in archive.getmembers()
++                 if (rel := _member_path(member.name)) is not None
++                 and Path(rel).name == "pyvenv.cfg"}
++
++        def in_virtualenv(rel: str) -> bool:
++            path = Path(rel)
++            return str(path) in venvs or any(str(parent) in venvs for parent in path.parents)
++
++        for directory in sorted(venvs):
++            result.rejected.append((directory, "Python virtualenv (contains pyvenv.cfg)"))
++        seen.update(rel for rel in manifest if in_virtualenv(rel))
+         for member in archive:
+             if member.isdir():
+                 continue
+@@ -621,6 +634,9 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
+             if rel is None:
+                 result.rejected.append((member.name, "path escapes the workspace"))
+                 continue
++            if in_virtualenv(rel):
++                seen.add(rel)  # preserve previously synced files; exclusion is not a deletion
++                continue
+             if not member.isreg():
+                 result.rejected.append((rel, "not a regular file (link or special)"))
+                 continue
+diff --git a/tests/test_hub_workspace.py b/tests/test_hub_workspace.py
+index 9643720c2..c32bbadc5 100644
+--- a/tests/test_hub_workspace.py
++++ b/tests/test_hub_workspace.py
+@@ -349,6 +349,239 @@ async def _turn(backend, text):
+     return [event async for event in backend.events()]
+ 
+ 
++def _failed_hub_runs(mc, monkeypatch, *, failures=1, status="failed", reason=None,
++                     reason_source="recentRuns", activity=None):
++    """Deterministic terminal runs, retaining the normal upload and sync/commit paths."""
++    from unittest.mock import AsyncMock
++
++    original = mc.tool_call
++    attempts = []
++    sleep = AsyncMock()
++    monkeypatch.setattr(backend_hub.asyncio, "sleep", sleep)
++
++    async def call(name, args):
++        if name in {"t3_thread_launch", "t3_thread_send"}:
++            result = await original(name, args)
++            attempts.append((name, dict(args)))
++            return {**result, "runId": f"run-{len(attempts)}"}
++        run_id = f"run-{len(attempts)}"
++        failed = len(attempts) <= failures
++        if name == "t3_thread_wait":
++            result = {"status": status if failed else "completed", "timedOut": False}
++            if failed and reason_source == "wait" and reason:
++                result["error"] = {"message": reason}
++            return result
++        if name == "t3_thread_read":
++            if args.get("view") == "activity":
++                result = {"items": [], "hasMore": False}
++                if activity and failed:
++                    result["items"] = [{**activity, "runId": run_id, "position": len(attempts) * 10}]
++                if reason and failed and reason_source == "activity":
++                    result["items"].append({"type": "error", "status": "failed", "runId": run_id,
++                                            "position": len(attempts) * 10 + 1, "text": reason})
++            else:
++                result = {"items": [] if failed else [
++                    {"type": "assistant_message", "runId": run_id, "text": "recovered"}]}
++            if failed and reason_source in {"recentRuns", "runs"}:
++                result[reason_source] = [{"runId": "old-run", "error": "old unrelated error"},
++                                        {"runId": run_id, "error": reason}]
++            return result
++        return await original(name, args)
++
++    mc.tool_call = call
++    return attempts, sleep
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("status", ["failed", "cancelled"])
++@pytest.mark.parametrize("reason_source", ["recentRuns", "runs", "wait", "activity"])
++async def test_failed_without_reply_and_without_work_retries_same_thread_then_succeeds(
++    repo, tmp_path, monkeypatch, status, reason_source,
++):
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
++    backend.model = "hub-gpt-6.1-sol"
++    attempts, sleep = _failed_hub_runs(mc, monkeypatch, status=status, reason="transient provider failure",
++                                     reason_source=reason_source)
++    events = await _turn(backend, "fix the task")
++    assert events[-1].metadata["ok"] is True
++    assert any(e.type == "text" and "recovered" in e.content for e in events)
++    assert [name for name, _ in attempts] == ["t3_thread_launch", "t3_thread_send"]
++    assert attempts[1][1] == {"threadId": "thr-1", "message": attempts[0][1]["message"], "mode": "auto"}
++    assert attempts[0][1]["modelSelection"] == {"instanceId": "codex", "model": "gpt-6.1-sol"}
++    assert backend.model == "hub-gpt-6.1-sol"
++    assert not any(name == "t3_thread_configure" for name, _ in mc.calls)
++    sleep.assert_awaited_once_with(1)
++    assert any(e.type == "status" and "retry 1/2" in e.content
++               and "transient provider failure" in e.content for e in events)
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("reason", [None, "provider disconnected before replying"])
++async def test_no_work_retries_exhausted_preserve_error_and_hub_reason(repo, tmp_path, monkeypatch, reason):
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
++    attempts, sleep = _failed_hub_runs(mc, monkeypatch, failures=10, reason=reason)
++    events = await _turn(backend, "go")
++    assert len(attempts) == 3
++    assert [c.args for c in sleep.await_args_list] == [(1,), (2,)]
++    error = next(e for e in events if e.type == "error")
++    expected = reason or "no reason exposed by hub"
++    assert "hub thread ended with status failed" in error.content and expected in error.content
++    assert "old unrelated error" not in error.content
++    assert any(e.type == "text" and expected in e.content for e in events)
++    assert events[-1].metadata["stop_reason"] == "hub_error"
++
++
++@pytest.mark.asyncio
++async def test_platform_workspace_preparation_allows_retry(repo, tmp_path, monkeypatch):
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
++    attempts, sleep = _failed_hub_runs(mc, monkeypatch, activity={
++        "type": "command_execution", "status": "completed", "title": "Workspace ready",
++        "text": "$ Preparing workspace\nWorkspace preparation completed.",
++        "itemId": "turn-item:provider:codex:native-item:workspace-preparation%3Arun"})
++    events = await _turn(backend, "go")
++    assert len(attempts) == 2
++    assert events[-1].metadata["ok"] is True
++
++
++@pytest.mark.asyncio
++async def test_interrupt_during_retry_backoff_does_not_resend(repo, tmp_path, monkeypatch):
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
++    attempts, sleep = _failed_hub_runs(mc, monkeypatch)
++
++    async def interrupt(delay):
++        backend._abort = True
++    sleep.side_effect = interrupt
++    events = await _turn(backend, "go")
++    assert len(attempts) == 1
++    assert events[-1].metadata["stop_reason"] == "interrupted"
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("uncertain", [False, True])
++async def test_retry_send_failure_never_launches_a_replacement(repo, tmp_path, monkeypatch, uncertain):
++    from app.multicode_client import MultiCodeError
++
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
++    attempts, sleep = _failed_hub_runs(mc, monkeypatch)
++    original = mc.tool_call
++    send_calls = []
++
++    async def call(name, args):
++        if name == "t3_thread_send":
++            send_calls.append(args)
++            raise MultiCodeError("thread send refused or delivery uncertain", retryable=uncertain)
++        return await original(name, args)
++    mc.tool_call = call
++    events = await _turn(backend, "go")
++    assert len(attempts) == 1 and len(send_calls) == 1
++    assert events[-1].metadata["stop_reason"] == "hub_error"
++    assert backend._state.thread_id == "thr-1"
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("work", ["edit", "delete", "tool", "rejected", "outbox", "sync_failure", "activity_failure"])
++async def test_failed_run_with_work_or_uncertain_sync_is_not_retried(repo, tmp_path, monkeypatch, work):
++    from app.multicode_client import MultiCodeError
++
++    def edit(directory):
++        if work == "edit":
++            (directory / "calc.py").write_text("fixed\n")
++        elif work == "delete":
++            (directory / "calc.py").unlink()
++        elif work == "rejected":
++            (directory / ".env").write_text("LOCAL_FLAG=1\n")
++        elif work == "outbox":
++            (directory / ".orchestra-outbox.jsonl").write_text('{}\n')
++
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
++    attempts, sleep = _failed_hub_runs(
++        mc, monkeypatch, activity={"type": "command_execution", "status": "completed", "text": "$ true"}
++        if work == "tool" else None)
++    if work == "sync_failure":
++        async def get(*args):
++            raise hw.HubWorkspaceError("snapshot unavailable")
++        monkeypatch.setattr(ssh, "get", get)
++    if work == "activity_failure":
++        original = mc.tool_call
++
++        async def call(name, args):
++            if name == "t3_thread_read" and args.get("view") == "activity":
++                raise MultiCodeError("activity unavailable")
++            return await original(name, args)
++        mc.tool_call = call
++    events = await _turn(backend, "go")
++    assert len(attempts) == 1
++    sleep.assert_not_awaited()
++    assert events[-1].metadata["stop_reason"] == "hub_error"
++    if work == "edit":
++        assert (repo / "calc.py").read_text() == "fixed\n"
++        assert _git(repo, "log", "-1", "--format=%s").startswith("#V-1: hub worker turn 1")
++    if work == "delete":
++        assert not (repo / "calc.py").exists()
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("reason_source", ["recentRuns", "wait", "activity"])
++async def test_failed_without_reply_provider_limit_is_not_retried(repo, tmp_path, monkeypatch, reason_source):
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
++    attempts, sleep = _failed_hub_runs(mc, monkeypatch, reason="usage_limit_reached",
++                                     reason_source=reason_source)
++    events = await _turn(backend, "go")
++    assert len(attempts) == 1
++    sleep.assert_not_awaited()
++    assert events[-1].metadata["stop_reason"] == "hub_provider_limit"
++
++
++@pytest.mark.asyncio
++async def test_hub_created_virtualenv_is_rejected_and_sibling_is_synced(repo, tmp_path, monkeypatch):
++    def edit(directory):
++        env = directory / ".venv-v281"
++        (env / "lib").mkdir(parents=True)
++        (env / "lib/package.py").write_text("generated = True\n")
++        (env / "pyvenv.cfg").write_text("home = /usr/bin\n")
++        (directory / "sibling.py").write_text("keep = True\n")
++
++    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
++    events = await _turn(backend, "go")
++    assert events[-1].metadata["ok"] is True
++    assert not (repo / ".venv-v281").exists()
++    assert (repo / "sibling.py").read_text() == "keep = True\n"
++    assert "sibling.py" in _git(repo, "show", "--format=", "--name-only", "HEAD")
++    assert ".venv-v281" not in _git(repo, "ls-files")
++    assert any("rejected: .venv-v281 (Python virtualenv" in e.content for e in events)
++
++
++@pytest.mark.parametrize("marker_first", [True, False])
++@pytest.mark.parametrize("prefix", ["", "././"])
++def test_virtualenv_detection_is_order_independent_and_matches_directory_boundaries(
++    repo, tmp_path, marker_first, prefix,
++):
++    files = {"tools/custom-env/pyvenv.cfg": b"home = /usr/bin\n",
++             "tools/custom-env/lib/pkg.py": b"ignored\n"}
++    if not marker_first:
++        files = dict(reversed(list(files.items())))
++    files["tools/custom-env-sibling/keep.py"] = b"keep\n"
++    files = {prefix + name: data for name, data in files.items()}
++    result = hw.apply_changes(_tar_of(files, tmp_path), repo, {}, known=[])
++    assert len(result.changed) == 1 and result.changed[0].endswith("tools/custom-env-sibling/keep.py")
++    assert result.rejected == [("tools/custom-env", "Python virtualenv (contains pyvenv.cfg)")]
++    assert not (repo / "tools/custom-env").exists()
++
++
++def test_virtualenv_exclusion_preserves_old_manifest_files(repo, tmp_path):
++    env = repo / "custom-env"
++    env.mkdir()
++    (env / "old.py").write_text("already local\n")
++    manifest = {"custom-env/old.py": hw.sha256_file(env / "old.py")}
++    snapshot = _tar_of({"custom-env/pyvenv.cfg": b"home = /usr/bin\n",
++                        "custom-env/new.py": b"do not import\n"}, tmp_path)
++    result = hw.apply_changes(snapshot, repo, manifest, known=[])
++    assert result.changed == result.deleted == []
++    assert result.manifest == manifest
++    assert (env / "old.py").read_text() == "already local\n"
++    assert not (env / "new.py").exists()
++
++
+ @pytest.mark.asyncio
+ async def test_turn_uploads_without_credentials_syncs_back_and_commits(repo, tmp_path, monkeypatch):
+     (repo / ".env").write_text(f"TOKEN={FakeMc._token}\n")

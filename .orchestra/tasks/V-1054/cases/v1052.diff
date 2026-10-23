@@ -1,0 +1,135 @@
+commit 5b87fc33bdffbdf5ef89369d3b2d7fe52b67977c
+
+#V-1052: hub worker turn 3 (hub-claude-sonnet-5-5)
+
+
+diff --git a/app/forbidden_strings.py b/app/forbidden_strings.py
+index d113c95e8..aa4d2c158 100644
+--- a/app/forbidden_strings.py
++++ b/app/forbidden_strings.py
+@@ -450,6 +450,36 @@ def scan_range(repo: str | Path, base: str, head: str, rules: list[tuple[str, st
+     return list(dict.fromkeys(found))
+ 
+ 
++def scan_tree(repo: str | Path, base: str, head: str, rules: list[tuple[str, str]],
++              message: str = "") -> list[str]:
++    """Findings in what a SQUASH of `base..head` publishes: the final base->head tree diff
++    (new paths, added lines, archive contents) and the squash `message`. Intermediate
++    commits never land, so a leak added and removed within the range does not block.
++    Per-commit publication (pre-push) must keep using `scan_range`."""
++    rules = list(dict.fromkeys(rules + publication_secrets.literal_rules(repo)))
++
++    def git(*args: str) -> str:
++        done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)
++        if done.returncode:
++            raise RuntimeError(f"publish guard: git {args[0]} failed")
++        return done.stdout.decode("utf-8", "replace")
++
++    found = []
++    if message:
++        found += publication_secrets.content_findings(message, "squash commit message", rules)
++    for path in git("diff-tree", "-r", "--no-renames", "--name-only", "--diff-filter=ACMT",
++                    "-z", base, head).split("\0"):
++        if path:
++            found += scan_text(path, f"{path}:1 (path)", rules)
++            archive_found = _scan_archive_blob(repo, head, path, rules)
++            found += archive_found
++            if archive_found:
++                return list(dict.fromkeys(found))
++    patch = git("diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--text", "-U0", base, head)
++    found += scan_patch(patch, rules)
++    return list(dict.fromkeys(found))
++
++
+ def block_message(findings: list[str]) -> str:
+     return (
+         "PUBLISH GUARD: publication contains a local credential or forbidden string:\n  "
+diff --git a/app/workspace.py b/app/workspace.py
+index beb7abba0..05fc3b434 100644
+--- a/app/workspace.py
++++ b/app/workspace.py
+@@ -1704,10 +1704,16 @@ def merge_worktree_to_main(
+                         result = {"ok": False, "error": budget}
+             if result is None:
+                 try:
+-                    guard = forbidden_strings.scan_range(
++                    # Squash publishes only the final base->head tree and its own message.
++                    guard = forbidden_strings.scan_tree(
+                         repo, target_branch, worker_head,
+                         forbidden_strings.load_rules(forbidden_strings.list_path(repo))
+                         + forbidden_strings.publication_secrets.literal_rules(wt),
++                        _build_squash_message(
++                            worker_branch or "worker",
++                            _get_commit_messages(str(repo), worker_head, target_branch),
++                            acceptance_note,
++                        ),
+                     )
+                 except (RuntimeError, OSError, UnicodeError):
+                     result = {"ok": False, "error": "publish guard could not read credential inventory or git objects"}
+diff --git a/tests/test_publish_guard.py b/tests/test_publish_guard.py
+index 9593fea90..8724b9f00 100644
+--- a/tests/test_publish_guard.py
++++ b/tests/test_publish_guard.py
+@@ -258,3 +258,62 @@ def test_project_without_orchestra_dir_is_left_untouched(tmp_path):
+     _git(repo, "worktree", "add", "-q", "-b", "w", str(wt))
+     assert private_folder.ensure_private(wt) is None
+     assert not (repo / ".orchestra").exists()
++
++
++def _two_commit_branch(repo: Path, content_ok: str = "clean\n"):
++    _git(repo, "checkout", "-q", "-b", "two", "main")
++    (repo / "t.txt").write_text(f"login = {SECRET}\n")
++    _git(repo, "add", "t.txt")
++    _git(repo, "commit", "-qm", "add")
++    (repo / "t.txt").write_text(content_ok)
++    _git(repo, "add", "t.txt")
++    _git(repo, "commit", "-qm", "remove")
++    head = _git(repo, "rev-parse", "HEAD")
++    _git(repo, "checkout", "-q", "main")
++    return head
++
++
++def test_squash_guard_ignores_leak_removed_in_later_commit(tmp_path):
++    repo = _repo(tmp_path)
++    head = _two_commit_branch(repo)
++    rules = _rules(tmp_path)
++    assert forbidden_strings.scan_tree(repo, "main", head, rules) == []
++    # pre-push stays per-commit
++    assert forbidden_strings.scan_range(repo, "main", head, rules)
++
++
++def test_squash_guard_refuses_leak_in_final_tree_with_file_and_line(tmp_path):
++    repo = _repo(tmp_path)
++    head = _two_commit_branch(repo, content_ok=f"ok\nkey = {SECRET}\n")
++    found = forbidden_strings.scan_tree(repo, "main", head, _rules(tmp_path))
++    assert found and any("t.txt:2" in f for f in found)
++    assert SECRET not in forbidden_strings.block_message(found)
++
++
++def test_squash_guard_refuses_leak_in_squash_message_and_path(tmp_path):
++    repo = _repo(tmp_path)
++    head = _branch(repo, "q", f"{SECRET}.txt", "clean\n")
++    rules = _rules(tmp_path)
++    assert forbidden_strings.scan_tree(repo, "main", head, rules)
++    clean = _branch(repo, "r", "r.txt", "clean\n")
++    assert forbidden_strings.scan_tree(repo, "main", clean, rules, f"note {SECRET}")
++
++
++def test_squash_guard_refuses_leak_inside_archive_in_final_tree(tmp_path):
++    import io
++    import tarfile
++    repo = _repo(tmp_path)
++    buf = io.BytesIO()
++    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
++        data = f"x = {SECRET}\n".encode()
++        info = tarfile.TarInfo("inner.txt")
++        info.size = len(data)
++        tar.addfile(info, io.BytesIO(data))
++    _git(repo, "checkout", "-q", "-b", "arc", "main")
++    (repo / "a.tgz").write_bytes(buf.getvalue())
++    _git(repo, "add", "a.tgz")
++    _git(repo, "commit", "-qm", "archive")
++    head = _git(repo, "rev-parse", "HEAD")
++    _git(repo, "checkout", "-q", "main")
++    found = forbidden_strings.scan_tree(repo, "main", head, _rules(tmp_path))
++    assert found and any("a.tgz" in f for f in found)
