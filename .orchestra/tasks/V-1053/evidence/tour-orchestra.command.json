@@ -1,0 +1,15 @@
+{
+  "utc": "2026-10-23T03:25:21.243100+00:00",
+  "command": "<hub-copy>/.orchestra/tasks/V-1053/scratch/bin/tour HEAD --repo <hub-copy> --lang en",
+  "cwd": "<hub-copy>/.orchestra/tasks/V-1053/scratch",
+  "environment_overrides": {
+    "TOUR_VERSION": "v0.5.0",
+    "TOUR_INSTALL_DIR": "<hub-copy>/.orchestra/tasks/V-1053/scratch/bin",
+    "TMPDIR": "<hub-copy>/.orchestra/tasks/V-1053/scratch/tmp",
+    "XDG_CONFIG_HOME": "<hub-copy>/.orchestra/tasks/V-1053/scratch/config",
+    "XDG_CACHE_HOME": "<hub-copy>/.orchestra/tasks/V-1053/scratch/cache"
+  },
+  "exit_code": 1,
+  "elapsed_seconds": 0.064,
+  "output_file": "tour-orchestra.output.txt"
+}

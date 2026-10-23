@@ -1,0 +1,6 @@
+f8f5df6e8d97e1851f9ba555b384a8f566f3c1144835bccf5cbc02c202bba59a  diff-tour_0.5.0_darwin_amd64.tar.gz
+164701e2a15f0c511a8c79bb1fe89de26892838a3291c8c19c901fda2ff24123  diff-tour_0.5.0_darwin_arm64.tar.gz
+45a370ee0133b5afe7aafaeb72b4f253791c26182184d9b4527bbf03aa9d9254  diff-tour_0.5.0_linux_amd64.tar.gz
+b51d4294931d25182868a625bc0c79cf2924fe93abade4a9a00bb71792bae9ee  diff-tour_0.5.0_linux_arm64.tar.gz
+f1d7d2c5e8ee4125f9f22eab77a55e0570fceaa27ac6bb55649e33d218762c1b  diff-tour_0.5.0_windows_amd64.zip
+392187f8b57e06d1b6c260da524518f60514b46621265c5990a00c522797484d  diff-tour_0.5.0_windows_arm64.zip

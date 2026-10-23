@@ -1,0 +1,15 @@
+{
+  "utc": "2026-10-23T03:25:20.264797+00:00",
+  "command": "go version",
+  "cwd": "<hub-copy>",
+  "environment_overrides": {
+    "TOUR_VERSION": "v0.5.0",
+    "TOUR_INSTALL_DIR": "<hub-copy>/.orchestra/tasks/V-1053/scratch/bin",
+    "TMPDIR": "<hub-copy>/.orchestra/tasks/V-1053/scratch/tmp",
+    "XDG_CONFIG_HOME": "<hub-copy>/.orchestra/tasks/V-1053/scratch/config",
+    "XDG_CACHE_HOME": "<hub-copy>/.orchestra/tasks/V-1053/scratch/cache"
+  },
+  "exit_code": 127,
+  "elapsed_seconds": 0.021,
+  "output_file": "go-version.output.txt"
+}

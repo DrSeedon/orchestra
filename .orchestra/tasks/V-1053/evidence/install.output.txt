@@ -1,0 +1,6 @@
+Downloading tour v0.5.0 (linux/amd64)
+Installed <hub-copy>/.orchestra/tasks/V-1053/scratch/bin/tour
+
+<hub-copy>/.orchestra/tasks/V-1053/scratch/bin is not on your PATH yet. To fix that, run:
+  echo 'export PATH="<hub-copy>/.orchestra/tasks/V-1053/scratch/bin:$PATH"' >> ~/.bashrc
+and open a new terminal.

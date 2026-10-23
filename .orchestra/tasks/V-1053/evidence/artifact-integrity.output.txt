@@ -1,0 +1,1 @@
+PASS: 40 upstream SHA-256 checks; 5 verbatim quote blocks; 10 command/output pairs. Fresh replay succeeded; archive and installed binary matched recorded SHA-256.
