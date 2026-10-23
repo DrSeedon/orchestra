@@ -1704,10 +1704,16 @@ def merge_worktree_to_main(
                         result = {"ok": False, "error": budget}
             if result is None:
                 try:
-                    guard = forbidden_strings.scan_range(
+                    # Squash publishes only the final base->head tree and its own message.
+                    guard = forbidden_strings.scan_tree(
                         repo, target_branch, worker_head,
                         forbidden_strings.load_rules(forbidden_strings.list_path(repo))
                         + forbidden_strings.publication_secrets.literal_rules(wt),
+                        _build_squash_message(
+                            worker_branch or "worker",
+                            _get_commit_messages(str(repo), worker_head, target_branch),
+                            acceptance_note,
+                        ),
                     )
                 except (RuntimeError, OSError, UnicodeError):
                     result = {"ok": False, "error": "publish guard could not read credential inventory or git objects"}

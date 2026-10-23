@@ -219,6 +219,18 @@ def test_merge_gate_refuses_listed_string_and_names_rule(tmp_path, monkeypatch):
     assert not (repo / "note.txt").exists()
 
 
+def test_merge_gate_allows_leak_removed_before_squash(tmp_path, monkeypatch):
+    from app.workspace import merge_worktree_to_main
+
+    # V-1051: squash publishes only the final tree; an intermediate leak never lands.
+    repo, wt = _merge_setup(tmp_path, monkeypatch, f"user {SECRET}\n")
+    (Path(wt.path) / "note.txt").write_text("clean\n")
+    _git(Path(wt.path), "commit", "-qam", "remove leak")
+    res = merge_worktree_to_main(wt.path, str(repo))
+    assert res["ok"] is True, res
+    assert (repo / "note.txt").read_text() == "clean\n"
+
+
 def test_merge_gate_refuses_orphan_branch_with_listed_string(tmp_path, monkeypatch):
     from app.workspace import merge_worktree_to_main
 
@@ -258,3 +270,62 @@ def test_project_without_orchestra_dir_is_left_untouched(tmp_path):
     _git(repo, "worktree", "add", "-q", "-b", "w", str(wt))
     assert private_folder.ensure_private(wt) is None
     assert not (repo / ".orchestra").exists()
+
+
+def _two_commit_branch(repo: Path, content_ok: str = "clean\n"):
+    _git(repo, "checkout", "-q", "-b", "two", "main")
+    (repo / "t.txt").write_text(f"login = {SECRET}\n")
+    _git(repo, "add", "t.txt")
+    _git(repo, "commit", "-qm", "add")
+    (repo / "t.txt").write_text(content_ok)
+    _git(repo, "add", "t.txt")
+    _git(repo, "commit", "-qm", "remove")
+    head = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    return head
+
+
+def test_squash_guard_ignores_leak_removed_in_later_commit(tmp_path):
+    repo = _repo(tmp_path)
+    head = _two_commit_branch(repo)
+    rules = _rules(tmp_path)
+    assert forbidden_strings.scan_tree(repo, "main", head, rules) == []
+    # pre-push stays per-commit
+    assert forbidden_strings.scan_range(repo, "main", head, rules)
+
+
+def test_squash_guard_refuses_leak_in_final_tree_with_file_and_line(tmp_path):
+    repo = _repo(tmp_path)
+    head = _two_commit_branch(repo, content_ok=f"ok\nkey = {SECRET}\n")
+    found = forbidden_strings.scan_tree(repo, "main", head, _rules(tmp_path))
+    assert found and any("t.txt:2" in f for f in found)
+    assert SECRET not in forbidden_strings.block_message(found)
+
+
+def test_squash_guard_refuses_leak_in_squash_message_and_path(tmp_path):
+    repo = _repo(tmp_path)
+    head = _branch(repo, "q", f"{SECRET}.txt", "clean\n")
+    rules = _rules(tmp_path)
+    assert forbidden_strings.scan_tree(repo, "main", head, rules)
+    clean = _branch(repo, "r", "r.txt", "clean\n")
+    assert forbidden_strings.scan_tree(repo, "main", clean, rules, f"note {SECRET}")
+
+
+def test_squash_guard_refuses_leak_inside_archive_in_final_tree(tmp_path):
+    import io
+    import tarfile
+    repo = _repo(tmp_path)
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        data = f"x = {SECRET}\n".encode()
+        info = tarfile.TarInfo("inner.txt")
+        info.size = len(data)
+        tar.addfile(info, io.BytesIO(data))
+    _git(repo, "checkout", "-q", "-b", "arc", "main")
+    (repo / "a.tgz").write_bytes(buf.getvalue())
+    _git(repo, "add", "a.tgz")
+    _git(repo, "commit", "-qm", "archive")
+    head = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    found = forbidden_strings.scan_tree(repo, "main", head, _rules(tmp_path))
+    assert found and any("a.tgz" in f for f in found)

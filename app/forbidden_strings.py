@@ -450,6 +450,41 @@ def scan_range(repo: str | Path, base: str, head: str, rules: list[tuple[str, st
     return list(dict.fromkeys(found))
 
 
+def scan_tree(repo: str | Path, base: str, head: str, rules: list[tuple[str, str]],
+              message: str = "") -> list[str]:
+    """Findings in what a SQUASH of `base..head` publishes: the final base->head tree diff
+    (new paths, added lines, archive contents) and the squash `message`. Intermediate
+    commits never land, so a leak added and removed within the range does not block.
+    Per-commit publication (pre-push) must keep using `scan_range`."""
+    rules = list(dict.fromkeys(rules + publication_secrets.literal_rules(repo)))
+
+    def git(*args: str) -> str:
+        done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)
+        if done.returncode:
+            raise RuntimeError(f"publish guard: git {args[0]} failed")
+        return done.stdout.decode("utf-8", "replace")
+
+    # Diff from the fork point: changes main made since then are not this publication.
+    fork = subprocess.run(["git", "-C", str(repo), "merge-base", base, head], capture_output=True)
+    if fork.returncode not in (0, 1):
+        raise RuntimeError("git merge-base failed")
+    base = fork.stdout.decode().strip() if fork.returncode == 0 else "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+    found = []
+    if message:
+        found += publication_secrets.content_findings(message, "squash commit message", rules)
+    for path in git("diff-tree", "-r", "--no-renames", "--name-only", "--diff-filter=ACMT",
+                    "-z", base, head).split("\0"):
+        if path:
+            found += scan_text(path, f"{path}:1 (path)", rules)
+            archive_found = _scan_archive_blob(repo, head, path, rules)
+            found += archive_found
+            if archive_found:
+                return list(dict.fromkeys(found))
+    patch = git("diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--text", "-U0", base, head)
+    found += scan_patch(patch, rules)
+    return list(dict.fromkeys(found))
+
+
 def block_message(findings: list[str]) -> str:
     return (
         "PUBLISH GUARD: publication contains a local credential or forbidden string:\n  "
