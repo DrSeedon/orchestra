@@ -1,0 +1,25 @@
+test_a_empty_failure_retries_then_success (__main__.Checks.test_a_empty_failure_retries_then_success) ... ok
+test_b_exhaustion_reason_and_missing_reason (__main__.Checks.test_b_exhaustion_reason_and_missing_reason) ... ok
+test_c_changed_files_are_synced_without_retry (__main__.Checks.test_c_changed_files_are_synced_without_retry) ... ok
+test_d_limit_not_retried (__main__.Checks.test_d_limit_not_retried) ... ok
+test_e_venv_excluded_sibling_synced (__main__.Checks.test_e_venv_excluded_sibling_synced) ... ok
+test_f_tool_prevents_retry (__main__.Checks.test_f_tool_prevents_retry) ... ok
+test_g_activity_failure_prevents_retry (__main__.Checks.test_g_activity_failure_prevents_retry) ... ok
+test_h_sync_failure_prevents_retry (__main__.Checks.test_h_sync_failure_prevents_retry) ... ok
+test_i_workspace_preparation_is_not_provider_tool_work (__main__.Checks.test_i_workspace_preparation_is_not_provider_tool_work) ... ok
+test_j_cancelled_without_work_retries (__main__.Checks.test_j_cancelled_without_work_retries) ... ok
+test_k_activity_reason_is_reported (__main__.Checks.test_k_activity_reason_is_reported) ... ok
+test_l_venv_marker_last_and_prefix_sibling (__main__.Checks.test_l_venv_marker_last_and_prefix_sibling) ... ok
+test_m_old_venv_files_are_not_deleted (__main__.Checks.test_m_old_venv_files_are_not_deleted) ... ok
+test_n_abort_during_backoff_never_resends (__main__.Checks.test_n_abort_during_backoff_never_resends) ... ok
+test_o_retry_send_error_never_relaunches (__main__.Checks.test_o_retry_send_error_never_relaunches) ... ok
+test_p_failed_with_reply_never_retries (__main__.Checks.test_p_failed_with_reply_never_retries) ... ok
+test_q_rolled_back_never_retries (__main__.Checks.test_q_rolled_back_never_retries) ... ok
+test_r_incomplete_activity_pages_prevent_retry (__main__.Checks.test_r_incomplete_activity_pages_prevent_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.123s
+
+OK
+Production sources: <hub-copy>/app/hub_workspace.py; <hub-copy>/app/backend_hub.py
+Synthetic app namespace: ['<hub-copy>/app']; missing integrations are doubles.

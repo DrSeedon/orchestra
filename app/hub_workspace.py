@@ -614,12 +614,28 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
     total = 0
     pending: list[tuple[str, bytes, int]] = []
     with tarfile.open(tar_path, "r:") as archive:
+        # Inspect names first: pyvenv.cfg can follow its siblings in a tar snapshot.
+        # Match directory boundaries, independent of the environment's chosen name.
+        venvs = {str(Path(rel).parent) for member in archive.getmembers()
+                 if (rel := _member_path(member.name)) is not None
+                 and Path(rel).name == "pyvenv.cfg"}
+
+        def in_virtualenv(rel: str) -> bool:
+            path = Path(rel)
+            return str(path) in venvs or any(str(parent) in venvs for parent in path.parents)
+
+        for directory in sorted(venvs):
+            result.rejected.append((directory, "Python virtualenv (contains pyvenv.cfg)"))
+        seen.update(rel for rel in manifest if in_virtualenv(rel))
         for member in archive:
             if member.isdir():
                 continue
             rel = _member_path(member.name)
             if rel is None:
                 result.rejected.append((member.name, "path escapes the workspace"))
+                continue
+            if in_virtualenv(rel):
+                seen.add(rel)  # preserve previously synced files; exclusion is not a deletion
                 continue
             if not member.isreg():
                 result.rejected.append((rel, "not a regular file (link or special)"))

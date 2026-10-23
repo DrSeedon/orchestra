@@ -40,6 +40,7 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
 }
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
 WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
+NO_WORK_RETRIES = 2
 
 PREAMBLE_BASE = (
     "You are a worker on a remote machine. Your current directory is a private copy of a "
@@ -124,6 +125,56 @@ _HISTORY = re.compile(r"(<prior-conversation>)(.*?)(</prior-conversation>)", re.
 
 class HubProviderLimit(hw.HubWorkspaceError):
     """Provider refused this turn because a usage or rate limit was reached."""
+
+
+class _RunEvidence:
+    """Run-scoped evidence; incomplete activity must never authorize replaying work."""
+
+    def __init__(self, run_id: str):
+        self.run_id = run_id
+        self.reasons: list[str] = []
+        self.limit: str | None = None
+        self.tool_activity = False
+        self.activity_complete = True
+
+    def failure(self, value: object) -> None:
+        self.limit = self.limit or _provider_limit(value)
+        if isinstance(value, dict):
+            for key in ("error", "errorMessage", "lastError", "failureReason", "reason", "message", "code"):
+                self.failure(value.get(key))
+        elif isinstance(value, list):
+            for part in value:
+                self.failure(part)
+        elif isinstance(value, str) and value.strip() and value not in self.reasons:
+            self.reasons.append(value.strip())
+
+    def page(self, page: object) -> None:
+        if not isinstance(page, dict):
+            return
+        # T3 currently returns recentRuns; also accept the runs field our client used.
+        for run in (page.get("recentRuns") or []) + (page.get("runs") or []):
+            if isinstance(run, dict) and (run.get("runId") or run.get("id")) == self.run_id:
+                self.failure(run)
+        thread = page.get("thread")
+        if (isinstance(thread, dict) and thread.get("latestRunId") == self.run_id
+                and thread.get("status") in {"failed", "cancelled", "rolled_back"}):
+            self.failure(thread)
+        for item in page.get("items") or []:
+            if not isinstance(item, dict) or item.get("runId") != self.run_id:
+                continue
+            kind = str(item.get("type", "")).lower()
+            # This broker-generated item is present before the provider starts.
+            preparation = ":native-item:workspace-preparation" in str(item.get("itemId", ""))
+            if not preparation and any(word in kind for word in (
+                    "tool", "command", "file_change", "file_edit", "web_search", "image_generation")):
+                self.tool_activity = True
+            if item.get("status") == "failed" or "error" in kind:
+                self.failure(item)
+                self.failure(item.get("text"))
+                self.failure(item.get("title"))
+
+    def description(self) -> str:
+        return "hub reason: " + "; ".join(self.reasons) if self.reasons else "no reason exposed by hub"
 
 
 def _provider_limit(value: object, *, failed: bool = True) -> str | None:
@@ -217,6 +268,8 @@ class HubBackend:
         self._turn_started: float | None = None
         self._watch_status = ''
         self._watch_limit: str | None = None
+        self._run_evidence: _RunEvidence | None = None
+        self._sync_no_work = False
 
     @property
     def session_id(self) -> Optional[str]:
@@ -453,28 +506,56 @@ class HubBackend:
                     plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
                     for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
                         yield AgentEvent("status", note)
-                    run_id = await self._start(mc, state, first_prompt)
-                self._run_id = run_id
-                stream = HubActivityStream(run_id, state.activity_pos or None)
-                async for event in self._watch(mc, state.thread_id, run_id, stream):
-                    yield _relative(event, state.remote_dir)
-                status = self._watch_status
-                reply = await self._read_reply(mc, state.thread_id, run_id)
-                for event in stream.finish(reply):
-                    yield _relative(event, state.remote_dir)
-                state.activity_pos = stream.cursor or 0
-                state.save()
-            try:
-                sync = await self._sync_back(ssh, state, root, scratch)
-            except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
-                sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
-            text = reply or f"(hub thread ended with status {status} without a reply)"
-            yield AgentEvent("text", f"{text}\n\n{sync}".strip())
-            limit = self._watch_limit or _provider_limit(reply, failed=status == "failed")
-            if limit:
-                raise HubProviderLimit(limit)
-            if status in {"failed", "cancelled", "rolled_back"}:
-                raise hw.HubWorkspaceError(f"hub thread ended with status {status}")
+                    prompt = first_prompt
+                    run_id = await self._start(mc, state, prompt)
+                for attempt in range(NO_WORK_RETRIES + 1):
+                    self._run_id = run_id
+                    self._watch_limit = None
+                    evidence = self._run_evidence = _RunEvidence(run_id)
+                    stream = HubActivityStream(run_id, state.activity_pos or None)
+                    async for event in self._watch(mc, state.thread_id, run_id, stream):
+                        yield _relative(event, state.remote_dir)
+                    status = self._watch_status
+                    reply = await self._read_reply(mc, state.thread_id, run_id)
+                    for event in stream.finish(reply):
+                        yield _relative(event, state.remote_dir)
+                    state.activity_pos = stream.cursor or 0
+                    state.save()
+                    self._sync_no_work = False
+                    try:
+                        sync = await self._sync_back(ssh, state, root, scratch)
+                    except (hw.HubWorkspaceError, OSError, tarfile.TarError) as exc:
+                        sync = f"[hub sync FAILED: {exc}] the hub copy {state.ws_id} is kept for a retry"
+                    failure = f"hub thread ended with status {status}; {evidence.description()}"
+                    text = reply or f"(hub thread ended with status {status} without a reply)"
+                    if not reply and status in {"failed", "cancelled", "rolled_back"}:
+                        text += f"\n{evidence.description()}"
+                    yield AgentEvent("text", f"{text}\n\n{sync}".strip())
+                    limit = self._watch_limit or evidence.limit or _provider_limit(reply, failed=status == "failed")
+                    if limit:
+                        raise HubProviderLimit(limit)
+                    if (status in {"failed", "cancelled"} and not reply and not self._abort
+                            and not evidence.tool_activity and evidence.activity_complete
+                            and self._sync_no_work and attempt < NO_WORK_RETRIES):
+                        delay = attempt + 1
+                        note = (f"hub: {failure}; no work detected; retry {attempt + 1}/{NO_WORK_RETRIES} "
+                                f"on the same thread in {delay}s")
+                        logger.warning("%s", note)
+                        yield AgentEvent("status", note)
+                        await asyncio.sleep(delay)
+                        if self._abort:
+                            return
+                        # Never use _start here: its refused-thread fallback can change threads.
+                        # An uncertain send is propagated, never replayed.
+                        sent = await mc.tool_call("t3_thread_send", {
+                            "threadId": state.thread_id, "message": prompt, "mode": "auto"})
+                        if not isinstance(sent, dict) or not sent.get("runId"):
+                            raise MultiCodeError("MultiCode retry send returned no runId")
+                        run_id = sent["runId"]
+                        continue
+                    if status in {"failed", "cancelled", "rolled_back"}:
+                        raise hw.HubWorkspaceError(failure)
+                    break
         finally:
             self._run_id = None
             hw.rmtree_quiet(scratch)
@@ -593,6 +674,8 @@ class HubBackend:
             for event in await self._poll(mc, thread_id, stream):
                 yield event
             if terminal:
+                if self._run_evidence is not None:
+                    self._run_evidence.failure(waited)
                 self._watch_limit = self._watch_limit or status_limit or _provider_limit(waited)
                 self._watch_status = status
                 return
@@ -633,11 +716,22 @@ class HubBackend:
                 if stream.cursor is not None:
                     args["afterPosition"] = stream.cursor
                 page = await self._watch_call(mc, "t3_thread_read", args)
+                if self._run_evidence is not None:
+                    self._run_evidence.page(page)
+                    if not isinstance(page, dict) or not isinstance(page.get("items"), list):
+                        self._run_evidence.activity_complete = False
                 items = page.get("items", []) if isinstance(page, dict) else []
                 events.extend(stream.feed(items))
                 if not (isinstance(page, dict) and page.get("hasMore")) or not items:
+                    if isinstance(page, dict) and page.get("hasMore") and self._run_evidence is not None:
+                        self._run_evidence.activity_complete = False
                     break
+            else:
+                if self._run_evidence is not None:
+                    self._run_evidence.activity_complete = False
         except MultiCodeError as exc:
+            if self._run_evidence is not None:
+                self._run_evidence.activity_complete = False
             logger.warning("hub activity poll failed: %s", exc)
         return events
 
@@ -645,7 +739,9 @@ class HubBackend:
         read = await self._watch_call(mc, "t3_thread_read", {
             "threadId": thread_id, "view": "messages", "limit": 100})
         if isinstance(read, dict):
-            for run in read.get("runs") or []:
+            if self._run_evidence is not None:
+                self._run_evidence.page(read)
+            for run in (read.get("recentRuns") or []) + (read.get("runs") or []):
                 if isinstance(run, dict) and (run.get("id") or run.get("runId")) == run_id:
                     self._watch_limit = self._watch_limit or _provider_limit(run)
         return _last_assistant_text(read, run_id) or ""
@@ -656,6 +752,8 @@ class HubBackend:
         await ssh.get(state.remote_dir, out)
         before = dict(state.manifest)
         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest)
+        no_work = not (result.changed or result.deleted or result.conflicts
+                       or result.rejected or result.outbox or result.manifest != before)
         state.manifest = result.manifest
         state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
                                                          if before.get(r) != d}) & set(result.manifest))
@@ -682,6 +780,7 @@ class HubBackend:
                          + ", ".join(result.conflicts[:20]))
         if result.rejected:
             lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
+        self._sync_no_work = no_work
         return "\n".join(lines)
 
     async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:

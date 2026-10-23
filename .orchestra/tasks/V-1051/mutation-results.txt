@@ -1,0 +1,28 @@
+test_a_empty_failure_retries_then_success (__main__.Checks.test_a_empty_failure_retries_then_success) ... FAIL
+
+======================================================================
+FAIL: test_a_empty_failure_retries_then_success (__main__.Checks.test_a_empty_failure_retries_then_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/unittest/async_case.py", line 90, in _callTestMethod
+    if self._callMaybeAsync(method) is not None:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/unittest/async_case.py", line 112, in _callMaybeAsync
+    return self._asyncioRunner.run(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "<hub-copy>/.orchestra/tasks/V-1051/offline_checks.py", line 181, in test_a_empty_failure_retries_then_success
+    self.assertIsNone(await self.turn())
+AssertionError: HubWorkspaceError('hub thread ended with status failed; hub reason: provider disconnected') is not None
+
+----------------------------------------------------------------------
+Ran 1 test in 0.010s
+
+FAILED (failures=1)
+Production sources: <hub-copy>/app/hub_workspace.py; <hub-copy>/app/backend_hub.py
+Synthetic app namespace: ['<hub-copy>/app']; missing integrations are doubles.

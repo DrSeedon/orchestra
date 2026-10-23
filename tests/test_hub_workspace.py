@@ -349,6 +349,239 @@ async def _turn(backend, text):
     return [event async for event in backend.events()]
 
 
+def _failed_hub_runs(mc, monkeypatch, *, failures=1, status="failed", reason=None,
+                     reason_source="recentRuns", activity=None):
+    """Deterministic terminal runs, retaining the normal upload and sync/commit paths."""
+    from unittest.mock import AsyncMock
+
+    original = mc.tool_call
+    attempts = []
+    sleep = AsyncMock()
+    monkeypatch.setattr(backend_hub.asyncio, "sleep", sleep)
+
+    async def call(name, args):
+        if name in {"t3_thread_launch", "t3_thread_send"}:
+            result = await original(name, args)
+            attempts.append((name, dict(args)))
+            return {**result, "runId": f"run-{len(attempts)}"}
+        run_id = f"run-{len(attempts)}"
+        failed = len(attempts) <= failures
+        if name == "t3_thread_wait":
+            result = {"status": status if failed else "completed", "timedOut": False}
+            if failed and reason_source == "wait" and reason:
+                result["error"] = {"message": reason}
+            return result
+        if name == "t3_thread_read":
+            if args.get("view") == "activity":
+                result = {"items": [], "hasMore": False}
+                if activity and failed:
+                    result["items"] = [{**activity, "runId": run_id, "position": len(attempts) * 10}]
+                if reason and failed and reason_source == "activity":
+                    result["items"].append({"type": "error", "status": "failed", "runId": run_id,
+                                            "position": len(attempts) * 10 + 1, "text": reason})
+            else:
+                result = {"items": [] if failed else [
+                    {"type": "assistant_message", "runId": run_id, "text": "recovered"}]}
+            if failed and reason_source in {"recentRuns", "runs"}:
+                result[reason_source] = [{"runId": "old-run", "error": "old unrelated error"},
+                                        {"runId": run_id, "error": reason}]
+            return result
+        return await original(name, args)
+
+    mc.tool_call = call
+    return attempts, sleep
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["failed", "cancelled"])
+@pytest.mark.parametrize("reason_source", ["recentRuns", "runs", "wait", "activity"])
+async def test_failed_without_reply_and_without_work_retries_same_thread_then_succeeds(
+    repo, tmp_path, monkeypatch, status, reason_source,
+):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    backend.model = "hub-gpt-6.1-sol"
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, status=status, reason="transient provider failure",
+                                     reason_source=reason_source)
+    events = await _turn(backend, "fix the task")
+    assert events[-1].metadata["ok"] is True
+    assert any(e.type == "text" and "recovered" in e.content for e in events)
+    assert [name for name, _ in attempts] == ["t3_thread_launch", "t3_thread_send"]
+    assert attempts[1][1] == {"threadId": "thr-1", "message": attempts[0][1]["message"], "mode": "auto"}
+    assert attempts[0][1]["modelSelection"] == {"instanceId": "codex", "model": "gpt-6.1-sol"}
+    assert backend.model == "hub-gpt-6.1-sol"
+    assert not any(name == "t3_thread_configure" for name, _ in mc.calls)
+    sleep.assert_awaited_once_with(1)
+    assert any(e.type == "status" and "retry 1/2" in e.content
+               and "transient provider failure" in e.content for e in events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason", [None, "provider disconnected before replying"])
+async def test_no_work_retries_exhausted_preserve_error_and_hub_reason(repo, tmp_path, monkeypatch, reason):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, failures=10, reason=reason)
+    events = await _turn(backend, "go")
+    assert len(attempts) == 3
+    assert [c.args for c in sleep.await_args_list] == [(1,), (2,)]
+    error = next(e for e in events if e.type == "error")
+    expected = reason or "no reason exposed by hub"
+    assert "hub thread ended with status failed" in error.content and expected in error.content
+    assert "old unrelated error" not in error.content
+    assert any(e.type == "text" and expected in e.content for e in events)
+    assert events[-1].metadata["stop_reason"] == "hub_error"
+
+
+@pytest.mark.asyncio
+async def test_platform_workspace_preparation_allows_retry(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, activity={
+        "type": "command_execution", "status": "completed", "title": "Workspace ready",
+        "text": "$ Preparing workspace\nWorkspace preparation completed.",
+        "itemId": "turn-item:provider:codex:native-item:workspace-preparation%3Arun"})
+    events = await _turn(backend, "go")
+    assert len(attempts) == 2
+    assert events[-1].metadata["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_interrupt_during_retry_backoff_does_not_resend(repo, tmp_path, monkeypatch):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch)
+
+    async def interrupt(delay):
+        backend._abort = True
+    sleep.side_effect = interrupt
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1
+    assert events[-1].metadata["stop_reason"] == "interrupted"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("uncertain", [False, True])
+async def test_retry_send_failure_never_launches_a_replacement(repo, tmp_path, monkeypatch, uncertain):
+    from app.multicode_client import MultiCodeError
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch)
+    original = mc.tool_call
+    send_calls = []
+
+    async def call(name, args):
+        if name == "t3_thread_send":
+            send_calls.append(args)
+            raise MultiCodeError("thread send refused or delivery uncertain", retryable=uncertain)
+        return await original(name, args)
+    mc.tool_call = call
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1 and len(send_calls) == 1
+    assert events[-1].metadata["stop_reason"] == "hub_error"
+    assert backend._state.thread_id == "thr-1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("work", ["edit", "delete", "tool", "rejected", "outbox", "sync_failure", "activity_failure"])
+async def test_failed_run_with_work_or_uncertain_sync_is_not_retried(repo, tmp_path, monkeypatch, work):
+    from app.multicode_client import MultiCodeError
+
+    def edit(directory):
+        if work == "edit":
+            (directory / "calc.py").write_text("fixed\n")
+        elif work == "delete":
+            (directory / "calc.py").unlink()
+        elif work == "rejected":
+            (directory / ".env").write_text("LOCAL_FLAG=1\n")
+        elif work == "outbox":
+            (directory / ".orchestra-outbox.jsonl").write_text('{}\n')
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+    attempts, sleep = _failed_hub_runs(
+        mc, monkeypatch, activity={"type": "command_execution", "status": "completed", "text": "$ true"}
+        if work == "tool" else None)
+    if work == "sync_failure":
+        async def get(*args):
+            raise hw.HubWorkspaceError("snapshot unavailable")
+        monkeypatch.setattr(ssh, "get", get)
+    if work == "activity_failure":
+        original = mc.tool_call
+
+        async def call(name, args):
+            if name == "t3_thread_read" and args.get("view") == "activity":
+                raise MultiCodeError("activity unavailable")
+            return await original(name, args)
+        mc.tool_call = call
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1
+    sleep.assert_not_awaited()
+    assert events[-1].metadata["stop_reason"] == "hub_error"
+    if work == "edit":
+        assert (repo / "calc.py").read_text() == "fixed\n"
+        assert _git(repo, "log", "-1", "--format=%s").startswith("#V-1: hub worker turn 1")
+    if work == "delete":
+        assert not (repo / "calc.py").exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason_source", ["recentRuns", "wait", "activity"])
+async def test_failed_without_reply_provider_limit_is_not_retried(repo, tmp_path, monkeypatch, reason_source):
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
+    attempts, sleep = _failed_hub_runs(mc, monkeypatch, reason="usage_limit_reached",
+                                     reason_source=reason_source)
+    events = await _turn(backend, "go")
+    assert len(attempts) == 1
+    sleep.assert_not_awaited()
+    assert events[-1].metadata["stop_reason"] == "hub_provider_limit"
+
+
+@pytest.mark.asyncio
+async def test_hub_created_virtualenv_is_rejected_and_sibling_is_synced(repo, tmp_path, monkeypatch):
+    def edit(directory):
+        env = directory / ".venv-v281"
+        (env / "lib").mkdir(parents=True)
+        (env / "lib/package.py").write_text("generated = True\n")
+        (env / "pyvenv.cfg").write_text("home = /usr/bin\n")
+        (directory / "sibling.py").write_text("keep = True\n")
+
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+    events = await _turn(backend, "go")
+    assert events[-1].metadata["ok"] is True
+    assert not (repo / ".venv-v281").exists()
+    assert (repo / "sibling.py").read_text() == "keep = True\n"
+    assert "sibling.py" in _git(repo, "show", "--format=", "--name-only", "HEAD")
+    assert ".venv-v281" not in _git(repo, "ls-files")
+    assert any("rejected: .venv-v281 (Python virtualenv" in e.content for e in events)
+
+
+@pytest.mark.parametrize("marker_first", [True, False])
+@pytest.mark.parametrize("prefix", ["", "././"])
+def test_virtualenv_detection_is_order_independent_and_matches_directory_boundaries(
+    repo, tmp_path, marker_first, prefix,
+):
+    files = {"tools/custom-env/pyvenv.cfg": b"home = /usr/bin\n",
+             "tools/custom-env/lib/pkg.py": b"ignored\n"}
+    if not marker_first:
+        files = dict(reversed(list(files.items())))
+    files["tools/custom-env-sibling/keep.py"] = b"keep\n"
+    files = {prefix + name: data for name, data in files.items()}
+    result = hw.apply_changes(_tar_of(files, tmp_path), repo, {}, known=[])
+    assert len(result.changed) == 1 and result.changed[0].endswith("tools/custom-env-sibling/keep.py")
+    assert result.rejected == [("tools/custom-env", "Python virtualenv (contains pyvenv.cfg)")]
+    assert not (repo / "tools/custom-env").exists()
+
+
+def test_virtualenv_exclusion_preserves_old_manifest_files(repo, tmp_path):
+    env = repo / "custom-env"
+    env.mkdir()
+    (env / "old.py").write_text("already local\n")
+    manifest = {"custom-env/old.py": hw.sha256_file(env / "old.py")}
+    snapshot = _tar_of({"custom-env/pyvenv.cfg": b"home = /usr/bin\n",
+                        "custom-env/new.py": b"do not import\n"}, tmp_path)
+    result = hw.apply_changes(snapshot, repo, manifest, known=[])
+    assert result.changed == result.deleted == []
+    assert result.manifest == manifest
+    assert (env / "old.py").read_text() == "already local\n"
+    assert not (env / "new.py").exists()
+
+
 @pytest.mark.asyncio
 async def test_turn_uploads_without_credentials_syncs_back_and_commits(repo, tmp_path, monkeypatch):
     (repo / ".env").write_text(f"TOKEN={FakeMc._token}\n")
