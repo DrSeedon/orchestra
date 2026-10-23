@@ -101,3 +101,11 @@ The complete repository suite and subsequent main CI run were not executed here.
 The separate long-path slug collision remains unresolved by explicit task scope.
 Changed hunks were reviewed, and temporary test repositories and imported
 bytecode caches under this task's artifact directory were removed before handoff.
+
+## Host acceptance, 2026-10-23
+
+On the VPS, 493 tests and 19 subtests passed in 52.53 s. This includes both failing CI groups, all V-1062/V-1063 input tests, hub/backend/workspace/merge/diff-budget regressions. Imported app: `/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-hub-1063/app/__init__.py`. Host logs retained at `.orchestra/private/V-1063/host-tests.txt`. The separate long-TMPDIR collision did not occur in the host run.
+
+My independent mutation replaced the plain-directory empty manifest with all uploaded paths: both committed plain-directory behavioral tests failed by assertion. Source bytes restored in finally. Raw mutation output: `.orchestra/private/V-1063/host-mutation.txt`. All 16 changed files passed credential-form and local forbidden/literal scans. Normal merge test/mutation gates passed. No model review under the owner freeze.
+
+Merged into main; remote CI and live activation remain separate. The existing idle watcher owns the restart. After Python loads V-1062/V-1063, Seedon must verify a new current-HEAD merge with its raw inputs preserved. Neither live restoration nor green GitHub CI is claimed by this host acceptance.
