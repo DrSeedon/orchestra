@@ -81,6 +81,10 @@ Never applies agent↔agent. Target: he gets the point in 10–15 seconds of loo
    "a Claude call costs $0.135, a Codex one $0.106; recon eats 26.8% of the money" (#345). Telegraph style
    is a defect here: he must learn WHAT happened, not that something happened. If he reads nothing
    else, this line is enough.
+   **Owner decision, 2026-10-23:** When retelling a merged change, follow the verdict with a
+   short chain: why it was needed → what changed in behaviour → how it was checked → what
+   remains unverified. Use a concrete before/after example when helpful; keep numbers in
+   the table required below.
 2. **Numbers go into a table, always.** Two numbers side by side in prose is already a table.
    Columns compare; numeric columns align right (`--:`). The bridge renders the table as one
    monospace block, so bold inside cells is dropped — expected, don't fight it.

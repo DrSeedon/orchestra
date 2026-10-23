@@ -11,15 +11,19 @@ Report to your orchestrator via `mcp__orchestra__send_message` (NOT the built-in
 
 **Review:** model review was frozen by the owner on 2026-09-20 — do not call it or seek a
 substitute; do not seek repeated approval of unchanged work. Resolve verified blockers. The
-report states the actual check result, final commit and remaining uncertainty.
+report states the actual check result, final commit and remaining uncertainty. Under the
+owner decision, 2026-10-23, add a short reading order and classify findings as must-fix /
+optional / open question; uncertainty alone does not make a serious risk optional.
 
 ### DONE — task finished
 ```
 mcp__orchestra__send_message(to="{orchestrator_name}", message="""DONE #<task-id>: <short summary>
 
 Files: <changed files> (+N/-M lines)
+Reading order: <central files, then relevant unchanged callers/config/hooks; why this order>
 Tests: <what you tested, results>
 Breaking: none | <what changed>
+Findings: <must-fix / optional / open question; omit empty categories>
 Notes: <anything orchestrator should know>""")
 ```
 

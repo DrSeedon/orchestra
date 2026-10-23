@@ -1,0 +1,30 @@
+===== v1050 before rep1
+1. `app/forbidden_strings.py` — ZIP members are counted in `_check_zip_directory`, then counted again by `_inflate` when compressed. As a result, an archive with more than 500 compressed members can hit `ARCHIVE_MAX_MEMBERS = 1000` and be refused even though it is within the configured member limit.
+
+Unverified: I did not run tests or exercise archive inputs; other runtime and recovery behavior remains unverified.
+
+===== v1050 before rep2
+1. none
+
+Unverified: I haven’t inspected the latest commit yet, so no self-check findings are verified.
+
+===== v1050 before rep3
+1. `app/forbidden_strings.py` — `_scan_archive_blob` decodes NUL-separated Git paths with UTF-8 replacement in `scan_range`, then passes the altered path to `git cat-file revision:path`. A changed archive with a non-UTF-8 filename can therefore be missed: `cat-file` fails, but the function returns `[]` when the prefix is empty. The patch scan may also lose that path’s binary contents through lossy decoding.
+
+Unverified: I inspected the commit diff, the archive scanner and its callers; I did not run tests or independently exercise non-UTF-8 Git paths.
+
+===== v1050 after rep1
+none
+
+Unverified: тесты и pre-push hook не запускал; их поведение в этом self-check не проверено.
+
+===== v1050 after rep2
+1. `scripts/secret_scan.py` — pre-push still scans each changed blob via `_scan_blob` and `forbidden_strings.scan_text`; it never calls the new archive scanner or `scan_range`. As a result, archives containing forbidden strings or credential shapes can pass the publication hook. The new hook test expects these archives to be rejected, but I did not run it.
+
+Unverified: I inspected the changed code and its pre-push and merge-gate callers; I did not run tests or verify runtime behavior.
+
+===== v1050 after rep3
+1. none
+
+Unverified: Runtime behavior and test coverage; I inspected the commit and its callers but did not run the test suite, as instructed.
+

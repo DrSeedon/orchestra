@@ -1,0 +1,144 @@
+===== v1049 after rep1
+none
+
+Unverified: I did not run the checks described in the instruction; the diff does not establish that they passed.
+
+===== v1049 after rep2
+1. `app/private_folder.py`: In NUL porcelain mode, an untracked path containing a newline is split into multiple tokens by `status.split("\0")`, so the `?? .orchestra/private` record is not matched when such a path precedes or follows it in the same status output. That can leave the platform symlink visible as dirty and block clean checks. **Unverified:** no test covers newline-containing untracked filenames.
+2. `app/private_folder.py`: `wt.resolve()` and `shared_private_dir(wt)` are evaluated after the symlink check but before the `try`; a resolution error there escapes instead of leaving status unchanged, contrary to the helper’s fail-closed contract. **Unverified:** no test injects an error from `wt.resolve()`.
+
+Unverified: I did not run the diff’s tests or inspect callers, old data, or rollback behavior beyond the two named files.
+
+===== v1049 after rep3
+1. `app/workspace.py` — `_worktree_status` invokes `git status` with `--untracked-files=all` for every clean check, including checks on the main checkout in rollback verification. A real untracked file inside `.orchestra/private` there is therefore visible as `?? .orchestra/private/<file>` and blocks those checks, while the filter only removes the exact `?? .orchestra/private` record. That may be intentional for main, but the stated “only the platform link” contract should be checked against the caller’s intended behavior; the diff does not establish it.
+2. `app/private_folder.py` — `filter_worktree_status` parses newline-delimited porcelain by splitting on `\n`. Git paths can contain newlines, so a user path can be split into misleading records or partially filtered. The shown callers use default newline mode; no test covers newline-containing paths. Unverified.
+3. `app/private_folder.py` — in `-z` mode, rename/copy source tokens are preserved by consuming the next token, but the parser does not validate token structure. Malformed or truncated status can cause records to be paired incorrectly; no production evidence in this diff establishes such input is possible. Unverified.
+4. `app/routes/sessions.py` — the delete guard now requests `--untracked-files=all`, which makes nested user files visible, but it decodes output with the default text codec and then filters it. Non-UTF-8 filenames can raise during decode and escape the intended “dirty worktree” response. No test covers this case.
+5. `tests/test_private_symlink_dirty_v1049.py` — the test for a dangling link shares the “inspection failure” test but only removes the shared directory; it does not create or assert the dangling-link case. The function checks `link.is_symlink()` and `link.resolve()` semantics for dangling symlinks, so that recovery edge is not verified by the claimed test name.
+6. `tests/test_private_symlink_dirty_v1049.py` — the test for “other links, files, directories and lookalikes” does not test a symlink at `.orchestra/private` pointing to the correct shared directory when the worktree is not a registered linked worktree; `shared_private_dir` behavior for that situation is therefore unverified.
+7. `tests/test_workspace.py` — the updated mock matches any `git status --porcelain...` command via `args[:3]`, including `--untracked-files=all`; it no longer verifies that the tested call uses the expected status arguments. This weakens the test’s ability to catch an accidental change to that invocation.
+
+Unverified: I inspected only the supplied diff and instruction; I did not run tests or inspect callers and runtime behavior outside these files.
+
+===== v1049 before rep1
+none
+
+Unverified: I did not run the checks described in INSTRUCTION; I read only the two named files.
+
+===== v1049 before rep2
+1. `app/private_folder.py` — `filter_worktree_status()` searches for the literal `?? .orchestra/private` before filtering. In `git status -z`, porcelain v1 uses a different field order (`.orchestra/private\0??`), so the planted link is not removed from NUL-format status; clean checks using `-z` can still treat it as dirty.
+
+2. `app/private_folder.py` — the `wt.resolve() == shared.parent.parent.resolve()` condition skips filtering when the worktree path is the main checkout. That prevents hiding a real `.orchestra/private` directory in the main checkout, but also means the platform’s shared symlink in the main checkout remains reported as dirty.
+
+Unverified: I read only the named instruction and diff files; I did not run checks.
+
+===== v1049 before rep3
+1. none
+
+Unverified: I did not run `REP=3` or inspect callers beyond the provided diff.
+
+===== v1050 after rep1
+1. `app/forbidden_strings.py` — `_check_zip_directory()` counts each ZIP entry, then `_zip_payload()` calls `_inflate()`, which counts each compressed member again via `budget.member()`. A ZIP with more than 500 compressed entries can hit the 1,000-member limit despite containing fewer than 1,000 entries.
+
+Unverified: I inspected only the named instruction and diff; I did not run tests or verify other behaviors.
+
+===== v1050 after rep2
+1. `app/forbidden_strings.py` — исключения при обработке архива превращаются в отказ только после начала обхода, но `_scan_archive_blob` сам читает blob через `process.stdout.read()`. Если Git завершится ошибкой до выдачи 1024 байт, `_archive_kind(prefix)` вернёт `None`, функция вернёт `[]` и не проверит код завершения процесса. Ошибка чтения blob может быть принята за обычный файл и пропустить архив.
+
+Unverified: Выполнен только просмотр `INSTRUCTION` и `DIFF`; тесты, исходный код вокруг diff, поведение Git и обратная совместимость не проверялись.
+
+===== v1050 after rep3
+1. `app/forbidden_strings.py` — `_archive_kind` recognizes ZIP only when a ZIP signature starts at byte 0. Valid self-extracting ZIPs with a prepended stub can therefore bypass archive scanning and reach the lossy text-diff path.
+
+2. `app/forbidden_strings.py` — `_check_zip_directory` counts every ZIP entry, then `_inflate` counts each compressed member again. The shared member limit can reject archives with fewer than `ARCHIVE_MAX_MEMBERS` entries, depending on compression methods.
+
+Unverified: I read only the two named files; I did not run tests or validate these findings against runtime behavior.
+
+===== v1050 before rep1
+1. `app/forbidden_strings.py` — `_archive_kind` recognizes ZIP only when its signature starts at byte 0. A valid self-extracting ZIP with an executable prefix is accepted by ZIP readers but bypasses archive scanning, allowing secrets in its members to pass the publication guard.
+
+Unverified: I read only the specified instruction and diff; I did not run the tests or verify behavior against other ZIP readers.
+
+===== v1050 before rep2
+none
+
+Unverified: I inspected only the two named files; I did not run tests or execute the changed code.
+
+===== v1050 before rep3
+1. `app/forbidden_strings.py` — `scan_range` returns immediately when an archive has any finding, before scanning the rest of that commit’s patch or later commits in the range. This can hide additional findings from the caller; the archive finding should block publication without ending the scan.
+
+Unverified: I inspected the named instruction and diff only; I did not run tests or verify runtime behavior.
+
+===== v1051 after rep1
+1. `app/backend_hub.py` — `_RunEvidence.page` concatenates `recentRuns` and `runs` as lists without checking their types. A malformed or unexpected hub response can raise `TypeError` during activity or reply handling and abort the turn instead of marking activity incomplete and avoiding a retry.
+
+Unverified: I inspected only the provided diff and instruction; I did not run tests or verify hub response shapes, sync/recovery behavior, or compatibility with existing callers and stored workspace state.
+
+===== v1051 after rep2
+I can’t perform the review under the constraint to read only those two files: I don’t have a file-reading tool available in this turn. I won’t use another route that could read additional files.
+
+Unverified: Neither named file was read; no review performed.
+
+===== v1051 after rep3
+1. `app/backend_hub.py` — `_RunEvidence.failure()` adds raw hub error strings to `reasons`, then `description()` includes them in status and error events. If a provider error contains a credential or other secret, this change can expose it in displayed output. The diff does not show sanitization of those strings.
+
+Unverified: I read only the specified instruction and diff; I did not inspect callers, surrounding code, or run checks.
+
+===== v1051 before rep1
+none
+
+Unverified: I read only the two specified files. I did not run tests or inspect runtime behavior.
+
+===== v1051 before rep2
+1. `app/backend_hub.py` — `_RunEvidence.page()` concatenates `recentRuns` and `runs` with `+` without validating their types. If either field is `None` or a non-list value, reading an otherwise valid activity page raises `TypeError`; `_poll()` catches only `MultiCodeError`, so the turn can abort before normal completion or recovery.
+
+2. `app/backend_hub.py` — `_RunEvidence.failure()` recurses through nested dictionaries and lists without cycle detection or a depth limit. A cyclic or deeply nested provider payload can raise `RecursionError` while collecting failure evidence, interrupting the turn.
+
+3. `app/backend_hub.py` — `_read_reply()` builds the same unvalidated concatenation of `recentRuns` and `runs`. A malformed field can raise after the run finishes, preventing reply handling and sync-back.
+
+4. `app/backend_hub.py` — `failure()` stores raw provider error strings in `reasons`, which are included in emitted status and text events. Provider errors can contain credentials or account identifiers, exposing them through the hub event stream.
+
+5. `app/hub_workspace.py` — virtualenv detection derives paths with `pathlib.Path`, whose separator and normalization behavior follows the host OS. A tar created on a different OS can use path separators that `Path` interprets differently, causing a `pyvenv.cfg` directory or its descendants to evade exclusion.
+
+Unverified: I read only the named instruction and diff; I did not run tests or inspect callers, existing data, or recovery behavior.
+
+===== v1051 before rep3
+1. `app/backend_hub.py` — `_RunEvidence.page()` assumes `recentRuns` and `runs` are lists, then concatenates them; a malformed or differently shaped hub response can raise `TypeError` and abort result handling before sync or retry decisions.
+
+2. `app/backend_hub.py` — `_poll()` marks activity incomplete when a page has `hasMore` but no items, then stops polling. If the hub signals more pages without items, the run remains conservatively ineligible for retry even if the missing activity would show no work.
+
+3. `app/backend_hub.py` — `_sync_back()` sets `_sync_no_work` only after `apply_changes()` and subsequent processing. If sync raises before that assignment, the flag can retain prior state; retry eligibility then depends on stale state if the exception is converted into the displayed sync failure.
+
+Unverified: No tests or runtime checks were run; review was limited to the two specified files.
+
+===== v1052 after rep1
+1. none
+
+Unverified: I did not run tests or verify the merge caller against the generated squash commit.
+
+===== v1052 after rep2
+none
+
+Unverified: I inspected only the two requested files; I did not run tests or verify the merge integration.
+
+===== v1052 after rep3
+none
+
+Unverified: I did not run the tests or verify the merge path end to end.
+
+===== v1052 before rep1
+1. `app/forbidden_strings.py` — `scan_tree` gives `git diff-tree` two commits without `--root` or a `--` separator. For a base that is a root commit, Git may treat it as a path argument or omit the intended tree comparison, so the guard can miss files in the squash result. This edge case was not checked.
+2. `app/forbidden_strings.py` — paths are decoded with replacement characters and then passed to `scan_text` and `_scan_archive_blob`; a repository path that is not valid UTF-8 may be changed before lookup, causing the guard to inspect the wrong path or miss a file. Non-UTF-8 paths were not checked.
+
+Unverified: I read only the named instruction and diff files; I did not run tests or inspect the callers, helper implementations, or Git behavior.
+
+===== v1052 before rep2
+none
+
+Unverified: I read the two specified files only; I did not run checks or verify the change in a repository.
+
+===== v1052 before rep3
+none
+
+Unverified: Три статических прохода; код и тесты не запускались.
+
