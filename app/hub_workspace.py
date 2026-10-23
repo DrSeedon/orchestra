@@ -986,6 +986,15 @@ def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) 
     """
     if state.input_manifest is not None:
         return
+    repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+    if repository is not None and repository.returncode:
+        resolved = root.resolve()
+        if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+            # plan_upload also supports plain directories. Without a Git index
+            # they receive no input exemptions, even if Git is initialized later.
+            # Existing/broken Git metadata must still fail closed below.
+            state.input_manifest = {}
+            return
     if state.manifest:
         staged = _git_out(root, "diff", "--cached", "--quiet")
         if staged is None or staged.returncode:

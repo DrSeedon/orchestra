@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- **Plain-directory hub uploads work again without merge exemptions** (V-1063; `app/hub_workspace.py`). Uploads without Git freeze an empty input-provenance record, preserving pinned-uv provisioning and resumed uploads. Git worktrees still require index inspection and exact input paths/hashes; broken Git metadata does not fall back to an exemption. Publication-gate mutation fixtures now include real merge dependencies and verify that each unmodified control passes before the mutant fails an assertion.
 - **Untracked hub source inputs no longer block output merges** (V-1062; `app/hub_workspace.py`, `app/backend_hub.py`, `app/workspace.py`, `app/diff_budget.py`). The broker freezes exact paths and SHA-256 values of upload-origin untracked inputs in its existing workspace record. Unchanged originals remain local and untracked while committed outputs merge and continuation switches branches; edited/missing inputs, dirty tracked or staged work, new untracked outputs and input/output path collisions still refuse. Sync-back preserves read-only originals instead of committing hub rewrites or deletions; the next upload restores rejected remote edits. Existing live records migrate from their upload manifest excluding hub-made files. Only validated, unpublished inputs are excluded from the merge's insertion budget; ordinary WIP counting and upload/publication security checks remain in force. Python changes require the normal service lifecycle; no deployment or restart is performed by this task.
 
 ### Added

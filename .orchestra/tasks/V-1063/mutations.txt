@@ -1,0 +1,80 @@
+Redaction: workspace/HOME prefixes, encoded workspace slug and username replaced by /remote/workspace, /remote/workspaces, /remote/home, remote-workspace and remote-user.
+$ uv run --frozen python .orchestra/tasks/V-1063/mutations.py
+MUTATION: remove non-Git support
+$ uv run --frozen python -m pytest tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init -q --tb=short
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______ test_plain_upload_freezes_no_exemptions_even_after_git_init[False] ______
+tests/test_hub_inputs_v1063.py:22: in test_plain_upload_freezes_no_exemptions_even_after_git_init
+    hw.capture_inputs(root, state, plan.manifest)
+app/hub_workspace.py:997: in capture_inputs
+    raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E   app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+______ test_plain_upload_freezes_no_exemptions_even_after_git_init[True] _______
+tests/test_hub_inputs_v1063.py:22: in test_plain_upload_freezes_no_exemptions_even_after_git_init
+    hw.capture_inputs(root, state, plan.manifest)
+app/hub_workspace.py:994: in capture_inputs
+    raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+E   app.hub_workspace.HubWorkspaceError: cannot establish hub input provenance with staged changes; commit or unstage first
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init[False]
+FAILED tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init[True]
+2 failed in 3.33s
+
+MUTATION: grant non-Git manifest allowances
+$ uv run --frozen python -m pytest tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init -q --tb=short
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______ test_plain_upload_freezes_no_exemptions_even_after_git_init[False] ______
+tests/test_hub_inputs_v1063.py:23: in test_plain_upload_freezes_no_exemptions_even_after_git_init
+    assert state.input_manifest == {}
+E   AssertionError: assert {'output.txt'...b7944b5e49f4'} == {}
+E     
+E     Left contains 2 more items:
+E     {'output.txt': '92e702751a3c51513c20e9dd3499c49272a996a4446b55765f41a8fcb87e777f',
+E      'raw.txt': '04cc35f442b9257357f9064d77b4a6cc6ce256515543ca182801b7944b5e49f4'}
+E     Use -v to get more diff
+______ test_plain_upload_freezes_no_exemptions_even_after_git_init[True] _______
+tests/test_hub_inputs_v1063.py:23: in test_plain_upload_freezes_no_exemptions_even_after_git_init
+    assert state.input_manifest == {}
+E   AssertionError: assert {'output.txt'...b7944b5e49f4'} == {}
+E     
+E     Left contains 2 more items:
+E     {'output.txt': '92e702751a3c51513c20e9dd3499c49272a996a4446b55765f41a8fcb87e777f',
+E      'raw.txt': '04cc35f442b9257357f9064d77b4a6cc6ce256515543ca182801b7944b5e49f4'}
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init[False]
+FAILED tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init[True]
+2 failed in 2.81s
+
+MUTATION: treat broken Git metadata as a plain directory
+$ uv run --frozen python -m pytest tests/test_hub_inputs_v1063.py::test_broken_git_metadata_is_not_a_plain_upload -q --tb=short
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+__________ test_broken_git_metadata_is_not_a_plain_upload[directory] ___________
+tests/test_hub_inputs_v1063.py:88: in test_broken_git_metadata_is_not_a_plain_upload
+    with pytest.raises(hw.HubWorkspaceError):
+E   Failed: DID NOT RAISE <class 'app.hub_workspace.HubWorkspaceError'>
+___________ test_broken_git_metadata_is_not_a_plain_upload[gitfile] ____________
+tests/test_hub_inputs_v1063.py:88: in test_broken_git_metadata_is_not_a_plain_upload
+    with pytest.raises(hw.HubWorkspaceError):
+E   Failed: DID NOT RAISE <class 'app.hub_workspace.HubWorkspaceError'>
+___________ test_broken_git_metadata_is_not_a_plain_upload[symlink] ____________
+tests/test_hub_inputs_v1063.py:88: in test_broken_git_metadata_is_not_a_plain_upload
+    with pytest.raises(hw.HubWorkspaceError):
+E   Failed: DID NOT RAISE <class 'app.hub_workspace.HubWorkspaceError'>
+___________ test_broken_git_metadata_is_not_a_plain_upload[ancestor] ___________
+tests/test_hub_inputs_v1063.py:88: in test_broken_git_metadata_is_not_a_plain_upload
+    with pytest.raises(hw.HubWorkspaceError):
+E   Failed: DID NOT RAISE <class 'app.hub_workspace.HubWorkspaceError'>
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1063.py::test_broken_git_metadata_is_not_a_plain_upload[directory]
+FAILED tests/test_hub_inputs_v1063.py::test_broken_git_metadata_is_not_a_plain_upload[gitfile]
+FAILED tests/test_hub_inputs_v1063.py::test_broken_git_metadata_is_not_a_plain_upload[symlink]
+FAILED tests/test_hub_inputs_v1063.py::test_broken_git_metadata_is_not_a_plain_upload[ancestor]
+4 failed in 3.29s
+
+All three mutants killed; production source restored.
+
+exit_code=0

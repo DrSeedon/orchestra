@@ -1,0 +1,6 @@
+Redaction: workspace/HOME prefixes, encoded workspace slug and username replaced by /remote/workspace, /remote/workspaces, /remote/home, remote-workspace and remote-user.
+$ uv run --frozen python -m pytest tests/test_hub_uv.py tests/test_publication_gate_v1047.py tests/test_hub_inputs_v1062.py tests/test_hub_inputs_v1063.py -q
+........................................................................................................                      [100%]
+104 passed, 19 subtests passed in 117.62s (0:01:57)
+
+exit_code=0

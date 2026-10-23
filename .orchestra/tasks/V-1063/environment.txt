@@ -1,0 +1,8 @@
+Redaction: workspace/HOME prefixes, encoded workspace slug and username replaced by /remote/workspace, /remote/workspaces, /remote/home, remote-workspace and remote-user.
+$ uv run --frozen python -c 'import app, sys, shutil, subprocess; print("app:", app.__file__); print("Python:", sys.executable); print("uv:", shutil.which("uv")); print(subprocess.check_output(["uv", "--version"], text=True).strip())'
+app: /remote/workspace/app/__init__.py
+Python: /remote/workspace/.venv/bin/python3
+uv: /remote/home/.local/share/orchestra/tools/uv/0.11.28/bin/uv
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+
+exit_code=0

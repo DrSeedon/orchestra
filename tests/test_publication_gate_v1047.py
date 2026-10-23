@@ -494,8 +494,9 @@ class MutationTests(unittest.TestCase):
                     target = directory / "app" / name
                     target.parent.mkdir(exist_ok=True)
                     shutil.copyfile(ROOT / "app" / name, target)
-                # The PEM test exercises real hub upload planning, with its normal imports.
-                if "hub_pem" in test:
+                # Hub planning and workspace merges need their real runtime
+                # imports. Keep the minimal hook-import mutants isolated above.
+                if "hub_pem" in test or "merge_worker" in test:
                     shutil.copytree(ROOT / "app", directory / "app", dirs_exist_ok=True,
                                     ignore=shutil.ignore_patterns("__pycache__"))
                 (directory / "scripts").mkdir()
@@ -508,12 +509,21 @@ class MutationTests(unittest.TestCase):
                 source = directory / filename
                 text = source.read_text()
                 self.assertIn(original, text, "explicit mutation target disappeared")
+                command = [sys.executable, str(target_test), test]
+                environment = {**os.environ, "PYTHONPATH": str(directory)}
+                control = subprocess.run(command, cwd=directory, capture_output=True,
+                                         text=True, timeout=45, env=environment)
+                self.assertEqual(control.returncode, 0, control.stderr)
                 source.write_text(text.replace(original, replacement.replace("\\n", "\n")))
-                result = subprocess.run([sys.executable, str(target_test), test], cwd=directory,
-                                        capture_output=True, text=True, timeout=45,
-                                        env={**os.environ, "PYTHONPATH": str(directory)})
+                # The control may have cached same-size source within this
+                # filesystem's timestamp granularity; always load the mutant.
+                for cache in directory.rglob("__pycache__"):
+                    shutil.rmtree(cache)
+                result = subprocess.run(command, cwd=directory, capture_output=True,
+                                        text=True, timeout=45, env=environment)
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("FAIL:", result.stderr, "must fail an assertion, not setup/import")
+                self.assertNotIn("ERROR:", result.stderr, "mutation must not produce import/setup errors")
 
 
 if __name__ == "__main__":
