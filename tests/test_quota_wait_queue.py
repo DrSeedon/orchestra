@@ -382,6 +382,13 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
     from app.models import resolve_model
     from app.routes import sessions as session_routes
 
+    # Model validation requires a configured hub even when capacity/submission are fake.
+    monkeypatch.setenv("MULTICODE_MCP_BASE", "http://hub.invalid")
+    monkeypatch.setenv("MULTICODE_MCP_TOKEN", "orchestra-test-only-token")
+    monkeypatch.delenv("MULTICODE_MCP_TOKEN_FILE", raising=False)
+    monkeypatch.setenv("MULTICODE_HUB_SSH", "test@hub.invalid")
+    monkeypatch.setenv("MULTICODE_HUB_SSH_KEY", str(env.db.DB_PATH.parent / "unused-hub-key"))
+
     delivery_id = "00000000-0000-4000-8000-000000001056"
     if kind == "initial":
         await initial_deliveries.accept_initial_delivery(
@@ -450,6 +457,7 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
     )
     await _drain()
 
+    assert isinstance(response, dict), getattr(response, "body", response)
     assert response["ok"] is True
     assert checked and set(checked) == {resolve_model(new_model)}
     assert state() == ("SUBMITTED" if admitted else "WAITING_QUOTA")

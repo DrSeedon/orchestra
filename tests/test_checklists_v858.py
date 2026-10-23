@@ -21,6 +21,23 @@ def checklist_db(tmp_path, monkeypatch):
     return db, checklists
 
 
+@pytest.fixture
+def reminder_clock(monkeypatch):
+    """Exercise the one-week experiment independently of the runner's date/env."""
+    from app import checklists
+
+    moment = datetime(2026, 10, 20, 12, tzinfo=timezone.utc)
+
+    class ExperimentDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment.astimezone(tz) if tz is not None else moment.replace(tzinfo=None)
+
+    monkeypatch.setattr(checklists, "datetime", ExperimentDateTime)
+    monkeypatch.setenv(checklists.REMINDER_FLAG, "1")
+    return moment
+
+
 def _insert_session(db, session_id: str, task_id: str, *, role="worker", is_orchestrator=False) -> None:
     db.save_session({
         "id": session_id, "name": session_id, "scope": "/v858", "cwd": "/v858",
@@ -148,13 +165,12 @@ def test_estimate_accuracy_report_groups_completed_steps_by_model_and_period(che
     assert model["projects"] == ["orchestra"]
 
 
-def test_estimated_reminder_fires_when_current_step_is_over_estimate(checklist_db, monkeypatch):
+def test_estimated_reminder_fires_when_current_step_is_over_estimate(checklist_db, reminder_clock):
     db, checklists = checklist_db
     from app.session import AgentSession, AgentStatus
 
     _insert_session(db, "worker-estimate-reminder", "task-1")
-    monkeypatch.setattr(checklists, "REMINDER_CUTOFF", date(2026, 10, 22))
-    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    started = reminder_clock - timedelta(minutes=1)
     checklists.save_checklist(
         "worker-estimate-reminder", "task-1", "turn-estimate-reminder",
         items=["Slow step"], completed=[], current=0, estimates_minutes=[0.5],
@@ -206,7 +222,7 @@ def test_summary_is_attached_by_session_and_current_task(checklist_db):
     assert summary["worker"]["current"] == "B"
 
 
-def test_reminder_delay_flag_expiry_and_once_per_turn(checklist_db, monkeypatch):
+def test_reminder_delay_flag_expiry_and_once_per_turn(checklist_db, monkeypatch, reminder_clock):
     db, checklists = checklist_db
     from app.session import AgentSession, AgentStatus
 
@@ -223,6 +239,9 @@ def test_reminder_delay_flag_expiry_and_once_per_turn(checklist_db, monkeypatch)
         id="worker-expired", name="worker", scope="/v858", cwd="/v858",
         status=AgentStatus.RUNNING, task_id="task-1",
     )
+    _insert_session(db, expired.id, expired.task_id)
+    expired._turn_gen = 1
+    checklists.register_turn(expired.id, expired.task_id, 1, "expired-turn")
     expired.send = AsyncMock()
     expired._log = Mock()
     asyncio.run(expired._watch_checklist_reminder(1, "expired-turn"))
@@ -269,7 +288,9 @@ def test_update_after_reminder_is_counted_for_that_turn(checklist_db):
 
 
 @pytest.mark.asyncio
-async def test_checklist_update_restarts_the_five_minute_idle_window(checklist_db, monkeypatch):
+async def test_checklist_update_restarts_the_five_minute_idle_window(
+    checklist_db, monkeypatch, reminder_clock,
+):
     db, checklists = checklist_db
     from app.session import AgentSession, AgentStatus
 
@@ -294,7 +315,9 @@ async def test_checklist_update_restarts_the_five_minute_idle_window(checklist_d
 
 
 @pytest.mark.asyncio
-async def test_worker_turn_start_arms_and_turn_end_cancels_reminder(checklist_db, monkeypatch):
+async def test_worker_turn_start_arms_and_turn_end_cancels_reminder(
+    checklist_db, monkeypatch, reminder_clock,
+):
     db, checklists = checklist_db
     from app.session import AgentSession, AgentStatus
 
@@ -409,12 +432,11 @@ async def test_session_list_receives_compact_checklist_count(checklist_db, monke
     }
 
 
-def test_fully_completed_checklist_gets_no_reminder(checklist_db, monkeypatch):
+def test_fully_completed_checklist_gets_no_reminder(checklist_db, monkeypatch, reminder_clock):
     db, checklists = checklist_db
     from app.session import AgentSession, AgentStatus
 
     _insert_session(db, "worker-done", "task-1")
-    monkeypatch.setattr(checklists, "REMINDER_CUTOFF", date(2026, 10, 22))
     monkeypatch.setattr(checklists, "REMINDER_DELAY_SECONDS", 0.01)
     checklists.save_checklist(
         "worker-done", "task-1", "turn-done",
@@ -537,17 +559,16 @@ def test_open_clocks_are_dropped_at_process_start(checklist_db):
     assert step["active_since"] is None and step["actual_seconds"] == 0
 
 
-def test_idle_session_gets_no_reminder(checklist_db, monkeypatch):
+def test_idle_session_gets_no_reminder(checklist_db, monkeypatch, reminder_clock):
     db, checklists = checklist_db
     from app.session import AgentSession, AgentStatus
 
     _insert_session(db, "worker-idle", "task-1")
-    monkeypatch.setattr(checklists, "REMINDER_CUTOFF", date(2026, 10, 22))
     monkeypatch.setattr(checklists, "REMINDER_DELAY_SECONDS", 0.01)
     checklists.save_checklist(
         "worker-idle", "task-1", "turn-idle",
         items=["Slow"], completed=[], current=0, estimates_minutes=[0.1],
-        now=datetime.now(timezone.utc) - timedelta(minutes=5),
+        now=reminder_clock - timedelta(minutes=5),
     )
     session = AgentSession(
         id="worker-idle", name="worker", scope="/v858", cwd="/v858",
