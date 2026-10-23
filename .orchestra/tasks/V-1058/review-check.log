@@ -1,0 +1,4 @@
+Syntax: 4 Python files parsed successfully
+Fixtures: 3 JSON files parsed successfully
+Secret-shape check: no common credential/private-key forms found
+Manual review: changed source/test regions, readable JSON fixtures, compatibility and error paths checked

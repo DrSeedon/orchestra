@@ -1,0 +1,17 @@
+{
+  "metadata": {"duration": 2.1},
+  "results": {
+    "channels": [{
+      "alternatives": [{
+        "transcript": "Проверь,  пожалуйста.\nСтатус Orchestra?",
+        "confidence": 0.99,
+        "words": [
+          {"word": "проверь", "start": 0.0, "end": 0.4, "confidence": 0.99, "punctuated_word": "Проверь,"},
+          {"word": "пожалуйста", "start": 0.5, "end": 0.9, "confidence": 0.98, "punctuated_word": "пожалуйста."},
+          {"word": "статус", "start": 1.0, "end": 1.4, "confidence": 0.99, "punctuated_word": "Статус"},
+          {"word": "orchestra", "start": 1.5, "end": 2.0, "confidence": 0.99, "punctuated_word": "Orchestra?"}
+        ]
+      }]
+    }]
+  }
+}

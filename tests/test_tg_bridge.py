@@ -225,6 +225,49 @@ async def test_transcribe_audio_persists_voice_cost(tb, tmp_path, monkeypatch):
     assert tb._transcribe_audio is transcription.transcribe_audio
 
 
+@pytest.mark.asyncio
+async def test_handle_voice_delivers_word_uncertainty_to_agent(tb, tmp_path, monkeypatch):
+    from pathlib import Path
+    import httpx
+    from app import transcription
+
+    payload = json.loads((
+        Path(__file__).parent / "fixtures" / "deepgram_confidence" / "low.json"
+    ).read_text(encoding="utf-8"))
+    audio = tmp_path / "voice.oga"
+    audio.write_bytes(b"offline-fixture-audio")
+    session = SimpleNamespace(name="orch", scope="/scope")
+    message = SimpleNamespace(voice=SimpleNamespace(
+        file_id="tg-file", file_unique_id="tg-confidence-voice", duration=3,
+    ))
+    monkeypatch.setenv("DEEPGRAM_API_KEY", "test-key")
+    monkeypatch.setattr(transcription, "_transcription_cache", {})
+    monkeypatch.setattr(transcription, "_save_transcription_cache", lambda cache: None)
+    monkeypatch.setattr(transcription, "voice_cost_add", lambda **kwargs: None)
+
+    async def fake_post(self, *args, **kwargs):
+        return httpx.Response(200, json=payload)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    monkeypatch.setattr(tb, "_resolve_orch", AsyncMock(return_value=("orch", session)))
+    monkeypatch.setattr(tb, "_register_media", AsyncMock(return_value="media-token"))
+    monkeypatch.setattr(tb, "_download_file", AsyncMock(return_value=str(audio)))
+    monkeypatch.setattr(tb, "_media_name", lambda *args: "voice.oga")
+    monkeypatch.setattr(tb, "_sender_tag", lambda msg: "")
+    monkeypatch.setattr(tb, "_forward_meta", lambda msg: "")
+    resolve = AsyncMock()
+    monkeypatch.setattr(tb, "_resolve_media", resolve)
+
+    await tb.handle_voice(message)
+
+    resolve.assert_awaited_once_with(
+        "media-token",
+        f"[voice: {audio} | "
+        "[Расшифровка содержит неуверенно распознанные слова: [?]]\n"
+        "Проверь,  делает[?] старт[?]?\nПроверь Orchestra[?].]",
+    )
+
+
 # ── _short_name ────────────────────────────────────────────────────────────
 
 
