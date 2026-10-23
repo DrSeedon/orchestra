@@ -1,0 +1,10 @@
+test_open_workflow_dispatch_has_no_independent_boundary (__main__.ChangeModelRouteSmoke.test_open_workflow_dispatch_has_no_independent_boundary) ... ok
+test_release_observes_new_model_and_ignores_unsuccessful_changes (__main__.ChangeModelRouteSmoke.test_release_observes_new_model_and_ignores_unsuccessful_changes) ... ok
+test_allowing_states_and_original_decision_are_unchanged (__main__.QuotaRefusalSmoke.test_allowing_states_and_original_decision_are_unchanged) ... ok
+test_mcp_refusal_names_rule_without_overriding_fail_open_policy (__main__.QuotaRefusalSmoke.test_mcp_refusal_names_rule_without_overriding_fail_open_policy) ... ok
+test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.092s
+
+OK

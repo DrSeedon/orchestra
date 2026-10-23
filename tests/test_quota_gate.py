@@ -933,6 +933,8 @@ def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
     envelope = error.value.envelope()["error"]
     assert envelope["code"] == "weekly_quota_blocked"
     assert envelope["retryable"] is False
+    assert envelope["details"]["rule"] == "worker_quota_admission"
+    assert "Rule 'worker_quota_admission'" in envelope["message"]
     assert envelope["details"]["limit_pct"] == pytest.approx(line_limit(0.5, "sol"))
     assert envelope["details"]["utilization"] == 90.0
     # Сообщение обязано называть ФАКТИЧЕСКИЙ порог полосы и фактическую норму под ним,

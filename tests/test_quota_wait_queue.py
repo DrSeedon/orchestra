@@ -16,6 +16,7 @@ import pytest
 
 from app.events import MessageProvenance
 from app.quota_gate import QuotaGateError, evaluate_worker_admission, line_limit
+from app.quota_gate import get_worker_admission as _real_worker_admission
 
 SOURCE_ID, SOURCE_NAME = "src-678", "orch-678"
 TARGET_ID, TARGET_NAME = "tgt-678", "worker-678"
@@ -362,6 +363,107 @@ async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env)
 
     assert env.manager.delivered == ["first task", "[from:x] direct"]
     assert initial_deliveries._delivery_payload(initial_id)["state"] == "SUBMITTED"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["initial", "direct"])
+@pytest.mark.parametrize("new_model,admitted", [
+    ("hubsol", True), ("claude-haiku-5-5", False),
+])
+async def test_model_change_rechecks_held_delivery_with_new_route_policy(
+    env, monkeypatch, kind, new_model, admitted,
+):
+    """V-1056: changing a model is control; delivery must use the new pool's gate.
+
+    Use the real quota/hub decision functions. Only telemetry and the provider
+    submission are fake, so switching to Haiku cannot evade a closed Claude pool.
+    """
+    from app import hub_pool, initial_deliveries, quota_gate, quota_queue
+    from app.models import resolve_model
+    from app.routes import sessions as session_routes
+
+    delivery_id = "00000000-0000-4000-8000-000000001056"
+    if kind == "initial":
+        await initial_deliveries.accept_initial_delivery(
+            delivery_id=delivery_id, session_id=TARGET_ID, worker_name=TARGET_NAME,
+            scope=SCOPE, sender=SOURCE_NAME, message="held task",
+            provenance=MessageProvenance(
+                origin="agent", senders=(SOURCE_NAME,), subtype="initial_delivery",
+                ref=delivery_id,
+            ),
+            quota_wait=env.gate.decision(),
+        )
+
+        def state():
+            return initial_deliveries._delivery_payload(delivery_id)["state"]
+
+        expected_message = "held task"
+    else:
+        await _accept(delivery_id, "held message", parked=True)
+
+        def state():
+            return _states(env.db)[delivery_id]
+
+        expected_message = "[from:x] held message"
+    assert state() == "WAITING_QUOTA"
+
+    usage = {"percent": 100.0}
+
+    async def observation(**_kwargs):
+        now = time.time()
+        window = {
+            "id": "seven_day", "window_minutes": 10080,
+            "utilization": usage["percent"],
+            "resets_at": datetime.fromtimestamp(now + 604800, timezone.utc).isoformat(),
+        }
+        return {
+            "providers": {"anthropic": {"label": "Claude", "windows": [window]}},
+            "observed_at_by_provider": {"anthropic": now},
+        }
+
+    async def hub_capacity(**_kwargs):
+        return {"available": True, "providers": {
+            "codex": {"usable": 1, "accounts": 1, "unknown": 0, "threshold_pct": 100.0},
+        }}
+
+    checked = []
+
+    async def admission(model, observation_loader=None):
+        checked.append(model)
+        return await _real_worker_admission(model, observation_loader=observation)
+
+    monkeypatch.setattr(hub_pool, "get_hub_pool", hub_capacity)
+    monkeypatch.setattr(quota_gate, "get_worker_admission", admission)
+    # FakeManager is only the provider sink here; admission is owned by the real releaser.
+    env.gate.open()
+
+    class Worker:
+        async def change_model(self, model):
+            env.db.save_session(_record(TARGET_ID, TARGET_NAME) | {"model": model})
+            return {"ok": True, "changed": True, "model": model}
+
+    monkeypatch.setattr(
+        session_routes.manager, "ensure_loaded", AsyncMock(return_value=Worker()), raising=False,
+    )
+    response = await session_routes.change_model(
+        TARGET_NAME, {"scope": SCOPE, "model": new_model, "via": "mcp"},
+    )
+    await _drain()
+
+    assert response["ok"] is True
+    assert checked and set(checked) == {resolve_model(new_model)}
+    assert state() == ("SUBMITTED" if admitted else "WAITING_QUOTA")
+    assert env.manager.delivered == ([expected_message] if admitted else [])
+
+    if not admitted:
+        # Recovery uses the saved new model and the same durable delivery identity.
+        usage["percent"] = 0.0
+        assert await quota_queue.release_waiting() == 1
+        await _drain()
+        assert state() == "SUBMITTED"
+    assert await quota_queue.release_waiting() == 0
+    await _drain()
+    assert env.manager.delivered == [expected_message]
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,4 @@
+Syntax and trailing whitespace: 7 changed Python files OK.
+Task artifact credential-shape spot check: OK; not the absent publication scanner.
+No .git provided: no git diff available; reviewed modified code sections directly.
+Required uv/pytest and complete-app verification remain unrun (see report.md).

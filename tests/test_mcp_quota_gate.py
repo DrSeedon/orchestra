@@ -144,6 +144,8 @@ async def test_codex_review_is_blocked_before_the_bg_job(api):
     assert caught.value.code == "weekly_quota_blocked"
     assert caught.value.retryable is False
     assert "70%" in caught.value.message
+    assert "Rule 'worker_quota_admission'" in caught.value.message
+    assert caught.value.details["rule"] == "worker_quota_admission"
     assert "/api/bg/jobs" not in [path for path, _body in api.calls]
 
 

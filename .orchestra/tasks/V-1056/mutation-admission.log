@@ -1,0 +1,55 @@
+test_open_workflow_dispatch_has_no_independent_boundary (__main__.ChangeModelRouteSmoke.test_open_workflow_dispatch_has_no_independent_boundary) ... ok
+test_release_observes_new_model_and_ignores_unsuccessful_changes (__main__.ChangeModelRouteSmoke.test_release_observes_new_model_and_ignores_unsuccessful_changes) ... ok
+test_allowing_states_and_original_decision_are_unchanged (__main__.QuotaRefusalSmoke.test_allowing_states_and_original_decision_are_unchanged) ... ok
+test_mcp_refusal_names_rule_without_overriding_fail_open_policy (__main__.QuotaRefusalSmoke.test_mcp_refusal_names_rule_without_overriding_fail_open_policy) ... ok
+test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) ... 
+  test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='anthropic') ... FAIL
+  test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='codex') ... FAIL
+  test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='codex_spark') ... FAIL
+  test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='hub_claude') ... FAIL
+  test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='hub_codex') ... FAIL
+
+======================================================================
+FAIL: test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='anthropic')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-copy>/.orchestra/tasks/V-1056/offline_checks.py", line 80, in test_subscription_and_hub_name_rule_and_preserve_contract
+    with self.assertRaises(quota.QuotaGateError) as caught:
+AssertionError: QuotaGateError not raised
+
+======================================================================
+FAIL: test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='codex')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-copy>/.orchestra/tasks/V-1056/offline_checks.py", line 80, in test_subscription_and_hub_name_rule_and_preserve_contract
+    with self.assertRaises(quota.QuotaGateError) as caught:
+AssertionError: QuotaGateError not raised
+
+======================================================================
+FAIL: test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='codex_spark')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-copy>/.orchestra/tasks/V-1056/offline_checks.py", line 80, in test_subscription_and_hub_name_rule_and_preserve_contract
+    with self.assertRaises(quota.QuotaGateError) as caught:
+AssertionError: QuotaGateError not raised
+
+======================================================================
+FAIL: test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='hub_claude')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-copy>/.orchestra/tasks/V-1056/offline_checks.py", line 80, in test_subscription_and_hub_name_rule_and_preserve_contract
+    with self.assertRaises(quota.QuotaGateError) as caught:
+AssertionError: QuotaGateError not raised
+
+======================================================================
+FAIL: test_subscription_and_hub_name_rule_and_preserve_contract (__main__.QuotaRefusalSmoke.test_subscription_and_hub_name_rule_and_preserve_contract) (provider='hub_codex')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<hub-copy>/.orchestra/tasks/V-1056/offline_checks.py", line 80, in test_subscription_and_hub_name_rule_and_preserve_contract
+    with self.assertRaises(quota.QuotaGateError) as caught:
+AssertionError: QuotaGateError not raised
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.084s
+
+FAILED (failures=5)

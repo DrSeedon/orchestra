@@ -830,12 +830,16 @@ class QuotaDecision:
         }
 
 
+WORKER_ADMISSION_RULE = "worker_quota_admission"
+
+
 class QuotaGateError(RuntimeError):
     """Структурированный отказ новому ходу воркера."""
 
     status_code = 429
     retryable = False
     code = "weekly_quota_blocked"
+    rule = WORKER_ADMISSION_RULE
 
     def __init__(self, decision: QuotaDecision):
         if decision.state != "blocked":
@@ -848,10 +852,10 @@ class QuotaGateError(RuntimeError):
         except Exception:   # a routing hint must never turn a refusal into a crash
             hint = ""
         if decision.provider.startswith("hub_"):
-            super().__init__(decision.reason)
+            super().__init__(f"Rule '{self.rule}': {decision.reason}")
             return
         super().__init__(
-            f"New worker turn blocked: {decision.provider_label} quota is "
+            f"Rule '{self.rule}': New worker turn blocked: {decision.provider_label} quota is "
             f"{decision.utilization:g}% — {decision.reason}. {hint}".rstrip()
         )
 
@@ -861,7 +865,7 @@ class QuotaGateError(RuntimeError):
                 "code": self.code,
                 "message": str(self),
                 "retryable": False,
-                "details": self.decision.to_dict(),
+                "details": {**self.decision.to_dict(), "rule": self.rule},
             }
         }
 

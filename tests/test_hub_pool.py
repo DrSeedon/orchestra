@@ -182,8 +182,10 @@ async def test_admission_checks_the_whole_pool_and_suggests_other_provider(monke
     _pool(monkeypatch, accounts if provider == "claude" else [_account()],
           accounts if provider == "codex" else [_account()])
     decision = await get_worker_admission(model)
-    with pytest.raises(QuotaGateError, match=f"model='{other}'"):
+    with pytest.raises(QuotaGateError, match=f"model='{other}'") as caught:
         require_worker_admission(decision)
+    assert "Rule 'worker_quota_admission'" in str(caught.value)
+    assert caught.value.envelope()["error"]["details"]["rule"] == "worker_quota_admission"
     assert decision.provider == f"hub_{provider}"
     assert decision.state == "blocked"
     # An inactive account with headroom opens admission even though the active one is exhausted.

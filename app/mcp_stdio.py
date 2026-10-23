@@ -996,15 +996,18 @@ def _quota_refusal_from_readiness(model: str, readiness: object) -> ApiToolError
     utilization = readiness.get("utilization")
     if isinstance(utilization, bool) or not isinstance(utilization, (int, float)):
         return None
+    from app.quota_gate import WORKER_ADMISSION_RULE
+
     return ApiToolError(
         code="weekly_quota_blocked",
         message=(
-            f"New Codex worker turn blocked: {label} quota is {utilization:g}% — "
+            f"Rule '{WORKER_ADMISSION_RULE}': New Codex worker turn blocked: "
+            f"{label} quota is {utilization:g}% — "
             f"{readiness.get('reason') or 'above the admission line'}. "
             "Stop/model change remain available."
         ),
         retryable=False,
-        details={"model": model, **readiness},
+        details={"model": model, **readiness, "rule": WORKER_ADMISSION_RULE},
     )
 
 
