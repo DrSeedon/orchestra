@@ -485,9 +485,12 @@ class HubSsh:
             )
             try:
                 out, err = await asyncio.wait_for(proc.communicate(), timeout)
-            except asyncio.TimeoutError:
-                proc.kill()
+            except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
+                if proc.returncode is None:
+                    proc.kill()
                 await proc.wait()
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
                 raise HubWorkspaceError("hub SSH command timed out") from None
         if proc.returncode != 0:
             raise HubWorkspaceError(_ssh_failure(remote, proc.returncode, out, err, stdout is not None))
