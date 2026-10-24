@@ -145,6 +145,25 @@ def safe_format_prompt(template: str, **kwargs: str) -> str:
     return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
 
 
+def _has_worker_memory_project_state(base: Path) -> bool:
+    # LEGACY_PATH_FIXTURE: old roots signal migration, never memory fallbacks.
+    if any((base / path).exists() or (base / path).is_symlink() for path in (
+        "docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines",
+    )):
+        return True
+    state = base / ".orchestra"
+    if not state.exists() and not state.is_symlink():
+        return False
+    if not state.is_dir() or state.is_symlink():
+        return True
+    # Reports alone do not establish managed project memory. Unknown entries,
+    # migration journals and broken links remain evidence of project state.
+    return any(
+        entry.name != "tasks" or not entry.is_dir() or entry.is_symlink()
+        for entry in state.iterdir()
+    )
+
+
 def load_worker_memory(
     name: str,
     role: str,
@@ -177,16 +196,13 @@ def load_worker_memory(
     if not layout_file.is_file():
         if not allow_missing_layout:
             if allow_absent_project:
-                # LEGACY_PATH_FIXTURE: classify old paths without reading them as fallbacks.
-                managed_state_signals = (
-                    base / "docs" / "kb",
-                    base / "docs" / "tasks",
-                    base / "docs" / "workers",
-                    base / "docs" / "archive",
-                    base / "pipelines",
-                    base / ".orchestra",
-                )
-                if not any(path.exists() for path in managed_state_signals):
+                from app.orchestra_layout import _base_checkout
+
+                # A linked branch can contain task outputs over a source-only base.
+                # Do not skip missing memory if either checkout has managed state.
+                if not any(_has_worker_memory_project_state(root) for root in (
+                    base, _base_checkout(base),
+                )):
                     return ""
             from app.orchestra_layout import LayoutMigrationError
             raise LayoutMigrationError(

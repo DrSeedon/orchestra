@@ -1,0 +1,5 @@
+Changed source, tests, changelog and task artifacts scanned: 8 files
+Secret-form findings: 0
+Runtime/account path literal findings: 0
+AST parse: 2 files passed
+Temporary synthetic Git/SQLite artifacts removed
