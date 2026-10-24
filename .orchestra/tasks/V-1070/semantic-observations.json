@@ -1,0 +1,218 @@
+[
+  {
+    "number": 1,
+    "variant": "original",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-11",
+      "ID: Q01-O0I1-B8S5"
+    ],
+    "correct": 3,
+    "incorrect": 0,
+    "unread": 0,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 1,
+    "variant": "full",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-11",
+      "ID: Q01-O0I1-B8S5"
+    ],
+    "correct": 3,
+    "incorrect": 0,
+    "unread": 0,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 1,
+    "variant": "compact",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-11",
+      null
+    ],
+    "correct": 2,
+    "incorrect": 0,
+    "unread": 1,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 1,
+    "variant": "half",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-11",
+      null
+    ],
+    "correct": 2,
+    "incorrect": 0,
+    "unread": 1,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 5,
+    "variant": "original",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-15",
+      "ID: Q05-O0I1-B8S5"
+    ],
+    "correct": 3,
+    "incorrect": 0,
+    "unread": 0,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 5,
+    "variant": "full",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-15",
+      "ID: Q05-O0I1-B8S5"
+    ],
+    "correct": 3,
+    "incorrect": 0,
+    "unread": 0,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 5,
+    "variant": "compact",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-15",
+      null
+    ],
+    "correct": 2,
+    "incorrect": 0,
+    "unread": 1,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 5,
+    "variant": "half",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-15",
+      null
+    ],
+    "correct": 2,
+    "incorrect": 0,
+    "unread": 1,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 9,
+    "variant": "original",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-19",
+      "ID: Q09-O0I1-B8S5"
+    ],
+    "correct": 3,
+    "incorrect": 0,
+    "unread": 0,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 9,
+    "variant": "full",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-19",
+      "ID: Q09-O0I1-B8S5"
+    ],
+    "correct": 3,
+    "incorrect": 0,
+    "unread": 0,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 9,
+    "variant": "compact",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-19",
+      null
+    ],
+    "correct": 2,
+    "incorrect": 0,
+    "unread": 1,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  },
+  {
+    "number": 9,
+    "variant": "half",
+    "selected_fields": [
+      "Build",
+      "Date",
+      "ID"
+    ],
+    "accepted_readings": [
+      "Build: FAILED",
+      "Date: 2026-10-19",
+      null
+    ],
+    "correct": 2,
+    "incorrect": 0,
+    "unread": 1,
+    "method": "nonblind semantic inspection by current researcher; no separate model judge; null=abstention"
+  }
+]

@@ -1,0 +1,5 @@
+$ bash -c command -v tesseract; command -v node; command -v fc-match
+/usr/local/lib/claude-hub/shims/node
+/usr/bin/fc-match
+
+[exit 0]

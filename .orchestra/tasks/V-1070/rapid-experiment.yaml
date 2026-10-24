@@ -1,0 +1,3 @@
+use_cuda: false
+intra_op_num_threads: 1
+inter_op_num_threads: 1

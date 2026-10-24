@@ -1,0 +1,1503 @@
+
+$ source excerpt app/tg_bridge.py:264-295
+264:         if Path(cached).exists():
+265:             return cached
+266:         del _media_cache[unique_id]
+267:     _cleanup_uploads()
+268:     t0 = time.monotonic()
+269:     try:
+270:         f = await bot.get_file(file_id)
+271:         name = Path(filename).name
+272:         path = UPLOADS_DIR / name
+273:         if path.exists():
+274:             stem, suffix = path.stem, path.suffix
+275:             i = 1
+276:             while path.exists():
+277:                 path = UPLOADS_DIR / f"{stem}_{i}{suffix}"
+278:                 i += 1
+279:         local_api = os.getenv("TG_LOCAL_API_URL", "")
+280:         # Local Bot API server provides absolute paths — copy directly instead of downloading
+281:         # over the network (~40ms vs ~2s for large files)
+282:         if local_api and f.file_path and Path(f.file_path).is_absolute() and Path(f.file_path).exists():
+283:             import shutil
+284:             shutil.copy2(f.file_path, str(path))
+285:             logger.info(f"download {filename}: local copy in {(time.monotonic()-t0)*1000:.0f}ms ({f.file_path})")
+286:         else:
+287:             await bot.download_file(f.file_path, str(path))
+288:             logger.info(f"download {filename}: remote download in {(time.monotonic()-t0)*1000:.0f}ms")
+289:         if unique_id:
+290:             _media_cache[unique_id] = str(path)
+291:             _save_media_cache(_media_cache)
+292:         return str(path)
+293:     except Exception as e:
+294:         logger.warning(f"download_file failed for {filename}: {e}")
+295:         return None
+
+$ source excerpt app/tg_bridge.py:429-457
+429: async def _arm_debounce(sid: str, buf: "_BufState"):
+430:     if buf.debounce_task and not buf.debounce_task.done():
+431:         buf.debounce_task.cancel()
+432:     buf.phase = _Phase.COLLECTING
+433:     buf.debounce_task = spawn_supervised(_debounce_elapsed(sid), f"дебаунс доставки {sid}")
+434: 
+435: 
+436: async def _debounce_elapsed(sid: str):
+437:     try:
+438:         await asyncio.sleep(DEBOUNCE_SEC)
+439:     except asyncio.CancelledError:
+440:         return
+441: 
+442:     waited = 0.0
+443:     buf = _get_buf(sid)
+444:     while True:
+445:         async with buf.lock:
+446:             if buf.pending_media <= 0:
+447:                 break
+448:             if waited >= MEDIA_WAIT_MAX:
+449:                 logger.warning(f"[{sid}] media wait timeout {waited:.1f}s, proceeding")
+450:                 buf.pending_media = 0
+451:                 break
+452:             buf.phase = _Phase.WAITING_MEDIA
+453:         await asyncio.sleep(0.3)
+454:         waited += 0.3
+455: 
+456:     async with buf.lock:
+457:         buf.debounce_task = None
+
+$ source excerpt app/tg_bridge.py:614-633
+614: async def _send_to_agent(msg: types.Message, session, content: str):
+615:     content = f"{_sender_tag(msg)}{content}"
+616:     sid = session.id
+617:     buf = _get_buf(sid)
+618:     async with buf.lock:
+619:         buf.entries.append((msg, content, None))
+620:         await _arm_debounce(sid, buf)
+621: 
+622: 
+623: # Reserve an identity in the current buffer generation before the download completes.
+624: async def _register_media(msg: types.Message, session) -> _MediaToken:
+625:     sid = session.id
+626:     buf = _get_buf(sid)
+627:     async with buf.lock:
+628:         reservation = object()
+629:         token = _MediaToken(sid, buf.epoch, reservation, msg)
+630:         buf.entries.append((msg, None, reservation))
+631:         buf.pending_media += 1
+632:         await _arm_debounce(sid, buf)
+633:     return token
+
+$ source excerpt app/tg_bridge.py:4405-4428
+4405: @dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
+4406: async def handle_photo(msg: types.Message):
+4407:     orch_name, session = await _resolve_orch(msg)
+4408:     if not session:
+4409:         return
+4410: 
+4411:     path = await _download_file(msg.photo[-1].file_id, _media_name("photo", ".jpg", msg), msg.photo[-1].file_unique_id)
+4412:     caption = f"\n{msg.caption}" if msg.caption else ""
+4413:     tag = f"[photo: {path}]" if path else "[photo: file too large]"
+4414:     await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
+4415: 
+4416: 
+4417: @dp.message(F.chat.type.in_({"group", "supergroup"}), F.document)
+4418: async def handle_document(msg: types.Message):
+4419:     orch_name, session = await _resolve_orch(msg)
+4420:     if not session:
+4421:         return
+4422: 
+4423:     doc = msg.document
+4424:     ext = os.path.splitext(doc.file_name or "file")[1] or ".bin"
+4425:     path = await _download_file(doc.file_id, doc.file_name or _media_name("doc", ext, msg), doc.file_unique_id)
+4426:     caption = f"\n{msg.caption}" if msg.caption else ""
+4427:     tag = f"[file: {path} | {doc.file_name}]" if path else f"[file: too large | {doc.file_name}]"
+4428:     await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
+
+$ source excerpt app/routes/tg.py:285-315
+285: @router.post("/api/upload")
+286: async def upload_file(file: UploadFile):
+287:     ext = Path(file.filename or "image.png").suffix or ".png"
+288:     if ext.lower() in _BLOCKED_UPLOAD_EXTS:
+289:         return JSONResponse({"error": f"file type {ext} not allowed"}, status_code=400)
+290:     content = await file.read(MAX_UPLOAD_BYTES + 1)
+291:     if len(content) > MAX_UPLOAD_BYTES:
+292:         return JSONResponse({"error": f"file too large (max {MAX_UPLOAD_MB} MB)"}, status_code=400)
+293:     h = hashlib.md5(content).hexdigest()[:12]
+294:     name = f"{h}{ext}"
+295:     path = UPLOADS_DIR / name
+296:     if not path.exists():
+297:         path.write_bytes(content)
+298:     from app.tg_bridge import _cleanup_uploads
+299:     _cleanup_uploads()
+300:     return {"path": str(path), "url": f"/uploads/{name}"}
+301: 
+302: 
+303: @router.get("/uploads/{filename:path}")
+304: async def serve_upload(filename: str):
+305:     from starlette.responses import FileResponse
+306:     path = (UPLOADS_DIR / filename).resolve()
+307:     try:
+308:         path.relative_to(UPLOADS_DIR.resolve())
+309:     except ValueError:
+310:         return JSONResponse({"error": "forbidden"}, status_code=403)
+311:     if not path.exists() or not path.is_file():
+312:         return JSONResponse({"error": "not found"}, status_code=404)
+313:     return FileResponse(path, headers={"Content-Disposition": f'attachment; filename="{path.name}"'})
+314: 
+315: 
+
+$ source excerpt app/static/js/chat.js:800-841
+800: // 667 КБ ползёт 12 с, и это упирается в канал, а не в сервер — единственный способ
+801: // ускорить — отправить меньше байтов. WebP q=0.9 даёт 354 КБ (1.9×) при PSNR 38.6 дБ:
+802: // на кропе 1:1 текст неотличим от оригинала. Цифры — .orchestra/tasks/5/report.md.
+803: // Только для вставки из буфера: дропнутый файл юзер выбрал сам, его формат не наш.
+804: const _COMPRESS_MIN_BYTES = 100 * 1024;  // мельче — экономия секунды не стоит работы CPU
+805: 
+806: async function _compressScreenshot(file) {
+807:     if (file.size < _COMPRESS_MIN_BYTES) return {blob: file, ext: 'png'};
+808:     try {
+809:         const bitmap = await createImageBitmap(file);
+810:         const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+811:         canvas.getContext('2d').drawImage(bitmap, 0, 0);
+812:         bitmap.close();
+813:         const blob = await canvas.convertToBlob({type: 'image/webp', quality: 0.9});
+814:         // Фото и мелкие картинки от WebP не выигрывают — тогда шлём как есть
+815:         if (blob.size < file.size) return {blob, ext: 'webp'};
+816:     } catch (error) {
+817:         // Не ошибка юзера: файл всё равно уйдёт оригиналом, поэтому в консоль, не в UI
+818:         console.warn('Screenshot compression skipped:', error.name, error.message);
+819:     }
+820:     return {blob: file, ext: 'png'};
+821: }
+822: 
+823: async function handlePaste(e) {
+824:     const items = e.clipboardData?.items;
+825:     if (!items) return;
+826:     for (const item of items) {
+827:         if (!item.type.startsWith('image/')) continue;
+828:         e.preventDefault();
+829:         const file = item.getAsFile();
+830:         if (!file) continue;
+831:         _showChatDropError('');
+832:         const pasteName = `paste-${Date.now()}`;
+833:         const uploadCard = _showUploadingChip(file, `${pasteName}.png`);
+834:         await _trackUpload((async () => {
+835:             const {blob, ext} = await _compressScreenshot(file);
+836:             if (uploadCard.cancelled) return;
+837:             await _uploadToChat(blob, `${pasteName}.${ext}`, uploadCard);
+838:         })());
+839:         break;
+840:     }
+841: }
+
+$ source excerpt app/static/js/chat.js:1090-1092
+1090:     const imageUrl = (path, preview = false) =>
+1091:         `/api/files/raw?path=${encodeURIComponent(path)}${preview ? '&preview=640' : ''}`;
+1092:     const mediaUrl = (path, preview = false) => imageUrl(path, preview && !isVideoMedia(path));
+
+$ source excerpt app/static/js/chat.js:3669-3677
+3669:     const isViewImageTool = rawName === 'ViewImage';
+3670:     if (isViewImageTool) {
+3671:         try {
+3672:             const data = JSON.parse(body);
+3673:             const path = data.file_path || '';
+3674:             header.textContent = `🖼 ${T('Viewing')} ${(path.split('/').pop() || T('image'))}`;
+3675:             const mediaUrl = `/api/files/raw?path=${encodeURIComponent(path)}${isVideoMedia(path) ? '' : '&preview=640'}`;
+3676:             const media = createMediaPreview(mediaUrl, {
+3677:                 className: 'codex-tool-image', alt: path.split('/').pop() || T('Viewed image'),
+
+$ source excerpt app/static/js/chat.js:3964-4003
+3964:         if (lastTool.dataset.toolRawName === 'ViewImage') {
+3965:             const header = lastTool.querySelector('.flex.items-center');
+3966:             if (header) header.style.color = '#7dd3fc';
+3967:             const img = lastTool.querySelector('.codex-tool-image');
+3968:             if (img && (!img.complete || !img.naturalWidth)) {
+3969:                 img.src = img.src.replace(/([?&])t=\d+/, `$1t=${Date.now()}`);
+3970:             }
+3971:             delete lastTool.dataset.lastTool;
+3972:             addTimestamp(lastTool, ts);
+3973:             return;
+3974:         }
+3975:         if (lastTool.dataset.toolRawName === 'Sleep') {
+3976:             const header = lastTool.querySelector('.flex.items-center');
+3977:             if (header) {
+3978:                 header.textContent = T('✓ Wait completed');
+3979:                 header.style.color = '#64748b';
+3980:             }
+3981:             delete lastTool.dataset.lastTool;
+3982:             addTimestamp(lastTool, ts);
+3983:             return;
+3984:         }
+3985:     }
+3986:     if (isBase64Image) {
+3987:         const inlineSrc = _toolResultImageSrc(content);
+3988:         if (lastTool) {
+3989:             delete lastTool.dataset.lastTool;
+3990:             const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
+3991:             if (skeleton) skeleton.remove();
+3992:         }
+3993:         const target = lastTool || div;
+3994:         const origPath = lastTool && lastTool.dataset.filePath;
+3995:         if (inlineSrc || origPath || payload?.id) {
+3996:             const img = document.createElement('img');
+3997:             img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
+3998:             img.style.display = 'none';
+3999:             img.addEventListener('click', () => _showImageOverlay(img.src));
+4000:             target.appendChild(img);
+4001:             // Use original file via API if Read tool has file_path — SDK compresses base64
+4002:             _loadToolResultImage(img, origPath, inlineSrc, payload).then(ok => {
+4003:                 if (ok) img.style.display = '';
+
+$ source excerpt app/static/js/app.js:2144-2177
+2144: function _insertPathAtCaret(input, path, url, showPreview = true) {
+2145:     // Путь встаёт туда, где каретка (заменяя выделение): юзер в этот момент печатает,
+2146:     // и дописывание в конец уводило бы его текст ЗА путь
+2147:     const start = input.selectionStart ?? input.value.length;
+2148:     const end = input.selectionEnd ?? start;
+2149:     const before = input.value.slice(0, start);
+2150:     const after = input.value.slice(end);
+2151:     const prefix = before && !before.endsWith('\n') ? '\n' : '';
+2152:     // В конце строки за путём ставим пробел: без него следующий символ прилипает
+2153:     // к пути и ломает его. Когда дальше уже есть текст, разделителем служит перевод строки.
+2154:     const suffix = after ? (after.startsWith('\n') ? '' : '\n') : ' ';
+2155:     input.value = before + prefix + path + suffix + after;
+2156:     const caret = before.length + prefix.length + path.length + (after ? 0 : suffix.length);
+2157:     input.focus();
+2158:     input.setSelectionRange(caret, caret);
+2159:     pastedImages.push(url);
+2160:     if (showPreview) showImagePreview(url, path);
+2161: }
+2162: 
+2163: async function _handleChatDrop(input, dataTransfer) {
+2164:     _showChatDropError('');
+2165:     const files = [...(dataTransfer?.files || [])];
+2166:     if (files.length) {
+2167:         for (const file of files) await _trackUpload(_uploadToChat(file, file.name));
+2168:         input.focus();
+2169:         return;
+2170:     }
+2171:     const path = dataTransfer?.getData('text/plain');
+2172:     if (!path) return;
+2173:     const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)
+2174:         ? `/api/files/raw?path=${encodeURIComponent(path)}` : path;
+2175:     _insertPathAtCaret(input, path, url);
+2176: }
+2177: 
+
+$ source excerpt app/backend_claude.py:1361-1366
+1361:     async def send(self, message: str) -> None:
+1362:         if not self._client:
+1363:             raise RuntimeError("ClaudeBackend not connected")
+1364:         self._assistant_usage_by_message_id.clear()
+1365:         self._assistant_usage_incomplete = False
+1366:         await self._client.query(message)
+
+$ source excerpt app/backend_claude.py:1724-1759
+1724:             usage = getattr(msg, "usage", None)
+1725:             turn_duration_ms = getattr(msg, "duration_ms", None)
+1726:             provider_api_duration_ms = getattr(msg, "duration_api_ms", None)
+1727:             if not isinstance(turn_duration_ms, int) or isinstance(turn_duration_ms, bool) or turn_duration_ms < 0:
+1728:                 turn_duration_ms = None
+1729:             if (
+1730:                 not isinstance(provider_api_duration_ms, int)
+1731:                 or isinstance(provider_api_duration_ms, bool)
+1732:                 or provider_api_duration_ms < 0
+1733:             ):
+1734:                 provider_api_duration_ms = None
+1735:             reasoning_tokens = None
+1736:             max_tokens = 200000
+1737:             cache_hit = 0
+1738:             cache_read = 0
+1739:             cache_create = 0
+1740:             input_tokens = 0
+1741:             output_tokens = 0
+1742:             cost_cached = 0.0
+1743:             price_may_be_understated = False
+1744: 
+1745:             if usage and isinstance(usage, dict):
+1746:                 output_details = usage.get("output_tokens_details") or {}
+1747:                 raw_reasoning_tokens = usage.get("reasoning_tokens")
+1748:                 if raw_reasoning_tokens is None and isinstance(output_details, dict):
+1749:                     raw_reasoning_tokens = output_details.get("reasoning_tokens")
+1750:                 if (
+1751:                     isinstance(raw_reasoning_tokens, int)
+1752:                     and not isinstance(raw_reasoning_tokens, bool)
+1753:                     and raw_reasoning_tokens >= 0
+1754:                 ):
+1755:                     reasoning_tokens = raw_reasoning_tokens
+1756:                 cache_create = usage.get("cache_creation_input_tokens", 0) or 0
+1757:                 cache_read = usage.get("cache_read_input_tokens", 0) or 0
+1758:                 input_tokens = usage.get("input_tokens", 0) or 0
+1759:                 output_tokens = usage.get("output_tokens", 0) or 0
+
+$ source excerpt app/backend_claude.py:1791-1805
+1791:                         key: sum(request[key] for request in request_usages)
+1792:                         for key in (
+1793:                             "input_tokens", "cache_read_tokens", "cache_create_tokens",
+1794:                         )
+1795:                     }
+1796:                     result_prompt_totals = {
+1797:                         "input_tokens": input_tokens,
+1798:                         "cache_read_tokens": cache_read,
+1799:                         "cache_create_tokens": cache_create,
+1800:                     }
+1801:                     request_prompt_usage_complete = (
+1802:                         bool(request_usages)
+1803:                         and not request_usage_incomplete
+1804:                         and request_prompt_totals == result_prompt_totals
+1805:                     )
+
+$ source excerpt app/backend_claude.py:1977-2020
+1977:     def _remember_assistant_usage(self, msg: AssistantMessage) -> None:
+1978:         message_id = getattr(msg, "message_id", None)
+1979:         usage = getattr(msg, "usage", None)
+1980:         if not message_id or not isinstance(usage, dict):
+1981:             self._assistant_usage_incomplete = True
+1982:             return
+1983: 
+1984:         required = (
+1985:             "input_tokens", "output_tokens", "cache_read_input_tokens",
+1986:             "cache_creation_input_tokens",
+1987:         )
+1988:         if any(key not in usage for key in required):
+1989:             self._assistant_usage_incomplete = True
+1990:             return
+1991: 
+1992:         cache_create = int(usage.get("cache_creation_input_tokens", 0) or 0)
+1993:         cache_creation = usage.get("cache_creation")
+1994:         cache_create_5m = 0
+1995:         cache_create_1h = cache_create
+1996:         if isinstance(cache_creation, dict) and (
+1997:             "ephemeral_5m_input_tokens" in cache_creation
+1998:             or "ephemeral_1h_input_tokens" in cache_creation
+1999:         ):
+2000:             cache_create_5m = int(
+2001:                 cache_creation.get("ephemeral_5m_input_tokens", 0) or 0
+2002:             )
+2003:             cache_create_1h = int(
+2004:                 cache_creation.get("ephemeral_1h_input_tokens", 0) or 0
+2005:             )
+2006:             cache_create_1h += max(
+2007:                 0, cache_create - cache_create_5m - cache_create_1h
+2008:             )
+2009:             cache_create = max(cache_create, cache_create_5m + cache_create_1h)
+2010: 
+2011:         request_usage = {
+2012:             "model": str(getattr(msg, "model", "") or ""),
+2013:             "input_tokens": int(usage.get("input_tokens", 0) or 0),
+2014:             "output_tokens": int(usage.get("output_tokens", 0) or 0),
+2015:             "cache_read_tokens": int(usage.get("cache_read_input_tokens", 0) or 0),
+2016:             "cache_create_tokens": cache_create,
+2017:             "cache_write_5m_tokens": cache_create_5m,
+2018:             "cache_write_1h_tokens": cache_create_1h,
+2019:         }
+2020:         previous = self._assistant_usage_by_message_id.get(str(message_id))
+
+$ source excerpt app/backend_codex.py:782-825
+782:     async def send(self, message: str) -> None:
+783:         if self._teardown_error or not self.is_alive:
+784:             await self.connect()
+785:         if not self._thread_id:
+786:             raise RuntimeError("Codex thread is not initialized")
+787: 
+788:         user_input = [{"type": "text", "text": message}]
+789:         if self._active_turn_id:
+790:             await self._request("turn/steer", {
+791:                 "threadId": self._thread_id,
+792:                 "expectedTurnId": self._active_turn_id,
+793:                 "input": user_input,
+794:             })
+795:             return
+796:         if self._events_active:
+797:             # The server completed the old turn but session.py has not left its event
+798:             # iterator yet. Queue at the session layer so the new turn gets a listener.
+799:             raise RuntimeError("Codex turn is settling; queue this message")
+800: 
+801:         self._clear_deferred_control()
+802:         await self._reload_stale_managed_config_before_turn()
+803: 
+804:         self._last_turn_error = {}
+805:         self._last_call_usage = None
+806:         self._started_items.clear()
+807:         self._tool_item_started_monotonic.clear()
+808:         self._tool_item_intervals.clear()
+809:         self._tool_item_completed_ids.clear()
+810:         self._tool_item_intervals_missing = 0
+811:         self._usage_baseline = (
+812:             dict(self._thread_usage_total)
+813:             if self._thread_usage_total is not None
+814:             else (self._runtime_totals() if self._thread_id else None)
+815:         )
+816:         self._active_turn_started_monotonic = time.monotonic()
+817:         result = await self._request("turn/start", {
+818:             "threadId": self._thread_id,
+819:             "input": user_input,
+820:             "model": self.model,
+821:             "effort": self.reasoning_effort,
+822:         })
+823:         turn_id = ((result.get("turn") or {}).get("id"))
+824:         if not turn_id:
+825:             raise RuntimeError("Codex app-server returned no turn id")
+
+$ source excerpt app/backend_codex.py:1345-1354
+1345:     def _record_token_usage(self, params: dict) -> None:
+1346:         usage = params.get("tokenUsage") or {}
+1347:         total = usage.get("total") or {}
+1348:         last = usage.get("last") or {}
+1349:         self._thread_usage_total = self._usage_breakdown(total)
+1350:         self._last_call_usage = self._usage_breakdown(last)
+1351:         context_tokens = last.get("totalTokens")
+1352:         if isinstance(context_tokens, int) and context_tokens >= 0:
+1353:             self._compact_context_tokens = context_tokens
+1354:         window = usage.get("modelContextWindow")
+
+$ source excerpt app/backend_codex.py:1939-1988
+1939:         totals = self._thread_usage_total or self._runtime_totals() or {}
+1940:         delta = _usage_delta(totals, self._usage_baseline)
+1941:         turn_input = delta["input_tokens"]
+1942:         turn_cached = delta["cached_input_tokens"]
+1943:         turn_cache_write = delta["cache_write_input_tokens"]
+1944:         turn_output = delta["output_tokens"]
+1945:         context = self._last_call_usage or self._runtime_context()
+1946:         if context:
+1947:             ctx_tokens = int(context.get("input_tokens") or 0)
+1948:             ctx_window = int(
+1949:                 context.get("model_context_window") or self._model_context_window
+1950:             )
+1951:         else:
+1952:             ctx_tokens = None
+1953:             ctx_window = self._model_context_window
+1954:         normalized_usage = TurnUsage(
+1955:             AggregateUsage.normalized(
+1956:                 input_tokens=turn_input,
+1957:                 output_tokens=turn_output,
+1958:                 cache_read_tokens=turn_cached,
+1959:                 cache_create_tokens=turn_cache_write,
+1960:             ),
+1961:             current_context(
+1962:                 ctx_tokens,
+1963:                 ctx_window,
+1964:                 semantics_known=context is not None,
+1965:                 unknown_reason="Codex did not report last-call context",
+1966:             ),
+1967:         )
+1968:         cost_error = ""
+1969:         try:
+1970:             cost = _codex_cost(
+1971:                 self.model, turn_input, turn_cached, turn_cache_write, turn_output
+1972:             )
+1973:         except Exception as cost_exception:
+1974:             cost = 0.0
+1975:             cost_error = f"{type(cost_exception).__name__}: {cost_exception}"
+1976:             logger.error("Codex usage unaccounted: %s", cost_error)
+1977:         metadata = {
+1978:             "event_id": turn_id,
+1979:             "session_id": self._thread_id,
+1980:             "ok": ok,
+1981:             "stop_reason": stop_reason,
+1982:             "cost_usd": cost,
+1983:             "cost_usd_cached": cost,
+1984:             "cost_is_delta": True,
+1985:             **timing,
+1986:             "reasoning_tokens": delta.get("reasoning_tokens"),
+1987:             "cache_hit": int(turn_cached * 100 / turn_input) if turn_input else 0,
+1988:             **normalized_usage.metadata(),
+
+$ source excerpt app/backend_codex.py:2023-2036
+2023:     def _usage_breakdown(data: dict) -> dict[str, int]:
+2024:         result = {
+2025:             "input_tokens": max(0, int(data.get("inputTokens") or 0)),
+2026:             "cached_input_tokens": max(0, int(data.get("cachedInputTokens") or 0)),
+2027:             "cache_write_input_tokens": max(0, int(data.get("cacheWriteInputTokens") or 0)),
+2028:             "output_tokens": max(0, int(data.get("outputTokens") or 0)),
+2029:         }
+2030:         reasoning_tokens = data.get("reasoningTokens")
+2031:         if reasoning_tokens is None:
+2032:             reasoning_tokens = data.get("reasoning_tokens")
+2033:         if (
+2034:             isinstance(reasoning_tokens, int)
+2035:             and not isinstance(reasoning_tokens, bool)
+2036:             and reasoning_tokens >= 0
+
+$ source excerpt app/backend_hub.py:33-39
+33: HUB_MODELS: dict[str, tuple[str, str]] = {
+34:     "hub-claude-haiku-5-5": ("claudeAgent", "claude-haiku-5-5"),
+35:     "hub-claude-sonnet-5-5": ("claudeAgent", "claude-sonnet-5-5"),
+36:     "hub-claude-opus-5-5": ("claudeAgent", "claude-opus-5-5"),
+37:     "hub-gpt-6-luna": ("codex", "gpt-6-luna"),
+38:     "hub-gpt-6.1-sol": ("codex", "gpt-6.1-sol"),
+39:     "hub-grok-4.7": ("grok", "grok-4.7"),
+
+$ source excerpt app/backend_hub.py:484-519
+484:         # A record exists from the first attempt on, but the workspace only from the first upload that
+485:         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
+486:         fresh = not (state.uploaded or state.manifest)
+487:         state.paths = self._current_paths(state)
+488:         options = hw.project_options(self._scope)
+489:         hw.require_scope(state.paths, options)
+490:         plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
+491:         yield AgentEvent("status", self._upload_note(fresh, plan))
+492:         scratch = hw.local_scratch()
+493:         try:
+494:             for note in await self._provision(mc, ssh, root, state, plan, options, fresh, scratch):
+495:                 yield AgentEvent("status", note)
+496:             steer_count = len(self._early_steer)
+497:             prompt = self._prompt(message, first=not state.thread_id)
+498:             async with _turn_slots():
+499:                 try:
+500:                     run_id = await self._start(mc, state, prompt)
+501:                 except MultiCodeError as exc:
+502:                     if not _workspace_lost(exc):
+503:                         raise
+504:                     # The hub project (or its copy) no longer exists: build the workspace again, once.
+505:                     logger.warning("hub refused to start in %s (%s); recreating the project and re-uploading",
+506:                                    state.ws_id, exc)
+507:                     yield AgentEvent("status", "hub: the project is gone on the hub; recreating it and "
+508:                                                "uploading again")
+509:                     first_prompt = prompt if prompt.startswith(self._preamble()) else self._preamble() + prompt
+510:                     state.project_id = state.thread_id = ""
+511:                     state.manifest, state.hub_made, state.uploaded = {}, [], False
+512:                     await ssh.remove(state.remote_dir)
+513:                     plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
+514:                     for note in await self._provision(mc, ssh, root, state, plan, options, True, scratch):
+515:                         yield AgentEvent("status", note)
+516:                     prompt = first_prompt
+517:                     run_id = await self._start(mc, state, prompt)
+518:                 # Only acknowledge the snapshot included in the accepted turn. Steers
+519:                 # arriving during upload/start belong to the following turn.
+
+$ source excerpt app/backend_hub.py:636-646
+636:     def _prompt(self, message: str, *, first: bool) -> str:
+637:         parts = list(self._early_steer) + [message]
+638:         body = "\n\n".join(parts)
+639:         if not first:
+640:             # Also update a thread that predates uv provisioning, or resumed without PATH.
+641:             return (hw.HUB_UV_INSTRUCTIONS if self._uv_ready else "") + body
+642:         return self._preamble() + body
+643: 
+644:     def _preamble(self) -> str:
+645:         task = _branch_task_ref(self.cwd).lstrip("#")
+646:         who = self._bridge.identity() if self._bridge is not None else None
+
+$ source excerpt app/backend_hub.py:856-886
+856: 
+857:     # ── accounting ──
+858: 
+859:     def _turn_end(self, ok: bool, stop_reason: str, detail: str) -> AgentEvent:
+860:         usage = TurnUsage(
+861:             AggregateUsage.normalized(),
+862:             current_context(None, 200000,
+863:                             unknown_reason="the hub does not report token usage to the broker"),
+864:         )
+865:         elapsed = (None if self._turn_started is None
+866:                    else max(0, round((time.perf_counter() - self._turn_started) * 1000)))
+867:         content = f"stop_reason={stop_reason}" + (f" ({detail})" if detail else "")
+868:         return AgentEvent("turn_end", content, metadata={
+869:             "event_id": str(uuid4()),
+870:             "session_id": self.session_id,
+871:             "ok": ok,
+872:             "stop_reason": stop_reason,
+873:             "num_turns": 1,
+874:             "cost_usd": 0.0,
+875:             "cost_usd_cached": 0.0,
+876:             "cost_is_delta": True,
+877:             "cache_hit": 0.0,
+878:             "billing_mode": "free",
+879:             "cost_unaccounted": False,
+880:             "provider_source_records": [],
+881:             "turn_duration_ms": elapsed,
+882:             "api_duration_ms": None,
+883:             "reasoning_tokens": None,
+884:             "duration_basis": "turn" if elapsed is not None else None,
+885:             **usage.metadata(),
+886:         }, usage=usage)
+
+$ source excerpt app/hub_workspace.py:352-410
+352: def plan_upload(root: Path, paths: list[str] | None = None,
+353:                 known: list[str] | None = None,
+354:                 options: ProjectOptions | None = None) -> UploadPlan:
+355:     """Pick the files that may go to the hub: tracked + untracked-not-ignored, restricted to
+356:     `paths` (the worker's owned_dirs) when set, minus everything credential-like.
+357: 
+358:     Only what is checked out is considered: a sparse worktree lists skip-worktree entries in
+359:     the index but they are absent on disk, so the cone is honoured. Paths that are not uploaded
+360:     are not in the manifest, so a later sync never treats them as deleted."""
+361:     root = root.resolve()
+362:     options = options or ProjectOptions()
+363:     prefixes = [_clean_rel(p) for p in paths] if paths else None
+364:     known = known_secret_values() if known is None else known
+365:     plan = UploadPlan()
+366:     in_head: list[str] = []
+367:     if prefixes:
+368:         in_head, plan.new_paths, plan.materialized = prepare_scope(root, prefixes)
+369:     candidates = _git_files(root)
+370:     if candidates is None:
+371:         candidates = _walk_files(root)
+372:     over: dict[str, int] = {}          # bytes per top-level entry, filled once a limit is hit
+373:     limit_hit = False
+374:     for rel in candidates:
+375:         if not _under(rel, prefixes):
+376:             continue
+377:         full = root / rel
+378:         try:
+379:             info = full.lstat()
+380:         except OSError:
+381:             continue          # tracked but absent (sparse checkout, deleted)
+382:         if not stat.S_ISREG(info.st_mode):
+383:             if stat.S_ISLNK(info.st_mode):
+384:                 plan.skipped.append((rel, "symlink"))
+385:             continue
+386:         reason = blocked_reason(rel)
+387:         if reason:
+388:             plan.skipped.append((rel, reason))
+389:             continue
+390:         if info.st_size > options.max_file_bytes:
+391:             plan.skipped.append((rel, "larger than the per-file limit"))
+392:             continue
+393:         if not limit_hit and (plan.total_bytes + info.st_size > options.max_total_bytes
+394:                               or len(plan.manifest) >= options.max_files):
+395:             limit_hit = True
+396:             for done in plan.manifest:
+397:                 top = done.split("/", 1)[0] if "/" in done else "(top-level files)"
+398:                 over[top] = over.get(top, 0) + (root / done).stat().st_size
+399:         if limit_hit:
+400:             top = rel.split("/", 1)[0] if "/" in rel else "(top-level files)"
+401:             over[top] = over.get(top, 0) + info.st_size
+402:             continue
+403:         if _file_has_secret(full, known):
+404:             plan.skipped.append((rel, "contains a credential"))
+405:             continue
+406:         plan.manifest[rel] = sha256_file(full)
+407:         plan.total_bytes += info.st_size
+408:     if limit_hit:
+409:         biggest = ", ".join(f"{name} ({size // (1024 * 1024)} MiB)"
+410:                             for name, size in sorted(over.items(), key=lambda kv: -kv[1])[:5])
+
+$ source excerpt app/harness/images.py:1-59
+1: """Bounded image loading for Telegram attachments and workspace image tools."""
+2: 
+3: import os
+4: import stat
+5: from io import BytesIO
+6: from pathlib import Path
+7: 
+8: MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024
+9: 
+10: _MIME_TYPES = {
+11:     "PNG": "image/png",
+12:     "JPEG": "image/jpeg",
+13:     "WEBP": "image/webp",
+14:     "GIF": "image/gif",
+15: }
+16: 
+17: 
+18: def _validated_mime(data: bytes) -> str:
+19:     from PIL import Image
+20: 
+21:     try:
+22:         with Image.open(BytesIO(data)) as image:
+23:             image.verify()
+24:             mime = _MIME_TYPES.get(image.format or "")
+25:     except Exception as exc:
+26:         raise ValueError("image bytes are not a valid supported image") from exc
+27:     if not mime:
+28:         raise ValueError("image MIME is not a supported PNG, JPEG, WEBP or GIF image")
+29:     return mime
+30: 
+31: 
+32: def read_image(path: str, allowed_root: str | Path, *, root_label: str = "workspace",
+33:                direct_child: bool = False) -> tuple[Path, bytes, str]:
+34:     """Read and validate one image that resolves inside an explicitly allowed root."""
+35:     root = Path(allowed_root).resolve()
+36:     candidate = Path(path)
+37:     try:
+38:         resolved = ((root / candidate).resolve(strict=True) if not candidate.is_absolute()
+39:                     else candidate.resolve(strict=True))
+40:     except OSError as exc:
+41:         raise ValueError(f"image file unavailable: {path}: {exc}") from exc
+42:     if (resolved == root or root not in resolved.parents
+43:             or (direct_child and resolved.parent != root)):
+44:         raise ValueError(f"image path is outside the {root_label}: {path}")
+45: 
+46:     try:
+47:         fd = os.open(resolved, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+48:         with os.fdopen(fd, "rb") as image_file:
+49:             info = os.fstat(image_file.fileno())
+50:             if not stat.S_ISREG(info.st_mode):
+51:                 raise ValueError(f"image path is not a regular file: {path}")
+52:             if info.st_size > MAX_INLINE_IMAGE_BYTES:
+53:                 raise ValueError(f"image exceeds {MAX_INLINE_IMAGE_BYTES} bytes: {path}")
+54:             data = image_file.read(MAX_INLINE_IMAGE_BYTES + 1)
+55:         if len(data) > MAX_INLINE_IMAGE_BYTES:
+56:             raise ValueError(f"image exceeds {MAX_INLINE_IMAGE_BYTES} bytes: {path}")
+57:     except OSError as exc:
+58:         raise ValueError(f"image file unavailable: {path}: {exc}") from exc
+59:     return resolved, data, _validated_mime(data)
+
+$ source excerpt app/harness/llm.py:397-465
+397:     def _prepare_messages(self, messages: list[dict]) -> list[dict]:
+398:         """Inline only validated Telegram uploads for routes that advertise image input."""
+399:         if "image" not in self.input_modalities:
+400:             return messages
+401: 
+402:         root = self.attachments_root.resolve()
+403:         total_image_bytes = 0
+404:         prepared = []
+405:         read_image_ids = {
+406:             tc.get("id")
+407:             for message in messages if message.get("role") == "assistant"
+408:             for tc in message.get("tool_calls", []) or []
+409:             if tc.get("id") and (tc.get("function") or {}).get("name") == "read_image"
+410:         }
+411:         pending_workspace_images: list[tuple[str, bytes, str]] = []
+412: 
+413:         def add_image(path: str, allowed_root: Path, *, root_label: str,
+414:                       direct_child: bool = False) -> tuple[str, bytes, str]:
+415:             nonlocal total_image_bytes
+416:             resolved, data, mime = read_image(
+417:                 path, allowed_root, root_label=root_label, direct_child=direct_child)
+418:             total_image_bytes += len(data)
+419:             if total_image_bytes > MAX_INLINE_IMAGE_BYTES:
+420:                 raise ValueError(f"inline images in one request exceed {MAX_INLINE_IMAGE_BYTES} bytes")
+421:             return str(resolved), data, mime
+422: 
+423:         def append_workspace_images() -> None:
+424:             if not pending_workspace_images:
+425:                 return
+426:             paths = ", ".join(path for path, _, _ in pending_workspace_images)
+427:             parts = [{"type": "text", "text": f"Inspect the workspace image(s) read by the read_image tool: {paths}"}]
+428:             parts.extend({"type": "image_url", "image_url": {
+429:                 "url": f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"}}
+430:                 for _, data, mime in pending_workspace_images)
+431:             prepared.append({"role": "user", "content": parts})
+432:             pending_workspace_images.clear()
+433: 
+434:         for message in messages:
+435:             if message.get("role") == "tool":
+436:                 prepared.append(message)
+437:                 if (message.get("tool_call_id") in read_image_ids and self.workspace_root
+438:                         and isinstance(message.get("content"), str)):
+439:                     match = _WORKSPACE_IMAGE_RESULT.fullmatch(message["content"])
+440:                     if match:
+441:                         rel_path = unquote(match.group(1))
+442:                         resolved, data, mime = add_image(
+443:                             rel_path, self.workspace_root, root_label="workspace")
+444:                         pending_workspace_images.append((
+445:                             str(Path(rel_path)), data, mime))
+446:                         prepared[-1] = {
+447:                             **message,
+448:                             "content": f"Image read from workspace file: {Path(rel_path)}",
+449:                         }
+450:                 continue
+451:             append_workspace_images()
+452:             content = message.get("content")
+453:             if message.get("role") != "user" or not isinstance(content, str):
+454:                 prepared.append(message)
+455:                 continue
+456:             parts: list[dict] = [{"type": "text", "text": content}]
+457:             for match in _IMAGE_TAG.finditer(content):
+458:                 raw_path = match.group(1).strip()
+459:                 _, data, mime = add_image(
+460:                     raw_path, root, root_label="Telegram uploads directory", direct_child=True)
+461:                 encoded = base64.b64encode(data).decode("ascii")
+462:                 parts.append({"type": "image_url", "image_url": {
+463:                     "url": f"data:{mime};base64,{encoded}"}})
+464:             prepared.append({**message, "content": parts} if len(parts) > 1 else message)
+465:         append_workspace_images()
+
+$ source excerpt app/harness/llm.py:478-485
+478:     def _build_body(self, messages: list[dict], tools: list[dict],
+479:                     effort: str | None = None) -> dict:
+480:         self._validate_route()
+481:         body: dict = {
+482:             "model": self.model,
+483:             "messages": messages,
+484:             "stream": True,
+485:             "usage": {"include": True},   # OpenRouter: emit usage in the final chunk
+
+$ source excerpt app/harness/llm.py:654-692
+654:                 # usage-only chunk (OpenRouter sends a trailing chunk with empty choices)
+655:                 if chunk.get("usage"):
+656:                     usage = chunk["usage"]
+657:                 choices = chunk.get("choices") or []
+658:                 if not choices:
+659:                     continue
+660:                 if len(choices) > 1:
+661:                     logger.warning("OpenRouter returned multiple choices — using choices[0]")
+662:                 choice = choices[0]
+663:                 delta = choice.get("delta") or {}
+664:                 content = delta.get("content")
+665:                 if content:
+666:                     emitted_content = True
+667:                     yield LLMEvent("text_delta", text=content)
+668:                 if delta.get("tool_calls"):
+669:                     acc.add(delta["tool_calls"])
+670:                 if delta.get("reasoning_details"):
+671:                     racc.add(delta["reasoning_details"])
+672:                 fr = choice.get("finish_reason")
+673:                 if fr:
+674:                     finish_reason = fr
+675:         reported_cost = usage.get("cost")
+676:         if reported_cost is not None:
+677:             try:
+678:                 billed = float(reported_cost)
+679:             except (TypeError, ValueError) as exc:
+680:                 raise RuntimeError(
+681:                     f"OpenRouter returned invalid usage.cost: {reported_cost!r}"
+682:                 ) from exc
+683:             if billed != 0 and self.model.endswith(":free"):
+684:                 raise RuntimeError(
+685:                     f"OpenRouter zero-spend contract violated: usage.cost={billed}"
+686:                 )
+687:         usage = dict(usage)
+688:         usage["_provider_source_record"] = {
+689:             "endpoint": _source_endpoint(self.base_url),
+690:             "response": response_metadata,
+691:             "response_headers": response_headers,
+692:             "usage": dict(usage),
+
+$ source excerpt app/harness/tools.py:248-252
+248: def read_image(path: str, cwd: str) -> str:
+249:     """Validate a workspace image and return a text-only reference for the next model request."""
+250:     resolved, _, _ = _read_validated_image(path, cwd)
+251:     relative = resolved.relative_to(Path(cwd).resolve()).as_posix()
+252:     return f"[workspace image: {quote(relative, safe='/._-')}]"
+
+$ source excerpt app/harness/tools.py:459-459
+459:         fn("read_image", "View a PNG, JPEG, WEBP or GIF image inside the workspace. The image is attached to the next model request; paths outside the workspace are refused.",
+
+$ source excerpt app/harness/tools.py:483-489
+483: READONLY_NAMES = {"read", "read_image", "glob", "grep"}
+484: 
+485: 
+486: def readonly_tool_schemas(*, vision_enabled: bool = False) -> list[dict]:
+487:     """The read-only file/search subset for a reviewer sub-loop."""
+488:     return [s for s in tool_schemas() if s["function"]["name"] in READONLY_NAMES
+489:             and (vision_enabled or s["function"]["name"] != "read_image")]
+
+$ source excerpt app/harness/oneshot.py:18-79
+18: async def run_oneshot(
+19:     *, prompt: str, model: str, cwd: Path, tools_level: str = "read",
+20:     network: bool = True, mcp: bool = True, system_prompt: str = "", llm=None,
+21: ) -> dict:
+22:     spec = get_model_spec(model)
+23:     validate_harness_model_spec(spec)
+24:     if llm is None and spec.provider == "gigachat":
+25:         llm = GigaChatClient(model=model)
+26:     elif llm is None:
+27:         key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY", "")
+28:         if not key:
+29:             raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+30:         base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+31:         if not base_url.rstrip("/").endswith("/v1"):
+32:             base_url = base_url.rstrip("/") + "/v1"
+33:         llm = OpenRouterClient(
+34:             api_key=key, model=model, base_url=base_url,
+35:             supported_parameters=spec.supported_parameters,
+36:         )
+37:     mcp_client = MCPClient()
+38:     try:
+39:         if mcp and tools_level == "all" and network:
+40:             from app.runtime_registry import _load_scope_mcp_servers
+41: 
+42:             await mcp_client.connect(_load_scope_mcp_servers(str(cwd)))
+43:         own_schemas = (
+44:             tools.tool_schemas() if tools_level == "all" else tools.readonly_tool_schemas()
+45:         )
+46:         if not network:
+47:             own_schemas = [
+48:                 item
+49:                 for item in own_schemas
+50:                 if item.get("function", {}).get("name") != "bash"
+51:             ]
+52:         schemas = prompts.merge_tool_schemas(own_schemas, mcp_client.tool_schemas())
+53:         loop = AgentLoop(
+54:             llm=llm,
+55:             mcp=mcp_client,
+56:             cwd=str(cwd),
+57:             history=[{"role": "system", "content": system_prompt.strip()}],
+58:             tool_schemas=schemas,
+59:             max_context=spec.context_length,
+60:             readonly_mode=tools_level != "all",
+61:         )
+62:         text: list[str] = []
+63:         async for event in loop.run(prompt):
+64:             if event.type == "text":
+65:                 text.append(event.content)
+66:         usages = loop.round_usages
+67:         return {
+68:             "text": "".join(text).strip(),
+69:             "ok": loop.ok,
+70:             "stop_reason": loop.stop_reason,
+71:             "error": loop.error_detail,
+72:             "cost_usd": sum(float(item.get("cost") or 0) for item in usages),
+73:             "usage": {
+74:                 "input_tokens": sum(int(item.get("prompt_tokens") or 0) for item in usages),
+75:                 "output_tokens": sum(
+76:                     int(item.get("completion_tokens") or 0) for item in usages
+77:                 ),
+78:             },
+79:         }
+
+$ source excerpt app/harness/mcp.py:323-343
+323: def _extract_text(result: dict) -> str:
+324:     """Pull text out of a tools/call result. Concatenate text content blocks; for non-text
+325:     content (images/embedded resources) fall back to a short marker. An MCP-level error
+326:     result (isError) is returned as an error string."""
+327:     parts: list[str] = []
+328:     for block in (result.get("content") if isinstance(result, dict) else None) or []:
+329:         if not isinstance(block, dict):
+330:             continue
+331:         text = block.get("text")
+332:         if text is not None:
+333:             parts.append(text)
+334:         else:
+335:             parts.append(f"[{block.get('type', 'content')}]")
+336:     out = "\n".join(parts).strip()
+337:     if isinstance(result, dict) and result.get("isError"):
+338:         return f"[mcp error] {out}" if out else "[mcp error] tool returned an error"
+339:     return out if out else "(no output)"
+
+$ source excerpt app/harness/loop.py:516-523
+516:                          metadata={"subagent_id": sub_id})
+517:         sub = AgentLoop(
+518:             llm=ctx.llm, mcp=_NoopMCP(), cwd=ctx.cwd,
+519:             history=[{"role": "system", "content": builtin.REVIEWER_PROMPT}],  # clean context
+520:             tool_schemas=builtin.readonly_tool_schemas(
+521:                 vision_enabled="image" in getattr(ctx.llm, "input_modalities", ())),
+522:             max_context=ctx.max_context,
+523:             abort=self._abort, allow_review=False, readonly_mode=True, max_rounds=REVIEW_MAX_ROUNDS,
+
+$ source excerpt app/mcp_stdio.py:4484-4556
+4484:     codex_cli = f"{q(codex_bin)} -m {q(review_model)}"
+4485: 
+4486:     if mode == "review":
+4487:         review_prompt = (
+4488:             f"{review_context}\n\nReview all current uncommitted changes in this worktree "
+4489:             "(staged, unstaged, and untracked). Inspect them with git status and git diff. "
+4490:             "Find bugs, security issues, breaking changes, and race conditions. "
+4491:             "Format: ## Summary, ## Findings, ## Verdict. Start Verdict with APPROVED, "
+4492:             "NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish; preserve partial findings."
+4493:         )
+4494:         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
+4495:         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
+4496:         fresh_review = (
+4497:             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
+4498:             f" -s danger-full-access -a never exec review"
+4499:             f" --skip-git-repo-check --json"
+4500:             f" -o {q(codex_out)} - < {q(prompt_file)}"
+4501:         )
+4502:         if is_resume:
+4503:             # Override the original session policy: old reviews may have stored workspace-write.
+4504:             resume_prompt = (
+4505:                 f"{review_context}\n\n"
+4506:                 "Re-review the current uncommitted diff (run git diff yourself). "
+4507:                 "For each prior finding: FIXED / STILL BROKEN / NEW BUG. "
+4508:                 "Output a concise re-review (Re-review status, new findings, verdict)."
+4509:             )
+4510:             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
+4511:             codex = (
+4512:                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
+4513:                 f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
+4514:                 f" -s danger-full-access -a never exec resume {q(prev_uuid)}"
+4515:                 f" --skip-git-repo-check --json"
+4516:                 f" -o {q(codex_out)} - < {q(prompt_file)}"
+4517:                 f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
+4518:             )
+4519:         else:
+4520:             codex = f"printf '%s' {q(review_prompt)} > {q(prompt_file)}; {fresh_review}"
+4521:     elif mode == "implementation":
+4522:         target_sha = str(subject["target_sha"])
+4523:         worker_head = str(subject["worker_head"])
+4524:         diff_command = (
+4525:             f"git diff --binary --full-index {target_sha}...{worker_head}"
+4526:         )
+4527:         prompt_parts = [
+4528:             review_context,
+4529:             "Review the exact committed implementation snapshot pinned by the server.",
+4530:             f"Run `{diff_command}` and review that complete diff; do not substitute HEAD or a task file.",
+4531:             "Return the complete review in your final response. Do not edit files.",
+4532:             "Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. "
+4533:             "Use INCOMPLETE if you could not finish the requested review; preserve partial findings.",
+4534:         ]
+4535:         if is_resume:
+4536:             prompt_parts.insert(
+4537:                 3,
+4538:                 "Re-review this pinned snapshot after the author's changes and classify prior findings.",
+4539:             )
+4540:         implementation_prompt = "\n".join(prompt_parts)
+4541:         subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
+4542:         codex = (
+4543:             f"printf '%s' {q(implementation_prompt)} > {q(prompt_file)}; "
+4544:             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
+4545:             f" -s danger-full-access -a never {subcmd}"
+4546:             f" --skip-git-repo-check --json"
+4547:             f" -o {q(codex_out)} - < {q(prompt_file)}"
+4548:         )
+4549:         if is_resume:
+4550:             fresh_exec = (
+4551:                 f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
+4552:                 f" -s danger-full-access -a never exec"
+4553:                 f" --skip-git-repo-check --json"
+4554:                 f" -o {q(codex_out)} - < {q(prompt_file)}"
+4555:             )
+4556:             codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
+
+$ source excerpt app/mcp_stdio.py:4617-4629
+4617:                              "codex_review_artifact.py")
+4618:     finalize_args = [
+4619:         q(sys.executable), q(finalizer),
+4620:         "--output", q(output_abs),
+4621:         "--round-file", q(round_tmp),
+4622:         "--sessions-file", q(sessions_path),
+4623:         "--slug", q(slug),
+4624:         "--jsonl-file", q(jsonl_file),
+4625:         "--usage-event-id", q(usage_event_id),
+4626:         "--usage-session-id", q(requesting_session_id),
+4627:         "--usage-scope", q(SCOPE),
+4628:         "--usage-task-id", q(str(info.get("task_id") or "")),
+4629:         "--usage-model", q(review_model),
+
+$ source excerpt app/backend_harness.py:159-162
+159:         vision_enabled = "image" in getattr(self._llm, "input_modalities", ())
+160:         schemas = (self._tool_schemas if vision_enabled else [
+161:             schema for schema in self._tool_schemas
+162:             if schema.get("function", {}).get("name") != "read_image"
+
+$ source excerpt app/backend_harness.py:391-419
+391:     async def _persist(self, messages: list[dict]) -> None:
+392:         if self._store and messages:
+393:             await self._store.append_messages(messages)
+394: 
+395:     async def _persist_loop(self, loop: AgentLoop, *, cancelled: bool = False) -> None:
+396:         """Persist one loop without resurrecting history discarded by context compaction."""
+397:         if self._store is None:
+398:             return
+399:         if loop.truncated_dropped:
+400:             await self._store.replace_messages(_consistent_prefix(self._history))
+401:             return
+402:         messages = _consistent_prefix(loop.new_messages) if cancelled else loop.new_messages
+403:         await self._persist(messages)
+404: 
+405:     # ── usage accounting ──
+406: 
+407:     def _accumulate(self, usage: dict) -> None:
+408:         """Add session token totals and this turn's request-level cost."""
+409:         if not usage:
+410:             return
+411:         in_tok = int(usage.get("prompt_tokens", 0) or 0)
+412:         out_tok = int(usage.get("completion_tokens", 0) or 0)
+413:         self._cumulative_input += in_tok
+414:         self._cumulative_output += out_tok
+415:         self._cumulative_cached += _cached_prompt_tokens(usage)
+416:         cost = usage.get("cost")
+417:         if cost is not None:
+418:             self._turn_cost_usd += float(cost)
+419:         elif "_provider_source_record" in usage:
+
+$ source excerpt app/backend_harness.py:430-488
+430:     def _turn_end(self, loop: AgentLoop, ok: bool, stop_reason: str,
+431:                   detail: str = "") -> AgentEvent:
+432:         usage = loop.last_usage or {}
+433:         turn_input = int(usage.get("prompt_tokens", 0) or 0)
+434:         max_tokens = self._max_context()
+435:         prompt_turn = self._cumulative_input - self._usage_baseline[0]
+436:         cached_turn = self._cumulative_cached - self._usage_baseline[2]
+437:         # OpenRouter's prompt_tokens INCLUDES cached reads; split them so input stays the
+438:         # fresh portion and cache_read carries the discount, like every other runtime.
+439:         # The provider already billed cost with the cache discount applied.
+440:         # The last round's prompt_tokens IS the live context: the loop re-sends the whole
+441:         # history each round, so the final prompt carries everything the model still holds.
+442:         turn_usage = TurnUsage(
+443:             AggregateUsage.normalized(
+444:                 input_tokens=prompt_turn - cached_turn,
+445:                 output_tokens=self._cumulative_output - self._usage_baseline[1],
+446:                 cache_read_tokens=cached_turn,
+447:             ),
+448:             current_context(
+449:                 turn_input or None,
+450:                 max_tokens,
+451:                 unknown_reason="the model provider returned no usage for the final round",
+452:             ),
+453:         )
+454:         content = f"stop_reason={stop_reason}" + (f" ({detail})" if detail else "")
+455:         round_usages = getattr(loop, "round_usages", [])
+456:         source_records = _source_records(round_usages)
+457:         api_durations = [
+458:             record["api_duration_ms"] for record in source_records
+459:             if isinstance(record.get("api_duration_ms"), int)
+460:             and not isinstance(record.get("api_duration_ms"), bool)
+461:         ]
+462:         reasoning_tokens = _reasoning_tokens_total(round_usages)
+463:         billing_mode = _billing_mode(self.model)
+464:         from app.models import PAID_HARNESS_ROUTES
+465:         cost_unaccounted = self._turn_cost_unaccounted or (
+466:             self.model in PAID_HARNESS_ROUTES and not source_records
+467:         )
+468:         return AgentEvent("turn_end", content, metadata={
+469:             "event_id": str(uuid4()),
+470:             "session_id": self.session_id,
+471:             "ok": ok,
+472:             "stop_reason": stop_reason,
+473:             "num_turns": 1,
+474:             "cost_usd": None if cost_unaccounted else self._turn_cost_usd,
+475:             "cost_usd_cached": None if cost_unaccounted else self._turn_cost_usd,
+476:             "cost_is_delta": True,
+477:             "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
+478:             "billing_mode": billing_mode,
+479:             "cost_unaccounted": cost_unaccounted,
+480:             "provider_source_records": source_records,
+481:             "turn_duration_ms": _elapsed_ms(self._turn_started_at),
+482:             "api_duration_ms": sum(api_durations) if api_durations else None,
+483:             "reasoning_tokens": reasoning_tokens,
+484:             "duration_basis": (
+485:                 "api" if api_durations else "turn" if self._turn_started_at is not None else None
+486:             ),
+487:             **turn_usage.metadata(),
+488:         }, usage=turn_usage)
+
+$ source excerpt app/routes/system.py:281-307
+281:                      '.wav', '.avi', '.mov', '.webm', '.ttf', '.otf', '.woff', '.woff2'}
+282: 
+283: _IMAGE_PREVIEW_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
+284: _VIDEO_EXTENSIONS = {'.mp4', '.webm', '.mov'}
+285: _IMAGE_PREVIEW_MIN_EDGE = 64
+286: _IMAGE_PREVIEW_MAX_EDGE = 1600
+287: 
+288: 
+289: @lru_cache(maxsize=256)
+290: def _render_image_preview(path: str, mtime_ns: int, size: int, edge: int) -> tuple[bytes, int, int]:
+291:     """Render a bounded WebP; stat values are cache-key invalidators."""
+292:     del mtime_ns, size
+293:     from PIL import Image, ImageOps
+294: 
+295:     with Image.open(path) as source:
+296:         # JPEG decoders can discard high-resolution DCT layers before allocating the
+297:         # full image. The wedding originals are ~24 MP, while dashboard cards are tiny.
+298:         source.draft("RGB", (edge, edge))
+299:         image = ImageOps.exif_transpose(source)
+300:         image.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+301:         if image.mode not in {"RGB", "RGBA"}:
+302:             image = image.convert("RGBA" if "transparency" in image.info else "RGB")
+303:         output = BytesIO()
+304:         image.save(output, "WEBP", quality=82, method=4)
+305:         return output.getvalue(), image.width, image.height
+306: 
+307: 
+
+$ source excerpt app/routes/system.py:324-365
+324: @router.get("/api/files/raw")
+325: async def get_file_raw(path: str, request: Request, download: bool = False, preview: int = 0):
+326:     if not _is_safe_path(path):
+327:         return JSONResponse({"error": "access denied"}, status_code=403)
+328:     target = Path(path)
+329:     if not target.is_file():
+330:         fallback = _archived_worktree_fallback(target)
+331:         if fallback is None:
+332:             if download:
+333:                 return _missing_download_page(target.name)
+334:             return JSONResponse({"error": "not found"}, status_code=404)
+335:         target = fallback
+336:     if preview > 0 and not download and target.suffix.lower() in _IMAGE_PREVIEW_EXTENSIONS:
+337:         edge = max(_IMAGE_PREVIEW_MIN_EDGE, min(preview, _IMAGE_PREVIEW_MAX_EDGE))
+338:         stat_result = target.stat()
+339:         try:
+340:             body, width, height = await asyncio.to_thread(
+341:                 _render_image_preview,
+342:                 str(target),
+343:                 stat_result.st_mtime_ns,
+344:                 stat_result.st_size,
+345:                 edge,
+346:             )
+347:         except (OSError, ValueError) as error:
+348:             logger.warning("image preview failed for %s: %s", target, err_text(error))
+349:         else:
+350:             etag = hashlib.sha256(
+351:                 f"{target}:{stat_result.st_mtime_ns}:{stat_result.st_size}:{edge}".encode()
+352:             ).hexdigest()[:24]
+353:             headers = {
+354:                 "Cache-Control": "no-cache",
+355:                 "ETag": f'"{etag}"',
+356:                 "Last-Modified": formatdate(stat_result.st_mtime, usegmt=True),
+357:                 "X-Preview-Width": str(width),
+358:                 "X-Preview-Height": str(height),
+359:             }
+360:             if _request_not_modified(request, headers["ETag"], stat_result.st_mtime):
+361:                 return Response(status_code=304, headers=headers)
+362:             return Response(
+363:                 body,
+364:                 media_type="image/webp",
+365:                 headers=headers,
+
+$ source excerpt app/models.py:59-168
+59: RETIRED_SELECTABLE_MODEL_IDS = frozenset({
+60:     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
+61:     "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
+62: })
+63: 
+64: # THE single place a selectable model is declared. Everything below —
+65: # MODELS, CONTEXT_LIMITS, BACKENDS, MODEL_PROVIDERS, TOKEN_PRICES — is derived
+66: # from this list, so adding a model means adding exactly one ModelSpec here.
+67: # Prices are per million tokens; omit them for runtimes that price elsewhere
+68: # (Codex in backend_codex.py, Grok in backend_grok.py).
+69: SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
+70:     ModelSpec(
+71:         id="claude-fable-5-1[1m]", name="Fable 5.1 (1M)",
+72:         runtime="claude", provider="anthropic",
+73:         context_length=1000000, price_input=10.0, price_output=50.0,
+74:         cache_read_multiplier=0.025,
+75:     ),
+76:     ModelSpec(
+77:         id="claude-opus-5-5[1m]", name="Opus 5.5 (1M)",
+78:         runtime="claude", provider="anthropic",
+79:         context_length=1000000, price_input=4.0, price_output=20.0,
+80:         cache_read_multiplier=0.05,
+81:     ),
+82:     ModelSpec(
+83:         id="claude-sonnet-5-5[1m]", name="Sonnet 5.5 (1M)",
+84:         runtime="claude", provider="anthropic",
+85:         context_length=1000000, price_input=2.0, price_output=10.0,
+86:         cache_read_multiplier=0.05,
+87:     ),
+88:     ModelSpec(
+89:         id="claude-haiku-5-5", name="Haiku 5.5",
+90:         runtime="claude", provider="anthropic",
+91:         context_length=1000000, price_input=0.10, price_output=0.50,
+92:         prompt_price_threshold=100000,
+93:         prompt_over_threshold_multiplier=5.0,
+94:     ),
+95:     # The plain id is retained for persisted-session recovery; only the [1m] id
+96:     # remains in the selectable catalog.
+97:     ModelSpec(
+98:         id="claude-opus-4-6[1m]", name="Opus 4.6 (1M)",
+99:         runtime="claude", provider="anthropic",
+100:         context_length=1000000, price_input=5.0, price_output=25.0,
+101:     ),
+102:     # Effective ChatGPT-auth Codex runtime budget. Public API window is larger, but
+103:     # Orchestra's GPT workers run through Codex CLI and must use its runtime contract.
+104:     ModelSpec(
+105:         id="gpt-5.3-codex-spark", name="GPT-5.3 Codex Spark",
+106:         runtime="codex", provider="openai", context_length=128000,
+107:     ),
+108:     ModelSpec(
+109:         id="gpt-6-astra", name="GPT-6 Astra",
+110:         runtime="codex", provider="openai", context_length=258400,
+111:         default_agents=False,
+112:     ),
+113:     ModelSpec(
+114:         id="gpt-6-luna", name="GPT-6 Luna",
+115:         runtime="codex", provider="openai", context_length=258400,
+116:     ),
+117:     ModelSpec(
+118:         id="gpt-6.1-sol", name="GPT-6.1 Sol",
+119:         runtime="codex", provider="openai", context_length=258400,
+120:         default_agents=False,
+121:     ),
+122:     # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
+123:     # vendor README disagrees with the runtime on other numbers, so the runtime wins.
+124:     ModelSpec(
+125:         id="grok-4.6", name="Grok 4.6",
+126:         runtime="grok", provider="x-ai", context_length=500000,
+127:     ),
+128:     # Models served by the MultiCode hub pool (runtime "hub"): the worker's files go to the hub
+129:     # and back through the platform broker; nothing is billed to our subscriptions.
+130:     ModelSpec(
+131:         id="hub-claude-haiku-5-5", name="Hub: Haiku 5.5",
+132:         runtime="hub", provider="multicode",
+133:     ),
+134:     ModelSpec(
+135:         id="hub-claude-sonnet-5-5", name="Hub: Sonnet 5.5",
+136:         runtime="hub", provider="multicode",
+137:     ),
+138:     ModelSpec(
+139:         id="hub-claude-opus-5-5", name="Hub: Opus 5.5",
+140:         runtime="hub", provider="multicode",
+141:     ),
+142:     ModelSpec(
+143:         id="hub-gpt-6-luna", name="Hub: GPT-6 Luna",
+144:         runtime="hub", provider="multicode",
+145:     ),
+146:     # Sol on the hub pool is not our Codex pool: the owner allowed it for agents (22.10.2026),
+147:     # while MANUAL_ONLY_MODEL_IDS keeps refusing the plain gpt-6.1-sol of our own subscription.
+148:     ModelSpec(
+149:         id="hub-gpt-6.1-sol", name="Hub: GPT-6.1 Sol",
+150:         runtime="hub", provider="multicode",
+151:     ),
+152:     ModelSpec(
+153:         id="hub-grok-4.7", name="Hub: Grok 4.7",
+154:         runtime="hub", provider="multicode",
+155:     ),
+156:     ModelSpec(
+157:         id="GigaChat-2", name="GigaChat 2",
+158:         runtime="harness", provider="gigachat", context_length=128000,
+159:         supported_parameters=("functions", "function_call"),
+160:     ),
+161:     ModelSpec(
+162:         id="GigaChat-2-Max", name="GigaChat 2 Max",
+163:         runtime="harness", provider="gigachat", context_length=128000,
+164:         supported_parameters=("functions", "function_call"),
+165:     ),
+166:     ModelSpec(
+167:         id="GigaChat-3-Ultra", name="GigaChat 3 Ultra",
+168:         runtime="harness", provider="gigachat", context_length=128000,
+
+$ source excerpt app/models.py:536-545
+536: PAID_HARNESS_ROUTES: frozenset[str] = frozenset({
+537:     "deepseek/deepseek-v4.1-flash",
+538:     "deepseek/deepseek-v4.1-flash-1017",
+539:     "z-ai/glm-5.3",
+540:     "z-ai/glm-5.3-flash",
+541: })
+542: 
+543: 
+544: def harness_route_allowed(model_id: str) -> bool:
+545:     return model_id.endswith(":free") or model_id in PAID_HARNESS_ROUTES
+
+$ source excerpt app/model_catalog.py:35-84
+35: 
+36: def normalize_catalog_model(raw: dict) -> dict | None:
+37:     """OpenRouter raw entry -> normalized dict; None for entries without an id."""
+38:     model_id = str(raw.get("id") or "").strip()
+39:     if not model_id:
+40:         return None
+41: 
+42:     pricing = raw.get("pricing") or {}
+43: 
+44:     def _per_mtok(value) -> float:
+45:         try:
+46:             return round(abs(float(value)) * 1_000_000, 6)
+47:         except (TypeError, ValueError):
+48:             return 0.0
+49: 
+50:     arch = raw.get("architecture") or {}
+51:     params = sorted({str(p) for p in (raw.get("supported_parameters") or []) if p})
+52:     input_modalities = [str(m) for m in (arch.get("input_modalities") or [])]
+53:     output_modalities = [str(m) for m in (arch.get("output_modalities") or [])]
+54:     from app.models import harness_route_allowed
+55: 
+56:     is_free = model_id.endswith(":free")
+57:     supports_tools = "tools" in params
+58:     harness_eligible = (
+59:         harness_route_allowed(model_id)
+60:         and supports_tools
+61:         and "text" in input_modalities
+62:         and "text" in output_modalities
+63:     )
+64:     try:
+65:         context_length = int(raw.get("context_length") or 200000)
+66:     except (TypeError, ValueError):
+67:         context_length = 200000
+68:     return {
+69:         "id": model_id,
+70:         "name": str(raw.get("name") or model_id),
+71:         "context_length": max(context_length, 1),
+72:         "price_prompt": _per_mtok(pricing.get("prompt")),
+73:         "price_completion": _per_mtok(pricing.get("completion")),
+74:         "input_modalities": input_modalities,
+75:         "output_modalities": output_modalities,
+76:         "supports_tools": supports_tools,
+77:         "supported_parameters": params,
+78:         "is_free": is_free,
+79:         "harness_eligible": harness_eligible,
+80:         "available": True,
+81:     }
+82: 
+83: 
+84: def catalog_cache_payload() -> dict:
+
+$ source excerpt app/usage_contract.py:28-53
+28: 
+29:     input_tokens: int
+30:     output_tokens: int
+31:     cache_read_tokens: int = 0
+32:     cache_create_tokens: int = 0
+33:     model_calls: int | None = None
+34: 
+35:     @classmethod
+36:     def normalized(
+37:         cls,
+38:         *,
+39:         input_tokens: object = 0,
+40:         output_tokens: object = 0,
+41:         cache_read_tokens: object = 0,
+42:         cache_create_tokens: object = 0,
+43:         model_calls: object = None,
+44:     ) -> "AggregateUsage":
+45:         return cls(
+46:             input_tokens=_count(input_tokens),
+47:             output_tokens=_count(output_tokens),
+48:             cache_read_tokens=_count(cache_read_tokens),
+49:             cache_create_tokens=_count(cache_create_tokens),
+50:             model_calls=_optional_count(model_calls),
+51:         )
+52: 
+53: 
+
+$ source excerpt app/hub_image.py:191-214
+191: 
+192: 
+193: async def _produce(mc: MultiCodeClient, ssh: hw.HubSsh, state: hw.WorkspaceState,
+194:                    prompt: str, count: int, size: str, timeout_seconds: int,
+195:                    output_dir: Path, progress: Callable[[str], None]) -> list[str]:
+196:     from app.backend_hub import HUB_MODELS, TERMINAL, _provider_limit
+197: 
+198:     state.remote_dir = await ssh.dir_for(state.ws_id)
+199:     state.save()  # retain the cleanup target before the first remote mutation
+200:     RECOVERY_DIR.mkdir(parents=True, exist_ok=True)
+201:     _recovery_path(state).write_text(json.dumps({"image_job": True, "session": None}))
+202:     await ssh.run(f"mkdir -p -- {shlex.quote(state.remote_dir)}", timeout=20)
+203:     project = await mc.tool_call("t3_project_create", {
+204:         "title": f"image {state.ws_id}", "workspaceRoot": state.remote_dir})
+205:     state.project_id = project.get("id", "") if isinstance(project, dict) else ""
+206:     state.save()
+207:     if not state.project_id:
+208:         raise ImageError("hub_unavailable", "hub returned no project ID")
+209:     instance, model = HUB_MODELS["hub-gpt-6.1-sol"]
+210:     launched = await mc.tool_call("t3_thread_launch", {
+211:         "title": f"image {state.ws_id}", "projectId": state.project_id,
+212:         "runtimeMode": "full-access", "interactionMode": "default",
+213:         "modelSelection": {"instanceId": instance, "model": model}})
+214:     if isinstance(launched, dict):
+
+$ source excerpt app/hub_image.py:264-290
+264:         archive = Path(scratch) / "images.tar"
+265:         names = " ".join(f"image-{i}.png" for i in range(1, count + 1))
+266:         await ssh.run(f"tar --ignore-failed-read -cf - -C {shlex.quote(state.remote_dir)} -- {names}",
+267:                       stdout=archive, timeout=30, max_out=count * MAX_IMAGE_BYTES + 10240)
+268:         images = discover_images(archive, count)
+269:         progress(f"image found: {len(images)} valid PNG(s)")
+270:         paths = []
+271:         for i, data in enumerate(images, 1):
+272:             path = output_dir / f"{state.ws_id}-{i}.png"
+273:             with path.open("xb") as handle:
+274:                 handle.write(data)
+275:             paths.append(str(path))
+276:             progress(f"fetched path: {path}")
+277:         return paths
+278: 
+279: 
+280: async def generate_image(prompt: str, *, count: int = 1, size: str = "",
+281:                          timeout_seconds: int = 300, output_dir: str = "",
+282:                          progress: Callable[[str], None] | None = None) -> dict:
+283:     progress = progress or (lambda message: print(message, file=sys.stderr, flush=True))
+284:     state = hw.WorkspaceState(hw.WorkspaceState.new_id(), "", "")
+285:     paths: list[str] = []
+286:     error: dict | None = None
+287:     cleanup_error = None
+288:     try:
+289:         validate_request(prompt, count, size, timeout_seconds)
+290:         destination = Path(output_dir or hw.DATA_DIR / "generated-images").resolve()
+
+$ source excerpt app/hub_image_mcp.py:19-31
+19:     timeout_seconds: Annotated[int, Field(ge=1, le=1800)] = 300,
+20: ) -> CallToolResult:
+21:     """Draw images using hub Codex's built-in generator; return local PNG paths.
+22: 
+23:     Size is a prompt hint (auto, WIDTHxHEIGHT or aspect such as 16:9), not an
+24:     enforced pixel size. Uses the hub subscription, with no paid API fallback.
+25:     Total bound is timeout_seconds plus at most 60 seconds for cleanup.
+26:     """
+27:     import json
+28: 
+29:     result = await generate_image(prompt, count=count, size=size, timeout_seconds=timeout_seconds)
+30:     return CallToolResult(content=[TextContent(type="text", text=json.dumps(result))],
+31:                           isError=not result["ok"], structuredContent=result)

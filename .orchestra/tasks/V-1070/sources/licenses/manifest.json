@@ -1,0 +1,50 @@
+{
+  "fetched_at_utc": "2026-10-24T15:29:47.520790+00:00",
+  "sources": [
+    {
+      "file": "rapid-orientation-0.0.11-pypi.json",
+      "url": "https://pypi.org/pypi/rapid-orientation/0.0.11/json",
+      "bytes": 2544,
+      "sha256": "5ffb9a0ea070fdd631ce589588a317037174cd0839e3f1013757cfd26845fa25"
+    },
+    {
+      "file": "rapid-0.0.11-LICENSE",
+      "url": "https://files.pythonhosted.org/packages/5c/6c/9261a8f8b694353b88c6d26e382555f3933fe85c75d3e959607b056d267f/rapid_orientation-0.0.11-py3-none-any.whl",
+      "bytes": 11337,
+      "sha256": "7ede825c9885907813b5cb0e500fe7aac4768b4e2892c44e416842114c96d372",
+      "archive_member": "rapid_orientation-0.0.11.dist-info/licenses/LICENSE",
+      "wheel_sha256": "3d69e77c18ac05a3e9a157e9a26ecff49e8ef485913eaa57b0921b0419684be6"
+    },
+    {
+      "file": "rapid-0.0.11-METADATA-header.txt",
+      "url": "https://files.pythonhosted.org/packages/5c/6c/9261a8f8b694353b88c6d26e382555f3933fe85c75d3e959607b056d267f/rapid_orientation-0.0.11-py3-none-any.whl",
+      "bytes": 1155,
+      "sha256": "5534bff2d13583d3def5404954a2de9e9f09cc7a506c7e693841157ec09423e8",
+      "archive_member": "rapid_orientation-0.0.11.dist-info/METADATA",
+      "wheel_sha256": "3d69e77c18ac05a3e9a157e9a26ecff49e8ef485913eaa57b0921b0419684be6"
+    },
+    {
+      "file": "RapidOrientation-LICENSE",
+      "url": "https://raw.githubusercontent.com/RapidAI/RapidOrientation/main/LICENSE",
+      "bytes": 11337,
+      "sha256": "7ede825c9885907813b5cb0e500fe7aac4768b4e2892c44e416842114c96d372"
+    },
+    {
+      "file": "PaddleOCR-LICENSE",
+      "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/LICENSE",
+      "bytes": 11376,
+      "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e"
+    },
+    {
+      "file": "Tesseract-LICENSE",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/main/LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/RapidAI/RapidOrientation/main/NOTICE",
+      "status": 404,
+      "note": "No root NOTICE at checked URL; original source headers retained."
+    }
+  ]
+}

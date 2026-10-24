@@ -1,0 +1,31 @@
+app: /home/<private-identifier>/orchestra-ws/vmi3407579/hub-2f27c006fa65455f/app/__init__.py
+two rounds: [{"round": 1, "image_count": 1, "pixels": [1280, 720], "byte_identical": true, "detail_sent": false}, {"round": 2, "image_count": 1, "pixels": [1280, 720], "byte_identical": true, "detail_sent": false}]
+disk reads: ['01-terminal.png', '01-terminal.png']
+bare dashboard path stays text: True
+text-only tagged path stays text: True
+missing original: ValueError True
+workspace round 1 images 1
+workspace round 2 images 1
+total disk reads: ['01-terminal.png', '01-terminal.png', '01-terminal.png', '01-terminal.png']
+PASS: 2 tagged and 2 workspace history replays reread full original bytes; no network
+PUBLIC ELIGIBLE 20 vision 10
+{"id": "recursive/flint-v1.0:free", "image_input": false, "detail_parameter": false}
+{"id": "deepseek/deepseek-v4.1-flash-1017", "image_input": true, "detail_parameter": false}
+{"id": "xingchen-agi/xing4.0-29b-a4b:free", "image_input": false, "detail_parameter": false}
+{"id": "nvidia/nemotron-3.5-super-vl:free", "image_input": true, "detail_parameter": false}
+{"id": "deepseek/deepseek-v4.1-flash", "image_input": true, "detail_parameter": false}
+{"id": "z-ai/glm-5.3-flash", "image_input": true, "detail_parameter": false}
+{"id": "z-ai/glm-5.3", "image_input": false, "detail_parameter": false}
+{"id": "dots-studio/dots-3-note-preview:free", "image_input": true, "detail_parameter": false}
+{"id": "liquid/lfm-2.5-2.6b:free", "image_input": false, "detail_parameter": false}
+{"id": "nvidia/nemotron-3.5-lightning:free", "image_input": false, "detail_parameter": false}
+{"id": "thinkingmachines/inkling-small:free", "image_input": true, "detail_parameter": false}
+{"id": "poolside/laguna-s-2.1:free", "image_input": false, "detail_parameter": false}
+{"id": "thinkingmachines/inkling:free", "image_input": true, "detail_parameter": false}
+{"id": "poolside/laguna-xs-2.1:free", "image_input": false, "detail_parameter": false}
+{"id": "cohere/north-mini-code:free", "image_input": false, "detail_parameter": false}
+{"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "image_input": false, "detail_parameter": false}
+{"id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "image_input": true, "detail_parameter": false}
+{"id": "google/gemma-4-26b-a4b-it:free", "image_input": true, "detail_parameter": false}
+{"id": "google/gemma-4-31b-it:free", "image_input": true, "detail_parameter": false}
+{"id": "nvidia/nemotron-3-super-120b-a12b:free", "image_input": false, "detail_parameter": false}

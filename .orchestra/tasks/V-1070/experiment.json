@@ -1,0 +1,413 @@
+{
+  "geometry": [
+    {
+      "input": [
+        1280,
+        720
+      ],
+      "N": 12,
+      "claude_standard": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "tokens_each": 1196,
+        "tokens_total": 14352
+      },
+      "claude_high": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "tokens_each": 1196,
+        "tokens_total": 14352
+      },
+      "astra_original": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "patches": 920,
+        "tokens": 1104,
+        "total_tokens": 13248
+      },
+      "astra_high": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "patches": 920,
+        "tokens": 1104,
+        "total_tokens": 13248
+      },
+      "astra_low": {
+        "pixels": [
+          512,
+          288
+        ],
+        "patches": 144,
+        "tokens": 173,
+        "total_tokens": 2076
+      },
+      "legacy_area_div750_total": 14745.6
+    },
+    {
+      "input": [
+        2560,
+        1440
+      ],
+      "N": 3,
+      "claude_standard": {
+        "pixels": [
+          1456,
+          819
+        ],
+        "tokens_each": 1560,
+        "tokens_total": 4680
+      },
+      "claude_high": {
+        "pixels": [
+          2560,
+          1440
+        ],
+        "tokens_each": 4784,
+        "tokens_total": 14352
+      },
+      "astra_original": {
+        "pixels": [
+          2560,
+          1440
+        ],
+        "patches": 3600,
+        "tokens": 4320,
+        "total_tokens": 12960
+      },
+      "astra_high": {
+        "pixels": [
+          2104,
+          1184
+        ],
+        "patches": 2442,
+        "tokens": 2931,
+        "total_tokens": 8793
+      },
+      "astra_low": {
+        "pixels": [
+          512,
+          288
+        ],
+        "patches": 144,
+        "tokens": 173,
+        "total_tokens": 519
+      },
+      "legacy_area_div750_total": 14745.6
+    },
+    {
+      "input": [
+        1568,
+        886
+      ],
+      "N": 3,
+      "claude_standard": {
+        "pixels": [
+          1456,
+          823
+        ],
+        "tokens_each": 1560,
+        "tokens_total": 4680
+      },
+      "claude_high": {
+        "pixels": [
+          1568,
+          886
+        ],
+        "tokens_each": 1792,
+        "tokens_total": 5376
+      },
+      "astra_original": {
+        "pixels": [
+          1568,
+          886
+        ],
+        "patches": 1372,
+        "tokens": 1647,
+        "total_tokens": 4941
+      },
+      "astra_high": {
+        "pixels": [
+          1568,
+          886
+        ],
+        "patches": 1372,
+        "tokens": 1647,
+        "total_tokens": 4941
+      },
+      "astra_low": {
+        "pixels": [
+          512,
+          289
+        ],
+        "patches": 160,
+        "tokens": 192,
+        "total_tokens": 576
+      },
+      "legacy_area_div750_total": 5556.992
+    },
+    {
+      "input": [
+        1280,
+        720
+      ],
+      "N": 3,
+      "claude_standard": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "tokens_each": 1196,
+        "tokens_total": 3588
+      },
+      "claude_high": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "tokens_each": 1196,
+        "tokens_total": 3588
+      },
+      "astra_original": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "patches": 920,
+        "tokens": 1104,
+        "total_tokens": 3312
+      },
+      "astra_high": {
+        "pixels": [
+          1280,
+          720
+        ],
+        "patches": 920,
+        "tokens": 1104,
+        "total_tokens": 3312
+      },
+      "astra_low": {
+        "pixels": [
+          512,
+          288
+        ],
+        "patches": 144,
+        "tokens": 173,
+        "total_tokens": 519
+      },
+      "legacy_area_div750_total": 3686.4
+    },
+    {
+      "input": [
+        1568,
+        1568
+      ],
+      "N": 3,
+      "claude_standard": {
+        "pixels": [
+          1092,
+          1092
+        ],
+        "tokens_each": 1521,
+        "tokens_total": 4563
+      },
+      "claude_high": {
+        "pixels": [
+          1568,
+          1568
+        ],
+        "tokens_each": 3136,
+        "tokens_total": 9408
+      },
+      "astra_original": {
+        "pixels": [
+          1568,
+          1568
+        ],
+        "patches": 2401,
+        "tokens": 2882,
+        "total_tokens": 8646
+      },
+      "astra_high": {
+        "pixels": [
+          1568,
+          1568
+        ],
+        "patches": 2401,
+        "tokens": 2882,
+        "total_tokens": 8646
+      },
+      "astra_low": {
+        "pixels": [
+          512,
+          512
+        ],
+        "patches": 256,
+        "tokens": 308,
+        "total_tokens": 924
+      },
+      "legacy_area_div750_total": 9834.496
+    }
+  ],
+  "sheet_timing": [
+    {
+      "file": "sheet-1-full.png",
+      "wall_ms": 99.96590809896588,
+      "cpu_ms": 99.76855499999998,
+      "bytes": 79993
+    },
+    {
+      "file": "sheet-1-compact.png",
+      "wall_ms": 113.69613977149129,
+      "cpu_ms": 113.50537999999999,
+      "bytes": 116157
+    },
+    {
+      "file": "sheet-1-half.png",
+      "wall_ms": 96.7923579737544,
+      "cpu_ms": 96.79535400000006,
+      "bytes": 82059
+    },
+    {
+      "file": "sheet-2-full.png",
+      "wall_ms": 103.03693311288953,
+      "cpu_ms": 103.03829599999992,
+      "bytes": 71414
+    },
+    {
+      "file": "sheet-2-compact.png",
+      "wall_ms": 118.69932105764747,
+      "cpu_ms": 117.91703100000007,
+      "bytes": 112701
+    },
+    {
+      "file": "sheet-2-half.png",
+      "wall_ms": 97.76531718671322,
+      "cpu_ms": 94.23353999999995,
+      "bytes": 68696
+    },
+    {
+      "file": "sheet-3-full.png",
+      "wall_ms": 78.39595526456833,
+      "cpu_ms": 72.36854599999987,
+      "bytes": 74041
+    },
+    {
+      "file": "sheet-3-compact.png",
+      "wall_ms": 108.23059128597379,
+      "cpu_ms": 107.93291400000004,
+      "bytes": 100830
+    },
+    {
+      "file": "sheet-3-half.png",
+      "wall_ms": 89.91760294884443,
+      "cpu_ms": 89.90281599999994,
+      "bytes": 71245
+    }
+  ],
+  "format": [
+    {
+      "number": 1,
+      "png_bytes": 32963,
+      "webp_bytes": 22726,
+      "pixels": [
+        1280,
+        720
+      ],
+      "wall_ms": 64.49791975319386,
+      "cpu_ms": 64.49014600000002
+    },
+    {
+      "number": 5,
+      "png_bytes": 28283,
+      "webp_bytes": 24082,
+      "pixels": [
+        1280,
+        720
+      ],
+      "wall_ms": 54.64975722134113,
+      "cpu_ms": 53.811906000000185
+    },
+    {
+      "number": 9,
+      "png_bytes": 31396,
+      "webp_bytes": 22482,
+      "pixels": [
+        1280,
+        720
+      ],
+      "wall_ms": 43.48648991435766,
+      "cpu_ms": 43.37944199999999
+    }
+  ],
+  "rotation_controls": [
+    {
+      "source": 1,
+      "ccw_angle": 0,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 1,
+      "ccw_angle": 90,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 1,
+      "ccw_angle": 180,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 1,
+      "ccw_angle": 270,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 5,
+      "ccw_angle": 0,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 5,
+      "ccw_angle": 90,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 5,
+      "ccw_angle": 180,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 5,
+      "ccw_angle": 270,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 9,
+      "ccw_angle": 0,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 9,
+      "ccw_angle": 90,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 9,
+      "ccw_angle": 180,
+      "identical_after_inverse": true
+    },
+    {
+      "source": 9,
+      "ccw_angle": 270,
+      "identical_after_inverse": true
+    }
+  ],
+  "max_rss_kib": 103700
+}
