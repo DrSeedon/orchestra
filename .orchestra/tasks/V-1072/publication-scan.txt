@@ -1,0 +1,4 @@
+Scanned 11 changed-code/evidence files with HUB_SECRET_SHAPES and mask_secrets.
+code.patch includes the exact production and CHANGELOG changes.
+No live secret-value inventory read.
+Findings: 0

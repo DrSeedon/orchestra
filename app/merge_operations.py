@@ -2260,6 +2260,7 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
     from app.worktree_cleanup import clean_worktree
 
     operation_id = record.get("operation_id", "")
+    worktree = ""
     try:
         row = await asyncio.to_thread(get_session, record["session_id"])
         worktree = (row or {}).get("worktree_path") or ""
@@ -2282,7 +2283,21 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
             operation_id, worktree, outcome.get("state"), outcome.get("files"),
             outcome.get("bytes"), outcome.get("reason", ""),
         )
-    except Exception:
+    except Exception as exc:
+        # The terminal result permits worker removal while this optional cleanup
+        # is still running. ENOENT alone can also mean a missing Git executable
+        # or input file: only a separate stat proving the root vanished is normal.
+        if isinstance(exc, FileNotFoundError) and worktree:
+            try:
+                Path(worktree).stat()
+            except FileNotFoundError:
+                logger.info(
+                    "post-merge worktree cleanup operation_id=%s worktree=%s state=skipped reason=removed",
+                    operation_id, worktree,
+                )
+                return
+            except OSError:
+                pass  # Absence is unproven; report the original cleanup failure.
         logger.exception("post-merge worktree cleanup failed operation_id=%s", operation_id)
 
 

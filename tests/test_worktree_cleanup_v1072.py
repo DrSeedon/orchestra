@@ -1,0 +1,342 @@
+"""Optional post-merge cleanup tolerates worker removal, but keeps real errors visible."""
+
+import asyncio
+import logging
+import threading
+import uuid
+from unittest.mock import AsyncMock
+
+import pytest
+
+from app import merge_operations as operations, worktree_cleanup
+from tests.test_merge_operations import merge_db  # noqa: F401
+from tests.test_worktree_cleanup_v984 import git, setup  # noqa: F401
+
+
+def snapshot(root):
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*")
+            if p.is_file() and ".git" not in p.relative_to(root).parts}
+
+
+@pytest.fixture
+def cleanup_case(setup, monkeypatch):  # noqa: F811
+    main, wt = setup
+    release = AsyncMock(return_value=[])
+    monkeypatch.setattr("app.backend_hub.release_for_worktree", release)
+    monkeypatch.setattr(operations, "get_session", lambda _sid: {"worktree_path": str(wt)})
+    return main, wt, release
+
+
+async def cleanup():
+    await operations._clean_worktree_after_merge(
+        {"session_id": "worker", "operation_id": "cleanup-regression"},
+        {"git": {"target_branch": "main"}},
+    )
+
+
+def errors(caplog):
+    return [r for r in caplog.records if r.name == operations.logger.name
+            and r.levelno >= logging.ERROR]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["repo_resolution", "inspection"])
+async def test_already_removed_worktree_is_normal(cleanup_case, monkeypatch, caplog, phase):
+    main, wt, release = cleanup_case
+    source, target = snapshot(wt), snapshot(main)
+    retained = wt.with_name("retained")
+    wt.rename(retained)
+    if phase == "inspection":
+        # Isolate the reported stack after repo resolution also succeeded.
+        monkeypatch.setattr("app.workspace._resolve_repo", lambda *_: main)
+    await cleanup()
+    assert errors(caplog) == []
+    release.assert_awaited_once_with(str(wt))
+    assert snapshot(retained) == source
+    assert snapshot(main) == target
+
+
+@pytest.fixture
+def paused_git():
+    """Pause after a successful cwd check, before the actual Git subprocess starts."""
+    entered, proceed = threading.Event(), threading.Event()
+    failures = []
+
+    def make(wt, command, occurrence=1):
+        calls = 0
+
+        def run(args, **kwargs):
+            nonlocal calls
+            if args[1] == command:
+                calls += 1
+                if calls == occurrence:
+                    wt.stat()
+                    entered.set()
+                    assert proceed.wait(10), "test did not release the Git call"
+            try:
+                return worktree_cleanup._run(args, **kwargs)
+            except FileNotFoundError as exc:
+                failures.append(exc)
+                raise
+
+        return run
+
+    yield make, entered, proceed, failures
+    proceed.set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("command,occurrence", [("rev-parse", 1), ("status", 1), ("ls-files", 1),
+                                               ("hash-object", 1), ("status", 2)])
+async def test_removal_between_check_and_git_is_normal(
+    cleanup_case, monkeypatch, caplog, paused_git, command, occurrence,
+):
+    main, wt, release = cleanup_case
+    source, target = snapshot(wt), snapshot(main)
+    retained = wt.with_name("retained")
+    make, entered, proceed, failures = paused_git
+    real_clean = worktree_cleanup.clean_worktree
+    runner = make(wt, command, occurrence)
+    if command == "rev-parse":
+        monkeypatch.setattr("app.workspace._git_cmd", runner)
+    else:
+        monkeypatch.setattr(worktree_cleanup, "clean_worktree",
+                            lambda *a, **kw: real_clean(*a, **kw, git=runner))
+    task = asyncio.create_task(cleanup())
+    try:
+        assert await asyncio.to_thread(entered.wait, 10)
+        wt.rename(retained)
+    finally:
+        proceed.set()
+        await asyncio.wait_for(task, 15)
+    assert len(failures) == 1
+    assert failures[0].filename == str(wt)
+    assert errors(caplog) == []
+    release.assert_awaited_once_with(str(wt))
+    assert snapshot(retained) == source
+    assert snapshot(main) == target
+
+
+@pytest.mark.asyncio
+async def test_existing_successful_cleanup_keeps_unique_sources(cleanup_case, caplog):
+    main, wt, release = cleanup_case
+    target = snapshot(main)
+    await cleanup()
+    assert errors(caplog) == []
+    assert not (wt / "out" / "copy.pdf").exists()
+    assert not (wt / "out" / "render.bin").exists()
+    assert not (wt / "__pycache__").exists()
+    assert (wt / "out" / "unique.bin").read_bytes() == b"only here"
+    assert (wt / "out" / "differs.bin").read_bytes() == b"B" * 10
+    assert (wt / "planted.txt").read_text() == "p"
+    assert (wt / ".venv" / "lib.bin").read_bytes() == b"L"
+    assert snapshot(main) == target
+    release.assert_awaited_once_with(str(wt))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["empty", "nonrepo"])
+async def test_existing_nonrepository_is_still_refused(cleanup_case, caplog, kind):
+    main, wt, release = cleanup_case
+    retained = wt.with_name("retained")
+    wt.rename(retained)
+    wt.mkdir()
+    if kind == "nonrepo":
+        (wt / "raw.txt").write_text("unique input\n")
+    before = snapshot(wt)
+    result = worktree_cleanup.clean_worktree(str(wt), main_checkout=str(main),
+                                            target_ref="main", apply=True)
+    assert result["state"] == "refused"
+    await cleanup()
+    assert snapshot(wt) == before
+    assert errors(caplog) == []
+    release.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [FileNotFoundError(2, "missing executable", "git"),
+                                    FileNotFoundError(2, "missing input", "raw.txt"),
+                                    PermissionError(13, "denied"), RuntimeError("cleanup failure")])
+async def test_existing_worktree_errors_remain_visible(cleanup_case, monkeypatch, caplog, failure):
+    main, wt, _release = cleanup_case
+    source, target = snapshot(wt), snapshot(main)
+
+    def fail(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(worktree_cleanup, "clean_worktree", fail)
+    await cleanup()
+    assert len(errors(caplog)) == 1
+    assert errors(caplog)[0].exc_info[1] is failure
+    assert snapshot(wt) == source
+    assert snapshot(main) == target
+
+
+@pytest.mark.asyncio
+async def test_missing_git_executable_remains_visible(cleanup_case, monkeypatch, caplog):
+    main, wt, _release = cleanup_case
+    source, target = snapshot(wt), snapshot(main)
+    real_clean = worktree_cleanup.clean_worktree
+    executable = str(wt / "missing-git")
+
+    def git_without_executable(args, **kwargs):
+        return worktree_cleanup._run([executable, *args[1:]], **kwargs)
+
+    monkeypatch.setattr(worktree_cleanup, "clean_worktree",
+                        lambda *a, **kw: real_clean(*a, **kw, git=git_without_executable))
+    await cleanup()
+    assert len(errors(caplog)) == 1
+    assert isinstance(errors(caplog)[0].exc_info[1], FileNotFoundError)
+    assert errors(caplog)[0].exc_info[1].filename == executable
+    assert snapshot(wt) == source
+    assert snapshot(main) == target
+
+
+@pytest.mark.asyncio
+async def test_session_lookup_failure_remains_visible(monkeypatch, caplog):
+    failure = FileNotFoundError(2, "session storage missing", "sessions")
+
+    def fail(_sid):
+        raise failure
+
+    monkeypatch.setattr(operations, "get_session", fail)
+    await cleanup()
+    assert len(errors(caplog)) == 1
+    assert errors(caplog)[0].exc_info[1] is failure
+
+
+@pytest.mark.asyncio
+async def test_missing_file_inside_existing_worktree_is_not_removal(cleanup_case, monkeypatch, caplog):
+    main, wt, _release = cleanup_case
+    source, target = snapshot(wt), snapshot(main)
+    real_clean = worktree_cleanup.clean_worktree
+    real_stat = type(wt).stat
+    missing = wt / "out" / "unique.bin"
+    calls = 0
+
+    def stat(path, *args, **kwargs):
+        nonlocal calls
+        if path == missing and kwargs.get("follow_symlinks", True):
+            calls += 1
+            if calls == 2:
+                raise FileNotFoundError(2, "missing input", str(path))
+        return real_stat(path, *args, **kwargs)
+
+    def clean(*args, **kwargs):
+        # Inject at file inspection, after Git listed the candidates.
+        monkeypatch.setattr(type(wt), "stat", stat)
+        return real_clean(*args, **kwargs)
+
+    monkeypatch.setattr(worktree_cleanup, "clean_worktree", clean)
+    await cleanup()
+    monkeypatch.setattr(type(wt), "stat", real_stat)
+    assert len(errors(caplog)) == 1
+    assert errors(caplog)[0].exc_info[1].filename == str(missing)
+    assert snapshot(wt) == source
+    assert snapshot(main) == target
+
+
+@pytest.mark.asyncio
+async def test_unverifiable_absence_still_logs_original_error(cleanup_case, monkeypatch, caplog):
+    _main, wt, _release = cleanup_case
+    failure = FileNotFoundError(2, "missing executable", "git")
+    real_stat = type(wt).stat
+
+    def stat(path, *args, **kwargs):
+        if path == wt:
+            raise PermissionError(13, "cannot inspect worktree")
+        return real_stat(path, *args, **kwargs)
+
+    def fail(*_args, **_kwargs):
+        monkeypatch.setattr(type(wt), "stat", stat)
+        raise failure
+
+    monkeypatch.setattr(worktree_cleanup, "clean_worktree", fail)
+    await cleanup()
+    assert len(errors(caplog)) == 1
+    assert errors(caplog)[0].exc_info[1] is failure
+
+
+@pytest.mark.asyncio
+async def test_hub_release_error_survives_local_removal(cleanup_case, caplog):
+    _main, wt, release = cleanup_case
+    release.side_effect = RuntimeError("hub cleanup failed")
+    wt.rename(wt.with_name("retained"))
+    await cleanup()
+    warnings = [r for r in caplog.records if r.name == operations.logger.name
+                and r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert warnings[0].exc_info[1] is release.side_effect
+    assert errors(caplog) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cleanup_failure", [False, True])
+async def test_terminal_merge_and_target_survive_optional_cleanup(
+    merge_db, setup, monkeypatch, caplog, paused_git, cleanup_failure,  # noqa: F811
+):
+    from app import db
+
+    main, wt = setup
+    (wt / "src.py").write_text("x = 2\n")
+    git(wt, "add", "src.py")
+    git(wt, "commit", "-qm", "worker result")
+    head = git(wt, "rev-parse", "HEAD").stdout.strip()
+    row = db.get_session("merge-session")
+    row["worktree_path"] = str(wt)
+    db.save_session(row)
+    monkeypatch.setattr("app.workspace.inspect_worktree_identity",
+                        lambda _path: ("task-42/worker", "b" * 40))
+    release = AsyncMock(return_value=[])
+    monkeypatch.setattr("app.backend_hub.release_for_worktree", release)
+    make, entered, proceed, failures = paused_git
+    real_clean = worktree_cleanup.clean_worktree
+    runner = make(wt, "status")
+    genuine = PermissionError(13, "cleanup denied")
+
+    def clean(*args, **kwargs):
+        if cleanup_failure:
+            entered.set()
+            assert proceed.wait(10)
+            raise genuine
+        return real_clean(*args, **kwargs, git=runner)
+
+    monkeypatch.setattr(worktree_cleanup, "clean_worktree", clean)
+
+    async def execute(**_kwargs):
+        before = git(main, "rev-parse", "HEAD").stdout.strip()
+        git(main, "merge", "--ff-only", head)
+        return {"ok": True, "state": "merged", "commit_point": "target_committed",
+                "target_branch": "main", "target_before": before, "target_after": head,
+                "worker_branch": "task-42/worker", "worker_head": "b" * 40,
+                "conflicts": [], "commits_merged": 1, "lifecycle_status": {"ok": True},
+                "rag_backfill_status": "accepted"}
+
+    monkeypatch.setattr("app.routes.sessions.execute_merge_session", execute)
+    operation_id = str(uuid.uuid4())
+    await operations.accept_merge_operation(
+        operation_id=operation_id, name="worker", scope="/scope/", target="main",
+        expected_head="b" * 40, acceptance_note="Inspected the pinned worker changes.",
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 10)
+        stored = operations.get_operation_result(operation_id)
+        assert stored["operation_state"] == "SUCCEEDED"
+        assert stored["commit_point"] == "REACHED"
+        assert git(main, "rev-parse", "HEAD").stdout.strip() == head
+        source = snapshot(wt)
+        if not cleanup_failure:
+            wt.rename(wt.with_name("retained"))
+    finally:
+        proceed.set()
+        await asyncio.wait_for(asyncio.gather(*list(operations._runner_tasks.values())), 15)
+    assert operations.get_operation_result(operation_id) == stored
+    assert git(main, "rev-parse", "HEAD").stdout.strip() == head
+    assert (main / "src.py").read_text() == "x = 2\n"
+    assert snapshot(wt if cleanup_failure else wt.with_name("retained")) == source
+    assert len(errors(caplog)) == int(cleanup_failure)
+    if cleanup_failure:
+        assert errors(caplog)[0].exc_info[1] is genuine
+    else:
+        assert len(failures) == 1
+    release.assert_awaited_once_with(str(wt))
