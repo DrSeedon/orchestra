@@ -1,0 +1,71 @@
+[
+  {
+    "role": "user",
+    "content": "My oven from order 5005 arrived with a cracked door."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'summary': 'My oven from order 5005 arrived with a cracked door.'}",
+    "name": "router.handoff_to_claims"
+  },
+  {
+    "role": "tool_result",
+    "content": "Conversation handed to the claims specialist."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5005'}",
+    "name": "claims.get_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5005\", \"customer_id\": \"C-1004\", \"sku\": \"SKU-OVEN-1\", \"item\": \"Countertop Oven\", \"status\": \"delivered\", \"delivered_on\": \"2026-09-28\", \"tracking_id\": \"TRK-77005\", \"final_sale\": false}"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm sorry about the damage. Could you describe what is damaged and where, and confirm you've emailed photos to claims@tamberwick.example?"
+  },
+  {
+    "role": "user",
+    "content": "The glass door is cracked across the top left corner and the box was crushed on one side."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5005'}",
+    "name": "claims.get_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5005\", \"customer_id\": \"C-1004\", \"sku\": \"SKU-OVEN-1\", \"item\": \"Countertop Oven\", \"status\": \"delivered\", \"delivered_on\": \"2026-09-28\", \"tracking_id\": \"TRK-77005\", \"final_sale\": false}"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm sorry about the damage. Could you describe what is damaged and where, and confirm you've emailed photos to claims@tamberwick.example?"
+  },
+  {
+    "role": "user",
+    "content": "Yes, I emailed two photos this morning."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5005'}",
+    "name": "claims.get_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order_id\": \"5005\", \"customer_id\": \"C-1004\", \"sku\": \"SKU-OVEN-1\", \"item\": \"Countertop Oven\", \"status\": \"delivered\", \"delivered_on\": \"2026-09-28\", \"tracking_id\": \"TRK-77005\", \"final_sale\": false}"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5005', 'damage_description': 'The glass door is cracked across the top left corner and the box was crushed on one side.', 'photos_received': True}",
+    "name": "claims.open_claim"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"claim_id\": \"CLM-5005\", \"next_step\": \"A claims specialist replies within 2 business days.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order_id\": \"5005\", \"customer_id\": \"C-1004\", \"sku\": \"SKU-OVEN-1\", \"item\": \"Countertop Oven\", \"status\": \"delivered\", \"delivered_on\": \"2026-09-28\", \"tracking_id\": \"TRK-77005\", \"final_sale\": false}\n{\"claim_id\": \"CLM-5005\", \"next_step\": \"A claims specialist replies within 2 business days.\"}"
+  }
+]

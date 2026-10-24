@@ -1,0 +1,4 @@
+{"trace_id": "fixture-0", "agent": "a", "ts": 0}
+{"trace_id": "fixture-0", "agent": "b", "ts": 1}
+{"trace_id": "fixture-1", "agent": "a", "ts": 0}
+{"trace_id": "fixture-1", "agent": "b", "ts": 1}

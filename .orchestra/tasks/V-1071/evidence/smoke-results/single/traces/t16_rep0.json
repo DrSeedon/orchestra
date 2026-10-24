@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "My vacuum keeps stopping and blinking red. What's wrong with it?"
+  },
+  {
+    "role": "assistant",
+    "content": "Nothing to do."
+  }
+]

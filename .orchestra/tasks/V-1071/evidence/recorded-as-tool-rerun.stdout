@@ -1,0 +1,45 @@
+# baseline-t01-t10 vs v1-t01-t10
+
+2 tasks in both runs. Metric: task_complete.
+
+| | baseline-t01-t10 | v1-t01-t10 | change |
+| --- | ---: | ---: | ---: |
+| tasks complete | 2.0/2 (100%) | 2.0/2 (100%) | +0.0 |
+| latency per task (s) | 25.1 | 29.4 | +17% |
+| model calls per task | 6.8 | 7.4 | +9% |
+| input tokens per task | 7,549 | 9,074 | +20% |
+| output tokens per task | 1,240 | 1,495 | +21% |
+
+## Paths that changed
+
+Reps of a task in which an agent was called. A task can keep its score and still take a different route.
+
+| task | agent | baseline-t01-t10 | v1-t01-t10 |
+| --- | --- | ---: | ---: |
+| t10 | orders | 1/4 | 3/4 |
+
+## By tag
+
+| tag | baseline-t01-t10 | v1-t01-t10 |
+| --- | ---: | ---: |
+| claims | 4/4 | 4/4 |
+| multi-turn | 4/4 | 4/4 |
+| orders+shipping | 4/4 | 4/4 |
+
+## By agent, per task
+
+| agent | calls, baseline-t01-t10 | calls, v1-t01-t10 | input tokens, baseline-t01-t10 | input tokens, v1-t01-t10 |
+| --- | ---: | ---: | ---: | ---: |
+| claims | 2.4 | 2.2 | 3,276 | 3,268 |
+| orders | 1.2 | 1.8 | 927 | 1,294 |
+| router | 2.1 | 2.4 | 2,673 | 3,830 |
+| shipping | 1.0 | 1.0 | 672 | 682 |
+
+## Verdict
+
+**v1-t01-t10 holds.** It completes at least as many tasks as baseline-t01-t10 and no task got worse.
+
+Notes:
+
+- The route changed on t10. Where the change was not meant to touch a task, read its trace even if the score held, and say what the new route costs.
+- Model for both runs: claude-opus-5.

@@ -1,0 +1,11 @@
+{"case": "lookup alone has no carrier ETA", "output": {"has_eta": false, "status": "shipped"}}
+{"case": "real track_order composes two backend reads", "output": {"eta": "2026-10-03"}}
+{"case": "foreign record refused", "output": {"error": "No order 5003."}}
+{"case": "return refused by real tool", "output": {"created": false, "instruction": "No return was created. Tell the customer which rule applies. There are no exceptions.", "reason": "Delivered 52 days ago. The return window is 30 days."}}
+{"case": "return refused by real tool", "output": {"created": false, "instruction": "No return was created. Tell the customer which rule applies. There are no exceptions.", "reason": "Final sale items cannot be returned."}}
+{"case": "write gate declines eligible return", "output": {"content": "The user declined this action. Do not retry it; ask what they want instead.", "tool_use_id": "demo-call", "type": "tool_result"}}
+{"case": "write gate permits eligible return", "output": {"actions": [{"args": {"order_id": "5001", "reason": "other"}, "name": "create_return"}], "result": {"created": true, "label": "https://returns.example.com/RMA-5001.pdf", "rma_id": "RMA-5001"}}}
+{"case": "required serial refused before any model", "output": {"error": "diagnose_device needs the device's serial number. Ask the customer for it."}}
+{"case": "malformed specialist response flagged", "output": {"actions_taken": [], "caveats": ["The specialist did not return the agreed structure. Check before repeating it."], "conclusion": "Demo specialist returned prose", "confidence": "low", "evidence": []}}
+{"case": "empty specialist response refused", "output": "The specialist returned nothing."}
+MANUAL SAMPLE OK; model calls=0; network calls=0; backend is an in-memory public fixture

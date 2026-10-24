@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Stop sending me marketing emails. Customer C-1003."
+  },
+  {
+    "role": "tool_call",
+    "content": "{'opt_in': False}",
+    "name": "main.set_marketing_opt_in"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"ok\": true, \"marketing_opt_in\": false}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"ok\": true, \"marketing_opt_in\": false}"
+  }
+]

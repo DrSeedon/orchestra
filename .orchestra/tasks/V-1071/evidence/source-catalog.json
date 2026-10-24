@@ -1,0 +1,36 @@
+[
+  {
+    "repo": "kit",
+    "created_at": "2026-10-15T19:38:17Z",
+    "pushed_at": "2026-10-21T13:14:57Z",
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "default_branch": "release"
+  },
+  {
+    "repo": "skills",
+    "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "entries": 541,
+    "truncated": false,
+    "skill-doctor_matches": []
+  },
+  {
+    "repo": "plugins",
+    "sha": "58267944f92187b7d6a1c822165c96c81c864806",
+    "entries": 835,
+    "truncated": false,
+    "skill-doctor_matches": []
+  },
+  {
+    "repo": "claude-code",
+    "sha": "318b7e6ac4e726e88a4ad326214866a93c373b1b",
+    "entries": 2188,
+    "truncated": false,
+    "skill-doctor_matches": []
+  }
+]

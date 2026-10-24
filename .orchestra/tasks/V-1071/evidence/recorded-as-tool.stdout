@@ -1,0 +1,67 @@
+# baseline vs v1
+
+17 tasks in both runs. Metric: task_complete.
+
+| | baseline | v1 | change |
+| --- | ---: | ---: | ---: |
+| tasks complete | 16.0/17 (94%) | 15.5/17 (91%) | -0.5 |
+| latency per task (s) | 30.8 | 28.3 | -8% |
+| model calls per task | 6.3 | 6.0 | -5% |
+| input tokens per task | 15,377 | 15,832 | +3% |
+| output tokens per task | 1,774 | 1,611 | -9% |
+
+## Tasks that changed
+
+| task | baseline | v1 | tags |
+| --- | ---: | ---: | --- |
+| t01 | 2/2 | 1/2 | orders+shipping |
+
+## Paths that changed
+
+Reps of a task in which an agent was called. A task can keep its score and still take a different route.
+
+| task | agent | baseline | v1 |
+| --- | --- | ---: | ---: |
+| t10 | orders | 0/2 | 2/2 |
+| t16 | diagnostics | 2/2 | 0/2 |
+
+One rep apart, which the unchanged system often does by itself: t01 (shipping), t05 (orders), t07 (orders), t15 (orders).
+
+## By tag
+
+| tag | baseline | v1 |
+| --- | ---: | ---: |
+| account | 8/8 | 8/8 |
+| break-check | 10/10 | 10/10 |
+| chain | 2/2 | 2/2 |
+| claims | 2/2 | 2/2 |
+| cross-domain | 2/4 | 2/4 |
+| diagnostics | 6/6 | 6/6 |
+| lost-rule | 2/2 | 2/2 |
+| multi-turn | 4/4 | 4/4 |
+| orders+shipping | 8/10 | 7/10 |
+| returns | 12/14 | 12/14 |
+| unhappy-path | 2/2 | 2/2 |
+| wrong-pick | 2/2 | 2/2 |
+
+## By agent, per task
+
+| agent | calls, baseline | calls, v1 | input tokens, baseline | input tokens, v1 |
+| --- | ---: | ---: | ---: | ---: |
+| account | 0.5 | 0.5 | 504 | 445 |
+| claims | 0.3 | 0.3 | 395 | 395 |
+| diagnostics | 0.4 | 0.4 | 8,018 | 8,068 |
+| orders | 1.1 | 1.1 | 845 | 842 |
+| returns | 1.1 | 1.1 | 1,463 | 1,470 |
+| router | 2.4 | 2.3 | 3,824 | 4,331 |
+| shipping | 0.5 | 0.4 | 328 | 281 |
+
+## Verdict
+
+**v1 scores worse than baseline.** The change does not hold yet. Read the traces for t01, then fix and rerun, or revert and keep the subagent.
+
+Notes:
+
+- The route changed on t10, t16. Where the change was not meant to touch a task, read its trace even if the score held, and say what the new route costs.
+- Model for both runs: claude-opus-5.
+- Changed in a single rep: t01. That can be noise. Treat it as real only if the trace shows a cause.

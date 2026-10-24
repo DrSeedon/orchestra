@@ -1,0 +1,16 @@
+# Estimate: 17 tasks x 2 reps = 34 conversations
+
+Based on `baseline`: 34 measured conversations covering 17 of 17 tasks.
+
+- input tokens: about 520,000
+- output tokens: about 60,000
+- t12 and t09 carry 56% of the input tokens. Dropping reps there changes the total most.
+
+## Against `v1` (34 conversations)
+
+| | estimate | actual |
+| --- | ---: | ---: |
+| input tokens | 520,000 | 538,293 |
+| output tokens | 60,000 | 54,777 |
+
+Not counted: what a coding assistant uses while it reads and edits around the run. No prices are applied.

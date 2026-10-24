@@ -1,0 +1,4 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 31ms
+app import: <WORKSPACE>/app/__init__.py

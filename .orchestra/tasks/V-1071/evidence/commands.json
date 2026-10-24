@@ -1,0 +1,165 @@
+[
+  {
+    "name": "network-guard",
+    "argv": [
+      "python",
+      "-c",
+      "import socket; socket.create_connection(('example.com',443))"
+    ],
+    "cwd": ".",
+    "exit": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "manual-sample",
+    "argv": [
+      "python",
+      "<WORKSPACE>/.orchestra/tasks/V-1071/exemplar/manual_sample.py"
+    ],
+    "cwd": ".",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "smoke-original",
+    "argv": [
+      "python",
+      "evals/run_eval.py",
+      "--variant",
+      "original",
+      "--out",
+      "../../../../evidence/smoke-results",
+      "--fresh"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit/examples/support-desk",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "smoke-single",
+    "argv": [
+      "python",
+      "evals/run_eval.py",
+      "--variant",
+      "single",
+      "--app",
+      "single_loop",
+      "--out",
+      "../../../../evidence/smoke-results",
+      "--fresh"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit/examples/support-desk",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "coupling-demo",
+    "argv": [
+      "python",
+      "skill/scripts/coupling_map.py",
+      "examples/support-desk/traces/traces.jsonl"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "coverage-recorded-12",
+    "argv": [
+      "python",
+      "skill/scripts/chain_coverage.py",
+      "examples/support-desk/traces/traces.jsonl",
+      "examples/support-desk/example-run/results",
+      "baseline"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 1,
+    "expected_exit": 1
+  },
+  {
+    "name": "coverage-smoke-19",
+    "argv": [
+      "python",
+      "skill/scripts/chain_coverage.py",
+      "examples/support-desk/traces/traces.jsonl",
+      "../../evidence/smoke-results",
+      "original"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "recorded-fold",
+    "argv": [
+      "python",
+      "skill/scripts/compare.py",
+      "examples/support-desk/example-run/results",
+      "baseline",
+      "v1"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "recorded-as-tool",
+    "argv": [
+      "python",
+      "skill/scripts/compare.py",
+      "examples/support-desk/example-run/as-tool/results",
+      "baseline",
+      "v1"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "recorded-as-tool-rerun",
+    "argv": [
+      "python",
+      "skill/scripts/compare.py",
+      "examples/support-desk/example-run/as-tool/results",
+      "baseline-t01-t10",
+      "v1-t01-t10"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "estimate-full",
+    "argv": [
+      "python",
+      "skill/scripts/estimate.py",
+      "examples/support-desk/example-run/as-tool/results",
+      "baseline",
+      "--reps",
+      "2",
+      "--actual",
+      "v1"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  },
+  {
+    "name": "estimate-probe",
+    "argv": [
+      "python",
+      "skill/scripts/estimate.py",
+      "examples/support-desk/example-run/as-tool/results",
+      "probe",
+      "--tasks",
+      "19",
+      "--reps",
+      "2",
+      "--heavy",
+      "3"
+    ],
+    "cwd": ".orchestra/tasks/V-1071/upstream/kit",
+    "exit": 0,
+    "expected_exit": 0
+  }
+]

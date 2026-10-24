@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "My vacuum (serial SN-VAC-0000) keeps stopping and blinking red. What's wrong with it?"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'serial': 'SN-VAC-0000'}",
+    "name": "main.diagnose_device"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"error\": \"No device with serial SN-VAC-0000.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"error\": \"No device with serial SN-VAC-0000.\"}"
+  }
+]

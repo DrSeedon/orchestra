@@ -1,0 +1,13 @@
+{
+  "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+  "commit": {
+    "committer": {
+      "date": "2026-10-09T18:45:49Z"
+    },
+    "tree": {
+      "sha": "73374b8632b6c29c41ac7641e58bf97743f0aeb9",
+      "url": "https://api.github.com/repos/anthropics/skills/git/trees/73374b8632b6c29c41ac7641e58bf97743f0aeb9"
+    }
+  },
+  "html_url": "https://github.com/anthropics/skills/commit/dbd4588f9e1033efb41dad4bef2f7947c8993d44"
+}

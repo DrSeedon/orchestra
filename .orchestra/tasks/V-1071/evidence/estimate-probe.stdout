@@ -1,0 +1,11 @@
+# Estimate: 19 tasks x 2 reps = 38 conversations
+
+Based on `probe`: 2 measured conversations covering 2 of 19 tasks.
+
+- input tokens: between about 150,000 and 2,700,000, likely about 550,000
+- output tokens: at least about 20,000. No upper figure: the measured tasks were picked by how much they read, not how much they write
+
+This is a range. 17 tasks have not been measured. The lower figure assumes every task is as small as the smallest one measured, the upper that every task is as large as the largest.
+The likely figure assumes 3 tasks like the largest and the rest like the smallest. That count is a judgment, not a measurement.
+
+Not counted: what a coding assistant uses while it reads and edits around the run. No prices are applied.

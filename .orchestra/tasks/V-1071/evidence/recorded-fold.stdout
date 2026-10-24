@@ -1,0 +1,79 @@
+# baseline vs v1
+
+12 tasks in both runs. Metric: task_complete.
+
+| | baseline | v1 | change |
+| --- | ---: | ---: | ---: |
+| tasks complete | 11.0/12 (92%) | 11.5/12 (96%) | +0.5 |
+| latency per task (s) | 27.3 | 19.4 | -29% |
+| model calls per task | 6.3 | 4.8 | -24% |
+| input tokens per task | 18,154 | 18,203 | +0% |
+| output tokens per task | 1,539 | 1,051 | -32% |
+
+## Tasks that changed
+
+| task | baseline | v1 | tags |
+| --- | ---: | ---: | --- |
+| t01 | 2/2 | 1/2 | orders+shipping |
+| t11 | 0/2 | 2/2 | cross-domain, orders+shipping, returns |
+
+## Writes that changed
+
+What each task changed in the systems, per rep. A slash separates reps that differ.
+
+| task | baseline | v1 |
+| --- | --- | --- |
+| t11 | none | create_return |
+
+## Paths that changed
+
+Reps of a task in which an agent was called. A task can keep its score and still take a different route.
+
+| task | agent | baseline | v1 |
+| --- | --- | ---: | ---: |
+| t01 | orders | 2/2 | 0/2 |
+| t03 | orders | 2/2 | 0/2 |
+| t04 | orders | 2/2 | 0/2 |
+| t04 | returns | 2/2 | 0/2 |
+| t05 | returns | 2/2 | 0/2 |
+| t06 | orders | 2/2 | 0/2 |
+| t06 | returns | 2/2 | 0/2 |
+| t11 | returns | 2/2 | 0/2 |
+| t12 | orders | 2/2 | 0/2 |
+
+One rep apart, which the unchanged system often does by itself: t01 (shipping), t02 (orders), t05 (orders), t07 (orders), t10 (orders), t11 (orders).
+
+## By tag
+
+| tag | baseline | v1 |
+| --- | ---: | ---: |
+| account | 4/4 | 4/4 |
+| claims | 2/2 | 2/2 |
+| cross-domain | 2/4 | 4/4 |
+| diagnostics | 4/4 | 4/4 |
+| multi-turn | 2/2 | 2/2 |
+| orders+shipping | 8/10 | 9/10 |
+| returns | 6/8 | 8/8 |
+
+## By agent, per task
+
+| agent | calls, baseline | calls, v1 | input tokens, baseline | input tokens, v1 |
+| --- | ---: | ---: | ---: | ---: |
+| account | 0.3 | 0.3 | 329 | 312 |
+| claims | 0.4 | 0.4 | 603 | 530 |
+| diagnostics | 0.5 | 0.5 | 11,296 | 11,306 |
+| orders | 1.4 | 0.3 | 1,068 | 250 |
+| returns | 0.8 | 0.0 | 941 | 0 |
+| router | 2.3 | 2.8 | 3,454 | 5,411 |
+| shipping | 0.7 | 0.6 | 464 | 395 |
+
+## Verdict
+
+**v1 scores the same or better overall, but got worse on t01.** Read those traces before keeping the change.
+
+Notes:
+
+- Writes differ on t11. Check each one is a write the task wanted. A task can pass its checks and still change something it should not.
+- The route changed on t01, t03, t04, t05, t06, t11, t12. Where the change was not meant to touch a task, read its trace even if the score held, and say what the new route costs.
+- Model for both runs: claude-opus-5.
+- Changed in a single rep: t01. That can be noise. Treat it as real only if the trace shows a cause.

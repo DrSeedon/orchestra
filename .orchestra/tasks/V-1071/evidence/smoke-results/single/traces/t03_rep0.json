@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Has order 5006 shipped yet?"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5006'}",
+    "name": "main.track_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order\": {\"order_id\": \"5006\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-KETTLE-2\", \"item\": \"Arc Kettle\", \"status\": \"processing\", \"delivered_on\": null, \"tracking_id\": null, \"final_sale\": false}, \"shipment\": null, \"note\": \"This order has not shipped yet, so there is no ETA to give.\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order\": {\"order_id\": \"5006\", \"customer_id\": \"C-1002\", \"sku\": \"SKU-KETTLE-2\", \"item\": \"Arc Kettle\", \"status\": \"processing\", \"delivered_on\": null, \"tracking_id\": null, \"final_sale\": false}, \"shipment\": null, \"note\": \"This order has not shipped yet, so there is no ETA to give.\"}"
+  }
+]

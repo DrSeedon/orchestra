@@ -1,0 +1,381 @@
+{
+  "fold-2026-10-08": {
+    "baseline": {
+      "tasks": 12,
+      "conversations": 24,
+      "models": [
+        "claude-opus-5"
+      ],
+      "passing_conversations": 22,
+      "latency_s": {
+        "mean": 27.310833333333335,
+        "median": 25.675,
+        "min": 10.46,
+        "max": 53.99
+      },
+      "model_calls_total": 152,
+      "input_total": 435707,
+      "output_total": 36941,
+      "passes_by_task": {
+        "t01": [
+          1,
+          1
+        ],
+        "t02": [
+          1,
+          1
+        ],
+        "t03": [
+          1,
+          1
+        ],
+        "t04": [
+          1,
+          1
+        ],
+        "t05": [
+          1,
+          1
+        ],
+        "t06": [
+          1,
+          1
+        ],
+        "t07": [
+          1,
+          1
+        ],
+        "t08": [
+          1,
+          1
+        ],
+        "t09": [
+          1,
+          1
+        ],
+        "t10": [
+          1,
+          1
+        ],
+        "t11": [
+          0,
+          0
+        ],
+        "t12": [
+          1,
+          1
+        ]
+      }
+    },
+    "v1": {
+      "tasks": 12,
+      "conversations": 24,
+      "models": [
+        "claude-opus-5"
+      ],
+      "passing_conversations": 23,
+      "latency_s": {
+        "mean": 19.362916666666667,
+        "median": 15.07,
+        "min": 6.84,
+        "max": 38.47
+      },
+      "model_calls_total": 116,
+      "input_total": 436880,
+      "output_total": 25235,
+      "passes_by_task": {
+        "t01": [
+          1,
+          0
+        ],
+        "t02": [
+          1,
+          1
+        ],
+        "t03": [
+          1,
+          1
+        ],
+        "t04": [
+          1,
+          1
+        ],
+        "t05": [
+          1,
+          1
+        ],
+        "t06": [
+          1,
+          1
+        ],
+        "t07": [
+          1,
+          1
+        ],
+        "t08": [
+          1,
+          1
+        ],
+        "t09": [
+          1,
+          1
+        ],
+        "t10": [
+          1,
+          1
+        ],
+        "t11": [
+          1,
+          1
+        ],
+        "t12": [
+          1,
+          1
+        ]
+      }
+    },
+    "ratio_of_mean_latencies_before_over_after": 1.4104710464590822
+  },
+  "as-tool-2026-10-09": {
+    "baseline": {
+      "tasks": 17,
+      "conversations": 34,
+      "models": [
+        "claude-opus-5"
+      ],
+      "passing_conversations": 32,
+      "latency_s": {
+        "mean": 30.827352941176475,
+        "median": 28.53,
+        "min": 11.63,
+        "max": 55.77
+      },
+      "model_calls_total": 214,
+      "input_total": 522817,
+      "output_total": 60315,
+      "passes_by_task": {
+        "t01": [
+          1,
+          1
+        ],
+        "t02": [
+          1,
+          1
+        ],
+        "t03": [
+          1,
+          1
+        ],
+        "t04": [
+          1,
+          1
+        ],
+        "t05": [
+          1,
+          1
+        ],
+        "t06": [
+          1,
+          1
+        ],
+        "t07": [
+          1,
+          1
+        ],
+        "t08": [
+          1,
+          1
+        ],
+        "t09": [
+          1,
+          1
+        ],
+        "t10": [
+          1,
+          1
+        ],
+        "t11": [
+          0,
+          0
+        ],
+        "t12": [
+          1,
+          1
+        ],
+        "t13": [
+          1,
+          1
+        ],
+        "t14": [
+          1,
+          1
+        ],
+        "t15": [
+          1,
+          1
+        ],
+        "t16": [
+          1,
+          1
+        ],
+        "t17": [
+          1,
+          1
+        ]
+      }
+    },
+    "v1": {
+      "tasks": 17,
+      "conversations": 34,
+      "models": [
+        "claude-opus-5"
+      ],
+      "passing_conversations": 31,
+      "latency_s": {
+        "mean": 28.32,
+        "median": 28.35,
+        "min": 3.33,
+        "max": 60.3
+      },
+      "model_calls_total": 204,
+      "input_total": 538293,
+      "output_total": 54777,
+      "passes_by_task": {
+        "t01": [
+          1,
+          0
+        ],
+        "t02": [
+          1,
+          1
+        ],
+        "t03": [
+          1,
+          1
+        ],
+        "t04": [
+          1,
+          1
+        ],
+        "t05": [
+          1,
+          1
+        ],
+        "t06": [
+          1,
+          1
+        ],
+        "t07": [
+          1,
+          1
+        ],
+        "t08": [
+          1,
+          1
+        ],
+        "t09": [
+          1,
+          1
+        ],
+        "t10": [
+          1,
+          1
+        ],
+        "t11": [
+          0,
+          0
+        ],
+        "t12": [
+          1,
+          1
+        ],
+        "t13": [
+          1,
+          1
+        ],
+        "t14": [
+          1,
+          1
+        ],
+        "t15": [
+          1,
+          1
+        ],
+        "t16": [
+          1,
+          1
+        ],
+        "t17": [
+          1,
+          1
+        ]
+      }
+    },
+    "ratio_of_mean_latencies_before_over_after": 1.0885364739115986
+  },
+  "as-tool-rerun": {
+    "baseline-t01-t10": {
+      "tasks": 2,
+      "conversations": 8,
+      "models": [
+        "claude-opus-5"
+      ],
+      "passing_conversations": 8,
+      "latency_s": {
+        "mean": 25.06,
+        "median": 24.564999999999998,
+        "min": 18.94,
+        "max": 32.15
+      },
+      "model_calls_total": 54,
+      "input_total": 60390,
+      "output_total": 9924,
+      "passes_by_task": {
+        "t01": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "t10": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    "v1-t01-t10": {
+      "tasks": 2,
+      "conversations": 8,
+      "models": [
+        "claude-opus-5"
+      ],
+      "passing_conversations": 8,
+      "latency_s": {
+        "mean": 29.435000000000002,
+        "median": 26.9,
+        "min": 20.5,
+        "max": 43.38
+      },
+      "model_calls_total": 59,
+      "input_total": 72595,
+      "output_total": 11961,
+      "passes_by_task": {
+        "t01": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "t10": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    "ratio_of_mean_latencies_before_over_after": 0.8513674197384066
+  }
+}

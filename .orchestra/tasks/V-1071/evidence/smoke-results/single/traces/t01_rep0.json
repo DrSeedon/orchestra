@@ -1,0 +1,19 @@
+[
+  {
+    "role": "user",
+    "content": "Hi, I'm Ana (C-1001). What's the status of order 5002?"
+  },
+  {
+    "role": "tool_call",
+    "content": "{'order_id': '5002'}",
+    "name": "main.track_order"
+  },
+  {
+    "role": "tool_result",
+    "content": "{\"order\": {\"order_id\": \"5002\", \"customer_id\": \"C-1001\", \"sku\": \"SKU-BLEND-9\", \"item\": \"Vortex Blender\", \"status\": \"shipped\", \"delivered_on\": null, \"tracking_id\": \"TRK-77002\", \"final_sale\": false}, \"shipment\": {\"tracking_id\": \"TRK-77002\", \"carrier\": \"Northway\", \"state\": \"in_transit\", \"eta\": \"2026-10-03\", \"last_event\": \"Departed regional hub, Albany NY\"}}"
+  },
+  {
+    "role": "assistant",
+    "content": "{\"order\": {\"order_id\": \"5002\", \"customer_id\": \"C-1001\", \"sku\": \"SKU-BLEND-9\", \"item\": \"Vortex Blender\", \"status\": \"shipped\", \"delivered_on\": null, \"tracking_id\": \"TRK-77002\", \"final_sale\": false}, \"shipment\": {\"tracking_id\": \"TRK-77002\", \"carrier\": \"Northway\", \"state\": \"in_transit\", \"eta\": \"2026-10-03\", \"last_event\": \"Departed regional hub, Albany NY\"}}"
+  }
+]

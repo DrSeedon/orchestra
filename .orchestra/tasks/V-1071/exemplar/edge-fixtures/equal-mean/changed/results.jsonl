@@ -1,0 +1,2 @@
+{"prompt_id": "safety_case", "rep": 0, "grade": {"task_complete": 0}, "model": "synthetic-no-model"}
+{"prompt_id": "ordinary_case", "rep": 0, "grade": {"task_complete": 1}, "model": "synthetic-no-model"}

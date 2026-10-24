@@ -1,0 +1,48 @@
+# Coupling map
+
+200 traces, 322 subagent calls, from 2026-09-01T09:03:04Z to 2026-09-02T01:21:03Z. Check that this window is typical before leaning on the numbers.
+
+## Volume
+
+"In % of traces" is the share of traces the agent appears in, so the column can add up to more than 100%. "% of subagent time" is its share of all subagent time and adds up to 100%. Medians are per call.
+
+| agent | calls | in % of traces | median ms | % of subagent time | median input tokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| orders | 112 | 56% | 1,784 | 17% | 926 |
+| shipping | 96 | 48% | 2,158 | 18% | 763 |
+| returns | 50 | 25% | 4,414 | 20% | 2,674 |
+| account | 30 | 15% | 2,297 | 6% | 1,056 |
+| diagnostics | 24 | 12% | 15,081 | 31% | 31,164 |
+| claims | 10 | 5% | 9,918 | 8% | 3,177 |
+
+## Most common sequences
+
+The subagents each trace called, in order.
+
+| sequence | traces | % of traces |
+| --- | ---: | ---: |
+| orders -> shipping | 76 | 38% |
+| returns | 32 | 16% |
+| account | 24 | 12% |
+| diagnostics | 16 | 8% |
+| orders | 16 | 8% |
+| orders -> shipping -> returns | 12 | 6% |
+| claims | 10 | 5% |
+| diagnostics -> orders -> shipping | 8 | 4% |
+
+## Pairs
+
+A row means the second agent ran right after the first in the same trace. Coupling is that count over the number of traces containing the rarer of the two agents, shown in brackets.
+
+| first -> then | traces | coupling | % of traces |
+| --- | ---: | ---: | ---: |
+| orders -> shipping | 96 | 100% (of 96 with shipping) | 48% |
+| shipping -> returns | 12 | 24% (of 50 with returns) | 6% |
+| diagnostics -> orders | 8 | 33% (of 24 with diagnostics) | 4% |
+| account -> returns | 6 | 20% (of 30 with account) | 3% |
+
+## Merge candidates
+
+- **orders + shipping**: shipping runs right after orders in 96 traces (48% of traces, coupling 100%).
+
+This script only measures traffic. Which subagents to fold, keep or leave alone, and in what order, is decided in the audit.
