@@ -1,0 +1,53 @@
+........................................................................ [ 18%]
+........................................................................ [ 36%]
+...........................................F............................ [ 55%]
+........................................................................ [ 73%]
+............................................FFF....................... [ 91%]
+................................                                         [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+tests/test_hub_workspace.py:1493: in test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+    assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E   AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+____________ test_retarget_resolves_target_policy_and_claude_option ____________
+tests/test_hub_effort.py:108: in test_retarget_resolves_target_policy_and_claude_option
+    await backend.retarget_model("hub-claude-opus-5-5")
+app/backend_hub.py:364: in retarget_model
+    role = get_role(self._pipeline, self._role)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:474: in load_pipeline
+    raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E   FileNotFoundError: pipeline 'default' not found at /remote/workspace/.orchestra/pipelines/default/pipeline.yaml
+___________ test_hub_policy_matches_native_claude[orchestrator-high] ___________
+tests/test_hub_effort.py:117: in test_hub_policy_matches_native_claude
+    policy = get_role("default", role).effort
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:474: in load_pipeline
+    raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E   FileNotFoundError: pipeline 'default' not found at /remote/workspace/.orchestra/pipelines/default/pipeline.yaml
+_____________ test_hub_policy_matches_native_claude[worker-medium] _____________
+tests/test_hub_effort.py:117: in test_hub_policy_matches_native_claude
+    policy = get_role("default", role).effort
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:474: in load_pipeline
+    raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E   FileNotFoundError: pipeline 'default' not found at /remote/workspace/.orchestra/pipelines/default/pipeline.yaml
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+FAILED tests/test_hub_effort.py::test_retarget_resolves_target_policy_and_claude_option
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[orchestrator-high]
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[worker-medium]
+4 failed, 386 passed, 2 subtests passed in 92.04s (0:01:32)

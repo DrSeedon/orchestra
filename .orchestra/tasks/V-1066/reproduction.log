@@ -1,0 +1,76 @@
+INFO:httpx:HTTP Request: POST http://mock/mcp "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://mock/mcp "HTTP/1.1 200 OK"
+INFO:app.backend_hub:hub message via workspace: 126853 UTF-16 units, 126864 UTF-8 bytes
+INFO:httpx:HTTP Request: POST http://mock/mcp "HTTP/1.1 200 OK"
+{
+  "app_import": "/remote/workspace/app/__init__.py",
+  "attachment": {
+    "codepoints": 53698,
+    "utf16_units": 53699,
+    "utf8_bytes": 53710
+  },
+  "accepted_native_message": {
+    "codepoints": 53777,
+    "utf16_units": 53778,
+    "utf8_bytes": 53789
+  },
+  "system": {
+    "codepoints": 42019,
+    "utf16_units": 42019,
+    "utf8_bytes": 42019
+  },
+  "context": {
+    "codepoints": 30021,
+    "utf16_units": 30021,
+    "utf8_bytes": 30021
+  },
+  "early_steers": {
+    "codepoints": 1029,
+    "utf16_units": 1029,
+    "utf8_bytes": 1029
+  },
+  "resume_composed": {
+    "codepoints": 126852,
+    "utf16_units": 126853,
+    "utf8_bytes": 126864
+  },
+  "preamble": {
+    "codepoints": 1165,
+    "utf16_units": 1165,
+    "utf8_bytes": 1165
+  },
+  "legacy": {
+    "error": "MultiCode MCP error -32602: Expected value length at most 120000 at message",
+    "calls": [
+      {
+        "tool": "t3_thread_send",
+        "codepoints": 126852,
+        "utf16_units": 126853,
+        "utf8_bytes": 126864
+      },
+      {
+        "tool": "t3_thread_launch",
+        "codepoints": 128017,
+        "utf16_units": 128018,
+        "utf8_bytes": 128029
+      }
+    ],
+    "thread_preserved": false,
+    "full_content_equal": []
+  },
+  "fixed": {
+    "run": "synthetic-run",
+    "calls": [
+      {
+        "tool": "t3_thread_send",
+        "codepoints": 387,
+        "utf16_units": 387,
+        "utf8_bytes": 387
+      }
+    ],
+    "thread_preserved": true,
+    "full_content_equal": [
+      true
+    ]
+  }
+}

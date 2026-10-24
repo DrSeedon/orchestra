@@ -15,13 +15,22 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 CLIENT_INFO = {"name": "orchestra", "version": "1.0.0"}
 
 
+def _invalid_params(detail: str) -> bool:
+    return any(marker in detail.lower() for marker in (
+        "invalid argument", "invalid_argument", "invalid params", "invalid_params",
+        "validation", "expected value", "-32602"))
+
+
 class MultiCodeError(RuntimeError):
     """A safe-to-display MultiCode transport or protocol error."""
 
-    def __init__(self, message: str, *, retryable: bool = False):
+    def __init__(self, message: str, *, retryable: bool = False,
+                 invalid_params: bool = False):
         super().__init__(message)
         # Retry only read operations: a failed send may already have reached the hub.
         self.retryable = retryable
+        # A rejected payload says nothing about whether the existing thread is usable.
+        self.invalid_params = invalid_params
 
 
 class MultiCodeClient:
@@ -99,6 +108,7 @@ class MultiCodeClient:
             raise MultiCodeError(
                 f"MultiCode MCP returned HTTP {response.status_code}: {detail}",
                 retryable=session_expired or 500 <= response.status_code < 600,
+                invalid_params=response.status_code in (400, 422) and _invalid_params(body),
             )
         self._session_id = response.headers.get("Mcp-Session-Id", self._session_id)
         if not response.content:
@@ -121,7 +131,8 @@ class MultiCodeClient:
         if result.get("error"):
             error = result["error"]
             raise MultiCodeError(f"MultiCode MCP error {error.get('code', 'unknown')}: "
-                                 f"{self._redact(str(error.get('message', 'request failed')))}")
+                                 f"{self._redact(str(error.get('message', 'request failed')))}",
+                                 invalid_params=error.get("code") == -32602)
         return result, response.headers
 
     async def initialize(self) -> None:
@@ -157,7 +168,8 @@ class MultiCodeClient:
             detail = " ".join(item.get("text", "") for item in result.get("content", [])
                                if isinstance(item, dict))
             raise MultiCodeError(f"MultiCode tool {name} failed: "
-                                 f"{self._redact(detail) if detail else 'tool error'}")
+                                 f"{self._redact(detail) if detail else 'tool error'}",
+                                 invalid_params=_invalid_params(detail))
         if "structuredContent" in result:
             return self._redact_value(result["structuredContent"])
         content = result.get("content", [])

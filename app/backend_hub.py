@@ -41,6 +41,8 @@ HUB_MODELS: dict[str, tuple[str, str]] = {
 TERMINAL = {"completed", "failed", "interrupted", "cancelled", "rolled_back"}
 WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
 NO_WORK_RETRIES = 2
+# Count UTF-16 units conservatively for the hub's JavaScript message schema.
+HUB_MESSAGE_MAX_UNITS = 120_000
 
 PREAMBLE_BASE = (
     "You are a worker on a remote machine. Your current directory is a private copy of a "
@@ -209,7 +211,7 @@ def _provider_limit(value: object, *, failed: bool = True) -> str | None:
 
 def _workspace_lost(exc: Exception) -> bool:
     """The hub says the project it was asked to start in does not exist (any more)."""
-    if isinstance(exc, MultiCodeError) and exc.retryable:
+    if isinstance(exc, MultiCodeError) and (exc.retryable or exc.invalid_params):
         return False
     text = str(exc).lower()
     return "orchestration_error" in text or "not_found" in text or "not found" in text
@@ -334,11 +336,13 @@ class HubBackend:
         state, run_id = self._state, self._run_id
         if state and state.thread_id and run_id:
             try:
-                await (await self._client()).tool_call("t3_thread_send", {
-                    "threadId": state.thread_id, "message": message, "mode": "steer"})
+                mc = await self._client()
+                wire = await self._wire_message(mc, state, message)
+                await mc.tool_call("t3_thread_send", {
+                    "threadId": state.thread_id, "message": wire, "mode": "steer"})
                 return
             except MultiCodeError as exc:
-                if exc.retryable:
+                if exc.retryable or exc.invalid_params:
                     raise  # Delivery may have succeeded; do not queue the same steer again.
                 logger.warning("hub steer failed, queuing instead: %s", exc)
         self._early_steer.append(message)
@@ -370,6 +374,8 @@ class HubBackend:
                     "threadId": state.thread_id,
                     "modelSelection": selection})
             except MultiCodeError as exc:
+                if exc.retryable or exc.invalid_params:
+                    raise
                 logger.warning("hub thread re-configure refused (%s); next turn starts a new thread", exc)
                 state.thread_id = ""
                 state.save()
@@ -487,9 +493,8 @@ class HubBackend:
         try:
             for note in await self._provision(mc, ssh, root, state, plan, options, fresh, scratch):
                 yield AgentEvent("status", note)
+            steer_count = len(self._early_steer)
             prompt = self._prompt(message, first=not state.thread_id)
-            prompt = _redact_history(prompt, known)
-            hw.assert_no_secret(prompt, known, "the task prompt")
             async with _turn_slots():
                 try:
                     run_id = await self._start(mc, state, prompt)
@@ -510,6 +515,9 @@ class HubBackend:
                         yield AgentEvent("status", note)
                     prompt = first_prompt
                     run_id = await self._start(mc, state, prompt)
+                # Only acknowledge the snapshot included in the accepted turn. Steers
+                # arriving during upload/start belong to the following turn.
+                del self._early_steer[:steer_count]
                 for attempt in range(NO_WORK_RETRIES + 1):
                     self._run_id = run_id
                     self._watch_limit = None
@@ -553,8 +561,9 @@ class HubBackend:
                             return
                         # Never use _start here: its refused-thread fallback can change threads.
                         # An uncertain send is propagated, never replayed.
+                        wire = await self._wire_message(mc, state, prompt)
                         sent = await mc.tool_call("t3_thread_send", {
-                            "threadId": state.thread_id, "message": prompt, "mode": "auto"})
+                            "threadId": state.thread_id, "message": wire, "mode": "auto"})
                         if not isinstance(sent, dict) or not sent.get("runId"):
                             raise MultiCodeError("MultiCode retry send returned no runId")
                         run_id = sent["runId"]
@@ -626,7 +635,6 @@ class HubBackend:
 
     def _prompt(self, message: str, *, first: bool) -> str:
         parts = list(self._early_steer) + [message]
-        self._early_steer = []
         body = "\n\n".join(parts)
         if not first:
             # Also update a thread that predates uv provisioning, or resumed without PATH.
@@ -638,29 +646,55 @@ class HubBackend:
         who = self._bridge.identity() if self._bridge is not None else None
         return hub_preamble(who, task if task != "hub" else "", has_link=self._bridge is not None)
 
+    async def _wire_message(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
+        known = hw.known_secret_values([getattr(mc, "_token", "")])
+        prompt = _redact_history(prompt, known)
+        hw.assert_no_secret(prompt, known, "the task prompt")
+        units = len(prompt.encode("utf-16-le", errors="surrogatepass")) // 2
+        if units <= HUB_MESSAGE_MAX_UNITS:
+            return prompt
+        if self._ssh is None:
+            raise hw.HubWorkspaceError("hub workspace transport is unavailable for the task prompt")
+        data = prompt.encode("utf-8")
+        scratch = hw.local_scratch()
+        try:
+            rel = await self._ssh.put_prompt(state.remote_dir, data, scratch)
+        finally:
+            hw.rmtree_quiet(scratch)
+        logger.info("hub message via workspace: %d UTF-16 units, %d UTF-8 bytes", units, len(data))
+        return (
+            f"Read ./{rel} in full before acting. It is the complete message for this turn "
+            f"({len(data)} UTF-8 bytes), delivered through the private workspace because it "
+            "exceeds the hub message field limit. Read in chunks if needed; follow all its "
+            "instructions and preserve their order. Do not edit this broker input file."
+        )
+
     async def _start(self, mc: MultiCodeClient, state: hw.WorkspaceState, prompt: str) -> str:
         # A reconstructed backend can resume a thread created with an older effort.
         selection = await self._model_selection(mc, self.model, self._effort)
         if state.thread_id:
             try:
+                wire = await self._wire_message(mc, state, prompt)
                 if self._effort is not None:
                     await mc.tool_call("t3_thread_configure", {
                         "threadId": state.thread_id, "modelSelection": selection})
                 sent = await mc.tool_call("t3_thread_send", {
-                    "threadId": state.thread_id, "message": prompt, "mode": "auto"})
+                    "threadId": state.thread_id, "message": wire, "mode": "auto"})
             except MultiCodeError as exc:
                 # Delivery is uncertain on transport errors. Launching again can duplicate work.
-                if exc.retryable:
+                if exc.retryable or exc.invalid_params:
                     raise
                 logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
-                state.thread_id = ""
-                prompt = self._preamble() + prompt
+                preamble = self._preamble()
+                if not prompt.startswith(preamble):
+                    prompt = preamble + prompt
             else:
                 if not isinstance(sent, dict) or not sent.get("runId"):
                     raise MultiCodeError("MultiCode send returned no runId")
                 return sent["runId"]
+        wire = await self._wire_message(mc, state, prompt)
         launched = await mc.tool_call("t3_thread_launch", {
-            "title": f"{state.ws_id}", "projectId": state.project_id, "message": prompt,
+            "title": f"{state.ws_id}", "projectId": state.project_id, "message": wire,
             "runtimeMode": "full-access",
             "modelSelection": selection,
         })

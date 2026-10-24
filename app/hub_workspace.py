@@ -38,6 +38,10 @@ MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_TOTAL_BYTES = 300 * 1024 * 1024
 MAX_FILES = 20_000
 
+# Broker transport only: retained for pending/uncertain sends until workspace release,
+# never uploaded as source or imported/committed as a worker result.
+PROMPT_DIR = ".orchestra-hub-inputs"
+
 # Copied from the VPS, never resolved through PATH (the hub's uv is a PC relay).
 HUB_UV_VERSION = "0.11.28"
 HUB_UV_BIN = f".local/share/orchestra/tools/uv/{HUB_UV_VERSION}/bin"
@@ -74,6 +78,7 @@ _SAFE_REMOTE = re.compile(r"^/[A-Za-z0-9_./-]+$")
 
 # Directory names that never travel in either direction.
 BLOCKED_DIRS = frozenset({
+    PROMPT_DIR,
     ".git", ".ssh", ".gnupg", ".aws", ".docker", ".kube", ".claude", ".codex", ".grok",
     ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache",
 })
@@ -591,6 +596,30 @@ class HubSsh:
         _check_remote(remote_dir)
         q = shlex.quote(remote_dir)
         await self.run(f"mkdir -p -- {q} && tar -xf - -C {q}", stdin=tar_path)
+
+    async def put_prompt(self, remote_dir: str, data: bytes, scratch: Path) -> str:
+        """Publish complete UTF-8 input atomically through the existing workspace transport."""
+        _check_remote(remote_dir, base_ok=False)
+        if len(data) > MAX_FILE_BYTES:
+            raise HubWorkspaceError(f"hub task prompt exceeds the workspace file limit ({MAX_FILE_BYTES} bytes)")
+        digest = hashlib.sha256(data).hexdigest()
+        rel = f"{PROMPT_DIR}/{digest}.txt"
+        source = scratch / "prompt.txt"
+        source.write_bytes(data)
+        source.chmod(0o600)
+        # No shared temporary name, no shell interpolation of user content, and no
+        # following a worker-created directory symlink. The digest verifies stdin
+        # before the rename; failures never submit a message referring to partial data.
+        await self.run(
+            f"set -eu; cd {shlex.quote(remote_dir)}; umask 077; "
+            "workspace=$(pwd -P); "
+            f"test ! -L {PROMPT_DIR}; mkdir -p -- {PROMPT_DIR}; "
+            f"cd {PROMPT_DIR}; test \"$(pwd -P)\" = \"$workspace/{PROMPT_DIR}\"; "
+            "t=$(mktemp .upload-XXXXXXXX); "
+            "trap 'rm -f -- \"$t\"' EXIT; cat > \"$t\"; "
+            f"printf '%s  %s\\n' {digest} \"$t\" | sha256sum -c - >/dev/null; "
+            f"mv -fT -- \"$t\" {digest}.txt", stdin=source)
+        return rel
 
     async def delete_files(self, remote_dir: str, rels: list[str]) -> None:
         _check_remote(remote_dir)

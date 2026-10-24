@@ -1,0 +1,20 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_early_steers_survive_start_failure_and_new_arrival ____________
+tests/test_hub_message_v1066.py:386: in test_early_steers_survive_start_failure_and_new_arrival
+    assert backend._early_steer == ["early\n" + "u" * 120_001, "arrived during start"]
+E   AssertionError: assert ['arrived during start'] == ['early\nuuuu...during start']
+E     
+E     At index 0 diff: 'arrived during start' != 'early\nuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+hub message via workspace: 121314 UTF-16 units, 121314 UTF-8 bytes
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.backend_hub:backend_hub.py:664 hub message via workspace: 121314 UTF-16 units, 121314 UTF-8 bytes
+=========================== short test summary info ============================
+FAILED tests/test_hub_message_v1066.py::test_early_steers_survive_start_failure_and_new_arrival
+1 failed in 2.95s
+MUTATION steers: pytest_exit=1; killed=True

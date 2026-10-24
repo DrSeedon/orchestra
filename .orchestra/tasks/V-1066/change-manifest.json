@@ -1,0 +1,107 @@
+[
+  {
+    "file": "app/backend_hub.py",
+    "bytes": 51402,
+    "sha256": "8ea2147243d7a8993ce56949778a5be979632bc3734b9ea073080e154f26d162"
+  },
+  {
+    "file": "app/hub_workspace.py",
+    "bytes": 57333,
+    "sha256": "52eb2f14c71e3e88980e091027811d8938540a4ecb300b973730be1f8ecbd6b6"
+  },
+  {
+    "file": "app/multicode_client.py",
+    "bytes": 12567,
+    "sha256": "3c26debcb42c9dfc1211f8a53244cc00999249cc01fa871985c0c577aa4a8e54"
+  },
+  {
+    "file": "tests/test_hub_message_v1066.py",
+    "bytes": 17491,
+    "sha256": "ec71eb18720421c7c3849b7504cef49d7997011deeb34aea1979f355158e15df"
+  },
+  {
+    "file": "CHANGELOG.md",
+    "bytes": 564452,
+    "sha256": "4f0b7236a288707ad7c9355bc7c2b4a5c1c911bcf0ffd2c1859330bbde1e37e2"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/CHANGELOG.md",
+    "bytes": 825,
+    "sha256": "88bfa954b6dc740243a983007847f75eb8b7ba17de78b6f8dd6b6fb034010fc6"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/final-shell-tests.log",
+    "bytes": 99,
+    "sha256": "a1ba433163d61252699928f1e0219845af6a58e5b9e01e20d7e10201fed9e383"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/final-tests.log",
+    "bytes": 341,
+    "sha256": "59ed2c2e584b7be412e332ae3da22730c19ba9023250a5a0ddc8b8a7e7d0228d"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/initial-tests.log",
+    "bytes": 9567,
+    "sha256": "6f038fa51a53f4ceefc441253eadfa95b5782d55b2175e7345745ec2e3750dbb"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/instruction-contract.log",
+    "bytes": 139,
+    "sha256": "f3ed665ff2b23d6b747d2c3cc610e95cba2b02a14cf4d4d869c304339d8d3f02"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation-exclusion.log",
+    "bytes": 1138,
+    "sha256": "e2b60e93539c82c41370948113b668f821a7bb244564b3fe56f3a7199175e948"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation-inline.log",
+    "bytes": 1224,
+    "sha256": "973b0f8f88aeeda65f1be613450bdca12c23d1b4eaa1febea33d65128003aa57"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation-params.log",
+    "bytes": 1195,
+    "sha256": "12aac9aba2057fc9dc6881066fab4788a2b5706115be95648dc5b217835c3099"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation-retry.log",
+    "bytes": 2197,
+    "sha256": "533d9c16b9dd7349ba66ac60efa9d3148e71e3300e14694b9a7f4ab56dc1a925"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation-steers.log",
+    "bytes": 1935,
+    "sha256": "5e108a36b59a93655bf9d927ead0f6e899a4d420415f617283a1126d2d47a450"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation-utf16.log",
+    "bytes": 2558,
+    "sha256": "8026fa4e5c3e6993c0276c2ba8aaf9b3c3b0094d2c9a4069e8565b09d7794666"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/mutation_checks.py",
+    "bytes": 2501,
+    "sha256": "01129e62fffc10862eaa7033f20fb9092faf53bb66e20916f07b65ef6a4ec529"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/regressions.log",
+    "bytes": 3793,
+    "sha256": "f050c5ef2a3f07d7f0deaaa101e4fe898ea6d0f7cc59232917d0e2112dcc8378"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/report.md",
+    "bytes": 12444,
+    "sha256": "a7d7a2e727e845763ec37e8b83005193edc0c9178eda387e620ebbea18f35d6f"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/reproduce.py",
+    "bytes": 5334,
+    "sha256": "f712a9f2f8066b6effa50dd79b7116f94d7b179c0849cfdd2214662908603d78"
+  },
+  {
+    "file": ".orchestra/tasks/V-1066/reproduction.log",
+    "bytes": 1780,
+    "sha256": "a3e023af5fb0e12ee4f29f4318a2c4bd12a748d2c915b829a1aabdd3b6ec8cf6"
+  }
+]

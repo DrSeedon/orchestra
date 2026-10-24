@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_transport_files_never_import_or_upload_as_source _____________
+tests/test_hub_message_v1066.py:336: in test_transport_files_never_import_or_upload_as_source
+    assert not any(hw.PROMPT_DIR in rel for rel in plan.manifest)
+E   assert not True
+E    +  where True = any(<generator object test_transport_files_never_import_or_upload_as_source.<locals>.<genexpr> at 0x70fd16bf6c20>)
+----------------------------- Captured stderr call -----------------------------
+hub message via workspace: 120001 UTF-16 units, 120001 UTF-8 bytes
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:664 hub message via workspace: 120001 UTF-16 units, 120001 UTF-8 bytes
+=========================== short test summary info ============================
+FAILED tests/test_hub_message_v1066.py::test_transport_files_never_import_or_upload_as_source
+1 failed in 2.45s
+MUTATION exclusion: pytest_exit=1; killed=True
