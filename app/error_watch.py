@@ -28,10 +28,21 @@ _HUB_CREDENTIAL_REFUSAL = re.compile(
     r"the task prompt contains a credential-shaped string; refusing to send it to the hub", re.I,
 )
 _EXPECTED_HUB_NOISE = {"hub provider limit", "hub credential guard refusal"}
+# session.py emits only these reset labels and ISO times (or "неизвестно").
+# Accept <N> as well so classification survives numeric signature normalization.
+_CODEX_QUOTA_RESET = (
+    r"(?:5h|7d|primary|secondary) (?:неизвестно|"
+    r"(?:\d+|<N>)(?:-(?:\d+|<N>)){2}T(?:\d+|<N>)(?::(?:\d+|<N>)){2}"
+    r"(?:\.(?:\d+|<N>))?(?:Z|[+-](?:\d+|<N>):(?:\d+|<N>)))"
+)
+_CODEX_QUOTA_REFUSAL = re.compile(
+    rf"^квота Codex исчерпана, сброс {_CODEX_QUOTA_RESET}(?:, {_CODEX_QUOTA_RESET})*$", re.I,
+)
 _NOISE = (
     ("hub provider limit", _HUB_PROVIDER_LIMIT),
     ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
     ("quota/rate limit", re.compile(r"quota|rate[_ -]?limit|rate_limited|subscription limit", re.I)),
+    ("quota/rate limit", _CODEX_QUOTA_REFUSAL),
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
     ("expected command termination", re.compile(r"command exited with code", re.I)),
@@ -275,6 +286,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
         event for event in events
         if (event_signature := normalize_signature(event["message"])) == signature
         and classify_noise(event_signature) not in _EXPECTED_HUB_NOISE
+        and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
     ]

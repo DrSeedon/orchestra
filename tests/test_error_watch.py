@@ -3,8 +3,18 @@ import json
 from pathlib import Path
 import sqlite3
 from types import SimpleNamespace
+from unittest.mock import Mock
+
+import pytest
 
 from app import error_watch as watch
+
+
+@pytest.fixture
+def scan_reports(monkeypatch):
+    reports = Mock(wraps=watch._brief_output)
+    monkeypatch.setattr(watch, "_brief_output", reports)
+    return reports
 
 
 def _event(message, minute=0, source="journalctl", scope=None):
@@ -52,6 +62,169 @@ def test_threshold_and_quota_noise_classification():
     assert watch.classify_noise(watch.normalize_signature(missing)) == "agent read of missing file"
 
 
+@pytest.mark.parametrize("reset", [
+    "5h 2026-10-24T09:30:34Z",
+    "7d 2026-10-31T09:30:34.123456Z",
+    "5h 2026-10-24T12:30:34+03:00",
+    "5h 2026-10-24T09:30:34Z, 7d 2026-10-31T09:30:34Z",
+    "5h неизвестно",
+    "primary неизвестно, secondary неизвестно",
+    "primary 2026-10-24T09:30:34Z, secondary неизвестно",
+])
+def test_codex_quota_refusal_is_noise_raw_and_normalized(reset):
+    message = f"квота Codex исчерпана, сброс {reset}"
+    assert watch.classify_noise(message) == "quota/rate limit"
+    assert watch.classify_noise(watch.normalize_signature(message)) == "quota/rate limit"
+    logged = "ERROR:app.session:" + message
+    assert watch.classify_noise(watch.normalize_signature(logged)) == "quota/rate limit"
+
+
+@pytest.mark.parametrize("message", [
+    "квота Codex: ошибка провайдера HTTP 503",
+    "квота Codex: ошибка учёта использованных токенов",
+    "квота Codex: ошибка парсера resets_at",
+    "квота Codex: сервис недоступен",
+    "квота другого провайдера исчерпана, сброс 5h 2026-10-24T09:30:34Z",
+    "квота Codex исчерпана, сброс 5h: ошибка парсера",
+    "квота Codex исчерпана, сброс 5h 2026-10-24T09:30:34Z; ошибка учёта",
+    "ошибка провайдера: квота Codex исчерпана, сброс 5h 2026-10-24T09:30:34Z",
+])
+def test_distinct_russian_quota_failure_stays_actionable(message):
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(watch.normalize_signature(message)) is None
+    candidates, noise = watch.aggregate(
+        [_event(message, i, source="logs") for i in range(10)],
+        datetime.now(timezone.utc),
+    )
+    assert len(candidates) == 1
+    assert candidates[0]["count"] == 10
+    assert noise == []
+
+
+@pytest.mark.parametrize("message", [
+    "quota exhausted", "rate_limit exceeded", "rate limited", "rate_limited",
+    "subscription limit reached",
+])
+def test_english_quota_noise_unchanged(message):
+    assert watch.classify_noise(message) == "quota/rate limit"
+    assert watch.classify_noise(watch.normalize_signature(message)) == "quota/rate limit"
+
+
+def test_repeated_codex_quota_refusals_are_aggregated_without_alert(tmp_path, monkeypatch, capsys, scan_reports):
+    events = [
+        _event(f"квота Codex исчерпана, сброс 5h 2026-10-24T09:{30 + i}:34Z", i, source="logs")
+        for i in range(10)
+    ]
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc))
+    assert candidates == []
+    assert len(noise) == 1
+    assert noise[0]["count"] == 10
+    assert noise[0]["noise"] == "quota/rate limit"
+
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: [])
+    args = SimpleNamespace(db=str(tmp_path / "orchestra.db"), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_events"] == 10
+    assert output["noise_by_class"] == {"quota/rate limit": 10}
+
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    assert watch._load_state(tmp_path / "error_watch.json")["alerts"] == {}
+
+    failure = "квота Codex: ошибка учёта использованных токенов"
+    events.extend(_event(failure, i, source="logs") for i in range(10))
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(failure, 10)]
+    assert verdicts == []
+    assert set(watch._load_state(tmp_path / "error_watch.json")["alerts"]) == {failure}
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert set(watch._load_state(tmp_path / "error_watch.json")["alerts"]) == {failure}
+
+
+@pytest.mark.parametrize("reset", ["5h 2026-10-24T09:30:34Z", "primary неизвестно, secondary неизвестно"])
+def test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence(
+    reset, tmp_path, monkeypatch, capsys, scan_reports,
+):
+    expected = f"квота Codex исчерпана, сброс {reset}"
+    failure = expected + "; ошибка учёта"
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_path = tmp_path / "orchestra.db"
+    for message, task in ((expected, "V-1068"), (failure, "real-failure-control")):
+        assert watch.record_fix(SimpleNamespace(
+            db=str(db_path), signature=message, task=task, commit="example",
+            started_at=started.isoformat(), window_hours=168,
+        )) == 0
+        capsys.readouterr()
+        assert watch._load_state(tmp_path / "error_watch.json")["fixes"][watch.normalize_signature(message)] == {
+            "task": task, "commit": "example", "started_at": started.isoformat(), "window_hours": 168,
+        }
+    expected_signature = watch.normalize_signature(expected)
+    failure_signature = watch.normalize_signature(failure)
+    state_path = tmp_path / "error_watch.json"
+    assert set(watch._load_state(state_path)["fixes"]) == {expected_signature, failure_signature}
+
+    events = [
+        dict(_event(expected, source="logs"), ts=(started + timedelta(seconds=i + 1)).isoformat())
+        for i in range(10)
+    ]
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: [])
+    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=False)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    state = watch._load_state(state_path)
+    assert not state["fixes"][expected_signature].get("recurrence_reported")
+    assert state["alerts"] == {}
+
+    events.append(dict(_event(failure, source="logs"), ts=(started + timedelta(seconds=30)).isoformat()))
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert signals == []
+    assert [(item["signature"], item["task"], item["count"], item["complete"]) for item in verdicts] == [
+        (failure_signature, "real-failure-control", 1, False),
+    ]
+    state = watch._load_state(state_path)
+    assert set(state["fixes"]) == {expected_signature, failure_signature}
+    assert not state["fixes"][expected_signature].get("recurrence_reported")
+    assert state["fixes"][failure_signature]["recurrence_reported"] is True
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
+
+
+@pytest.mark.parametrize("message", ["quota rate_limit blocked", "PreToolUse: policy refusal"])
+def test_other_noise_still_counts_as_registered_fix_recurrence(message):
+    event = _event(message, source="logs")
+    assert watch.classify_noise(watch.normalize_signature(message)) is not None
+    result = watch.post_fix_verdict(
+        [event], watch.normalize_signature(message), datetime.fromisoformat(event["ts"]), 168,
+    )
+    assert result["count"] == 1
+
+
+def test_codex_refusal_fix_observation_can_complete_without_recurrence():
+    started = datetime.now(timezone.utc) - timedelta(hours=2)
+    message = "квота Codex исчерпана, сброс 5h неизвестно"
+    event = dict(_event(message, source="logs"), ts=(started + timedelta(minutes=1)).isoformat())
+    result = watch.post_fix_verdict([event], watch.normalize_signature(message), started, 1)
+    assert result["count"] == 0
+    assert result["complete"] is True
+
+
 def test_normal_listener_end_is_noise_but_running_failure_is_actionable():
     idle = "WARNING:app.session:[session-a] listen task exited without exception (silent death), status=AgentStatus.IDLE"
     waiting = "[session-b] listen task exited without exception (silent death), status=AgentStatus.WAITING"
@@ -90,7 +263,7 @@ def test_post_fix_count_uses_deduplicated_logger_events():
     assert result["count"] == 1
 
 
-def test_scan_deduplicates_repeated_runs_without_new_events(tmp_path, monkeypatch, capsys):
+def test_scan_deduplicates_repeated_runs_without_new_events(tmp_path, monkeypatch, capsys, scan_reports):
     events = [_event("database transaction failed: Locked", i) for i in range(3)]
     monkeypatch.setattr(watch, "collect_db_events", lambda *_: [])
     monkeypatch.setattr(watch, "collect_journal_events", lambda *_: events)
@@ -100,15 +273,21 @@ def test_scan_deduplicates_repeated_runs_without_new_events(tmp_path, monkeypatc
         dry_run=False,
     )
     watch.scan(args)
-    first = capsys.readouterr().out
+    capsys.readouterr()
+    signature = watch.normalize_signature(events[0]["message"])
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 3)]
+    assert verdicts == []
+    state_path = tmp_path / "error_watch.json"
+    state = watch._load_state(state_path)
+    assert state["alerts"][signature]["count"] == 3
     watch.scan(args)
-    second = capsys.readouterr().out
-    assert first.startswith("ERROR-WATCH: new findings")
-    assert "3 раз" in first
-    assert second == "No new error-watch findings\n"
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
 
 
-def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, monkeypatch, capsys):
+def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, monkeypatch, capsys, scan_reports):
     series = [
         ("/usr/bin/python: No module named pytest", ("V-783",)),
         ("transport_timeout: Message delivery outcome is ambiguous: ReadTimeout", ("V-778", "V-782")),
@@ -118,6 +297,8 @@ def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, 
     monkeypatch.setattr(watch, "collect_journal_events", lambda *_: current["events"])
 
     for index, (message, tasks) in enumerate(series):
+        scan_reports.reset_mock()
+        signature = watch.normalize_signature(message)
         args = SimpleNamespace(
             db=str(tmp_path / f"{index}.db"), window_hours=168, threshold=10,
             dry_run=False,
@@ -125,26 +306,34 @@ def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, 
         scope = str(Path(watch.__file__).resolve().parents[1]) if "No module named pytest" in message else None
         current["events"] = [_event(message, i, scope=scope) for i in range(10)]
         watch.scan(args)
-        assert capsys.readouterr().out == "No new error-watch findings\n"
+        capsys.readouterr()
+        assert not scan_reports.called
 
         current["events"] = [_event(message, i, scope=scope) for i in range(11)]
         watch.scan(args)
-        growth = capsys.readouterr().out
-        assert "11 раз" in growth
-        assert all(task in growth for task in tasks)
+        capsys.readouterr()
+        signals, verdicts = scan_reports.call_args.args
+        assert [(item["signature"], item["count"]) for item in signals] == [(signature, 11)]
+        assert signals[0]["known"]["known"]["tasks"] == list(tasks)
+        assert verdicts == []
 
         watch.scan(args)
-        assert capsys.readouterr().out == "No new error-watch findings\n"
+        capsys.readouterr()
+        assert scan_reports.call_count == 1
 
         current["events"] = [_event(message, i, scope=scope) for i in range(9)]
         watch.scan(args)
-        assert capsys.readouterr().out == "No new error-watch findings\n"
+        capsys.readouterr()
+        assert scan_reports.call_count == 1
 
         current["events"] = [_event(message, i, scope=scope) for i in range(11)]
         watch.scan(args)
-        growth_after_decline = capsys.readouterr().out
-        assert "11 раз" in growth_after_decline
-        assert all(task in growth_after_decline for task in tasks)
+        capsys.readouterr()
+        assert scan_reports.call_count == 2
+        signals, verdicts = scan_reports.call_args.args
+        assert [(item["signature"], item["count"]) for item in signals] == [(signature, 11)]
+        assert signals[0]["known"]["known"]["tasks"] == list(tasks)
+        assert verdicts == []
 
 
 def test_post_fix_verdict_reports_recurrence_and_open_window():
@@ -152,7 +341,8 @@ def test_post_fix_verdict_reports_recurrence_and_open_window():
     events = [_event("ImportError: cannot import name '_fire_sync'", 30)]
     assert watch.post_fix_verdict(events, watch.normalize_signature(events[0]["message"]), start, 24)["count"] == 1
     empty = watch.post_fix_verdict([], "some error", datetime.now(timezone.utc), 24)
-    assert empty["verdict"] == "не повторилась пока; окно наблюдения не завершено"
+    assert empty["count"] == 0
+    assert empty["complete"] is False
 
 
 def test_pytest_known_series_is_scoped_to_orchestra_for_noise_and_post_fix(tmp_path, monkeypatch, capsys):
@@ -221,7 +411,7 @@ def test_completed_post_fix_window_reports_absence():
     start = datetime.now(timezone.utc) - timedelta(hours=25)
     result = watch.post_fix_verdict([], "some error", start, 24)
     assert result["complete"] is True
-    assert result["verdict"] == "не повторилась за окно 24 ч"
+    assert result["count"] == 0
 
 
 def test_record_fix_persists_task_commit_and_process_start(tmp_path, capsys):
@@ -350,7 +540,7 @@ def test_expected_hub_outcome_beyond_output_wrapper_is_still_excluded():
         assert watch.post_fix_verdict([_event(wrapped)], signature, started, 24)["count"] == 0
 
 
-def test_hub_scan_keeps_legacy_fix_state_and_only_reports_real_recurrence(tmp_path, monkeypatch, capsys):
+def test_hub_scan_keeps_legacy_fix_state_and_only_reports_real_recurrence(tmp_path, monkeypatch, capsys, scan_reports):
     transport = "Hub worker turn failed: ReadError('connection reset')"
     signature = watch.normalize_signature(transport)
     fixes = {
@@ -370,18 +560,22 @@ def test_hub_scan_keeps_legacy_fix_state_and_only_reports_real_recurrence(tmp_pa
     stamp = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
     current["events"] = [dict(_event(m, source="logs"), ts=stamp) for m in _expected_hub_failures()]
     watch.scan(args)
-    assert capsys.readouterr().out == "No new error-watch findings\n"
+    capsys.readouterr()
+    assert not scan_reports.called
     state = watch._load_state(state_path)
     assert state["alerts"] == {}
     assert all(not fix.get("recurrence_reported") for fix in state["fixes"].values())
 
     current["events"].append(dict(_event(transport, source="logs"), ts=stamp))
     watch.scan(args)
-    output = capsys.readouterr().out
-    assert "post-fix V-1040 example: повторилась 1 раз" in output
-    assert f"сигнатура: {signature}" in output
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert signals == []
+    assert [(item["signature"], item["count"]) for item in verdicts] == [(signature, 1)]
     state = watch._load_state(state_path)
     assert set(state["fixes"]) == set(fixes)
     assert {key for key, fix in state["fixes"].items() if fix.get("recurrence_reported")} == {signature}
     watch.scan(args)
-    assert capsys.readouterr().out == "No new error-watch findings\n"
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state

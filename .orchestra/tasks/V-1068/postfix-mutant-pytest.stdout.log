@@ -1,0 +1,105 @@
+[Publication redaction: private identifier replaced; original stdout retained locally.]
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_ test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence[5h 2026-10-24T09:30:34Z] _
+
+reset = '5h 2026-10-24T09:30:34Z'
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1068/tmp/pytest-of-<private-identifier>/pytest-2/test_record_fix_then_scan_igno0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ad0d89d3d70>
+capsys = <_pytest.capture.CaptureFixture object at 0x7ad0d4df2060>
+
+    @pytest.mark.parametrize("reset", ["5h 2026-10-24T09:30:34Z", "primary неизвестно, secondary неизвестно"])
+    def test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence(
+        reset, tmp_path, monkeypatch, capsys,
+    ):
+        expected = f"квота Codex исчерпана, сброс {reset}"
+        failure = expected + "; ошибка учёта"
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        db_path = tmp_path / "orchestra.db"
+        for message, task in ((expected, "V-1068"), (failure, "real-failure-control")):
+            assert watch.record_fix(SimpleNamespace(
+                db=str(db_path), signature=message, task=task, commit="example",
+                started_at=started.isoformat(), window_hours=168,
+            )) == 0
+            assert f"Зарегистрирован фикс {task} example:" in capsys.readouterr().out
+        expected_signature = watch.normalize_signature(expected)
+        failure_signature = watch.normalize_signature(failure)
+        state_path = tmp_path / "error_watch.json"
+        assert set(watch._load_state(state_path)["fixes"]) == {expected_signature, failure_signature}
+    
+        events = [
+            dict(_event(expected, source="logs"), ts=(started + timedelta(seconds=i + 1)).isoformat())
+            for i in range(10)
+        ]
+        monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: [])
+        args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=False)
+        assert watch.scan(args) == 0
+>       assert capsys.readouterr().out == "No new error-watch findings\n"
+E       AssertionError: assert 'ERROR-WATCH:...T09:<N>:34Z\n' == 'No new error...ch findings\n'
+E         
+E         - No new error-watch findings
+E         + ERROR-WATCH: new findings
+E         + post-fix V-1068 example: повторилась 10 раз; сигнатура: квота Codex исчерпана, сброс 5h <N>-<N>-24T09:<N>:34Z
+
+tests/test_error_watch.py:168: AssertionError
+_ test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence[primary \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e, secondary \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e] _
+
+reset = 'primary неизвестно, secondary неизвестно'
+tmp_path = PosixPath('/remote/workspace/.orchestra/tasks/V-1068/tmp/pytest-of-<private-identifier>/pytest-2/test_record_fix_then_scan_igno1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ad0d6b2c260>
+capsys = <_pytest.capture.CaptureFixture object at 0x7ad0d4d72c60>
+
+    @pytest.mark.parametrize("reset", ["5h 2026-10-24T09:30:34Z", "primary неизвестно, secondary неизвестно"])
+    def test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence(
+        reset, tmp_path, monkeypatch, capsys,
+    ):
+        expected = f"квота Codex исчерпана, сброс {reset}"
+        failure = expected + "; ошибка учёта"
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        db_path = tmp_path / "orchestra.db"
+        for message, task in ((expected, "V-1068"), (failure, "real-failure-control")):
+            assert watch.record_fix(SimpleNamespace(
+                db=str(db_path), signature=message, task=task, commit="example",
+                started_at=started.isoformat(), window_hours=168,
+            )) == 0
+            assert f"Зарегистрирован фикс {task} example:" in capsys.readouterr().out
+        expected_signature = watch.normalize_signature(expected)
+        failure_signature = watch.normalize_signature(failure)
+        state_path = tmp_path / "error_watch.json"
+        assert set(watch._load_state(state_path)["fixes"]) == {expected_signature, failure_signature}
+    
+        events = [
+            dict(_event(expected, source="logs"), ts=(started + timedelta(seconds=i + 1)).isoformat())
+            for i in range(10)
+        ]
+        monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+        monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+        monkeypatch.setattr(watch, "_existing_refs", lambda _: [])
+        args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=False)
+        assert watch.scan(args) == 0
+>       assert capsys.readouterr().out == "No new error-watch findings\n"
+E       AssertionError: assert 'ERROR-WATCH:... неизвестно\n' == 'No new error...ch findings\n'
+E         
+E         - No new error-watch findings
+E         + ERROR-WATCH: new findings
+E         + post-fix V-1068 example: повторилась 10 раз; сигнатура: квота Codex исчерпана, сброс primary неизвестно, secondary неизвестно
+
+tests/test_error_watch.py:168: AssertionError
+______ test_codex_refusal_fix_observation_can_complete_without_recurrence ______
+
+    def test_codex_refusal_fix_observation_can_complete_without_recurrence():
+        started = datetime.now(timezone.utc) - timedelta(hours=2)
+        message = "квота Codex исчерпана, сброс 5h неизвестно"
+        event = dict(_event(message, source="logs"), ts=(started + timedelta(minutes=1)).isoformat())
+        result = watch.post_fix_verdict([event], watch.normalize_signature(message), started, 1)
+>       assert result["count"] == 0
+E       assert 1 == 0
+
+tests/test_error_watch.py:202: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence[5h 2026-10-24T09:30:34Z]
+FAILED tests/test_error_watch.py::test_record_fix_then_scan_ignores_codex_refusal_but_reports_real_recurrence[primary \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e, secondary \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e]
+FAILED tests/test_error_watch.py::test_codex_refusal_fix_observation_can_complete_without_recurrence
+3 failed, 45 deselected in 3.55s

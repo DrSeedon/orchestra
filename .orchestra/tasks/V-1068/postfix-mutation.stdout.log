@@ -1,0 +1,4 @@
+Mutation: removed only the Codex-specific post_fix_verdict exclusion; noise matcher unchanged.
+Command: uv run --frozen python -m pytest tests/test_error_watch.py -q -k "record_fix_then_scan_ignores_codex or codex_refusal_fix_observation"
+Result: 3 failed, 45 deselected in 3.55s
+Source restored exactly.
