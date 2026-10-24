@@ -336,6 +336,7 @@ class HubBackend:
         state, run_id = self._state, self._run_id
         if state and state.thread_id and run_id:
             try:
+                await hw.check_workspace_file_policy(self._ssh, state)
                 mc = await self._client()
                 wire = await self._wire_message(mc, state, message)
                 await mc.tool_call("t3_thread_send", {
@@ -355,6 +356,8 @@ class HubBackend:
             raise ValueError(f"unknown hub model '{model}'")
         if self._turn_active:
             raise RuntimeError("cannot retarget a hub worker while a turn is active")
+        if self._state is not None:
+            await hw.check_workspace_file_policy(self._ssh, self._state)
         from app.hub_pool import require_hub_capacity
 
         await require_hub_capacity(model)
@@ -453,6 +456,13 @@ class HubBackend:
         from app.hub_pool import require_hub_capacity
         from app.quota_gate import QuotaGateError
 
+        # Check retained evidence before replacing a released record or cleaning
+        # up an older workspace. A new thread must not erase the incident trail.
+        retained = hw.states_for_worktree(self.cwd)
+        if self._state is not None:
+            self._state.assert_file_policy()
+        for previous in retained:
+            previous.assert_file_policy()
         try:
             warning = await require_hub_capacity(self.model)
         except QuotaGateError as exc:
@@ -463,6 +473,9 @@ class HubBackend:
         mc = await self._client()
         ssh = self._ssh
         assert ssh is not None
+        for previous in retained:
+            if previous.remote_dir:
+                await hw.check_workspace_file_policy(ssh, previous)
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
@@ -479,6 +492,8 @@ class HubBackend:
             state.save()   # before any hub write, so a crash leaves a record the sweep can release
             try:
                 await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc)
+            except hw.HubFilePolicyError:
+                raise
             except Exception as exc:
                 logger.warning("hub previous workspace release incomplete (state kept for sweep): %s", exc)
         # A record exists from the first attempt on, but the workspace only from the first upload that
@@ -497,6 +512,7 @@ class HubBackend:
             prompt = self._prompt(message, first=not state.thread_id)
             async with _turn_slots():
                 try:
+                    await hw.check_workspace_file_policy(ssh, state)
                     run_id = await self._start(mc, state, prompt)
                 except MultiCodeError as exc:
                     if not _workspace_lost(exc):
@@ -561,6 +577,7 @@ class HubBackend:
                             return
                         # Never use _start here: its refused-thread fallback can change threads.
                         # An uncertain send is propagated, never replayed.
+                        await hw.check_workspace_file_policy(ssh, state)
                         wire = await self._wire_message(mc, state, prompt)
                         sent = await mc.tool_call("t3_thread_send", {
                             "threadId": state.thread_id, "message": wire, "mode": "auto"})
@@ -579,6 +596,8 @@ class HubBackend:
                          plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
         """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
         notes: list[str] = []
+        hw.assert_file_policy(plan.manifest)
+        await hw.check_workspace_file_policy(ssh, state)
         # Freeze old upload provenance before refreshing the mutable sync baseline.
         hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
         self._uv_ready = False
@@ -795,12 +814,17 @@ class HubBackend:
 
     async def _sync_back(self, ssh: hw.HubSsh, state: hw.WorkspaceState, root: Path,
                          scratch: Path) -> str:
+        await hw.check_workspace_file_policy(ssh, state)
         out = scratch / "out.tar"
         await ssh.get(state.remote_dir, out)
         before = dict(state.manifest)
         hw.capture_inputs(root, state, state.manifest)
         result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest,
                                         inputs=state.input_manifest)
+        if any(hw._company_path(rel) for rel, _ in result.rejected):
+            # The snapshot is new evidence, including if someone later removes
+            # the file. Preserve it as a latch without rewriting old provenance.
+            state.file_policy_blocked = True
         no_work = not (result.changed or result.deleted or result.conflicts
                        or result.rejected or result.outbox or result.manifest != before)
         state.manifest = result.manifest
@@ -914,6 +938,8 @@ async def release_for_worktree(worktree: str, *, keep_ws_id: str = "",
             try:
                 await hw.release_workspace(state, ssh, mc)
                 cleaned.append(state.ws_id)
+            except hw.HubFilePolicyError:
+                raise
             except hw.HubWorkspaceError as exc:
                 errors.append(f"{state.ws_id}: {exc}")
     finally:

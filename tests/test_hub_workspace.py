@@ -247,6 +247,9 @@ class FakeSsh(hw.HubSsh):
         shutil.copytree(source, dest, dirs_exist_ok=True)
 
     async def run(self, remote, **kw):
+        if remote.startswith("if test -L "):
+            # Run the production name-only guard against synthetic local copies.
+            return subprocess.run(["bash", "-c", remote], check=True, capture_output=True).stdout
         if remote.startswith("mkdir -p --"):
             Path(shlex_split(remote)[3]).mkdir(parents=True, exist_ok=True)
             return b""

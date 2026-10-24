@@ -1,0 +1,55 @@
+{
+  "method": "literal publication-boundary identifier replacement only; originals private",
+  "copies": [
+    {
+      "file": "permission-mutation-check.txt",
+      "original_sha256": "687521b23c58d1b0f2b50e96a89bf24c9805600646599edd26785f161f9e6d22",
+      "public_sha256": "bbf3263b8632e4d78aaa6d09ca9933ff13beb921dcc0b5a31775605ea22df97c"
+    },
+    {
+      "file": "final-source-check.txt",
+      "original_sha256": "a36f69d588a3101387d5b1a7cad8426eeb1c2205361f94373741a756d0c3f5e6",
+      "public_sha256": "a0e23aa148fdd421843df797a70470bb4ff2e0cb8a65361699a289be29690d19"
+    },
+    {
+      "file": "baseline-check.txt",
+      "original_sha256": "5d01bd5bb70405b94b422343b013ed8e557815965574a7ab498bc4fd62907d02",
+      "public_sha256": "11cc900719267578ba30dfd8418961fc885164c27bd864061f7372f153144a2d"
+    },
+    {
+      "file": "import-check.txt",
+      "original_sha256": "9de2dbe5b5679bc3b161f80bb6b1d5e691ddf3ad96cb84259eeda4c749f395d6",
+      "public_sha256": "96fb8989df0836548bd22a240d449a14c9441b02bc9ff152722160b925b47ac3"
+    },
+    {
+      "file": "focused-check.txt",
+      "original_sha256": "acb88826467bae09209f8f1ecf3ce6f8bf2e7e4c9c09abe0e7ed04711119e78c",
+      "public_sha256": "c978c8ed34e92c9b9e54b5393ad9c60d2b270fd473b4a7d2995673df7549d78e"
+    },
+    {
+      "file": "final-regressions.txt",
+      "original_sha256": "7c924882d5092ccb8caf1cbcc6e3fd8cd5091841364231b00529bb840a193cf0",
+      "public_sha256": "3650a47864a2ebe86f00240a767c1734030a6cfafb08c8df645a095d19c1c259"
+    },
+    {
+      "file": "focused-recheck.txt",
+      "original_sha256": "061e5a9b6bbda24d47b20289c9e37e91fd27bacf0c695a29a3be6d0ee0a9e99d",
+      "public_sha256": "96e1a9f4bcf522519fc95136e840808b3f108e4baa6cc5f1669bf1e60e8b8dd1"
+    },
+    {
+      "file": "mutation-check.txt",
+      "original_sha256": "bd69df29a750e70d61ac74eede47fde0f68eca3c522b5f5d93e6be1d9c435bd0",
+      "public_sha256": "efcf6952d4064674639b5d5a3c1d82c785bb8229a2421819bdc0a0c8ee5249f2"
+    },
+    {
+      "file": "permission-before-fix.txt",
+      "original_sha256": "7f06d84ab9b898503c23b22ebbe866436e34f3b344000292d2b2eb016d42a026",
+      "public_sha256": "958fa1f47c570c6baacfe88ea9b3c2f7abe4631e10a734dd8fe38aecfb69c7d6"
+    },
+    {
+      "file": "report.md",
+      "original_sha256": "a49f9f246872baac6e3ef75fc717695edf3baba6ffcaf8ccefa596b16dff22a6",
+      "public_sha256_before_host_note": "e2a617e2cb3d9462fe365c9354735c81fdd03ab3ba0e38fc4449543537706942"
+    }
+  ]
+}

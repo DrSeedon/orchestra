@@ -1,0 +1,5 @@
+Unchanged delivered source/test/CHANGELOG hashes: 10.
+Original stdout files retained byte-for-byte with verified line counts: 13.
+Parsed Python source/artifact files: 11. Credential-shape findings: 0.
+Compact report: 125 lines, 17620 UTF-8 bytes.
+Behavioral tests not rerun: task-artifact reformat only. No production changes or runtime operations.

@@ -153,11 +153,35 @@ class HubWorkspaceError(RuntimeError):
     """Safe-to-display failure of the broker."""
 
 
+class HubFilePolicyError(HubWorkspaceError):
+    """Retained private-file evidence requires owner review, never automatic cleanup."""
+
+
+_COMPANY_FILE = "company-data.md"
+_COMPANY_REASON = "private company record (COMPANY-DATA.md)"
+_COMPANY_REFUSAL = (
+    "hub file policy: COMPANY-DATA.md evidence in an existing copy or upload history; "
+    "provider work refused. Retained files, hashes, provenance and thread history require "
+    "owner review; nothing was automatically sanitized or deleted."
+)
+
+
+def _company_path(rel: str) -> bool:
+    return any(part.casefold() == _COMPANY_FILE for part in rel.replace("\\", "/").split("/"))
+
+
+def assert_file_policy(*path_sets) -> None:
+    if any(_company_path(rel) for paths in path_sets for rel in paths):
+        raise HubFilePolicyError(_COMPANY_REFUSAL)
+
+
 # ── credential exclusion ─────────────────────────────────────────────────────────────
 
 
 def blocked_reason(rel: str) -> str | None:
     """Why a worktree-relative path must not cross the boundary, by name alone."""
+    if _company_path(rel):
+        return _COMPANY_REASON
     if rel == OUTBOX_NAME:
         return "broker outbox file"
     parts = rel.split("/")
@@ -443,6 +467,7 @@ def _file_has_secret(path: Path, known: list[str]) -> bool:
 
 
 def write_tar(root: Path, rels: list[str], out: Path) -> None:
+    assert_file_policy(rels)
     with tarfile.open(out, "w") as archive:
         for rel in rels:
             full = root / rel
@@ -688,6 +713,34 @@ class HubSsh:
         await self.run(f"mkdir -p -- {shlex.quote(dest)} && "
                        f"cp -a --reflink=auto -- {shlex.quote(source)}/. {shlex.quote(dest)}/", timeout=1800)
 
+    async def assert_file_policy(self, remote_dir: str) -> None:
+        """Read names only in this exact broker copy, returning no inventory or contents.
+
+        Only lstat's ENOENT means missing; shell test -e also returns false on
+        EACCES. No pipeline hides inspection/find/transport failures. Missing
+        directories are allowed for first upload and lost-workspace recovery.
+        """
+        _check_remote(remote_dir)
+        q = shlex.quote(remote_dir)
+        probe = (
+            "import os, sys\n"
+            "try:\n"
+            "    os.lstat(sys.argv[1])\n"
+            "except FileNotFoundError:\n"
+            "    sys.exit(3)\n"
+            "except OSError as error:\n"
+            "    print(f'hub file-policy path inspection failed (errno {error.errno})', file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
+        found = await self.run(
+            f"if test -L {q}; then printf x; else "
+            f"python3 -c {shlex.quote(probe)} {q}; policy_rc=$?; "
+            f'case "$policy_rc" in 0) test -d {q} && '
+            f"find {q} -iname {_COMPANY_FILE} -printf x -quit;; "
+            '3) :;; *) exit "$policy_rc";; esac; fi')
+        if found:
+            raise HubFilePolicyError(_COMPANY_REFUSAL)
+
     async def remove(self, remote_dir: str) -> None:
         _check_remote(remote_dir, base_ok=False)
         root = await self.root()
@@ -759,6 +812,7 @@ def apply_changes(tar_path: Path, root: Path, manifest: dict[str, str],
     """Import a hub workspace snapshot into the worktree, touching only regular files that
     changed relative to `manifest`, never leaving `root`, never importing credentials."""
     root = root.resolve()
+    assert_file_policy(manifest, inputs or {})
     known = known_secret_values() if known is None else known
     inputs = inputs or {}
     input_parents = _parents(inputs)
@@ -915,6 +969,7 @@ def local_delta(root: Path, plan: UploadPlan, manifest: dict[str, str], keep: fr
     .orchestra/tasks/, say): they sit outside the upload scope, but they are not stale, so they stay
     on the hub and in the manifest. Dropping them forgot their baseline, and the next turn's
     rewrite of the same file looked like a change on both sides."""
+    assert_file_policy(plan.manifest, manifest, keep)
     send = [rel for rel, digest in plan.manifest.items() if manifest.get(rel) != digest]
     drop = [rel for rel in manifest if rel not in plan.manifest and rel not in keep]
     return sorted(send), sorted(drop)
@@ -938,6 +993,12 @@ class WorkspaceState:
     activity_pos: int = 0   # live-feed cursor: timeline position already shown
     created_at: float = field(default_factory=time.time)
     input_manifest: dict[str, str] | None = None  # immutable upload-origin untracked files; None = legacy
+    file_policy_blocked: bool = False  # retained even if a foreign file is later removed by hand
+
+    def assert_file_policy(self) -> None:
+        if self.file_policy_blocked:
+            raise HubFilePolicyError(_COMPANY_REFUSAL)
+        assert_file_policy(self.manifest, self.input_manifest or {}, self.hub_made)
 
     @staticmethod
     def new_id() -> str:
@@ -970,6 +1031,7 @@ class BaseState:
     base_id: str
     scope: str
     manifest: dict[str, str] = field(default_factory=dict)
+    file_policy_blocked: bool = False
 
     def path(self) -> Path:
         return STATE_DIR / f"base-{self.base_id}.json"
@@ -992,6 +1054,21 @@ class BaseState:
 _BASE_LOCKS: dict[str, asyncio.Lock] = {}
 
 
+async def check_workspace_file_policy(ssh: HubSsh | None, state: WorkspaceState) -> None:
+    state.assert_file_policy()
+    retained = WorkspaceState.load(state.ws_id)
+    if retained is not None:
+        retained.assert_file_policy()
+    if ssh is None:
+        raise HubWorkspaceError("hub workspace transport is unavailable for file-policy check")
+    try:
+        await ssh.assert_file_policy(state.remote_dir)
+    except HubFilePolicyError:
+        state.file_policy_blocked = True
+        state.save()
+        raise
+
+
 async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadPlan,
                               dest_dir: str) -> tuple[int, int]:
     """Make the project's warm copy on the hub match `plan` by sending only what changed, then
@@ -1002,7 +1079,17 @@ async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadP
     lock = _BASE_LOCKS.setdefault(base_id_for(scope), asyncio.Lock())
     async with lock:
         base = BaseState.load(scope)
+        if base.file_policy_blocked:
+            raise HubFilePolicyError(_COMPANY_REFUSAL)
+        assert_file_policy(base.manifest, plan.manifest)
         base_dir = await ssh.base_dir_for(scope)
+        await ssh.assert_file_policy(dest_dir)
+        try:
+            await ssh.assert_file_policy(base_dir)
+        except HubFilePolicyError:
+            base.file_policy_blocked = True
+            base.save()
+            raise
         send, drop = local_delta(root, plan, base.manifest)
         scratch = local_scratch()
         try:
@@ -1013,6 +1100,12 @@ async def provision_from_base(ssh: HubSsh, root: Path, scope: str, plan: UploadP
             else:
                 await ssh.run(f"mkdir -p -- {shlex.quote(base_dir)}")
             await ssh.delete_files(base_dir, drop)
+            try:
+                await ssh.assert_file_policy(base_dir)
+            except HubFilePolicyError:
+                base.file_policy_blocked = True
+                base.save()
+                raise
             base.manifest = dict(plan.manifest)
             base.save()
             await ssh.copy_dir(base_dir, dest_dir)
@@ -1211,7 +1304,10 @@ async def release_workspace(state: WorkspaceState, ssh: HubSsh | None = None, mc
     purges their messages, turn items and attachments (only an id/title tombstone stays in its
     own event store). What T3 does not own — the workspace directory and the providers' own
     transcripts — is removed here. The local record is deleted only after the check passes."""
+    state.assert_file_policy()
     ssh = ssh or HubSsh.from_env()
+    if ssh is not None and state.remote_dir:
+        await check_workspace_file_policy(ssh, state)
     errors: list[str] = []
     if mcp is not None:
         if state.thread_id:

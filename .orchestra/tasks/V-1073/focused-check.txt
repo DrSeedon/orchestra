@@ -1,0 +1,493 @@
+........................................................................ [ 51%]
+.................................................FFF...FF.FFFF.F..FFF  [100%]
+=================================== FAILURES ===================================
+____________ test_retarget_resolves_target_policy_and_claude_option ____________
+
+    @pytest.mark.asyncio
+    async def test_retarget_resolves_target_policy_and_claude_option():
+        backend, hub, state = setup(pipeline="default", role="worker")
+        await backend._start(hub, state, "task")
+>       await backend.retarget_model("hub-claude-opus-5-5")
+
+tests/test_hub_effort.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:367: in retarget_model
+    role = get_role(self._pipeline, self._role)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+___________ test_hub_policy_matches_native_claude[orchestrator-high] ___________
+
+role = 'orchestrator', opus = 'high'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_____________ test_hub_policy_matches_native_claude[worker-medium] _____________
+
+role = 'worker', opus = 'medium'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_ HubWorkspaceLifecycleTests.test_fresh_backend_releases_all_previous_copies_only _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_fresh_backend_releases_all_previous_copies_only>
+
+    async def test_fresh_backend_releases_all_previous_copies_only(self):
+        old = self.workspace("a")
+        old.uploaded = True
+        old.save()
+        older = self.workspace("b")
+        foreign_tree = self.root / "other-worktree"
+        foreign_tree.mkdir()
+        foreign = self.workspace("c", foreign_tree)
+>       new = await self.new_turn()
+              ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:183: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:158: in new_turn
+    events = [event async for event in backend._run_turn("continue")]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_hub.py:478: in _run_turn
+    await hw.check_workspace_file_policy(ssh, previous)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb33c28a0>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...b_made=[], uploaded=True, activity_pos=0, created_at=1792855070.753133, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+__ HubWorkspaceLifecycleTests.test_in_place_hub_model_switch_keeps_workspace ___
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_in_place_hub_model_switch_keeps_workspace>
+
+    async def test_in_place_hub_model_switch_keeps_workspace(self):
+        from app import hub_pool
+    
+        state = self.workspace("a")
+        backend = hub.HubBackend("hub-claude-opus-5-5", str(self.worktree))
+        backend._state, backend._mc = state, self.mc
+        self.patch(hub_pool, "require_hub_capacity", AsyncMock(return_value=None))
+>       await backend.retarget_model("hub-gpt-6.1-sol")
+
+tests/test_hub_switch_orphan.py:256: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:360: in retarget_model
+    await hw.check_workspace_file_policy(self._ssh, self._state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = None
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...made=[], uploaded=False, activity_pos=0, created_at=1792855070.8170843, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+_ HubWorkspaceLifecycleTests.test_release_failure_does_not_block_new_turn_and_sweep_retries _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_release_failure_does_not_block_new_turn_and_sweep_retries>
+
+    async def test_release_failure_does_not_block_new_turn_and_sweep_retries(self):
+        old = self.workspace("a")
+        self.ssh.fail_remove.add(old.remote_dir)
+        with self.assertLogs(hub.logger, level="WARNING") as logged:
+>           new = await self.new_turn()
+                  ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:202: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:158: in new_turn
+    events = [event async for event in backend._run_turn("continue")]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_hub.py:478: in _run_turn
+    await hw.check_workspace_file_policy(ssh, previous)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb146a810>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...made=[], uploaded=False, activity_pos=0, created_at=1792855070.8614821, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+_ HubWorkspaceLifecycleTests.test_release_for_worktree_keeps_replacement_and_borrowed_client _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_release_for_worktree_keeps_replacement_and_borrowed_client>
+
+    async def test_release_for_worktree_keeps_replacement_and_borrowed_client(self):
+        old = self.workspace("a")
+        current = self.workspace("b")
+>       released = await hub.release_for_worktree(
+            str(self.worktree), keep_ws_id=current.ws_id, ssh=self.ssh, mc=self.mc)
+
+tests/test_hub_switch_orphan.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:937: in release_for_worktree
+    await hw.release_workspace(state, ssh, mc)
+app/hub_workspace.py:1293: in release_workspace
+    await check_workspace_file_policy(ssh, state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb33c1a90>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...made=[], uploaded=False, activity_pos=0, created_at=1792855070.9255717, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+_ HubWorkspaceLifecycleTests.test_reprovision_after_failed_upload_releases_previous _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_reprovision_after_failed_upload_releases_previous>
+
+    async def test_reprovision_after_failed_upload_releases_previous(self):
+        old = self.workspace("a")
+        self.assertFalse(old.uploaded)
+>       new = await self.new_turn()
+              ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:158: in new_turn
+    events = [event async for event in backend._run_turn("continue")]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_hub.py:478: in _run_turn
+    await hw.check_workspace_file_policy(ssh, previous)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb37b9370>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/..._made=[], uploaded=False, activity_pos=0, created_at=1792855070.981971, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+__ HubWorkspaceLifecycleTests.test_sweep_keeps_failed_record_and_current_copy __
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_sweep_keeps_failed_record_and_current_copy>
+
+    async def test_sweep_keeps_failed_record_and_current_copy(self):
+        old = self.workspace("a")
+        current = self.workspace("b")
+        self.ssh.fail_remove.add(old.remote_dir)
+>       report = await hub.sweep_orphans({str(self.worktree): current.ws_id})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:237: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:985: in sweep_orphans
+    await hw.release_workspace(state, ssh, mc)
+app/hub_workspace.py:1293: in release_workspace
+    await check_workspace_file_policy(ssh, state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb1469640>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...made=[], uploaded=False, activity_pos=0, created_at=1792855071.0368814, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+_ HubWorkspaceLifecycleTests.test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn (session_id='') _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn>
+
+    async def test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn(self):
+        for sid in ("", "local-session"):
+            with self.subTest(session_id=sid):
+                old = self.workspace("a")
+>               report = await hub.sweep_orphans({str(self.worktree): sid})
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:229: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:985: in sweep_orphans
+    await hw.release_workspace(state, ssh, mc)
+app/hub_workspace.py:1293: in release_workspace
+    await check_workspace_file_policy(ssh, state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb145e2d0>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...made=[], uploaded=False, activity_pos=0, created_at=1792855071.1045294, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+_ HubWorkspaceLifecycleTests.test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn (session_id='local-session') _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn>
+
+    async def test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn(self):
+        for sid in ("", "local-session"):
+            with self.subTest(session_id=sid):
+>               old = self.workspace("a")
+                      ^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:228: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:106: in workspace
+    Path(state.remote_dir).mkdir()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/tmpsrjy7_f4/remote/hub-aaaaaaaaaaaaaaaa')
+mode = 511, parents = False, exist_ok = False
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        """
+        Create a new directory at this given path.
+        """
+        try:
+>           os.mkdir(self, mode)
+E           FileExistsError: [Errno 17] File exists: '/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/tmpsrjy7_f4/remote/hub-aaaaaaaaaaaaaaaa'
+
+/usr/lib/python3.12/pathlib.py:1313: FileExistsError
+_ HubWorkspaceLifecycleTests.test_sweep_uses_current_id_even_for_existing_worktree _
+
+self = <tests.test_hub_switch_orphan.HubWorkspaceLifecycleTests testMethod=test_sweep_uses_current_id_even_for_existing_worktree>
+
+    async def test_sweep_uses_current_id_even_for_existing_worktree(self):
+        old = self.workspace("a")
+        current = self.workspace("b")
+        alias = self.root / "worktree-alias"
+        alias.symlink_to(self.worktree, target_is_directory=True)
+>       report = await hub.sweep_orphans({str(alias): current.ws_id})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_switch_orphan.py:218: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:985: in sweep_orphans
+    await hw.release_workspace(state, ssh, mc)
+app/hub_workspace.py:1293: in release_workspace
+    await check_workspace_file_policy(ssh, state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssh = <tests.test_hub_switch_orphan.FakeSsh object at 0x7b5eb37b8dd0>
+state = WorkspaceState(ws_id='hub-aaaaaaaaaaaaaaaa', worktree='/home/<private-identifier>/orchestra-ws/vmi3407579/...made=[], uploaded=False, activity_pos=0, created_at=1792855071.1874843, input_manifest=None, file_policy_blocked=False)
+
+    async def check_workspace_file_policy(ssh: HubSsh, state: WorkspaceState) -> None:
+        state.assert_file_policy()
+        try:
+>           await ssh.assert_file_policy(state.remote_dir)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+
+app/hub_workspace.py:1046: AttributeError
+___ HubSessionSwitchTests.test_hub_to_local_releases_after_persisted_switch ____
+
+self = <tests.test_hub_switch_orphan.HubSessionSwitchTests testMethod=test_hub_to_local_releases_after_persisted_switch>
+
+    async def test_hub_to_local_releases_after_persisted_switch(self):
+        self.old = self.workspace("a")
+        session, result = await self.switch_runtime()
+        self.assertTrue(result["ok"])
+        self.assertEqual(session.session_id, "")
+>       self.assert_released(self.old)
+
+tests/test_hub_switch_orphan.py:285: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:113: in assert_released
+    self.assertFalse(state.path().exists())
+E   AssertionError: True is not false
+----------------------------- Captured stderr call -----------------------------
+[worker] previous hub workspace release incomplete (state kept for sweep): AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:4079 [worker] previous hub workspace release incomplete (state kept for sweep): AttributeError: 'FakeSsh' object has no attribute 'assert_file_policy'
+_ HubPeriodicSweepTests.test_loaded_runtime_switch_overrides_stale_db_workspace_id _
+
+self = <tests.test_hub_switch_orphan.HubPeriodicSweepTests testMethod=test_loaded_runtime_switch_overrides_stale_db_workspace_id>
+
+    async def test_loaded_runtime_switch_overrides_stale_db_workspace_id(self):
+>       await self.sweep_snapshot("", False)
+
+tests/test_hub_switch_orphan.py:331: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:322: in sweep_snapshot
+    self.assert_released(old)
+tests/test_hub_switch_orphan.py:113: in assert_released
+    self.assertFalse(state.path().exists())
+E   AssertionError: True is not false
+----------------------------- Captured stderr call -----------------------------
+hub sweep failed: 'FakeSsh' object has no attribute 'assert_file_policy'
+------------------------------ Captured log call -------------------------------
+WARNING  app.manager:manager.py:2600 hub sweep failed: 'FakeSsh' object has no attribute 'assert_file_policy'
+_ HubPeriodicSweepTests.test_running_backend_workspace_is_protected_before_db_catches_up _
+
+self = <tests.test_hub_switch_orphan.HubPeriodicSweepTests testMethod=test_running_backend_workspace_is_protected_before_db_catches_up>
+
+    async def test_running_backend_workspace_is_protected_before_db_catches_up(self):
+>       await self.sweep_snapshot("hub-aaaaaaaaaaaaaaaa", True)
+
+tests/test_hub_switch_orphan.py:328: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_hub_switch_orphan.py:322: in sweep_snapshot
+    self.assert_released(old)
+tests/test_hub_switch_orphan.py:113: in assert_released
+    self.assertFalse(state.path().exists())
+E   AssertionError: True is not false
+----------------------------- Captured stderr call -----------------------------
+hub sweep failed: 'FakeSsh' object has no attribute 'assert_file_policy'
+------------------------------ Captured log call -------------------------------
+WARNING  app.manager:manager.py:2600 hub sweep failed: 'FakeSsh' object has no attribute 'assert_file_policy'
+=========================== short test summary info ============================
+FAILED tests/test_hub_effort.py::test_retarget_resolves_target_policy_and_claude_option
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[orchestrator-high]
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[worker-medium]
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_fresh_backend_releases_all_previous_copies_only
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_in_place_hub_model_switch_keeps_workspace
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_release_failure_does_not_block_new_turn_and_sweep_retries
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_release_for_worktree_keeps_replacement_and_borrowed_client
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_reprovision_after_failed_upload_releases_previous
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_sweep_keeps_failed_record_and_current_copy
+SUBFAILED(session_id='') tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn
+SUBFAILED(session_id='local-session') tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_sweep_releases_hub_copy_after_switch_to_local_or_before_next_turn
+FAILED tests/test_hub_switch_orphan.py::HubWorkspaceLifecycleTests::test_sweep_uses_current_id_even_for_existing_worktree
+FAILED tests/test_hub_switch_orphan.py::HubSessionSwitchTests::test_hub_to_local_releases_after_persisted_switch
+FAILED tests/test_hub_switch_orphan.py::HubPeriodicSweepTests::test_loaded_runtime_switch_overrides_stale_db_workspace_id
+FAILED tests/test_hub_switch_orphan.py::HubPeriodicSweepTests::test_running_backend_workspace_is_protected_before_db_catches_up
+15 failed, 128 passed in 11.64s

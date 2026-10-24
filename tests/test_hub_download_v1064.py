@@ -159,7 +159,12 @@ async def test_transport_only_retry_commits_current_outputs_once_and_keeps_input
     assert _git(repo, "rev-parse", "HEAD") == head
     assert state.ws_id == remote.name and state.thread_id == "retained-thread"
     assert state.project_id == "retained-project" and remote.is_dir()
-    assert all(command.startswith("tar -cf") for command, _ in ssh.calls)
+    # Recovery may inspect names before downloading; it still performs no
+    # provisioning, model call, upload or deletion (all forbidden above).
+    downloads = [command for command, _ in ssh.calls if command.startswith("tar -cf")]
+    inspections = [command for command, _ in ssh.calls if command.startswith("if test -L ")]
+    assert len(downloads) == len(inspections) == 2 and len(ssh.calls) == 4
+    assert all(stdin is None for _, stdin in ssh.calls)
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,234 @@
+........................................................................ [ 17%]
+........................................................................ [ 34%]
+...F.................................................................... [ 51%]
+........................................................................ [ 69%]
+..............F......................................................... [ 86%]
+....................................FFF.................               [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-5/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-5/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x788fa2adc3b0>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+>       assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E       AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+
+tests/test_hub_workspace.py:1496: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:290 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_ test_transport_only_retry_commits_current_outputs_once_and_keeps_input_originals _
+
+repo = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-5/test_transport_only_retry_comm0/wt')
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-5/test_transport_only_retry_comm0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x788fa0840ad0>
+
+    @pytest.mark.asyncio
+    async def test_transport_only_retry_commits_current_outputs_once_and_keeps_input_originals(repo, tmp_path, monkeypatch):
+        monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+        original = put(repo, "inputs/original.bin", b"\0immutable original")
+        manifest = hw.plan_upload(repo, known=[]).manifest
+        remote = tmp_path / "hub-0123456789abcdef"
+        for rel in manifest:
+            put(remote, rel, (repo / rel).read_bytes())
+        state = hw.WorkspaceState(remote.name, str(repo), str(remote), manifest=dict(manifest),
+                                  uploaded=True, thread_id="retained-thread", project_id="retained-project")
+        hw.capture_inputs(repo, state, manifest)
+        state.save()
+        # Recovery starts from a persisted pre-failure record; the hub already holds turn outputs.
+        state = hw.WorkspaceState.load(state.ws_id)
+        assert state.input_manifest == {"inputs/original.bin": hw.sha256_file(original)}
+        wanted = {"calc.py": b"current fixed code\n", "results/output.json": b'{}\n',
+                  ".orchestra/tasks/V-1/report.md": b"current report\n", "media/demo.mp4": b"\0current video"}
+        for rel, data in wanted.items():
+            put(remote, rel, data)
+        put(remote, "nested/node_modules/pkg/cache", b"cache")
+        backend = backend_hub.HubBackend("hub-gpt-6.1-sol", str(repo))
+        for name in ("_client", "_provision", "_start", "send", "connect"):
+            monkeypatch.setattr(backend, name, AsyncMock(side_effect=AssertionError(name)))
+        ssh = ShellSsh()
+        monkeypatch.setattr(ssh, "put", AsyncMock(side_effect=AssertionError("upload refresh")))
+        monkeypatch.setattr(ssh, "ensure_uv", AsyncMock(side_effect=AssertionError("provision uv")))
+        monkeypatch.setattr(ssh, "delete_files", AsyncMock(side_effect=AssertionError("remote deletion")))
+        monkeypatch.setattr(ssh, "remove", AsyncMock(side_effect=AssertionError("workspace deletion")))
+        initial_count = int(_git(repo, "rev-list", "--count", "HEAD"))
+        scratch = tmp_path / "scratch"
+        scratch.mkdir()
+        note = await backend._sync_back(ssh, state, repo, scratch)
+        assert "changed 4, deleted 0, commit" in note and "return archive" in note
+        assert "NOT COMMITTED" not in note
+        assert int(_git(repo, "rev-list", "--count", "HEAD")) == initial_count + 1
+        assert set(_git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()) == set(wanted)
+        for rel, data in wanted.items():
+            assert (repo / rel).read_bytes() == data
+        assert original.read_bytes() == b"\0immutable original"
+        assert _git(repo, "ls-files", "inputs/original.bin") == ""
+        assert state.input_manifest == hw.WorkspaceState.load(state.ws_id).input_manifest
+        head = _git(repo, "rev-parse", "HEAD")
+        note = await backend._sync_back(ssh, state, repo, scratch)
+        assert "changed 0, deleted 0" in note
+        assert _git(repo, "rev-parse", "HEAD") == head
+        assert state.ws_id == remote.name and state.thread_id == "retained-thread"
+        assert state.project_id == "retained-project" and remote.is_dir()
+>       assert all(command.startswith("tar -cf") for command, _ in ssh.calls)
+E       assert False
+E        +  where False = all(<generator object test_transport_only_retry_commits_current_outputs_once_and_keeps_input_originals.<locals>.<genexpr> at 0x788fa0951ee0>)
+
+tests/test_hub_download_v1064.py:162: AssertionError
+____________ test_retarget_resolves_target_policy_and_claude_option ____________
+
+    @pytest.mark.asyncio
+    async def test_retarget_resolves_target_policy_and_claude_option():
+        backend, hub, state = setup(pipeline="default", role="worker")
+        await backend._start(hub, state, "task")
+>       await backend.retarget_model("hub-claude-opus-5-5")
+
+tests/test_hub_effort.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:367: in retarget_model
+    role = get_role(self._pipeline, self._role)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+___________ test_hub_policy_matches_native_claude[orchestrator-high] ___________
+
+role = 'orchestrator', opus = 'high'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_____________ test_hub_policy_matches_native_claude[worker-medium] _____________
+
+role = 'worker', opus = 'medium'
+
+    @pytest.mark.parametrize("role,opus", [("orchestrator", "high"), ("worker", "medium")])
+    def test_hub_policy_matches_native_claude(role, opus):
+>       policy = get_role("default", role).effort
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_hub_effort.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/pipeline.py:591: in get_role
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+FAILED tests/test_hub_download_v1064.py::test_transport_only_retry_commits_current_outputs_once_and_keeps_input_originals
+FAILED tests/test_hub_effort.py::test_retarget_resolves_target_policy_and_claude_option
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[orchestrator-high]
+FAILED tests/test_hub_effort.py::test_hub_policy_matches_native_claude[worker-medium]
+5 failed, 411 passed, 2 subtests passed in 127.55s (0:02:07)

@@ -1,0 +1,74 @@
+
+control
+.....                                                                    [100%]
+5 passed in 2.54s
+exit=0, expected=0
+
+old test-e predicate mutant
+FF...                                                                    [100%]
+=================================== FAILURES ===================================
+__________ test_actual_shell_unreadable_parent_is_not_missing[False] ___________
+
+permission_shell = (permission_shell.<locals>.PermissionSsh(target='unused', key='unused', workspace_root=''), PosixPath('/proc/self/fd/11'))
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-5/test_actual_shell_unreadable_p0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78b117a9d670>
+leaf_exists = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("leaf_exists", [False, True])
+    async def test_actual_shell_unreadable_parent_is_not_missing(
+            permission_shell, tmp_path, monkeypatch, leaf_exists):
+        ssh, visible_root = permission_shell
+        await ssh.run('test "$(id -u)" -ne 0')
+        parent = tmp_path / "sealed"
+        parent.mkdir()
+        ws_id = hw.WorkspaceState.new_id()
+        if leaf_exists:
+            original = _write(parent / ws_id, "COMPANY-DATA.md")
+        monkeypatch.setattr(hw, "STATE_DIR", tmp_path / "records")
+        state = hw.WorkspaceState(ws_id, str(tmp_path), str(visible_root / "sealed" / ws_id),
+                                  input_manifest={})
+        state.save()
+        before = state.path().read_bytes()
+        parent.chmod(0)
+        try:
+>           with pytest.raises(hw.HubWorkspaceError, match="errno 13") as error:
+E           Failed: DID NOT RAISE <class 'app.hub_workspace.HubWorkspaceError'>
+
+tests/test_hub_file_policy_v1073.py:473: Failed
+___________ test_actual_shell_unreadable_parent_is_not_missing[True] ___________
+
+permission_shell = (permission_shell.<locals>.PermissionSsh(target='unused', key='unused', workspace_root=''), PosixPath('/proc/self/fd/11'))
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.orchestra/tasks/V-1073/tmp/pytest-of-<private-identifier>/pytest-5/test_actual_shell_unreadable_p1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78b115b992b0>
+leaf_exists = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("leaf_exists", [False, True])
+    async def test_actual_shell_unreadable_parent_is_not_missing(
+            permission_shell, tmp_path, monkeypatch, leaf_exists):
+        ssh, visible_root = permission_shell
+        await ssh.run('test "$(id -u)" -ne 0')
+        parent = tmp_path / "sealed"
+        parent.mkdir()
+        ws_id = hw.WorkspaceState.new_id()
+        if leaf_exists:
+            original = _write(parent / ws_id, "COMPANY-DATA.md")
+        monkeypatch.setattr(hw, "STATE_DIR", tmp_path / "records")
+        state = hw.WorkspaceState(ws_id, str(tmp_path), str(visible_root / "sealed" / ws_id),
+                                  input_manifest={})
+        state.save()
+        before = state.path().read_bytes()
+        parent.chmod(0)
+        try:
+>           with pytest.raises(hw.HubWorkspaceError, match="errno 13") as error:
+E           Failed: DID NOT RAISE <class 'app.hub_workspace.HubWorkspaceError'>
+
+tests/test_hub_file_policy_v1073.py:473: Failed
+=========================== short test summary info ============================
+FAILED tests/test_hub_file_policy_v1073.py::test_actual_shell_unreadable_parent_is_not_missing[False]
+FAILED tests/test_hub_file_policy_v1073.py::test_actual_shell_unreadable_parent_is_not_missing[True]
+2 failed, 3 passed in 2.56s
+exit=1, expected=1
+
+Control passes; old-predicate mutant fails both actual shell permission cases.

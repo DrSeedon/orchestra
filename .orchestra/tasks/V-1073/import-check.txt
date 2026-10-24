@@ -1,0 +1,4 @@
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+python=/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/.venv/bin/python3
+app=/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/app/__init__.py
+hub_workspace=/home/<private-identifier>/orchestra-ws/vmi3407579/hub-b9f6de676c8c405c/app/hub_workspace.py

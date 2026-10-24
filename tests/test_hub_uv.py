@@ -259,6 +259,7 @@ def _provision_case(tmp_path, monkeypatch, files=("pyproject.toml", "uv.lock")):
         order.append("upload")
 
     ssh = SimpleNamespace(ensure_uv=AsyncMock(side_effect=ensure),
+                          assert_file_policy=AsyncMock(),
                           put=AsyncMock(side_effect=put), delete_files=AsyncMock())
     scratch = tmp_path / "scratch"
     scratch.mkdir()

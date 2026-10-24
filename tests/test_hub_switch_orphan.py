@@ -5,7 +5,9 @@ trimmed hub without the project's full pytest environment.
 """
 
 import asyncio
+import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -30,6 +32,12 @@ class FakeSsh:
 
     async def dir_for(self, ws_id):
         return str(self.base / ws_id)
+
+    async def assert_file_policy(self, remote_dir):
+        await hw.HubSsh.assert_file_policy(self, remote_dir)
+
+    async def run(self, remote, **kwargs):
+        return subprocess.run(["bash", "-c", remote], check=True, capture_output=True).stdout
 
     async def remove(self, remote_dir):
         if remote_dir in self.fail_remove:
@@ -251,7 +259,7 @@ class HubWorkspaceLifecycleTests(_WorkspaceCase):
 
         state = self.workspace("a")
         backend = hub.HubBackend("hub-claude-opus-5-5", str(self.worktree))
-        backend._state, backend._mc = state, self.mc
+        backend._state, backend._mc, backend._ssh = state, self.mc, self.ssh
         self.patch(hub_pool, "require_hub_capacity", AsyncMock(return_value=None))
         await backend.retarget_model("hub-gpt-6.1-sol")
         self.assertEqual(backend.session_id, state.ws_id)
@@ -301,6 +309,73 @@ class HubSessionSwitchTests(_WorkspaceCase):
         self.assertEqual(session.session_id, "")
         self.assertTrue(self.old.path().exists())
         self.assertIn("state kept for sweep", " ".join(logged.output))
+
+    async def test_normal_native_switch_preserves_incident_after_actual_policy_refusal(self):
+        from app import session as module, hub_pool
+
+        self.old = self.workspace("a")
+        original = self.worktree / "COMPANY-DATA.md"
+        original.write_text("invented company fixture; no personal records\n")
+        foreign = Path(self.old.remote_dir) / original.name
+        foreign.write_bytes(original.read_bytes())
+        digest = hw.sha256_file(original)
+        self.old.manifest = {original.name: digest}
+        self.old.input_manifest = {original.name: digest}
+        self.old.file_policy_blocked = True
+        self.old.uploaded = True
+        self.old.save()
+        before = self.old.path().read_bytes()
+        session = module.AgentSession(
+            id="worker", name="worker", scope=str(self.worktree),
+            cwd=str(self.worktree), worktree_path=str(self.worktree),
+            model="hub-gpt-6.1-sol", backend_type="hub", session_id=self.old.ws_id)
+        previous_history = [{"session_id": "previous-fixture", "runtime": "codex"}]
+        session.session_id_history = list(previous_history)
+        session._build_runtime_handoff = AsyncMock(return_value="invented recent chat")
+        session._drain_persist = AsyncMock()
+        session._disconnect_backend = AsyncMock()
+        session._cancel_precompact_timer = Mock()
+        session._log = Mock()
+        session._persist = Mock()
+        saved = self.patch(module, "save_session", Mock())
+        self.patch(hub_pool, "require_hub_capacity", AsyncMock(return_value=None))
+        actual_release = hw.release_workspace
+        refusals = []
+
+        async def capture_actual_refusal(state, ssh, mc):
+            # Verify ordering using the real refusal, not a mocked cleanup error.
+            self.assertEqual(saved.call_count, 1)
+            self.assertEqual(saved.call_args.args[0]["backend_type"], "codex")
+            try:
+                await actual_release(state, ssh, mc)
+            except hw.HubFilePolicyError as error:
+                refusals.append(error)
+                raise
+
+        self.patch(hw, "release_workspace", capture_actual_refusal)
+        with self.assertLogs("app.session", level="WARNING"):
+            result = await session.change_model("gpt-6.1-sol")
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(refusals), 1)
+        self.assertIsInstance(refusals[0], hw.HubFilePolicyError)
+        self.assertEqual((session.model, session.backend_type, session.session_id),
+                         ("gpt-6.1-sol", "codex", ""))
+        snapshot = saved.call_args.args[0]
+        persisted_history = json.loads(snapshot["session_id_history"])
+        self.assertEqual(persisted_history[:-1], previous_history)
+        self.assertEqual(persisted_history[-1]["session_id"], self.old.ws_id)
+        self.assertEqual(persisted_history[-1]["runtime"], "hub")
+        self.assertEqual(session.session_id_history, persisted_history)
+        self.assertEqual(snapshot["runtime_handoff"], "invented recent chat")
+        session._persist.assert_called_once()
+        self.assertEqual(self.old.path().read_bytes(), before)
+        self.assertEqual(hw.WorkspaceState.load(self.old.ws_id).input_manifest,
+                         {original.name: digest})
+        self.assertEqual(hw.sha256_file(original), digest)
+        self.assertEqual(hw.sha256_file(foreign), digest)
+        self.assert_kept(self.old)
+        self.assertEqual(self.mc.calls, [])
+        self.assertEqual(self.ssh.scrubbed, [])
 
 
 class HubPeriodicSweepTests(_WorkspaceCase):

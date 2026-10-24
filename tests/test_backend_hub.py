@@ -352,7 +352,7 @@ async def test_confirmed_missing_thread_can_still_start_replacement(monkeypatch)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", [httpx.ReadError, 503])
-async def test_uncertain_steer_is_not_queued_for_redelivery(failure):
+async def test_uncertain_steer_is_not_queued_for_redelivery(failure, tmp_path):
     calls = []
 
     async def handler(request):
@@ -362,8 +362,9 @@ async def test_uncertain_steer_is_not_queued_for_redelivery(failure):
         raise failure("delivery unknown", request=request)
 
     backend = _backend()
-    backend._ssh = object()
-    backend._state = SimpleNamespace(thread_id="existing")
+    backend._ssh = SimpleNamespace(assert_file_policy=AsyncMock())
+    backend._state = hub.hw.WorkspaceState(
+        hub.hw.WorkspaceState.new_id(), str(tmp_path), str(tmp_path / "copy"), thread_id="existing")
     backend._run_id = "running"
     backend._turn_active = True
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as transport:
