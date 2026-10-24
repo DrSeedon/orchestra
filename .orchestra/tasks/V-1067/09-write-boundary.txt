@@ -1,0 +1,16 @@
+$ find . -path ./\.orchestra/tasks/V-1067 -prune -o -type f -newer .orchestra/tasks/V-1067/02-runner.txt -print
+$ find .orchestra/tasks/V-1067 -maxdepth 1 -type f -printf filename
+01-map.txt
+02-runner.txt
+03-pytest.txt
+04-permissions.txt
+05-probe.txt
+06-model-and-scope.txt
+07-isolated-rerun.txt
+08-artifact-audit.txt
+09-write-boundary.txt
+REPORT.md
+artifact_audit.py
+contract_probe.py
+$ test ! -e .venv
+PASS: generated .venv removed

@@ -1,0 +1,413 @@
+app/routes/sessions.py:39:from app.backend_codex import CodexWriterConflictError
+app/routes/sessions.py:258:    role: str = ""
+app/routes/sessions.py:349:    return bool(row.get("is_orchestrator")) or row.get("role") in {
+app/routes/sessions.py:524:async def create_session(req: CreateSessionRequest):
+app/routes/sessions.py:530:        session = await manager.create_session(
+app/routes/sessions.py:539:            role=req.role,
+app/routes/sessions.py:703:    role = ""
+app/routes/sessions.py:712:                role = rest[:after_marker + 1].strip()
+app/routes/sessions.py:715:                role = rest.strip()
+app/routes/sessions.py:717:            role = rest.strip()
+app/routes/sessions.py:719:        role = rest.strip()
+app/routes/sessions.py:720:    return {"system_prompt": sp, "base": base, "role": role, "custom": custom}
+app/routes/sessions.py:725:    ("file",   "role",   "Role",                "prompts/roles/*.md",           "<role>",           "</role>",           1),
+app/routes/sessions.py:761:            role_match = re.search(r'## Role:\s*(.+)', content)
+app/routes/sessions.py:762:            if role_match:
+app/routes/sessions.py:763:                title = f"Role: {role_match.group(1).strip()}"
+app/routes/sessions.py:1088:                    or source.get("role") in {"orchestrator", "sub-orchestrator"}
+app/routes/sessions.py:1828:    await session._disconnect_backend()
+app/routes/sessions.py:1831:        session.backend_type = entry["runtime"]
+app/routes/sessions.py:1839:        "runtime": session.backend_type,
+app/routes/sessions.py:1866:            await session._disconnect_backend()
+app/routes/sessions.py:1885:    Unlike restart-cli (reconnects the backend but keeps session_id), this
+app/routes/sessions.py:1894:    await session._disconnect_backend()
+app/routes/sessions.py:2006:@router.post("/api/sessions/{name}/change-model")
+app/routes/sessions.py:2007:async def change_model(name: str, req: dict):
+app/routes/sessions.py:2028:    result = await found.change_model(new_model, **(
+app/routes/sessions.py:2038:            logger.exception("quota release after worker model change failed")
+app/prompting.py:20:# no legacy fallback). These helpers feed dashboard prompt view, role icons,
+app/prompting.py:52:def is_orchestrator_role(role: str) -> bool:
+app/prompting.py:53:    return role in _ORCHESTRATOR_ROLES
+app/prompting.py:150:    role: str,
+app/prompting.py:156:    """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
+app/prompting.py:200:    for filename in (f"{name}.md", f"{role}.md" if role else None):
+app/prompting.py:218:    role: str,
+app/prompting.py:235:        role,
+app/prompting.py:255:def parse_role_frontmatter(text: str) -> tuple[dict, str]:
+app/prompting.py:256:    """Parse YAML frontmatter from role .md file. Returns (meta, body)."""
+app/prompting.py:282:def role_prompt_file(role: str) -> str:
+app/prompting.py:283:    """Find the best prompt for a role. Parses frontmatter, returns body + modules.
+app/prompting.py:284:    Falls back to 'worker' role if role file not found."""
+app/prompting.py:285:    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+app/prompting.py:286:    if role_path.exists():
+app/prompting.py:287:        meta, body = parse_role_frontmatter(role_path.read_text())
+app/prompting.py:293:    if role != "worker":
+app/prompting.py:294:        fallback = _PROMPTS_DIR / "roles" / ("orchestrator.md" if is_orchestrator_role(role) else "worker.md")
+app/prompting.py:296:            meta, body = parse_role_frontmatter(fallback.read_text())
+app/prompting.py:305:def get_role_icons() -> dict[str, str]:
+app/prompting.py:306:    """Role icons from the manifest (`roles.<name>.tg.emoji`) of the default pipeline.
+app/prompting.py:316:    return {name: spec.tg.emoji for name, spec in cfg.roles.items() if spec.tg and spec.tg.emoji}
+app/prompting.py:319:def prompt_template_hash(role_or_orch) -> str:
+app/prompting.py:320:    """Hash only the static template files (base.md + role.md + skills).
+app/prompting.py:321:    Accepts role string or legacy bool (is_orchestrator)."""
+app/prompting.py:322:    if isinstance(role_or_orch, bool):
+app/prompting.py:323:        role = "orchestrator" if role_or_orch else "worker"
+app/prompting.py:325:        role = role_or_orch
+app/prompting.py:326:    content = read_prompt("base.md") + role_prompt_file(role)
+app/prompting.py:345:    Runs on every backend (re)connect, not just at worktree creation — a long-lived agent
+app/prompting.py:347:    role after spawn would never reach anyone. Same reasoning, same seam as `sync_agents_md`.
+app/prompting.py:617:    meta, _ = parse_role_frontmatter(text)
+app/prompting.py:635:    Required files are explicit pipeline role configuration and fail backend
+app/prompting.py:736:    """Build the live skill index for a Codex backend.
+app/mcp_proof.py:67:        caller_role=str(row.get("role") or ""),
+app/mcp_proof.py:89:    if (parent.get("role") == "full-cycle" and target.get("parent_id") == sid
+app/mcp_stdio.py:228:                            f"(role {ROLE!r}) by role/worker disabled_tools policy. "
+app/mcp_stdio.py:230:                    details={"tool": name, "worker": WORKER_NAME, "role": ROLE},
+app/mcp_stdio.py:627:                "spawn_worker call with the same task and delivery_id; do not reuse this "
+app/mcp_stdio.py:638:                "Repeat the same spawn_worker call with the same name, task and "
+app/mcp_stdio.py:715:def _hub_hint(model: str | None) -> str:
+app/mcp_stdio.py:716:    from app.models import hub_alternative_hint
+app/mcp_stdio.py:719:        return hub_alternative_hint(model)
+app/mcp_stdio.py:751:            f"{_hub_hint(model)}".rstrip()
+app/mcp_stdio.py:767:            "Task delivery outcome is UNKNOWN — repeat the same spawn_worker call "
+app/mcp_stdio.py:1007:            "Stop/model change remain available."
+app/mcp_stdio.py:1077:                    "Creation outcome unknown. Repeat spawn_worker with the same name, task "
+app/mcp_stdio.py:1100:                "same spawn_worker call with the same name, task and "
+app/mcp_stdio.py:1121:async def spawn_worker(name: str, task: str, repo_path: str,
+app/mcp_stdio.py:1127:                       role: str = "worker",
+app/mcp_stdio.py:1134:    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
+app/mcp_stdio.py:1153:        "role": role,
+app/mcp_stdio.py:1498:            f"{(chr(10) + _hub_hint(None)) if _hub_hint(None) else ''}"
+app/mcp_stdio.py:1755:        "icons": asyncio.create_task(_api("GET", "/api/role-icons")),
+app/mcp_stdio.py:1820:        logger.warning("list_agents optional role icons failed: %s", icon_warning)
+app/mcp_stdio.py:1831:        r = s.get("role", "worker")
+app/mcp_stdio.py:1832:        role = _icons.get(r, "⚙️")
+app/mcp_stdio.py:1859:        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{limit_str}{desc_str}{owner_str}{lifecycle_str}" + (f" | runtime error: {runtime_error}" if runtime_error else "")
+app/mcp_stdio.py:1864:        if s.get("role", "worker") in _ORCH_ROLES:
+app/mcp_stdio.py:2020:    """Orchestrators only. Set a temporary rule that enters the system prompt of the targeted agents from their next turn, with no restart. reason (required): why the rule exists and what caused it; the agents see it. targets: "all", "orchestrators", "workers", a role name, or "agent:<name>". mode: "expires" (the rule drops out by itself at expires_at), "review" (it stays in force and you are told once at expires_at that it is time to review it; then extend with temp_rule_update expires_at, make it permanent with keep=true, or remove it), "permanent" (no date, stays until removed). expires_at: ISO UTC with timezone, e.g. 2026-10-20T07:00Z; required for expires and review, forbidden for permanent. project: empty = your own project (scope); "*" = every project, allowed only for the Orchestra project orchestrator."""
+app/mcp_stdio.py:2417:async def change_worker_model(name: str, model: str, model_reason: str = "") -> str:
+app/mcp_stdio.py:2421:    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the permanent default."""
+app/mcp_stdio.py:2432:    result = await _api("POST", f"/api/sessions/{name}/change-model", json=body)
+app/mcp_stdio.py:2442:            f"Model changed: {result.get('old_model')} → {result.get('model')}"
+app/mcp_stdio.py:3222:    """Update a worker's description. Use to set/change the role description shown in list_agents."""
+app/mcp_stdio.py:3657:        MANUAL_ONLY_MODEL_IDS, backend_for_model, ensure_spawn_allowed, resolve_model,
+app/mcp_stdio.py:3676:    if billing == "api_credit" and backend_for_model(model_id) != "claude":
+app/mcp_stdio.py:4289:    role = str(info.get("role") or "")
+app/mcp_stdio.py:4290:    if role not in {"worker", "full-cycle"} or info.get("is_orchestrator"):
+app/mcp_stdio.py:4295:            details={"role": role},
+app/session.py:1:"""AgentSession — backend-agnostic wrapper with persistent event loop."""
+app/session.py:26:from app.models import backend_for_model, get_model_spec
+app/session.py:29:    inject_skills_to_worktree_report, is_orchestrator_role,
+app/session.py:37:    build_backend,
+app/session.py:71:    from app.backend_protocol import BackendLike
+app/session.py:297:# an `else: ".claude"` default would silently plant Claude files for the next new backend.
+app/session.py:438:    role: str = "worker"
+app/session.py:449:    backend_type: str = "claude"
+app/session.py:469:    # False → detached DB-hydrate (manager._hydrate_row): data only, no backend/tasks.
+app/session.py:485:    _backend: Optional["BackendLike"] = field(default=None, repr=False)
+app/session.py:618:        if self.backend_type == "claude":
+app/session.py:627:        if self.backend_type == "codex":
+app/session.py:765:            "role": self.role,
+app/session.py:766:            "backend": self.backend_type,
+app/session.py:827:        if policy is None or state.get("backend") != self.backend_type:
+app/session.py:828:            state["skip_reason"] = "backend_changed"
+app/session.py:855:        state["role"] = self.role
+app/session.py:856:        state["backend"] = self.backend_type
+app/session.py:902:        return is_orchestrator_role(self.role)
+app/session.py:908:    def _hub_bridge(self):
+app/session.py:909:        """The hub runtime's only link back to Orchestra: this worker's identity and outbox executor."""
+app/session.py:910:        from app.hub_outbox import HubBridge, Identity
+app/session.py:918:            role=self.role, branch=self.branch or "", pipeline=self.pipeline or "", turn_gen=self._turn_gen),
+app/session.py:921:    def _make_backend(
+app/session.py:951:            role=self.role,
+app/session.py:963:            hub_bridge=self._hub_bridge() if runtime == "hub" else None,
+app/session.py:970:        return build_backend(runtime, context)
+app/session.py:973:        if self.backend_type == "codex":
+app/session.py:1097:        await self._disconnect_backend()
+app/session.py:1134:        if self.backend_type != "codex" or not self.session_id:
+app/session.py:1136:        if self._backend is not None and getattr(self._backend, "is_alive", False):
+app/session.py:1138:        from app.backend_codex import codex_writer_conflict
+app/session.py:1196:        if self.backend_type in ("claude", "codex"):
+app/session.py:1420:            capabilities = get_runtime(self.backend_type).capabilities
+app/session.py:1426:                and self.backend_type == "claude"
+app/session.py:1463:                            self.backend_type == "codex"
+app/session.py:1464:                            and self._backend is not None
+app/session.py:1465:                            and getattr(self._backend, "deferred_interrupt_pending", False)
+app/session.py:1472:                        backend = await self._ensure_backend()
+app/session.py:1473:                        if backend is None:
+app/session.py:1475:                                "backend is unavailable before provider submission"
+app/session.py:1483:                        await backend.send(injected)
+app/session.py:1484:                        provider_ref = getattr(backend, "active_turn_id", None)
+app/session.py:1493:                        if self.backend_type == "codex":
+app/session.py:1510:                    self.backend_type == "codex"
+app/session.py:1511:                    and self._backend is not None
+app/session.py:1512:                    and getattr(self._backend, "deferred_interrupt_pending", False) is True
+app/session.py:1529:                    backend = await self._ensure_backend()
+app/session.py:1531:                    turn_id = getattr(backend, "active_turn_id", None)
+app/session.py:1533:                        self.backend_type == "codex"
+app/session.py:1557:                    await backend.send(injected)
+app/session.py:1563:                    if self.backend_type == "codex":
+app/session.py:1598:                role=self.role, is_orch=self.is_orchestrator, scope=self.scope, name=self.name)
+app/session.py:1605:                # Inject updated system prompt once per session — workers list, role
+app/session.py:1608:                current_th = prompt_template_hash(self.role)
+app/session.py:1622:                        self._current_prompt, self.name, self.role, self.scope,
+app/session.py:1631:                            pipeline=self.pipeline, role=self.role, scope=self.scope,
+app/session.py:1654:                            self._current_prompt, self.name, self.role, self.scope,
+app/session.py:1660:                    self._current_prompt, role=self.role, is_orch=self.is_orchestrator,
+app/session.py:1662:                message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
+app/session.py:1676:                    backend = await self._ensure_backend(
+app/session.py:1680:                    backend = await self._fallback_db_backed_claude(
+app/session.py:1694:            if getattr(backend, "resume_failed", False):
+app/session.py:1702:                        "runtime": self.backend_type,
+app/session.py:1710:                backend.resume_failed = False
+app/session.py:1734:                provider_send = getattr(backend, "send", None)
+app/session.py:1736:                    raise RuntimeError("backend is unavailable before provider submission")
+app/session.py:1744:                    provider_ref = getattr(backend, "active_turn_id", None)
+app/session.py:1788:        """Re-install this role's pipeline skills before the CLI starts.
+app/session.py:1792:        moment a skill is edited, and a skill added to a role after spawn never arrives at all.
+app/session.py:1797:        home_dir = _SKILL_HOME_DIRS.get(self.backend_type)
+app/session.py:1803:        if self.backend_type == "codex":
+app/session.py:1806:            from app.pipeline import get_role
+app/session.py:1807:            role = get_role(self.pipeline, self.role)
+app/session.py:1808:            skills = role.skills if role else None
+app/session.py:1811:            if self.backend_type == "codex":
+app/session.py:1848:        if self.backend_type != "codex":
+app/session.py:1873:        await self._disconnect_backend()
+app/session.py:1880:        `_ensure_backend` готовый бэкенд не пересобирает. Поэтому новое значение вступает
+app/session.py:1889:        if self.status == AgentStatus.RUNNING or not self.pipeline or not self.role:
+app/session.py:1892:            from app.pipeline import get_role, resolve_effort
+app/session.py:1893:            rr = get_role(self.pipeline, self.role)
+app/session.py:1894:            desired = resolve_effort(rr.effort, self.model, self.backend_type) if rr else None
+app/session.py:1905:        await self._disconnect_backend()
+app/session.py:2001:        backend = self._make_backend(
+app/session.py:2007:        describe = getattr(backend, "handoff_expected_capabilities", None)
+app/session.py:2039:        source_runtime = self.backend_type or backend_for_model(self.model)
+app/session.py:2054:                "runtime": db_session.get("backend_type") or "claude",
+app/session.py:2208:    async def _ensure_backend(
+app/session.py:2216:        if self._backend is not None:
+app/session.py:2220:                return self._backend
+app/session.py:2221:            await self._disconnect_backend()
+app/session.py:2223:        if self.backend_type == "codex" and project_path:
+app/session.py:2245:            and self.backend_type == "claude"
+app/session.py:2255:            self._backend = self._make_backend(
+app/session.py:2259:            self._backend = self._make_backend(
+app/session.py:2263:        candidate = self._backend
+app/session.py:2270:                self._backend = None
+app/session.py:2275:            logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
+app/session.py:2277:            from app.backend_codex import CodexProtocolError, CodexWriterConflictError
+app/session.py:2279:            if (self.backend_type == "codex" and isinstance(e, CodexProtocolError)
+app/session.py:2284:                self.backend_type == "codex"
+app/session.py:2293:                return await self._ensure_backend(
+app/session.py:2305:                self._backend = None
+app/session.py:2307:                f"backend connect failed: {err_text(e)}"
+app/session.py:2310:        if self._backend is not candidate:
+app/session.py:2311:            raise RuntimeError("backend changed while connection was being established")
+app/session.py:2315:            self._activate_backend_tasks()
+app/session.py:2318:    def _activate_backend_tasks(self) -> None:
+app/session.py:2319:        capabilities = get_runtime(self.backend_type).capabilities
+app/session.py:2355:        return await self._ensure_backend(force_fresh=True)
+app/session.py:2361:        backend,
+app/session.py:2367:        stale_session_id = self.session_id or getattr(backend, "session_id", None)
+app/session.py:2382:        if getattr(backend, "has_owned_processes", False):
+app/session.py:2383:            await backend.disconnect()
+app/session.py:2384:        if self._backend is backend:
+app/session.py:2385:            self._backend = None
+app/session.py:2414:        """Never leave RUNNING behind when the backend lost its turn."""
+app/session.py:2442:    async def _reconnect_backend(self) -> None:
+app/session.py:2443:        backend = self._backend
+app/session.py:2444:        if backend is None:
+app/session.py:2445:            raise RuntimeError("backend is unavailable for reconnect")
+app/session.py:2447:            self.backend_type == "claude"
+app/session.py:2456:            replace_history = getattr(backend, "replace_history_import", None)
+app/session.py:2458:                raise RuntimeError("Claude backend cannot refresh DB-backed history")
+app/session.py:2460:        await backend.reconnect()
+app/session.py:2463:        logger.info(f"[{self.name}] {self.backend_type} persistent event loop started")
+app/session.py:2467:                if self._backend is None:
+app/session.py:2468:                    logger.warning(f"[{self.name}] event loop: backend is None, exiting")
+app/session.py:2470:                async for event in self._backend.events():
+app/session.py:2480:                backend = self._backend
+app/session.py:2483:                    and hasattr(backend, "active_turn_id")
+app/session.py:2484:                    and not getattr(backend, "active_turn_id", None)
+app/session.py:2505:                self._log("error", f"backend unstable: {consecutive_failures} consecutive failures, giving up")
+app/session.py:2507:                await self._disconnect_backend()
+app/session.py:2509:                    "backend unstable after repeated listener failures"
+app/session.py:2514:                if self._backend is None:
+app/session.py:2517:                await self._reconnect_backend()
+app/session.py:2522:                backend = self._backend
+app/session.py:2525:                    and hasattr(backend, "active_turn_id")
+app/session.py:2526:                    and not getattr(backend, "active_turn_id", None)
+app/session.py:2534:                        "[system] " + platform_interruption_notice("backend disconnect", self.task_id),
+app/session.py:2546:                self._backend = None
+app/session.py:2553:        logger.info(f"[{self.name}] {self.backend_type} turn started")
+app/session.py:2554:        backend = self._backend
+app/session.py:2558:            async for event in backend.events():
+app/session.py:2564:                    and getattr(backend, "oversized_reader_failure", False)
+app/session.py:2567:                        backend,
+app/session.py:2575:            logger.error(f"[{self.name}] {self.backend_type} turn error: {e}")
+app/session.py:2576:            self._log("error", f"{self.backend_type} turn error: {e}")
+app/session.py:2584:                backend = self._backend
+app/session.py:2586:                    self.backend_type == "codex"
+app/session.py:2587:                    and hasattr(backend, "active_turn_id")
+app/session.py:2588:                    and not getattr(backend, "active_turn_id", None)
+app/session.py:2702:                    runtime=self.backend_type,
+app/session.py:2760:                self.backend_type != "codex"
+app/session.py:2955:                    backend = await self._ensure_backend(
+app/session.py:2959:                    backend = await self._fallback_db_backed_claude(
+app/session.py:2964:                await backend.send(combined)
+app/session.py:2966:                if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
+app/session.py:3035:            backend = self._backend if (
+app/session.py:3048:            if backend:
+app/session.py:3050:                    acknowledged = await backend.interrupt()
+app/session.py:3059:                    and self._backend is backend
+app/session.py:3062:                    self._log("error", "interrupt was not acknowledged; disconnecting backend")
+app/session.py:3063:                    await self._disconnect_backend()
+app/session.py:3066:                            "interrupt was not acknowledged; backend disconnected"
+app/session.py:3070:                    "running turn had no backend during interrupt"
+app/session.py:3083:        # реальный лимит провайдера ловит сам backend.
+app/session.py:3135:                backend = await self._ensure_backend()
+app/session.py:3136:                compact_context = getattr(backend, "compact_context", None)
+app/session.py:3138:                    raise RuntimeError("Codex backend does not support native compact")
+app/session.py:3215:        self, draft: str, stop_gen: int, backend, compact_id: str,
+app/session.py:3218:        if self.backend_type != "claude" or not agentic_compact.enabled():
+app/session.py:3223:        events = backend.events().__aiter__()
+app/session.py:3232:            await backend.send(prompt)
+app/session.py:3237:                    await backend.interrupt()
+app/session.py:3244:                    await backend.interrupt()
+app/session.py:3336:        if self.backend_type == "codex":
+app/session.py:3354:        if self.backend_type == "claude" and _claude_subscription_limit_active():
+app/session.py:3426:            keep_backend_open = False
+app/session.py:3427:            backend = self._backend
+app/session.py:3428:            need_connect = self._backend is None
+app/session.py:3431:                    backend = await self._ensure_backend(activate=False)
+app/session.py:3433:                elif backend is None:
+app/session.py:3434:                    backend = self._make_backend()
+app/session.py:3438:                        await backend.connect()
+app/session.py:3439:                        self._backend = backend
+app/session.py:3440:                    await backend.send(COMPACT_PROMPT)
+app/session.py:3443:                async for event in backend.events():
+app/session.py:3479:                    await backend.disconnect()
+app/session.py:3482:                self._backend = None
+app/session.py:3494:                keep_backend_open = bool(
+app/session.py:3495:                    self.backend_type == "claude"
+app/session.py:3503:                if backend is not None and not keep_backend_open:
+app/session.py:3505:                        await backend.disconnect()
+app/session.py:3508:                    self._backend = None
+app/session.py:3511:                if keep_backend_open:
+app/session.py:3513:                        await backend.disconnect()
+app/session.py:3516:                    self._backend = None
+app/session.py:3556:        if keep_backend_open:
+app/session.py:3559:                    summary, compact_stop_gen, backend, compact_id,
+app/session.py:3564:                    await backend.disconnect()
+app/session.py:3566:                    logger.warning("[%s] backend disconnect failed after compact audit", self.name)
+app/session.py:3567:                self._backend = None
+app/session.py:3615:                backend = await self._ensure_backend(force_fresh=True)
+app/session.py:3623:                await backend.send(preamble + "Acknowledge briefly.")
+app/session.py:3633:                await self._disconnect_backend()
+app/session.py:3642:                await self._disconnect_backend()
+app/session.py:3685:        # role would only survive in whatever the summary happened to mention.
+app/session.py:3693:                "runtime": self.backend_type,
+app/session.py:3714:            status="fallback_draft" if keep_backend_open and audit_fallback else "complete",
+app/session.py:3822:                await self._disconnect_backend()
+app/session.py:3872:        if not self._backend or not hasattr(self._backend, 'context_usage'):
+app/session.py:3874:        backend = self._backend
+app/session.py:3877:            usage = await asyncio.wait_for(backend.context_usage(), timeout=5)
+app/session.py:3878:            if backend is not self._backend or generation != (self._turn_gen, self.session_id):
+app/session.py:3976:    async def change_model(self, new_model: str, model_reason: str = "") -> dict:
+app/session.py:3981:                return {"ok": False, "error": "cannot change model while compacting"}
+app/session.py:3988:                result = await self._change_model_locked(new_model)
+app/session.py:4010:            await self._disconnect_backend()
+app/session.py:4034:            "backend_type": new_runtime,
+app/session.py:4057:        self.backend_type = new_runtime
+app/session.py:4073:        if old_runtime == "hub":
+app/session.py:4074:            from app.backend_hub import release_for_worktree
+app/session.py:4080:                    "[%s] previous hub workspace release incomplete (state kept for sweep): %s",
+app/session.py:4085:            f"model change: {old_model} ({old_runtime}) → "
+app/session.py:4163:            "runtime": self.backend_type,
+app/session.py:4186:                backend = await self._ensure_backend(activate=False)
+app/session.py:4188:                    getattr(backend, "resume_failed", False)
+app/session.py:4189:                    or backend.session_id != source["session_id"]
+app/session.py:4224:        if self._backend is not None:
+app/session.py:4225:            self._activate_backend_tasks()
+app/session.py:4232:            "runtime": self.backend_type,
+app/session.py:4264:        backend = self._make_backend(
+app/session.py:4269:        build_manifest = getattr(backend, "build_handoff_manifest", None)
+app/session.py:4278:    async def _change_model_locked(self, new_model: str) -> dict:
+app/session.py:4281:            return {"ok": True, "model": new_model, "changed": False}
+app/session.py:4290:            return {"ok": False, "error": "cannot change model while running"}
+app/session.py:4292:        from app.hub_pool import require_hub_capacity
+app/session.py:4296:            await require_hub_capacity(new_model)
+app/session.py:4298:            return {"ok": False, "error": str(exc), "error_code": "hub_pool_exhausted"}
+app/session.py:4300:        old_runtime = self.backend_type or backend_for_model(old_model)
+app/session.py:4304:            return await self._change_runtime_chat_locked(new_model, old_model, old_runtime)
+app/session.py:4307:            return await self._change_model_in_place_locked(
+app/session.py:4380:        target_backend = None
+app/session.py:4384:            target_backend = self._make_backend(
+app/session.py:4389:            await target_backend.connect()
+app/session.py:4391:                getattr(target_backend, "resume_failed", False)
+app/session.py:4392:                or target_backend.session_id != self.session_id
+app/session.py:4402:                    target_session_id=target_backend.session_id,
+app/session.py:4413:            if target_backend is not None:
+app/session.py:4415:                    await target_backend.disconnect()
+app/session.py:4444:            await self._disconnect_backend()
+app/session.py:4456:                await target_backend.disconnect()
+app/session.py:4483:                    SimpleNamespace(session_id=target_backend.session_id),
+app/session.py:4488:                snapshot["backend_type"] = new_runtime
+app/session.py:4494:                await target_backend.disconnect()
+app/session.py:4516:        self.backend_type = new_runtime
+app/session.py:4517:        self._backend = target_backend
+app/session.py:4527:        self._activate_backend_tasks()
+app/session.py:4530:            f"model change: {old_model} ({old_runtime}) → {new_model} ({new_runtime})",
+app/session.py:4547:    async def _change_model_in_place_locked(
+app/session.py:4579:        backend = self._backend
+app/session.py:4580:        if backend is not None:
+app/session.py:4582:                getattr(backend, "active_turn_id", None)
+app/session.py:4583:                or getattr(backend, "_events_active", False)
+app/session.py:4584:                or getattr(backend, "_turn_active", False)
+app/session.py:4588:                    "error": f"cannot change {runtime} model while its turn is settling",
+app/session.py:4591:            if not callable(getattr(backend, "retarget_model", None)):
+app/session.py:4594:                    "error": f"{runtime} backend cannot retarget the active session",
+app/session.py:4599:        if backend is not None:
+app/session.py:4601:                retargeted = backend.retarget_model(new_model)
+app/session.py:4604:                backend_session_id = getattr(backend, "session_id", self.session_id)
+app/session.py:4605:                if backend_session_id != self.session_id:
+app/session.py:4620:            "backend_type": runtime,
+app/session.py:4628:            if backend is not None:
+app/session.py:4630:                    rolled_back = backend.retarget_model(old_model)
+app/session.py:4652:        self.backend_type = runtime
+app/session.py:4664:            f"model change: {old_model} ({runtime}) → {new_model} ({runtime}); "
+app/session.py:4679:    async def _disconnect_backend(self) -> None:
+app/session.py:4685:        backend = self._backend
+app/session.py:4686:        if backend:
+app/session.py:4687:            await backend.disconnect()
+app/session.py:4688:            if self._backend is backend:
+app/session.py:4689:                self._backend = None
+app/session.py:4720:        await self._disconnect_backend()
+app/session.py:4866:            "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
+app/session.py:4875:            "backend_type": self.backend_type,
+app/session.py:4915:        if (self.backend_type == "codex" and previous is not None
+app/session.py:4930:        elif self._backend is None:
+app/session.py:4949:            "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
+app/session.py:4955:            "backend_type": self.backend_type,
+app/session.py:4956:            "runtime": self.backend_type,
+.orchestra/pipelines/default/prompts/hub/worker.md
+app/catalog_migration_v621.py
+.orchestra/pipelines/default/prompts/roles/full-cycle.md
+.orchestra/pipelines/default/prompts/roles/worker.md
+.orchestra/pipelines/default/prompts/roles/sub-orchestrator.md
+app/model_catalog.py
+.orchestra/pipelines/default/prompts/roles/reducer.md
+.orchestra/pipelines/default/prompts/roles/orchestrator.md
+app/mcp_proof.py
+.orchestra/pipelines/default/prompts/skills/laptop-access.md
+app/project_catalog.py
+app/hub_outbox.py
+tests/test_subprocess_catalog_isolation.py
+tests/test_model_catalog.py
+tests/test_review_requester_roles.py
+tests/test_catalog_migration_v621.py
+tests/test_mcp_proof.py
+tests/test_catalog_api.py
+tests/test_model_catalog_frontend.py
+tests/test_v1028_hub_outbox_report.py
+tests/test_project_catalog_v621.py
+tests/test_project_catalog_v576.py

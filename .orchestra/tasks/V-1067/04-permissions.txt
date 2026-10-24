@@ -1,0 +1,4 @@
+$ uv run --frozen python -m pytest tests/test_mcp_proof.py tests/test_work_review_jobs.py::test_parent_acceptance_is_limited_to_its_child_and_own_branch tests/test_validate_spawn_unknown_role.py tests/test_prompt_parent_selection.py tests/test_change_model_unloaded.py tests/test_v1028_hub_outbox_report.py tests/test_hub_workspace.py::test_send_message_always_goes_to_the_parent_and_ignores_to_and_file_path tests/test_hub_workspace.py::test_progress_and_checklist_are_the_workers_own_and_bad_arguments_never_reach_the_api tests/test_hub_workspace.py::test_api_refusals_and_failures_are_reported_not_raised tests/test_hub_workspace.py::test_local_api_call_uses_the_workers_own_proof -q -o cache_dir=.orchestra/tasks/V-1067/pytest-cache --basetemp=.orchestra/tasks/V-1067/pytest-tmp-2
+...........................................................              [100%]
+59 passed in 8.71s
+exit_status=0

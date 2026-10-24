@@ -1,0 +1,9 @@
+$ uv run --frozen python .orchestra/tasks/V-1067/artifact_audit.py
+map_surface_operation_rows=38; contiguous unique ids=PASS
+explicit app/tests file:line reference bounds=PASS
+top_level_text_artifacts_checked=12
+credential_shape_scan=PASS (shared archive_findings with empty literal inventory)
+checkout/home/account path scan=PASS
+report_bytes=36927; report_words=4804
+ARTIFACT AUDIT PASSED
+exit_status=0

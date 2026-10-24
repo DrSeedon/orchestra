@@ -1,0 +1,7 @@
+$ uv run --frozen python -m pytest tests/test_hub_workspace.py -q -k "outbox or trimmed_prompt or hub_prompt or gives_the_hub_backend" -o cache_dir=.orchestra/tasks/V-1067/pytest-cache --basetemp=.orchestra/tasks/V-1067/pytest-tmp
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 38ms
+.........                                                                [100%]
+9 passed, 117 deselected in 7.25s
+exit_status=0

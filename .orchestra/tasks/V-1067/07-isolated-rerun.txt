@@ -1,0 +1,5 @@
+Ephemeral Git author/committer: Offline Test <offline@example.invalid>; no git config changes.
+$ uv run --frozen python -m pytest tests/test_model_gates.py::test_t3_api_models_hides_dashboard_off -q -o cache_dir=.orchestra/tasks/V-1067/pytest-cache --basetemp=.orchestra/tasks/V-1067/pytest-tmp-4
+.                                                                        [100%]
+1 passed in 5.12s
+exit_status=0
