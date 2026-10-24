@@ -71,6 +71,21 @@ def record_delivery_failure(connection, row, *, initial: bool = False,
     fail loudly again while recovery of the same attempt stays idempotent.
     """
     if row["origin"] != "agent":
+        if not initial and _is_cron_delivery(row):
+            error = json.loads(row["error_json"] or "{}")
+            event_id = f"cron-delivery-failed:{row['delivery_id']}:{row['updated_at']}"
+            # A terminal cron error must be visible without starting another
+            # agent just to acknowledge it. Keep the warning in the same commit.
+            connection.execute(
+                """INSERT INTO logs (session_id, ts, type, content, event_id, origin, origin_detail)
+                   SELECT ?, ?, 'warning', ?, ?, ?, ?
+                   WHERE EXISTS (SELECT 1 FROM sessions WHERE id=?)
+                     AND NOT EXISTS (SELECT 1 FROM logs WHERE event_id=?)""",
+                (row["target_session_id"], row["updated_at"],
+                 f"Cron delivery {row['delivery_id']} {row['state']}: "
+                 f"{error.get('code', '')}: {error.get('message', '')}",
+                 event_id, row["origin"], row["origin_detail"], row["target_session_id"], event_id),
+            )
         return
     if initial:
         source = connection.execute(
@@ -380,6 +395,7 @@ async def accept_message_delivery(
     wake: bool = True,
     provenance: MessageProvenance,
     quota_wait=None,
+    cron_job_id: str | None = None,
 ) -> tuple[dict, int]:
     """Commit one receipt, then best-effort wake its target runner.
 
@@ -443,6 +459,18 @@ async def accept_message_delivery(
                 existing, acceptance="ALREADY_ACCEPTED", connection=connection,
             )
         if not retrying:
+            if cron_job_id is not None:
+                job = connection.execute(
+                    "SELECT * FROM bg_jobs WHERE id=? AND status='active' AND expires_at>=?",
+                    (cron_job_id, now),
+                ).fetchone()
+                if (job is None or job["target_session_id"] != target_session_id
+                        or provenance.origin != "background_task"
+                        or provenance.ref != cron_job_id):
+                    raise RuntimeError("cron fire is no longer eligible for acceptance")
+                db.bg_cron_record_fire(
+                    cron_job_id, delivery_id=delivery_id, _connection=connection,
+                )
             connection.execute(
                 """INSERT INTO message_deliveries (
                     delivery_id, schema_version, source_session_id, source_principal,
@@ -654,13 +682,14 @@ def _failure(error: BaseException) -> dict:
 def mark_message_delivery_failed_before_submit(delivery_id: str, error: BaseException) -> dict:
     from app.quota_gate import QuotaGateError
 
-    # A quota refusal is known before any provider work; retaining its prepared
-    # user-log would make the dashboard claim that a turn was delivered.
+    # A refused cron instruction must not enter a later task through restored
+    # history. Its immutable receipt and terminal warning retain the evidence.
+    row = _row(_validate_id(delivery_id))
     return _update_state(
         delivery_id,
         "FAILED_BEFORE_SUBMIT",
         error=_failure(error),
-        clear_user_log=isinstance(error, QuotaGateError),
+        clear_user_log=isinstance(error, QuotaGateError) or _is_cron_delivery(row),
     )
 
 
@@ -878,6 +907,19 @@ _TERMINAL_DELIVERY_STATES = (
 )
 
 
+def _is_cron_delivery(row, provenance: MessageProvenance | None = None) -> bool:
+    if (row is None or row["origin"] != "background_task"
+            or not row["source_principal"].startswith("background_job:")):
+        return False
+    if provenance is None:
+        provenance = MessageProvenance.from_storage(row["origin"], row["origin_detail"])
+    return (
+        provenance.origin == "background_task"
+        and provenance.subtype in {"cron", "cron_command"}
+        and row["source_principal"] == f"background_job:{provenance.ref}"
+    )
+
+
 def requeue_failed_turn(target_session_id: str, provider_ref: str) -> int:
     """Move steers from a failed turn into the durable after-turn mailbox.
 
@@ -900,6 +942,16 @@ def requeue_failed_turn(target_session_id: str, provider_ref: str) -> int:
             provenance = MessageProvenance.from_storage(
                 row["origin"], row["origin_detail"],
             )
+            if _is_cron_delivery(row, provenance):
+                # Keep cron's captured generation and rendered body under the
+                # durable runner's gate. The legacy name-keyed mailbox loses both.
+                connection.execute(
+                    """UPDATE message_deliveries
+                       SET state='PREPARING', provider_ref=NULL, updated_at=?
+                       WHERE delivery_id=? AND state='SUBMITTED'""",
+                    (_now(), row["delivery_id"]),
+                )
+                continue
             sender = row["source_name"] or ", ".join(provenance.senders)
             connection.execute(
                 """INSERT INTO mailbox (
@@ -1016,6 +1068,10 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
     except asyncio.CancelledError as error:
         if context.dispatched:
             mark_message_delivery_unknown(delivery_id, error)
+        elif _is_cron_delivery(row, context.provenance):
+            # Runtime teardown may cancel a cron runner before it reaches the
+            # drain gate. Its already accepted fire belongs to startup recovery.
+            _update_state(delivery_id, "QUEUED", clear_user_log=True)
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
             try:
@@ -1030,9 +1086,15 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
         raise
     except Exception as error:
         from app.quota_gate import QuotaGateError
+        from app.session import DrainingRefused
 
         if context.dispatched:
             mark_message_delivery_unknown(delivery_id, error)
+        elif isinstance(error, DrainingRefused) and _is_cron_delivery(row, context.provenance):
+            # Submission has definitely not started. Keep the accepted payload for
+            # startup recovery, without a timer or a misleading delivered log.
+            _update_state(delivery_id, "QUEUED", clear_user_log=True)
+            return
         elif isinstance(error, QuotaGateError):
             mark_message_delivery_waiting_quota(delivery_id, error.decision)
             from app import report_holds
@@ -1188,6 +1250,31 @@ def ensure_target_runner(target_session_id: str) -> None:
     task = asyncio.create_task(run_target_message_deliveries(target_session_id))
     _target_runner_tasks[target_session_id] = task
     task.add_done_callback(_observe_target_runner)
+
+
+def resume_queued_message_deliveries() -> None:
+    """Reopen known-unsubmitted queues after drain abort, without orphan recovery."""
+    with db._conn() as connection:
+        targets = connection.execute(
+            "SELECT DISTINCT target_session_id FROM message_deliveries "
+            "WHERE state IN ('QUEUED','PREPARING')"
+        ).fetchall()
+    for row in targets:
+        target = row["target_session_id"]
+
+        def wake(_finished=None, target=target):
+            try:
+                ensure_target_runner(target)
+            except Exception as error:
+                logger.warning("message delivery wake after drain aborted failed: %s", err_text(error))
+
+        current = _target_runner_tasks.get(target)
+        if current is not None and not current.done():
+            # A refused runner may still be returning False. Re-arm after its
+            # observer, rather than losing the wake or retrying it on a timer.
+            current.add_done_callback(wake)
+        else:
+            wake()
 
 
 def _observe_target_runner(task: asyncio.Task[bool]) -> None:

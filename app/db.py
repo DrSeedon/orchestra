@@ -2174,14 +2174,20 @@ def bg_cron_should_fire(job_id: str) -> bool:
         return row is not None
 
 
-def bg_cron_record_fire(job_id: str) -> None:
-    # IMMEDIATE lock: prevents two scheduler ticks from recording the same fire
-    # (cron jobs can fire again while the previous trigger is still being processed)
-    with _conn() as c:
-        c.execute("BEGIN IMMEDIATE")
-        row = c.execute("SELECT config, status FROM bg_jobs WHERE id=?", (job_id,)).fetchone()
+def bg_cron_record_fire(
+    job_id: str, *, delivery_id: str | None = None,
+    _connection: sqlite3.Connection | None = None,
+) -> None:
+    # Durable cron acceptance lends its transaction so the marker and receipt
+    # commit together. Legacy callers still own an IMMEDIATE transaction.
+    connection_scope = nullcontext(_connection) if _connection is not None else _conn()
+    with connection_scope as c:
+        if _connection is None:
+            c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT config, status, type, last_output FROM bg_jobs WHERE id=?", (job_id,)).fetchone()
         if not row or row["status"] != "active":
-            c.execute("ROLLBACK")
+            if _connection is None:
+                c.execute("ROLLBACK")
             return
         try:
             cfg = json.loads(row["config"])
@@ -2190,11 +2196,17 @@ def bg_cron_record_fire(job_id: str) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
         cfg["last_fired_at"] = now_iso
         cfg["fire_count"] = cfg.get("fire_count", 0) + 1
+        if delivery_id is not None:
+            cfg["last_delivery_id"] = delivery_id
+        display = f"fired #{cfg['fire_count']} at {now_iso}"
+        if delivery_id is not None and row["type"] == "cron_command":
+            display = row["last_output"]
         c.execute(
             "UPDATE bg_jobs SET config=?, last_output=? WHERE id=? AND status='active'",
-            (json.dumps(cfg), f"fired #{cfg['fire_count']} at {now_iso}", job_id),
+            (json.dumps(cfg), display, job_id),
         )
-        c.execute("COMMIT")
+        if _connection is None:
+            c.execute("COMMIT")
 
 
 def bg_claim_trigger(job_id: str) -> bool:

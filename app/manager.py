@@ -537,7 +537,17 @@ class SessionManager:
 
     def end_drain(self) -> None:
         """Открыть приём обратно. Нужен тестам и отменённому рестарту."""
+        was_draining = self.draining
         self.draining = False
+        if was_draining:
+            try:
+                from app.message_deliveries import resume_queued_message_deliveries
+
+                resume_queued_message_deliveries()
+            except Exception as error:
+                # Admission must reopen even if optional queue metadata is
+                # unavailable. Accepted payloads remain with their durable owner.
+                logger.warning("message delivery wake after drain aborted failed: %s", err_text(error))
 
     def get_session_lock(self, session_id: str) -> asyncio.Lock:
         if session_id not in self._session_locks:
@@ -1143,22 +1153,29 @@ class SessionManager:
         if not session:
             raise KeyError(f"session not found: {session_id}")
 
+        def check_generation() -> None:
+            current_generation = (
+                f"session={session.id}|task={getattr(session, 'task_id', '')}|"
+                f"branch={getattr(session, 'branch', '')}|"
+                f"needs_switch={int(bool(getattr(session, 'needs_switch', False)))}"
+            )
+            if current_generation != target_generation:
+                from app.message_deliveries import TargetTaskChangedError
+
+                raise TargetTaskChangedError(
+                    "target task generation changed before delivery"
+                )
+
         async def deliver() -> None:
             async with self.get_session_lock(session_id):
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
-                current_generation = (
-                    f"session={session.id}|task={getattr(session, 'task_id', '')}|"
-                    f"branch={getattr(session, 'branch', '')}|"
-                    f"needs_switch={int(bool(getattr(session, 'needs_switch', False)))}"
-                )
-                if current_generation != target_generation:
-                    from app.message_deliveries import TargetTaskChangedError
+                check_generation()
+                from app.session import _refuse_if_draining
 
-                    raise TargetTaskChangedError(
-                        "target task generation changed before delivery"
-                    )
+                _refuse_if_draining(session)
                 await self._auto_switch_before_delivery(session)
+                check_generation()
                 await session.send(
                     message, delivery=delivery, provenance=provenance,
                 )

@@ -1,0 +1,37 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_actual_drain_keeps_accepted_fire_through_cancel_restore_restart[cron_command] _
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7972442c62d0>, manager=<app.manager.SessionManager object at 0x7972...mmunicate=<AsyncMock id='133531676996144'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x797246cdf710>
+kind = 'cron_command'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["cron", "cron_command"])
+    async def test_actual_drain_keeps_accepted_fire_through_cancel_restore_restart(cron, monkeypatch, kind):
+        cron.manager.begin_drain()
+        delivery_id = await fire(cron, kind)
+        accepted = receipt(delivery_id)
+        config = json.loads(db.bg_get_job("fixture-cron")["config"])
+        assert config["fire_count"] == 1
+        assert config["last_delivery_id"] == delivery_id
+        assert config["last_fired_at"]
+        assert accepted["state"] == "QUEUED"
+        # Exercise the actual exception and manager gate, not a lookalike RuntimeError.
+        with pytest.raises(DrainingRefused):
+            await cron.manager.send_message_delivery(
+                cron.session.id, accepted["rendered_message"], delivery=None,
+                target_generation=accepted["target_generation"],
+                provenance=MessageProvenance.from_storage(accepted["origin"], accepted["origin_detail"]),
+            )
+>       assert not await dispatch(cron)
+E       assert not True
+
+tests/test_cron_drain_delivery_v1074.py:117: AssertionError
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: match accepted → fixture-worker
+------------------------------ Captured log call -------------------------------
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_delivery_v1074.py::test_actual_drain_keeps_accepted_fire_through_cancel_restore_restart[cron_command]
+1 failed in 2.39s

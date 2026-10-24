@@ -1,0 +1,192 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_actual_abort_resumes_cron_once_after_nonmatch_without_command_replay[False] _
+
+fut = <coroutine object Event.wait at 0x7e002654a7a0>, timeout = 2
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x7e002658fad0 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7e0026582ae0>, manager=<app.manager.SessionManager object at 0x7e00...mmunicate=<AsyncMock id='138539108416208'>, slot=datetime.datetime(2026, 10, 24, 21, 36, tzinfo=datetime.timezone.utc))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e00290c2060>
+runner_still_exiting = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runner_still_exiting", [False, True])
+    async def test_actual_abort_resumes_cron_once_after_nonmatch_without_command_replay(
+        cron, monkeypatch, runner_still_exiting,
+    ):
+        from app import main as app_main
+        from app.routes import system
+    
+        monkeypatch.setattr(system, "manager", cron.manager)
+        monkeypatch.setattr(system, "_last_restart_abort", None)
+        monkeypatch.setattr(app_main, "_restart_failure", "")
+        monkeypatch.setattr(app_main, "_mutating_admission_open", True)
+        monkeypatch.setattr(app_main, "schedule_restart_inbox_drain", MagicMock())
+        guard = AsyncMock()
+        monkeypatch.setattr(system.restart_guard, "abort_guard", guard)
+        monkeypatch.setattr(deliveries, "_target_runner_tasks", {})
+        monkeypatch.setattr(deliveries, "ensure_target_runner", REAL_ENSURE_RUNNER)
+        forbid_orphan_recovery(monkeypatch)
+        refused, exit_allowed, submitted = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        run = deliveries.run_target_message_deliveries
+        provider = cron.session.send.side_effect
+    
+        async def hold_refused_exit(target, manager=None):
+            result = await run(target, manager=manager)
+            if not result:
+                refused.set()
+                await exit_allowed.wait()
+            return result
+    
+        if runner_still_exiting:
+            monkeypatch.setattr(deliveries, "run_target_message_deliveries", hold_refused_exit)
+    
+        async def notify_submit(*args, **kwargs):
+            await provider(*args, **kwargs)
+            submitted.set()
+    
+        cron.session.send.side_effect = notify_submit
+        app_main.close_mutating_admission()
+        cron.manager.begin_drain()
+        delivery_id = await fire(cron)
+        original = receipt(delivery_id)
+        first_runner = deliveries._target_runner_tasks[cron.session.id]
+        if runner_still_exiting:
+            await asyncio.wait_for(refused.wait(), timeout=2)
+        else:
+            assert not await finish_runner(cron.session.id)
+            assert cron.session.id not in deliveries._target_runner_tasks
+        assert receipt(delivery_id)["state"] == "QUEUED"
+        cron.session.send.assert_not_awaited()
+        # A later, legitimate schedule tick finds nothing; its output cannot be the
+        # recovery source, and reopening admission must not execute either command.
+        cron.communicate.return_value = (b"nothing pending", b"")
+        await fire(cron, slot=cron.slot + timedelta(minutes=1))
+        assert cron.spawn.await_count == 2
+        assert db.bg_get_job("fixture-cron")["last_output"] == "nothing pending"
+        await system._abort_restart("fixture failed restart without process replacement")
+        assert not cron.manager.draining and app_main.mutating_admission_open()
+        guard.assert_awaited_once_with("fixture failed restart without process replacement")
+        app_main.schedule_restart_inbox_drain.assert_called_once()
+        if runner_still_exiting:
+            assert deliveries._target_runner_tasks[cron.session.id] is first_runner
+            exit_allowed.set()
+            assert not await first_runner
+>       await asyncio.wait_for(submitted.wait(), timeout=2)
+
+tests/test_cron_drain_abort_v1074.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7e002674b7c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: match accepted → fixture-worker
+restart aborted (fixture failed restart without process replacement): no signal sent
+------------------------------ Captured log call -------------------------------
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+WARNING  orchestra.system:system.py:3037 restart aborted (fixture failed restart without process replacement): no signal sent
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_abort_v1074.py::test_actual_abort_resumes_cron_once_after_nonmatch_without_command_replay[False]
+1 failed in 4.45s

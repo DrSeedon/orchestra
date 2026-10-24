@@ -1,0 +1,48 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_abort_keeps_ambiguous_head_and_its_queued_follower_unchanged[DISPATCHING] _
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7d95c354a990>, manager=<app.manager.SessionManager object at 0x7d95...mmunicate=<AsyncMock id='138082180708688'>, slot=datetime.datetime(2026, 10, 24, 21, 37, tzinfo=datetime.timezone.utc))
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d95c5fddfa0>
+state = 'DISPATCHING'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["DISPATCHING", "DELIVERY_UNKNOWN"])
+    async def test_abort_keeps_ambiguous_head_and_its_queued_follower_unchanged(cron, monkeypatch, state):
+        monkeypatch.setattr(deliveries, "_target_runner_tasks", {})
+        first = await fire(cron)
+        deliveries.prepare_message_delivery(first)
+        deliveries.mark_message_delivery_dispatching(first)
+        if state == "DELIVERY_UNKNOWN":
+            deliveries.mark_message_delivery_unknown(first, RuntimeError("fixture ambiguous provider ack"))
+        second = await fire(cron, slot=cron.slot + timedelta(minutes=1))
+        before = receipt(first), receipt(second)
+        forbid_orphan_recovery(monkeypatch)
+        monkeypatch.setattr(deliveries, "ensure_target_runner", REAL_ENSURE_RUNNER)
+        cron.manager.begin_drain()
+>       cron.manager.end_drain()
+
+tests/test_cron_drain_abort_v1074.py:124: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/manager.py:546: in end_drain
+    resume_queued_message_deliveries()
+app/message_deliveries.py:1257: in resume_queued_message_deliveries
+    _recover_message_deliveries(None)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (None,), kwargs = {}
+
+    def forbidden(*args, **kwargs):
+>       pytest.fail("live drain abort must not orphan provider work")
+E       Failed: live drain abort must not orphan provider work
+
+tests/test_cron_drain_abort_v1074.py:31: Failed
+----------------------------- Captured stderr call -----------------------------
+cron_command fixture-cron: match accepted → fixture-worker
+cron_command fixture-cron: match accepted → fixture-worker
+------------------------------ Captured log call -------------------------------
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+INFO     app.bg_jobs:bg_jobs.py:1207 cron_command fixture-cron: match accepted → fixture-worker
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_abort_v1074.py::test_abort_keeps_ambiguous_head_and_its_queued_follower_unchanged[DISPATCHING]
+1 failed in 2.46s

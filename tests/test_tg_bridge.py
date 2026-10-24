@@ -3819,6 +3819,8 @@ class TestCronCommandTopicBoundary99:
 
         session = type("Session", (), {
             "id": "intent-hunter",
+            "name": "intent-hunter", "scope": "/scope",
+            "task_id": "", "branch": "", "needs_switch": False,
             "parent_name": "orch",
             "last_task_sender": "orch",
         })()
@@ -3846,7 +3848,17 @@ class TestCronCommandTopicBoundary99:
         )
         monkeypatch.setattr(module, "bg_cron_should_fire", lambda _job_id: True)
         monkeypatch.setattr(module, "bg_update_output", lambda *_args: None)
-        monkeypatch.setattr(module, "bg_cron_record_fire", lambda _job_id: None)
+        from app import message_deliveries
+
+        async def accept_receipt(**kwargs):
+            await session_manager.send(
+                kwargs["target_session_id"], kwargs["rendered_message"],
+                provenance=kwargs["provenance"],
+            )
+            return {"ok": True}, 202
+
+        monkeypatch.setattr(message_deliveries, "accept_message_delivery", accept_receipt)
+        monkeypatch.setattr(message_deliveries, "_row", lambda _delivery_id: None)
         outputs = [b"empty-1", b"empty-2", b"empty-3", b"empty-4", b"FOUND: 42"]
 
         async def create_process(*_args, **_kwargs):

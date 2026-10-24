@@ -12,7 +12,7 @@ import sys
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from croniter import croniter
 
@@ -22,7 +22,7 @@ from app.db import (
     bg_cancel_job, bg_cancel_removed_idle, bg_expire_job, bg_update_output, bg_get_active_all,
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
     bg_reset_stale_triggering, bg_cleanup_old,
-    bg_cron_should_fire, bg_cron_record_fire,
+    bg_cron_should_fire,
     bg_get_jobs, bg_get_job, bg_fail_job_if_active, bg_replace_job,
     bg_reset_wake_triggering, bg_record_process,
 )
@@ -1050,10 +1050,12 @@ class BgJobManager:
                     await self._fire_cron_command(
                         job_id, command, pattern, message,
                         target_name, target_scope,
+                        fire_at=nxt,
                     )
                 else:
                     await self._fire_cron(
                         job_id, message, target_name, target_scope,
+                        fire_at=nxt,
                     )
             await self._expire_settle(job_id)
         except asyncio.CancelledError:
@@ -1062,10 +1064,47 @@ class BgJobManager:
             bg_fail_job(job_id, str(e)[:500])
             await self._job_ended(job_id, "failed", str(e)[:500])
 
-    async def _fire_cron(self, job_id, message, target_name, target_scope):
+    @staticmethod
+    def _cron_delivery_id(job_id, fire_at=None):
+        # Cron has minute resolution. Re-observing one scheduled occurrence must
+        # reuse its receipt, including after an ambiguous acceptance acknowledgement.
+        slot = (fire_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        slot = slot.replace(second=0, microsecond=0).isoformat()
+        return str(uuid5(NAMESPACE_URL, f"orchestra:cron:v1:{job_id}:{slot}"))
+
+    async def _accept_cron_fire(self, job_id, session, delivery_id, body, provenance,
+                                source_output=None):
+        from app.message_deliveries import accept_message_delivery
+
+        generation = (
+            f"session={session.id}|task={getattr(session, 'task_id', '')}|"
+            f"branch={getattr(session, 'branch', '')}|"
+            f"needs_switch={int(bool(getattr(session, 'needs_switch', False)))}"
+        )
+        receipt, status = await accept_message_delivery(
+            delivery_id=delivery_id,
+            source_principal=f"background_job:{job_id}", source_name=job_id,
+            source_scope=session.scope,
+            target_session_id=session.id, target_name=session.name,
+            target_scope=session.scope, target_task_id=session.task_id,
+            target_generation=generation,
+            # The immutable source is separate from the last-3000 display body.
+            message=body if source_output is None else source_output,
+            rendered_message=body, message_kind="background_task",
+            provenance=provenance, cron_job_id=job_id,
+        )
+        if status != 202:
+            raise RuntimeError(f"cron delivery acceptance failed: {receipt}")
+
+    async def _fire_cron(self, job_id, message, target_name, target_scope, *, fire_at=None):
         if not bg_cron_should_fire(job_id):
             return
         try:
+            from app.message_deliveries import _row
+
+            delivery_id = self._cron_delivery_id(job_id, fire_at)
+            if _row(delivery_id) is not None:
+                return
             session, _failure = await self._load_job_target(job_id, target_name)
             if not session:
                 # Расписание живёт дальше: цель могла быть выгружена временно.
@@ -1074,23 +1113,27 @@ class BgJobManager:
                 origin="background_task", senders=(job_id,),
                 subtype="cron", ref=job_id,
             )
-            await self._session_manager.send(
-                session.id, f"[Cron job fired] {message}",
-                provenance=provenance,
+            await self._accept_cron_fire(
+                job_id, session, delivery_id, f"[Cron job fired] {message}", provenance,
             )
-            bg_cron_record_fire(job_id)
-            logger.info(f"cron {job_id}: fired → {target_name}")
+            logger.info(f"cron {job_id}: accepted → {target_name}")
         except Exception as e:
             logger.error(f"cron {job_id}: fire failed (continuing schedule): {e}")
 
     async def _fire_cron_command(
         self, job_id, command, pattern, message, target_name, target_scope,
+        *, fire_at=None,
     ):
         if not bg_cron_should_fire(job_id):
             return
         proc = None
         output = ""
         try:
+            from app.message_deliveries import _row
+
+            delivery_id = self._cron_delivery_id(job_id, fire_at)
+            if _row(delivery_id) is not None:
+                return
             proc = await self._spawn_managed_process(
                 job_id, command,
                 shell=True,
@@ -1158,12 +1201,10 @@ class BgJobManager:
                 origin="background_task", senders=(job_id,),
                 subtype="cron_command", ref=job_id,
             )
-            await self._session_manager.send(
-                session.id, body, provenance=provenance,
+            await self._accept_cron_fire(
+                job_id, session, delivery_id, body, provenance, source_output=raw_output,
             )
-            bg_cron_record_fire(job_id)
-            bg_update_output(job_id, output)
-            logger.info("cron_command %s: matched → %s", job_id, target_name)
+            logger.info("cron_command %s: match accepted → %s", job_id, target_name)
         except asyncio.CancelledError:
             raise
         except Exception as e:

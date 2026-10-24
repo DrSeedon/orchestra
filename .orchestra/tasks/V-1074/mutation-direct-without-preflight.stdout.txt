@@ -1,0 +1,61 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_canonical_direct_preflight_switches_before_generation_capture_and_dispatches _
+
+cron = namespace(bg=<app.bg_jobs.BgJobManager object at 0x7c10df12ba70>, manager=<app.manager.SessionManager object at 0x7c10...mmunicate=<AsyncMock id='136411903937136'>, slot=datetime.datetime(2026, 10, 24, 21, 37, tzinfo=datetime.timezone.utc))
+tmp_path = PosixPath('/home/<private-identifier>/orchestra-ws/vmi3407579/hub-5f38173ec88e469f/.orchestra/tasks/V-1074/tmp/direct-without-preflight/test_canonical_direct_prefligh0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c10e1bbf170>
+
+    @pytest.mark.asyncio
+    async def test_canonical_direct_preflight_switches_before_generation_capture_and_dispatches(
+        cron, tmp_path, monkeypatch,
+    ):
+        from app import manager as manager_module
+        from app.mcp_proof import issue_mcp_proof
+        from app.routes import sessions as routes
+        from tests.test_quota_wait_queue import _decision
+    
+        row = db.get_session(cron.session.id)
+        row.update(task_id="", needs_switch=1, branch="fixture-merged", worktree_path=str(tmp_path))
+        db.save_session(row)
+        session = SessionManager._hydrate_row(row)
+        session.send = AsyncMock(side_effect=cron.session.send.side_effect)
+        session._admission_service = AsyncMock(return_value=_decision(-10))
+        cron.manager.sessions[session.id] = session
+        cron.manager._auto_switch_before_delivery = SessionManager._auto_switch_before_delivery.__get__(cron.manager)
+        monkeypatch.setattr(routes, "manager", cron.manager)
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *args: "main")
+        switch = MagicMock()  # Only Git/process boundaries are fake; lifecycle publication is real.
+    
+        def switch_git(*args, **kwargs):
+            switch(*args, **kwargs)
+            return {"ok": True, "branch": "fixture-adhoc/worker"}
+    
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch_git)
+        monkeypatch.setattr(manager_module, "_release_hub_workspaces", AsyncMock())
+        request = SimpleNamespace(headers={
+            "x-orchestra-session-id": session.id,
+            "x-orchestra-mcp-proof": issue_mcp_proof(session.id),
+        }, cookies={})
+        delivery_id = "00000000-0000-4000-8000-000000001074"
+        response = await routes.send_message(session.name, routes.SendRequest(
+            delivery_id=delivery_id, message="legitimate prepared fixture message",
+            sender=session.name, scope=session.scope,
+        ), request=request)
+        assert response.status_code == 202
+        accepted = receipt(delivery_id)
+>       assert accepted["target_generation"] == (
+            f"session={session.id}|task=|branch=fixture-adhoc/worker|needs_switch=0"
+        )
+E       AssertionError: assert 'session=fixt...eeds_switch=1' == 'session=fixt...eeds_switch=0'
+E         
+E         Skipping 37 identical leading characters in diff, use -v to show
+E         - h=fixture-adhoc/worker|needs_switch=0
+E         ?           ^^^^^^^^^^                ^
+E         + h=fixture-merged|needs_switch=1
+E         ?           ^  +++              ^
+
+tests/test_cron_drain_abort_v1074.py:221: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_cron_drain_abort_v1074.py::test_canonical_direct_preflight_switches_before_generation_capture_and_dispatches
+1 failed in 2.45s
