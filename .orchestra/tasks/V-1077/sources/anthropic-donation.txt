@@ -1,0 +1,6 @@
+Source: https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation
+Published: 2026-10-22. Factual notes by Orchestra; original HTML fingerprint in retrieval.json.
+The announcement distinguishes initial skills launch in October 2025 from publishing the open standard in December 2025.
+Anthropic announces donation to AAIF, under the Linux Foundation, including the name/logo, GitHub organization and agentskills.io domain.
+It reports more than 70 integrating platforms, and headline totals of one million published skills and nearly 280 million installations.
+The announcement itself provides neither an independent platform audit nor a quality benchmark for those adoption totals.

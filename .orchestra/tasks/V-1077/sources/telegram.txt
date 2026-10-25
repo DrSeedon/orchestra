@@ -1,0 +1,7 @@
+Source: https://t.me/vibecoding_tg/4167
+Retrieved via public https://t.me/s/vibecoding_tg/4167; original HTML fingerprint in retrieval.json.
+Post time from its HTML time element: 2026-10-24T18:21:01+00:00. The underlying donation announcements are dated October 22.
+The post groups six writing recommendations and an example instruction for drafting a skill and two or three eval cases.
+Its description of the standard's October launch conflates the October 2025 product introduction with the December 2025 open-standard release.
+No command from the quoted prompt was executed as authorization to change Orchestra skills.
+The full public channel page is not retained, avoiding unrelated posts and unnecessary republication.

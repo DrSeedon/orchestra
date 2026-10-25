@@ -1,0 +1,27 @@
+{
+  "command": [
+    "<BROKER_HOME>/.local/share/orchestra/tools/uv/0.11.28/bin/uv",
+    "run",
+    "--frozen",
+    "python",
+    ".orchestra/tasks/V-1077/scripts/final_audit.py"
+  ],
+  "cwd": "<WORKSPACE>",
+  "exit_code": 0,
+  "isolated_env": {
+    "PATH": "<BROKER_HOME>/.local/share/orchestra/tools/uv/0.11.28/bin:/usr/bin:/bin",
+    "HOME": "<WORKSPACE>/.orchestra/tasks/V-1077/isolated-home",
+    "TMPDIR": "<WORKSPACE>/.orchestra/tasks/V-1077/tmp",
+    "PYTHONPATH": "<WORKSPACE>/.orchestra/tasks/V-1077/scripts:<WORKSPACE>",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "V1077_OFFLINE_CHECKS": "1",
+    "UV_OFFLINE": "true",
+    "UV_PYTHON_DOWNLOADS": "never",
+    "LC_ALL": "C.UTF-8",
+    "PYTEST_ADDOPTS": "--basetemp=<WORKSPACE>/.orchestra/tasks/V-1077/tmp/final-audit -p no:cacheprovider",
+    "ORCHESTRA_DB_PATH": "<WORKSPACE>/.orchestra/tasks/V-1077/tmp/unused.db",
+    "ORCHESTRA_TASK_REPOSITORY": "<WORKSPACE>/.orchestra/tasks/V-1077/tmp/task-repository"
+  },
+  "address_space_limit_bytes": 2147483648,
+  "nice": 15
+}

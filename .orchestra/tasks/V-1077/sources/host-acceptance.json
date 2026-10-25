@@ -1,0 +1,28 @@
+{
+  "provenance": "Root follow-up message in V-1077 on 2026-10-25; host execution attestation, not worker execution. Exact host timestamp not supplied.",
+  "runner": "uv run --frozen python; provisioned uv",
+  "imported_app_public_alias": "<HOST_REPO>/app/__init__.py",
+  "test_coverage": {
+    "task_local_mechanics": 23,
+    "selected_existing_delivery_tests": 31,
+    "deselected": 2,
+    "first_run": {"passed": 53, "failed": 1, "basetemp_location": "inside real Git checkout"},
+    "accepted_run": {"passed": 54, "failed": 0, "basetemp_location": "outside Git, tempfile.mkdtemp under system temporary directory"}
+  },
+  "first_failure": {
+    "test": "test_no_git_state_fails_closed",
+    "cause": "The not-a-repo directory inherited an enclosing real .git through the basetemp path; the fixture was actually inside a repository.",
+    "classification": "test fixture/environment precondition, not product delivery regression"
+  },
+  "instruction_contract": "PASS",
+  "isolation": {
+    "worker_run_checks_script_used_on_host": false,
+    "home_changed": false,
+    "offline_sitecustomize_guard": true,
+    "tests_conftest_loaded_first": true
+  },
+  "product_changed": false,
+  "verbatim_stdout": "Both host runs and acceptance evidence retained privately by root; raw copies not supplied to this worker.",
+  "scaffold_bad_path": {"registered_by_root_with_report_bug": true, "fixed_in_research": false},
+  "limits": ["No new model or provider CLI runs", "No claim of skill quality or with/without improvement", "No invented host stdout or host test duration"]
+}

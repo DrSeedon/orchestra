@@ -1,0 +1,189 @@
+{
+  "measured_utc": "2026-10-25T03:20:46.403369+00:00",
+  "imported_app": "<WORKSPACE>/app/__init__.py",
+  "canonical_skills_root": "<WORKSPACE>/.orchestra/pipelines/default/prompts/skills",
+  "copy_has_git": false,
+  "copy_has_codex_dir": false,
+  "copy_has_pipeline_manifest": false,
+  "copy_has_claude_symlink": false,
+  "skills": [
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft.md",
+      "name": "explainer-craft",
+      "sha256": "3f115db01d187546a865ea6c4f31b32137074cb9aa7adcaf92b4ae704c22dd7d",
+      "bytes": 11339,
+      "characters": 11169,
+      "lines_splitlines": 167,
+      "newline_count": 167,
+      "body_characters_after_parser_strip": 10637,
+      "description": "Script, storyboard and pre-build check for an explainer video so the viewer understands, not just sees. Complements video-artifact (which builds the video: voice, frame, sound). Use BEFORE writing STEPS, for any request to make an explainer or science-popular video, a 3Blue1Brown-style video, a video from a lecture, or to redo a video the viewer did not understand. Russian triggers: сделай ролик, объясняющее видео, сценарий ролика, раскадровка, ролик непонятный, зритель не понял.",
+      "description_characters": 484,
+      "extra_frontmatter": [],
+      "references_mentioned": [
+        "references/manim-ce.md",
+        "references/voice-checks.md"
+      ],
+      "references_present": [
+        "references/manim-ce.md",
+        "references/voice-checks.md"
+      ],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/grill-me.md",
+      "name": "grill-me",
+      "sha256": "3e4fa8cea452610c4a250e5405f0a59c038b92173b85859bc88f4504dda68991",
+      "bytes": 5145,
+      "characters": 5055,
+      "lines_splitlines": 145,
+      "newline_count": 145,
+      "body_characters_after_parser_strip": 4738,
+      "description": "Interview the user relentlessly about a plan or design until reaching shared understanding and resolving each branch of the decision tree. Use when the user wants to stress-test a plan, get grilled on a design, or mentions \"grill me\".",
+      "description_characters": 234,
+      "extra_frontmatter": [
+        "integrations",
+        "roles"
+      ],
+      "references_mentioned": [],
+      "references_present": [],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/html-artifacts.md",
+      "name": "html-artifacts",
+      "sha256": "d2d6e9c4f59b2c70c28c3ae635b667a07ec33a723188f96f50f7bbdc8f01c725",
+      "bytes": 10380,
+      "characters": 10350,
+      "lines_splitlines": 153,
+      "newline_count": 153,
+      "body_characters_after_parser_strip": 10081,
+      "description": "Create visual HTML artifacts, diagrams, animated explanations, and charts with linked interactions, honest data, and a consistent visual system. Use when visualization helps; keep short answers, code, and commands as text.",
+      "description_characters": 222,
+      "extra_frontmatter": [],
+      "references_mentioned": [
+        "references/animation.md"
+      ],
+      "references_present": [
+        "references/animation.md"
+      ],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/laptop-access.md",
+      "name": "laptop-access",
+      "sha256": "e4e1a55b514726113af690633693b3cf4d248fcf3ad3c501aa8be13a43b927cf",
+      "bytes": 5197,
+      "characters": 5182,
+      "lines_splitlines": 132,
+      "newline_count": 132,
+      "body_characters_after_parser_strip": 5053,
+      "description": "Check the owner's laptop or its projects from the VPS through the reverse SSH tunnel.",
+      "description_characters": 85,
+      "extra_frontmatter": [],
+      "references_mentioned": [],
+      "references_present": [],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+      "name": "orchestra-agents",
+      "sha256": "50333ff692d6d44e65c9807adc43b80c03c0e02f210bd6d630231a8d352fe201",
+      "bytes": 6869,
+      "characters": 6853,
+      "lines_splitlines": 153,
+      "newline_count": 153,
+      "body_characters_after_parser_strip": 6682,
+      "description": "Create an Orchestra orchestrator or permanent specialist, or move an agent between environments. Not for one-shot workers.",
+      "description_characters": 122,
+      "extra_frontmatter": [],
+      "references_mentioned": [],
+      "references_present": [],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/video-artifact.md",
+      "name": "video-artifact",
+      "sha256": "3b395571ca0337faf756538af12f21e63182a65004679e92ecf8048caa59d5f6",
+      "bytes": 28488,
+      "characters": 28115,
+      "lines_splitlines": 402,
+      "newline_count": 402,
+      "body_characters_after_parser_strip": 27793,
+      "description": "Create and deliver a 30–90 s MP4 explainer in the light paper style (painted opening/closing pictures, large real numbers on flat diagrams, a quiet music bed), using an animated HTML scene or Manim with local Russian or English voice-over, phrase synchronization, and checks.",
+      "description_characters": 275,
+      "extra_frontmatter": [],
+      "references_mentioned": [
+        "references/animation.md"
+      ],
+      "references_present": [],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/vps-deploy.md",
+      "name": "vps-deploy",
+      "sha256": "64ad423abfea799695b46660cc927210cb472882327474f63506f27a131a39f2",
+      "bytes": 4120,
+      "characters": 4120,
+      "lines_splitlines": 55,
+      "newline_count": 55,
+      "body_characters_after_parser_strip": 3908,
+      "description": "Deploy or restart the Orchestra service on its VPS, or update the owner's laptop checkout. Use only after the owner explicitly authorizes that exact deployment or restart.",
+      "description_characters": 171,
+      "extra_frontmatter": [],
+      "references_mentioned": [],
+      "references_present": [],
+      "canonical_evals_present": false,
+      "repo_codex_entry_present": false
+    }
+  ],
+  "upstream_pins": [
+    {
+      "repository": "agentskills/agentskills",
+      "sha": "69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+      "commit_url": "https://github.com/agentskills/agentskills/commit/69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+      "author_date": "2026-08-09T20:36:04Z",
+      "committer_date": "2026-08-09T20:36:04Z"
+    },
+    {
+      "repository": "anthropics/skills",
+      "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "commit_url": "https://github.com/anthropics/skills/commit/dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "author_date": "2026-10-09T18:45:49Z",
+      "committer_date": "2026-10-09T18:45:49Z"
+    }
+  ],
+  "scaffold_extraction_bytes": {
+    "entrypoint_as_documented": 0,
+    "actual_reference": 11236
+  },
+  "all_seven_index_characters": 3058,
+  "reference_metrics": [
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft/references/manim-ce.md",
+      "lines": 56,
+      "characters": 2538,
+      "bytes": 2539,
+      "sha256": "a1c4fbd48aa50a65076fed9e0423d3a3eb954f2954da89712cb4ac0fa247a05a"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/explainer-craft/references/voice-checks.md",
+      "lines": 41,
+      "characters": 1966,
+      "bytes": 1986,
+      "sha256": "13c1a886e5e493820d0607be7b1d68efd0521f0e6f35b97fbb6cce99bed8f292"
+    },
+    {
+      "path": ".orchestra/pipelines/default/prompts/skills/html-artifacts/references/animation.md",
+      "lines": 164,
+      "characters": 17083,
+      "bytes": 17142,
+      "sha256": "f219d04b5a100a47c7385663727b34e4498f3701838de63b7a7730f61f992cb3"
+    }
+  ]
+}

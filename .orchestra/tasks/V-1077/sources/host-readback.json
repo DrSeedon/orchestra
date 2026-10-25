@@ -1,0 +1,42 @@
+{
+  "coverage": "all7 complete destination SKILL files +all3 referenced files read by root; manifest complete read; SHA comparisons exhaust supplied inventory; runtime samples only own scope, max2 per role; no HOME/log/config upload",
+  "skill_rows": [
+    {"name":"explainer-craft","repo_codex_sha256":"3f115db01d187546a865ea6c4f31b32137074cb9aa7adcaf92b4ae704c22dd7d","inventory_sha256":"3f115db01d187546a865ea6c4f31b32137074cb9aa7adcaf92b4ae704c22dd7d","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true},
+    {"name":"grill-me","repo_codex_sha256":"3e4fa8cea452610c4a250e5405f0a59c038b92173b85859bc88f4504dda68991","inventory_sha256":"3e4fa8cea452610c4a250e5405f0a59c038b92173b85859bc88f4504dda68991","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true},
+    {"name":"html-artifacts","repo_codex_sha256":"d2d6e9c4f59b2c70c28c3ae635b667a07ec33a723188f96f50f7bbdc8f01c725","inventory_sha256":"d2d6e9c4f59b2c70c28c3ae635b667a07ec33a723188f96f50f7bbdc8f01c725","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true},
+    {"name":"laptop-access","repo_codex_sha256":"e4e1a55b514726113af690633693b3cf4d248fcf3ad3c501aa8be13a43b927cf","inventory_sha256":"e4e1a55b514726113af690633693b3cf4d248fcf3ad3c501aa8be13a43b927cf","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true},
+    {"name":"orchestra-agents","repo_codex_sha256":"50333ff692d6d44e65c9807adc43b80c03c0e02f210bd6d630231a8d352fe201","inventory_sha256":"50333ff692d6d44e65c9807adc43b80c03c0e02f210bd6d630231a8d352fe201","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true},
+    {"name":"video-artifact","repo_codex_sha256":"3b395571ca0337faf756538af12f21e63182a65004679e92ecf8048caa59d5f6","inventory_sha256":"3b395571ca0337faf756538af12f21e63182a65004679e92ecf8048caa59d5f6","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true},
+    {"name":"vps-deploy","repo_codex_sha256":"64ad423abfea799695b46660cc927210cb472882327474f63506f27a131a39f2","inventory_sha256":"64ad423abfea799695b46660cc927210cb472882327474f63506f27a131a39f2","match_inventory":true,"match_canonical":true,"destination_tracked":false,"canonical_tracked":true}
+  ],
+  "references": [
+    {"relative_path":"explainer-craft/references/manim-ce.md","source_match_inventory":true,"destination_present":true,"destination_matches":true,"destination_tracked":false},
+    {"relative_path":"explainer-craft/references/voice-checks.md","source_match_inventory":true,"destination_present":true,"destination_matches":true,"destination_tracked":false},
+    {"relative_path":"html-artifacts/references/animation.md","source_match_inventory":true,"destination_present":true,"destination_matches":true,"destination_tracked":false}
+  ],
+  "defaults_skills": ["html-artifacts","video-artifact","explainer-craft"],
+  "raw_role_skills": {
+    "orchestrator":["grill-me","orchestra-agents","laptop-access","vps-deploy"],
+    "sub-orchestrator":["orchestra-agents","laptop-access","vps-deploy"],
+    "worker":["laptop-access"],
+    "full-cycle":["laptop-access"],
+    "reducer":null
+  },
+  "effective_resolved_skills": {
+    "orchestrator":["explainer-craft","grill-me","html-artifacts","laptop-access","orchestra-agents","video-artifact","vps-deploy"],
+    "sub-orchestrator":["explainer-craft","html-artifacts","laptop-access","orchestra-agents","video-artifact","vps-deploy"],
+    "worker":["explainer-craft","html-artifacts","laptop-access","video-artifact"],
+    "full-cycle":["explainer-craft","html-artifacts","laptop-access","video-artifact"],
+    "reducer":["html-artifacts","video-artifact","explainer-craft"]
+  },
+  "runtime_samples": [
+    {"label":"orchestrator-sample-1","role":"orchestrator","persisted_backend_type":"codex","status":"running","uses_worktree":false,"cwd_exists":true,"effective_base_exists":true,"project_codex_skills_present":true,"project_claude_skills_present":true,"meaning":"host filesystem presence only, no remote runtime proof"},
+    {"label":"worker-sample-1","role":"worker","persisted_backend_type":"claude","status":"idle","uses_worktree":true,"cwd_exists":true,"effective_base_exists":true,"project_codex_skills_present":false,"project_claude_skills_present":true,"meaning":"host filesystem presence only, no remote runtime proof"},
+    {"label":"worker-sample-2","role":"worker","persisted_backend_type":"claude","status":"idle","uses_worktree":true,"cwd_exists":true,"effective_base_exists":true,"project_codex_skills_present":true,"project_claude_skills_present":true,"meaning":"host filesystem presence only, no remote runtime proof"},
+    {"label":"full-cycle-sample-1","role":"full-cycle","persisted_backend_type":"hub","status":"idle","uses_worktree":true,"cwd_exists":true,"effective_base_exists":true,"project_codex_skills_present":false,"project_claude_skills_present":false,"meaning":"host filesystem presence only, no remote runtime proof"},
+    {"label":"full-cycle-sample-2","role":"full-cycle","persisted_backend_type":"claude","status":"idle","uses_worktree":true,"cwd_exists":true,"effective_base_exists":true,"project_codex_skills_present":false,"project_claude_skills_present":true,"meaning":"host filesystem presence only, no remote runtime proof"}
+  ],
+  "documented_scaffold_extraction_bytes":{"SKILL.md":0,"references/animation.md":11236},
+  "claude_md_symlink":true,
+  "claude_md_target":"AGENTS.md"
+}

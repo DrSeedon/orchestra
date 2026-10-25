@@ -1,0 +1,5 @@
+Source: https://aaif.io/blog/agent-skills-sharing-team-expertise-across-ai-agents
+Published: 2026-10-22; author: Angie Jones. Factual notes by Orchestra; original HTML fingerprint in retrieval.json.
+AAIF welcomes Agent Skills as a hosted project and describes neutral governance by maintainers acting as individuals.
+The adoption paragraph attributes one million listings and nearly 280 million installs to skills.sh over seven months.
+That paragraph links to Vercel's State of agent skills report, rather than a census of all filesystem skills or successful agent executions.
