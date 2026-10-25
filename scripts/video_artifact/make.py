@@ -1,7 +1,6 @@
-"""Объясняющий ролик: анимированная HTML-сцена или Manim + локальная озвучка → MP4, синхронно по фразам.
+"""Объясняющий ролик: HTML-сцена или Manim + ElevenLabs Flash → MP4, синхронно по фразам.
 
-    uv run --frozen --project /home/kesha/orchestra python \
-        /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out DIR
+    uv run --frozen python scripts/video_artifact/make.py scene.html --out DIR
 
 Сцена `.py` — Manim вместо HTML-анимации: класс-наследник VoiceScene из manim_voice.py,
 тот же договор STEPS; рендерит Manim из ~/.local/share/orchestra-manim.
@@ -17,12 +16,13 @@
 каждая фраза), `<имя>-contact.png` (кадры конца шагов для просмотра глазами) и, если
 есть DEEPGRAM_API_KEY, `<имя>.check.json` — распознанный текст и сдвиг каждой фразы.
 
-Ключи: --speaker 0..4 (1 — по умолчанию, 0–2 женские, 3 и 4 мужские), --rate 1.0 (темп: речь и паузы между
-фразами; 1.0 — темп V-681), --fps 30,
---stills (только озвучка, тайминг и контакт-лист, без видео), --stress-only (только разметка
-ударений RUAccent: `<имя>.stress.txt` и вывод по фразам, без синтеза), --no-check.
-Синтез кэшируется по тексту фразы: правка одной фразы пересинтезирует только её,
-но первая загрузка модели занимает ~2 мин. Тяжёлое — запускать вне cgroup платформы.
+Ключи: --voice ID (default Sergey), --rate 0.7..1.2 для ElevenLabs, --fps 30,
+--stills (озвучка, тайминг и контакт-лист, без видео), --no-check.
+Для локальных движков: --speaker 0..4 (Vosk), --stress-only (разметка Tera/RUAccent
+без синтеза: `<имя>.stress.txt` и вывод по фразам).
+ElevenLabs Flash v2.5 — default для RU/EN; нужен ELEVENLABS_API_KEY в environment/.env.
+Кеш учитывает текст, модель, голос и настройки; повторов после неопределённой отправки нет.
+Локальные Tera/Vosk/Kokoro доступны явно через --tts-engine.
 """
 from __future__ import annotations
 
@@ -49,6 +49,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 from video_text import UnsupportedVoskSymbol, normalize_vosk_text
+import elevenlabs_tts
 
 HERE = Path(__file__).resolve().parent
 SOUND_HOME = Path.home() / ".local/share/orchestra-sfx"
@@ -245,13 +246,13 @@ def check_steps(steps: list[dict], lang: str, engine: str | None = "vosk") -> li
         if silent:
             continue
         pause_markers = re.findall(r"\[(\d+(?:\.\d+)?)\]", step["say"])
-        if pause_markers and engine != "tera":
-            fail(f"шаг {i}: явные паузы `[секунды]` поддерживает только TeraTTS")
+        if pause_markers and engine not in {None, "tera", "elevenlabs"}:
+            fail(f"шаг {i}: явные паузы `[секунды]` поддерживают TeraTTS и ElevenLabs")
         for marker in pause_markers:
             if not 0.05 <= float(marker) <= 10:
                 fail(f"шаг {i}: пауза [{marker}] должна быть от 0.05 до 10 секунд")
         spoken_text = re.sub(r"\[(?:\d+(?:\.\d+)?)\]", "", step["say"])
-        if lang == "en":
+        if lang == "en" and engine not in {None, "elevenlabs"}:
             if bad := sorted(set(NOT_SPEAKABLE_EN.findall(spoken_text))):
                 fail(f"шаг {i}: в say есть {''.join(bad)} — английский голос не читает кириллицу")
         elif engine == "vosk" and (bad := sorted(set(NOT_SPEAKABLE.findall(spoken_text)))):
@@ -415,10 +416,28 @@ def trim_clip(raw: Path, cut: Path) -> None:
 
 
 def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice: str = "",
-               on_ready=None, engine: str = "vosk", stress: bool = True) -> list[Path]:
+               on_ready=None, engine: str = "elevenlabs", stress: bool = True,
+               lang: str = "ru", stability: float = 0.5, similarity: float = 0.75) -> list[Path]:
     """Each phrase becomes a trimmed 48 kHz mono WAV, cached by text, engine and voice.
 
-    `voice` selects the Kokoro or Tera voice; Vosk uses `speaker`."""
+    `voice` selects ElevenLabs/Kokoro/Tera; Vosk uses `speaker`."""
+    if engine == "elevenlabs":
+        elevenlabs_tts.load_environment()
+        paths = []
+        try:
+            config = elevenlabs_tts.config_from_env(voice=voice, language=lang, speed=rate,
+                                                    stability=stability, similarity=similarity)
+            # Validate every step before making any billable request.
+            for step in steps:
+                elevenlabs_tts.segments(step["say"])
+            for i, step in enumerate(steps):
+                path = elevenlabs_tts.synthesize(step["say"], cache, config)
+                paths.append(path)
+                if on_ready:
+                    on_ready(i, path)
+        except elevenlabs_tts.TTSError as exc:
+            fail(str(exc))
+        return paths
     cache.mkdir(parents=True, exist_ok=True)
     if engine == "vosk" and voice:
         engine = "kokoro"
@@ -1086,14 +1105,15 @@ def _main() -> None:
     ap.add_argument("scene", type=Path)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--speaker", type=int, default=1)
-    ap.add_argument("--tts-engine", choices=["tera", "vosk"], default="tera",
-                    help="русская озвучка: локальная TeraTTSv2 по умолчанию или Vosk")
+    ap.add_argument("--tts-engine", choices=["elevenlabs", "tera", "vosk", "kokoro"], default="elevenlabs",
+                    help="ElevenLabs Flash v2.5 для RU/EN (default); локальные tera/vosk/kokoro — явно")
     ap.add_argument("--lang", choices=["ru", "en"], default="ru",
-                    help="en — английская озвучка Kokoro")
-    ap.add_argument("--voice", choices=["m1", "m5", "f1", "f2", "af_heart", "am_michael"],
-                    help="Tera: m1 (default), m5, f1, f2; Kokoro: af_heart (default), am_michael")
+                    help="язык ElevenLabs RU/EN; локальный английский — Kokoro")
+    ap.add_argument("--voice", help="ElevenLabs Sergey (default), ID / ELEVENLABS_VOICE_ID; Tera: m1/m5/f1/f2; Kokoro: af_heart/am_michael")
+    ap.add_argument("--tts-stability", type=float, default=0.5)
+    ap.add_argument("--tts-similarity", type=float, default=0.75)
     ap.add_argument("--rate", type=float, default=1.0)
-    ap.add_argument("--no-stress", action="store_true", help="отключить автоматическую разметку русского ударения")
+    ap.add_argument("--no-stress", action="store_true", help="отключить автоматические ударения локальных Tera/Vosk")
     ap.add_argument("--stress-only", action="store_true",
                     help="показать нормализованные фразы и ударения без генерации WAV")
     ap.add_argument("--fps", type=int, default=30)
@@ -1150,9 +1170,11 @@ def _main() -> None:
             preview_html(args.scene, steps, out, name, first_step, last_step, args.theme)
         return
     steps = check_steps(steps, args.lang, args.tts_engine)
-    if args.lang == "ru":
+    if args.lang == "ru" and args.tts_engine in {"tera", "vosk"}:
         steps = apply_stress_dictionary(steps)
     if args.stress_only:
+        if args.tts_engine == "elevenlabs":
+            fail("ElevenLabs не требует стресс-маркеров; --stress-only предназначен для локальных Tera/Vosk")
         if args.lang == "ru" and args.tts_engine == "tera":
             steps = tera_stress(steps, enabled=not args.no_stress)
         else:
@@ -1200,7 +1222,11 @@ def _main() -> None:
         if pipeline:
             pipeline.step_ready(index, rendered_clips)
 
-    if args.lang == "en":
+    if args.tts_engine == "elevenlabs":
+        engine, voice = "elevenlabs", args.voice or ""
+    elif args.lang == "en" or args.tts_engine == "kokoro":
+        if args.lang != "en":
+            fail("локальный Kokoro поддерживает только --lang en")
         engine = "kokoro"
         voice = args.voice or "af_heart"
         if voice not in {"af_heart", "am_michael"}:
@@ -1216,10 +1242,19 @@ def _main() -> None:
         if args.voice is not None:
             fail("Vosk выбирает голос через --speaker, параметр --voice предназначен для Tera/Kokoro")
         voice = ""
-    clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
-                       voice=voice, on_ready=render_ready, engine=engine, stress=not args.no_stress)
-    timing = plan(steps, clips, args.rate)
-    if manim:
+    if args.check_only:
+        try:
+            timing = json.loads((out / f"{name}.timing.json").read_text())
+            if [row["say"] for row in timing["steps"]] != [step["say"] for step in steps]:
+                fail("--check-only: текст сцены изменился; нужен прежний timing.json и соответствующая сцена")
+        except (OSError, ValueError, KeyError, TypeError):
+            fail("--check-only: нужен существующий корректный <имя>.timing.json; озвучка повторно не отправляется")
+    else:
+        clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
+                           voice=voice, on_ready=render_ready, engine=engine, stress=not args.no_stress,
+                           lang=args.lang, stability=args.tts_stability, similarity=args.tts_similarity)
+        timing = plan(steps, clips, args.rate)
+    if manim and not args.check_only:
         manim_timing_check(args.scene, cls, timing, out, name)
     print("stage 2/4: timing plan ready", flush=True)
     if pipeline:

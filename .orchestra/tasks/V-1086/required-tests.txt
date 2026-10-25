@@ -1,0 +1,965 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 58ms
+EEEEEEEEEEEEEEEsEEEEEEEEEEEEEEEEEEEEEEEsssEEEEEEsEEEEEsEEsEEEEss         [100%]
+==================================== ERRORS ====================================
+_______ ERROR at setup of test_all_video_artifact_python_sources_compile _______
+
+fixturedef = <FixtureDef argname='_bind_real_manager_into_route_modules' scope='session' baseid='tests'>
+request = <SubRequest '_bind_real_manager_into_route_modules' for <Function test_all_video_artifact_python_sources_compile>>
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(fixturedef: FixtureDef, request) -> object | None:
+        if (
+            fixturedef.argname == "event_loop_policy"
+            and fixturedef.func.__module__ != __name__
+        ):
+            warnings.warn(
+                PytestDeprecationWarning(_EVENT_LOOP_POLICY_FIXTURE_DEPRECATION_WARNING),
+            )
+        asyncio_mode = _get_asyncio_mode(request.config)
+        if not _is_asyncio_fixture_function(fixturedef.func):
+            if asyncio_mode == Mode.STRICT:
+                # Ignore async fixtures without explicit asyncio mark in strict mode
+                # This applies to pytest_trio fixtures, for example
+>               return (yield)
+                        ^^^^^
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_deepgram_digits_latin_and_glued_words_match_screen_text _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_deepgram_spoken_numbers_match_digits_and_regular_words_stay_strict _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+__________ ERROR at setup of test_missing_word_is_reported_per_phrase __________
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_manual_stress_marker_is_ignored_by_deepgram_word_matching _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+__ ERROR at setup of test_manual_stress_marker_is_removed_from_scene_caption ___
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_caption_keeps_subtitle_verbatim_but_cleans_tts_stress_marker _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_vosk_text_normalizes_quote_dash_and_ellipsis_variants _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_unsupported_vosk_symbol_fails_during_step_validation __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_requires_spelled_numbers_and_preserves_manual_stress _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_uses_its_own_stress_path_without_external_ruaccent _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_manual_stress_does_not_disable_automatic_stress_for_other_words _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+__ ERROR at setup of test_tera_worker_patches_the_imported_normalizer_globals __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_splits_only_at_sentence_ends_and_explicit_markers _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_____ ERROR at setup of test_tera_short_sentence_is_glued_to_the_next_one ______
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+________ ERROR at setup of test_tera_explicit_pause_is_literal_silence _________
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+____ ERROR at setup of test_silent_step_requires_hold_and_has_no_lead_time _____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_numeral_run_warning_threshold_is_three_consecutive_terms _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_worker_loads_one_model_for_parallel_phrase_jobs __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_parallel_synthesis_completions_keep_phrase_order_and_timing _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_manim_static_timing_tracks_remaining_budget_and_rejects_overrun _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+____ ERROR at setup of test_build_lock_reports_owner_and_serializes_builds _____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_____ ERROR at setup of test_scene_sound_events_follow_planned_step_timing _____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_____ ERROR at setup of test_say_rejects_latin_and_digits_before_synthesis _____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_english_voice_reads_latin_and_digits_but_rejects_cyrillic _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_ruaccent_marks_text_before_it_reaches_vosk_synthesis __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_manual_plus_words_are_not_sent_through_automatic_accenting _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+________ ERROR at setup of test_no_stress_flag_disables_ruaccent_in_cli ________
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+__ ERROR at setup of test_stress_only_shows_marked_phrases_without_synthesis ___
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+___ ERROR at setup of test_english_cli_branch_does_not_load_or_run_ruaccent ____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_russian_cli_defaults_to_local_tera_voice[None-ru_m1] __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+__ ERROR at setup of test_russian_cli_defaults_to_local_tera_voice[f2-ru_f2] ___
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_build_without_local_model_fails_with_install_hint _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+______ ERROR at setup of test_missing_ruaccent_fails_with_install_command ______
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_____ ERROR at setup of test_cache_key_changes_when_accented_text_changes ______
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_parallel_synthesis_deduplicates_identical_cache_jobs __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_cache_separates_voices_and_keeps_stress_setting __
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_manim_text_cache_is_dropped_when_bundled_fonts_change _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_tera_render_phrase_synthesizes_each_sentence_once_and_never_the_gap _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_default_bed_comes_from_the_sound_kit_and_missing_bed_fails _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+____ ERROR at setup of test_music_bed_without_events_still_gets_a_mix_sheet ____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_______ ERROR at setup of test_text_change_ghost_follows_the_moved_label _______
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_stress_dictionary_fixes_known_misses_and_blocks_unmarked_homographs _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_bundled_stress_dictionary_is_valid_and_marks_each_fix _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_bundled_scenes_stand_on_supports_and_zoom_onto_the_diagram _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_support_check_reports_an_object_floating_beside_its_support _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_music_without_source_or_license_is_accepted_with_a_note _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+____ ERROR at setup of test_credits_list_music_and_every_kit_recording_used ____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_vertical_format_renders_1080x1920_with_caption_in_safe_area_and_landscape_stays_default _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_vertical_caption_too_long_for_the_safe_area_fails_the_build_check _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+_ ERROR at setup of test_hook_shows_in_the_first_frame_inside_the_safe_area_and_fades_out _
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+___ ERROR at setup of test_hook_without_a_number_is_refused_before_any_work ____
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _bind_real_manager_into_route_modules():
+        """Route modules do `from app.deps import manager`, binding the name at first import.
+    
+        A test that patches `app.deps.manager` with a fake and is the first to import a route
+        module (directly or through `app.main`) leaves that fake bound there for the rest of the
+        worker's life — `test_logs_sync` then failed in CI shard 5 only when it ran after
+        `test_quota_wait_queue` on the same xdist worker. Import them once, un-patched.
+        """
+>       import app.routes.sessions  # noqa: F401
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ModuleNotFoundError: No module named 'app'
+
+tests/conftest.py:652: ModuleNotFoundError
+=========================== short test summary info ============================
+ERROR tests/test_video_artifact.py::test_all_video_artifact_python_sources_compile
+ERROR tests/test_video_artifact.py::test_deepgram_digits_latin_and_glued_words_match_screen_text
+ERROR tests/test_video_artifact.py::test_deepgram_spoken_numbers_match_digits_and_regular_words_stay_strict
+ERROR tests/test_video_artifact.py::test_missing_word_is_reported_per_phrase
+ERROR tests/test_video_artifact.py::test_manual_stress_marker_is_ignored_by_deepgram_word_matching
+ERROR tests/test_video_artifact.py::test_manual_stress_marker_is_removed_from_scene_caption
+ERROR tests/test_video_artifact.py::test_caption_keeps_subtitle_verbatim_but_cleans_tts_stress_marker
+ERROR tests/test_video_artifact.py::test_vosk_text_normalizes_quote_dash_and_ellipsis_variants
+ERROR tests/test_video_artifact.py::test_unsupported_vosk_symbol_fails_during_step_validation
+ERROR tests/test_video_artifact.py::test_tera_requires_spelled_numbers_and_preserves_manual_stress
+ERROR tests/test_video_artifact.py::test_tera_uses_its_own_stress_path_without_external_ruaccent
+ERROR tests/test_video_artifact.py::test_tera_manual_stress_does_not_disable_automatic_stress_for_other_words
+ERROR tests/test_video_artifact.py::test_tera_worker_patches_the_imported_normalizer_globals
+ERROR tests/test_video_artifact.py::test_tera_splits_only_at_sentence_ends_and_explicit_markers
+ERROR tests/test_video_artifact.py::test_tera_short_sentence_is_glued_to_the_next_one
+ERROR tests/test_video_artifact.py::test_tera_explicit_pause_is_literal_silence
+ERROR tests/test_video_artifact.py::test_silent_step_requires_hold_and_has_no_lead_time
+ERROR tests/test_video_artifact.py::test_numeral_run_warning_threshold_is_three_consecutive_terms
+ERROR tests/test_video_artifact.py::test_tera_worker_loads_one_model_for_parallel_phrase_jobs
+ERROR tests/test_video_artifact.py::test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step
+ERROR tests/test_video_artifact.py::test_parallel_synthesis_completions_keep_phrase_order_and_timing
+ERROR tests/test_video_artifact.py::test_manim_static_timing_tracks_remaining_budget_and_rejects_overrun
+ERROR tests/test_video_artifact.py::test_build_lock_reports_owner_and_serializes_builds
+ERROR tests/test_video_artifact.py::test_scene_sound_events_follow_planned_step_timing
+ERROR tests/test_video_artifact.py::test_say_rejects_latin_and_digits_before_synthesis
+ERROR tests/test_video_artifact.py::test_english_voice_reads_latin_and_digits_but_rejects_cyrillic
+ERROR tests/test_video_artifact.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis
+ERROR tests/test_video_artifact.py::test_manual_plus_words_are_not_sent_through_automatic_accenting
+ERROR tests/test_video_artifact.py::test_no_stress_flag_disables_ruaccent_in_cli
+ERROR tests/test_video_artifact.py::test_stress_only_shows_marked_phrases_without_synthesis
+ERROR tests/test_video_artifact.py::test_english_cli_branch_does_not_load_or_run_ruaccent
+ERROR tests/test_video_artifact.py::test_russian_cli_defaults_to_local_tera_voice[None-ru_m1]
+ERROR tests/test_video_artifact.py::test_russian_cli_defaults_to_local_tera_voice[f2-ru_f2]
+ERROR tests/test_video_artifact.py::test_tera_build_without_local_model_fails_with_install_hint
+ERROR tests/test_video_artifact.py::test_missing_ruaccent_fails_with_install_command
+ERROR tests/test_video_artifact.py::test_cache_key_changes_when_accented_text_changes
+ERROR tests/test_video_artifact.py::test_parallel_synthesis_deduplicates_identical_cache_jobs
+ERROR tests/test_video_artifact.py::test_tera_cache_separates_voices_and_keeps_stress_setting
+ERROR tests/test_video_artifact.py::test_manim_text_cache_is_dropped_when_bundled_fonts_change
+ERROR tests/test_video_artifact.py::test_tera_render_phrase_synthesizes_each_sentence_once_and_never_the_gap
+ERROR tests/test_video_artifact.py::test_video_frame_defaults_to_paper_theme_and_dark_stays_selectable
+ERROR tests/test_video_artifact.py::test_paper_kit_is_pure_in_time_and_miniature_lands_on_the_zoomed_original
+ERROR tests/test_video_artifact.py::test_default_bed_comes_from_the_sound_kit_and_missing_bed_fails
+ERROR tests/test_video_artifact.py::test_music_bed_without_events_still_gets_a_mix_sheet
+ERROR tests/test_video_artifact.py::test_text_change_ghost_follows_the_moved_label
+ERROR tests/test_video_artifact.py::test_stress_dictionary_fixes_known_misses_and_blocks_unmarked_homographs
+ERROR tests/test_video_artifact.py::test_bundled_stress_dictionary_is_valid_and_marks_each_fix
+ERROR tests/test_video_artifact.py::test_bundled_scenes_stand_on_supports_and_zoom_onto_the_diagram
+ERROR tests/test_video_artifact.py::test_support_check_reports_an_object_floating_beside_its_support
+ERROR tests/test_video_artifact.py::test_music_without_source_or_license_is_accepted_with_a_note
+ERROR tests/test_video_artifact.py::test_credits_list_music_and_every_kit_recording_used
+ERROR tests/test_video_artifact.py::test_vertical_format_renders_1080x1920_with_caption_in_safe_area_and_landscape_stays_default
+ERROR tests/test_video_artifact.py::test_vertical_caption_too_long_for_the_safe_area_fails_the_build_check
+ERROR tests/test_video_artifact.py::test_hook_shows_in_the_first_frame_inside_the_safe_area_and_fades_out
+ERROR tests/test_video_artifact.py::test_hook_without_a_number_is_refused_before_any_work
+9 skipped, 55 errors in 0.68s

@@ -1,0 +1,84 @@
+usage: make.py [-h] --out OUT [--speaker SPEAKER]
+               [--tts-engine {elevenlabs,tera,vosk,kokoro}] [--lang {ru,en}]
+               [--voice VOICE] [--tts-stability TTS_STABILITY]
+               [--tts-similarity TTS_SIMILARITY] [--rate RATE] [--no-stress]
+               [--stress-only] [--fps FPS] [--music MUSIC]
+               [--music-source MUSIC_SOURCE] [--music-license MUSIC_LICENSE]
+               [--no-music] [--format {landscape,vertical}] [--hook HOOK]
+               [--theme {dark,paper}] [--jobs JOBS] [--stills]
+               [--preview-step PREVIEW_STEP | --preview-range PREVIEW_RANGE]
+               [--timing-only] [--no-check] [--check-only]
+               scene
+
+Объясняющий ролик: HTML-сцена или Manim + ElevenLabs Flash → MP4, синхронно по фразам.
+
+    uv run --frozen python scripts/video_artifact/make.py scene.html --out DIR
+
+Сцена `.py` — Manim вместо HTML-анимации: класс-наследник VoiceScene из manim_voice.py,
+тот же договор STEPS; рендерит Manim из ~/.local/share/orchestra-manim.
+
+Озвучка задаёт время, а не наоборот: у каждого шага `STEPS` есть фраза `say`, она
+синтезируется первой, и длительность шага становится «вступление + фраза + пауза».
+Поэтому смена состояния в начале шага совпадает с началом фразы по построению, а не
+подгонкой. Подпись шага на экране — `sub`, если есть (транслитерация в `say` вроде «Дип Инфра»
+на экране выглядит странно), иначе сама фраза. Сцена получает длительности через `window.voice?.(STEPS)` — строку сразу
+после массива STEPS; без неё ролик не собирается (проверяется).
+
+Результат в DIR: `<имя>.mp4` (1920×1080, с `--format vertical` 1080×1920; H.264 + AAC), `<имя>.timing.json` (когда звучит
+каждая фраза), `<имя>-contact.png` (кадры конца шагов для просмотра глазами) и, если
+есть DEEPGRAM_API_KEY, `<имя>.check.json` — распознанный текст и сдвиг каждой фразы.
+
+Ключи: --voice ID (default Sergey), --rate 0.7..1.2 для ElevenLabs, --fps 30,
+--stills (озвучка, тайминг и контакт-лист, без видео), --no-check.
+Для локальных движков: --speaker 0..4 (Vosk), --stress-only (разметка Tera/RUAccent
+без синтеза: `<имя>.stress.txt` и вывод по фразам).
+ElevenLabs Flash v2.5 — default для RU/EN; нужен ELEVENLABS_API_KEY в environment/.env.
+Кеш учитывает текст, модель, голос и настройки; повторов после неопределённой отправки нет.
+Локальные Tera/Vosk/Kokoro доступны явно через --tts-engine.
+
+positional arguments:
+  scene
+
+options:
+  -h, --help            show this help message and exit
+  --out OUT
+  --speaker SPEAKER
+  --tts-engine {elevenlabs,tera,vosk,kokoro}
+                        ElevenLabs Flash v2.5 для RU/EN (default); локальные
+                        tera/vosk/kokoro — явно
+  --lang {ru,en}        язык ElevenLabs RU/EN; локальный английский — Kokoro
+  --voice VOICE         ElevenLabs Sergey (default), ID / ELEVENLABS_VOICE_ID;
+                        Tera: m1/m5/f1/f2; Kokoro: af_heart/am_michael
+  --tts-stability TTS_STABILITY
+  --tts-similarity TTS_SIMILARITY
+  --rate RATE
+  --no-stress           отключить автоматические ударения локальных Tera/Vosk
+  --stress-only         показать нормализованные фразы и ударения без
+                        генерации WAV
+  --fps FPS
+  --music MUSIC         своя подложка (любой файл) вместо подложки набора по
+                        умолчанию
+  --music-source MUSIC_SOURCE
+                        необязательно: откуда взята дорожка --music; попадёт в
+                        заметку об источниках
+  --music-license MUSIC_LICENSE
+                        необязательно: лицензия дорожки --music; попадёт в
+                        заметку об источниках
+  --no-music            без подложки: только голос (и тогда без events)
+  --format {landscape,vertical}
+                        vertical — 1080×1920 для Shorts/Reels/Клипов (сцена с
+                        вертикальной раскладкой); по умолчанию landscape
+                        1920×1080
+  --hook HOOK           тезис с цифрой поверх первых секунд ролика
+                        (вертикальный формат: до первой фразы, без озвучки)
+  --theme {dark,paper}  paper — светлая «бумажная» тема (по умолчанию), dark —
+                        прежняя тёмная
+  --jobs JOBS           параллельных Chromium при записи
+  --stills              без видео: тайминг и контакт-лист
+  --preview-step PREVIEW_STEP
+                        быстрый стоп-кадр шага без TTS
+  --preview-range PREVIEW_RANGE
+                        быстрый контакт-лист шагов, например 5:8
+  --timing-only         проверить длительности фраз и анимаций без рендера
+  --no-check
+  --check-only          только проверить готовый MP4

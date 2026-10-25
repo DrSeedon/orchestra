@@ -1,0 +1,4 @@
+PASS: public task derivatives and changed source/tests contain no captured hub user/host/workspace identifiers.
+PASS: lightweight credential-shape check; no secret-value inventory loaded and no matches printed.
+Raw evidence retained under private/raw; ignore rules must be honored during publication.
+Normal repository publication gate remains Root-owned because app is absent here.

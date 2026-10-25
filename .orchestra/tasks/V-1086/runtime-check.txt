@@ -1,0 +1,4 @@
+interpreter: <WORKSPACE>/.venv/bin/python3
+elevenlabs_tts: <WORKSPACE>/scripts/video_artifact/elevenlabs_tts.py
+app: None
+video Python sources compile
