@@ -1,0 +1,8 @@
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 25ms
+python /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-7f8e02ab74dd4229/.venv/bin/python
+app /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-7f8e02ab74dd4229/app/__init__.py
+backend /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-7f8e02ab74dd4229/app/backend_codex.py
+compact_timeout 120
