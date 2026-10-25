@@ -7,6 +7,7 @@ Regression net for the three bugs found in the codex-integration audit:
 """
 
 import asyncio
+import os
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -39,6 +40,24 @@ from app.runtime_history import (
 @pytest.fixture(autouse=True)
 def isolate_managed_codex_home(tmp_path, monkeypatch):
     monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", tmp_path / "managed-codex")
+    # Fake-process fixtures never reach a real provider; a service's delegated-cgroup
+    # requirement inherited from the host must not refuse them before the fake spawn.
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", raising=False)
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP", raising=False)
+
+
+def test_fake_backend_fixture_isolates_inherited_cgroup_requirement():
+    # A production service exports REQUIRED=1; the module fixture must neutralize it
+    # for fakes while the guard itself (app.agent_cgroups) stays fail-closed.
+    from app import agent_cgroups
+    assert "ORCHESTRA_AGENT_CGROUP_REQUIRED" not in os.environ
+    assert agent_cgroups.agent_process_options()
+    os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] = "1"
+    try:
+        with pytest.raises(RuntimeError, match="cgroup is unavailable"):
+            agent_cgroups.agent_process_options()
+    finally:
+        os.environ.pop("ORCHESTRA_AGENT_CGROUP_REQUIRED", None)
 
 
 class _FakeProcess:
@@ -1009,7 +1028,7 @@ async def test_native_compact_drains_terminal_before_returning():
 
     async def request(method, params):
         compact_queue_was_attached.append(
-            getattr(backend, "_compact_notifications", None) is not None
+            backend.compact_pending
         )
         feed({
             "method": "turn/started",
@@ -1068,7 +1087,7 @@ async def test_native_compact_drains_terminal_before_returning():
     )
     assert compact_queue_was_attached == [True]
     assert backend._notifications.empty()
-    assert backend._compact_notifications is None
+    assert backend.compact_pending is False
     assert backend.session_id == "thread-1"
     assert result == {
         "ok": True,
@@ -1122,7 +1141,7 @@ async def test_native_compact_missing_terminal_times_out_and_detaches(monkeypatc
         stdout.feed_eof()
         await asyncio.wait_for(backend._reader_task, timeout=0.5)
 
-    assert backend._compact_notifications is None
+    assert backend.compact_pending is False  # EOF reconciled the timed-out owner.
     assert backend._notifications.empty()
 
 

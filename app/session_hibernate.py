@@ -86,7 +86,7 @@ class HibernateManager:
                     "reason": "pending_delivery",
                     "error": f"{len(s._pending_messages)} message(s) pending",
                 }
-            if s._compacting:
+            if s._compacting or getattr(s._backend, "compact_pending", False) is True:
                 return {
                     "ok": False,
                     "reason": "compacting",

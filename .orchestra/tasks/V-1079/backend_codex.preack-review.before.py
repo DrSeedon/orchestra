@@ -1,0 +1,2705 @@
+"""CodexBackend — wraps Codex CLI subprocess for agent sessions."""
+
+import asyncio
+import fcntl
+import hashlib
+import json
+import logging
+import os
+import re
+import shutil
+import time
+import tomllib
+import uuid
+import weakref
+from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import AsyncIterator, Optional
+
+from app.runtime_process_group import RuntimeProcessGroup
+from app.backend_jsonrpc import (
+    JsonRpcStdioTransport,
+    bounded_tool_arguments,
+)
+from app.events import AgentEvent
+from app.runtime_history import (
+    CODEX_CLI_HISTORY_VERSION,
+    HISTORICAL_TOOL_INSTRUCTION,
+    CodexHistoryImport,
+    NativeHistoryUnsupported,
+    sanitize_sensitive_text,
+    build_model_visible_manifest,
+)
+from app.usage_contract import AggregateUsage, TurnUsage, current_context
+
+logger = logging.getLogger(__name__)
+
+CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
+
+# Effective context budgets reported by the ChatGPT-auth Codex runtime. The public API
+# advertises a larger GPT-5.6 window, but that is a different surface; local rollout
+# token_count events are the runtime source of truth and may override these fallbacks.
+CODEX_CONTEXT_LIMITS = {
+    "gpt-5.3-codex-spark": 128000,
+    "gpt-5.6-sol":   258400,
+    "gpt-6-astra":   258400,
+    "gpt-5.6-terra": 258400,
+    "gpt-5.6-luna":  258400,
+    "gpt-5.5": 258400,
+}
+
+# Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
+# https://platform.openai.com/docs/pricing (fetched through https://r.jina.ai/ — the page
+# itself answers 403 to curl/WebFetch). Cached input is model-specific;
+# `tests/test_backend_codex.py` pins each ratio so a typo cannot pass silently.
+# Terra and Luna list prices dropped below what we had (Luna 5×: was 1.0/6.0) — rows already
+# in `turn_usage` keep the price of their own day and are deliberately not rewritten.
+# The long-context tier is per request, while Codex's measured 258,400-token request window
+# is below its 272K threshold. Spark is listed explicitly but has no published final price.
+CODEX_TOKEN_PRICES = {
+    # Promotional pricing from 22.08.2026, published "at least through November 21, 2026":
+    # input −20%, output −33%. Verified in the source table, not from the announcement.
+    # Rows already in `turn_usage` keep their own day's price, as with Terra/Luna below.
+    "gpt-5.6-sol":   {"input": 4.0, "cached": 0.4, "write": 5.0, "output": 20.0},
+    "gpt-6-astra":   {"input": 10.0, "cached": 1.0, "write": 12.5, "output": 50.0},
+    "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
+    "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
+    # GPT-6, объявлены 22.09.2026 вдвое дешевле промо-цен GPT-5.6; кешированный вход −90%,
+    # запись кеша по тому же отношению 1.25×input, что и у остальных строк таблицы.
+    "gpt-6-sol":     {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 10.0},
+    # GPT-6.1 Sol: official OpenAI model pricing; cached input is 5% of input.
+    "gpt-6.1-sol":   {"input": 2.0, "cached": 0.1, "write": 2.5, "output": 10.0},
+    "gpt-6-luna":    {"input": 0.1, "cached": 0.01, "write": 0.125, "output": 0.5},
+    "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
+    "gpt-5.3-codex-spark": None,
+}
+
+
+# Codex server-side reasoning effort values. "ultra" (parallel sub-agents) is intentionally
+# excluded: it is a client-side mode, not a plain effort level for a generic worker field.
+CODEX_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+CODEX_SILENCE_HEARTBEAT_SECONDS = 30
+CODEX_COMPACT_TIMEOUT_SECONDS = 120
+CODEX_PROCESS_TIMEOUT_SECONDS = 5
+DEFERRED_INTERRUPT_TERMINAL_TIMEOUT_SECONDS = 5.0
+CODEX_STREAM_LIMIT = 16 * 1024 * 1024
+CODEX_OVERSIZE_READLINE_ERROR = (
+    "Separator is not found, and chunk exceed the limit"
+)
+CODEX_OVERSIZE_READLINE_ERRORS = frozenset({
+    CODEX_OVERSIZE_READLINE_ERROR,
+    "Separator is found, but chunk is longer than limit",
+})
+_CODEX_TOOL_ITEM_TYPES = frozenset({
+    "commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall",
+    "webSearch", "imageView", "imageGeneration", "sleep", "collabAgentToolCall",
+})
+
+
+class CodexOversizedRecordError(RuntimeError):
+    """The app-server JSONL framing was lost and this transport is unusable."""
+
+
+@dataclass
+class _CompactOperation:
+    """One native request owns its notifications, even after its caller leaves."""
+
+    sequence: int
+    thread_id: str
+    future: asyncio.Future
+    transport_generation: int
+    started_at: float = field(default_factory=time.monotonic)
+    acknowledged: bool = False
+    turn_id: str | None = None
+    started: bool = False
+    compacted: bool = False
+    terminal: str | None = None
+    error: dict = field(default_factory=dict)
+    waiting: bool = True
+    outcome: str = "pending"
+    remote_outcome: str = "unknown"
+    late: bool = False
+    times: dict = field(default_factory=dict)
+    caller_stage: str | None = None
+    ignored: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def stage(self) -> str:
+        if not self.acknowledged:
+            return "request acknowledgement"
+        return "turn lifecycle" if self.compacted else "completion notification"
+
+    def diagnostics(self) -> dict:
+        # No native IDs, error bodies, prompts or paths in diagnostic metadata.
+        info = self.error.get("codexErrorInfo")
+        names = info.keys() if isinstance(info, dict) else (info,)
+        known = {
+            "httpConnectionFailed", "responseStreamConnectionFailed",
+            "responseStreamDisconnected", "responseTooManyFailedAttempts",
+            "serverOverloaded", "internalServerError", "usageLimitExceeded",
+            "sessionBudgetExceeded", "contextWindowExceeded",
+        }
+        return {
+            "operation": self.sequence,
+            "transport_generation": self.transport_generation,
+            "stage": self.caller_stage or self.stage,
+            "outcome": self.outcome,
+            "remote_outcome": self.remote_outcome,
+            "late": self.late,
+            "turn_known": self.turn_id is not None,
+            "compacted": self.compacted,
+            "terminal_status": self.terminal,
+            "elapsed_seconds": round(time.monotonic() - self.started_at, 3),
+            "stages_seconds": dict(self.times),
+            "error_received": bool(self.error),
+            "error_info": sorted(name for name in names if isinstance(name, str) and name in known),
+            "will_retry": self.error.get("willRetry") if isinstance(self.error.get("willRetry"), bool) else None,
+            "ignored": dict(self.ignored),
+        }
+
+
+async def _run_process(
+    *cmd: str,
+    env: dict[str, str] | None = None,
+    timeout: float = CODEX_PROCESS_TIMEOUT_SECONDS,
+    orchestrator: bool = False,
+) -> tuple[int, str, str]:
+    from app.agent_cgroups import agent_process_options
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+        **agent_process_options(orchestrator),
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except BaseException:
+        if proc.returncode is None:
+            proc.kill()
+            await proc.wait()
+        raise
+    return (
+        int(proc.returncode or 0),
+        stdout.decode(errors="replace").strip(),
+        stderr.decode(errors="replace").strip(),
+    )
+
+
+def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
+                cache_write_input_tokens: int, output_tokens: int) -> float:
+    """API-equivalent cost with cached input charged at its actual lower rate."""
+    if model not in CODEX_TOKEN_PRICES:
+        raise ValueError(f"No token price configured for {model}")
+    prices = CODEX_TOKEN_PRICES[model]
+    if prices is None:
+        raise ValueError(f"No published token price for {model}")
+    cached = min(max(0, cached_input_tokens), max(0, input_tokens))
+    cache_write = min(max(0, cache_write_input_tokens), max(0, input_tokens - cached))
+    fresh = max(0, input_tokens - cached - cache_write)
+    return (fresh * prices["input"] + cached * prices["cached"]
+            + cache_write * prices.get("write", prices["input"])
+            + max(0, output_tokens) * prices["output"]) / 1_000_000
+
+
+def _read_rollout_context(path: Path) -> dict[str, int] | None:
+    """Return the last model-call context from a Codex rollout, or None fail-soft.
+
+    `turn.completed.usage` is cumulative work for the thread and cannot represent the
+    currently occupied window. Internal rollout token_count events expose both the last
+    call and the runtime-provided effective model_context_window.
+    """
+    latest = None
+    try:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    row = json.loads(line)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                payload = row.get("payload") or {}
+                if row.get("type") != "event_msg" or payload.get("type") != "token_count":
+                    continue
+                info = payload.get("info") or {}
+                usage = info.get("last_token_usage") or {}
+                window = info.get("model_context_window")
+                input_tokens = usage.get("input_tokens")
+                if not isinstance(window, int) or window <= 0:
+                    continue
+                if not isinstance(input_tokens, int) or input_tokens < 0:
+                    continue
+                cached = usage.get("cached_input_tokens", 0)
+                cache_write = usage.get("cache_write_input_tokens", 0)
+                latest = {
+                    "input_tokens": input_tokens,
+                    "cached_input_tokens": cached if isinstance(cached, int) else 0,
+                    "cache_write_input_tokens": (
+                        cache_write if isinstance(cache_write, int) else 0
+                    ),
+                    "model_context_window": window,
+                }
+    except (FileNotFoundError, OSError):
+        return None
+    return latest
+
+
+def _read_rollout_totals(path: Path) -> dict[str, int] | None:
+    latest = None
+    try:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    row = json.loads(line)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                payload = row.get("payload") or {}
+                if row.get("type") != "event_msg" or payload.get("type") != "token_count":
+                    continue
+                total = ((payload.get("info") or {}).get("total_token_usage") or {})
+                input_tokens = total.get("input_tokens")
+                if not isinstance(input_tokens, int) or input_tokens < 0:
+                    continue
+                latest = {
+                    "input_tokens": input_tokens,
+                    "cached_input_tokens": max(0, int(total.get("cached_input_tokens") or 0)),
+                    "cache_write_input_tokens": max(
+                        0, int(total.get("cache_write_input_tokens") or 0)
+                    ),
+                    "output_tokens": max(0, int(total.get("output_tokens") or 0)),
+                }
+                reasoning_tokens = total.get("reasoning_tokens")
+                if (
+                    isinstance(reasoning_tokens, int)
+                    and not isinstance(reasoning_tokens, bool)
+                    and reasoning_tokens >= 0
+                ):
+                    latest["reasoning_tokens"] = reasoning_tokens
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        return None
+    return latest
+
+
+def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> dict[str, int]:
+    baseline = baseline or {}
+    result = {}
+    for key in (
+        "input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens"
+    ):
+        value = max(0, int(current.get(key) or 0))
+        before = max(0, int(baseline.get(key) or 0))
+        result[key] = value - before if value >= before else value
+    if "reasoning_tokens" in current or "reasoning_tokens" in baseline:
+        value = current.get("reasoning_tokens")
+        before = baseline.get("reasoning_tokens")
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            if isinstance(before, int) and not isinstance(before, bool) and before >= 0:
+                result["reasoning_tokens"] = value - before if value >= before else value
+            else:
+                result["reasoning_tokens"] = value
+    return result
+
+
+def _tool_arguments_json(arguments) -> str:
+    return json.dumps(
+        bounded_tool_arguments(arguments if isinstance(arguments, dict) else {}),
+        ensure_ascii=False,
+    )
+
+
+_SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
+_CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
+_MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+_CARRIED_BASE_KEYS = (
+    "project_doc_max_bytes",
+    "model_context_window",
+    "model_auto_compact_token_limit",
+)
+
+
+def _write_private(path: Path, text: str) -> None:
+    """Атомарная запись файла 0600: сначала временный сосед, потом os.replace.
+
+    Права ставятся ДО первой записи (окно 0644 между созданием и chmod — ровно тот зазор,
+    через который эта задача и текла), а os.replace не даёт прочитать полуфайл.
+    """
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(text)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _base_codex_home() -> Path:
+    return Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
+
+
+def _managed_home_async_lock(home: Path) -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    locks = _MANAGED_HOME_LOCKS.setdefault(loop, {})
+    return locks.setdefault(home.resolve(), asyncio.Lock())
+
+
+def _acquire_managed_home_file_lock(home: Path) -> int:
+    lock_dir = home.parent / ".locks"
+    lock_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(lock_dir, 0o700)
+    digest = hashlib.sha256(os.fsencode(str(home.resolve()))).hexdigest()[:24]
+    lock_path = lock_dir / f"{digest}.lock"
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(lock_path, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _release_managed_home_file_lock(fd: int) -> None:
+    try:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+async def _acquire_managed_home_file_lock_async(home: Path) -> int:
+    task = asyncio.create_task(asyncio.to_thread(_acquire_managed_home_file_lock, home))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # flock cannot be cancelled in the worker thread. If it acquires after this
+        # waiter is cancelled, release it before propagating cancellation.
+        await asyncio.gather(task, return_exceptions=True)
+        if not task.cancelled() and task.exception() is None:
+            await asyncio.to_thread(_release_managed_home_file_lock, task.result())
+        raise
+
+
+@asynccontextmanager
+async def _managed_home_lock(home: Path):
+    async with _managed_home_async_lock(home):
+        fd = await _acquire_managed_home_file_lock_async(home)
+        try:
+            yield
+        finally:
+            await _run_home_io(_release_managed_home_file_lock, fd)
+
+
+async def _run_home_io(func, *args):
+    task = asyncio.create_task(asyncio.to_thread(func, *args))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # Releasing the home lock while the thread still writes config files would let the
+        # next owner overlap the very operation the lock exists to serialize.
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+
+
+def _carried_base_scalars() -> str:
+    """Разрешённые скаляры из базового config.toml (потолок обрезки AGENTS.md и т.п.)."""
+    base = _base_codex_home() / "config.toml"
+    if not base.is_file():
+        return ""
+    try:
+        data = tomllib.loads(base.read_text())
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        logger.warning("could not read base codex config %s: %s", base, exc)
+        return ""
+    lines = [
+        f"{key} = {json.dumps(data[key])}"
+        for key in _CARRIED_BASE_KEYS
+        if isinstance(data.get(key), (int, float, bool, str))
+    ]
+    return "\n".join(lines)
+
+
+_ORCHESTRA_MCP_TOOL_EXCLUSIONS: frozenset[str] = frozenset()
+
+
+def _orchestra_full_mcp_tools() -> tuple[str, ...]:
+    """Build Codex's full allowlist from the authoritative FastMCP registry."""
+    from app.mcp_stdio import mcp
+
+    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
+    stale_exclusions = _ORCHESTRA_MCP_TOOL_EXCLUSIONS - registered
+    if stale_exclusions:
+        raise RuntimeError(
+            f"Orchestra MCP exclusions are not registered: {sorted(stale_exclusions)}"
+        )
+    # resolve_merge_operation and send_chart were absent only because their registrations
+    # postdated the deleted static allowlist; neither omission expressed an access policy.
+    return tuple(sorted(registered - _ORCHESTRA_MCP_TOOL_EXCLUSIONS))
+
+
+class CodexProtocolError(RuntimeError):
+    """JSON-RPC error returned by Codex app-server."""
+
+    def __init__(self, method: str, error: dict):
+        self.method = method
+        self.error = error
+        super().__init__(f"{method}: {error.get('message', 'Codex app-server error')}")
+
+
+class CodexWriterConflictError(RuntimeError):
+    """The native thread has an owner this session cannot submit through."""
+
+    def __init__(self, thread_id: str):
+        self.thread_id = thread_id
+        super().__init__(f"Codex thread {thread_id} already has an active writer")
+
+    def envelope(self) -> dict:
+        return {
+            "code": "CODEX_WRITER_CONFLICT",
+            "message": str(self),
+            "retryable": True,
+            "outcome_unknown": False,
+            "details": {"thread_id": self.thread_id},
+        }
+
+
+def codex_writer_conflict(session_id: str, thread_id: str):
+    """Observe Linux's native writer lock without acquiring or unlinking it."""
+    if not _SAFE_HOME_KEY.fullmatch(session_id) or not _SAFE_HOME_KEY.fullmatch(thread_id):
+        return None
+    path = _CODEX_HOME_ROOT / session_id / "thread-writer-locks" / f"{thread_id}.lock"
+    try:
+        stat = path.stat()
+        identity = (os.major(stat.st_dev), os.minor(stat.st_dev), stat.st_ino)
+        for line in Path("/proc/locks").read_text().splitlines():
+            fields = line.split()
+            if len(fields) < 6 or fields[1:4] != ["FLOCK", "ADVISORY", "WRITE"]:
+                continue
+            major, minor, inode = fields[5].split(":")
+            if (int(major, 16), int(minor, 16), int(inode)) == identity:
+                return CodexWriterConflictError(thread_id)
+    except (OSError, ValueError):
+        # An unavailable observation is not permission to take another writer's lock.
+        # The native resume remains the authoritative check.
+        pass
+    return None
+
+
+class CodexBackend(JsonRpcStdioTransport):
+    """Persistent Codex app-server client with native turn steering.
+
+    One app-server process owns one resumable thread. `send()` starts a turn while idle
+    and uses `turn/steer` while that turn is in flight, matching the native Codex TUI.
+    """
+
+    RUNTIME_LABEL = "Codex app-server"
+
+    def __init__(self, model: str, cwd: str, system_prompt: str = "",
+                 resume_thread_id: str | None = None,
+                 mcp_env: dict[str, str] | None = None,
+                 mcp_servers: dict | None = None,
+                 reasoning_effort: str = "high",
+                 is_orchestrator: bool = False,
+                 history_import: object | None = None,
+                 validation_profile: bool = False):
+        self.model = model
+        self.cwd = cwd
+        self.system_prompt = system_prompt
+        self._thread_id: str | None = resume_thread_id
+        self._mcp_env: dict[str, str] = mcp_env or {}
+        self._mcp_servers: dict = mcp_servers or {}
+        # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
+        # чтобы конструктор оставался безопасным для вызова без session id.
+        self._codex_home: Path | None = None
+        # Digest of the managed config actually loaded by the current app-server.
+        # Adopted pre-restart processes deliberately start unknown and reconnect before
+        # their next idle turn, so config/context upgrades cannot leave them behind.
+        self._loaded_config_sha256: str | None = None
+        self._is_orchestrator = is_orchestrator
+        if history_import is not None and not isinstance(history_import, CodexHistoryImport):
+            raise TypeError("history_import must be CodexHistoryImport")
+        self._history_import = history_import
+        self._validation_profile = validation_profile
+        self.reasoning_effort = (
+            reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
+        )
+        self._proc: Optional[asyncio.subprocess.Process] = None
+        self._reader_task: Optional[asyncio.Task] = None
+        self._stderr_task: Optional[asyncio.Task] = None
+        self._notifications: asyncio.Queue[dict] = asyncio.Queue()
+        self._pending_requests: dict[int, asyncio.Future] = {}
+        self._request_seq = 0
+        self._write_lock = asyncio.Lock()
+        self._active_turn_id: str | None = None
+        self._active_turn_started_monotonic: float | None = None
+        self._tool_item_started_monotonic: dict[str, float] = {}
+        self._tool_item_intervals: list[tuple[float, float]] = []
+        self._tool_item_completed_ids: set[str] = set()
+        self._tool_item_intervals_missing = 0
+        self._events_active = False
+        self._deferred_control: dict | None = None
+        self._deferred_control_turn_id: str | None = None
+        self._deferred_terminal_deadline: float | None = None
+        self._disconnecting = False
+        self._last_stderr = ""
+        self._last_turn_error: dict = {}
+        self._started_items: set[str] = set()
+        self._subagent_descriptions: dict[str, str] = {}
+        self._rollout_path: Path | None = None
+        self._usage_baseline: dict[str, int] | None = None
+        self._thread_usage_total: dict[str, int] | None = None
+        self._last_call_usage: dict[str, int] | None = None
+        self._model_context_window = CODEX_CONTEXT_LIMITS.get(model, 258400)
+        self._compact_future: asyncio.Future | None = None
+        self._compact_operation: _CompactOperation | None = None
+        self._last_compact: _CompactOperation | None = None
+        self._compact_sequence = 0
+        self._transport_generation = 0
+        self._retired_compact_turns: set[str] = set()
+        self._seen_compact_items: set[str] = set()
+        self._starting_user_turn: list[dict] | None = None
+        self._compact_context_tokens: int | None = None
+        self._process_group: RuntimeProcessGroup | None = None
+        self._hibernate_safe = False
+        self._scope_reason = "process containment has not been checked"
+        self._teardown_error: str | None = None
+        self._reader_failure: BaseException | None = None
+        self._stdout_closed = False
+        self._terminal_reader_failure = False
+        self._connect_stage_started: float | None = None
+
+    def _log_connect_stage(self, stage: str, started: float | None = None) -> None:
+        if started is None:
+            started = self._connect_stage_started
+        if started is not None:
+            logger.info(
+                "codex_connect_stage worker=%s stage=%s duration=%.3fs",
+                self._mcp_env.get("WORKER_NAME", "unknown"),
+                stage, time.monotonic() - started,
+            )
+
+    @property
+    def session_id(self) -> Optional[str]:
+        return self._thread_id
+
+    def build_handoff_manifest(self, prepared, *, validation_profile: bool):
+        return build_model_visible_manifest(
+            runtime="codex",
+            model=self.model,
+            effective_window=self._handoff_context_window(),
+            system_prompt=self.system_prompt,
+            prepared=prepared,
+            validation_profile=validation_profile,
+            project_docs=getattr(prepared, "project_docs", ()),
+            mcp_servers=self._mcp_servers,
+        )
+
+    def _handoff_context_window(self) -> int:
+        """Use the target's configured window before its first telemetry event.
+
+        The same scalar is carried into its managed home. A requested larger window
+        is admitted only within this model's CLI catalog maximum, with the catalog's
+        effective percentage. Missing metadata keeps the existing conservative fallback.
+        Runtime telemetry, once available, takes precedence.
+        """
+        fallback = self._model_context_window
+        if self.is_alive or fallback != CODEX_CONTEXT_LIMITS.get(self.model, 258400):
+            return fallback
+        try:
+            configured = tomllib.loads(_carried_base_scalars()).get("model_context_window")
+            if type(configured) is not int or configured <= 0:
+                return fallback
+            catalog = json.loads((_base_codex_home() / "models_cache.json").read_text())
+            entry = next((m for m in catalog["models"] if m.get("slug") == self.model), None)
+            if entry is None:
+                return fallback
+            maximum = entry.get("max_context_window", entry.get("context_window"))
+            percent = entry.get("effective_context_window_percent")
+            if (type(maximum) is not int or maximum <= 0
+                    or type(percent) is not int or not 0 < percent <= 100):
+                return fallback
+            return min(configured, maximum) * percent // 100
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            logger.warning("Codex handoff context metadata unavailable: %s", type(error).__name__)
+            return fallback
+
+    @property
+    def active_turn_id(self) -> Optional[str]:
+        """Current native turn identifier."""
+        return self._active_turn_id
+
+    @property
+    def compact_pending(self) -> bool:
+        """Includes an unknown remote outcome after a local timeout/cancellation."""
+        return self._compact_operation is not None
+
+    @property
+    def compact_diagnostics(self) -> dict:
+        operation = self._compact_operation or self._last_compact
+        return operation.diagnostics() if operation else {}
+
+    @property
+    def deferred_interrupt_pending(self) -> bool:
+        return bool(
+            self._deferred_control
+            and self._deferred_control_turn_id
+            and self._deferred_control_turn_id == self._active_turn_id
+        )
+
+    def _clear_deferred_control(self) -> None:
+        self._deferred_control = None
+        self._deferred_control_turn_id = None
+        self._deferred_terminal_deadline = None
+
+    @property
+    def oversized_reader_failure(self) -> bool:
+        """Whether a JSONL record was lost and the native thread must be retired."""
+        return self._terminal_reader_failure
+
+    @property
+    def hibernate_safe(self) -> bool:
+        return self._hibernate_safe
+
+    @property
+    def hibernate_unavailable_reason(self) -> str:
+        return self._scope_reason
+
+    @property
+    def has_owned_processes(self) -> bool:
+        return self._proc is not None or self._process_group is not None
+
+    def retarget_model(self, model: str) -> None:
+        """Use app-server's per-turn model override without replacing the thread."""
+        if self._active_turn_id or self._events_active:
+            raise RuntimeError("cannot retarget Codex model while a turn is active")
+        old_fallback = CODEX_CONTEXT_LIMITS.get(self.model, 258400)
+        new_fallback = CODEX_CONTEXT_LIMITS.get(model, 258400)
+        # Preserve a runtime-reported window (for example 828400 for GPT-5.6) across
+        # siblings that share the same catalog limit; switch fallbacks across families.
+        if old_fallback != new_fallback or self._model_context_window == old_fallback:
+            self._model_context_window = new_fallback
+        self.model = model
+
+    async def _verify_history_version(self) -> None:
+        if not self._history_import:
+            return
+        try:
+            returncode, stdout, stderr = await _run_process(
+                CODEX_BIN,
+                "--version",
+                timeout=10,
+                orchestrator=self._is_orchestrator,
+            )
+        except (OSError, asyncio.TimeoutError) as error:
+            raise NativeHistoryUnsupported(
+                f"cannot verify Codex CLI history version: {type(error).__name__}: {error}"
+            ) from error
+        version_text = stdout or stderr
+        parts = version_text.split()
+        actual_version = parts[1] if len(parts) >= 2 and parts[0] == "codex-cli" else ""
+        if returncode != 0 or actual_version != CODEX_CLI_HISTORY_VERSION:
+            actual = version_text or f"exit {returncode}"
+            raise NativeHistoryUnsupported(
+                f"native Codex history requires CLI {CODEX_CLI_HISTORY_VERSION}, got {actual}"
+            )
+
+
+    async def connect(self) -> None:
+        home = self._managed_codex_home_path()
+        if home is None:
+            await self._connect_unlocked()
+            return
+        async with _managed_home_lock(home):
+            config_sha256 = await _run_home_io(
+                self._refresh_managed_config_sha256
+            )
+            await self._connect_unlocked()
+            self._loaded_config_sha256 = config_sha256
+
+    async def _connect_unlocked(self) -> None:
+        if self.is_alive and not self._teardown_error:
+            return
+
+        self._connect_stage_started = time.monotonic()
+
+        if self.has_owned_processes:
+            await self.disconnect()
+        await self._verify_history_version()
+        self._notifications = asyncio.Queue()
+        self._disconnecting = False
+        self._last_stderr = ""
+        self._reader_failure = None
+        self._stdout_closed = False
+        self._transport_generation += 1
+        self._retired_compact_turns.clear()
+        self._seen_compact_items.clear()
+        self._terminal_reader_failure = False
+        codex_cmd = self._codex_command()
+
+        env = self._build_env()
+        self._process_group, self._scope_reason = RuntimeProcessGroup.create(orchestrator=self._is_orchestrator)
+        self._hibernate_safe = self._process_group is not None
+        if self._process_group is None:
+            logger.warning("Codex hibernation unavailable: %s", self._scope_reason)
+        cmd = self._process_group.command(codex_cmd) if self._process_group else codex_cmd
+        child_stdin = child_stdout = our_stdin = our_stdout = None
+        try:
+            from app.agent_cgroups import agent_process_options
+
+            child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
+            spawn_started = time.monotonic()
+            self._proc = await asyncio.create_subprocess_exec(
+                *cmd, stdin=child_stdin, stdout=child_stdout,
+                stderr=asyncio.subprocess.PIPE, env=env, cwd=self.cwd,
+                limit=CODEX_STREAM_LIMIT,
+                **agent_process_options(self._is_orchestrator),
+            )
+            self._log_connect_stage("cli_spawn", spawn_started)
+            if our_stdin is not None:
+                # Ownership passes at the CALL, not on success: half-attached, one of these
+                # already belongs to a live transport and the cleanup below cannot tell which.
+                attach_in, attach_out = our_stdin, our_stdout
+                our_stdin = our_stdout = None
+                await self.attach_owned_pipes(attach_in, attach_out,
+                                              limit=CODEX_STREAM_LIMIT)
+                # Only now drop our copies of the CLI's own ends: the child has had them
+                # since the spawn, and keeping ours open would stop it from ever seeing EOF.
+                # Closing them AFTER wiring also means a failed wiring leaves them in hand,
+                # so the CLI dies on EOF instead of hanging on a pipe nobody reads.
+                os.close(child_stdin)
+                os.close(child_stdout)
+                child_stdin = child_stdout = None
+            self._reader_task = asyncio.create_task(self._read_stdout())
+            self._stderr_task = asyncio.create_task(self._drain_stderr())
+            metadata_only_resume = self._history_import is None and bool(self._thread_id)
+            initialize_params = {
+                "clientInfo": {
+                    "name": "orchestra",
+                    "title": "Orchestra",
+                    "version": "1",
+                },
+            }
+            if self._history_import or metadata_only_resume:
+                initialize_params["capabilities"] = {"experimentalApi": True}
+            initialize_started = time.monotonic()
+            await self._request("initialize", initialize_params)
+            self._log_connect_stage("cli_initialize", initialize_started)
+            await self._notify("initialized", {})
+            params = {
+                "cwd": self.cwd,
+                "model": self.model,
+                "approvalPolicy": "never",
+                "sandbox": "danger-full-access",
+            }
+            history_import = self._history_import
+            developer_instructions = self.system_prompt
+            if history_import:
+                developer_instructions = "\n\n".join(filter(None, (
+                    developer_instructions,
+                    HISTORICAL_TOOL_INSTRUCTION,
+                )))
+            if developer_instructions:
+                params["developerInstructions"] = developer_instructions
+            requested_thread_id = self._thread_id
+            if history_import:
+                params["threadId"] = history_import.thread_id
+                params["history"] = list(history_import.history)
+                resume_started = time.monotonic()
+                result = await self._request("thread/resume", params)
+                self._log_connect_stage("cli_thread_resume_import", resume_started)
+            elif requested_thread_id:
+                params["threadId"] = requested_thread_id
+                # The app-server otherwise reconstructs and serializes the complete native
+                # history into one JSONL response. Image-heavy threads have exceeded 16 MiB
+                # in production; Orchestra only needs the live subscription and thread id.
+                params["excludeTurns"] = True
+                resume_started = time.monotonic()
+                result = await self._request("thread/resume", params)
+                self._log_connect_stage("cli_thread_resume", resume_started)
+            else:
+                start_started = time.monotonic()
+                result = await self._request("thread/start", params)
+                self._log_connect_stage("cli_thread_start", start_started)
+            thread_id = ((result.get("thread") or {}).get("id"))
+            if not thread_id:
+                raise RuntimeError("Codex app-server returned no thread id")
+            if requested_thread_id and not history_import and thread_id != requested_thread_id:
+                raise RuntimeError(
+                    "Codex app-server resumed a different thread: "
+                    f"requested={requested_thread_id}, returned={thread_id}"
+                )
+            self._thread_id = thread_id
+            if history_import or requested_thread_id:
+                # App-server pins the MCP tool snapshot to a native thread.  Restarting
+                # the CLI and resuming that thread applies removals, but newly added
+                # tools stay absent until the supported reload RPC queues a refresh for
+                # the next active turn.  This preserves thread/context continuity while
+                # making restart-cli a real tool-registry refresh.
+                reload_started = time.monotonic()
+                await self._request("config/mcpServer/reload", None)
+                self._log_connect_stage("mcp_reload", reload_started)
+            self._history_import = None
+            self._rollout_path = None
+            self._teardown_error = None
+        except BaseException:
+            # Raw descriptors that never reached a transport are ours alone to close; the
+            # ones already handed to `attach_owned_pipes` are cleared above and closed by
+            # `disconnect()`, so nothing is closed twice.
+            for fd in (child_stdin, child_stdout, our_stdin, our_stdout):
+                if fd is not None:
+                    try:
+                        os.close(fd)
+                    except OSError:
+                        pass
+            await self.disconnect()
+            raise
+
+    async def send(self, message: str) -> None:
+        if self._teardown_error or not self.is_alive or self._stdout_closed:
+            await self.connect()
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._compact_operation and self._compact_operation.waiting:
+            raise RuntimeError("Codex context compact already in progress; queue this message")
+        if self._starting_user_turn is not None:
+            raise RuntimeError("Codex turn is starting; queue this message")
+
+        user_input = [{"type": "text", "text": message}]
+        if self._active_turn_id:
+            await self._request("turn/steer", {
+                "threadId": self._thread_id,
+                "expectedTurnId": self._active_turn_id,
+                "input": user_input,
+            })
+            return
+        if self._events_active:
+            # The server completed the old turn but session.py has not left its event
+            # iterator yet. Queue at the session layer so the new turn gets a listener.
+            raise RuntimeError("Codex turn is settling; queue this message")
+
+        self._clear_deferred_control()
+        await self._reload_stale_managed_config_before_turn()
+
+        self._last_turn_error = {}
+        self._last_call_usage = None
+        self._started_items.clear()
+        self._tool_item_started_monotonic.clear()
+        self._tool_item_intervals.clear()
+        self._tool_item_completed_ids.clear()
+        self._tool_item_intervals_missing = 0
+        self._usage_baseline = (
+            dict(self._thread_usage_total)
+            if self._thread_usage_total is not None
+            else (self._runtime_totals() if self._thread_id else None)
+        )
+        self._active_turn_started_monotonic = time.monotonic()
+        early_notifications: list[dict] = []
+        self._starting_user_turn = early_notifications
+        try:
+            result = await self._request("turn/start", {
+                "threadId": self._thread_id,
+                "input": user_input,
+                "model": self.model,
+                "effort": self.reasoning_effort,
+            })
+            turn_id = ((result.get("turn") or {}).get("id"))
+            if not turn_id:
+                raise RuntimeError("Codex app-server returned no turn id")
+            self._active_turn_id = turn_id
+        finally:
+            self._starting_user_turn = None
+            for notification in early_notifications:
+                self._route_notification(notification)
+
+    async def events(self) -> AsyncIterator[AgentEvent]:
+        if not self.is_alive:
+            return
+        expected_turn_id = self._active_turn_id
+        self._events_active = True
+        try:
+            while True:
+                timeout = CODEX_SILENCE_HEARTBEAT_SECONDS
+                if self.deferred_interrupt_pending:
+                    deadline = self._deferred_terminal_deadline
+                    if deadline is not None:
+                        remaining = deadline - asyncio.get_running_loop().time()
+                        if remaining <= 0:
+                            for event in await self._fail_deferred_interrupt(
+                                "deferred_interrupt_timeout",
+                                "Deferred interrupt did not produce a native terminal in time",
+                            ):
+                                yield event
+                            return
+                        timeout = min(timeout, remaining)
+                try:
+                    message = await asyncio.wait_for(
+                        self._notifications.get(),
+                        timeout=timeout,
+                    )
+                except asyncio.TimeoutError:
+                    if self.deferred_interrupt_pending:
+                        for event in await self._fail_deferred_interrupt(
+                            "deferred_interrupt_timeout",
+                            "Deferred interrupt did not produce a native terminal in time",
+                        ):
+                            yield event
+                        return
+                    if not self._active_turn_id:
+                        return
+                    yield AgentEvent(
+                        "thinking_stream",
+                        "Still working · no new events for 30s. Steered messages wait for the next model checkpoint.",
+                        {"activity": "waiting", "item_id": self._active_turn_id},
+                    )
+                    continue
+                method = message.get("method", "")
+                params = message.get("params") or {}
+                thread_id = params.get("threadId")
+                if thread_id and self._thread_id and thread_id != self._thread_id:
+                    continue
+                if not self._lifecycle_belongs_to_turn(message, expected_turn_id):
+                    continue
+                event_turn_id = self._notification_turn_id(message)
+                if (self._is_compaction_notification(message)
+                        and (event_turn_id and expected_turn_id and event_turn_id != expected_turn_id
+                             or message.get("_codex_idle_compaction"))):
+                    continue
+                if self._quarantine_deferred_assistant(message):
+                    continue
+                control = None
+                if not self._deferred_control:
+                    control = self._deferred_control_from_notification(
+                        message, expected_turn_id,
+                    )
+                    if control:
+                        self._deferred_control = control
+                        self._deferred_control_turn_id = str(params.get("turnId") or "")
+                for event in self._convert_notification(message):
+                    yield event
+                if control:
+                    if not await self.interrupt():
+                        for event in await self._fail_deferred_interrupt(
+                            "deferred_interrupt_failed",
+                            "Deferred interrupt request was not acknowledged",
+                        ):
+                            yield event
+                        return
+                    self._deferred_terminal_deadline = (
+                        asyncio.get_running_loop().time()
+                        + DEFERRED_INTERRUPT_TERMINAL_TIMEOUT_SECONDS
+                    )
+                if method in ("turn/completed", "_process/exited"):
+                    return
+        finally:
+            self._events_active = False
+
+    def _deferred_control_from_notification(
+        self, message: dict, expected_turn_id: str | None,
+    ) -> dict | None:
+        if message.get("method") != "item/completed":
+            return None
+        params = message.get("params") or {}
+        thread_id = str(params.get("threadId") or "")
+        turn_id = str(params.get("turnId") or "")
+        if (
+            not thread_id
+            or thread_id != self._thread_id
+            or not turn_id
+            or turn_id != expected_turn_id
+            or turn_id != self._active_turn_id
+        ):
+            return None
+        item = params.get("item") or {}
+        if (
+            item.get("type") != "mcpToolCall"
+            or item.get("server") != "orchestra"
+            or item.get("tool") != "codex_review"
+            or item.get("error")
+        ):
+            return None
+        result = item.get("result")
+        if not isinstance(result, dict) or result.get("isError") is True:
+            return None
+        structured = result.get("structuredContent")
+        if not isinstance(structured, dict) or structured.get("error") is not None:
+            return None
+        control = structured.get("result")
+        expected_keys = {"kind", "origin", "job_id", "event_id", "turn_control"}
+        if not isinstance(control, dict) or set(control) != expected_keys:
+            return None
+        job_id = control.get("job_id")
+        if not isinstance(job_id, str) or not job_id:
+            return None
+        if control != {
+            "kind": "deferred_job",
+            "origin": "orchestra.bg_jobs",
+            "job_id": job_id,
+            "event_id": f"bgjob:v1:{job_id}:completed",
+            "turn_control": "interrupt",
+        }:
+            return None
+        return dict(control)
+
+    def _quarantine_deferred_assistant(self, message: dict) -> bool:
+        turn_id = self._deferred_control_turn_id
+        if not turn_id:
+            return False
+        params = message.get("params") or {}
+        if str(params.get("turnId") or "") != turn_id:
+            return False
+        method = message.get("method")
+        if method == "item/agentMessage/delta":
+            return True
+        return bool(
+            method == "item/completed"
+            and (params.get("item") or {}).get("type") == "agentMessage"
+        )
+
+    async def _fail_deferred_interrupt(
+        self, stop_reason: str, message: str,
+    ) -> list[AgentEvent]:
+        turn_id = self._deferred_control_turn_id or self._active_turn_id or ""
+        timing = self._finish_turn_timing()
+        control = dict(self._deferred_control or {})
+        self._active_turn_id = None
+        self._clear_deferred_control()
+        disconnect_error = ""
+        try:
+            await self.disconnect()
+        except Exception as exc:
+            disconnect_error = f"; disconnect failed: {type(exc).__name__}: {exc}"
+        detail = f"{message}{disconnect_error}"
+        usage = TurnUsage(
+            AggregateUsage.normalized(),
+            current_context(
+                None,
+                self._model_context_window,
+                unknown_reason="Codex deferred interrupt ended without native usage",
+            ),
+        )
+        metadata = {
+            "event_id": turn_id,
+            "session_id": self._thread_id,
+            "ok": False,
+            "stop_reason": stop_reason,
+            "cost_usd": 0,
+            "cost_unaccounted": True,
+            **timing,
+            **usage.metadata(),
+            "model_error": "error",
+            "errors": [detail],
+            "deferred_control": control,
+        }
+        return [
+            AgentEvent("error", detail, {"model_error": "error"}),
+            AgentEvent(
+                "turn_end",
+                f"stop_reason={stop_reason}",
+                metadata=metadata,
+                usage=usage,
+            ),
+        ]
+
+    @staticmethod
+    def _lifecycle_belongs_to_turn(message: dict, expected_turn_id: str | None) -> bool:
+        method = message.get("method", "")
+        if method not in ("turn/started", "turn/completed"):
+            return True
+        received_turn_id = str(
+            (((message.get("params") or {}).get("turn") or {}).get("id")) or ""
+        )
+        if received_turn_id == expected_turn_id:
+            return True
+        logger.debug(
+            "Codex ignored lifecycle event for another turn: "
+            "method=%s received_turn_id=%s expected_turn_id=%s",
+            method,
+            received_turn_id,
+            expected_turn_id,
+        )
+        return False
+
+    async def interrupt(self) -> bool:
+        compact = self._compact_operation
+        turn_id = self._active_turn_id or (compact.turn_id if compact else None)
+        if not turn_id or not self._thread_id or not self.is_alive:
+            return False
+        try:
+            await asyncio.wait_for(self._request("turn/interrupt", {
+                "threadId": self._thread_id,
+                "turnId": turn_id,
+            }), timeout=5)
+            return True
+        except Exception as exc:
+            logger.warning("Codex turn interrupt failed: %s", exc)
+            return False
+
+    async def compact_context(self) -> dict:
+        """Await ACK, compaction evidence and a successful terminal as one operation."""
+        if not self.is_alive or self._reader_failure is not None or self._stdout_closed:
+            raise RuntimeError("Codex app-server is not running or its transport is closed")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id or self._events_active or self._starting_user_turn is not None:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self.compact_pending:
+            raise RuntimeError("Codex context compact already in progress (possibly unresolved)")
+
+        self._compact_sequence += 1
+        future = asyncio.get_running_loop().create_future()
+        op = _CompactOperation(
+            self._compact_sequence, self._thread_id, future, self._transport_generation,
+        )
+        self._compact_operation = op
+        self._compact_future = future
+        self._compact_context_tokens = None
+        # ACK and notifications are independent. A definitive error/EOF must also
+        # wake a caller whose ACK is missing; notifications may precede the ACK.
+        request = asyncio.create_task(self._request(
+            "thread/compact/start", {"threadId": op.thread_id},
+        ))
+        try:
+            async with asyncio.timeout(CODEX_COMPACT_TIMEOUT_SECONDS):
+                await asyncio.wait((request, future), return_when=asyncio.FIRST_COMPLETED)
+                if future.done() and future.exception() is not None:
+                    return await future
+                await request
+                op.acknowledged = True
+                op.times["ack"] = round(time.monotonic() - op.started_at, 3)
+                result = await asyncio.shield(future)
+                # Include usage delivered immediately after C/T in the same batch.
+                await asyncio.sleep(0)
+            result["context_tokens"] = self._compact_context_tokens
+            result["max_tokens"] = self._model_context_window
+            op.outcome = "success"
+            return result
+        except TimeoutError as exc:
+            op.outcome = "timeout"
+            op.caller_stage = op.stage
+            error = TimeoutError(
+                f"Codex compact timed out after {CODEX_COMPACT_TIMEOUT_SECONDS:g}s "
+                f"while waiting for {op.stage}; remote outcome={op.remote_outcome}"
+            )
+            error.compact_diagnostics = op.diagnostics()
+            raise error from exc
+        except asyncio.CancelledError:
+            op.outcome = "cancelled"
+            op.caller_stage = op.stage
+            raise
+        except CodexProtocolError:
+            # An RPC rejection is positive evidence that this request did not start.
+            op.outcome = "rejected"
+            op.remote_outcome = "rejected"
+            self._release_compact(op)
+            raise
+        except Exception as exc:
+            op.outcome = "failed"
+            exc.compact_diagnostics = op.diagnostics()
+            raise
+        finally:
+            op.waiting = False
+            if not request.done():
+                request.cancel()
+            if not future.done():
+                future.cancel()
+            elif not future.cancelled():
+                future.exception()
+            self._compact_future = None
+            if op.terminal is not None:
+                self._release_compact(op)
+            self._last_compact = op
+            self._log_compact_state(op)
+            await asyncio.gather(request, return_exceptions=True)
+
+    @staticmethod
+    def _log_compact_state(op: _CompactOperation) -> None:
+        logger.info("Codex compact state %s", json.dumps(op.diagnostics(), sort_keys=True))
+
+    def _release_compact(self, op: _CompactOperation) -> None:
+        if self._compact_operation is op:
+            self._compact_operation = None
+        if op.turn_id and op.turn_id not in self._retired_compact_turns:
+            self._retired_compact_turns.add(op.turn_id)
+        self._last_compact = op
+
+    def _fail_compact_transport(self, error: BaseException) -> None:
+        op = self._compact_operation
+        if op is None:
+            return
+        if op.terminal is None:
+            op.remote_outcome = "transport_closed"
+        op.late = not op.waiting
+        if not op.future.done():
+            op.future.set_exception(error)
+        self._release_compact(op)
+        self._log_compact_state(op)
+
+    async def _disconnect_direct(self, proc: asyncio.subprocess.Process) -> None:
+        if proc.returncode is None:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(proc.wait()),
+                    timeout=CODEX_PROCESS_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
+                proc.kill()
+                await proc.wait()
+
+    async def _finalize_disconnect(self) -> None:
+        for task in (self._reader_task, self._stderr_task):
+            if task and not task.done():
+                task.cancel()
+        for future in self._pending_requests.values():
+            if not future.done():
+                future.set_exception(RuntimeError("Codex app-server disconnected"))
+        self._pending_requests.clear()
+        self._fail_compact_transport(
+            RuntimeError("Codex app-server disconnected during context compact")
+        )
+        await self.teardown_owned_pipes()
+        self._proc = None
+        self._process_group = None
+        self._reader_task = None
+        self._stderr_task = None
+        self._active_turn_id = None
+        self._clear_deferred_control()
+        self._teardown_error = None
+
+    async def disconnect(self) -> None:
+        proc = self._proc
+        if proc is None and self._process_group is None:
+            return
+        self._disconnecting = True
+        try:
+            if self._active_turn_id and proc and proc.returncode is None:
+                await self.interrupt()
+            if self._process_group:
+                await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
+            elif proc:
+                await self._disconnect_direct(proc)
+            await self._finalize_disconnect()
+        except BaseException as exc:
+            self._teardown_error = f"{type(exc).__name__}: {exc}"
+            raise
+
+    async def _read_stdout(self) -> None:
+        stream = self._out
+        if stream is None:
+            return
+        generation = self._transport_generation
+        proc = self._proc
+        notifications = self._notifications
+        try:
+            while True:
+                try:
+                    raw = await stream.readline()
+                except ValueError as exc:
+                    if generation != self._transport_generation:
+                        return
+                    error_text = str(exc)
+                    if error_text not in CODEX_OVERSIZE_READLINE_ERRORS:
+                        self._reader_failure = exc
+                        raise
+                    failure = CodexOversizedRecordError(
+                        "Codex app-server emitted an oversized JSONL record; "
+                        f"aborting the poisoned transport at the "
+                        f"{CODEX_STREAM_LIMIT} byte limit"
+                    )
+                    self._reader_failure = failure
+                    self._terminal_reader_failure = True
+                    self._active_turn_id = None
+                    logger.error("%s", failure)
+                    for future in self._pending_requests.values():
+                        if not future.done():
+                            future.set_exception(failure)
+                    self._fail_compact_transport(failure)
+                    await self._abort_oversized_transport()
+                    await notifications.put({
+                        "method": "_process/exited",
+                        "params": {
+                            "returncode": getattr(self._proc, "returncode", None),
+                            "stderr": sanitize_sensitive_text(self._last_stderr).strip(),
+                            "reader_failure": str(failure),
+                        },
+                    })
+                    return
+                if generation != self._transport_generation:
+                    return
+                if not raw:
+                    break
+                try:
+                    message = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    op = self._compact_operation
+                    if op:
+                        op.ignored["invalid_json"] = op.ignored.get("invalid_json", 0) + 1
+                    logger.warning("Codex app-server emitted invalid JSONL")
+                    continue
+                request_id = message.get("id")
+                if request_id is not None and message.get("method"):
+                    # Autonomous workers have no interactive approval/elicitation UI.
+                    # `approvalPolicy=never` prevents command prompts; reject any unexpected
+                    # request explicitly instead of deadlocking.
+                    await self._write({
+                        "id": request_id,
+                        "error": {
+                            "code": -32601,
+                            "message": (
+                                f"Orchestra does not implement client request "
+                                f"{message.get('method')}"
+                            ),
+                        },
+                    })
+                    continue
+                if request_id is not None:
+                    future = self._pending_requests.get(request_id)
+                    if future and not future.done():
+                        if "error" in message:
+                            future.set_exception(
+                                CodexProtocolError("request", message.get("error") or {})
+                            )
+                        else:
+                            future.set_result(message.get("result") or {})
+                    continue
+                if message.get("method"):
+                    if message["method"] == "mcpServer/startupStatus/updated":
+                        params = message.get("params") or {}
+                        name = params.get("name") or "unknown"
+                        status = params.get("status") or "unknown"
+                        self._log_connect_stage(f"mcp_{name}_{status}")
+                    self._route_notification(message)
+        except asyncio.CancelledError:
+            return
+        except Exception as exc:
+            if generation != self._transport_generation:
+                return
+            if self._reader_failure is None:
+                self._reader_failure = exc
+            logger.exception("Codex app-server reader failed: %s", exc)
+            if isinstance(exc, ValueError):
+                raise
+        finally:
+            if generation != self._transport_generation:
+                return
+            self._stdout_closed = True
+            if not self._terminal_reader_failure:
+                # stdout EOF is a transport failure now, independently of when
+                # proc.wait()/stderr drain finish. Wake ACK and lifecycle stages.
+                transport_error = RuntimeError("Codex app-server transport closed during context compact")
+                self._fail_compact_transport(transport_error)
+                returncode = await proc.wait() if proc is not None else None
+                if generation != self._transport_generation:
+                    return
+                stderr_task = self._stderr_task
+                if stderr_task is not None and stderr_task is not asyncio.current_task():
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.shield(stderr_task),
+                            timeout=CODEX_PROCESS_TIMEOUT_SECONDS,
+                        )
+                    except TimeoutError:
+                        stderr_task.cancel()
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as exc:
+                        logger.warning("Codex stderr drain failed during exit: %s", exc)
+                if generation != self._transport_generation:
+                    return
+                stderr = sanitize_sensitive_text(self._last_stderr).strip()
+                message = (
+                    f"Codex app-server exited with code {returncode}" if proc is not None
+                    else "Codex app-server transport closed"
+                )
+                if stderr:
+                    message = f"{message}: {stderr}"
+                queued = getattr(notifications, "_queue", ())
+                terminal_queued = False
+                if self._reader_failure is not None and self._active_turn_id:
+                    terminal_queued = any(
+                        item.get("method") == "turn/completed"
+                        and str(
+                            (((item.get("params") or {}).get("turn") or {}).get("id"))
+                            or ""
+                        ) == self._active_turn_id
+                        for item in queued
+                    )
+                    if terminal_queued and not self._terminal_reader_failure:
+                        self._reader_failure = None
+                reader_failure = self._reader_failure
+                if reader_failure is not None and not terminal_queued:
+                    self._active_turn_id = None
+                if reader_failure is not None:
+                    message = f"{message}; reader failure: {reader_failure}"
+                error = RuntimeError(message)
+                pending_error = (
+                    reader_failure
+                    if isinstance(reader_failure, CodexOversizedRecordError)
+                    else error
+                )
+                for future in self._pending_requests.values():
+                    if not future.done():
+                        future.set_exception(pending_error)
+                if not self._disconnecting and (
+                    self._events_active
+                    or self._active_turn_id
+                    or reader_failure is not None
+                    or returncode not in (None, 0)
+                ) and not terminal_queued:
+                    await notifications.put({
+                        "method": "_process/exited",
+                        "params": {
+                            "returncode": returncode,
+                            "stderr": stderr,
+                            "reader_failure": str(reader_failure) if reader_failure else "",
+                        },
+                    })
+
+    async def _abort_oversized_transport(self) -> None:
+        """Stop only this app-server after JSONL framing becomes ambiguous."""
+        with suppress(Exception):
+            await self.teardown_owned_pipes()
+        proc = self._proc
+        if self._process_group:
+            with suppress(Exception):
+                self._process_group.kill()
+        if proc is not None and proc.returncode is None:
+            with suppress(ProcessLookupError):
+                proc.kill()
+
+    def _record_token_usage(self, params: dict) -> None:
+        usage = params.get("tokenUsage") or {}
+        total = usage.get("total") or {}
+        last = usage.get("last") or {}
+        self._thread_usage_total = self._usage_breakdown(total)
+        self._last_call_usage = self._usage_breakdown(last)
+        context_tokens = last.get("totalTokens")
+        if isinstance(context_tokens, int) and context_tokens >= 0:
+            self._compact_context_tokens = context_tokens
+        window = usage.get("modelContextWindow")
+        if isinstance(window, int) and window > 0:
+            self._model_context_window = window
+
+    @staticmethod
+    def _notification_turn_id(message: dict) -> str | None:
+        params = message.get("params") or {}
+        value = params.get("turnId") or (params.get("turn") or {}).get("id")
+        return str(value) if value else None
+
+    @staticmethod
+    def _is_compaction_notification(message: dict) -> bool:
+        return bool(
+            message.get("method") in ("context/compacted", "thread/compacted")
+            or (message.get("method") == "item/completed"
+                and ((message.get("params") or {}).get("item") or {}).get("type")
+                == "contextCompaction")
+        )
+
+    def _complete_compaction_from_notification(self, message: dict) -> bool:
+        """Reduce owned protocol events at receive time, never behind a C waiter.
+
+        Missing-ID success needs an exclusive S..T compact lifecycle; failures
+        remain actionable before S inside the exclusive request window.
+        Explicit foreign IDs never borrow that compatibility rule. Once the caller
+        leaves, ordinary turns use their own turn/start ACK to disambiguate early
+        events; they do not release or reuse the unresolved compact owner.
+        """
+        params = message.get("params") or {}
+        thread_id = params.get("threadId")
+        if thread_id and thread_id != self._thread_id:
+            op = self._compact_operation
+            if op:
+                op.ignored["foreign_thread"] = op.ignored.get("foreign_thread", 0) + 1
+            return True
+        method = message.get("method", "")
+        turn_id = self._notification_turn_id(message)
+        if turn_id and turn_id in self._retired_compact_turns:
+            return True
+        is_compact = self._is_compaction_notification(message)
+        item_id = str((params.get("item") or {}).get("id") or "") if is_compact else ""
+        if item_id and item_id in self._seen_compact_items:
+            return True
+        op = self._compact_operation
+        if op is None:
+            if item_id:
+                self._seen_compact_items.add(item_id)
+            # Remember queued lifecycle evidence too: it cannot claim a later Q.
+            if method == "turn/completed" and turn_id:
+                self._retired_compact_turns.add(turn_id)
+            return False
+        if self._active_turn_id and turn_id == self._active_turn_id:
+            if method == "turn/completed":
+                self._retired_compact_turns.add(turn_id)
+            if item_id:
+                self._seen_compact_items.add(item_id)
+            return False
+        if self._active_turn_id and not turn_id:
+            # ID-free legacy events are ambiguous once a user turn is active.
+            # They cannot complete the detached compact or change its usage.
+            op.ignored["ambiguous_user_overlap"] = op.ignored.get("ambiguous_user_overlap", 0) + 1
+            return is_compact or method in ("error", "thread/tokenUsage/updated")
+        if not thread_id or not turn_id:
+            op.ignored["legacy_unscoped"] = op.ignored.get("legacy_unscoped", 0) + 1
+        if op.turn_id is not None and turn_id and turn_id != op.turn_id:
+            op.ignored["foreign_turn"] = op.ignored.get("foreign_turn", 0) + 1
+            return True
+        if method == "turn/started":
+            if not op.started:
+                op.started = True
+                op.turn_id = op.turn_id or turn_id
+                op.times["started"] = round(time.monotonic() - op.started_at, 3)
+            return True
+        if op.started and op.turn_id is None and turn_id:
+            op.turn_id = turn_id
+        # In legacy streams, S is the boundary for successful compact evidence.
+        if not op.started:
+            # A failure inside this exclusive request window is actionable even
+            # if S/legacy IDs were lost. It cannot prove successful compaction.
+            if method in ("error", "turn/completed"):
+                op.turn_id = op.turn_id or turn_id
+            else:
+                return True
+        if is_compact:
+            op.compacted = True
+            op.times.setdefault("compacted", round(time.monotonic() - op.started_at, 3))
+            if item_id:
+                self._seen_compact_items.add(item_id)
+        elif method == "error":
+            op.error = {**(params.get("error") or {}), "willRetry": params.get("willRetry")}
+            op.times.setdefault("error", round(time.monotonic() - op.started_at, 3))
+            if params.get("willRetry") is not True:
+                self._fail_compact_operation(op, "error")
+        elif method == "turn/completed":
+            turn = params.get("turn") or {}
+            status = turn.get("status")
+            op.terminal = status if status in ("completed", "failed", "interrupted") else "unsupported"
+            op.remote_outcome = op.terminal
+            if turn.get("error") and not op.error:
+                op.error = dict(turn["error"])
+            op.times.setdefault("terminal", round(time.monotonic() - op.started_at, 3))
+            if op.terminal != "completed":
+                self._fail_compact_operation(op, op.terminal)
+            elif not op.started:
+                self._fail_compact_operation(op, "completed without a preceding turn/started")
+        elif method == "thread/tokenUsage/updated":
+            self._record_token_usage(params)
+            return True
+        if op.started and op.compacted and op.terminal == "completed" and not op.future.done():
+            op.future.set_result({"ok": True, "thread_id": op.thread_id})
+        if not op.waiting and op.terminal is not None:
+            op.late = True
+            self._release_compact(op)
+            self._log_compact_state(op)
+        # Compact may emit progress/tool records; none belong to a user consumer.
+        return True
+
+    @staticmethod
+    def _fail_compact_operation(op: _CompactOperation, status: str) -> None:
+        if op.future.done():
+            return
+        detail = sanitize_sensitive_text(str(op.error.get("message") or ""))
+        error = RuntimeError(f"Codex compact {status}" + (f": {detail}" if detail else ""))
+        op.future.set_exception(error)
+
+    def _route_notification(self, message: dict) -> None:
+        if self._starting_user_turn is not None:
+            # ACK supplies the user turn ID, even if S/C/error precede it. Preserve
+            # arrival order until it can be compared with the compact owner.
+            self._starting_user_turn.append(message)
+            return
+        if self._complete_compaction_from_notification(message):
+            return
+        if message.get("method") == "thread/tokenUsage/updated":
+            params = message.get("params") or {}
+            turn_id = self._notification_turn_id(message)
+            if not turn_id or not self._active_turn_id or turn_id == self._active_turn_id:
+                self._record_token_usage(params)
+        if (self._is_compaction_notification(message)
+                and not self._notification_turn_id(message) and not self._active_turn_id):
+            message = {**message, "_codex_idle_compaction": True}
+        self._notifications.put_nowait(message)
+
+    def _convert_notification(self, message: dict) -> list[AgentEvent]:
+        method = message.get("method", "")
+        params = message.get("params") or {}
+
+        if method == "thread/started":
+            thread_id = ((params.get("thread") or {}).get("id") or params.get("threadId"))
+            if not thread_id:
+                return []
+            self._thread_id = thread_id
+            self._rollout_path = None
+            return [AgentEvent(
+                "status",
+                f"codex thread={thread_id}",
+                metadata={"session_id": thread_id},
+            )]
+
+        if method == "turn/started":
+            turn_id = ((params.get("turn") or {}).get("id"))
+            if turn_id:
+                self._active_turn_id = turn_id
+                if self._active_turn_started_monotonic is None:
+                    self._active_turn_started_monotonic = time.monotonic()
+            return [AgentEvent("status", f"codex turn={turn_id} started")]
+
+        if method == "thread/tokenUsage/updated":
+            self._record_token_usage(params)
+            return []
+
+        if method == "error":
+            error = params.get("error") or {}
+            self._last_turn_error = error
+            content = error.get("message") or "Codex error"
+            model_error = self._classify_error(error)
+            quota_exhausted = error.get("codexErrorInfo") in (
+                "usageLimitExceeded", "sessionBudgetExceeded",
+            )
+            if params.get("willRetry") and not quota_exhausted:
+                return [AgentEvent("status", f"codex reconnecting: {content}")]
+            metadata = {"model_error": model_error}
+            if model_error == "rate_limit":
+                content = f"rate_limit: {content}"
+            if quota_exhausted:
+                metadata["codex_quota_exhausted"] = True
+            return [AgentEvent("error", content, metadata=metadata)]
+
+        if method == "model/rerouted":
+            return [AgentEvent("status", f"model rerouted: {json.dumps(params, ensure_ascii=False)}")]
+
+        if method in ("context/compacted", "thread/compacted"):
+            return [AgentEvent("status", "codex context compacted")]
+
+        if method in (
+            "item/reasoning/summaryTextDelta",
+            "item/reasoning/textDelta",
+            "item/plan/delta",
+        ):
+            activity = "plan" if method == "item/plan/delta" else "reasoning"
+            return [AgentEvent(
+                "thinking_stream",
+                params.get("delta", ""),
+                metadata={
+                    "activity": activity,
+                    "item_id": params.get("itemId", ""),
+                },
+            )]
+
+        if method == "turn/plan/updated":
+            return [AgentEvent("plan", json.dumps({
+                "explanation": params.get("explanation"),
+                "plan": params.get("plan") or [],
+            }, ensure_ascii=False))]
+
+        if method == "turn/diff/updated":
+            return [AgentEvent(
+                "turn_diff",
+                params.get("diff", ""),
+                metadata={"turn_id": params.get("turnId", "")},
+            )]
+
+        if method in (
+            "item/commandExecution/outputDelta",
+            "item/fileChange/outputDelta",
+        ):
+            return [AgentEvent(
+                "tool_stream",
+                params.get("delta", ""),
+                metadata={"tool_use_id": params.get("itemId", "")},
+            )]
+
+        if method == "item/commandExecution/terminalInteraction":
+            return [AgentEvent(
+                "tool_stream",
+                params.get("stdin", ""),
+                metadata={
+                    "tool_use_id": params.get("itemId", ""),
+                    "stream": "stdin",
+                },
+            )]
+
+        if method == "item/fileChange/patchUpdated":
+            return [AgentEvent(
+                "tool_patch",
+                json.dumps({"changes": params.get("changes") or []}, ensure_ascii=False),
+                metadata={"tool_use_id": params.get("itemId", "")},
+            )]
+
+        if method == "item/started":
+            item = params.get("item") or {}
+            item_id = str(item.get("id") or "")
+            if item_id:
+                self._started_items.add(item_id)
+            if self._item_belongs_to_active_turn(params):
+                self._record_tool_item_started(item)
+            return self._item_started(item)
+
+        if method == "item/completed":
+            item = params.get("item") or {}
+            if self._item_belongs_to_active_turn(params):
+                self._record_tool_item_completed(item, time.monotonic())
+            return self._item_completed(item)
+
+        if method == "item/mcpToolCall/progress":
+            return [AgentEvent(
+                "tool_stream",
+                params.get("message", ""),
+                metadata={"tool_use_id": params.get("itemId", "")},
+            )]
+
+        if method == "item/agentMessage/delta":
+            return [AgentEvent("stream", params.get("delta", ""))]
+
+        if method in ("warning", "guardianWarning", "deprecationNotice", "configWarning"):
+            content = (
+                params.get("message")
+                or params.get("summary")
+                or "Codex warning"
+            )
+            details = params.get("details")
+            if details:
+                content = f"{content}\n{details}"
+            return [AgentEvent("warning", content)]
+
+        if method == "mcpServer/startupStatus/updated":
+            name = params.get("name") or "unknown"
+            status = params.get("status") or "unknown"
+            if status in ("starting", "ready"):
+                return []
+            detail = params.get("error") or params.get("failureReason") or ""
+            content = f"codex mcp {name}: {status}"
+            if detail:
+                content = f"{content} — {detail}"
+            event_type = "warning" if status in ("failed", "cancelled") else "status"
+            return [AgentEvent(event_type, content)]
+
+        if method in ("hook/started", "hook/completed"):
+            run = params.get("run") or {}
+            phase = "started" if method.endswith("/started") else "completed"
+            label = run.get("eventName") or run.get("id") or "hook"
+            status = run.get("status") or phase
+            duration = run.get("durationMs")
+            suffix = f" · {duration}ms" if duration is not None else ""
+            if method == "hook/completed" and str(label).lower() == "pretooluse":
+                entries = run.get("entries") or []
+                reason = "\n".join(
+                    str(entry.get("text") or "")
+                    for entry in entries if isinstance(entry, dict)
+                )
+                if reason.startswith("POLICY VIOLATION ["):
+                    return [AgentEvent("policy_violation", reason, metadata={
+                        "tool_name": "Bash",
+                    })]
+            return [AgentEvent("status", f"codex hook {label}: {status}{suffix}")]
+
+        if method in ("item/autoApprovalReview/started", "item/autoApprovalReview/completed"):
+            phase = "started" if method.endswith("/started") else "completed"
+            return [AgentEvent("status", f"codex approval review {phase}")]
+
+        if method == "model/safetyBuffering/updated" and params.get("showBufferingUi"):
+            reasons = ", ".join(params.get("reasons") or [])
+            return [AgentEvent("warning", f"Codex safety buffering: {reasons or params.get('model', '')}")]
+
+        if method == "turn/completed":
+            turn = params.get("turn") or {}
+            self._active_turn_id = None
+            # A terminal lifecycle event proves that the poisoned record was not the
+            # turn terminator; later clean EOF must not replay a stale failure.
+            self._reader_failure = None
+            return self._turn_completed(turn)
+
+        if method == "_process/exited":
+            event_id = self._active_turn_id or ""
+            self._active_turn_id = None
+            timing = self._finish_turn_timing()
+            reader_failure = params.get("reader_failure") or ""
+            model_error = "reader_failure" if reader_failure else "server_error"
+            normalized_usage = TurnUsage(
+                AggregateUsage.normalized(),
+                current_context(
+                    None,
+                    self._model_context_window,
+                    unknown_reason="Codex exited before reporting current context",
+                ),
+            )
+            return [AgentEvent("turn_end", "stop_reason=process_exit", metadata={
+                "event_id": event_id,
+                "session_id": self._thread_id,
+                "ok": False,
+                "stop_reason": f"process_exit_{params.get('returncode')}",
+                "returncode": params.get("returncode"),
+                "stderr_tail": params.get("stderr", ""),
+                "model_error": model_error,
+                "errors": [model_error],
+                "reader_failure": reader_failure,
+                "cost_usd": 0,
+                **timing,
+                **normalized_usage.metadata(),
+            }, usage=normalized_usage)]
+
+        return []
+
+    def _item_started(self, item: dict) -> list[AgentEvent]:
+        item_type = item.get("type", "")
+        item_id = str(item.get("id") or "")
+        if item_type == "commandExecution":
+            payload = {
+                "command": item.get("command", ""),
+                "cwd": item.get("cwd", self.cwd),
+                "command_actions": item.get("commandActions") or [],
+            }
+            return [self._tool_use(
+                "Bash",
+                json.dumps(payload, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "fileChange":
+            payload = {
+                "changes": item.get("changes") or [],
+                "status": item.get("status", ""),
+            }
+            return [self._tool_use(
+                "FileChange",
+                json.dumps(payload, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "mcpToolCall":
+            server, tool = item.get("server", ""), item.get("tool", "")
+            name = f"mcp__{server}__{tool}" if server else tool
+            return [self._tool_use(
+                name,
+                _tool_arguments_json(item.get("arguments")),
+                item_id,
+                short_name=tool,
+            )]
+        if item_type == "dynamicToolCall":
+            return [self._tool_use(
+                item.get("tool", "tool"),
+                _tool_arguments_json(item.get("arguments")),
+                item_id,
+            )]
+        if item_type == "webSearch":
+            return [self._tool_use(
+                "WebSearch",
+                json.dumps({
+                    "query": item.get("query", ""),
+                    "action": item.get("action"),
+                }, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "imageView":
+            return [self._tool_use(
+                "ViewImage",
+                json.dumps({"file_path": item.get("path", "")}, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "imageGeneration":
+            return [self._tool_use(
+                "ImageGeneration",
+                json.dumps({"status": item.get("status", "")}, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "sleep":
+            return [self._tool_use(
+                "Sleep",
+                json.dumps({"duration_ms": item.get("durationMs", 0)}),
+                item_id,
+            )]
+        if item_type == "collabAgentToolCall":
+            return self._collab_events(item, completed=False)
+        if item_type == "contextCompaction":
+            return [AgentEvent("status", "codex compacting context")]
+        return []
+
+    def _item_completed(self, item: dict) -> list[AgentEvent]:
+        item_type = item.get("type", "")
+        item_id = str(item.get("id") or "")
+        unseen = bool(item_id and item_id not in self._started_items)
+        events: list[AgentEvent] = []
+
+        if item_type == "agentMessage":
+            text = item.get("text", "")
+            if text:
+                events.append(AgentEvent("text", text))
+        elif item_type == "reasoning":
+            parts = item.get("summary") or item.get("content") or []
+            text = "\n".join(str(part) for part in parts if part)
+            if text:
+                events.append(AgentEvent("thinking", text))
+        elif item_type == "plan":
+            if item.get("text"):
+                events.append(AgentEvent("thinking", item["text"]))
+        elif item_type == "commandExecution":
+            if unseen:
+                events.extend(self._item_started(item))
+            output = item.get("aggregatedOutput")
+            exit_code = item.get("exitCode")
+            output_text = str(output) if output is not None else ""
+            violation = re.search(
+                r"POLICY VIOLATION \[([a-z0-9_]+)\]:[^\r\n]*", output_text,
+            )
+            if violation:
+                refusal = violation.group(0)
+                events.append(AgentEvent("policy_violation", refusal, metadata={
+                    "rule": violation.group(1),
+                    "tool_name": "Bash",
+                    "tool_use_id": item_id,
+                }))
+            failed = violation is not None or (exit_code is not None and exit_code != 0)
+            if output is not None or failed:
+                result = output_text if output is not None else f"command exited with code {exit_code}"
+                events.append(AgentEvent(
+                    "tool_result",
+                    result,
+                    metadata={
+                        "exit_code": exit_code,
+                        "tool_use_id": item_id,
+                        "tool_name": "Bash",
+                        "is_error": failed,
+                    },
+                ))
+        elif item_type == "fileChange":
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "status": item.get("status", ""),
+                    "files": len(item.get("changes") or []),
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
+        elif item_type == "mcpToolCall":
+            server, tool = item.get("server", ""), item.get("tool", "")
+            name = f"mcp__{server}__{tool}" if server else tool
+            if unseen:
+                events.append(self._tool_use(
+                    name,
+                    _tool_arguments_json(item.get("arguments")),
+                    item_id,
+                    short_name=tool,
+                ))
+            if item.get("result") is not None:
+                events.append(AgentEvent(
+                    "tool_result",
+                    self._result_text(item["result"]),
+                    metadata={
+                        "tool_use_id": item_id,
+                        "tool_name": name,
+                        "is_error": False,
+                    },
+                ))
+            if item.get("error"):
+                error = item["error"]
+                error_text = (
+                    error.get("message", str(error))
+                    if isinstance(error, dict)
+                    else str(error)
+                )
+                events.append(AgentEvent(
+                    "tool_result",
+                    error_text,
+                    metadata={
+                        "tool_use_id": item_id,
+                        "tool_name": name,
+                        "is_error": True,
+                    },
+                ))
+                events.append(AgentEvent(
+                    "error",
+                    error_text,
+                ))
+        elif item_type == "dynamicToolCall":
+            if unseen:
+                events.extend(self._item_started(item))
+            content = item.get("contentItems")
+            failed = item.get("success") is False or item.get("status") == "failed"
+            if content is not None or failed:
+                events.append(AgentEvent(
+                    "tool_result",
+                    self._result_text(content) if content is not None else json.dumps({
+                        "status": item.get("status"),
+                        "success": item.get("success"),
+                    }),
+                    metadata={
+                        "tool_use_id": item_id,
+                        "tool_name": item.get("tool", "tool"),
+                        "is_error": failed,
+                    },
+                ))
+        elif item_type == "webSearch":
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "query": item.get("query", ""),
+                    "action": item.get("action"),
+                    "status": "completed",
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
+        elif item_type == "imageView":
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "status": "viewed",
+                    "file_path": item.get("path", ""),
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
+        elif item_type == "imageGeneration":
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "result": item.get("result"),
+                    "saved_path": item.get("savedPath"),
+                    "status": item.get("status", ""),
+                    "revised_prompt": item.get("revisedPrompt"),
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
+        elif item_type == "sleep":
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({"status": "completed", "duration_ms": item.get("durationMs", 0)}),
+                metadata={"tool_use_id": item_id},
+            ))
+        elif item_type == "collabAgentToolCall":
+            events.extend(self._collab_events(item, completed=True))
+        elif item_type == "subAgentActivity":
+            sub_id = item.get("agentThreadId", "")
+            kind = item.get("kind", "activity")
+            agent_path = item.get("agentPath", "")
+            events.append(AgentEvent(
+                "subagent_progress",
+                f"{agent_path} | type=codex | id={sub_id} | tool={kind}",
+                metadata={"subagent_id": sub_id, "status": kind, "phase": "progress"},
+            ))
+        elif item_type == "contextCompaction":
+            events.append(AgentEvent("status", "codex context compacted"))
+        elif item_type in ("enteredReviewMode", "exitedReviewMode"):
+            phase = "entered" if item_type == "enteredReviewMode" else "exited"
+            events.append(AgentEvent("review", json.dumps({
+                "phase": phase,
+                "review": item.get("review", ""),
+            }, ensure_ascii=False)))
+
+        if item_id:
+            self._started_items.discard(item_id)
+        return events
+
+    def _collab_events(self, item: dict, *, completed: bool) -> list[AgentEvent]:
+        tool = item.get("tool", "")
+        receiver_ids = item.get("receiverThreadIds") or [item.get("id", "")]
+        agent_states = item.get("agentsStates") or {}
+        events = []
+        for sub_id in receiver_ids:
+            prompt = item.get("prompt") or ""
+            if tool == "spawnAgent" and prompt:
+                self._subagent_descriptions[sub_id] = prompt
+            description = prompt or self._subagent_descriptions.get(sub_id) or tool
+            agent_state = agent_states.get(sub_id) or {}
+            agent_status = agent_state.get("status", "")
+            summary = agent_state.get("message") or ""
+            metadata = {
+                "subagent_id": sub_id,
+                "tool_use_id": item.get("id", ""),
+                "description": description,
+                "task_type": "codex",
+                "status": agent_status or item.get("status", ""),
+                "summary": summary,
+            }
+            if tool == "spawnAgent" and not completed:
+                metadata["phase"] = "start"
+                content = (
+                    f"{description} | type=codex | id={sub_id} | "
+                    f"tool_use_id={item.get('id', '')}"
+                )
+                events.append(AgentEvent("subagent_start", content, metadata))
+            elif completed and (
+                tool == "closeAgent"
+                or agent_status in {"interrupted", "completed", "errored", "shutdown", "notFound"}
+            ):
+                metadata["phase"] = "end"
+                content = (
+                    f"{description} | type=codex | id={sub_id} | "
+                    f"tool_use_id={item.get('id', '')} | status={metadata['status']}"
+                    f"{' | ' + summary[:500] if summary else ''}"
+                )
+                events.append(AgentEvent("subagent_end", content, metadata))
+            else:
+                metadata["phase"] = "progress"
+                content = (
+                    f"{description} | type=codex | id={sub_id} | "
+                    f"tool_use_id={item.get('id', '')} | tool={tool}"
+                )
+                events.append(AgentEvent("subagent_progress", content, metadata))
+        return events
+
+    def _turn_completed(self, turn: dict) -> list[AgentEvent]:
+        provider_api_duration_ms = self._optional_nonnegative_int(turn.get("duration_api_ms"))
+        timing = self._finish_turn_timing(provider_api_duration_ms)
+        status = turn.get("status", "failed")
+        error = turn.get("error") or self._last_turn_error or {}
+        turn_id = str(turn.get("id") or "")
+        deferred_control = (
+            dict(self._deferred_control)
+            if self._deferred_control
+            and self._deferred_control_turn_id == turn_id
+            else None
+        )
+        if deferred_control and status == "interrupted":
+            ok = False
+            model_error = ""
+            stop_reason = "interrupted"
+        elif deferred_control:
+            ok = False
+            model_error = "error"
+            stop_reason = "deferred_interrupt_not_honored"
+        else:
+            ok = status == "completed"
+            model_error = "" if ok else self._classify_error(error)
+            stop_reason = {
+                "completed": "end_turn",
+                "interrupted": "interrupted",
+                "failed": "error",
+            }.get(status, status)
+
+        totals = self._thread_usage_total or self._runtime_totals() or {}
+        delta = _usage_delta(totals, self._usage_baseline)
+        turn_input = delta["input_tokens"]
+        turn_cached = delta["cached_input_tokens"]
+        turn_cache_write = delta["cache_write_input_tokens"]
+        turn_output = delta["output_tokens"]
+        context = self._last_call_usage or self._runtime_context()
+        if context:
+            ctx_tokens = int(context.get("input_tokens") or 0)
+            ctx_window = int(
+                context.get("model_context_window") or self._model_context_window
+            )
+        else:
+            ctx_tokens = None
+            ctx_window = self._model_context_window
+        normalized_usage = TurnUsage(
+            AggregateUsage.normalized(
+                input_tokens=turn_input,
+                output_tokens=turn_output,
+                cache_read_tokens=turn_cached,
+                cache_create_tokens=turn_cache_write,
+            ),
+            current_context(
+                ctx_tokens,
+                ctx_window,
+                semantics_known=context is not None,
+                unknown_reason="Codex did not report last-call context",
+            ),
+        )
+        cost_error = ""
+        try:
+            cost = _codex_cost(
+                self.model, turn_input, turn_cached, turn_cache_write, turn_output
+            )
+        except Exception as cost_exception:
+            cost = 0.0
+            cost_error = f"{type(cost_exception).__name__}: {cost_exception}"
+            logger.error("Codex usage unaccounted: %s", cost_error)
+        metadata = {
+            "event_id": turn_id,
+            "session_id": self._thread_id,
+            "ok": ok,
+            "stop_reason": stop_reason,
+            "cost_usd": cost,
+            "cost_usd_cached": cost,
+            "cost_is_delta": True,
+            **timing,
+            "reasoning_tokens": delta.get("reasoning_tokens"),
+            "cache_hit": int(turn_cached * 100 / turn_input) if turn_input else 0,
+            **normalized_usage.metadata(),
+            "model_error": model_error,
+            "errors": [model_error] if model_error else [],
+        }
+        events = []
+        if deferred_control:
+            metadata["deferred_control"] = deferred_control
+            if status != "interrupted":
+                events.append(AgentEvent(
+                    "error",
+                    f"Deferred interrupt ended with native status {status!r}",
+                    {"model_error": "error"},
+                ))
+        if not ok and error.get("message"):
+            events.append(AgentEvent("error", error["message"], {"model_error": model_error}))
+        if cost_error:
+            metadata["cost_unaccounted"] = True
+            metadata["cost_error"] = cost_error
+            events.append(AgentEvent(
+                "warning",
+                f"Codex usage unaccounted: {cost_error}",
+                {"cost_unaccounted": True, "cost_error": cost_error},
+            ))
+        events.append(AgentEvent(
+            "turn_end",
+            f"stop_reason={stop_reason}",
+            metadata=metadata,
+            usage=normalized_usage,
+        ))
+        self._last_turn_error = {}
+        if deferred_control:
+            self._clear_deferred_control()
+        return events
+
+    @staticmethod
+    def _usage_breakdown(data: dict) -> dict[str, int]:
+        result = {
+            "input_tokens": max(0, int(data.get("inputTokens") or 0)),
+            "cached_input_tokens": max(0, int(data.get("cachedInputTokens") or 0)),
+            "cache_write_input_tokens": max(0, int(data.get("cacheWriteInputTokens") or 0)),
+            "output_tokens": max(0, int(data.get("outputTokens") or 0)),
+        }
+        reasoning_tokens = data.get("reasoningTokens")
+        if reasoning_tokens is None:
+            reasoning_tokens = data.get("reasoning_tokens")
+        if (
+            isinstance(reasoning_tokens, int)
+            and not isinstance(reasoning_tokens, bool)
+            and reasoning_tokens >= 0
+        ):
+            result["reasoning_tokens"] = reasoning_tokens
+        return result
+
+    def _item_belongs_to_active_turn(self, params: dict) -> bool:
+        active_turn_id = self._active_turn_id
+        event_turn_id = params.get("turnId")
+        return bool(active_turn_id) and (
+            not event_turn_id or str(event_turn_id) == active_turn_id
+        )
+
+    def _record_tool_item_started(self, item: dict) -> None:
+        item_type = item.get("type")
+        if not isinstance(item_type, str) or item_type not in _CODEX_TOOL_ITEM_TYPES:
+            return
+        item_id = str(item.get("id") or "")
+        if not item_id:
+            self._tool_item_intervals_missing += 1
+            return
+        if (
+            item_id not in self._tool_item_started_monotonic
+            and item_id not in self._tool_item_completed_ids
+        ):
+            self._tool_item_started_monotonic[item_id] = time.monotonic()
+
+    def _record_tool_item_completed(self, item: dict, completed_at: float) -> None:
+        item_type = item.get("type")
+        if not isinstance(item_type, str) or item_type not in _CODEX_TOOL_ITEM_TYPES:
+            return
+        item_id = str(item.get("id") or "")
+        if not item_id:
+            self._tool_item_intervals_missing += 1
+            return
+        if item_id in self._tool_item_completed_ids:
+            return
+        started_at = self._tool_item_started_monotonic.pop(item_id, None)
+        self._tool_item_completed_ids.add(item_id)
+        if started_at is None:
+            self._tool_item_intervals_missing += 1
+            return
+        self._tool_item_intervals.append((started_at, completed_at))
+
+    def _finish_turn_timing(self, provider_api_duration_ms: int | None = None) -> dict:
+        started = self._active_turn_started_monotonic
+        self._active_turn_started_monotonic = None
+        ended = time.monotonic()
+        turn_duration_ms = (
+            max(0, int((ended - started) * 1000)) if started is not None else None
+        )
+        intervals = list(self._tool_item_intervals)
+        intervals.extend(
+            (item_started, ended)
+            for item_started in self._tool_item_started_monotonic.values()
+        )
+        self._tool_item_started_monotonic.clear()
+        self._tool_item_intervals.clear()
+        self._tool_item_completed_ids.clear()
+
+        clipped = []
+        if started is not None:
+            for item_started, item_ended in intervals:
+                item_started = max(started, item_started)
+                item_ended = min(ended, item_ended)
+                if item_ended > item_started:
+                    clipped.append((item_started, item_ended))
+        tool_duration_sum_ms = int(sum(end - start for start, end in clipped) * 1000)
+        merged = []
+        for start, end in sorted(clipped):
+            if not merged or start > merged[-1][1]:
+                merged.append([start, end])
+            else:
+                merged[-1][1] = max(merged[-1][1], end)
+        tool_union_duration_ms = int(sum(end - start for start, end in merged) * 1000)
+        model_estimate_duration_ms = (
+            max(0, turn_duration_ms - tool_union_duration_ms)
+            if turn_duration_ms is not None
+            else None
+        )
+        provider_api_duration_ms = self._optional_nonnegative_int(provider_api_duration_ms)
+        if provider_api_duration_ms and provider_api_duration_ms > 0:
+            api_duration_ms = provider_api_duration_ms
+            duration_basis = "api"
+        elif self._tool_item_intervals_missing:
+            api_duration_ms = None
+            duration_basis = "incomplete"
+        else:
+            api_duration_ms = model_estimate_duration_ms
+            duration_basis = "model_estimate" if model_estimate_duration_ms is not None else None
+        result = {
+            "turn_duration_ms": turn_duration_ms,
+            "api_duration_ms": api_duration_ms,
+            "duration_basis": duration_basis,
+            "provider_api_duration_ms": provider_api_duration_ms,
+            "model_estimate_duration_ms": model_estimate_duration_ms,
+            "tool_duration_sum_ms": tool_duration_sum_ms,
+            "tool_union_duration_ms": tool_union_duration_ms,
+            "tool_intervals_count": len(clipped),
+            "tool_intervals_missing": self._tool_item_intervals_missing,
+        }
+        self._tool_item_intervals_missing = 0
+        return result
+
+    @staticmethod
+    def _optional_nonnegative_int(value) -> int | None:
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            return value
+        return None
+
+    @staticmethod
+    def _classify_error(error: dict) -> str:
+        info = error.get("codexErrorInfo")
+        if isinstance(info, dict) and any(key in info for key in (
+            "httpConnectionFailed",
+            "responseStreamConnectionFailed",
+            "responseStreamDisconnected",
+            "responseTooManyFailedAttempts",
+        )):
+            return "server_error"
+        if info in ("serverOverloaded", "internalServerError"):
+            return "server_error"
+        if info in ("usageLimitExceeded", "sessionBudgetExceeded"):
+            return "rate_limit"
+        if info == "contextWindowExceeded":
+            return "context_window"
+        message = str(error.get("message") or "").lower()
+        if any(part in message for part in (
+            "connection refused", "stream disconnected", "network error",
+            "tls", "unexpected eof", "error sending request",
+        )):
+            return "server_error"
+        return "error"
+
+    @staticmethod
+    def _tool_use(name: str, summary: str, item_id: str,
+                  short_name: str | None = None) -> AgentEvent:
+        if item_id:
+            try:
+                payload = json.loads(summary)
+            except (json.JSONDecodeError, TypeError):
+                payload = None
+            if isinstance(payload, dict):
+                payload["_codex_item_id"] = item_id
+                summary = json.dumps(payload, ensure_ascii=False)
+        short = short_name or name
+        return AgentEvent(
+            "tool_use",
+            f"{name}: {summary}",
+            metadata={
+                "tool_name": name,
+                "short_name": short,
+                "tool_use_id": item_id,
+            },
+        )
+
+    @staticmethod
+    def _result_text(result) -> str:
+        if isinstance(result, dict):
+            content = result.get("content")
+            if isinstance(content, list):
+                parts = []
+                for block in content:
+                    if isinstance(block, dict):
+                        parts.append(str(block.get("text", block)))
+                    else:
+                        parts.append(str(block))
+                return "\n".join(parts)[:20_000]
+            return json.dumps(result, ensure_ascii=False)[:20_000]
+        if isinstance(result, list):
+            return "\n".join(
+                block.get("text", str(block)) if isinstance(block, dict) else str(block)
+                for block in result
+            )[:20_000]
+        return str(result)[:20_000]
+
+    def _runtime_context(self) -> dict[str, int] | None:
+        if not self._thread_id:
+            return None
+        if self._rollout_path is None or not self._rollout_path.exists():
+            # #224: os.environ здесь — окружение РОДИТЕЛЬСКОГО процесса Orchestra, а
+            # дочерний env отдаётся только в create_subprocess_exec. Спрашивать надо
+            # собственный каталог бэкенда, иначе rollout не находится и учёт токенов с
+            # context% ломаются МОЛЧА (None неотличим от «данных ещё нет»).
+            root = Path(self._codex_home or _base_codex_home()).expanduser()
+            sessions = root / "sessions"
+            try:
+                matches = list(sessions.glob(f"**/*{self._thread_id}.jsonl"))
+            except OSError:
+                matches = []
+            if not matches:
+                return None
+            self._rollout_path = max(matches, key=lambda p: p.stat().st_mtime)
+        return _read_rollout_context(self._rollout_path)
+
+    def _runtime_totals(self) -> dict[str, int] | None:
+        # Locate the rollout through the same path/cache as context extraction.
+        self._runtime_context()
+        if self._rollout_path is None:
+            return None
+        return _read_rollout_totals(self._rollout_path)
+
+    @staticmethod
+    def _toml_str(s: str) -> str:
+        """TOML basic string. Управляющие символы экранируем ЯВНО: значения и имена
+        приходят из данных (`mcp_servers_custom` со спавна), а сырой перевод строки
+        внутри строки делает config.toml неразбираемым — то есть роняет старт Codex."""
+        out = s.replace("\\", "\\\\").replace('"', '\\"')
+        out = out.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+        # `>= " "` мало: U+007F (DEL) эту проверку проходит, но TOML его запрещает, и
+        # tomllib отвергает файл целиком — Codex не стартует. Проверено прогоном:
+        # NUL/BEL/US разбираются после \u-экранирования, DEL — нет.
+        out = "".join(
+            ch if " " <= ch < "\x7f" else f"\\u{ord(ch):04x}" if ch < "\xa0" else ch
+            for ch in out
+        )
+        return '"' + out + '"'
+
+    @classmethod
+    def _toml_key(cls, s: str) -> str:
+        if any("\ud800" <= ch <= "\udfff" for ch in s):
+            # UTF-8 такие точки не кодирует: без явного отказа падала бы запись файла
+            # где-то ниже, без имени виновника.
+            raise ValueError(f"TOML key contains a lone surrogate: {s!r}")
+        """Ключ таблицы TOML — ВСЕГДА в кавычках: bare key допускает только [A-Za-z0-9_-],
+        а имена серверов и переменных мы не контролируем."""
+        return cls._toml_str(s)
+
+    def _codex_command(self) -> list[str]:
+        """Полная командная строка Codex — отдельным методом, чтобы её можно было
+        проверить тестом целиком (#224). argv публичен: `/proc/<pid>/cmdline` читает
+        процесс любого uid, поэтому «в нём нет значений» должно быть утверждением о
+        ВСЕЙ строке, а не о той её части, которую мы помним."""
+        cmd = [CODEX_BIN]
+        cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
+        # Every CodexBackend here is Orchestra-managed. Delegation must use the tracked
+        # Orchestra spawn_worker path, never invisible native agents in this checkout.
+        cmd += ["-c", "features.multi_agent=false"]
+        # Managed workers are research/implementation agents, so expose current web
+        # results explicitly instead of inheriting a user's cached/disabled setting.
+        cmd += ["-c", 'web_search="live"']
+        for arg in self._mcp_config_args():
+            cmd += ["-c", arg]
+        cmd += ["app-server", "--stdio"]
+        return cmd
+
+    def _mcp_config_args(self) -> list[str]:
+        """Больше НИЧЕГО не кладём в argv (#224).
+
+        Раньше отсюда уходили `-c mcp_servers.<name>.env={...}` со ЗНАЧЕНИЯМИ секретов —
+        а argv читает процесс любого uid. Весь конфиг, включая env, теперь собирается в
+        `$CODEX_HOME/config.toml` с правами 600 (`_prepare_codex_home`). Держать вторую
+        копию в argv нельзя: два владельца одной настройки молча разъезжаются.
+        """
+        return []
+
+    def _mcp_servers_toml(self) -> str:
+        """Секции `[mcp_servers.*]` для config.toml — единственный носитель конфига MCP."""
+        blocks: list[str] = []
+        for name, cfg in self._mcp_servers.items():
+            command = cfg.get("command")
+            url = cfg.get("url")
+            if not command and not url:
+                continue
+            # Имя сервера и ключи env приходят ИЗ ДАННЫХ (`mcp_servers_custom` со спавна),
+            # поэтому идут в TOML как КЛЮЧИ В КАВЫЧКАХ. Сырая подстановка позволяла закрыть
+            # секцию и открыть свою — либо, как минимум, сделать конфиг неразбираемым,
+            # то есть уронить старт Codex.
+            key = self._toml_key(str(name))
+            lines = [f"[mcp_servers.{key}]", "enabled = true"]
+            if name == "orchestra":
+                # The 300s spawn POST must fit with time for delivery and its receipt.
+                lines.append("tool_timeout_sec = 360")
+            if command:
+                lines.append(f"command = {self._toml_str(str(command))}")
+                srv_args = cfg.get("args") or []
+                lines.append(
+                    "args = [" + ", ".join(self._toml_str(str(a)) for a in srv_args) + "]"
+                )
+            else:
+                lines.append(f"url = {self._toml_str(str(url))}")
+            enabled_tools = cfg.get("enabled_tools")
+            if name == "orchestra" and enabled_tools is None:
+                enabled_tools = _orchestra_full_mcp_tools()
+            if enabled_tools is not None:
+                lines.append(
+                    "enabled_tools = ["
+                    + ", ".join(self._toml_str(str(t)) for t in enabled_tools)
+                    + "]"
+                )
+            env = cfg.get("env") or {}
+            if command and env:
+                lines.append("")
+                lines.append(f"[mcp_servers.{key}.env]")
+                lines.extend(
+                    f"{self._toml_key(str(k))} = {self._toml_str(str(v))}"
+                    for k, v in env.items()
+                )
+            blocks.append("\n".join(lines))
+        return "\n\n".join(blocks)
+
+    def _trusted_project_toml(self) -> str:
+        """Trust only this backend's canonical cwd in its private CODEX_HOME.
+
+        Managed Codex runs are created for an Orchestra-owned project/worktree.  Without
+        this entry Codex deliberately disables that checkout's project-local `.codex`
+        config, hooks, and rules.  Copying the base config's whole `[projects]` table is
+        still forbidden: it would grant one agent trust in unrelated checkouts.
+        """
+        project = str(Path(self.cwd).expanduser().resolve())
+        return (
+            f"[projects.{self._toml_key(project)}]\n"
+            'trust_level = "trusted"'
+        )
+
+    def _managed_codex_home_path(self) -> Path | None:
+        if not self._mcp_servers:
+            return None
+        session_id = (self._mcp_servers.get("orchestra", {}).get("env") or {}).get(
+            "ORCHESTRA_SESSION_ID"
+        )
+        # Fail loud: анонимный запасной путь давал бы на каждом коннекте НОВЫЙ каталог,
+        # то есть тихо терял thread-id и ломал resume.
+        if not session_id or not _SAFE_HOME_KEY.match(session_id):
+            raise ValueError(
+                "CodexBackend requires a well-formed ORCHESTRA_SESSION_ID in the trusted "
+                f"'orchestra' MCP server env; got {session_id!r}"
+            )
+        return _CODEX_HOME_ROOT / session_id
+
+    def _prepare_codex_home(self) -> Path:
+        """Собрать приватный `CODEX_HOME` этого агента и вернуть путь.
+
+        СОБРАТЬ, а не скопировать базовый: копия затащила бы глобальные MCP-серверы
+        (со своими токенами) и `[projects.*]` в конфиг каждого воркера, в обход отбора
+        в `runtime_registry`. Переносим из базового только разрешённые скаляры.
+        """
+        home = self._managed_codex_home_path()
+        if home is None:
+            # Нечего изолировать: без MCP-серверов нет ни конфига, ни секретов в argv,
+            # и подменить идентичность нечем — env-блока не существует.
+            # ОСТАТОЧНЫЙ РИСК, названный явно: такой бэкенд работает на ОБЩЕМ home и видит
+            # глобальные серверы из ~/.codex/config.toml. Managed-путь сюда не приходит —
+            # `_make_mcp_config` всегда кладёт сервер `orchestra`, — поэтому ветка
+            # достижима только при конструировании бэкенда в обход менеджера.
+            self._codex_home = _base_codex_home()
+            return self._codex_home
+        home.mkdir(parents=True, exist_ok=True)
+        os.chmod(_CODEX_HOME_ROOT, 0o700)
+        os.chmod(home, 0o700)
+
+        # Existing symlinks keep their history owner, including a temporarily missing
+        # target. Fresh homes must not expose shared rollouts: Codex would backfill
+        # the entire shared index even without our former SQLite seed.
+        sessions = home / "sessions"
+        if not sessions.exists() and not sessions.is_symlink():
+            sessions.mkdir(mode=0o700)
+
+        policy_bin = home / "policy-bin"
+        from app.shell_policy import install_codex_policy_wrappers
+        install_codex_policy_wrappers(policy_bin)
+
+        # Подписочная авторизация: СИМЛИНК на боевой auth.json. Копия протухнет при
+        # перелогине, а без него app-server не авторизуется вовсе (проверено прогоном).
+        auth = home / "auth.json"
+        base_auth = _base_codex_home() / "auth.json"
+        if not auth.is_symlink() and base_auth.exists():
+            auth.unlink(missing_ok=True)
+            auth.symlink_to(base_auth)
+
+        parts = []
+        carried = _carried_base_scalars()
+        if carried:
+            parts.append(carried)
+        parts.append(self._trusted_project_toml())
+        servers = self._mcp_servers_toml()
+        if servers:
+            parts.append(servers)
+        # Через временный файл + os.replace: коннект, попавший на середину записи,
+        # прочитал бы ОБРЕЗАННЫЙ config.toml и стартовал без части серверов — тихий отказ.
+        _write_private(home / "config.toml", "\n\n".join(parts) + "\n")
+
+        self._codex_home = home
+        return home
+
+    def _refresh_managed_config_sha256(self) -> str:
+        """Rewrite the desired managed config and return its content identity."""
+        home = self._prepare_codex_home()
+        return hashlib.sha256((home / "config.toml").read_bytes()).hexdigest()
+
+    async def _reload_stale_managed_config_before_turn(self) -> None:
+        """Reconnect an idle managed app-server when its launch config is stale.
+
+        Codex reads `config.toml` when the app-server starts.  Merely rewriting the file
+        does not update an already-running worker. Reconnect preserves the thread id through
+        `thread/resume` while making the next turn use current context/config settings.
+        """
+        if self._managed_codex_home_path() is None:
+            return
+        desired = await _run_home_io(self._refresh_managed_config_sha256)
+        if desired == self._loaded_config_sha256:
+            return
+        thread_id = self._thread_id
+        logger.info(
+            "reconnecting Codex before idle turn to load current managed config: "
+            "thread=%s old=%s new=%s",
+            thread_id,
+            (self._loaded_config_sha256 or "unknown")[:12],
+            desired[:12],
+        )
+        await self.disconnect()
+        await self.connect()
+        if self._thread_id != thread_id:
+            raise RuntimeError(
+                "Codex config refresh resumed a different thread: "
+                f"requested={thread_id}, returned={self._thread_id}"
+            )
+
+    def _build_env(self) -> dict:
+        env = dict(os.environ)
+        env.update(self._mcp_env)
+        # #224: процесс обязан стартовать в ТОМ ЖЕ home, для которого собран config.toml.
+        # Иначе argv чист, конфиг верен, а воркер работает на общем каталоге — тихий отказ.
+        env["CODEX_HOME"] = str(self._codex_home or self._prepare_codex_home())
+        policy_bin = Path(env["CODEX_HOME"]) / "policy-bin"
+        env["PATH"] = f"{policy_bin}{os.pathsep}{env.get('PATH', '')}"
+        # Codex, Claude, Cursor, and Orchestra intentionally share the proxy selected in
+        # Orchestra's .env. The launcher wrapper also reloads that file, but preserving the
+        # inherited values keeps direct CODEX_BIN deployments consistent and testable.
+        return env

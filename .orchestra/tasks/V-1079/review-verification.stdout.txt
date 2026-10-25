@@ -1,0 +1,10 @@
+APP_IMPORT=/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/__init__.py
+BACKEND_IMPORT=/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py
+PYTHON=/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/.venv/bin/python3
+CHANGED_V1076_BASELINE_FILES=["CHANGELOG.md", "TODO.md", "app/backend_codex.py", "app/session.py", "app/session_hibernate.py", "tests/test_backend_codex.py"]
+MISSING_V1076_BASELINE_FILES=[]
+PRESERVED_NEWER_INPUT_FILES=["TODO.md"]
+SHAPE_SCANNED_FILES=39
+SHAPE_FINDINGS=[]
+SOURCE_MANIFEST=source-manifest.json
+CLAUDE_LINK_PROVIDED=False

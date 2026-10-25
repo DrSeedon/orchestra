@@ -1,0 +1,427 @@
+APP_IMPORT=/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/__init__.py
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unsupported", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "unsupported", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unsupported", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "unsupported", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": true}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": true}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unknown", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_turn": 1, "legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_thread": 4, "legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_turn": 4, "legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.061, "started": 0.0, "terminal": 0.061}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.061, "started": 0.0, "terminal": 0.061}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.062, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.062}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.001, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.001, "compacted": 0.001, "started": 0.001, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1296, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 100, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1296, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 100, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: synthetic pipe failure
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1296, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 100, in observe
+    raw = await original()
+          ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 568, in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 660, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+OSError: synthetic pipe failure
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.002, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "request acknowledgement", "stages_seconds": {"started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "rejected", "remote_outcome": "rejected", "stage": "request acknowledgement", "stages_seconds": {}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+..Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.062, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.062, "started": 0.062, "terminal": 0.062}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.063, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.063, "started": 0.063, "terminal": 0.063}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.001}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.061, "started": 0.0, "terminal": 0.061}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] hibernating
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.001, "started": 0.0, "terminal": 0.001}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] hibernating
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": false}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "failed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "failed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": false, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": false, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 5}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": false, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"foreign_thread": 2, "legacy_unscoped": 3}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": true, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "request acknowledgement", "stages_seconds": {"compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.061, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 4}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+....Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": false, "operation": 2, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.Codex app-server reader failed: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1296, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 101, in observe
+    message = json.loads(raw) if raw else {}
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 353, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+FECodex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": true}
+.Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": ["internalServerError"], "error_received": true, "ignored": {"legacy_unscoped": 2}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": true}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": true, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "success", "remote_outcome": "completed", "stage": "turn lifecycle", "stages_seconds": {"ack": 0.0, "compacted": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "cancelled", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 3}, "late": true, "operation": 1, "outcome": "cancelled", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.001, "terminal": 0.001}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.0, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 4}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "interrupted", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0, "terminal": 0.0}, "terminal_status": "interrupted", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+.[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+Codex compact state {"compacted": false, "elapsed_seconds": 0.06, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": false, "operation": 1, "outcome": "timeout", "remote_outcome": "unknown", "stage": "completion notification", "stages_seconds": {"ack": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": false, "will_retry": null}
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+codex_connect_stage worker=compact-state stage=quota_gate duration=0.000s
+temporary rules: migration from the database table failed: compact regression tests must remain offline
+codex_connect_stage worker=compact-state stage=prompt_assembly duration=0.001s
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] pending facts unavailable: AssertionError: compact regression tests must remain offline
+[compact-state] codex turn started
+Codex compact state {"compacted": true, "elapsed_seconds": 0.069, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 1}, "late": true, "operation": 1, "outcome": "timeout", "remote_outcome": "completed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "compacted": 0.068, "started": 0.068, "terminal": 0.069}, "terminal_status": "completed", "transport_generation": 0, "turn_known": true, "will_retry": null}
+[compact-state] successful-turn steer cleanup failed: AssertionError: compact regression tests must remain offline
+[compact-state] codex turn error: compact regression tests must remain offline
+[compact-state] checklist clock update failed: AssertionError: compact regression tests must remain offline
+[compact-state] failed-turn mailbox claim failed: AssertionError: compact regression tests must remain offline
+[compact-state] telemetry write failed: compact regression tests must remain offline
+.
+==================================== ERRORS ====================================
+__ ERROR at teardown of test_invalid_json_is_diagnosed_without_false_success ___
+
+    @pytest_asyncio.fixture
+    async def h():
+        harness = Harness()
+        try:
+            yield harness
+        finally:
+>           await harness.close()
+
+tests/test_codex_compact_state.py:160: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:151: in close
+    await asyncio.wait_for(self.reader, 0.5)
+/usr/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+app/backend_codex.py:1296: in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_codex_compact_state.py:101: in observe
+    message = json.loads(raw) if raw else {}
+              ^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x77eede340e90>
+s = '{invalid compact record}\n', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+>           obj, end = self.scan_once(s, idx)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+E           json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+
+/usr/lib/python3.12/json/decoder.py:353: JSONDecodeError
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1373 Codex app-server reader failed: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1296, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 101, in observe
+    message = json.loads(raw) if raw else {}
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 353, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+INFO     app.backend_codex:backend_codex.py:1219 Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+INFO     app.backend_codex:backend_codex.py:1219 Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+=================================== FAILURES ===================================
+_____________ test_invalid_json_is_diagnosed_without_false_success _____________
+
+fut = <coroutine object Event.wait at 0x77eed9388e40>, timeout = 0.5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x77eed93b7b00 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+h = <tests.test_codex_compact_state.Harness object at 0x77eed90eafc0>
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_is_diagnosed_without_false_success(h):
+        task, request = await h.begin()
+        await h.ack(request)
+        await h.deliver(start())
+        h.stream.feed_data(b"{invalid compact record}\n")
+>       await h.deliver(terminal())
+
+tests/test_codex_compact_state.py:568: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_compact_state.py:127: in deliver
+    await asyncio.wait_for(ready.wait(), 0.5)
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x77eed91e1040>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1373 Codex app-server reader failed: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/app/backend_codex.py", line 1296, in _read_stdout
+    raw = await stream.readline()
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/vmi3407579/hub-cc0cf928d6d148da/tests/test_codex_compact_state.py", line 101, in observe
+    message = json.loads(raw) if raw else {}
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 353, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+INFO     app.backend_codex:backend_codex.py:1219 Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "pending", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+INFO     app.backend_codex:backend_codex.py:1219 Codex compact state {"compacted": false, "elapsed_seconds": 0.001, "error_info": [], "error_received": false, "ignored": {"legacy_unscoped": 2}, "late": false, "operation": 1, "outcome": "failed", "remote_outcome": "transport_closed", "stage": "completion notification", "stages_seconds": {"ack": 0.0, "started": 0.0}, "terminal_status": null, "transport_generation": 0, "turn_known": true, "will_retry": null}
+=========================== short test summary info ============================
+FAILED tests/test_codex_compact_state.py::test_invalid_json_is_diagnosed_without_false_success
+ERROR tests/test_codex_compact_state.py::test_invalid_json_is_diagnosed_without_false_success
+1 failed, 76 passed, 1 error in 5.13s

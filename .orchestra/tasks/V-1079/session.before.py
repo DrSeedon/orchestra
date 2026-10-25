@@ -1,0 +1,4979 @@
+"""AgentSession — backend-agnostic wrapper with persistent event loop."""
+
+import asyncio
+from collections import Counter
+import inspect
+import hashlib
+import json
+import logging
+import os
+import re
+import shutil
+import sqlite3
+import tempfile
+import time
+import uuid
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone, timedelta
+from functools import partial, wraps
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from app import agentic_compact, temp_rules
+from app.events import AgentEvent, InjectedMessage, MessageProvenance
+from app.models import backend_for_model, get_model_spec
+from app.prompting import (
+    codex_project_doc_preflight, inject_skills_to_worktree,
+    inject_skills_to_worktree_report, is_orchestrator_role,
+    prompt_template_hash, refresh_worker_memory,
+)
+from app.quota_gate import QuotaGateError
+from app.runtime_registry import (
+    BackendBuildContext,
+    _load_scope_mcp_servers,
+    _load_user_mcp_servers,
+    build_backend,
+    get_runtime,
+)
+from app.runtime_history import (
+    CLAUDE_CLI_HISTORY_VERSION,
+    CLAUDE_HISTORY_SOURCE,
+    CODEX_CLI_HISTORY_VERSION,
+    NativeHistoryImportError,
+    NativeHistoryRejected,
+    PreparationResult,
+    ModelVisibleManifest,
+    build_model_visible_manifest,
+    build_runtime_state_packet,
+    classify_handoff_effects,
+    describe_handoff_effects,
+    preflight_runtime_handoff,
+    render_claude_history,
+)
+from app.session_cost import CostTracker
+from app.session_hibernate import HibernateManager
+from app.stall_signals import describe_event, watch_turn_start
+from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
+    AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
+    platform_interruption_notice,
+)
+from app.session_turns import (
+    CRITICAL_AUTO_COMPACT_PCT,
+    injection_overflows_context,
+    TurnManager,
+    _auto_compact_threshold_pct,
+)
+from app.usage_contract import KnownContext, current_context
+
+if TYPE_CHECKING:
+    from app.backend_protocol import BackendLike
+    from app.quota_gate import QuotaDecision
+from app.db import (
+    add_log, allocate_runtime_handoff_attempt, confirm_runtime_handoff,
+    enqueue_fact, get_history_logs, get_logs, get_runtime_handoff,
+    prepare_runtime_handoff_snapshot, retire_runtime_handoff, save_session,
+    tool_error_add, update_runtime_handoff_attempt, update_runtime_handoff_status,
+)
+from app.errtext import err_text
+
+
+logger = logging.getLogger(__name__)
+
+_HANDOFF_LOG_RETRY_BUDGET_S = 6.0
+# Ожидание уже поставленных в пул записей журнала. Ограничено: зависший пул или «застрявший»
+# в множестве фьючерс обязан дать предупреждение, а не мёртвую платформу (V-1020).
+_LOG_FUTURES_DRAIN_BUDGET_S = 10.0
+TURN_COMPLETION_RECHECK = 1.0
+# Ходы, начатые платформой, а не пользователем/агентом: квотный гейт их не блокирует (V-640).
+QUOTA_GATE_EXEMPT_ORIGINS = frozenset({"background_task", "platform", "system"})
+_COMPACT_USER_MESSAGES_REQUIREMENT = (
+    "Preserve all user messages verbatim, in order of arrival "
+    "(все сообщения юзера, дословно, в порядке поступления)."
+)
+
+
+def _compact_prompt(session_name: str, scope: str = "") -> str:
+    transcript_endpoint = f"/api/sessions/{session_name}/logs"
+    if scope:
+        transcript_endpoint += f"?scope={scope}"
+    return (
+        "[SYSTEM: Context compaction requested — structured handoff]\n\n"
+        "Before writing the handoff, promote a durable fact only when the conversation explicitly "
+        "names an existing canonical Markdown path and the exact fact to store. Update only that "
+        "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
+        "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
+        "Never write credentials.\n\n"
+        "Write a compact task-state handoff from supported evidence only; an earlier "
+        "PREVIOUS CONTEXT SUMMARY in this conversation is supported evidence.\n\n"
+        "TASK STATE\n"
+        "- Current objective, phase, and evidence-backed status.\n\n"
+        "DECISIONS\n"
+        "- Only active decisions and reversals needed to continue; retain provisional/final state "
+        "and rationale.\n\n"
+        "FILES AND ARTIFACTS\n"
+        "- Exact path; read/changed/created state; the material change or measured diff; whether "
+        "committed, merged, or deployed. Never invent a path.\n\n"
+        "COMMANDS AND TOOL OUTCOMES\n"
+        "- Only what is needed to continue: the exact non-secret command, exit status, the measured "
+        "value, the relevant error string, and what it proves. Drop redundant raw output.\n\n"
+        "BLOCKER / NEXT\n"
+        "- Current blocker and owner if known; then the single next executable action. If "
+        "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
+        "CONSTRAINTS\n"
+        "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
+        "durable preferences from one-off instructions. Requirements, bans, decisions and open items "
+        "carried by an earlier PREVIOUS CONTEXT SUMMARY stay active with their wording unchanged unless "
+        "a later message cancels or replaces them (then record the final state); never mark them "
+        "unconfirmed because the original message is no longer visible.\n\n"
+        "USER MESSAGES AND RAW TRANSCRIPT\n"
+        f"- {_COMPACT_USER_MESSAGES_REQUIREMENT} Include a link to the raw session transcript at "
+        f"`{transcript_endpoint}`.\n\n"
+        "Do not claim a file was read, changed, committed, deployed, or tested unless the "
+        "conversation or tool evidence says so. Do not assert the negative either: absence of a "
+        "tool event means the outcome is unknown, not that the action did not happen. Write "
+        "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
+        "`not modified`; it never supports `not read`. Omit redundant tool output and all "
+        "credentials. Output only these seven short sections."
+    )
+
+
+COMPACT_TAIL_CHARS = int(os.getenv("COMPACT_TAIL_CHARS", "12000"))
+_COMPACT_TAIL_TYPES = ("user_message", "text")
+
+
+_TERMINAL_COMPACT_ERRORS = ("working directory does not exist",)
+
+
+def _is_terminal_compact_error(error: str) -> bool:
+    """Отказы, которые повтор не лечит: ретрай тратит 90 секунд на тот же ответ."""
+    lowered = error.lower()
+    return any(marker in lowered for marker in _TERMINAL_COMPACT_ERRORS)
+
+
+def _preserved_tail(
+    session_id: str,
+    budget: int,
+    *,
+    exclude_user_messages: tuple[str, ...] = (),
+) -> str:
+    """Дословный хвост диалога, который едет в новую сессию рядом со сводкой.
+
+    Сводка — пересказ, и свежий обмен теряет в ней формулировки; Claude Code держит
+    последние сообщения сырыми (`preservedSegment`), у нас их не было вовсе. Берём
+    только речь — `tool_result` и есть основной вес контекста, ради которого компакт
+    и затевался. Отложенные сообщения сюда не входят: они уедут отдельным ходом после
+    ack, а в преамбуле превратили бы короткий ack в выполнение реальной работы.
+    """
+    if budget <= 0 or not session_id:
+        return ""
+    try:
+        rows = get_logs(session_id, limit=200)
+    except Exception as error:  # журнал недоступен — компакт из-за этого не падает
+        logger.warning(f"preserved tail unavailable for {session_id}: {error}")
+        return ""
+    excluded = Counter(
+        message.strip() for message in exclude_user_messages if message.strip()
+    )
+    parts, used = [], 0
+    for row in reversed(rows):
+        if row.get("type") not in _COMPACT_TAIL_TYPES:
+            continue
+        content = (row.get("content") or "").strip()
+        if not content:
+            continue
+        if row.get("type") == "user_message" and excluded[content] > 0:
+            excluded[content] -= 1
+            continue
+        speaker = "USER" if row.get("type") == "user_message" else "ASSISTANT"
+        block = f"{speaker}: {content}"
+        if used + len(block) > budget:
+            # Первая строка отдаётся всегда: одна жирная реплика иначе даёт пустой
+            # хвост, и правка выглядит невыполненной.
+            if parts:
+                break
+            block = block[:budget] + " […обрезано]"
+        parts.append(block)
+        used += len(block)
+    return "\n\n".join(reversed(parts))
+
+
+def _is_locked_database_error(error: BaseException) -> bool:
+    return (
+        isinstance(error, sqlite3.OperationalError)
+        and "locked" in str(error).lower()
+    )
+
+
+_HANDOFF_STAGING_ROOT = (
+    Path(__file__).parent.parent / "data" / "runtime-handoff-staging"
+)
+
+
+def _handoff_blocked_result(prepared) -> dict:
+    """One refusal payload for both switch paths, naming what actually blocks it."""
+    code = str(getattr(prepared, "error_code", None) or "handoff_prepare_failed")
+    details = tuple(getattr(prepared, "pending_effect_details", ()) or ())
+    return {
+        "ok": False,
+        "error": describe_handoff_effects(details) if details else code,
+        "error_code": code,
+        "handoff_id": getattr(prepared, "handoff_id", None),
+        "pending_effects": [dict(item) for item in details],
+        "history_transfer": {"mode": "blocked"},
+    }
+
+
+class DrainingRefused(RuntimeError):
+    """Ход не начат: идёт дренаж перед рестартом (#220 T2).
+
+    Отказ громкий намеренно. Durable-очереди СООБЩЕНИЙ в проекте нет: `enqueue_fact`
+    хранит ФАКТ недоставки, а не само сообщение (`_attach_pending_facts` ниже), поэтому
+    «тихо положить и доставить потом» было бы обещанием, которого система не выполняет.
+    Внешний отправитель — агент, человек в TG, дашборд — видит ошибку и повторяет сам.
+    """
+
+
+def _refuse_if_draining(session: "AgentSession") -> None:
+    """Гейт допуска. СИНХРОННЫЙ и вызывается вплотную к присвоению RUNNING.
+
+    Ни здесь, ни между этим вызовом и `status = RUNNING` не должно быть ни одного
+    `await`: `send()` держит `_lifecycle_lock` через несколько await'ов
+    (`_apply_pending_identity_restart`, `_apply_manifest_effort`), и ранняя проверка
+    позволила бы ходу стартовать ПОСЛЕ того, как дренаж снял снимок живых ходов.
+    """
+    from app.deps import manager
+
+    if getattr(manager, "draining", False):
+        raise DrainingRefused(
+            f"[{session.name}] Orchestra перезапускается: идёт дренаж, новый ход не "
+            f"начинается. Повтори через минуту."
+        )
+
+
+def _claude_subscription_limit_active() -> bool:
+    try:
+        from app.routes.system import _usage_cache
+        usage = _usage_cache.get("data") or {}
+    except Exception:
+        return False
+    now = datetime.now(timezone.utc)
+    for name in ("five_hour", "seven_day"):
+        window = usage.get(name) or {}
+        utilization = window.get("utilization")
+        if not isinstance(utilization, (int, float)) or utilization < 100:
+            continue
+        resets_at = window.get("resets_at")
+        if not resets_at:
+            return True
+        try:
+            reset = datetime.fromisoformat(str(resets_at).replace("Z", "+00:00"))
+            if reset.tzinfo is None:
+                reset = reset.replace(tzinfo=timezone.utc)
+            if reset > now:
+                return True
+        except (TypeError, ValueError):
+            return True
+    return False
+
+
+import concurrent.futures
+_DB_EXECUTOR: Optional[concurrent.futures.ThreadPoolExecutor] = None
+
+
+def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """Dedicated pool for DB writes so logs/persists don't contend with git ops
+    on the default executor (used by asyncio.to_thread)."""
+    global _DB_EXECUTOR
+    if _DB_EXECUTOR is None:
+        # 4 workers: enough for concurrent log/persist bursts without starving the event loop
+        _DB_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="db")
+    return _DB_EXECUTOR
+
+
+_LAST_SUMMARY_MAX_CHARS = 4_000
+# Where each runtime's CLI discovers project skills. A runtime absent here gets no injection —
+# an `else: ".claude"` default would silently plant Claude files for the next new backend.
+_SKILL_HOME_DIRS = {"claude": ".claude", "codex": ".codex"}
+
+# Compact summary is a multi-KB wall of text; logging it as "text" mirrors it to TG
+# as agent speech. Off by default — the summary already lives in the agent's context
+# and in the compact_worker result.
+LOG_COMPACT_SUMMARY = os.getenv("LOG_COMPACT_SUMMARY", "0").strip().lower() in ("1", "true", "yes")
+_AUTO_COMPACT_WINDOW_START_DEFAULT = "21:00"
+_AUTO_COMPACT_WINDOW_END_DEFAULT = "06:00"
+_AUTO_COMPACT_TIMEZONE_DEFAULT = "Asia/Krasnoyarsk"
+
+_OWNER_DIRECT_MESSAGE_SUBTYPES = frozenset({"dashboard"})
+
+
+def _is_owner_direct_message(provenance: MessageProvenance) -> bool:
+    return provenance.origin == "user" or (
+        provenance.origin == "unknown"
+        and provenance.subtype in _OWNER_DIRECT_MESSAGE_SUBTYPES
+    )
+
+
+def _configured_auto_compact_window_state(
+        now_utc: datetime, start_raw: str, end_raw: str,
+        timezone_name: str) -> dict:
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", start_raw):
+        raise RuntimeError(
+            "AUTO_COMPACT_WINDOW_START must use HH:MM (24-hour time)"
+        )
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", end_raw):
+        raise RuntimeError(
+            "AUTO_COMPACT_WINDOW_END must use HH:MM (24-hour time)"
+        )
+    start = datetime.strptime(start_raw, "%H:%M").time()
+    end = datetime.strptime(end_raw, "%H:%M").time()
+    if start == end:
+        raise RuntimeError(
+            "AUTO_COMPACT_WINDOW_START and AUTO_COMPACT_WINDOW_END must differ"
+        )
+    try:
+        configured_tz = ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise RuntimeError(
+            f"AUTO_COMPACT_TIMEZONE must be an IANA timezone, "
+            f"got {timezone_name!r}"
+        ) from exc
+    if now_utc.tzinfo is None:
+        raise RuntimeError("auto-compact window requires an aware datetime")
+
+    local_now = now_utc.astimezone(configured_tz)
+    local_clock = local_now.time().replace(tzinfo=None)
+    if start < end:
+        allowed = start <= local_clock < end
+    else:
+        allowed = local_clock >= start or local_clock < end
+    return {
+        "allowed": allowed,
+        "local_time": local_now.isoformat(timespec="minutes"),
+        "timezone": timezone_name,
+        "window": f"{start_raw}-{end_raw}",
+    }
+
+
+def auto_compact_enabled() -> bool:
+    """`AUTO_COMPACT_ENABLED=0` выключает автоматический компакт для всех ролей.
+
+    Ручной `compact_worker` не затрагивается — это аварийный выход. Критический порог не
+    обходит выключатель: явное отключение автоматического действия имеет приоритет над ним.
+
+    Читается на КАЖДОМ решении, а не при импорте: иначе значение застывает на момент старта
+    процесса, и правка `.env` не действует до перезапуска даже там, где могла бы.
+    """
+    return os.getenv("AUTO_COMPACT_ENABLED", "1").strip().lower() in ("1", "true", "yes")
+
+
+def validate_auto_compact_window_config() -> None:
+    _configured_auto_compact_window_state(
+        datetime.now(timezone.utc),
+        os.getenv(
+            "AUTO_COMPACT_WINDOW_START",
+            _AUTO_COMPACT_WINDOW_START_DEFAULT,
+        ).strip(),
+        os.getenv(
+            "AUTO_COMPACT_WINDOW_END",
+            _AUTO_COMPACT_WINDOW_END_DEFAULT,
+        ).strip(),
+        os.getenv(
+            "AUTO_COMPACT_TIMEZONE",
+            _AUTO_COMPACT_TIMEZONE_DEFAULT,
+        ).strip(),
+    )
+
+
+def _bounded_summary(summary: str) -> str:
+    summary = summary.strip()
+    if len(summary) <= _LAST_SUMMARY_MAX_CHARS:
+        return summary
+    marker = "\n\n[… summary truncated …]\n\n"
+    head = (_LAST_SUMMARY_MAX_CHARS - len(marker)) // 2
+    tail = _LAST_SUMMARY_MAX_CHARS - len(marker) - head
+    return summary[:head] + marker + summary[-tail:]
+
+
+def _accept_is_orchestrator_init_alias(cls):
+    """Accept the public property name while retaining the internal nullable field."""
+    generated_init = cls.__init__
+
+    @wraps(generated_init)
+    def init(self, *args, is_orchestrator=None, **kwargs):
+        if is_orchestrator is not None:
+            if "_is_orchestrator" in kwargs:
+                raise TypeError(
+                    "pass only one of is_orchestrator and _is_orchestrator"
+                )
+            kwargs["_is_orchestrator"] = is_orchestrator
+        generated_init(self, *args, **kwargs)
+
+    cls.__init__ = init
+    return cls
+
+
+@_accept_is_orchestrator_init_alias
+@dataclass
+class AgentSession:
+    id: str
+    name: str
+    scope: str
+    cwd: str
+    model: str = "claude-sonnet-5-5[1m]"
+    model_reason: str = field(default="", kw_only=True)
+    _pending_model_reason: tuple[str, str] | None = field(default=None, init=False, repr=False)
+    system_prompt: str = ""
+    prompt_overlay: str | None = None
+    status: AgentStatus = AgentStatus.IDLE
+    session_id: str | None = None
+    session_id_history: list = field(default_factory=list, repr=False)
+    cost_usd: float = 0.0
+    cost_usd_cached: float = 0.0
+    worktree_path: str | None = None
+    branch: str | None = None
+    base_branch: str = ""
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    role: str = "worker"
+    parent_id: str = ""
+    parent_name: str = ""
+    pipeline: str = ""
+    profile: str = ""
+    _is_orchestrator: bool | None = field(default=None, repr=False)
+    color: str = ""
+    mcp_servers: dict = field(default_factory=dict, repr=False)
+    disabled_tools: list[str] = field(default_factory=list)
+    mcp_servers_custom: dict = field(default_factory=dict, repr=False)
+    on_error: Optional[callable] = field(default=None, repr=False)
+    backend_type: str = "claude"
+    effort: str | None = None
+    runtime_handoff: str = ""
+    history_import_source: str | None = None
+    last_summary: str = ""
+    task_id: str = ""
+    description: str = ""
+    owned_dirs: list = field(default_factory=list, repr=False)
+    tg_topic: bool = False
+
+    needs_switch: bool = False
+    last_task_sender: str = ""
+
+    # Имя сменилось, пока жил этот коннект. env MCP-подпроцесса замораживается при его
+    # старте, поэтому подпроцесс надо поднять заново — но только на ГРАНИЦЕ хода:
+    # дисконнект внутри хода оборвал бы живой ход. Флаг идемпотентен: два переименования
+    # за ход дают одну пересборку.
+    _identity_stale: bool = field(default=False, repr=False)
+    _codex_writer_error: Optional[Exception] = field(default=None, repr=False)
+
+    # False → detached DB-hydrate (manager._hydrate_row): data only, no backend/tasks.
+    # NEVER call start()/send()/_persist() on a detached session.
+    loaded: bool = True
+    # raw DB row of a detached session — preserves legacy response shape (richer than to_dict)
+    db_row: Optional[dict] = field(default=None, repr=False)
+
+    progress_pct: int = 0
+    progress_status: str = ""
+
+    total_turns: int = 0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_cache_read_tokens: int = 0
+    total_cache_create_tokens: int = 0
+    total_tool_calls: int = 0
+
+    _backend: Optional["BackendLike"] = field(default=None, repr=False)
+    _runtime_error: str = field(default="", repr=False)
+    _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _background_tasks: set = field(default_factory=set, repr=False)
+    _log_futures: set = field(default_factory=set, repr=False)
+    _log_write_generation: int = field(default=0, repr=False)
+    _log_write_failure_generation: int = field(default=0, repr=False)
+    _log_write_failure: str = field(default="", repr=False)
+    _failed_log_writes: dict[int, tuple[Callable | None, str]] = field(
+        default_factory=dict, repr=False,
+    )
+    _last_context: dict = field(default_factory=empty_context, repr=False)
+    _did_report: bool = field(default=False, repr=False)
+    _report_calls: dict = field(default_factory=dict, repr=False)
+    _turn_logs: list = field(default_factory=list, repr=False)
+    _last_text_output: Optional[str] = field(default=None, repr=False)
+    _tool_names_by_id: dict = field(default_factory=dict, repr=False)
+    _policy_violation_messages: set[str] = field(default_factory=set, repr=False)
+    _output_tails: Any = field(default=None, repr=False)
+    _prompt_injected: bool = field(default=False, repr=False)
+    _overflow_compact_scheduled: bool = field(default=False, repr=False)
+    _overflow_guard_tokens: int = field(default=-1, repr=False)
+    _current_prompt: str = field(default="", repr=False)
+    _template_hash: str = field(default="", repr=False)
+    _temp_rules_fp: str | None = field(default=None, repr=False)
+    _turn_start: float = field(default=0.0, repr=False)
+    _last_msg_time: float = field(default=0.0, repr=False)
+    _last_event: str = field(default="", repr=False)
+    _pending_messages: list = field(default_factory=list, repr=False)
+    _pending_owner_initiated_turn: bool = field(default=False, repr=False)
+    _owner_initiated_turn: bool = field(default=False, repr=False)
+    _checklist_activity_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    _checklist_reminder_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _checklist_turn_key: str = field(default="", repr=False)
+    on_idle: Optional[callable] = field(default=None, repr=False)
+    on_turn_blocked: Optional[callable] = field(default=None, repr=False)
+    _quota_block_notice_signature: str = field(default="", repr=False)
+    _hibernate_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _hibernated: bool = field(default=False, repr=False)
+    _compacting: bool = field(default=False, repr=False)
+    _compact_ack_event: Optional[asyncio.Event] = field(default=None, repr=False)
+    _compact_ack_gen: int = field(default=-1, repr=False)
+    _last_cost: float = field(default=0.0, repr=False)
+    _turn_cost: float = field(default=0.0, repr=False)
+    _context_cost: float = field(default=0.0, repr=False)
+    _session_cost: float = field(default=0.0, repr=False)
+    _last_cost_cached: float = field(default=0.0, repr=False)
+    _last_turn_ok: bool = field(default=True, repr=False)
+    _last_stop_reason: str = field(default="", repr=False)
+    _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    _admission_service: Optional[Callable[[str], Awaitable["QuotaDecision"]]] = field(
+        default=None, repr=False,
+    )
+    # Пара поколений хода: устаревший ретрай/автопродолжение сверяет обе и не стреляет.
+    _turn_gen: int = field(default=0, repr=False)
+    # (task, turn generation) of the last per-turn listener that finished; lets its
+    # done-callback tell "superseded by a newer turn" from a genuine death (V-882).
+    _ended_listener: Optional[tuple] = field(default=None, repr=False)
+    _turn_start_cancel_gen: int = field(default=0, repr=False)
+    _handoff_config_dir: str = field(default="", repr=False)
+    _handoff_recovery_required: bool = field(default=False, repr=False)
+    _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _persist_dirty: bool = field(default=False, repr=False)
+    _turn_finished_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    _spawn_warning: str = field(default="", repr=False)
+    _spawn_repo_path: str = field(default="", repr=False)
+    _spawn_git_common_dir: str = field(default="", repr=False)
+    _auto_continue_count: int = field(default=0, repr=False)
+    _rate_limit_retries: int = field(default=0, repr=False)
+    _server_error_retries: int = field(default=0, repr=False)
+    _session_limit_hit: bool = field(default=False, repr=False)
+    _manually_interrupted: bool = field(default=False, repr=False)
+    _restart_cut_pending: bool = field(default=False, repr=False)
+    _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
+    _precompact_timer: dict | None = field(default=None, repr=False)
+    # Одна строка в журнал на сессию: решение принимается каждый ход, а причина не меняется.
+    _auto_compact_off_logged: bool = field(default=False, repr=False)
+    _codex_skill_index_fallback: bool = field(default=False, repr=False)
+    _codex_project_doc_instruction: str = field(default="", repr=False)
+    _codex_preflight_signatures: set[str] = field(default_factory=set, repr=False)
+
+    AUTO_CONTINUE_MAX = 5
+    RATE_LIMIT_MAX_RETRIES = 3
+    RATE_LIMIT_DELAY = 30
+    SERVER_ERROR_MAX_RETRIES = 3
+    SERVER_ERROR_RETRY_DELAY = 5
+    # Ack-ход после сжатия идёт в СВЕЖЕЙ сессии без префикс-кеша: системный промпт
+    # перечитывается целиком по полной цене. Harness-модели (OpenRouter) медленные —
+    # DeepSeek V4.1 Flash не укладывался в прежние 60 с и откатывал компакт (V-676).
+    # Claude/Codex успевают за минуту; остальным даём больше. Переопределяется
+    # COMPACT_ACK_TIMEOUT_SECONDS без правки кода.
+    COMPACT_ACK_TIMEOUT_SECONDS = 60
+    COMPACT_ACK_TIMEOUT_HARNESS = 240
+    PRECOMPACT_DELAY_SECONDS = 55 * 60
+    PRECOMPACT_CONTEXT_THRESHOLD = 20
+    CODEX_PRECOMPACT_DELAY_SECONDS = 25 * 60
+    CODEX_PRECOMPACT_CONTEXT_THRESHOLD = 60
+    # Sessions come back from compact at 7-12% (prompt + handoff). Week to 25.09
+    # (Claude, 1M window): 34 of 67 compacts started below 30% and cut only 35-38%,
+    # while re-writing 90-150k tokens of cache; above 30% they cut 78-86%.
+    # Codex uses the same floor by the owner's decision (25.09).
+    PRECOMPACT_MIN_CONTEXT_PCT = 30
+    # Owner 03.10 (V-683): katya-work lost agreements to 2-5 idle compacts a day; there
+    # idle compaction waits for a nearly full context and the cold cache is accepted.
+    PRECOMPACT_MIN_CONTEXT_PCT_BY_SESSION = {"katya-work-orchestrator": 80}
+    CLAUDE_CACHE_WINDOW_SECONDS = 60 * 60
+    # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
+    # safety margin before the observed/documented ~30-minute reference window.
+    CODEX_CACHE_WINDOW_SECONDS = 30 * 60
+    AUTO_COMPACT_WINDOW_START = _AUTO_COMPACT_WINDOW_START_DEFAULT
+    AUTO_COMPACT_WINDOW_END = _AUTO_COMPACT_WINDOW_END_DEFAULT
+    AUTO_COMPACT_TIMEZONE = _AUTO_COMPACT_TIMEZONE_DEFAULT
+
+    def _context_token_total(self) -> int:
+        """Кумулятивный вес контекста, накопленный ходами этой сессии.
+
+        Разница двух снимков даёт токены ОДНОГО хода — так компакт узнаёт размер
+        свежей сессии, не дожидаясь фонового обновления `_last_context`.
+        """
+        return (
+            self.total_input_tokens
+            + self.total_cache_read_tokens
+            + self.total_cache_create_tokens
+        )
+
+    def _precompact_payload(self, payload: dict) -> str:
+        return json.dumps(payload, ensure_ascii=False)
+
+    def _precompact_policy(self) -> dict | None:
+        min_pct = self.PRECOMPACT_MIN_CONTEXT_PCT_BY_SESSION.get(
+            self.name, self.PRECOMPACT_MIN_CONTEXT_PCT)
+        if self.backend_type == "claude":
+            return {
+                "delay_seconds": self.PRECOMPACT_DELAY_SECONDS,
+                "cache_window_seconds": self.CLAUDE_CACHE_WINDOW_SECONDS,
+                "context_threshold": self.PRECOMPACT_CONTEXT_THRESHOLD,
+                "arm_threshold": min_pct,
+                "min_context_pct": min_pct,
+                "compact_mode": "handoff",
+            }
+        if self.backend_type == "codex":
+            return {
+                "delay_seconds": self.CODEX_PRECOMPACT_DELAY_SECONDS,
+                "cache_window_seconds": self.CODEX_CACHE_WINDOW_SECONDS,
+                "context_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
+                "arm_threshold": min_pct,
+                "min_context_pct": min_pct,
+                "compact_mode": "native",
+            }
+        return None
+
+    def _auto_compact_window_state(
+            self, now_utc: datetime | None = None) -> dict:
+        return _configured_auto_compact_window_state(
+            now_utc or datetime.now(timezone.utc),
+            os.getenv(
+                "AUTO_COMPACT_WINDOW_START", self.AUTO_COMPACT_WINDOW_START,
+            ).strip(),
+            os.getenv(
+                "AUTO_COMPACT_WINDOW_END", self.AUTO_COMPACT_WINDOW_END,
+            ).strip(),
+            os.getenv(
+                "AUTO_COMPACT_TIMEZONE", self.AUTO_COMPACT_TIMEZONE,
+            ).strip(),
+        )
+
+    def _auto_compact_window_blocked(
+            self, context_pct: int, now_utc: datetime | None = None,
+            *, log_status: bool = True, deferred: bool = False) -> bool:
+        if not auto_compact_enabled():
+            if log_status and not self._auto_compact_off_logged:
+                self._auto_compact_off_logged = True
+                self._log(
+                    "status",
+                    "auto-compact disabled (AUTO_COMPACT_ENABLED=0); "
+                    "manual compact remains available",
+                )
+            return True
+        if context_pct >= _auto_compact_threshold_pct(self):
+            return False
+        if not self.is_orchestrator:
+            return False
+        state = self._auto_compact_window_state(now_utc)
+        if state["allowed"]:
+            return False
+        if not log_status:
+            return True
+        risk = (
+            "; context is critically high and may hit the runtime limit"
+            if context_pct > 90
+            else ""
+        )
+        outcome = "deferred" if deferred else "blocked"
+        self._log(
+            "status",
+            f"auto-compact {outcome} outside configured window: "
+            f"context {context_pct}%, local {state['local_time']}, "
+            f"window {state['window']} {state['timezone']}{risk}; "
+            "manual compact remains available",
+        )
+        return True
+
+    def _cancel_precompact_timer(self, reason: str = "activity") -> None:
+        if self._precompact_timer_task and not self._precompact_timer_task.done():
+            self._precompact_timer_task.cancel()
+        self._precompact_timer_task = None
+        if self._precompact_timer:
+            payload = {
+                "event": "precompact_timer_cancelled",
+                "scheduled_at": self._precompact_timer.get("scheduled_at"),
+                "reason": reason,
+            }
+            self._log("status", f"precompact timer cancelled: {self._precompact_payload(payload)}")
+        self._precompact_timer = None
+
+    def _note_next_precompact_activity(self) -> None:
+        if not self._precompact_timer:
+            return
+        fired_at = self._precompact_timer.get("fired_at")
+        if not fired_at:
+            self._cancel_precompact_timer(reason="activity_before_fire")
+            return
+        if not self._precompact_timer.get("next_activity"):
+            next_activity = datetime.now(timezone.utc)
+            try:
+                elapsed = (
+                    next_activity
+                    - datetime.fromisoformat(self._precompact_timer["scheduled_at"])
+                )
+                cache_window_seconds = int(
+                    self._precompact_timer.get(
+                        "cache_window_seconds",
+                        self.CLAUDE_CACHE_WINDOW_SECONDS,
+                    )
+                )
+                crossed_cache_window = (
+                    elapsed >= timedelta(seconds=cache_window_seconds)
+                )
+                crossed_60m = elapsed >= timedelta(minutes=60)
+            except Exception:
+                crossed_cache_window = False
+                crossed_60m = False
+            self._precompact_timer["next_activity"] = next_activity.isoformat()
+            self._precompact_timer["crossed_cache_window"] = crossed_cache_window
+            self._precompact_timer["crossed_60m"] = crossed_60m
+            self._log(
+                "status",
+                f"precompact timer outcome: {self._precompact_payload(self._precompact_timer)}",
+            )
+            self._precompact_timer = None
+
+    def _context_is_known(self) -> bool:
+        if "known" in self._last_context:
+            return bool(self._last_context["known"])
+        return bool(
+            self._last_context.get("percentage", 0)
+            or self._last_context.get("total_tokens", 0)
+        )
+
+    def _schedule_precompact_timer(self, context_pct: int) -> None:
+        if self._precompact_timer is not None:
+            return
+        policy = self._precompact_policy()
+        if policy is None or context_pct < policy["arm_threshold"]:
+            return
+        if not auto_compact_enabled():
+            # Не взводим вовсе: гейт ниже по течению отменил бы компакт, но таймер писал бы
+            # в журнал «запланирован» и «пропущен» на каждом ходу.
+            if not self._auto_compact_off_logged:
+                self._auto_compact_off_logged = True
+                self._log(
+                    "status",
+                    "auto-compact disabled (AUTO_COMPACT_ENABLED=0): precompact timer not "
+                    "scheduled; manual compact remains available",
+                )
+            return
+        self._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "role": self.role,
+            "backend": self.backend_type,
+            "context_pct": context_pct,
+            **policy,
+        }
+        self._log(
+            "status",
+            f"precompact timer scheduled: {self._precompact_payload(self._precompact_timer)}",
+        )
+        self._precompact_timer_task = self._spawn_bg(self._run_precompact_timer())
+
+    async def _run_precompact_timer(self) -> None:
+        try:
+            delay = (
+                self._precompact_timer.get("delay_seconds")
+                if self._precompact_timer
+                else self.PRECOMPACT_DELAY_SECONDS
+            )
+            await asyncio.sleep(delay)
+            await self._fire_precompact_timer()
+        except asyncio.CancelledError:
+            pass
+
+    async def _fire_precompact_timer(self) -> None:
+        state = self._precompact_timer
+        self._precompact_timer_task = None
+        if not state:
+            return
+
+        fired_at = datetime.now(timezone.utc)
+        state["fired_at"] = fired_at.isoformat()
+        state["context_pct"] = self._last_context.get("percentage", 0)
+
+        if not auto_compact_enabled():
+            self._auto_compact_window_blocked(state["context_pct"])
+            state["skip_reason"] = "auto_compact_disabled"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        if self._compacting:
+            state["skip_reason"] = "compacting"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        if self.status not in (AgentStatus.IDLE, AgentStatus.WAITING):
+            state["skip_reason"] = "not_idle"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        policy = self._precompact_policy()
+        if policy is None or state.get("backend") != self.backend_type:
+            state["skip_reason"] = "backend_changed"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        if not self._context_is_known():
+            state["skip_reason"] = "unknown_context"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        threshold = int(state.get("min_context_pct", policy["min_context_pct"]))
+        if self._last_context.get("percentage", 0) < threshold:
+            state["skip_reason"] = "low_context"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        state["role"] = self.role
+        state["backend"] = self.backend_type
+        self._log(
+            "status",
+            f"precompact timer fired: {self._precompact_payload(state)}",
+        )
+        result = await self.compact()
+        state["compact_result"] = result
+        self._log(
+            "status",
+            f"precompact timer compacted: {self._precompact_payload(state)}",
+        )
+
+    def _clock_running(self) -> bool:
+        return self.status == AgentStatus.RUNNING or self._compacting
+
+    def __setattr__(self, name: str, value) -> None:
+        # The checklist step clock follows the agent's work state (running or compacting),
+        # so every assignment that flips it must be seen; there are dozens of them.
+        tracked = name in ("status", "_compacting") and self.__dict__.get("_clock_ready")
+        before = self._clock_running() if tracked else False
+        object.__setattr__(self, name, value)
+        if not tracked or not self.loaded or self.is_orchestrator:
+            return
+        working = self._clock_running()
+        if working == before:
+            return
+        from app import checklists
+
+        try:
+            checklists.set_clock(self.id, self.task_id, working)
+        except Exception as error:
+            logger.warning("[%s] checklist clock update failed: %s", self.name, err_text(error))
+
+    def __post_init__(self) -> None:
+        # Systems over state (ECS): cost/turn/hibernate methods live in systems,
+        # all fields stay on the session (persistence reads them directly)
+        self._cost = CostTracker(self)
+        self._turns = TurnManager(self)
+        self._hibernate = HibernateManager(self)
+        self._active_delivery_context = None
+        self._clock_ready = True
+
+    @property
+    def is_orchestrator(self) -> bool:
+        if self._is_orchestrator is not None:
+            return self._is_orchestrator
+        return is_orchestrator_role(self.role)
+
+    @is_orchestrator.setter
+    def is_orchestrator(self, value: bool) -> None:
+        self._is_orchestrator = value
+
+    def _hub_bridge(self):
+        """The hub runtime's only link back to Orchestra: this worker's identity and outbox executor."""
+        from app.hub_outbox import HubBridge, Identity
+
+        def reported(who):
+            if who.turn_gen == self._turn_gen and who.parent_name == self.parent_name:
+                self._did_report = True
+
+        return HubBridge(lambda: Identity(
+            session_id=self.id, name=self.name, scope=self.scope, parent_name=self.parent_name or "",
+            role=self.role, branch=self.branch or "", pipeline=self.pipeline or "", turn_gen=self._turn_gen),
+            on_parent_report=reported)
+
+    def _make_backend(
+        self,
+        force_fresh: bool = False,
+        history_import=None,
+        *,
+        validation_profile: bool = False,
+        config_dir_override: str | None = None,
+        model_override: str | None = None,
+        resume_session_id: str | None = None,
+    ):
+        model = model_override or self.model
+        runtime = get_model_spec(model).runtime
+        spec = get_model_spec(model)
+        system_prompt = self.system_prompt
+        project_doc_instruction = getattr(self, "_codex_project_doc_instruction", "")
+        if runtime == "codex" and project_doc_instruction:
+            system_prompt = f"{system_prompt}\n\n{project_doc_instruction}"
+        context = BackendBuildContext(
+            model=model,
+            provider=spec.provider,
+            cwd=self.cwd,
+            system_prompt=system_prompt,
+            resume_session_id=(
+                None if force_fresh
+                else (self.session_id if resume_session_id is None else resume_session_id)
+            ),
+            mcp_servers={} if validation_profile else self.mcp_servers,
+            is_orchestrator=self.is_orchestrator,
+            scope=self.scope,
+            pipeline=self.pipeline,
+            role=self.role,
+            profile=self.profile,
+            effort=self.effort,
+            context_limit=spec.context_length,
+            codex_skill_index_fallback=(
+                runtime == "codex"
+                and getattr(self, "_codex_skill_index_fallback", False)
+            ),
+            history_import=history_import,
+            validation_profile=validation_profile,
+            owned_dirs=tuple(self.owned_dirs or ()),
+            owned_dirs_source=lambda: tuple(self.owned_dirs or ()),
+            hub_bridge=self._hub_bridge() if runtime == "hub" else None,
+            config_dir_override=(
+                self._handoff_config_dir
+                if config_dir_override is None
+                else config_dir_override
+            ),
+        )
+        return build_backend(runtime, context)
+
+    def _log_codex_connect_stage(self, stage: str, started: float) -> None:
+        if self.backend_type == "codex":
+            logger.info(
+                "codex_connect_stage worker=%s stage=%s duration=%.3fs",
+                self.name, stage, time.monotonic() - started,
+            )
+
+    @property
+    def is_busy(self) -> bool:
+        """Идёт ли работа, которую рестарт разорвёт (#220 T3).
+
+        Одного `status == RUNNING` мало: компактификация генерирует summary при
+        `_compacting = True`, а `RUNNING` присваивается только на ack-ходе в самом
+        конце. Дренаж по одному статусу срезал бы оплаченную сводку, не заметив её.
+        """
+        return self.status == AgentStatus.RUNNING or self._compacting
+
+    def _queue_drain_fact(self, kind: str, what: str) -> None:
+        """Оставить агенту факт о продолжении, срезанном дренажом (#220 T2).
+
+        Только для внутренних стартеров хода: у них нет отправителя, которому можно
+        отказать громко, поэтому единственный способ не потерять событие молча — тот
+        же механизм недоставки (#50). Ключ дедупа один на вид продолжения: за окно
+        дренажа повтор схлопывается в одну строку.
+        """
+        try:
+            enqueue_fact(
+                self.id, f"drain:{kind}",
+                f"{what}; Orchestra перезапускалась, автоматического повтора нет",
+            )
+        except Exception as error:
+            logger.warning(f"[{self.name}] could not queue drain fact {kind}: "
+                           f"{type(error).__name__}: {error}")
+
+    def _attach_pending_facts(self, message: str) -> tuple[str, list[str]]:
+        """Приписать к сообщению ФАКТЫ о недоставке, накопленные для этой сессии (#50).
+
+        Это НЕ ретрай: исходные сообщения не пересылаются, едет только факт, что они не
+        дошли. Иначе ждущий агент не узнаёт о недоставке никогда — запись в `logs` типа
+        `system` в контекст не попадает (измерено в #47).
+
+        Не бросает НИЧЕГО: сообщение важнее факта. Сбой очереди → уходит как раньше.
+        """
+        try:
+            from app.db import peek_facts
+
+            pending = peek_facts(self.id)
+        except Exception as error:
+            logger.warning(f"[{self.name}] pending facts unavailable: "
+                           f"{type(error).__name__}: {error}")
+            return message, []
+        if not pending["facts"]:
+            return message, []
+        lines = [f"- {f['created_at'][11:16]} {f['text']}" for f in pending["facts"]]
+        if pending["collapsed"]:
+            lines.append(f"- …и ещё {pending['collapsed']} событий, свёрнуто; "
+                         f"полностью — в истории сессии")
+        head = (
+            f"[Orchestra platform note: пока тебя не было, до тебя не дошло "
+            f"{len(pending['facts']) + pending['collapsed']} событий. Это факты, а не "
+            f"повтор сообщений — исходные сообщения НЕ пересылались.]"
+        )
+        return f"{head}\n" + "\n".join(lines) + f"\n---\n{message}", pending["keys"]
+
+    def _ack_pending_facts(self, keys: list[str]) -> None:
+        """Погасить факты, которые уехали в бэкенд. Только после возврата из send."""
+        if not keys:
+            return
+        try:
+            from app.db import ack_facts
+
+            ack_facts(self.id, keys)
+        except Exception as error:
+            logger.warning(f"[{self.name}] could not ack delivered facts: "
+                           f"{type(error).__name__}: {error}")
+
+    def _spawn_bg(self, coro) -> asyncio.Task:
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        def _on_done(t):
+            self._background_tasks.discard(t)
+            if not t.cancelled():
+                exc = t.exception()
+                if exc:
+                    logger.warning(f"[{self.name}] background task failed: {exc}")
+        task.add_done_callback(_on_done)
+        return task
+
+    async def start(
+        self,
+        initial_message: str | None = None,
+        *,
+        persist: bool = True,
+        provenance: MessageProvenance | None = None,
+    ) -> None:
+        if initial_message and not persist:
+            raise ValueError("unpublished session cannot accept an initial message")
+        if initial_message:
+            if provenance is None:
+                raise ValueError("initial message provenance is required")
+            await self.send(initial_message, provenance=provenance)
+        else:
+            self.status = AgentStatus.IDLE
+            if persist:
+                self._persist()
+
+    async def abort_unpublished(self) -> None:
+        """Close preparation resources without logs or database persistence."""
+        self._turns.cancel_auto_report()
+        if self._precompact_timer_task and not self._precompact_timer_task.done():
+            self._precompact_timer_task.cancel()
+        self._precompact_timer_task = None
+        self._precompact_timer = None
+        current = asyncio.current_task()
+        tasks = [
+            task for task in (*self._background_tasks, self._persist_task)
+            if task is not None and task is not current and not task.done()
+        ]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._background_tasks.clear()
+        self._persist_task = None
+        self._persist_dirty = False
+        await self._disconnect_backend()
+        self._listen_task = None
+        self._heartbeat_task = None
+        self._hibernate_task = None
+        self.status = AgentStatus.IDLE
+
+
+    async def wait_for_turn_completion(self) -> bool:
+        """Wait for the active logical turn to publish its terminal status.
+
+        Re-reads the status instead of trusting the event alone: callers park here while
+        holding the session lock, so one transition that forgets to publish would block
+        every later switch/merge of this worker until Orchestra restarts.
+        """
+        while self.status == AgentStatus.RUNNING:
+            try:
+                await asyncio.wait_for(
+                    self._turn_finished_event.wait(), TURN_COMPLETION_RECHECK,
+                )
+            except asyncio.TimeoutError:
+                pass
+        return self.status == AgentStatus.IDLE
+
+    async def _worker_admission(self, model: str) -> "QuotaDecision":
+        started = time.monotonic()
+        try:
+            if self._admission_service is not None:
+                decision = await self._admission_service(model)
+            else:
+                from app.quota_gate import get_worker_admission
+
+                decision = await get_worker_admission(model)
+        finally:
+            self._log_codex_connect_stage("quota_gate", started)
+        return decision
+
+    def codex_writer_error(self):
+        if self.backend_type != "codex" or not self.session_id:
+            return None
+        if self._backend is not None and getattr(self._backend, "is_alive", False):
+            return None
+        from app.backend_codex import codex_writer_conflict
+
+        return codex_writer_conflict(self.id, self.session_id)
+
+    async def preflight_delivery_admission(self) -> None:
+        """Check a new direct delivery before its durable receipt is accepted."""
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+        while True:
+            await self._lifecycle_lock.acquire()
+            writer_error = self.codex_writer_error()
+            if writer_error is not None:
+                self._lifecycle_lock.release()
+                raise writer_error
+            if self._handoff_recovery_required:
+                self._lifecycle_lock.release()
+                raise RuntimeError(
+                    "handoff_recovery_required: operator recovery is required before sends"
+                )
+            # Direct delivery can be injected into an existing turn.  In that case
+            # the normal send path intentionally does not consume a new-turn quota.
+            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+                self._lifecycle_lock.release()
+                return
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen or self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import require_worker_admission
+
+                require_worker_admission(decision)
+            finally:
+                self._lifecycle_lock.release()
+            return
+
+    def _compact_ack_timeout(self) -> float:
+        env = os.environ.get("COMPACT_ACK_TIMEOUT_SECONDS")
+        if env:
+            try:
+                return max(1.0, float(env))
+            except ValueError:
+                pass
+        if self.backend_type in ("claude", "codex"):
+            return float(self.COMPACT_ACK_TIMEOUT_SECONDS)
+        return float(self.COMPACT_ACK_TIMEOUT_HARNESS)
+
+    def _start_turn_state(
+        self,
+        *,
+        compact_ack: bool = False,
+        owner_initiated: bool = False,
+    ) -> None:
+        """Publish the single in-memory/DB transition into a running turn."""
+        self._manually_interrupted = False
+        self._did_report = False
+        self._report_calls.clear()
+        self._owner_initiated_turn = owner_initiated
+        self._turns.bump_turn_gen()
+        if compact_ack:
+            self._compact_ack_gen = self._turn_gen
+        self._turn_logs = []
+        self._last_text_output = None
+        self._turn_start = asyncio.get_event_loop().time()
+        self._last_msg_time = self._turn_start
+        self.status = AgentStatus.RUNNING
+        self._persist()
+        self._start_checklist_reminder()
+
+    def _cancel_checklist_reminder(self) -> None:
+        task = self._checklist_reminder_task
+        self._checklist_reminder_task = None
+        try:
+            current_task = asyncio.current_task()
+        except RuntimeError:
+            current_task = None
+        if task is not None and task is not current_task and not task.done():
+            task.cancel()
+
+    def _start_checklist_reminder(self) -> None:
+        self._cancel_checklist_reminder()
+        from app import checklists
+
+        self._checklist_turn_key = checklists.make_turn_key(self.id, self._turn_gen)
+        self._checklist_activity_event.clear()
+        if self.is_orchestrator or not checklists.reminders_enabled():
+            return
+        try:
+            registered = checklists.register_turn(
+                self.id, self.task_id, self._turn_gen, self._checklist_turn_key,
+            )
+        except Exception as error:
+            logger.warning(
+                "[%s] checklist reminder unavailable for this turn: %s",
+                self.name, err_text(error),
+            )
+            return
+        if not registered:
+            return
+        task = asyncio.create_task(self._watch_checklist_reminder(
+            self._turn_gen, self._checklist_turn_key,
+        ))
+        self._checklist_reminder_task = task
+
+    async def _watch_checklist_reminder(self, turn_gen: int, turn_key: str) -> None:
+        from app import checklists
+
+        current_task = asyncio.current_task()
+        try:
+            while (
+                self.status == AgentStatus.RUNNING
+                and self._turn_gen == turn_gen
+                and checklists.reminders_enabled()
+            ):
+                try:
+                    await asyncio.wait_for(
+                        self._checklist_activity_event.wait(),
+                        timeout=checklists.reminder_delay_seconds(
+                            checklists.get_checklist(self.id, self.task_id),
+                        ),
+                    )
+                    self._checklist_activity_event.clear()
+                    continue
+                except asyncio.TimeoutError:
+                    pass
+                if self._checklist_activity_event.is_set():
+                    self._checklist_activity_event.clear()
+                    continue
+                if (
+                    self.status != AgentStatus.RUNNING
+                    or self._turn_gen != turn_gen
+                    or not checklists.reminders_enabled()
+                ):
+                    return
+                checklist = checklists.get_checklist(self.id, self.task_id)
+                if checklist and checklist["completed"] >= checklist["total"]:
+                    return
+                estimated_delay = checklists.estimated_reminder_delay_seconds(checklist)
+                if estimated_delay is not None and estimated_delay > 0:
+                    continue
+                if not checklists.claim_reminder(turn_key):
+                    return
+                message = (
+                    "Update your checklist: mark what is done and which step is current."
+                )
+                self._log(
+                    "checklist_reminder", message, event_id=turn_key,
+                )
+                try:
+                    await self.send(
+                        message,
+                        provenance=MessageProvenance(
+                            origin="platform", senders=("Orchestra",),
+                            subtype="checklist_reminder", ref=turn_key,
+                        ),
+                    )
+                except Exception as error:
+                    self._log("error", f"checklist reminder delivery failed: {err_text(error)}")
+                return
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            logger.warning(
+                "[%s] checklist reminder failed: %s", self.name, err_text(error),
+            )
+        finally:
+            if self._checklist_reminder_task is current_task:
+                self._checklist_reminder_task = None
+
+    async def send(
+        self, message: str | InjectedMessage, *, provenance: MessageProvenance,
+        delivery=None, retry_generation: tuple[int, int] | None = None,
+    ) -> None:
+        if isinstance(message, InjectedMessage) and message.provenance != provenance:
+            raise ValueError("injected message provenance mismatch")
+        owner_initiated = _is_owner_direct_message(provenance)
+        message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
+        message = message.text if isinstance(message, InjectedMessage) else message
+        original_user_message = message
+        history_user_message = original_user_message
+        if delivery is not None:
+            persisted_user_message = getattr(delivery, "history_user_message", None)
+            if isinstance(persisted_user_message, str) and persisted_user_message:
+                history_user_message = persisted_user_message
+        allow_running_delivery = bool(
+            delivery is not None and getattr(delivery, "allow_running", False)
+        )
+        if allow_running_delivery and self._compacting:
+            return
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+
+        while True:
+            await self._lifecycle_lock.acquire()
+            # Recheck after admission too: Stop or a newer turn can win while
+            # this sender is outside the lock waiting for quota data.
+            if retry_generation is not None and (
+                retry_generation != (self._turn_gen, self._turn_start_cancel_gen)
+                or self._manually_interrupted
+                or (self._session_limit_hit and provenance.subtype in {"rate_limit_retry", "server_error_retry"})
+                or (self.status != AgentStatus.IDLE
+                    and not (provenance.subtype in {"turn_limit_continue", "runtime_reconnect"}
+                             and self.status == AgentStatus.RUNNING))
+                or self._compacting
+            ):
+                self._lifecycle_lock.release()
+                return
+            if self._handoff_recovery_required:
+                self._lifecycle_lock.release()
+                raise RuntimeError(
+                    "handoff_recovery_required: operator recovery is required before sends"
+                )
+            if (
+                self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
+                or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
+            ):
+                break
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen:
+                self._lifecycle_lock.release()
+                raise RuntimeError("new worker turn cancelled by stop")
+            if self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import require_worker_admission
+
+                require_worker_admission(decision)
+            except BaseException:
+                self._lifecycle_lock.release()
+                raise
+            break
+
+        try:
+            writer_error = self.codex_writer_error()
+            if writer_error is not None:
+                raise writer_error
+            if (
+                delivery is not None
+                and not allow_running_delivery
+                and (self._compacting or self.status == AgentStatus.RUNNING)
+            ):
+                raise RuntimeError("initial delivery requires an idle session")
+            # Both failure classes share the logical request: alternating upstream
+            # errors must not replenish each other's retry budget.
+            if provenance.subtype not in {"rate_limit_retry", "server_error_retry", "runtime_reconnect"}:
+                self._rate_limit_retries = 0
+                self._server_error_retries = 0
+            if provenance.subtype != "server_error_retry":
+                self._session_limit_hit = False
+
+            self._note_next_precompact_activity()
+            capabilities = get_runtime(self.backend_type).capabilities
+            if (
+                delivery is None
+                and not self._compacting
+                and not self._overflow_compact_scheduled
+                and self.status != AgentStatus.RUNNING
+                and self.backend_type == "claude"
+                and auto_compact_enabled()
+                and self._last_context.get("total_tokens") != self._overflow_guard_tokens
+                and injection_overflows_context(
+                    self,
+                    len(message) + (
+                        len(self._current_prompt)
+                        if self.session_id and not self._prompt_injected else 0
+                    ),
+                )
+            ):
+                # V-995: compact BEFORE the send; the refreshed prompt would overflow the window.
+                self._overflow_guard_tokens = self._last_context.get("total_tokens")
+                self._overflow_compact_scheduled = True
+                self._cancel_precompact_timer("overflow_guard")
+                self._log(
+                    "status",
+                    f"overflow guard: context {self._last_context.get('percentage')}% "
+                    "plus the refreshed prompt would exceed the window; compacting first",
+                )
+                self._spawn_bg(self._overflow_compact())
+            if self._compacting or self._overflow_compact_scheduled:
+                if delivery is not None and allow_running_delivery:
+                    return
+                self._pending_messages.append(message)
+                self._pending_owner_initiated_turn |= owner_initiated
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
+                self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
+                return
+            if self.status == AgentStatus.RUNNING:
+                if delivery is not None:
+                    if (
+                        not capabilities.mid_turn_inject
+                        or (
+                            self.backend_type == "codex"
+                            and self._backend is not None
+                            and getattr(self._backend, "deferred_interrupt_pending", False)
+                            is True
+                        )
+                    ):
+                        return
+                    dispatch_started = False
+                    try:
+                        backend = await self._ensure_backend()
+                        if backend is None:
+                            raise RuntimeError(
+                                "backend is unavailable before provider submission"
+                            )
+                        injected, fact_keys = self._attach_pending_facts(message)
+                        await delivery.before_submit()
+                        mark_running_steer = getattr(delivery, "mark_running_steer", None)
+                        if callable(mark_running_steer):
+                            mark_running_steer()
+                        dispatch_started = True
+                        await backend.send(injected)
+                        provider_ref = getattr(backend, "active_turn_id", None)
+                        await delivery.mark_submitted(
+                            provider_ref=(
+                                provider_ref
+                                if isinstance(provider_ref, str) and provider_ref
+                                else None
+                            ),
+                        )
+                        self._ack_pending_facts(fact_keys)
+                        if self.backend_type == "codex":
+                            self._log("status", "message steered into active Codex turn")
+                        return
+                    except asyncio.CancelledError as error:
+                        if dispatch_started:
+                            await delivery.mark_unknown(error)
+                        raise
+                    except Exception as error:
+                        if dispatch_started:
+                            await delivery.mark_unknown(error)
+                        raise
+
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
+                if (
+                    self.backend_type == "codex"
+                    and self._backend is not None
+                    and getattr(self._backend, "deferred_interrupt_pending", False) is True
+                ):
+                    self._pending_messages.append(message)
+                    self._pending_owner_initiated_turn |= owner_initiated
+                    self._log(
+                        "status",
+                        f"message queued (deferred interrupt pending, "
+                        f"{len(self._pending_messages)} pending)",
+                    )
+                    return
+                if not capabilities.mid_turn_inject:
+                    self._pending_messages.append(message)
+                    self._pending_owner_initiated_turn |= owner_initiated
+                    self._log("status", f"message queued ({len(self._pending_messages)} pending)")
+                    return
+                mailbox_id = None
+                try:
+                    backend = await self._ensure_backend()
+                    injected, fact_keys = self._attach_pending_facts(message)
+                    turn_id = getattr(backend, "active_turn_id", None)
+                    if (
+                        self.backend_type == "codex"
+                        and provenance.origin not in {"platform", "system"}
+                        and isinstance(turn_id, str)
+                        and turn_id
+                    ):
+                        from app import mailbox
+
+                        sender = provenance.senders[0]
+                        body = message
+                        prefix = f"[from:{sender}] "
+                        if provenance.origin == "agent" and body.startswith(prefix):
+                            body = body[len(prefix):]
+                        mailbox_id = mailbox.enqueue(
+                            recipient=self.name,
+                            scope=self.scope,
+                            sender=sender,
+                            body=body,
+                            provenance=MessageProvenance(
+                                origin=provenance.origin,
+                                senders=provenance.senders,
+                                subtype="codex_steer_backup_pending",
+                                ref=turn_id,
+                            ),
+                        )
+                    await backend.send(injected)
+                    if mailbox_id is not None:
+                        from app import mailbox
+
+                        mailbox.mark_codex_steer_submitted(mailbox_id)
+                    self._ack_pending_facts(fact_keys)
+                    if self.backend_type == "codex":
+                        self._log("status", "message steered into active Codex turn")
+                    return
+                except Exception as e:
+                    logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
+                    if mailbox_id is None:
+                        self._pending_messages.append(message)
+                        self._pending_owner_initiated_turn |= owner_initiated
+                    pending = len(self._pending_messages) + int(mailbox_id is not None)
+                    self._log("status", f"inject failed, queued ({pending} pending)")
+                    if self.status != AgentStatus.RUNNING and not self._compacting:
+                        self._spawn_bg(self._flush_pending())
+                return
+
+            if self._hibernate_task and not self._hibernate_task.done():
+                self._hibernate_task.cancel()
+                self._hibernate_task = None
+
+            if self._hibernated:
+                logger.info(f"[{self.name}] waking from hibernate")
+                self._hibernated = False
+
+            self.progress_pct = 0
+            self.progress_status = ""
+            if delivery is None:
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
+
+            did_inject = False
+            pending_th = ""
+            templates_changed = False
+            prompt_started = time.monotonic()
+            rules_now = temp_rules.fingerprint(
+                role=self.role, is_orch=self.is_orchestrator, scope=self.scope, name=self.name)
+            if self._temp_rules_fp is None:
+                self._temp_rules_fp = temp_rules.block_fingerprint(self._current_prompt or "")
+            rules_changed = rules_now != self._temp_rules_fp
+            if self.session_id and self._current_prompt and (
+                not self._prompt_injected or rules_changed
+            ):
+                # Inject updated system prompt once per session — workers list, role
+                # catalog, and template content drift as other agents spawn/die.
+                # Only on first message after resume; subsequent turns use cached prompt.
+                current_th = prompt_template_hash(self.role)
+                old_th = self._template_hash or current_th
+                templates_changed = old_th != current_th or rules_changed
+                pending_th = current_th
+                # Personal memory is re-read here, not reused from the assembled string:
+                # the prompt is built at spawn / _load_from_db, so anything the agent
+                # wrote to its own memory since then would otherwise wait for a restart.
+                # The same argument applies to the ROLE text itself (#220 T1): rebuild it
+                # from .orchestra/pipelines/** instead of replaying the string assembled at startup,
+                # otherwise a rule edit waits for a restart (median 3.3h, p75 22.9h).
+                if self.prompt_overlay is None:
+                    # A full prompt set by the operator has no component boundary —
+                    # rebuilding it would silently drop the authority they gave.
+                    self._current_prompt = refresh_worker_memory(
+                        self._current_prompt, self.name, self.role, self.scope,
+                        self.worktree_path or "",
+                        allow_absent_project=True,
+                        allow_missing_layout=delivery is not None,
+                    )
+                else:
+                    from app.deps import manager
+                    try:
+                        self._current_prompt, _ = manager.assemble_prompt(
+                            pipeline=self.pipeline, role=self.role, scope=self.scope,
+                            is_orch=self.is_orchestrator, name=self.name,
+                            parent_name=self.parent_name or None,
+                            owned_dirs=self.owned_dirs,
+                            branch=self.branch or self.base_branch or "",
+                            stored_overlay=self.prompt_overlay,
+                            old_prompt=self._current_prompt,
+                            repository_path=self.worktree_path or "",
+                            allow_missing_layout=delivery is not None,
+                        )
+                    except Exception as error:
+                        # Пересборка читает .orchestra/pipelines/** на ГОРЯЧЕМ пути, а
+                        # ROLE_SYSTEM_PROMPT падает громко (ValueError) на битом
+                        # манифесте. До T1 этого вызова здесь не было вовсе, поэтому
+                        # опечатка в роли теперь убивала бы следующий ход У ВСЕХ
+                        # агентов сразу. Откат к прежнему поведению — со старым
+                        # промптом, но вслух: горячее применение не имеет права быть
+                        # хуже своего отсутствия.
+                        self._log("error", f"prompt rebuild failed, using the prompt "
+                                           f"from startup: {err_text(error)}")
+                        logger.error(f"[{self.name}] prompt rebuild failed: "
+                                     f"{err_text(error)}")
+                        self._current_prompt = refresh_worker_memory(
+                            self._current_prompt, self.name, self.role, self.scope,
+                            self.worktree_path or "",
+                            allow_absent_project=True,
+                            allow_missing_layout=delivery is not None,
+                        )
+                self._current_prompt = temp_rules.with_block(
+                    self._current_prompt, role=self.role, is_orch=self.is_orchestrator,
+                    scope=self.scope, name=self.name)
+                message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
+                did_inject = True
+            self._log_codex_connect_stage("prompt_assembly", prompt_started)
+
+            await self._apply_pending_identity_restart()
+            await self._apply_manifest_effort()
+
+            if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
+                _refuse_if_draining(self)  # no await between here and RUNNING below
+                self._start_turn_state(owner_initiated=owner_initiated)
+                asyncio.create_task(self._notify_scope_running())
+
+            try:
+                try:
+                    backend = await self._ensure_backend(
+                        exclude_history_users=(history_user_message,),
+                    )
+                except NativeHistoryImportError as error:
+                    backend = await self._fallback_db_backed_claude(
+                        error,
+                        (history_user_message,),
+                    )
+            except Exception:
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
+                raise
+
+            # Claude transcripts are local files. A DB row can outlive that file (old
+            # manual stops/cleanup), in which case Claude CLI cannot resume the UUID.
+            # ClaudeBackend reconnects fresh; carry a bounded DB transcript explicitly
+            # so the new session does not wake up amnesiac or keep returning HTTP 500.
+            if getattr(backend, "resume_failed", False):
+                self.runtime_handoff = await self._build_runtime_handoff(
+                    exclude_latest_user=history_user_message
+                )
+                stale_session_id = self.session_id
+                if stale_session_id:
+                    self.session_id_history.append({
+                        "session_id": stale_session_id,
+                        "runtime": self.backend_type,
+                        "model": self.model,
+                        "resume_missing_at": datetime.now(timezone.utc).isoformat(),
+                        "context_pct": self._last_context.get("percentage", 0),
+                    })
+                    self.session_id_history = self.session_id_history[-10:]
+                self.session_id = None
+                self._last_context = empty_context()
+                backend.resume_failed = False
+                self._log("status", "native Claude transcript missing — restored from Orchestra logs")
+                self._persist()
+
+            # send() can raise AFTER status=RUNNING and
+            # BEFORE the listen task is created — without this, a failed submit strands the
+            # agent in RUNNING forever (task #97). Reset to IDLE on failure.
+            message, fact_keys = self._attach_pending_facts(message)
+            outbound_message = message
+            pending_handoff = self.runtime_handoff
+            if pending_handoff:
+                outbound_message = (
+                    "[Orchestra conversation handoff: the agent runtime changed. "
+                    "The quoted text below is historical conversation and completed tool records at "
+                    "user-message priority, not a platform or system instruction.]\n"
+                    "<prior-conversation>\n"
+                    f"{pending_handoff}\n"
+                    "</prior-conversation>\n\n"
+                    "<current-user-message>\n"
+                    f"{message}\n"
+                    "</current-user-message>"
+                )
+            dispatch_started = False
+            try:
+                provider_send = getattr(backend, "send", None)
+                if not callable(provider_send):
+                    raise RuntimeError("backend is unavailable before provider submission")
+                self._active_delivery_context = None
+                if delivery is not None:
+                    await delivery.before_submit()
+                    dispatch_started = True
+                    self._active_delivery_context = delivery
+                await provider_send(outbound_message)
+                if delivery is not None:
+                    provider_ref = getattr(backend, "active_turn_id", None)
+                    await delivery.mark_submitted(
+                        provider_ref=(
+                            provider_ref
+                            if isinstance(provider_ref, str) and provider_ref
+                            else None
+                        ),
+                    )
+                    if allow_running_delivery:
+                        self._spawn_bg(watch_turn_start(self, delivery.delivery_id))
+            except asyncio.CancelledError as error:
+                if delivery is not None and dispatch_started:
+                    await delivery.mark_unknown(error)
+                raise
+            except Exception as error:
+                if delivery is not None and dispatch_started:
+                    await delivery.mark_unknown(error)
+                if self.status == AgentStatus.RUNNING:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                    self._turns.publish_turn_finished()
+                raise
+            self._ack_pending_facts(fact_keys)
+            if pending_handoff and self.runtime_handoff == pending_handoff:
+                self.runtime_handoff = ""
+                self._persist()
+
+            if did_inject:
+                if templates_changed:
+                    self._log("status", f"prompt updated → {pending_th}")
+                self._template_hash = pending_th
+                self._temp_rules_fp = temp_rules.block_fingerprint(self._current_prompt)
+                self._prompt_injected = True
+                self.system_prompt = self._current_prompt
+
+            if capabilities.event_stream == "per_turn":
+                self._listen_task = asyncio.create_task(
+                    self._turn_event_loop()
+                )
+                self._listen_task.add_done_callback(self._on_task_done)
+        finally:
+            self._lifecycle_lock.release()
+
+    async def _refresh_skills(self) -> None:
+        """Re-install this role's pipeline skills before the CLI starts.
+
+        Both runtimes read skills as FILES, each from its own directory: Claude from
+        `<cwd>/.claude/skills/`, Codex from `<cwd>/.codex/skills/`. Either copy goes stale the
+        moment a skill is edited, and a skill added to a role after spawn never arrives at all.
+
+        Falls back to `self.cwd` when there is no worktree — orchestrators run without one,
+        which is why a worktree-only injection reached none of them.
+        """
+        home_dir = _SKILL_HOME_DIRS.get(self.backend_type)
+        if not home_dir:
+            return
+        path = self.worktree_path or self.cwd
+        if not path:
+            return
+        if self.backend_type == "codex":
+            self._codex_skill_index_fallback = False
+        try:
+            from app.pipeline import get_role
+            role = get_role(self.pipeline, self.role)
+            skills = role.skills if role else None
+            if skills is None:
+                return
+            if self.backend_type == "codex":
+                requested_skills = [] if skills == "all" else skills
+                result = await asyncio.to_thread(
+                    inject_skills_to_worktree_report,
+                    requested_skills, path, home_dir,
+                )
+                if result.home_path_is_file:
+                    self._codex_skill_index_fallback = True
+                    ownership = "tracked repo file" if result.home_path_tracked else "existing file"
+                    self._log_codex_preflight_once(
+                        "skill-home-file",
+                        f"Codex skill injection unavailable: {result.home_path} is an "
+                        f"{ownership}; file left untouched, bounded prompt skill fallback enabled.",
+                    )
+                # "all" means native CLI discovery; the report call above is only
+                # the home-path guard needed to decide whether that discovery exists.
+            else:
+                if skills == "all":
+                    return
+                await asyncio.to_thread(
+                    inject_skills_to_worktree, skills, path, home_dir,
+                )
+        except Exception as e:
+            logger.warning(f"[{self.name}] skill refresh failed: {e}")
+
+    def _log_codex_preflight_once(self, signature: str, message: str) -> None:
+        seen = getattr(self, "_codex_preflight_signatures", None)
+        if seen is None:
+            seen = set()
+            self._codex_preflight_signatures = seen
+        if signature in seen:
+            return
+        seen.add(signature)
+        self._log("warning", message)
+
+    async def _refresh_codex_project_doc(self) -> None:
+        self._codex_project_doc_instruction = ""
+        if self.backend_type != "codex":
+            return
+        path = self.worktree_path or self.cwd
+        if not path:
+            return
+        result = await asyncio.to_thread(codex_project_doc_preflight, path)
+        if result.diagnostic:
+            self._log_codex_preflight_once(
+                f"project-doc:{result.path}:{result.actual_bytes}:{result.budget_bytes}",
+                result.diagnostic,
+            )
+        if result.instruction:
+            self._codex_project_doc_instruction = result.instruction
+    async def _apply_pending_identity_restart(self) -> bool:
+        """Погасить бэкенд, если имя сменилось, — но только на ГРАНИЦЕ хода.
+
+        Дисконнект внутри живого хода оборвал бы его, поэтому в RUNNING только копим
+        флаг. Упавший ход флаг не съедает: он доживает до начала следующего, а если
+        коннекта не станет вовсе (гибернация, рестарт), новый бэкенд и так строится из
+        уже пересобранного `mcp_servers`. Повторный вызов — no-op.
+        """
+        if not self._identity_stale or self.status == AgentStatus.RUNNING:
+            return False
+        self._identity_stale = False
+        self._log("status", "identity changed — restarting MCP subprocess")
+        await self._disconnect_backend()
+        return True
+
+    async def _apply_manifest_effort(self) -> bool:
+        """Перечитать эффорт роли из манифеста — на ГРАНИЦЕ хода, как и рестарт identity.
+
+        Эффорт попадает в бэкенд один раз, при сборке (`BackendBuildContext.effort`), и
+        `_ensure_backend` готовый бэкенд не пересобирает. Поэтому новое значение вступает
+        в силу только через дисконнект: текущий ход не трогаем, следующий соберёт бэкенд
+        с новым значением (сессия/контекст сохраняются — `resume` по `session_id`).
+
+        Расхождения нет → ноль действий и ноль дисконнектов. Любой сбой резолва (битый
+        `pipeline.yaml`, нет роли, нет значения для этой модели) → остаёмся на текущем
+        значении: сломанный манифест не должен веером пересобирать бэкенды всем живым
+        агентам. Legacy-сессии без роли/пайплайна живут на значении из БД.
+        """
+        if self.status == AgentStatus.RUNNING or not self.pipeline or not self.role:
+            return False
+        try:
+            from app.pipeline import get_role, resolve_effort
+            rr = get_role(self.pipeline, self.role)
+            desired = resolve_effort(rr.effort, self.model, self.backend_type) if rr else None
+        except Exception as e:
+            logger.warning(f"[{self.name}] manifest effort re-read failed: {err_text(e)}")
+            return False
+        if desired is None or desired == self.effort:
+            return False
+        old = self.effort
+        # Сперва дисконнект, только потом фиксация значения. Обратный порядок делает сбой
+        # дисконнекта НЕВОССТАНОВИМЫМ: значение уже равно манифестному, расхождения на
+        # следующем ходе нет, повтора не будет — и агент навсегда остаётся на бэкенде со
+        # старой ступенью. Здесь падение оставляет расхождение, и следующий ход повторит.
+        await self._disconnect_backend()
+        self.effort = desired
+        self._persist()
+        self._log("status", f"effort {old or '(none)'} → {desired} (pipeline manifest)")
+        return True
+
+    async def _build_claude_history_import(
+        self,
+        target_session_id: str,
+        target_model: str,
+        exclude_user_messages: tuple[str, ...] = (),
+    ):
+        await self._await_log_futures()
+        loop = asyncio.get_running_loop()
+        snapshot_id, rows = await loop.run_in_executor(
+            _db_executor(), partial(get_history_logs, self.id)
+        )
+        return await loop.run_in_executor(
+            _db_executor(),
+            partial(
+                render_claude_history,
+                rows,
+                snapshot_id=snapshot_id,
+                session_id=target_session_id,
+                cwd=self.cwd,
+                model=target_model,
+                branch=self.branch or "",
+                exclude_user_messages=exclude_user_messages,
+            ),
+        )
+
+    async def _await_log_futures(self) -> None:
+        """Wait once, with a time budget, for the log writes queued so far.
+
+        Never loops on the live set: a finished future that stayed in it (or producers that keep
+        adding) made `while set: await gather(...)` spin without yielding to the timeout that was
+        meant to rescue it — the loop was dead for ~16 min on 22.10 (V-1020). `asyncio.wait`
+        also leaves the pending writes alive on timeout instead of cancelling them.
+        """
+        snapshot = tuple(self._log_futures)
+        for future in snapshot:
+            if future.done():
+                self._log_futures.discard(future)
+        pending = {future for future in snapshot if not future.done()}
+        if not pending:
+            return
+        _, still = await asyncio.wait(pending, timeout=_LOG_FUTURES_DRAIN_BUDGET_S)
+        if still:
+            logger.warning(
+                "[%s] %d log write(s) still pending after %.0fs; continuing without them",
+                self.name, len(still), _LOG_FUTURES_DRAIN_BUDGET_S,
+            )
+
+    async def _drain_handoff_log_writes(self) -> dict:
+        await self._drain_persist()
+        await self._await_log_futures()
+        retried = 0
+        deadline = time.monotonic() + _HANDOFF_LOG_RETRY_BUDGET_S
+        for generation, (operation, previous_failure) in tuple(
+            self._failed_log_writes.items()
+        ):
+            if operation is None:
+                continue
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            future = asyncio.get_running_loop().run_in_executor(_db_executor(), operation)
+            try:
+                await asyncio.wait_for(asyncio.shield(future), timeout=remaining)
+            except TimeoutError:
+                self._failed_log_writes[generation] = (
+                    None,
+                    f"retry deadline exceeded after {_HANDOFF_LOG_RETRY_BUDGET_S}s; "
+                    f"previous failure: {previous_failure}",
+                )
+            except Exception as error:
+                self._failed_log_writes[generation] = (None, err_text(error))
+            else:
+                retried += 1
+                self._failed_log_writes.pop(generation, None)
+        if self._failed_log_writes:
+            generation = max(self._failed_log_writes)
+            self._log_write_failure_generation = generation
+            self._log_write_failure = self._failed_log_writes[generation][1]
+        else:
+            self._log_write_failure_generation = 0
+            self._log_write_failure = ""
+        if self._log_write_failure_generation:
+            raise RuntimeError(
+                "handoff_log_persistence_failed: "
+                f"{len(self._failed_log_writes) or 1} write(s) lost: "
+                + self._log_write_failure
+            )
+        return {"ok": True, "retried_log_writes": retried}
+
+    def _expected_handoff_capability(self, target_model: str) -> dict:
+        backend = self._make_backend(
+            force_fresh=True,
+            validation_profile=False,
+            model_override=target_model,
+            config_dir_override="",
+        )
+        describe = getattr(backend, "handoff_expected_capabilities", None)
+        if not callable(describe):
+            return {
+                "runtime": get_model_spec(target_model).runtime,
+                "model": target_model,
+                "supported": False,
+                "raw_ref_runtime_tool": False,
+            }
+        descriptor = describe()
+        if not isinstance(descriptor, dict):
+            raise TypeError("handoff capability descriptor must be a mapping")
+        return descriptor
+
+    async def _prepare_runtime_handoff(
+        self,
+        target_model: str,
+        *,
+        idempotency_key: str,
+        project_docs: list[dict],
+    ) -> PreparationResult:
+        """Freeze an eligible packet and its ledger row before target creation."""
+        try:
+            await self._drain_handoff_log_writes()
+        except RuntimeError as error:
+            if not str(error).startswith("handoff_log_persistence_failed:"):
+                raise
+            return PreparationResult(
+                ok=False,
+                error_code="handoff_log_persistence_failed",
+                handoff_id=None,
+            )
+        target_runtime = get_model_spec(target_model).runtime
+        source_runtime = self.backend_type or backend_for_model(self.model)
+        expected_capability = self._expected_handoff_capability(target_model)
+        capability_sha = hashlib.sha256(json.dumps(
+            expected_capability,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        handoff_id = str(uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"orchestra-handoff:{self.id}:{idempotency_key}",
+        ))
+
+        def build_record(db_session: dict, snapshot_id: int, rows: list[dict]):
+            actual_source = {
+                "runtime": db_session.get("backend_type") or "claude",
+                "model": db_session.get("model"),
+                "session_id": db_session.get("session_id"),
+            }
+            expected_source = {
+                "runtime": source_runtime,
+                "model": self.model,
+                "session_id": self.session_id,
+            }
+            if actual_source != expected_source:
+                return None, PreparationResult(
+                    ok=False,
+                    error_code="handoff_source_changed",
+                    handoff_id=None,
+                )
+            packet = build_runtime_state_packet(
+                rows,
+                session_meta={
+                    "id": self.id,
+                    "task_id": self.task_id,
+                    "scope": self.scope,
+                    "branch": self.branch or "",
+                    "base_branch": self.base_branch,
+                    "source_runtime": source_runtime,
+                    "source_model": self.model,
+                    "source_session_id": self.session_id,
+                    "target_runtime": target_runtime,
+                    "target_model": target_model,
+                },
+                snapshot_id=snapshot_id,
+                current_system_prompt=self.system_prompt,
+                project_docs=project_docs,
+                expected_target_capability=expected_capability,
+            )
+            blocking, unresolved = classify_handoff_effects(packet)
+            if blocking:
+                return None, PreparationResult(
+                    ok=False,
+                    error_code="handoff_pending_effect",
+                    handoff_id=None,
+                    packet=packet,
+                    packet_sha256=packet["integrity"]["canonical_sha256"],
+                    snapshot_log_id=snapshot_id,
+                    pending_effects=len(blocking),
+                    pending_effect_details=blocking,
+                )
+            now = datetime.now(timezone.utc).isoformat()
+            result = PreparationResult(
+                ok=True,
+                handoff_id=handoff_id,
+                packet=packet,
+                packet_sha256=packet["integrity"]["canonical_sha256"],
+                snapshot_log_id=snapshot_id,
+                pending_effects=0,
+                unresolved_effects=unresolved,
+                expected_capability_sha256=capability_sha,
+                expected_capability=expected_capability,
+                project_docs=tuple(dict(item) for item in project_docs),
+            )
+            record = {
+                "handoff_id": handoff_id,
+                "session_id": self.id,
+                "idempotency_key": idempotency_key,
+                "status": "prepared",
+                "source_runtime": source_runtime,
+                "source_model": self.model,
+                "source_session_id": self.session_id,
+                "target_runtime": target_runtime,
+                "target_model": target_model,
+                "snapshot_log_id": snapshot_id,
+                "snapshot_sha256": packet["integrity"]["snapshot_sha256"],
+                "packet_json": json.dumps(
+                    packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ),
+                "packet_sha256": result.packet_sha256,
+                "preferred_mode": (
+                    "native_resume"
+                    if target_runtime == source_runtime else "packet_delta"
+                ),
+                "created_at": now,
+                "updated_at": now,
+            }
+            return record, result
+
+        def journal_unresolved(handoff_id: str, unresolved: int) -> None:
+            """These effects travel instead of blocking, so the trace must be loud."""
+            if not unresolved:
+                return
+            logger.warning(
+                "[%s] handoff %s carries %d unresolved tool effect(s): "
+                "their calls have no result row and the snapshot continued past them",
+                self.name, handoff_id, unresolved,
+            )
+
+        record, result = await asyncio.get_running_loop().run_in_executor(
+            _db_executor(),
+            partial(
+                prepare_runtime_handoff_snapshot,
+                self.id,
+                idempotency_key,
+                build_record,
+            ),
+        )
+        if result is not None:
+            # The normal path returns right here: `build_record` already produced the
+            # whole result, so anything journalled below it would only ever be seen on
+            # an idempotent replay.
+            journal_unresolved(
+                str(getattr(result, "handoff_id", "") or ""),
+                int(getattr(result, "unresolved_effects", 0)),
+            )
+            return result
+        if record is None:
+            return PreparationResult(
+                ok=False, error_code="handoff_prepare_failed", handoff_id=None
+            )
+        packet = json.loads(record["packet_json"])
+        frozen_project_docs = tuple(
+            {
+                "path": str(constraint.get("path") or ""),
+                "content": str(constraint.get("content") or ""),
+            }
+            for constraint in packet.get("constraints", [])
+            if (
+                isinstance(constraint, dict)
+                and constraint.get("path")
+                and (constraint.get("authority") or {}).get("origin_kind")
+                == "tracked_project_doc"
+            )
+        )
+        stored_capability = dict(packet.get("expected_target_capability") or {})
+        capability_sha = hashlib.sha256(json.dumps(
+            stored_capability,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        _, unresolved = classify_handoff_effects(packet)
+        journal_unresolved(str(record["handoff_id"]), unresolved)
+        return PreparationResult(
+            ok=True,
+            handoff_id=record["handoff_id"],
+            packet=packet,
+            packet_sha256=record["packet_sha256"],
+            snapshot_log_id=int(record["snapshot_log_id"]),
+            pending_effects=0,
+            unresolved_effects=unresolved,
+            expected_capability_sha256=capability_sha,
+            expected_capability=stored_capability,
+            project_docs=frozen_project_docs,
+            operation_status=str(record["status"]),
+            operation_failure_code=record.get("failure_code"),
+        )
+
+    async def _ensure_backend(
+        self,
+        force_fresh: bool = False,
+        history_import=None,
+        exclude_history_users: tuple[str, ...] = (),
+        activate: bool = True,
+        _allow_codex_oversize_retry: bool = True,
+    ):
+        if self._backend is not None:
+            if not force_fresh:
+                if self._runtime_error:
+                    raise RuntimeError(f"runtime connection failed; reconnect this CLI before sending: {self._runtime_error}")
+                return self._backend
+            await self._disconnect_backend()
+        project_path = self.worktree_path or self.cwd
+        if self.backend_type == "codex" and project_path:
+            # Codex reads AGENTS.md, not CLAUDE.md. Refresh the mirror before the CLI starts,
+            # otherwise a long-lived worker keeps the project rules from its spawn day.
+            # Orchestrators have no worktree, so cwd must be included too; omitting it left
+            # every root Codex orchestrator without its repository's CLAUDE.md rules.
+            agents_started = time.monotonic()
+            try:
+                from app.workspace import sync_agents_md
+                await asyncio.to_thread(sync_agents_md, project_path)
+            except Exception as e:
+                logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
+            finally:
+                self._log_codex_connect_stage("agents_sync", agents_started)
+        skills_started = time.monotonic()
+        await self._refresh_skills()
+        self._log_codex_connect_stage("skills_sync", skills_started)
+        project_doc_started = time.monotonic()
+        await self._refresh_codex_project_doc()
+        self._log_codex_connect_stage("project_doc_sync", project_doc_started)
+        if (
+            history_import is None
+            and not force_fresh
+            and self.backend_type == "claude"
+            and self.history_import_source == CLAUDE_HISTORY_SOURCE
+            and self.session_id
+        ):
+            history_import = await self._build_claude_history_import(
+                self.session_id,
+                self.model,
+                exclude_history_users,
+            )
+        if history_import is None:
+            self._backend = self._make_backend(
+                force_fresh=force_fresh,
+            )
+        else:
+            self._backend = self._make_backend(
+                force_fresh=force_fresh,
+                history_import=history_import,
+            )
+        candidate = self._backend
+        try:
+            await candidate.connect()
+        except NativeHistoryImportError as error:
+            self._runtime_error = err_text(error)
+            logger.warning("[%s] native history import failed", self.name)
+            if not getattr(candidate, "has_owned_processes", False):
+                self._backend = None
+            self._finish_failed_running_turn("native history import failed")
+            raise
+        except Exception as e:
+            self._runtime_error = err_text(e)
+            logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
+            self._log("error", f"connect failed: {err_text(e)}")
+            from app.backend_codex import CodexProtocolError, CodexWriterConflictError
+
+            if (self.backend_type == "codex" and isinstance(e, CodexProtocolError)
+                    and "already has an active writer" in str(e)):
+                e = CodexWriterConflictError(self.session_id or "")
+                self._codex_writer_error = e
+            oversized_failure = (
+                self.backend_type == "codex"
+                and getattr(candidate, "oversized_reader_failure", False)
+            )
+            if oversized_failure and _allow_codex_oversize_retry:
+                await self._retire_codex_reader_failure(
+                    candidate,
+                    e,
+                    exclude_user_messages=exclude_history_users,
+                )
+                return await self._ensure_backend(
+                    force_fresh=True,
+                    history_import=None,
+                    exclude_history_users=exclude_history_users,
+                    activate=activate,
+                    _allow_codex_oversize_retry=False,
+                )
+            if oversized_failure:
+                for message in exclude_history_users:
+                    if message and message not in self._pending_messages:
+                        self._pending_messages.append(message)
+            if not getattr(candidate, "has_owned_processes", False):
+                self._backend = None
+            self._finish_failed_running_turn(
+                f"backend connect failed: {err_text(e)}"
+            )
+            raise e
+        if self._backend is not candidate:
+            raise RuntimeError("backend changed while connection was being established")
+        self._runtime_error = ""
+        self._codex_writer_error = None
+        if activate:
+            self._activate_backend_tasks()
+        return candidate
+
+    def _activate_backend_tasks(self) -> None:
+        capabilities = get_runtime(self.backend_type).capabilities
+        if capabilities.event_stream == "persistent":
+            if self._listen_task is None or self._listen_task.done():
+                self._listen_task = asyncio.create_task(self._persistent_event_loop())
+                self._listen_task.add_done_callback(self._on_task_done)
+        if self._heartbeat_task is None or self._heartbeat_task.done():
+            self._heartbeat_task = asyncio.create_task(self._hibernate.heartbeat_loop())
+
+    async def _fallback_db_backed_claude(
+        self,
+        error: NativeHistoryImportError,
+        exclude_user_messages: tuple[str, ...],
+    ):
+        if self.history_import_source != CLAUDE_HISTORY_SOURCE:
+            raise error
+        handoff = await self._build_runtime_handoff(
+            exclude_user_messages=exclude_user_messages,
+        )
+        stale_session_id = self.session_id
+        if stale_session_id:
+            self.session_id_history.append({
+                "session_id": stale_session_id,
+                "runtime": "claude",
+                "model": self.model,
+                "history_import_failed_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self.session_id_history = self.session_id_history[-10:]
+        self.session_id = None
+        self.history_import_source = None
+        self.runtime_handoff = handoff
+        self._last_context = empty_context()
+        self._log(
+            "warning",
+            f"native history import unavailable: {err_text(error)}; summary fallback active",
+        )
+        self._persist()
+        return await self._ensure_backend(force_fresh=True)
+
+    # ── Event loops ──
+
+    async def _retire_codex_reader_failure(
+        self,
+        backend,
+        error: BaseException,
+        *,
+        exclude_user_messages: tuple[str, ...] = (),
+    ) -> None:
+        """Retire one poisoned native thread and preserve bounded DB context."""
+        stale_session_id = self.session_id or getattr(backend, "session_id", None)
+        handoff = self.runtime_handoff
+        if not handoff:
+            try:
+                handoff = await self._build_runtime_handoff(
+                    exclude_user_messages=exclude_user_messages,
+                )
+            except Exception as handoff_error:
+                self._log(
+                    "error",
+                    "Codex reader recovery could not preserve the DB handoff: "
+                    f"{err_text(handoff_error)}",
+                )
+                handoff = ""
+
+        if getattr(backend, "has_owned_processes", False):
+            await backend.disconnect()
+        if self._backend is backend:
+            self._backend = None
+
+        already_recorded = any(
+            entry.get("session_id") == stale_session_id
+            and entry.get("reason") == "oversized_reader_failure"
+            for entry in self.session_id_history
+        )
+        if stale_session_id and not already_recorded:
+            self.session_id_history.append({
+                "session_id": stale_session_id,
+                "runtime": "codex",
+                "model": self.model,
+                "reason": "oversized_reader_failure",
+                "failure": err_text(error),
+                "invalidated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self.session_id_history = self.session_id_history[-10:]
+        self.session_id = None
+        self.runtime_handoff = handoff
+        self.history_import_source = None
+        self._last_context = empty_context()
+        self._log(
+            "warning",
+            "Codex native thread retired after an oversized JSONL record; "
+            "the next connection starts fresh with a bounded Orchestra handoff",
+        )
+        self._persist()
+
+    def _finish_failed_running_turn(self, reason: str) -> None:
+        """Never leave RUNNING behind when the backend lost its turn."""
+        if self.status != AgentStatus.RUNNING:
+            return
+        self._turn_start = 0
+        self.status = AgentStatus.IDLE
+        self._log("error", reason)
+        self._persist()
+        self._turns.publish_turn_finished()
+        self._turns.report_abnormal_end(reason)
+        try:
+            from app import mailbox
+
+            queued = mailbox.claim(self.name, self.scope)
+        except Exception as error:
+            logger.warning(
+                "[%s] failed-turn mailbox claim failed: %s: %s",
+                self.name, type(error).__name__, error,
+            )
+            queued = []
+        if queued:
+            self._spawn_bg(self._turns._deliver_mailbox(queued))
+        elif self._pending_messages:
+            self._spawn_bg(self._flush_pending())
+        else:
+            self._hibernate.schedule()
+
+    MAX_CONSECUTIVE_FAILURES = 5
+
+    async def _reconnect_backend(self) -> None:
+        backend = self._backend
+        if backend is None:
+            raise RuntimeError("backend is unavailable for reconnect")
+        if (
+            self.backend_type == "claude"
+            and self.history_import_source == CLAUDE_HISTORY_SOURCE
+        ):
+            if not self.session_id:
+                raise RuntimeError("DB-backed Claude reconnect has no session id")
+            history = await self._build_claude_history_import(
+                self.session_id,
+                self.model,
+            )
+            replace_history = getattr(backend, "replace_history_import", None)
+            if not callable(replace_history):
+                raise RuntimeError("Claude backend cannot refresh DB-backed history")
+            replace_history(history)
+        await backend.reconnect()
+
+    async def _persistent_event_loop(self) -> None:
+        logger.info(f"[{self.name}] {self.backend_type} persistent event loop started")
+        consecutive_failures = 0
+        while True:
+            try:
+                if self._backend is None:
+                    logger.warning(f"[{self.name}] event loop: backend is None, exiting")
+                    return
+                async for event in self._backend.events():
+                    self._last_msg_time = asyncio.get_event_loop().time()
+                    self._last_event = describe_event(event)
+                    self._handle_event(event)
+                    consecutive_failures = 0
+                # Persistent streams may return without error when the upstream closes.
+                # During shutdown/restart this is normal — don't spam the user
+                if self.status == AgentStatus.IDLE:
+                    logger.info(f"[{self.name}] listener stream ended (agent idle/stopped — normal on restart)")
+                    return
+                backend = self._backend
+                if (
+                    self.status == AgentStatus.RUNNING
+                    and hasattr(backend, "active_turn_id")
+                    and not getattr(backend, "active_turn_id", None)
+                ):
+                    self._finish_failed_running_turn(
+                        "listener ended while Codex had no active turn"
+                    )
+                    return
+                consecutive_failures += 1
+                logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
+                self._log("status", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
+            except asyncio.CancelledError:
+                logger.info(f"[{self.name}] persistent event loop cancelled")
+                return
+            except Exception as e:
+                consecutive_failures += 1
+                import traceback
+                tb = traceback.format_exc()
+                logger.error(f"[{self.name}] persistent event loop died: {e}\n{tb}")
+                self._log("error", f"listener died (attempt {consecutive_failures}): {e}")
+
+            if consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+                logger.error(f"[{self.name}] reconnect limit reached ({consecutive_failures} consecutive failures), giving up")
+                self._log("error", f"backend unstable: {consecutive_failures} consecutive failures, giving up")
+                self._turn_start = 0
+                await self._disconnect_backend()
+                self._finish_failed_running_turn(
+                    "backend unstable after repeated listener failures"
+                )
+                return
+
+            try:
+                if self._backend is None:
+                    return
+                generation = (self._turn_gen, self._turn_start_cancel_gen)
+                await self._reconnect_backend()
+                if generation != (self._turn_gen, self._turn_start_cancel_gen) or self._manually_interrupted:
+                    continue
+                logger.info(f"[{self.name}] listener reconnected after error")
+                self._log("status", "listener reconnected")
+                backend = self._backend
+                if (
+                    self.status == AgentStatus.RUNNING
+                    and hasattr(backend, "active_turn_id")
+                    and not getattr(backend, "active_turn_id", None)
+                ):
+                    self._finish_failed_running_turn(
+                        "listener recovered without an active Codex turn"
+                    )
+                    return
+                if self.status == AgentStatus.RUNNING:
+                    await self.send(
+                        "[system] " + platform_interruption_notice("backend disconnect", self.task_id),
+                        provenance=MessageProvenance(
+                            origin="system", senders=("system",), subtype="runtime_reconnect",
+                        ),
+                        retry_generation=generation,
+                    )
+                continue
+            except Exception as re_err:
+                logger.error(f"[{self.name}] listener reconnect failed: {err_text(re_err)}")
+                self._log("error", f"listener reconnect failed: {err_text(re_err)}")
+                if generation != (self._turn_gen, self._turn_start_cancel_gen):
+                    continue
+                self._backend = None
+                self._finish_failed_running_turn(
+                    f"listener reconnect failed: {err_text(re_err)}"
+                )
+                return
+
+    async def _turn_event_loop(self) -> None:
+        logger.info(f"[{self.name}] {self.backend_type} turn started")
+        backend = self._backend
+        cancelled = False
+        my_gen = self._turn_gen
+        try:
+            async for event in backend.events():
+                self._last_msg_time = asyncio.get_event_loop().time()
+                self._last_event = describe_event(event)
+                if (
+                    event.type == "turn_end"
+                    and event.metadata.get("reader_failure")
+                    and getattr(backend, "oversized_reader_failure", False)
+                ):
+                    await self._retire_codex_reader_failure(
+                        backend,
+                        RuntimeError(str(event.metadata["reader_failure"])),
+                    )
+                self._handle_event(event)
+        except asyncio.CancelledError:
+            cancelled = True
+            return
+        except Exception as e:
+            logger.error(f"[{self.name}] {self.backend_type} turn error: {e}")
+            self._log("error", f"{self.backend_type} turn error: {e}")
+        finally:
+            self._ended_listener = (asyncio.current_task(), my_gen)
+            if self.status == AgentStatus.RUNNING and self._turn_gen != my_gen:
+                # A mailbox/steer continuation already started the next turn while this
+                # listener was finishing the previous one; RUNNING belongs to that turn.
+                pass
+            elif self.status == AgentStatus.RUNNING:
+                backend = self._backend
+                if (
+                    self.backend_type == "codex"
+                    and hasattr(backend, "active_turn_id")
+                    and not getattr(backend, "active_turn_id", None)
+                ):
+                    self._finish_failed_running_turn(
+                        "Codex listener ended without an active turn"
+                    )
+                else:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                    if not cancelled:
+                        self._turns.report_abnormal_end("event stream ended without turn end")
+                    if self._pending_messages:
+                        self._spawn_bg(self._flush_pending())
+                    else:
+                        self._hibernate.schedule()
+            if not self._compacting:
+                self._wake_durable_message_deliveries()
+
+    def _wake_durable_message_deliveries(self) -> None:
+        try:
+            from app.message_deliveries import ensure_target_runner
+
+            ensure_target_runner(self.id)
+        except Exception as error:
+            logger.warning(
+                "[%s] durable message-delivery wake failed: %s",
+                self.name,
+                err_text(error),
+            )
+
+    # ── Unified event handler ──
+
+    def _sync_live_activity(self, event: AgentEvent) -> None:
+        """Retire replayable live partials once their persisted record exists, and
+        follow shell-task output files while the task runs."""
+        from app.live_broker import broker
+        meta = event.metadata
+        if meta.get("subagent_id") and event.type in ("tool_use", "tool_result", "text", "thinking"):
+            return
+        if event.type == "tool_use":
+            broker.end_live(self.id, "tool_input_stream", str(meta.get("tool_use_id") or ""))
+        elif event.type in ("thinking", "text"):
+            # Omitted thinking has no persisted block; the answer closes it instead.
+            broker.end_live(self.id, "thinking_stream")
+        elif event.type == "tool_result":
+            broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
+        elif event.type == "turn_end":
+            broker.clear_live(self.id)
+        elif event.type == "subagent_start" and meta.get("task_type") == "local_bash":
+            if self._output_tails is None:
+                from app.task_output_tail import TaskOutputTails
+                self._output_tails = TaskOutputTails(lambda payload: broker.publish(self.id, payload))
+            self._output_tails.start(str(meta.get("subagent_id") or ""),
+                                     str(meta.get("tool_use_id") or ""),
+                                     str(meta.get("sdk_session_id") or self.session_id or ""))
+        elif event.type == "subagent_end" and self._output_tails is not None:
+            task_id = str(meta.get("subagent_id") or "")
+            self._output_tails.stop(task_id)
+            broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
+
+    def _handle_event(self, event: AgentEvent) -> None:
+        if event.type == "stream":
+            # Live partials: push to in-memory broker for SSE fan-out, NEVER persist.
+            # The final "text" event (below) is the DB source of truth.
+            from app.live_broker import broker
+            broker.publish(self.id, {"type": "stream", "content": event.content})
+            return
+        if event.type == "subagent_stream":
+            # Live sub-agent output → broker only (ephemeral, like main stream).
+            # subagent_id lets the UI nest it under the right sub-agent block.
+            from app.live_broker import broker
+            broker.publish(self.id, {"type": "subagent_stream", "content": event.content,
+                                     "subagent_id": event.metadata.get("subagent_id", "")})
+            return
+        if event.type in ("thinking_stream", "tool_input_stream", "tool_stream",
+                          "tool_patch", "turn_diff"):
+            # Fine-grained live activity (reasoning, tool arguments being written, command
+            # output) is valuable live but would flood the DB. The authoritative
+            # thinking/tool/file events are still persisted when their item completes.
+            from app.live_broker import broker
+            sub_id = event.metadata.get("subagent_id")
+            if sub_id:
+                broker.publish(self.id, {
+                    "type": "subagent_stream", "event_type": event.type,
+                    "content": event.content, "subagent_id": sub_id,
+                    "item_id": event.metadata.get("tool_use_id") or event.metadata.get("item_id") or "",
+                    "tool_name": event.metadata.get("short_name") or "",
+                })
+                return
+            payload = {"type": event.type, "content": event.content}
+            for key in ("activity", "item_id", "tool_use_id", "turn_id", "stream",
+                        "tool_name", "short_name", "estimated_tokens"):
+                value = event.metadata.get(key)
+                if value:
+                    payload[key] = value
+            broker.publish(self.id, payload)
+            return
+        self._sync_live_activity(event)
+        tool_use_id = str(event.metadata.get("tool_use_id") or "")
+        tool_name_for_log = str(event.metadata.get("tool_name") or "")
+        if event.type == "tool_use" and tool_use_id:
+            self._tool_names_by_id[tool_use_id] = (
+                event.metadata.get("tool_name") or "unknown"
+            )
+        elif event.type == "tool_result" and tool_use_id:
+            remembered_name = self._tool_names_by_id.pop(tool_use_id, "unknown")
+            tool_name = event.metadata.get("tool_name") or remembered_name
+            tool_name_for_log = str(tool_name)
+            if event.metadata.get("is_error"):
+                self._submit_db_write(
+                    tool_error_add,
+                    self.name,
+                    self.scope,
+                    tool_name,
+                    event.content,
+                    runtime=self.backend_type,
+                    tool_use_id=tool_use_id,
+                )
+        # Sub-agent tool_use/text/tool_result (tagged with subagent_id) → broker ONLY
+        # (ephemeral live nesting under the sub-agent block). NOT persisted — the DB
+        # record is subagent_start/end; persisting these too would double-render them
+        # (once in the accordion via broker, once in the main flow on reload).
+        sub_id = event.metadata.get("subagent_id")
+        if sub_id and event.type in ("tool_use", "tool_result", "text", "thinking"):
+            from app.live_broker import broker
+            broker.publish(self.id, {"type": "subagent_event", "event_type": event.type,
+                                     "content": event.content[:2000], "subagent_id": sub_id})
+            return
+        self._turns.track_parent_report(event, tool_name_for_log)
+        if event.type == "text":
+            from app.live_broker import broker
+            broker.clear_accum(self.id)
+            self._log("text", event.content)
+            self._turn_logs.append(event.content)
+            self._last_text_output = event.content
+        elif event.type == "provider_limit":
+            # This event is produced by the provider adapter, never assistant prose.
+            if event.metadata.get("raw"):
+                from app.routes.system import record_claude_rate_limit_event
+                record_claude_rate_limit_event(event.metadata)
+            self._log("provider_limit", json.dumps(event.metadata, ensure_ascii=False))
+            if event.metadata.get("status") == "rejected":
+                self._session_limit_hit = True
+                self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
+        elif event.type == "thinking":
+            self._log("thinking", event.content)
+        elif event.type == "tool_use":
+            self.total_tool_calls += 1
+            self._log(
+                "tool",
+                event.content,
+                tool_use_id=tool_use_id or None,
+                tool_name=tool_name_for_log or None,
+                tool_is_error=False,
+            )
+            short = event.content[:80]
+            self._turn_logs.append(f"[tool] {short}")
+        elif event.type == "policy_violation":
+            self._policy_violation_messages.add(event.content)
+            rule = event.content.split("]", 1)[0].removeprefix("POLICY VIOLATION [")
+            self._log("policy_violation", json.dumps({
+                "rule": event.metadata.get("rule") or rule,
+                "tool_name": tool_name_for_log or event.metadata.get("tool_name", ""),
+                "message": event.content,
+            }, ensure_ascii=False))
+        elif event.type == "tool_result":
+            repeated_violation = next((
+                message for message in self._policy_violation_messages
+                if event.content.startswith(message) or message.startswith(event.content)
+            ), None)
+            if repeated_violation:
+                self._policy_violation_messages.discard(repeated_violation)
+            elif (
+                self.backend_type != "codex"
+                and event.metadata.get("is_error")
+                and (match := re.search(r"POLICY VIOLATION \[([a-z0-9_]+)\]", event.content))
+            ):
+                self._log("policy_violation", json.dumps({
+                    "rule": match.group(1),
+                    "tool_name": tool_name_for_log,
+                    "message": event.content,
+                }, ensure_ascii=False))
+            self._log(
+                "tool_result",
+                event.content,
+                tool_use_id=tool_use_id or None,
+                tool_name=tool_name_for_log or None,
+                tool_is_error=bool(event.metadata.get("is_error")),
+            )
+        elif event.type == "file_change":
+            self._log("tool", f"file: {event.content}")
+            self._turn_logs.append(f"[tool] file: {event.content[:60]}")
+        elif event.type in ("plan", "warning", "review"):
+            self._log(event.type, event.content)
+        elif event.type == "turn_end":
+            # Сколько обращений к модели было в ходе: расход хода — их сумма, и компакт
+            # делит на это число, чтобы получить размер контекста ОДНОГО обращения.
+            self._last_turn_api_calls = max(1, int(event.metadata.get("num_turns") or 1))
+            self._turns.handle_turn_end(event)
+            self._active_delivery_context = None
+        elif event.type == "error":
+            if event.metadata.get("codex_quota_exhausted"):
+                self._session_limit_hit = True
+                from app.routes import system
+
+                usage = system._codex_usage_cache.get("data") or {}
+                if self.model == "gpt-5.3-codex-spark":
+                    usage = usage.get("spark") or {}
+                windows = [
+                    ("primary", usage.get("primary")),
+                    ("secondary", usage.get("secondary")),
+                ]
+                exhausted = [
+                    (key, window)
+                    for key, window in windows
+                    if isinstance(window, dict)
+                    and isinstance(window.get("utilization"), (int, float))
+                    and not isinstance(window["utilization"], bool)
+                    and window["utilization"] >= 100
+                ]
+                selected = exhausted or windows
+                reset_details = []
+                now = datetime.now(timezone.utc)
+                for key, window in selected:
+                    if not isinstance(window, dict):
+                        reset_details.append(f"{key} неизвестно")
+                        continue
+                    minutes = window.get("window_minutes")
+                    label = {300: "5h", 10080: "7d"}.get(minutes, key)
+                    value = window.get("resets_at") if isinstance(window, dict) else None
+                    reset_text = "неизвестно"
+                    if isinstance(value, str) and value:
+                        try:
+                            reset_at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                            if reset_at.tzinfo is None:
+                                reset_at = reset_at.replace(tzinfo=timezone.utc)
+                            if reset_at > now:
+                                reset_text = reset_at.isoformat().replace("+00:00", "Z")
+                        except ValueError:
+                            pass
+                    reset_details.append(f"{label} {reset_text}")
+                self._log(
+                    "error",
+                    f"квота Codex исчерпана, сброс {', '.join(reset_details)}",
+                )
+                return
+            # rate_limit → single retry-status log (skip raw error to avoid duplicate
+            # "model error: rate_limit" + "rate limited — retry" on one event)
+            if event.metadata.get("model_error") == "rate_limit":
+                # Terminal subscription/usage limits — never retry
+                if self._session_limit_hit:
+                    return
+                elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
+                    self._rate_limit_retries += 1
+                    delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
+                    self._log("status", f"⏳ rate limit (Anthropic сервер) — повтор через {delay}s ({self._rate_limit_retries}/{self.RATE_LIMIT_MAX_RETRIES})")
+                    self._spawn_bg(self._rate_limit_retry(delay, self._turn_gen))
+                else:
+                    self._log("error", f"rate limit — gave up after {self.RATE_LIMIT_MAX_RETRIES} retries")
+            else:
+                self._log("error", event.content)
+        elif event.type == "subagent_start":
+            self._log("subagent_start", event.content)
+            self._persist_subagent(event.metadata)
+        elif event.type == "subagent_progress":
+            self._log("subagent_progress", event.content)
+            self._persist_subagent(event.metadata)
+        elif event.type == "subagent_end":
+            self._log("subagent_end", event.content)
+            self._persist_subagent(event.metadata, ended=True)
+        elif event.type == "status":
+            self._log("status", event.content)
+            # Codex thread.started and Claude init precede the turn end. Store the id now so
+            # a turn cut by a restart resumes its transcript instead of being skipped (V-919).
+            if self._cost.adopt_session_id(event.metadata.get("session_id")):
+                self._persist()
+
+    async def _flush_pending(self) -> None:
+        # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
+        # before starting the next one — avoids nested lock acquisition from the same coroutine
+        await asyncio.sleep(0.3)
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+        while True:
+            await self._lifecycle_lock.acquire()
+            if self._compacting or self.status == AgentStatus.RUNNING:
+                self._lifecycle_lock.release()
+                return
+            if not self._pending_messages:
+                self._lifecycle_lock.release()
+                return
+            if self.is_orchestrator:
+                break
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen:
+                self._lifecycle_lock.release()
+                return
+            if self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import QuotaGateError, require_worker_admission
+
+                require_worker_admission(decision)
+            except QuotaGateError as error:
+                retained = len(self._pending_messages)
+                signature = json.dumps({
+                    "provider": error.decision.provider,
+                    "state": error.decision.state,
+                    "utilization": error.decision.utilization,
+                    "observed_at": error.decision.observed_at,
+                    "count": retained,
+                }, sort_keys=True)
+                should_notify = signature != self._quota_block_notice_signature
+                if should_notify:
+                    self._quota_block_notice_signature = signature
+                self._lifecycle_lock.release()
+                if should_notify:
+                    self._log(
+                        "status",
+                        f"queued messages retained: {error} ({retained} pending)",
+                    )
+                    if self.on_turn_blocked is not None:
+                        try:
+                            await self.on_turn_blocked(self, error, retained)
+                        except Exception as notify_error:
+                            logger.warning(
+                                "[%s] quota-block notification failed: %s: %s",
+                                self.name, type(notify_error).__name__, notify_error,
+                            )
+                return
+            break
+
+        try:
+            msgs = list(self._pending_messages)
+            self._pending_messages.clear()
+            owner_initiated = self._pending_owner_initiated_turn
+            self._pending_owner_initiated_turn = False
+            if len(msgs) == 1:
+                combined = msgs[0]
+            else:
+                # Batch queued messages into one turn to avoid spawning N sequential turns —
+                # each turn has ~3s round-trip overhead and occupies the lifecycle lock
+                combined = "\n".join(
+                    f"--- message {i+1}/{len(msgs)} ---\n{m}"
+                    for i, m in enumerate(msgs)
+                )
+            self._log("status", f"delivering {len(msgs)} queued message(s)")
+            try:
+                _refuse_if_draining(self)  # no await between here and RUNNING below
+                self._start_turn_state(owner_initiated=owner_initiated)
+                self._hibernated = False
+                try:
+                    backend = await self._ensure_backend(
+                        exclude_history_users=tuple(msgs),
+                    )
+                except NativeHistoryImportError as error:
+                    backend = await self._fallback_db_backed_claude(
+                        error,
+                        tuple(msgs),
+                    )
+                combined, fact_keys = self._attach_pending_facts(combined)
+                await backend.send(combined)
+                self._ack_pending_facts(fact_keys)
+                if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
+                    self._listen_task = asyncio.create_task(self._turn_event_loop())
+                    self._listen_task.add_done_callback(self._on_task_done)
+                self._quota_block_notice_signature = ""
+            except DrainingRefused as refusal:
+                # Отправителя, которому можно отказать, здесь нет — ход начинал сам
+                # `_flush_pending`. Сообщения возвращаются в память (умрут с процессом),
+                # поэтому агенту остаётся ФАКТ: после рестарта он узнает, что до него
+                # не доехало, вместо тишины (#220 T2).
+                self._log("status", f"drain: {refusal}")
+                self._pending_messages[0:0] = msgs
+                self._pending_owner_initiated_turn |= owner_initiated
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
+                self._queue_drain_fact(
+                    "flush", f"не доехало отложенных сообщений: {len(msgs)}",
+                )
+            except Exception as e:
+                logger.error(f"[{self.name}] flush pending failed: {e}")
+                self._pending_messages[0:0] = msgs
+                self._pending_owner_initiated_turn |= owner_initiated
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
+        finally:
+            self._lifecycle_lock.release()
+
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        if task is not self._listen_task:
+            return
+        try:
+            exc = task.exception()
+        except asyncio.CancelledError:
+            return
+        if exc:
+            import traceback
+            tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
+            self._log("error", f"listen task died: {exc}")
+            self._finish_failed_running_turn(f"listen task exception: {exc}")
+        elif (
+            self.status == AgentStatus.RUNNING
+            and (ended := getattr(self, "_ended_listener", None)) is not None
+            and ended[0] is task
+            and ended[1] != self._turn_gen
+        ):
+            # V-882: the listener of turn N finished after a continuation (mailbox,
+            # steer) had already set RUNNING for turn N+1 but before its own listener
+            # replaced `_listen_task`. Not a death: the new turn owns the status.
+            logger.debug(f"[{self.name}] superseded listener finished, status={self.status}")
+        elif self.status != AgentStatus.RUNNING:
+            # Штатный конец потока после turn_end или подавленная отмена (V-648: 474 из 475 за неделю).
+            logger.debug(f"[{self.name}] listen task finished, status={self.status}")
+        else:
+            logger.warning(f"[{self.name}] listen task exited without exception (silent death), status={self.status}")
+            self._finish_failed_running_turn("listen task exited unexpectedly while RUNNING")
+        if self.status != AgentStatus.RUNNING and self._auto_continue_count == 0:
+            self._turns.publish_turn_finished()
+
+    # ── Session operations ──
+
+    async def hibernate_now(self) -> dict:
+        return await self._hibernate.hibernate_now(manual=True)
+
+    async def interrupt(self) -> None:
+        async with self._lifecycle_lock:
+            self._turn_start_cancel_gen += 1
+            was_running = self.status == AgentStatus.RUNNING
+            backend = self._backend if (
+                was_running or self._compacting
+            ) else None
+            self._turns.cancel_auto_report()
+            self._cancel_precompact_timer("interrupt")
+            self._manually_interrupted = True
+            if getattr(self, "_restart_cut_pending", False):
+                from app.db import acknowledge_restart_cut_turns
+                acknowledge_restart_cut_turns([self.id])
+                self._restart_cut_pending = False
+            self._log("status", "interrupt requested")
+            self._persist()
+
+            if backend:
+                try:
+                    acknowledged = await backend.interrupt()
+                except Exception as error:
+                    self._log(
+                        "error",
+                        f"interrupt failed: {type(error).__name__}: {error}",
+                    )
+                    acknowledged = False
+                if (
+                    acknowledged is False
+                    and self._backend is backend
+                    and (self.status == AgentStatus.RUNNING or self._compacting)
+                ):
+                    self._log("error", "interrupt was not acknowledged; disconnecting backend")
+                    await self._disconnect_backend()
+                    if was_running and self.status == AgentStatus.RUNNING:
+                        self._finish_failed_running_turn(
+                            "interrupt was not acknowledged; backend disconnected"
+                        )
+            elif was_running:
+                self._finish_failed_running_turn(
+                    "running turn had no backend during interrupt"
+                )
+
+            if self.status == AgentStatus.RUNNING:
+                await self.wait_for_turn_completion()
+            elif not was_running:
+                self._turn_start = 0
+                self._log("status", "interrupted")
+                self._persist()
+                self._turns.publish_turn_finished()
+
+    async def _compaction_permit(self, *, reserve: bool = False):
+        # Сжатие не проходит через квотный гейт (решение владельца V-640):
+        # реальный лимит провайдера ловит сам backend.
+        async with self._lifecycle_lock:
+            if self.status == AgentStatus.RUNNING:
+                raise RuntimeError("cannot compact while agent is running")
+            if reserve and self._compacting:
+                raise RuntimeError("compact already in progress")
+            if reserve:
+                self._compacting = True
+            return None, self.model, self._turn_start_cancel_gen
+
+    def _compaction_permit_valid_locked(self, permit) -> bool:
+        decision, model, stop_gen = permit
+        if stop_gen != self._turn_start_cancel_gen:
+            raise RuntimeError("compaction start cancelled by stop")
+        if self.is_orchestrator:
+            return True
+        if self.model != model:
+            return False
+        return not (
+            decision is not None
+            and decision.state in {"available", "blocked"}
+            and decision.valid_until is not None
+            and time.time() >= decision.valid_until
+        )
+
+    async def _run_compaction_start(self, permit, operation):
+        while True:
+            async with self._lifecycle_lock:
+                if self.status == AgentStatus.RUNNING:
+                    raise RuntimeError("cannot compact while agent is running")
+                if self._compaction_permit_valid_locked(permit):
+                    return await operation()
+            permit = await self._compaction_permit()
+
+    async def _compact_codex_context(self) -> dict:
+        try:
+            permit = await self._compaction_permit(reserve=True)
+        except QuotaGateError:
+            raise
+        except RuntimeError as error:
+            return {"ok": False, "error": str(error)}
+
+        if self._precompact_timer and not self._precompact_timer.get("fired_at"):
+            self._cancel_precompact_timer("manual_compact")
+        before_pct = self._last_context.get("percentage", 0)
+        thread_id = self.session_id
+        self._log(
+            "status",
+            f"compact started (native Codex, context {before_pct}%, thread={thread_id})",
+        )
+        try:
+            async def start_native_compact():
+                backend = await self._ensure_backend()
+                compact_context = getattr(backend, "compact_context", None)
+                if not callable(compact_context):
+                    raise RuntimeError("Codex backend does not support native compact")
+                self._hibernated = False
+                return asyncio.create_task(compact_context())
+
+            compact_task = await self._run_compaction_start(permit, start_native_compact)
+            result = await compact_task
+
+            context_tokens = result.get("context_tokens")
+            max_tokens = result.get("max_tokens")
+            if isinstance(max_tokens, int) and max_tokens > 0:
+                self._last_context["max_tokens"] = max_tokens
+            if isinstance(context_tokens, int) and context_tokens >= 0:
+                self._last_context["total_tokens"] = context_tokens
+                if isinstance(max_tokens, int) and max_tokens > 0:
+                    self._last_context["percentage"] = round(
+                        context_tokens * 100 / max_tokens
+                    )
+
+            after_pct = self._last_context.get("percentage", 0)
+            summary = result.get("summary")
+            if not summary:
+                try:
+                    summary = await self._build_runtime_handoff()
+                except Exception as exc:
+                    logger.debug(f"[{self.name}] Codex compact handoff snapshot failed: {exc}")
+            if summary:
+                self.last_summary = _bounded_summary(summary)
+            self._persist()
+            await self._drain_persist()
+            self._log(
+                "status",
+                f"compact done (native Codex): {before_pct}% → {after_pct}%, "
+                f"thread={self.session_id}",
+            )
+            return {
+                "ok": True,
+                "mode": "native",
+                "before_pct": before_pct,
+                "after_pct": after_pct,
+                "thread_id": self.session_id,
+                "context_tokens": context_tokens,
+            }
+        except QuotaGateError:
+            raise
+        except Exception as exc:
+            detail = err_text(exc)
+            self._log("error", f"native Codex compact failed: {detail}")
+            return {
+                "ok": False,
+                "mode": "native",
+                "error": detail,
+                "before_pct": before_pct,
+                "thread_id": self.session_id,
+            }
+        finally:
+            self._compacting = False
+            if self._pending_messages:
+                self._spawn_bg(self._flush_pending())
+            elif self.status == AgentStatus.IDLE:
+                self._hibernate.schedule()
+            self._wake_durable_message_deliveries()
+
+    def _log_compact_event(self, compact_id: str, **event) -> None:
+        tool_use_id = str(event.get("tool_use_id") or "")
+        content = event.pop("content", None)
+        if content is not None:
+            event["content"] = content
+        self._log(
+            "compact_event",
+            json.dumps(event, ensure_ascii=False),
+            event_id=compact_id,
+            tool_use_id=tool_use_id or None,
+            tool_name=str(event.get("tool_name") or "") or None,
+            tool_is_error=bool(event.get("is_error")) if event.get("kind") == "tool_result" else None,
+        )
+
+    async def _agentic_audit_summary(
+        self, draft: str, stop_gen: int, backend, compact_id: str,
+    ) -> tuple[str, bool, float]:
+        """Run AUDIT and FINAL as subsequent turns in the draft's Claude session."""
+        if self.backend_type != "claude" or not agentic_compact.enabled():
+            return draft, False, 0.0
+        started = time.monotonic()
+        cost = 0.0
+        directory = None
+        events = backend.events().__aiter__()
+
+        async def run_pass(phase: str, prompt: str, deadline: float) -> None:
+            nonlocal cost
+            if self._turn_start_cancel_gen != stop_gen:
+                raise RuntimeError("stopped")
+            pass_started = time.monotonic()
+            pass_cost = cost
+            self._log_compact_event(compact_id, action="step_start", phase=phase)
+            await backend.send(prompt)
+            end_event = None
+            next_event = None
+            while end_event is None:
+                if self._turn_start_cancel_gen != stop_gen:
+                    await backend.interrupt()
+                    if next_event is not None:
+                        next_event.cancel()
+                        await asyncio.gather(next_event, return_exceptions=True)
+                    raise RuntimeError("stopped")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    await backend.interrupt()
+                    if next_event is not None:
+                        next_event.cancel()
+                        await asyncio.gather(next_event, return_exceptions=True)
+                    raise TimeoutError("timeout")
+                if next_event is None:
+                    next_event = asyncio.create_task(events.__anext__())
+                done, _ = await asyncio.wait({next_event}, timeout=min(1, remaining))
+                if not done:
+                    continue
+                event = next_event.result()
+                next_event = None
+                if event.type == "turn_end":
+                    end_event = event
+                    self._cost.apply_turn_result(event.metadata, event.usage)
+                    cost += self._turn_cost
+                elif event.type in {"tool", "tool_result"}:
+                    self._log_compact_event(
+                        compact_id,
+                        action="tool",
+                        phase=phase,
+                        kind=event.type,
+                        content=event.content,
+                        tool_use_id=event.metadata.get("tool_use_id", ""),
+                        tool_name=event.metadata.get("tool_name", ""),
+                        is_error=bool(event.metadata.get("is_error")),
+                    )
+                elif event.type == "error":
+                    raise RuntimeError(event.content or "provider error during compact audit")
+                elif event.type == "provider_limit":
+                    self._handle_event(event)
+                    if event.metadata.get("status") == "rejected":
+                        raise RuntimeError("provider limit during compact audit")
+            if end_event.metadata.get("ok") is not True:
+                raise RuntimeError("compact audit turn failed")
+            self._log_compact_event(
+                compact_id,
+                action="step_done",
+                phase=phase,
+                seconds=round(time.monotonic() - pass_started, 1),
+                **({"cost_usd": round(cost - pass_cost, 6)} if cost > pass_cost else {}),
+            )
+
+        try:
+            sandbox_root = agentic_compact.sandbox_root()
+            sandbox_root.mkdir(parents=True, exist_ok=True)
+            directory = Path(tempfile.mkdtemp(prefix="compact-", dir=sandbox_root))
+            journal_dir = await agentic_compact.prepare_journal(self.id, directory)
+            summary_path = directory / "summary.md"
+            summary_path.write_text(draft)
+            deadline = started + float(os.getenv("AGENTIC_COMPACT_TIMEOUT", "900"))
+            current_phase = "audit"
+            for phase, prompt in (
+                ("audit", agentic_compact.audit_prompt(journal_dir, summary_path)),
+                ("final", agentic_compact.final_prompt(journal_dir, summary_path)),
+            ):
+                current_phase = phase
+                await run_pass(phase, prompt, deadline)
+            result = summary_path.read_text().strip() if summary_path.exists() else ""
+            if not result:
+                raise RuntimeError("audit produced empty summary")
+            if len(result) > agentic_compact.max_chars():
+                raise RuntimeError(
+                    f"audit summary too long ({len(result)} > {agentic_compact.max_chars()} chars)"
+                )
+            self._log("status", f"agentic compact context summary (replaced):\n{draft}")
+            self._log(
+                "status",
+                f"agentic compact audit: summary {len(draft)} → {len(result)} chars, "
+                f"${cost:.2f}, {time.monotonic() - started:.0f}s",
+            )
+            return result, False, cost
+        except Exception as error:
+            reason = f"{type(error).__name__}: {error}"[:400]
+            self._log_compact_event(
+                compact_id,
+                action="step_failed",
+                phase=locals().get("current_phase", "audit"),
+                error=reason,
+                **({"cost_usd": round(cost, 6)} if cost else {}),
+            )
+            self._log(
+                "status",
+                f"agentic compact audit skipped, original summary kept: {reason} "
+                f"(${cost:.2f}, {time.monotonic() - started:.0f}s)",
+            )
+            return draft, True, cost
+        finally:
+            if directory is not None:
+                shutil.rmtree(directory, ignore_errors=True)
+
+    async def compact(self) -> dict:
+        if self.backend_type == "codex":
+            return await self._compact_codex_context()
+
+        # #106 Q6: hot_state_ledger bundle. Bounded promotion replaces the old
+        # unconditional CLAUDE.md/TODO.md/BUGS.md presave, which drove 218
+        # unrelated writes across 63 measured outputs (candidate: 0).
+        COMPACT_PROMPT = _compact_prompt(self.name, self.scope)
+        PREAMBLE = (
+            "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n"
+            "[END OF SUMMARY]\n{tail}[CONTINUE NATURALLY]\n\n"
+        )
+        COMPACT_MAX_RETRIES = 3
+        COMPACT_RETRY_DELAY = 30
+
+        if self._compacting:
+            return {"ok": False, "error": "compact already in progress"}
+        if self.status == AgentStatus.RUNNING:
+            return {"ok": False, "error": "cannot compact while agent is running"}
+        if self.backend_type == "claude" and _claude_subscription_limit_active():
+            error = "Claude subscription limit active; compact postponed until quota reset"
+            self._log("error", error)
+            return {"ok": False, "error": error}
+        try:
+            permit = await self._compaction_permit(reserve=True)
+        except QuotaGateError:
+            raise
+        except RuntimeError as error:
+            return {"ok": False, "error": str(error)}
+        compact_stop_gen = permit[2]
+        self._session_limit_hit = False
+        before_pct = self._last_context.get("percentage", 0)
+        pre_tokens = self._last_context.get("total_tokens", 0) or 0
+        max_tokens = self._last_context.get("max_tokens", 0) or 0
+        pre_compact_session_id = self.session_id
+        compact_id = str(uuid.uuid4())
+        compact_started = time.monotonic()
+        compact_cost = 0.0
+        self._log_compact_event(
+            compact_id,
+            action="start",
+            status="running",
+            before_pct=before_pct,
+            pre_tokens=pre_tokens,
+        )
+        self._log("status", f"compact started (context {before_pct}%, pre_session={pre_compact_session_id})")
+
+        def abort_compact(error: str, *, flush_pending: bool = True) -> dict:
+            self.session_id = pre_compact_session_id
+            self._compacting = False
+            self._log_compact_event(
+                compact_id,
+                action="finish",
+                status="rolled_back",
+                error=error[:400],
+                before_pct=before_pct,
+                seconds=round(time.monotonic() - compact_started, 1),
+                **({"cost_usd": round(compact_cost, 6)} if compact_cost else {}),
+            )
+            if flush_pending and self._pending_messages:
+                self._spawn_bg(self._flush_pending())
+            if self._compact_ack_event is None:
+                self._wake_durable_message_deliveries()
+            return {"ok": False, "error": error, "before_pct": before_pct}
+
+        if self._listen_task and not self._listen_task.done():
+            self._listen_task.cancel()
+            try:
+                await self._listen_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.warning(f"[{self.name}] listen task failed during compact: {e}")
+
+        summary = ""
+        last_error = ""
+        for attempt in range(1, COMPACT_MAX_RETRIES + 1):
+            if attempt > 1:
+                if self._turn_start_cancel_gen != compact_stop_gen:
+                    return abort_compact("compaction cancelled by stop", flush_pending=False)
+                try:
+                    permit = await self._compaction_permit()
+                except QuotaGateError:
+                    abort_compact("weekly quota blocked compact retry", flush_pending=False)
+                    raise
+                if permit[2] != compact_stop_gen:
+                    return abort_compact("compaction cancelled by stop", flush_pending=False)
+            summary_parts = []
+            summary_turn = None
+            summary_error = ""
+            terminal_limit = False
+            keep_backend_open = False
+            backend = self._backend
+            need_connect = self._backend is None
+            try:
+                if need_connect and self.history_import_source == CLAUDE_HISTORY_SOURCE:
+                    backend = await self._ensure_backend(activate=False)
+                    need_connect = False
+                elif backend is None:
+                    backend = self._make_backend()
+
+                async def start_summary_turn():
+                    if need_connect:
+                        await backend.connect()
+                        self._backend = backend
+                    await backend.send(COMPACT_PROMPT)
+
+                await self._run_compaction_start(permit, start_summary_turn)
+                async for event in backend.events():
+                    if event.type == "text":
+                        summary_parts.append(event.content)
+                    elif event.type in {"tool", "tool_result"}:
+                        self._log_compact_event(
+                            compact_id,
+                            action="tool",
+                            phase="draft",
+                            kind=event.type,
+                            content=event.content,
+                            tool_use_id=event.metadata.get("tool_use_id", ""),
+                            tool_name=event.metadata.get("tool_name", ""),
+                            is_error=bool(event.metadata.get("is_error")),
+                        )
+                    elif event.type == "provider_limit":
+                        terminal_limit |= event.metadata.get("status") == "rejected"
+                        self._handle_event(event)
+                    elif event.type == "error":
+                        summary_error = event.content or "provider error during compact"
+                    elif event.type == "turn_end":
+                        summary_turn = event
+                        if event.metadata.get("session_id"):
+                            self.session_id = event.metadata["session_id"]
+                        self._cost.apply_turn_result(event.metadata, event.usage)
+                        compact_cost += self._turn_cost
+                        self._last_turn_api_calls = max(
+                            1, int(event.metadata.get("num_turns") or 1),
+                        )
+                        break
+            except QuotaGateError:
+                abort_compact("weekly quota blocked compact summary", flush_pending=False)
+                raise
+            except Exception as e:
+                last_error = str(e)
+                self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES} failed: {e}")
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    pass
+                self._backend = None
+                if _is_terminal_compact_error(last_error):
+                    # Пропавший каталог не заводится от ожидания: 27 из 38 ошибок
+                    # компакта в базе — это 9 воркеров, каждый отретраенный трижды
+                    # с бэкоффом 30 и 60 секунд.
+                    return abort_compact(last_error)
+                if attempt < COMPACT_MAX_RETRIES:
+                    self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
+                    await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
+                    continue
+                return abort_compact(last_error)
+            finally:
+                keep_backend_open = bool(
+                    self.backend_type == "claude"
+                    and agentic_compact.enabled()
+                    and summary_turn is not None
+                    and summary_turn.metadata.get("ok") is True
+                    and not summary_error
+                    and not terminal_limit
+                    and "".join(summary_parts).strip()
+                )
+                if backend is not None and not keep_backend_open:
+                    try:
+                        await backend.disconnect()
+                    except Exception:
+                        pass
+                    self._backend = None
+
+            if self._turn_start_cancel_gen != compact_stop_gen:
+                if keep_backend_open:
+                    try:
+                        await backend.disconnect()
+                    except Exception:
+                        pass
+                    self._backend = None
+                return abort_compact("compaction cancelled by stop", flush_pending=False)
+
+            summary = "".join(summary_parts).strip()
+
+            if terminal_limit:
+                last_error = "Claude subscription limit active; compact aborted"
+            elif summary_turn is None:
+                last_error = "compact stream ended without turn_end"
+            elif summary_turn.metadata.get("ok") is not True:
+                last_error = summary_error or "compact summary turn failed"
+            elif summary_error:
+                last_error = summary_error
+            elif not summary:
+                last_error = "empty summary"
+            else:
+                last_error = ""
+
+            if last_error:
+                self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES}: {last_error}")
+                self.session_id = pre_compact_session_id
+                if not terminal_limit and attempt < COMPACT_MAX_RETRIES:
+                    self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
+                    await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
+                    continue
+                return abort_compact(last_error)
+
+            self._log_compact_event(
+                compact_id,
+                action="step_done",
+                phase="draft",
+                summary=summary,
+                **({"cost_usd": round(compact_cost, 6)} if compact_cost else {}),
+            )
+
+            if attempt > 1:
+                self._log("status", f"compact succeeded on attempt {attempt}")
+            break
+
+        audit_fallback = False
+        if keep_backend_open:
+            try:
+                summary, audit_fallback, audit_cost = await self._agentic_audit_summary(
+                    summary, compact_stop_gen, backend, compact_id,
+                )
+                compact_cost += audit_cost
+            finally:
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    logger.warning("[%s] backend disconnect failed after compact audit", self.name)
+                self._backend = None
+        if self._turn_start_cancel_gen != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
+        tail = _preserved_tail(
+            self.id,
+            COMPACT_TAIL_CHARS,
+            exclude_user_messages=tuple(self._pending_messages),
+        )
+        preamble = PREAMBLE.format(
+            summary=summary,
+            tail=(
+                f"\n[VERBATIM TAIL — last messages before compaction, unabridged]\n\n"
+                f"{tail}\n\n[END OF TAIL]\n"
+                if tail else ""
+            ),
+        )
+        if self._turn_start_cancel_gen != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
+        try:
+            permit = await self._compaction_permit()
+        except QuotaGateError as error:
+            self.last_summary = _bounded_summary(summary)
+            self._persist()
+            await self._drain_persist()
+            result = abort_compact(str(error), flush_pending=False)
+            return {
+                **result,
+                "phase": "ack_deferred",
+                "summary_retained": True,
+                "summary": summary,
+                "quota_error": error.envelope()["error"],
+            }
+        if permit[2] != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
+        # `_last_context` после ack-хода СТАРОЕ: свежая сессия отдаёт DeferredContext,
+        # чья ветка процент не трогает, а точное число прилетает фоновым
+        # `_refresh_context_from_api` уже после возврата. Поэтому размер новой сессии
+        # берём из расхода самого ack-хода — он доступен синхронно (медиана ошибки 2 п.п.
+        # на 57 замеренных компактах).
+        tokens_before_ack = self._context_token_total()
+        self._last_turn_api_calls = 1
+        self._compact_ack_event = asyncio.Event()
+        ack_event = self._compact_ack_event
+        ack_deferred = False
+        try:
+            async def start_ack_turn():
+                _refuse_if_draining(self)  # no await between here and RUNNING below
+                self._start_turn_state(compact_ack=True)
+                backend = await self._ensure_backend(force_fresh=True)
+                self._log(
+                    "user_message", preamble + "Acknowledge briefly.",
+                    provenance=MessageProvenance(
+                        origin="platform", senders=("Orchestra",),
+                        subtype="compact",
+                    ),
+                )
+                await backend.send(preamble + "Acknowledge briefly.")
+
+            await self._run_compaction_start(permit, start_ack_turn)
+
+            ack_timeout = self._compact_ack_timeout()
+            try:
+                await asyncio.wait_for(ack_event.wait(), timeout=ack_timeout)
+            except asyncio.TimeoutError:
+                self._log("error", f"compact ack turn did not complete ({ack_timeout:.0f}s)")
+                # stop the still-running ack turn so it can't interleave with the next send
+                await self._disconnect_backend()
+                self.session_id = pre_compact_session_id
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
+                return {"ok": False, "error": "ack turn did not complete", "before_pct": before_pct}
+            if self._session_limit_hit:
+                error = "Claude subscription limit hit during compact acknowledgement"
+                self._log("error", error)
+                await self._disconnect_backend()
+                self.session_id = pre_compact_session_id
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
+                return {"ok": False, "error": error, "before_pct": before_pct}
+            # DeferredContext keeps the previous session's usage until the API refresh.
+            # Replace it before releasing compaction or persisting the new session id.
+            ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
+            post_tokens = max(0, self._context_token_total() - tokens_before_ack) // ack_calls
+            max_tokens = self._last_context.get("max_tokens", 0) or max_tokens
+            after_pct = round(post_tokens * 100 / max_tokens) if max_tokens else 0
+            self._last_context.update(
+                percentage=after_pct if post_tokens else 0,
+                total_tokens=post_tokens,
+                known=bool(post_tokens and max_tokens),
+            )
+            self._cancel_precompact_timer("compact_complete")
+        except QuotaGateError as error:
+            ack_deferred = True
+            self.last_summary = _bounded_summary(summary)
+            self._persist()
+            await self._drain_persist()
+            result = abort_compact(str(error), flush_pending=False)
+            return {
+                **result,
+                "phase": "ack_deferred",
+                "summary_retained": True,
+                "summary": summary,
+                "quota_error": error.envelope()["error"],
+            }
+        finally:
+            self._compact_ack_event = None
+            self._compact_ack_gen = -1
+            self._compacting = False
+            if self._pending_messages and not ack_deferred:
+                self._spawn_bg(self._flush_pending())
+            self._wake_durable_message_deliveries()
+
+        self.last_summary = _bounded_summary(summary)
+        self.history_import_source = None
+        # compact() hands the session a NEW native session_id, and every later
+        # reconnect resumes it — a resumed CLI is never given system_prompt, so the
+        # role would only survive in whatever the summary happened to mention.
+        # Re-arm the injector so the next turn re-delivers it. Success path only:
+        # on the abort branches the pre-compact session is restored and its prompt
+        # is still live, so resetting there would buy a needless full re-inject.
+        self._prompt_injected = False
+        if pre_compact_session_id:
+            self.session_id_history.append({
+                "session_id": pre_compact_session_id,
+                "runtime": self.backend_type,
+                "model": self.model,
+                "compacted_at": datetime.now(timezone.utc).isoformat(),
+                "context_pct": before_pct,
+            })
+            self.session_id_history = self.session_id_history[-10:]
+        self._persist()
+        await self._drain_persist()
+        if LOG_COMPACT_SUMMARY:
+            self._log(
+                "text",
+                f"📋 **Compact summary:**\n\n{summary}",
+                provenance=MessageProvenance(
+                    origin="platform", senders=("Orchestra",),
+                    subtype="compact_summary",
+                ),
+            )
+        dropped = max(0, pre_tokens - post_tokens)
+        self._log_compact_event(
+            compact_id,
+            action="finish",
+            status="fallback_draft" if keep_backend_open and audit_fallback else "complete",
+            before_pct=before_pct,
+            after_pct=after_pct,
+            pre_tokens=pre_tokens,
+            post_tokens=post_tokens,
+            dropped_tokens=dropped,
+            summary=summary,
+            seconds=round(time.monotonic() - compact_started, 1),
+            **({"cost_usd": round(compact_cost, 6)} if compact_cost else {}),
+        )
+        self._log(
+            "status",
+            f"compact done: {before_pct}% → {after_pct}% "
+            f"(pre {pre_tokens} → post {post_tokens} tokens, dropped {dropped}, "
+            f"summary {len(summary)} chars)",
+        )
+        return {
+            "ok": True, "before_pct": before_pct, "after_pct": after_pct,
+            "pre_tokens": pre_tokens, "post_tokens": post_tokens,
+            "dropped_tokens": dropped,
+            "summary_chars": len(summary), "summary": summary,
+        }
+
+    async def commit_archive(
+        self,
+        *,
+        project_id: str,
+        archive_id: str,
+        idempotency_key: str,
+        retention: str,
+    ) -> dict:
+        """Commit immutable session history through the configured recovery owner."""
+
+        from app.ia.recovery import commit_archive
+
+        return await commit_archive(
+            session=self,
+            project_id=project_id,
+            archive_id=archive_id,
+            idempotency_key=idempotency_key,
+            retention=retention,
+        )
+
+    async def _notify_scope_idle(self) -> None:
+        # wired callback (set by tg_bridge.start_bridge) — session does not import tg_bridge
+        if on_scope_idle is None:
+            return
+        try:
+            await on_scope_idle(self)
+        except Exception as e:
+            logger.warning(f"[{self.name}] TG scope-idle notify failed: {e}")
+
+    async def _notify_scope_running(self) -> None:
+        if on_scope_running is None:
+            return
+        try:
+            await on_scope_running(self)
+        except Exception as e:
+            logger.warning(f"[{self.name}] TG scope-running notify failed: {e}")
+
+    def _finish_failed_continuation(self, generation: tuple[int, int]) -> bool:
+        """An old automatic attempt cannot finish a newer or manually stopped turn."""
+        if generation != (self._turn_gen, self._turn_start_cancel_gen):
+            return False
+        self.status = AgentStatus.IDLE
+        self._persist()
+        self._turns.publish_turn_finished()
+        self._turns.report_abnormal_end("automatic continuation failed")
+        return True
+
+    async def _rate_limit_retry(self, delay: int, expected_turn_gen: int) -> None:
+        generation = (expected_turn_gen, self._turn_start_cancel_gen)
+        await asyncio.sleep(delay)
+        if (self._manually_interrupted or self._turn_gen != expected_turn_gen
+                or self._session_limit_hit):
+            return
+        try:
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="rate_limit_retry",
+            )
+            await self.send(
+                "[system] Retrying after rate limit. Continue where you left off.",
+                provenance=provenance,
+                retry_generation=generation,
+            )
+        except DrainingRefused as refusal:
+            if not self._finish_failed_continuation(generation):
+                return
+            self._log("status", f"drain: {refusal}")
+            self._queue_drain_fact("rate-limit-retry", "повтор после rate limit срезан")
+        except Exception as e:
+            logger.warning(f"[{self.name}] rate-limit retry failed: {e}")
+            self._finish_failed_continuation(generation)
+
+    async def _retry_after_server_error(self, delay: int, expected_turn_gen: int) -> None:
+        """Resume through a fresh SDK transport after an upstream stream failure."""
+        generation = (expected_turn_gen, self._turn_start_cancel_gen)
+        await asyncio.sleep(delay)
+        try:
+            async with self._lifecycle_lock:
+                # A real user message already started a newer turn; it supersedes this
+                # automatic retry and must not be duplicated.
+                if (self._manually_interrupted
+                        or self._turn_gen != expected_turn_gen
+                        or self.status != AgentStatus.IDLE
+                        or self._compacting
+                        or self._session_limit_hit):
+                    return
+                await self._disconnect_backend()
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="server_error_retry",
+            )
+            await self.send(
+                "[system] Retrying after transient server error. Continue where you "
+                "left off. Do not repeat completed research; execute the pending "
+                "deliverable now.",
+                provenance=provenance,
+                retry_generation=generation,
+            )
+        except DrainingRefused as refusal:
+            if not self._finish_failed_continuation(generation):
+                return
+            self._log("status", f"drain: {refusal}")
+            self._queue_drain_fact(
+                "server-error-retry", "повтор после сбоя апстрима срезан",
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] server-error retry failed: {e}")
+            self._finish_failed_continuation(generation)
+
+    async def _auto_continue(self, expected_turn_gen: int) -> None:
+        generation = (expected_turn_gen, self._turn_start_cancel_gen)
+        await asyncio.sleep(1)
+        if self._manually_interrupted or self._turn_gen != expected_turn_gen:
+            return
+        try:
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="turn_limit_continue",
+            )
+            await self.send(
+                "[system] Turn limit reached. Continue where you left off.",
+                provenance=provenance,
+                retry_generation=generation,
+            )
+        except DrainingRefused as refusal:
+            if not self._finish_failed_continuation(generation):
+                return
+            self._log("status", f"drain: {refusal}")
+            self._queue_drain_fact(
+                "auto-continue", "автопродолжение после лимита ходов срезано",
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] auto-continue failed: {e}")
+            self._finish_failed_continuation(generation)
+
+    async def _refresh_context_from_api(
+        self, *, schedule_compaction_on_success: bool = False,
+    ) -> None:
+        if not self._backend or not hasattr(self._backend, 'context_usage'):
+            return
+        backend = self._backend
+        generation = (self._turn_gen, self.session_id)
+        try:
+            usage = await asyncio.wait_for(backend.context_usage(), timeout=5)
+            if backend is not self._backend or generation != (self._turn_gen, self.session_id):
+                return
+            if usage and usage.get("percentage") is not None:
+                raw_max = usage.get("raw_max_tokens") or usage.get("max_tokens")
+                context = current_context(
+                    usage.get("total_tokens"),
+                    raw_max,
+                    percentage=usage.get("percentage"),
+                    unknown_reason="context API omitted a current-context value",
+                )
+                if not isinstance(context, KnownContext):
+                    self._last_context["percentage"] = 0
+                    self._last_context["total_tokens"] = 0
+                    self._last_context["known"] = False
+                    self._log(
+                        "status",
+                        f"context unknown ({context.reason}); "
+                        "automatic compaction skipped",
+                    )
+                    self._cancel_precompact_timer("context_unknown")
+                    self._persist()
+                    return
+                old_pct = self._last_context.get("percentage", 0)
+                self._last_context["percentage"] = context.percentage
+                self._last_context["total_tokens"] = context.tokens
+                self._last_context["max_tokens"] = context.max_tokens
+                if "auto_compact_threshold" in usage:
+                    self._last_context["auto_compact_threshold"] = usage[
+                        "auto_compact_threshold"
+                    ]
+                self._last_context["known"] = True
+                if abs(old_pct - context.percentage) > 30:
+                    logger.info(
+                        f"[{self.name}] context corrected: "
+                        f"{old_pct}% → {context.percentage}%"
+                    )
+                self._persist()
+                if schedule_compaction_on_success:
+                    self._turns.schedule_context_compaction(context.percentage)
+        except asyncio.TimeoutError:
+            logger.debug(f"[{self.name}] context refresh timeout (5s)")
+        except Exception as e:
+            logger.debug(f"[{self.name}] context refresh failed: {e}")
+
+    async def _overflow_compact(self) -> None:
+        try:
+            await self.compact()
+        except Exception as e:
+            logger.warning(f"[{self.name}] overflow-guard compact failed: {e}")
+        finally:
+            self._overflow_compact_scheduled = False
+            if self._pending_messages and not self._compacting:
+                self._spawn_bg(self._flush_pending())
+
+    async def _auto_compact(self, *, delay_seconds: float = 2) -> None:
+        generation = (self._turn_gen, self._turn_start_cancel_gen)
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+        if self._manually_interrupted or generation != (
+            self._turn_gen, self._turn_start_cancel_gen,
+        ):
+            return
+        try:
+            await self.compact()
+        except Exception as e:
+            logger.warning(f"[{self.name}] auto-compact failed: {e}")
+
+    async def _build_runtime_handoff(
+        self,
+        exclude_latest_user: str = "",
+        exclude_user_messages: tuple[str, ...] = (),
+    ) -> str:
+        """Read recent user/assistant/tool messages without native-history conversion."""
+        from app.chat_history import render_chat_history
+        from app.db import get_recent_chat_logs
+
+        await self._drain_handoff_log_writes()
+        logs = await asyncio.get_running_loop().run_in_executor(
+            _db_executor(), get_recent_chat_logs, self.id,
+        )
+        excluded = Counter(message.strip() for message in exclude_user_messages)
+        if exclude_latest_user:
+            excluded[exclude_latest_user.strip()] += 1
+        visible = []
+        for row in reversed(logs):
+            content = str(row.get("content") or "").strip()
+            if row["type"] == "user_message" and excluded[content] > 0:
+                excluded[content] -= 1
+                continue
+            visible.append(row)
+        history = render_chat_history(list(reversed(visible)))
+        return f"Source Orchestra session: {self.id}\n{history}" if history else ""
+
+    @property
+    def effective_model_reason(self) -> str:
+        pending = self._pending_model_reason
+        return pending[1] if pending and pending[0] == self.model else self.model_reason
+
+    async def change_model(self, new_model: str, model_reason: str = "") -> dict:
+        from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
+
+        async with self._lifecycle_lock:
+            if self._compacting:
+                return {"ok": False, "error": "cannot change model while compacting"}
+            try:
+                reason = validate_model_reason(new_model, model_reason)
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc), "error_code": HUB_CLAUDE_REASON_RULE}
+            self._pending_model_reason = (new_model, reason)
+            try:
+                result = await self._change_model_locked(new_model)
+            finally:
+                if self.model == new_model:
+                    self.model_reason = reason
+                self._pending_model_reason = None
+            if result.get("ok"):
+                self._persist()  # Also persist a new reason when the model itself was already selected.
+                result["model_reason"] = self.model_reason
+            return result
+
+    async def _change_runtime_chat_locked(
+        self,
+        new_model: str,
+        old_model: str,
+        old_runtime: str,
+    ) -> dict:
+        """Start a fresh runtime with recent DB messages on its first real turn."""
+        tail = await self._build_runtime_handoff()
+
+        old_session_id = self.session_id
+        try:
+            await self._drain_persist()
+            await self._disconnect_backend()
+        except Exception as error:
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "text_tail_source_release_failed",
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        new_history = list(self.session_id_history)
+        if old_session_id:
+            new_history.append({
+                "session_id": old_session_id,
+                "runtime": old_runtime,
+                "model": old_model,
+                "switched_at": datetime.now(timezone.utc).isoformat(),
+                "handoff_mode": "chat_history_v1",
+            })
+            new_history = new_history[-10:]
+
+        new_runtime = get_model_spec(new_model).runtime
+        snapshot = self._to_db_dict()
+        snapshot.update({
+            "model": new_model,
+            "backend_type": new_runtime,
+            "session_id": "",
+            "provider_cost_baseline_usd": 0.0,
+            "runtime_handoff": tail,
+            "history_import_source": None,
+            "last_summary": "",
+            "context_pct": 0,
+            "context_tokens": 0,
+            "session_id_history": json.dumps(new_history) if new_history else "[]",
+        })
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                _db_executor(), save_session, snapshot,
+            )
+        except Exception as error:
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "text_tail_persistence_failed",
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        self.model = new_model
+        self.backend_type = new_runtime
+        self.session_id = ""
+        self._last_cost = 0.0
+        self._last_cost_cached = 0.0
+        self.session_id_history = new_history
+        self.runtime_handoff = tail
+        self.history_import_source = None
+        self.last_summary = ""
+        self._last_context = empty_context()
+        self._prompt_injected = False
+        self._hibernated = False
+        self._handoff_config_dir = ""
+        self._handoff_recovery_required = False
+        self._runtime_error = ""
+        self._session_limit_hit = False
+        self._cancel_precompact_timer("text_tail_model_switch")
+        if old_runtime == "hub":
+            from app.backend_hub import release_for_worktree
+
+            try:
+                await release_for_worktree(self.worktree_path or self.cwd)
+            except Exception as error:
+                logger.warning(
+                    "[%s] previous hub workspace release incomplete (state kept for sweep): %s",
+                    self.name, err_text(error),
+                )
+        self._log(
+            "status",
+            f"model change: {old_model} ({old_runtime}) → "
+            f"{new_model} ({new_runtime}); chat_history_v1 chars={len(tail)}",
+        )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": new_runtime,
+            "old_runtime": old_runtime,
+            "runtime_changed": True,
+            "native_session_reset": True,
+            "history_transfer": {
+                "mode": "chat_history_v1",
+                "chars": len(tail),
+                "max_messages": 100,
+            },
+            "changed": True,
+        }
+
+    def _collect_handoff_project_docs(self) -> list[dict]:
+        from app.workspace import tracked_paths
+
+        root = Path(self.worktree_path or self.cwd)
+        candidates = ["CLAUDE.md", "AGENTS.md"]
+        try:
+            tracked = tracked_paths(root, candidates)
+        except (OSError, RuntimeError):
+            tracked = set()
+        documents = []
+        for relative in candidates:
+            if relative not in tracked:
+                continue
+            path = root / relative
+            if path.is_symlink() or not path.is_file():
+                raise RuntimeError(f"tracked project document is not a regular file: {path}")
+            documents.append({
+                "path": relative,
+                "content": path.read_text(encoding="utf-8"),
+            })
+        return documents
+
+
+    @staticmethod
+    def _handoff_cleanup_locator(handoff_id: str, attempt_no: int) -> str:
+        return str(_HANDOFF_STAGING_ROOT / handoff_id / str(attempt_no))
+
+    @staticmethod
+    def _remove_handoff_cleanup_locator(locator: str) -> None:
+        """Remove only an Orchestra-owned unconfirmed staging directory."""
+        root = _HANDOFF_STAGING_ROOT.resolve()
+        path = Path(locator).resolve()
+        if path == root or root not in path.parents:
+            raise RuntimeError("refusing to clean a non-handoff staging path")
+        if path.exists():
+            shutil.rmtree(path)
+
+    @staticmethod
+    def _handoff_cleanup_locator_is_owned(locator: str) -> bool:
+        if not locator:
+            return False
+        root = _HANDOFF_STAGING_ROOT.resolve()
+        path = Path(locator).resolve()
+        return path != root and root in path.parents
+
+    async def recover_runtime_handoff(
+        self,
+        handoff: dict,
+        attempts: list[dict],
+    ) -> None:
+        """Resolve one unfinished switch without guessing or replaying a user turn."""
+        handoff_id = str(handoff.get("handoff_id") or "")
+        status = str(handoff.get("status") or "")
+        source = {
+            "runtime": handoff.get("source_runtime"),
+            "model": handoff.get("source_model"),
+            "session_id": handoff.get("source_session_id"),
+        }
+        current = {
+            "runtime": self.backend_type,
+            "model": self.model,
+            "session_id": self.session_id,
+        }
+
+        async def block(code: str) -> None:
+            self._handoff_recovery_required = True
+            try:
+                update_runtime_handoff_status(
+                    handoff_id, "recovery_required", failure_code=code,
+                )
+            except Exception as error:
+                logger.error(
+                    "[%s] could not persist handoff recovery guard: %s",
+                    self.name, err_text(error),
+                )
+
+        if status == "recovery_required" or current != source:
+            await block("handoff_recovery_state_mismatch")
+            return
+
+        if status == "source_released":
+            try:
+                backend = await self._ensure_backend(activate=False)
+                if (
+                    getattr(backend, "resume_failed", False)
+                    or backend.session_id != source["session_id"]
+                ):
+                    raise RuntimeError(
+                        "released handoff source did not resume its exact native id"
+                    )
+            except Exception as error:
+                logger.error(
+                    "[%s] source handoff recovery failed: %s",
+                    self.name, err_text(error),
+                )
+                await block("handoff_source_resume_unproven")
+                return
+
+        try:
+            for attempt in attempts:
+                locator = str(attempt.get("cleanup_locator") or "")
+                if not self._handoff_cleanup_locator_is_owned(locator):
+                    raise RuntimeError("handoff cleanup locator is outside staging root")
+                await asyncio.to_thread(
+                    self._remove_handoff_cleanup_locator, locator,
+                )
+            retire_runtime_handoff(
+                handoff_id,
+                status="failed",
+                failure_code="handoff_recovered_to_source",
+            )
+        except Exception as error:
+            logger.error(
+                "[%s] handoff target cleanup failed: %s",
+                self.name, err_text(error),
+            )
+            await block("handoff_cleanup_unproven")
+            return
+
+        self._handoff_recovery_required = False
+        if self._backend is not None:
+            self._activate_backend_tasks()
+
+
+    async def _confirm_runtime_handoff(self, prepared, attempt, staged) -> None:
+        if get_runtime_handoff(prepared.handoff_id) is None:
+            return
+        expected_source = {
+            "runtime": self.backend_type,
+            "model": self.model,
+            "session_id": self.session_id,
+        }
+        await asyncio.get_running_loop().run_in_executor(
+            _db_executor(),
+            partial(
+                confirm_runtime_handoff,
+                handoff_id=prepared.handoff_id,
+                attempt_no=attempt.attempt_no,
+                expected_source=expected_source,
+                target_session_id=staged.session_id,
+            ),
+        )
+
+
+    def _same_runtime_resume_preflight(
+        self,
+        target_model: str,
+        *,
+        prepared: PreparationResult,
+        project_docs: list[dict],
+    ):
+        native_tokens = self._last_context.get("total_tokens")
+        if not isinstance(native_tokens, int) or native_tokens <= 0:
+            return None
+
+        empty = SimpleNamespace(
+            packet={},
+            packet_sha256="",
+            project_docs=tuple(dict(item) for item in project_docs),
+        )
+        backend = self._make_backend(
+            validation_profile=False,
+            model_override=target_model,
+            resume_session_id=self.session_id,
+        )
+        build_manifest = getattr(backend, "build_handoff_manifest", None)
+        if not callable(build_manifest):
+            return None
+        manifest = build_manifest(empty, validation_profile=False)
+        return preflight_runtime_handoff(
+            manifest,
+            native_context_tokens=native_tokens,
+        )
+
+    async def _change_model_locked(self, new_model: str) -> dict:
+        old_model = self.model
+        if old_model == new_model:
+            return {"ok": True, "model": new_model, "changed": False}
+        if self._handoff_recovery_required:
+            return {
+                "ok": False,
+                "error": "operator recovery is required before another model switch",
+                "error_code": "handoff_recovery_required",
+                "history_transfer": {"mode": "blocked"},
+            }
+        if self.status == AgentStatus.RUNNING:
+            return {"ok": False, "error": "cannot change model while running"}
+
+        from app.hub_pool import require_hub_capacity
+        from app.quota_gate import QuotaGateError
+
+        try:
+            await require_hub_capacity(new_model)
+        except QuotaGateError as exc:
+            return {"ok": False, "error": str(exc), "error_code": "hub_pool_exhausted"}
+
+        old_runtime = self.backend_type or backend_for_model(old_model)
+        new_runtime = get_model_spec(new_model).runtime
+        runtime_changed = old_runtime != new_runtime
+        if runtime_changed:
+            return await self._change_runtime_chat_locked(new_model, old_model, old_runtime)
+        runtime_capabilities = get_runtime(new_runtime).capabilities
+        if runtime_capabilities.model_retarget:
+            return await self._change_model_in_place_locked(
+                new_model,
+                old_model,
+                new_runtime,
+            )
+        if not runtime_capabilities.resume_across_models:
+            return {
+                "ok": False,
+                "error": "runtime cannot prove native resume across models",
+                "error_code": "handoff_native_resume_unsupported",
+                "history_transfer": {"mode": "blocked"},
+            }
+        project_docs = self._collect_handoff_project_docs()
+        native_preflight = self._same_runtime_resume_preflight(
+            new_model,
+            prepared=PreparationResult(ok=True),
+            project_docs=project_docs,
+        )
+        if native_preflight is not None and not native_preflight.fits:
+            return {
+                "ok": False,
+                "error": "target context cannot fit the native resumed thread",
+                "error_code": "handoff_context_overflow",
+                "history_transfer": {
+                    "mode": "blocked",
+                    "preflight": native_preflight.as_dict(),
+                },
+            }
+        idempotency_key = hashlib.sha256(
+            f"{self.id}:{old_runtime}:{old_model}:{self.session_id}:{new_model}".encode()
+        ).hexdigest()
+        prepared = await self._prepare_runtime_handoff(
+            new_model,
+            idempotency_key=idempotency_key,
+            project_docs=project_docs,
+        )
+        if getattr(prepared, "ok", True) is False:
+            return _handoff_blocked_result(prepared)
+        if native_preflight is None:
+            return {
+                "ok": False,
+                "error": "native context telemetry is unavailable",
+                "error_code": "handoff_context_unknown",
+                "handoff_id": getattr(prepared, "handoff_id", None),
+                "history_transfer": {"mode": "blocked"},
+            }
+        handoff_id = getattr(prepared, "handoff_id", None)
+        durable = bool(handoff_id and get_runtime_handoff(handoff_id))
+        attempt = None
+        if durable:
+            try:
+                attempt = SimpleNamespace(**allocate_runtime_handoff_attempt(
+                    handoff_id,
+                    mode="native_resume",
+                    candidate_sha256=prepared.packet_sha256,
+                    cleanup_locator="",
+                ))
+                update_runtime_handoff_attempt(
+                    handoff_id,
+                    attempt.attempt_no,
+                    status="preflighted",
+                    preflight_json=json.dumps(
+                        native_preflight.as_dict(), sort_keys=True,
+                    ),
+                )
+            except Exception as error:
+                return {
+                    "ok": False,
+                    "error": err_text(error),
+                    "error_code": "handoff_native_resume_failed",
+                    "handoff_id": handoff_id,
+                    "history_transfer": {"mode": "blocked"},
+                }
+        target_backend = None
+        try:
+            await self._refresh_skills()
+            await self._refresh_codex_project_doc()
+            target_backend = self._make_backend(
+                validation_profile=False,
+                model_override=new_model,
+                resume_session_id=self.session_id,
+            )
+            await target_backend.connect()
+            if (
+                getattr(target_backend, "resume_failed", False)
+                or target_backend.session_id != self.session_id
+            ):
+                raise RuntimeError(
+                    "same-runtime resume did not preserve the exact native session id"
+                )
+            if durable:
+                update_runtime_handoff_attempt(
+                    handoff_id,
+                    attempt.attempt_no,
+                    status="capability_validated",
+                    target_session_id=target_backend.session_id,
+                    capability_json=json.dumps({
+                        "native_resume": True,
+                        "session_id_preserved": True,
+                    }, sort_keys=True),
+                )
+                update_runtime_handoff_status(
+                    handoff_id, "capability_validated",
+                )
+        except Exception as error:
+            cleanup_failed = False
+            if target_backend is not None:
+                try:
+                    await target_backend.disconnect()
+                except Exception as cleanup_error:
+                    cleanup_failed = True
+                    logger.warning(
+                        "[%s] failed to clean rejected same-runtime target: %s",
+                        self.name, err_text(cleanup_error),
+                    )
+            if durable:
+                retire_runtime_handoff(
+                    handoff_id,
+                    status="recovery_required" if cleanup_failed else "failed",
+                    failure_code=(
+                        "handoff_target_cleanup_ambiguous"
+                        if cleanup_failed else "handoff_native_resume_failed"
+                    ),
+                )
+            self._handoff_recovery_required = cleanup_failed
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": (
+                    "handoff_recovery_required"
+                    if cleanup_failed else "handoff_native_resume_failed"
+                ),
+                "handoff_id": handoff_id,
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        try:
+            await self._disconnect_backend()
+        except Exception as error:
+            logger.warning(
+                "[%s] old same-runtime client release is ambiguous: %s",
+                self.name, err_text(error),
+            )
+            for task in (self._listen_task, self._heartbeat_task):
+                if task is not None and not task.done():
+                    task.cancel()
+            self._listen_task = None
+            self._heartbeat_task = None
+            try:
+                await target_backend.disconnect()
+            except Exception as cleanup_error:
+                logger.warning(
+                    "[%s] failed to clean same-runtime target after ambiguous "
+                    "source release: %s", self.name, err_text(cleanup_error),
+                )
+            if durable:
+                retire_runtime_handoff(
+                    handoff_id,
+                    status="recovery_required",
+                    failure_code="handoff_source_release_ambiguous",
+                )
+            self._handoff_recovery_required = True
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "handoff_recovery_required",
+                "handoff_id": handoff_id,
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        try:
+            if durable:
+                update_runtime_handoff_status(handoff_id, "source_released")
+                await self._confirm_runtime_handoff(
+                    prepared,
+                    attempt,
+                    SimpleNamespace(session_id=target_backend.session_id),
+                )
+            else:
+                snapshot = self._to_db_dict()
+                snapshot["model"] = new_model
+                snapshot["backend_type"] = new_runtime
+                await asyncio.get_running_loop().run_in_executor(
+                    _db_executor(), save_session, snapshot,
+                )
+        except Exception as error:
+            try:
+                await target_backend.disconnect()
+            except Exception as cleanup_error:
+                logger.warning(
+                    "[%s] failed to clean unconfirmed same-runtime target: %s",
+                    self.name, err_text(cleanup_error),
+                )
+            if durable:
+                update_runtime_handoff_status(
+                    handoff_id,
+                    "recovery_required",
+                    failure_code="handoff_confirmation_failed",
+                )
+            self._handoff_recovery_required = True
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "handoff_recovery_required",
+                "handoff_id": handoff_id,
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        self.model = new_model
+        self.backend_type = new_runtime
+        self._backend = target_backend
+        self._prompt_injected = False
+        self._hibernated = False
+        total_tokens = int(self._last_context.get("total_tokens") or 0)
+        target_window = get_model_spec(new_model).context_length
+        self._last_context = {
+            "percentage": round(total_tokens / target_window * 100) if target_window else 0,
+            "total_tokens": total_tokens,
+            "max_tokens": target_window,
+        }
+        self._activate_backend_tasks()
+        self._log(
+            "status",
+            f"model change: {old_model} ({old_runtime}) → {new_model} ({new_runtime})",
+        )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": new_runtime,
+            "old_runtime": old_runtime,
+            "runtime_changed": runtime_changed,
+            "native_session_reset": False,
+            "history_transfer": {
+                "mode": "native_resume",
+                "preflight": native_preflight.as_dict(),
+            },
+            "changed": True,
+        }
+
+    async def _change_model_in_place_locked(
+        self,
+        new_model: str,
+        old_model: str,
+        runtime: str,
+    ) -> dict:
+        """Retarget the next turn while preserving the runtime's native session."""
+        total_tokens = int(self._last_context.get("total_tokens") or 0)
+        target_window = get_model_spec(new_model).context_length
+        if (
+            runtime == "codex"
+            and old_model.startswith("gpt-5.6-")
+            and new_model.startswith("gpt-5.6-")
+        ):
+            target_window = max(
+                target_window,
+                int(self._last_context.get("max_tokens") or 0),
+            )
+        if total_tokens and target_window and total_tokens > target_window:
+            return {
+                "ok": False,
+                "error": f"target context cannot fit the native {runtime} session",
+                "error_code": "handoff_context_overflow",
+                "history_transfer": {
+                    "mode": "blocked",
+                    "preflight": {
+                        "fits": False,
+                        "total_tokens": total_tokens,
+                        "target_context_window": target_window,
+                    },
+                },
+            }
+        backend = self._backend
+        if backend is not None:
+            if (
+                getattr(backend, "active_turn_id", None)
+                or getattr(backend, "_events_active", False)
+                or getattr(backend, "_turn_active", False)
+            ):
+                return {
+                    "ok": False,
+                    "error": f"cannot change {runtime} model while its turn is settling",
+                    "error_code": f"{runtime}_turn_settling",
+                }
+            if not callable(getattr(backend, "retarget_model", None)):
+                return {
+                    "ok": False,
+                    "error": f"{runtime} backend cannot retarget the active session",
+                    "error_code": f"{runtime}_in_place_switch_unsupported",
+                }
+
+        await self._drain_persist()
+        if backend is not None:
+            try:
+                retargeted = backend.retarget_model(new_model)
+                if inspect.isawaitable(retargeted):
+                    await retargeted
+                backend_session_id = getattr(backend, "session_id", self.session_id)
+                if backend_session_id != self.session_id:
+                    raise RuntimeError(
+                        "in-place model switch replaced the native session id"
+                    )
+            except Exception as error:
+                return {
+                    "ok": False,
+                    "error": err_text(error),
+                    "error_code": f"{runtime}_in_place_switch_failed",
+                    "history_transfer": {"mode": "blocked"},
+                }
+
+        snapshot = self._to_db_dict()
+        snapshot.update({
+            "model": new_model,
+            "backend_type": runtime,
+        })
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                _db_executor(), save_session, snapshot,
+            )
+        except Exception as error:
+            rollback_failed = False
+            if backend is not None:
+                try:
+                    rolled_back = backend.retarget_model(old_model)
+                    if inspect.isawaitable(rolled_back):
+                        await rolled_back
+                except Exception as rollback_error:
+                    rollback_failed = True
+                    self._handoff_recovery_required = True
+                    logger.warning(
+                        "[%s] failed to roll back %s model after persistence error: %s",
+                        self.name, runtime, err_text(rollback_error),
+                    )
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": (
+                    "handoff_recovery_required"
+                    if rollback_failed
+                    else f"{runtime}_in_place_switch_persistence_failed"
+                ),
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        self.model = new_model
+        self.backend_type = runtime
+        self._hibernated = False
+        self._last_context = {
+            "percentage": (
+                round(total_tokens / target_window * 100)
+                if target_window else 0
+            ),
+            "total_tokens": total_tokens,
+            "max_tokens": target_window,
+        }
+        self._log(
+            "status",
+            f"model change: {old_model} ({runtime}) → {new_model} ({runtime}); "
+            "native session preserved",
+        )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": runtime,
+            "old_runtime": runtime,
+            "runtime_changed": False,
+            "native_session_reset": False,
+            "history_transfer": {"mode": "native_in_place"},
+            "changed": True,
+        }
+
+    async def _disconnect_backend(self) -> None:
+        if self._output_tails is not None:
+            self._output_tails.stop_all()
+        if self._hibernate_task and not self._hibernate_task.done() and self._hibernate_task is not asyncio.current_task():
+            self._hibernate_task.cancel()
+            self._hibernate_task = None
+        backend = self._backend
+        if backend:
+            await backend.disconnect()
+            if self._backend is backend:
+                self._backend = None
+        if (self._heartbeat_task and not self._heartbeat_task.done()
+                and self._heartbeat_task is not asyncio.current_task()):
+            self._heartbeat_task.cancel()
+            try:
+                await self._heartbeat_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.warning(f"[{self.name}] heartbeat task failed on disconnect: {e}")
+            self._heartbeat_task = None
+        if (self._listen_task and not self._listen_task.done()
+                and self._listen_task is not asyncio.current_task()):
+            self._listen_task.cancel()
+            try:
+                await self._listen_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.warning(f"[{self.name}] listen task failed on disconnect: {e}")
+
+    async def stop(self) -> None:
+        # Единственный вызывающий — shutdown_all(), то есть выключение сервера
+        # (пользовательский стоп идёт через interrupt()). Поэтому агент, застигнутый
+        # в RUNNING, не «закончил ход», а оборван: помечаем это в БД, иначе старт
+        # прочитает 'idle' и не узнает, кого будить (#160).
+        interrupted = self.status == AgentStatus.RUNNING
+        self._log("status", "⏹️ stopped (server shutdown)" if interrupted
+                  else "⏹️ stopped (manual interrupt)")
+        self._turns.cancel_auto_report()
+        self._cancel_precompact_timer("stop")
+        await self._disconnect_backend()
+        self._hibernated = False
+        self.status = AgentStatus.INTERRUPTED if interrupted else AgentStatus.IDLE
+        self._persist()
+        self._turns.publish_turn_finished()
+
+    def _persist(self) -> None:
+        # Coalesce rapid successive calls: mark dirty, let one active task drain them all —
+        # prevents N DB writes when status/cost/context all change in the same event loop tick
+        self._persist_dirty = True
+        if self._persist_task and not self._persist_task.done():
+            return
+        self._persist_task = asyncio.get_running_loop().create_task(self._persist_loop())
+        self._persist_task.add_done_callback(self._on_persist_done)
+
+    def _on_persist_done(self, task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"[{self.name}] persist task crashed: {e}")
+
+    async def _persist_loop(self) -> None:
+        while self._persist_dirty:
+            self._persist_dirty = False
+            snapshot = self._to_db_dict()
+            try:
+                await asyncio.get_running_loop().run_in_executor(_db_executor(), save_session, snapshot)
+            except Exception as e:
+                logger.error(f"[{self.name}] persist failed: {e}")
+
+    async def _drain_persist(self) -> None:
+        if self._persist_task and not self._persist_task.done():
+            await asyncio.gather(self._persist_task, return_exceptions=True)
+
+    def _submit_db_write(self, operation, *args, **kwargs) -> None:
+        """Run non-critical telemetry outside the event loop and surface failures."""
+        future = asyncio.get_running_loop().run_in_executor(
+            _db_executor(),
+            partial(operation, *args, **kwargs),
+        )
+        self._log_futures.add(future)
+
+        def completed(done) -> None:
+            self._log_futures.discard(done)
+            try:
+                done.result()
+            except Exception as error:
+                logger.error(f"[{self.name}] telemetry write failed: {error}")
+
+        future.add_done_callback(completed)
+
+    def _log(
+        self,
+        type: str,
+        content: str,
+        *,
+        event_id: str = "",
+        provenance: MessageProvenance | None = None,
+        tool_use_id: str | None = None,
+        tool_name: str | None = None,
+        tool_is_error: bool | None = None,
+    ) -> None:
+        # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
+        args = (self.id, datetime.now(timezone.utc), type, content, event_id)
+        if tool_use_id is None and tool_name is None and tool_is_error is None:
+            operation = partial(add_log, *args, provenance=provenance)
+        else:
+            operation = partial(
+                add_log,
+                *args,
+                provenance=provenance,
+                tool_use_id=tool_use_id,
+                tool_name=tool_name,
+                tool_is_error=tool_is_error,
+            )
+        future = asyncio.get_event_loop().run_in_executor(_db_executor(), operation)
+        self._log_write_generation += 1
+        generation = self._log_write_generation
+        self._log_futures.add(future)
+
+        def completed(done) -> None:
+            # Тот же способ, что у _submit_db_write выше: result() ОБЯЗАН быть забран.
+            # Без него asyncio печатает своё «Future exception was never retrieved» —
+            # без имени агента, без типа записи и без её содержимого (#167).
+            self._log_futures.discard(done)
+            try:
+                done.result()
+            except Exception as error:
+                if generation >= self._log_write_failure_generation:
+                    self._log_write_failure_generation = generation
+                    self._log_write_failure = err_text(error)
+                self._failed_log_writes[generation] = (
+                    operation if _is_locked_database_error(error) else None,
+                    err_text(error),
+                )
+                # logs висят на sessions(id) ON DELETE CASCADE: у записи для мёртвой
+                # сессии нет дома by design, восстанавливать нечего. Но потеря обязана
+                # быть ВИДНОЙ — иначе следующий FK-сбой по другой причине (битая
+                # миграция, гонка при архивации) снова уйдёт в никуда.
+                logger.error(
+                    "[%s] log write lost (%s): %s | %.200s",
+                    self.name, type, err_text(error), content,
+                )
+
+        future.add_done_callback(completed)
+
+    def _persist_subagent(self, meta: dict, ended: bool = False) -> None:
+        """Upsert sub-agent telemetry from a Task* event. Fire-and-forget.
+
+        Only the fields the event carries are passed — subagent_upsert's
+        NULLIF-COALESCE keeps prior values, so progress never wipes start's data.
+        Lifecycle timestamps are captured before the executor can reorder jobs.
+        """
+        task_id = meta.get("subagent_id")
+        if not task_id:
+            return
+        event_at = datetime.now(timezone.utc).isoformat()
+        fields = {k: meta[k] for k in (
+            "sdk_session_id", "tool_use_id", "description", "task_type", "status",
+            "last_tool_name", "output_file", "summary", "raw_json",
+            "total_tokens", "tool_uses", "duration_ms",
+        ) if k in meta}
+        if meta.get("phase") == "start":
+            fields["started_at"] = event_at
+        if ended or meta.get("phase") == "end":
+            fields["ended_at"] = event_at
+        from app.db import subagent_upsert
+        asyncio.get_event_loop().run_in_executor(
+            _db_executor(), lambda: subagent_upsert(self.id, task_id, **fields))
+
+    def _to_db_dict(self) -> dict:
+        return {
+            "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
+            "model": self.model, "model_reason": self.effective_model_reason,
+            "system_prompt": self.system_prompt,
+            "prompt_overlay": self.prompt_overlay,
+            "status": self.status.value, "session_id": self.session_id,
+            "provider_cost_baseline_usd": self._last_cost,
+            "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
+            "context_cost": self._context_cost,
+            "worktree_path": self.worktree_path,
+            "branch": self.branch, "base_branch": self.base_branch,
+            "needs_switch": int(self.needs_switch),
+            "is_orchestrator": self.is_orchestrator,
+            "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
+            "pipeline": self.pipeline,
+            "profile": self.profile,
+            "color": self.color, "created_at": self.created_at.isoformat(),
+            "finished_at": None,
+            "context_pct": self._last_context.get("percentage", 0),
+            "context_tokens": self._last_context.get("total_tokens", 0),
+            "progress_pct": self.progress_pct,
+            "progress_status": self.progress_status,
+            "backend_type": self.backend_type,
+            "effort": self.effort or "",
+            "runtime_handoff": self.runtime_handoff,
+            "history_import_source": self.history_import_source,
+            "last_summary": self.last_summary,
+            "task_id": self.task_id,
+            "description": self.description,
+            "total_turns": self.total_turns,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_cache_read_tokens": self.total_cache_read_tokens,
+            "total_cache_create_tokens": self.total_cache_create_tokens,
+            "total_tool_calls": self.total_tool_calls,
+            "template_hash": self._template_hash,
+            "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
+            "disabled_tools": json.dumps(self.disabled_tools),
+            "owned_dirs": json.dumps(self.owned_dirs) if self.owned_dirs else "",
+            "tg_topic": int(self.tg_topic),
+            "session_id_history": json.dumps(self.session_id_history) if self.session_id_history else "[]",
+        }
+
+    async def get_context(self) -> dict:
+        return self._last_context
+
+    def _display_status(self) -> str:
+        """`broken` when the recorded worktree is gone — a missing working copy is not idleness.
+
+        Until #62 such a worker looked perfectly `idle` and failed only at the moment a task
+        was sent into a directory that no longer existed; seven of them stayed invisible that
+        way for two days.
+        """
+        if self.worktree_path and not os.path.isdir(self.worktree_path):
+            return "broken"
+        return self.status.value
+
+    def _writer_health_error(self):
+        error = self.codex_writer_error()
+        if error is not None:
+            return error
+        previous = self._codex_writer_error
+        if (self.backend_type == "codex" and previous is not None
+                and getattr(previous, "thread_id", None) == self.session_id):
+            return previous
+        return None
+
+    def to_dict(self) -> dict:
+        # This describes local observation, not proof that the remote model is
+        # responding. A silent reader must never turn a running task into idle.
+        writer_error = self._writer_health_error()
+        if writer_error is not None:
+            runtime_connection = "writer_conflict"
+        elif self._runtime_error:
+            runtime_connection = "failed"
+        elif self._hibernated:
+            runtime_connection = "hibernated"
+        elif self._backend is None:
+            runtime_connection = "detached"
+        elif self._listen_task is not None and not self._listen_task.done():
+            runtime_connection = "listening"
+        else:
+            runtime_connection = "attached"
+        return {
+            "id": self.id, "name": self.name, "scope": self.scope,
+            "cwd": self.cwd, "worktree_path": self.worktree_path,
+            "status": "broken" if writer_error is not None else self._display_status(), "model": self.model,
+            "model_reason": self.effective_model_reason,
+            "runtime_connection": runtime_connection,
+            "runtime_error": writer_error.envelope() if writer_error else self._runtime_error or None,
+            "cost_usd": round(self.cost_usd, 4),
+            "cost_usd_cached": round(self.cost_usd_cached, 4),
+            "branch": self.branch,
+            "base_branch": self.base_branch,
+            "needs_switch": self.needs_switch,
+            "is_orchestrator": self.is_orchestrator,
+            "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
+            "color": self.color,
+            "created_at": self.created_at.isoformat(),
+            "context_pct": self._last_context.get("percentage", 0),
+            "progress_pct": self.progress_pct,
+            "progress_status": self.progress_status,
+            "backend_type": self.backend_type,
+            "runtime": self.backend_type,
+            "provider": get_model_spec(self.model).provider,
+            "hibernated": self._hibernated,
+            "task_id": self.task_id,
+            "description": self.description,
+            "disabled_tools": self.disabled_tools,
+            "owned_dirs": self.owned_dirs,
+            "tg_topic": self.tg_topic,
+            "system_prompt": self.system_prompt[:500] if self.system_prompt else "",
+            "total_turns": self.total_turns,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_cache_read_tokens": self.total_cache_read_tokens,
+            "total_cache_create_tokens": self.total_cache_create_tokens,
+            "total_tool_calls": self.total_tool_calls,
+        }
+
+
+# ── Wired callbacks: assigned by tg_bridge.start_bridge, reset by stop_bridge.
+# Session fires events without importing tg_bridge (cycle cut). Declared after
+# the class — module-level annotations evaluate eagerly (PEP 526), a pre-class
+# AgentSession reference would NameError on import.
+on_scope_idle: "Callable[[AgentSession], Awaitable[None]] | None" = None
+on_scope_running: "Callable[[AgentSession], Awaitable[None]] | None" = None

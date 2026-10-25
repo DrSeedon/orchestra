@@ -1,0 +1,11 @@
+--- supplied/app/session_hibernate.py
++++ app/session_hibernate.py
+@@ -86,7 +86,7 @@
+                     "reason": "pending_delivery",
+                     "error": f"{len(s._pending_messages)} message(s) pending",
+                 }
+-            if s._compacting:
++            if s._compacting or getattr(s._backend, "compact_pending", False) is True:
+                 return {
+                     "ok": False,
+                     "reason": "compacting",

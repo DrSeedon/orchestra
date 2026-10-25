@@ -1,0 +1,66 @@
+--- supplied/app/session.py
++++ app/session.py
+@@ -3034,6 +3034,7 @@
+             was_running = self.status == AgentStatus.RUNNING
+             backend = self._backend if (
+                 was_running or self._compacting
++                or getattr(self._backend, "compact_pending", False) is True
+             ) else None
+             self._turns.cancel_auto_report()
+             self._cancel_precompact_timer("interrupt")
+@@ -3058,6 +3059,7 @@
+                     acknowledged is False
+                     and self._backend is backend
+                     and (self.status == AgentStatus.RUNNING or self._compacting)
++                    and (was_running or getattr(backend, "compact_pending", False) is not True)
+                 ):
+                     self._log("error", "interrupt was not acknowledged; disconnecting backend")
+                     await self._disconnect_backend()
+@@ -3074,7 +3076,11 @@
+                 await self.wait_for_turn_completion()
+             elif not was_running:
+                 self._turn_start = 0
+-                self._log("status", "interrupted")
++                unresolved = getattr(backend, "compact_pending", False) is True
++                self._log("status", (
++                    "interrupt requested; native compact outcome is unresolved"
++                    if unresolved else "interrupted"
++                ))
+                 self._persist()
+                 self._turns.publish_turn_finished()
+ 
+@@ -3148,10 +3154,14 @@
+                 self._last_context["max_tokens"] = max_tokens
+             if isinstance(context_tokens, int) and context_tokens >= 0:
+                 self._last_context["total_tokens"] = context_tokens
++                self._last_context["known"] = True
+                 if isinstance(max_tokens, int) and max_tokens > 0:
+                     self._last_context["percentage"] = round(
+                         context_tokens * 100 / max_tokens
+                     )
++            else:
++                self._last_context.update(percentage=0, total_tokens=0, known=False)
++                self._log("status", "native Codex compact context usage unknown")
+ 
+             after_pct = self._last_context.get("percentage", 0)
+             summary = result.get("summary")
+@@ -3179,6 +3189,11 @@
+             }
+         except QuotaGateError:
+             raise
++        except asyncio.CancelledError:
++            diagnostics = getattr(self._backend, "compact_diagnostics", {})
++            self._log("status", "native Codex compact caller cancelled; "
++                      + json.dumps(diagnostics, sort_keys=True))
++            raise
+         except Exception as exc:
+             detail = err_text(exc)
+             self._log("error", f"native Codex compact failed: {detail}")
+@@ -3188,6 +3203,7 @@
+                 "error": detail,
+                 "before_pct": before_pct,
+                 "thread_id": self.session_id,
++                "compact_diagnostics": getattr(exc, "compact_diagnostics", {}),
+             }
+         finally:
+             self._compacting = False

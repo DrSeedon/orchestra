@@ -1,0 +1,24 @@
+{
+  "command": [
+    "uv",
+    "run",
+    "--frozen",
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_codex_compact_state.py",
+    "-k",
+    "success_forms_and_order or terminal_failure_never_ok_or_timeout or failed_beats_retry_hint_and_retains_cause or retryable_error_can_recover or fatal_error_wakes_without_terminal or whole_operation_is_busy_after_item or second_started_does_not_replace_owner or foreign_events_cannot_complete_or_contaminate or ordinary_send_recovers_while_unresolved_with_early_events or old_main_queue_and_stale_runtime_snapshot_are_not_evidence or native_interrupt_uses_compact_turn or early_idle_compaction_cannot_be_shown_as_next_user_compact or legacy_failure_without_started_is_not_hidden_by_timeout or session_unknown_usage_does_not_reuse_precompact_percentage or session_interrupt_does_not_disconnect_unknown_compact or session_actual_send_and_listener_proceed_after_compact_timeout or legacy_missing_ids_has_exclusive_lifecycle_boundary or missing_start_does_not_report_success",
+    "-q",
+    "-s",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=.orchestra/tasks/V-1079/tmp/old-final"
+  ],
+  "exit_code": 1,
+  "old_source_sha256": {
+    "backend_codex": "ac44171eb07ea81e1396626c5ec02339a3c2f52dae619870bc419e65a2a9e79c",
+    "session": "bfd6b875c8f649c87157bc7f4002a6782e90c366dfaddfa5fb665b778d9f28b6",
+    "session_hibernate": "f7b522194e6af474244a463ba0a2866b24e752ccf5d5c6edbb39ddbf9aa6b087"
+  }
+}

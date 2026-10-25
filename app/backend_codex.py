@@ -13,6 +13,7 @@ import tomllib
 import uuid
 import weakref
 from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator, Optional
@@ -99,6 +100,64 @@ _CODEX_TOOL_ITEM_TYPES = frozenset({
 
 class CodexOversizedRecordError(RuntimeError):
     """The app-server JSONL framing was lost and this transport is unusable."""
+
+
+@dataclass
+class _CompactOperation:
+    """One native request owns its notifications, even after its caller leaves."""
+
+    sequence: int
+    thread_id: str
+    future: asyncio.Future
+    transport_generation: int
+    started_at: float = field(default_factory=time.monotonic)
+    acknowledged: bool = False
+    turn_id: str | None = None
+    started: bool = False
+    compacted: bool = False
+    terminal: str | None = None
+    error: dict = field(default_factory=dict)
+    waiting: bool = True
+    outcome: str = "pending"
+    remote_outcome: str = "unknown"
+    late: bool = False
+    times: dict = field(default_factory=dict)
+    caller_stage: str | None = None
+    ignored: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def stage(self) -> str:
+        if not self.acknowledged:
+            return "request acknowledgement"
+        return "turn lifecycle" if self.compacted else "completion notification"
+
+    def diagnostics(self) -> dict:
+        # No native IDs, error bodies, prompts or paths in diagnostic metadata.
+        info = self.error.get("codexErrorInfo")
+        names = info.keys() if isinstance(info, dict) else (info,)
+        known = {
+            "httpConnectionFailed", "responseStreamConnectionFailed",
+            "responseStreamDisconnected", "responseTooManyFailedAttempts",
+            "serverOverloaded", "internalServerError", "usageLimitExceeded",
+            "sessionBudgetExceeded", "contextWindowExceeded",
+        }
+        return {
+            "operation": self.sequence,
+            "transport_generation": self.transport_generation,
+            "stage": self.caller_stage or self.stage,
+            "outcome": self.outcome,
+            "remote_outcome": self.remote_outcome,
+            "late": self.late,
+            "turn_known": self.turn_id is not None,
+            "compacted": self.compacted,
+            "terminal_status": self.terminal,
+            "elapsed_seconds": round(time.monotonic() - self.started_at, 3),
+            "stages_seconds": dict(self.times),
+            "error_received": bool(self.error),
+            "error_info": sorted(name for name in names if isinstance(name, str) and name in known),
+            "will_retry": self.error.get("willRetry") if isinstance(self.error.get("willRetry"), bool) else None,
+            "ignored": dict(self.ignored),
+        }
 
 
 async def _run_process(
@@ -497,13 +556,20 @@ class CodexBackend(JsonRpcStdioTransport):
         self._last_call_usage: dict[str, int] | None = None
         self._model_context_window = CODEX_CONTEXT_LIMITS.get(model, 258400)
         self._compact_future: asyncio.Future | None = None
-        self._compact_notifications: asyncio.Queue[dict] | None = None
+        self._compact_operation: _CompactOperation | None = None
+        self._last_compact: _CompactOperation | None = None
+        self._compact_sequence = 0
+        self._transport_generation = 0
+        self._retired_compact_turns: set[str] = set()
+        self._seen_compact_items: set[str] = set()
+        self._starting_user_turn: list[dict] | None = None
         self._compact_context_tokens: int | None = None
         self._process_group: RuntimeProcessGroup | None = None
         self._hibernate_safe = False
         self._scope_reason = "process containment has not been checked"
         self._teardown_error: str | None = None
         self._reader_failure: BaseException | None = None
+        self._stdout_closed = False
         self._terminal_reader_failure = False
         self._connect_stage_started: float | None = None
 
@@ -566,6 +632,16 @@ class CodexBackend(JsonRpcStdioTransport):
     def active_turn_id(self) -> Optional[str]:
         """Current native turn identifier."""
         return self._active_turn_id
+
+    @property
+    def compact_pending(self) -> bool:
+        """Includes an unknown remote outcome after a local timeout/cancellation."""
+        return self._compact_operation is not None
+
+    @property
+    def compact_diagnostics(self) -> dict:
+        operation = self._compact_operation or self._last_compact
+        return operation.diagnostics() if operation else {}
 
     @property
     def deferred_interrupt_pending(self) -> bool:
@@ -658,6 +734,10 @@ class CodexBackend(JsonRpcStdioTransport):
         self._disconnecting = False
         self._last_stderr = ""
         self._reader_failure = None
+        self._stdout_closed = False
+        self._transport_generation += 1
+        self._retired_compact_turns.clear()
+        self._seen_compact_items.clear()
         self._terminal_reader_failure = False
         codex_cmd = self._codex_command()
 
@@ -780,10 +860,14 @@ class CodexBackend(JsonRpcStdioTransport):
             raise
 
     async def send(self, message: str) -> None:
-        if self._teardown_error or not self.is_alive:
+        if self._teardown_error or not self.is_alive or self._stdout_closed:
             await self.connect()
         if not self._thread_id:
             raise RuntimeError("Codex thread is not initialized")
+        if self._compact_operation and self._compact_operation.waiting:
+            raise RuntimeError("Codex context compact already in progress; queue this message")
+        if self._starting_user_turn is not None:
+            raise RuntimeError("Codex turn is starting; queue this message")
 
         user_input = [{"type": "text", "text": message}]
         if self._active_turn_id:
@@ -814,16 +898,23 @@ class CodexBackend(JsonRpcStdioTransport):
             else (self._runtime_totals() if self._thread_id else None)
         )
         self._active_turn_started_monotonic = time.monotonic()
-        result = await self._request("turn/start", {
-            "threadId": self._thread_id,
-            "input": user_input,
-            "model": self.model,
-            "effort": self.reasoning_effort,
-        })
-        turn_id = ((result.get("turn") or {}).get("id"))
-        if not turn_id:
-            raise RuntimeError("Codex app-server returned no turn id")
-        self._active_turn_id = turn_id
+        early_notifications: list[dict] = []
+        self._starting_user_turn = early_notifications
+        try:
+            result = await self._request("turn/start", {
+                "threadId": self._thread_id,
+                "input": user_input,
+                "model": self.model,
+                "effort": self.reasoning_effort,
+            })
+            turn_id = ((result.get("turn") or {}).get("id"))
+            if not turn_id:
+                raise RuntimeError("Codex app-server returned no turn id")
+            self._active_turn_id = turn_id
+        finally:
+            self._starting_user_turn = None
+            for notification in early_notifications:
+                self._route_notification(notification)
 
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self.is_alive:
@@ -872,6 +963,11 @@ class CodexBackend(JsonRpcStdioTransport):
                 if thread_id and self._thread_id and thread_id != self._thread_id:
                     continue
                 if not self._lifecycle_belongs_to_turn(message, expected_turn_id):
+                    continue
+                event_turn_id = self._notification_turn_id(message)
+                if (self._is_compaction_notification(message)
+                        and (event_turn_id and expected_turn_id and event_turn_id != expected_turn_id
+                             or message.get("_codex_idle_compaction"))):
                     continue
                 if self._quarantine_deferred_assistant(message):
                     continue
@@ -1029,12 +1125,14 @@ class CodexBackend(JsonRpcStdioTransport):
         return False
 
     async def interrupt(self) -> bool:
-        if not self._active_turn_id or not self._thread_id or not self.is_alive:
+        compact = self._compact_operation
+        turn_id = self._active_turn_id or (compact.turn_id if compact else None)
+        if not turn_id or not self._thread_id or not self.is_alive:
             return False
         try:
             await asyncio.wait_for(self._request("turn/interrupt", {
                 "threadId": self._thread_id,
-                "turnId": self._active_turn_id,
+                "turnId": turn_id,
             }), timeout=5)
             return True
         except Exception as exc:
@@ -1042,84 +1140,105 @@ class CodexBackend(JsonRpcStdioTransport):
             return False
 
     async def compact_context(self) -> dict:
-        """Compact the current Codex thread without replacing its thread id."""
-        if not self.is_alive:
-            raise RuntimeError("Codex app-server is not running")
+        """Await ACK, compaction evidence and a successful terminal as one operation."""
+        if not self.is_alive or self._reader_failure is not None or self._stdout_closed:
+            raise RuntimeError("Codex app-server is not running or its transport is closed")
         if not self._thread_id:
             raise RuntimeError("Codex thread is not initialized")
-        if self._active_turn_id:
+        if self._active_turn_id or self._events_active or self._starting_user_turn is not None:
             raise RuntimeError("cannot compact Codex context during an active turn")
-        if self._compact_future and not self._compact_future.done():
-            raise RuntimeError("Codex context compact already in progress")
+        if self.compact_pending:
+            raise RuntimeError("Codex context compact already in progress (possibly unresolved)")
 
+        self._compact_sequence += 1
         future = asyncio.get_running_loop().create_future()
-        compact_notifications: asyncio.Queue[dict] = asyncio.Queue()
+        op = _CompactOperation(
+            self._compact_sequence, self._thread_id, future, self._transport_generation,
+        )
+        self._compact_operation = op
         self._compact_future = future
-        self._compact_notifications = compact_notifications
         self._compact_context_tokens = None
-        stage = "request acknowledgement"
+        # ACK and notifications are independent. A definitive error/EOF must also
+        # wake a caller whose ACK is missing; notifications may precede the ACK.
+        request = asyncio.create_task(self._request(
+            "thread/compact/start", {"threadId": op.thread_id},
+        ))
         try:
             async with asyncio.timeout(CODEX_COMPACT_TIMEOUT_SECONDS):
-                await self._request(
-                    "thread/compact/start",
-                    {"threadId": self._thread_id},
-                )
-                stage = "completion notification"
-                result = await future
-                stage = "turn lifecycle"
-                await self._drain_compact_lifecycle(compact_notifications)
-                # The usage notification normally precedes contextCompaction completion,
-                # but yield once for app-server versions that emit it immediately after.
+                await asyncio.wait((request, future), return_when=asyncio.FIRST_COMPLETED)
+                if future.done() and future.exception() is not None:
+                    return await future
+                await request
+                op.acknowledged = True
+                op.times["ack"] = round(time.monotonic() - op.started_at, 3)
+                self._finish_compact_if_ready(op)
+                result = await asyncio.shield(future)
+                # Include usage delivered immediately after C/T in the same batch.
                 await asyncio.sleep(0)
-            context_tokens = self._compact_context_tokens
-            if context_tokens is None:
-                runtime_context = self._runtime_context()
-                if runtime_context:
-                    context_tokens = int(runtime_context.get("input_tokens") or 0)
-                    runtime_window = runtime_context.get("model_context_window")
-                    if isinstance(runtime_window, int) and runtime_window > 0:
-                        self._model_context_window = runtime_window
-            result["context_tokens"] = context_tokens
+            result["context_tokens"] = self._compact_context_tokens
             result["max_tokens"] = self._model_context_window
+            op.outcome = "success"
             return result
         except TimeoutError as exc:
-            raise TimeoutError(
+            op.outcome = "timeout"
+            op.caller_stage = op.stage
+            error = TimeoutError(
                 f"Codex compact timed out after {CODEX_COMPACT_TIMEOUT_SECONDS:g}s "
-                f"while waiting for {stage}"
-            ) from exc
+                f"while waiting for {op.stage}; remote outcome={op.remote_outcome}"
+            )
+            error.compact_diagnostics = op.diagnostics()
+            raise error from exc
+        except asyncio.CancelledError:
+            op.outcome = "cancelled"
+            op.caller_stage = op.stage
+            raise
+        except CodexProtocolError:
+            # An RPC rejection is positive evidence that this request did not start.
+            op.outcome = "rejected"
+            op.remote_outcome = "rejected"
+            self._release_compact(op)
+            raise
+        except Exception as exc:
+            op.outcome = "failed"
+            exc.compact_diagnostics = op.diagnostics()
+            raise
         finally:
-            if self._compact_future is future:
-                self._compact_future = None
-            if self._compact_notifications is compact_notifications:
-                self._compact_notifications = None
+            op.waiting = False
+            if not request.done():
+                request.cancel()
             if not future.done():
                 future.cancel()
             elif not future.cancelled():
                 future.exception()
+            self._compact_future = None
+            if op.terminal is not None:
+                self._release_compact(op)
+            self._last_compact = op
+            self._log_compact_state(op)
+            await asyncio.gather(request, return_exceptions=True)
 
-    async def _drain_compact_lifecycle(
-        self,
-        notifications: asyncio.Queue[dict],
-    ) -> None:
-        compact_turn_id: str | None = None
-        while True:
-            message = await notifications.get()
-            method = message.get("method", "")
-            turn_id = str(
-                (((message.get("params") or {}).get("turn") or {}).get("id")) or ""
-            )
-            if method == "turn/started":
-                compact_turn_id = turn_id
-            elif method == "turn/completed":
-                if compact_turn_id is None:
-                    raise RuntimeError(
-                        "Codex compact completed without a preceding turn/started"
-                    )
-                if self._lifecycle_belongs_to_turn(message, compact_turn_id):
-                    return
+    @staticmethod
+    def _log_compact_state(op: _CompactOperation) -> None:
+        logger.info("Codex compact state %s", json.dumps(op.diagnostics(), sort_keys=True))
 
+    def _release_compact(self, op: _CompactOperation) -> None:
+        if self._compact_operation is op:
+            self._compact_operation = None
+        if op.turn_id and op.turn_id not in self._retired_compact_turns:
+            self._retired_compact_turns.add(op.turn_id)
+        self._last_compact = op
 
-
+    def _fail_compact_transport(self, error: BaseException) -> None:
+        op = self._compact_operation
+        if op is None:
+            return
+        if op.terminal is None:
+            op.remote_outcome = "transport_closed"
+        op.late = not op.waiting
+        if not op.future.done():
+            op.future.set_exception(error)
+        self._release_compact(op)
+        self._log_compact_state(op)
 
     async def _disconnect_direct(self, proc: asyncio.subprocess.Process) -> None:
         if proc.returncode is None:
@@ -1141,10 +1260,9 @@ class CodexBackend(JsonRpcStdioTransport):
             if not future.done():
                 future.set_exception(RuntimeError("Codex app-server disconnected"))
         self._pending_requests.clear()
-        if self._compact_future and not self._compact_future.done():
-            self._compact_future.set_exception(
-                RuntimeError("Codex app-server disconnected during context compact")
-            )
+        self._fail_compact_transport(
+            RuntimeError("Codex app-server disconnected during context compact")
+        )
         await self.teardown_owned_pipes()
         self._proc = None
         self._process_group = None
@@ -1175,11 +1293,16 @@ class CodexBackend(JsonRpcStdioTransport):
         stream = self._out
         if stream is None:
             return
+        generation = self._transport_generation
+        proc = self._proc
+        notifications = self._notifications
         try:
             while True:
                 try:
                     raw = await stream.readline()
                 except ValueError as exc:
+                    if generation != self._transport_generation:
+                        return
                     error_text = str(exc)
                     if error_text not in CODEX_OVERSIZE_READLINE_ERRORS:
                         self._reader_failure = exc
@@ -1196,10 +1319,9 @@ class CodexBackend(JsonRpcStdioTransport):
                     for future in self._pending_requests.values():
                         if not future.done():
                             future.set_exception(failure)
-                    if self._compact_future and not self._compact_future.done():
-                        self._compact_future.set_exception(failure)
+                    self._fail_compact_transport(failure)
                     await self._abort_oversized_transport()
-                    await self._notifications.put({
+                    await notifications.put({
                         "method": "_process/exited",
                         "params": {
                             "returncode": getattr(self._proc, "returncode", None),
@@ -1208,11 +1330,16 @@ class CodexBackend(JsonRpcStdioTransport):
                         },
                     })
                     return
+                if generation != self._transport_generation:
+                    return
                 if not raw:
                     break
                 try:
                     message = json.loads(raw.decode("utf-8"))
                 except (UnicodeDecodeError, json.JSONDecodeError):
+                    op = self._compact_operation
+                    if op:
+                        op.ignored["invalid_json"] = op.ignored.get("invalid_json", 0) + 1
                     logger.warning("Codex app-server emitted invalid JSONL")
                     continue
                 request_id = message.get("id")
@@ -1242,30 +1369,34 @@ class CodexBackend(JsonRpcStdioTransport):
                             future.set_result(message.get("result") or {})
                     continue
                 if message.get("method"):
-                    if message["method"] == "thread/tokenUsage/updated":
-                        self._record_token_usage(message.get("params") or {})
                     if message["method"] == "mcpServer/startupStatus/updated":
                         params = message.get("params") or {}
                         name = params.get("name") or "unknown"
                         status = params.get("status") or "unknown"
                         self._log_connect_stage(f"mcp_{name}_{status}")
-                    self._complete_compaction_from_notification(message)
-                    notifications = self._compact_notifications
-                    if notifications is None:
-                        notifications = self._notifications
-                    await notifications.put(message)
+                    self._route_notification(message)
         except asyncio.CancelledError:
             return
         except Exception as exc:
+            if generation != self._transport_generation:
+                return
             if self._reader_failure is None:
                 self._reader_failure = exc
             logger.exception("Codex app-server reader failed: %s", exc)
             if isinstance(exc, ValueError):
                 raise
         finally:
+            if generation != self._transport_generation:
+                return
+            self._stdout_closed = True
             if not self._terminal_reader_failure:
-                proc = self._proc
+                # stdout EOF is a transport failure now, independently of when
+                # proc.wait()/stderr drain finish. Wake ACK and lifecycle stages.
+                transport_error = RuntimeError("Codex app-server transport closed during context compact")
+                self._fail_compact_transport(transport_error)
                 returncode = await proc.wait() if proc is not None else None
+                if generation != self._transport_generation:
+                    return
                 stderr_task = self._stderr_task
                 if stderr_task is not None and stderr_task is not asyncio.current_task():
                     try:
@@ -1279,6 +1410,8 @@ class CodexBackend(JsonRpcStdioTransport):
                         pass
                     except Exception as exc:
                         logger.warning("Codex stderr drain failed during exit: %s", exc)
+                if generation != self._transport_generation:
+                    return
                 stderr = sanitize_sensitive_text(self._last_stderr).strip()
                 message = (
                     f"Codex app-server exited with code {returncode}" if proc is not None
@@ -1286,7 +1419,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 )
                 if stderr:
                     message = f"{message}: {stderr}"
-                queued = getattr(self._notifications, "_queue", ())
+                queued = getattr(notifications, "_queue", ())
                 terminal_queued = False
                 if self._reader_failure is not None and self._active_turn_id:
                     terminal_queued = any(
@@ -1313,15 +1446,13 @@ class CodexBackend(JsonRpcStdioTransport):
                 for future in self._pending_requests.values():
                     if not future.done():
                         future.set_exception(pending_error)
-                if self._compact_future and not self._compact_future.done():
-                    self._compact_future.set_exception(pending_error)
                 if not self._disconnecting and (
                     self._events_active
                     or self._active_turn_id
                     or reader_failure is not None
                     or returncode not in (None, 0)
                 ) and not terminal_queued:
-                    await self._notifications.put({
+                    await notifications.put({
                         "method": "_process/exited",
                         "params": {
                             "returncode": returncode,
@@ -1355,33 +1486,151 @@ class CodexBackend(JsonRpcStdioTransport):
         if isinstance(window, int) and window > 0:
             self._model_context_window = window
 
+    @staticmethod
+    def _notification_turn_id(message: dict) -> str | None:
+        params = message.get("params") or {}
+        value = params.get("turnId") or (params.get("turn") or {}).get("id")
+        return str(value) if value else None
+
+    @staticmethod
+    def _is_compaction_notification(message: dict) -> bool:
+        return bool(
+            message.get("method") in ("context/compacted", "thread/compacted")
+            or (message.get("method") == "item/completed"
+                and ((message.get("params") or {}).get("item") or {}).get("type")
+                == "contextCompaction")
+        )
+
     def _complete_compaction_from_notification(self, message: dict) -> bool:
-        method = message.get("method", "")
+        """Reduce owned protocol events at receive time, never behind a C waiter.
+
+        Missing-ID success needs an exclusive S..T compact lifecycle; failures
+        remain actionable before S inside the exclusive request window.
+        Explicit foreign IDs never borrow that compatibility rule. Once the caller
+        leaves, ordinary turns use their own turn/start ACK to disambiguate early
+        events; they do not release or reuse the unresolved compact owner.
+        """
         params = message.get("params") or {}
         thread_id = params.get("threadId")
         if thread_id and thread_id != self._thread_id:
+            op = self._compact_operation
+            if op:
+                op.ignored["foreign_thread"] = op.ignored.get("foreign_thread", 0) + 1
+            return True
+        method = message.get("method", "")
+        turn_id = self._notification_turn_id(message)
+        if turn_id and turn_id in self._retired_compact_turns:
+            return True
+        is_compact = self._is_compaction_notification(message)
+        item_id = str((params.get("item") or {}).get("id") or "") if is_compact else ""
+        if item_id and item_id in self._seen_compact_items:
+            return True
+        op = self._compact_operation
+        if op is None:
+            if item_id:
+                self._seen_compact_items.add(item_id)
+            # Remember queued lifecycle evidence too: it cannot claim a later Q.
+            if method == "turn/completed" and turn_id:
+                self._retired_compact_turns.add(turn_id)
             return False
-
-        item = params.get("item") or {}
-        completed = (
-            method in ("context/compacted", "thread/compacted")
-            or (
-                method == "item/completed"
-                and item.get("type") == "contextCompaction"
-            )
-        )
-        if not completed:
+        if self._active_turn_id and turn_id == self._active_turn_id:
+            if method == "turn/completed":
+                self._retired_compact_turns.add(turn_id)
+            if item_id:
+                self._seen_compact_items.add(item_id)
             return False
-
-        future = self._compact_future
-        if future and not future.done():
-            future.set_result({
-                "ok": True,
-                "thread_id": self._thread_id,
-                "context_tokens": self._compact_context_tokens,
-                "max_tokens": self._model_context_window,
-            })
+        if self._active_turn_id and not turn_id:
+            # ID-free legacy events are ambiguous once a user turn is active.
+            # They cannot complete the detached compact or change its usage.
+            op.ignored["ambiguous_user_overlap"] = op.ignored.get("ambiguous_user_overlap", 0) + 1
+            return is_compact or method in ("error", "thread/tokenUsage/updated")
+        if not thread_id or not turn_id:
+            op.ignored["legacy_unscoped"] = op.ignored.get("legacy_unscoped", 0) + 1
+        if op.turn_id is not None and turn_id and turn_id != op.turn_id:
+            op.ignored["foreign_turn"] = op.ignored.get("foreign_turn", 0) + 1
+            return True
+        if method == "turn/started":
+            if not op.started:
+                op.started = True
+                op.turn_id = op.turn_id or turn_id
+                op.times["started"] = round(time.monotonic() - op.started_at, 3)
+            return True
+        if op.started and op.turn_id is None and turn_id:
+            op.turn_id = turn_id
+        # In legacy streams, S is the boundary for successful compact evidence.
+        if not op.started:
+            # A failure inside this exclusive request window is actionable even
+            # if S/legacy IDs were lost. It cannot prove successful compaction.
+            if method in ("error", "turn/completed"):
+                op.turn_id = op.turn_id or turn_id
+            else:
+                return True
+        if is_compact:
+            op.compacted = True
+            op.times.setdefault("compacted", round(time.monotonic() - op.started_at, 3))
+            if item_id:
+                self._seen_compact_items.add(item_id)
+        elif method == "error":
+            op.error = {**(params.get("error") or {}), "willRetry": params.get("willRetry")}
+            op.times.setdefault("error", round(time.monotonic() - op.started_at, 3))
+            if params.get("willRetry") is not True:
+                self._fail_compact_operation(op, "error")
+        elif method == "turn/completed":
+            turn = params.get("turn") or {}
+            status = turn.get("status")
+            op.terminal = status if status in ("completed", "failed", "interrupted") else "unsupported"
+            op.remote_outcome = op.terminal
+            if turn.get("error") and not op.error:
+                op.error = dict(turn["error"])
+            op.times.setdefault("terminal", round(time.monotonic() - op.started_at, 3))
+            if op.terminal != "completed":
+                self._fail_compact_operation(op, op.terminal)
+            elif not op.started:
+                self._fail_compact_operation(op, "completed without a preceding turn/started")
+        elif method == "thread/tokenUsage/updated":
+            self._record_token_usage(params)
+            return True
+        self._finish_compact_if_ready(op)
+        if not op.waiting and op.terminal is not None:
+            op.late = True
+            self._release_compact(op)
+            self._log_compact_state(op)
+        # Compact may emit progress/tool records; none belong to a user consumer.
         return True
+
+    @staticmethod
+    def _finish_compact_if_ready(op: _CompactOperation) -> None:
+        # Keep the waiter pending through ACK even when all notifications arrived
+        # first. EOF must still be able to fail it while proc.wait is pending.
+        if (op.acknowledged and op.started and op.compacted
+                and op.terminal == "completed" and not op.future.done()):
+            op.future.set_result({"ok": True, "thread_id": op.thread_id})
+
+    @staticmethod
+    def _fail_compact_operation(op: _CompactOperation, status: str) -> None:
+        if op.future.done():
+            return
+        detail = sanitize_sensitive_text(str(op.error.get("message") or ""))
+        error = RuntimeError(f"Codex compact {status}" + (f": {detail}" if detail else ""))
+        op.future.set_exception(error)
+
+    def _route_notification(self, message: dict) -> None:
+        if self._starting_user_turn is not None:
+            # ACK supplies the user turn ID, even if S/C/error precede it. Preserve
+            # arrival order until it can be compared with the compact owner.
+            self._starting_user_turn.append(message)
+            return
+        if self._complete_compaction_from_notification(message):
+            return
+        if message.get("method") == "thread/tokenUsage/updated":
+            params = message.get("params") or {}
+            turn_id = self._notification_turn_id(message)
+            if not turn_id or not self._active_turn_id or turn_id == self._active_turn_id:
+                self._record_token_usage(params)
+        if (self._is_compaction_notification(message)
+                and not self._notification_turn_id(message) and not self._active_turn_id):
+            message = {**message, "_codex_idle_compaction": True}
+        self._notifications.put_nowait(message)
 
     def _convert_notification(self, message: dict) -> list[AgentEvent]:
         method = message.get("method", "")

@@ -1,0 +1,155 @@
+{
+  "accepted.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 862,
+      "published_sha256": "a1b95e2ce3f98828c5d032abf6b62539901bf0a81f1fde83e683e03beb312892",
+      "raw_private_file": "private-verbatim/accepted.stdout.txt",
+      "raw_sha256": "4805f6498e87ff9e54d539f48bda6d966936d2411db50c33b6f1d4b2d10dd688"
+    }
+  ],
+  "baseline-corrected.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 3486,
+      "published_sha256": "5207cd955ae99a7aca1f244701c88a8522a5dff5b865392f3f364f1d50e5e827",
+      "raw_private_file": "private-verbatim/baseline-corrected.stdout.txt",
+      "raw_sha256": "315769ead3199854f4223e10d6f4e24dc564d1de6589fdfd5190317f2eae3e65"
+    }
+  ],
+  "baseline.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 4510,
+      "published_sha256": "945100c12be4a32bd0ba0c94a5ec097a2128390e5bc264df62ce62bbf675742a",
+      "raw_private_file": "private-verbatim/baseline.stdout.txt",
+      "raw_sha256": "86bea1611859dc4681a9b88d4ebf7eb7682abd0f0fe83f743d03548c79f6a10f"
+    }
+  ],
+  "expanded.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 427,
+      "published_sha256": "6325a8ab62e81ed7fa88fb776ece304816d0d0ae9dc9c7ca7954d034189329d3",
+      "raw_private_file": "private-verbatim/expanded.stdout.txt",
+      "raw_sha256": "1c0b29ed3af06cbf6c813667bfc9ace8ec84f20681a72685445151ad85b08353"
+    }
+  ],
+  "final-selected.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 844,
+      "published_sha256": "5db0dd319d8022d7a83b8353a307048d80a5c4a9146fbb015bc8f5b9747d314d",
+      "raw_private_file": "private-verbatim/final-selected.stdout.txt",
+      "raw_sha256": "b41a2010393386d73a0b066359dbd19080035e70a720481aec79e35ea61d9844"
+    }
+  ],
+  "final.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 856,
+      "published_sha256": "6f9a86a93b22a235436cb55e30ac368ecde778ade8adde6e72e04afd1aa9818d",
+      "raw_private_file": "private-verbatim/final.stdout.txt",
+      "raw_sha256": "2594ba49d5d2e9744d5bd066f5bfc26f982d2cff2e550fdf3b8a5160c81de554"
+    }
+  ],
+  "final2.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 856,
+      "published_sha256": "5fa4ed43f55898f937c1ac4184913b9f7db107e441fcd2d073030d70d3658ceb",
+      "raw_private_file": "private-verbatim/final2.stdout.txt",
+      "raw_sha256": "5086e6ef33e7c09c328ecb9f7878005e7da7e9fedf7869d29cc403ad18917975"
+    }
+  ],
+  "first.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 415,
+      "published_sha256": "c35e865c8f5bf5a1022d5b65f0945e258ea52e58a68ad0283a646222622bdf9f",
+      "raw_private_file": "private-verbatim/first.stdout.txt",
+      "raw_sha256": "fdcf2fe506718d18597e71558ee3e2e2934543d9c51e22180f5481dde0294b4b"
+    }
+  ],
+  "preack-review-full.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 909,
+      "published_sha256": "66806a3ea93aff0b18b548e71800120033e93d9b46c1928e1f41d1e09f7a0b7c",
+      "raw_private_file": "private-verbatim/preack-review-full.stdout.txt",
+      "raw_sha256": "cd080007a17f674487e1f817dde21a5b727556b34bde5d40aaa4c2e5c09f1ff0"
+    }
+  ],
+  "preack-review-green.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 339,
+      "published_sha256": "5c6e3a25851966e3adaf8ec765783d5561b6bc6a6cda98dd7fcc25cee62f591e",
+      "raw_private_file": "private-verbatim/preack-review-green.stdout.txt",
+      "raw_sha256": "a2930357d7b1a234a9bab52bd6a7da5b6c8f8896d2834632e78041aebb12007f"
+    }
+  ],
+  "preack-review-red.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 268,
+      "published_sha256": "9f2c0d3f7114a7a9c84e6a18ac20b4d050c783430cef3a3d94795a075c5c26a3",
+      "raw_private_file": "private-verbatim/preack-review-red.stdout.txt",
+      "raw_sha256": "6e114f57ee90e56d98ad264531bf3c06b162cba460eaeca6f2aa268ff3bfa8c1"
+    }
+  ],
+  "report.md": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 73,
+      "published_sha256": "df165a519e8bca05cc30014f2d385b23419e2f1aa1e4034431b878baca56e04d",
+      "raw_private_file": "private-verbatim/report.md",
+      "raw_sha256": "cd31fc0ab37725647a318f1908aaa2879d8e6f895d8c0ecd4e088e107c2af971"
+    }
+  ],
+  "review-verification.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 10,
+      "published_sha256": "fa07c9d7500349166ec8dc2286dd353737da680d5dbc3bcb7407e089de6521fe",
+      "raw_private_file": "private-verbatim/review-verification.stdout.txt",
+      "raw_sha256": "ca127f523578b4572cef638eaf9ac089d1ee46ffee978b7e83fa57dd0fd75565"
+    }
+  ],
+  "second.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 721,
+      "published_sha256": "ead6f7fc8cb5e16ef82761b782ff6738a5e956d0063c0cdc900431a95d2a0f68",
+      "raw_private_file": "private-verbatim/second.stdout.txt",
+      "raw_sha256": "d3894482092ab3f25bf7fdc3bc8755956005b43ac07baf2144fd704a9a3d2e60"
+    }
+  ],
+  "selected.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 1200,
+      "published_sha256": "faf0623de5def2e213a2ec7e2e11621e92beb5af3597fcc9ed74d79f9d121018",
+      "raw_private_file": "private-verbatim/selected.stdout.txt",
+      "raw_sha256": "75d07813c1c02952bd11dbd0d5d2bcc0980120cbf853008fb1f79b92717bd129"
+    }
+  ],
+  "verification-final.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 10,
+      "published_sha256": "11cc3db1b3500a944e956a45e275be2c30cf867c388e833a04c42d633d1ea9a9",
+      "raw_private_file": "private-verbatim/verification-final.stdout.txt",
+      "raw_sha256": "b3866466ad4e2e61fa41f3b20d04f0abd2c3fd91fa054b0f9034d5b666ccabfb"
+    }
+  ],
+  "verification.stdout.txt": [
+    {
+      "derivative": "runtime identity/path redaction only; every line preserved",
+      "newline_count": 10,
+      "published_sha256": "64ee2bafd85ef28ad001326c8859a8b552fda47d5adcc7029013e6526c5fc9e9",
+      "raw_private_file": "private-verbatim/verification.stdout.txt",
+      "raw_sha256": "89f2d43920ea98fb404c57612192d2cb65a12c71c19fcf07e4953063068f55a8"
+    }
+  ]
+}
