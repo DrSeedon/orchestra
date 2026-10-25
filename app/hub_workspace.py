@@ -110,6 +110,7 @@ class ProjectOptions:
     max_files: int = MAX_FILES
     max_file_bytes: int = MAX_FILE_BYTES
     persistent: bool = False   # keep a warm copy of the project on the hub between workers
+    clean_start: bool = False  # owner request: a worker may begin a NEW copy beside quarantined private-file records
 
 
 def project_options(scope: str) -> ProjectOptions:
@@ -134,6 +135,7 @@ def project_options(scope: str) -> ProjectOptions:
         max_files=number("max_files", MAX_FILES),
         max_file_bytes=number("max_file_mb", MAX_FILE_BYTES, mb),
         persistent=entry.get("persistent") is True,
+        clean_start=entry.get("clean_start") is True,
     )
 
 
@@ -741,6 +743,29 @@ class HubSsh:
         if found:
             raise HubFilePolicyError(_COMPANY_REFUSAL)
 
+    async def assert_fresh_target(self, remote_dir: str) -> None:
+        """A clean-start directory must not exist in any form (file, symlink, directory).
+
+        Only lstat's ENOENT means absent; EACCES, ENOTDIR and transport failures propagate."""
+        _check_remote(remote_dir, base_ok=False)
+        q = shlex.quote(remote_dir)
+        probe = (
+            "import os, sys\n"
+            "try:\n"
+            "    os.lstat(sys.argv[1])\n"
+            "except FileNotFoundError:\n"
+            "    sys.exit(3)\n"
+            "except OSError as error:\n"
+            "    print(f'hub clean-start path inspection failed (errno {error.errno})', file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
+        found = await self.run(
+            f"if test -L {q}; then printf x; else "
+            f"python3 -c {shlex.quote(probe)} {q}; fresh_rc=$?; "
+            f'case "$fresh_rc" in 0) printf x;; 3) :;; *) exit "$fresh_rc";; esac; fi')
+        if found:
+            raise HubWorkspaceError("hub clean start: the new workspace directory already exists; nothing was uploaded")
+
     async def remove(self, remote_dir: str) -> None:
         _check_remote(remote_dir, base_ok=False)
         root = await self.root()
@@ -994,6 +1019,11 @@ class WorkspaceState:
     created_at: float = field(default_factory=time.time)
     input_manifest: dict[str, str] | None = None  # immutable upload-origin untracked files; None = legacy
     file_policy_blocked: bool = False  # retained even if a foreign file is later removed by hand
+    # Owner-requested clean start: this record is a NEW generation that never copied from a persistent
+    # base or resumed a thread. `clean_start_of` names the quarantined records it was started beside; the
+    # authorization lives only here, so restart and retry need no setting and cannot reach their ancestry.
+    clean_start: bool = False
+    clean_start_of: list[str] = field(default_factory=list)
 
     def assert_file_policy(self) -> None:
         if self.file_policy_blocked:

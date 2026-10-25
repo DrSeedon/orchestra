@@ -10,6 +10,7 @@ all files.
 
 import asyncio
 import contextlib
+import dataclasses
 import logging
 import os
 import re
@@ -458,11 +459,9 @@ class HubBackend:
 
         # Check retained evidence before replacing a released record or cleaning
         # up an older workspace. A new thread must not erase the incident trail.
+        options = hw.project_options(self._scope)
         retained = hw.states_for_worktree(self.cwd)
-        if self._state is not None:
-            self._state.assert_file_policy()
-        for previous in retained:
-            previous.assert_file_policy()
+        quarantined = self._quarantine(options, retained)
         try:
             warning = await require_hub_capacity(self.model)
         except QuotaGateError as exc:
@@ -474,8 +473,15 @@ class HubBackend:
         ssh = self._ssh
         assert ssh is not None
         for previous in retained:
-            if previous.remote_dir:
-                await hw.check_workspace_file_policy(ssh, previous)
+            if previous.remote_dir and previous.ws_id not in quarantined:
+                try:
+                    await hw.check_workspace_file_policy(ssh, previous)
+                except hw.HubFilePolicyError:
+                    if not self._may_quarantine(options, previous):
+                        raise
+                    quarantined.add(previous.ws_id)
+        if self._state is not None and self._state.ws_id in quarantined:
+            self._state = None   # never resume a refused record or its thread
         known = hw.known_secret_values([getattr(mc, "_token", "")])
         root = Path(self.cwd)
         state = self._state
@@ -488,10 +494,18 @@ class HubBackend:
             state = hw.WorkspaceState(
                 ws_id=hw.WorkspaceState.new_id(), worktree=str(root.resolve()), remote_dir="")
             state.remote_dir = await ssh.dir_for(state.ws_id)
+            if quarantined or options.clean_start:
+                # Owner-requested clean start: a new generation that never reads the warm base, beside
+                # untouched records (if any). Also a brand-new worktree with only a poisoned base.
+                await ssh.assert_fresh_target(state.remote_dir)
+                state.clean_start, state.clean_start_of = True, sorted(quarantined)
+                yield AgentEvent("status", "hub: clean start - a new workspace is created; earlier "
+                                           "records and the persistent base are not reused or touched")
             self._state = state
             state.save()   # before any hub write, so a crash leaves a record the sweep can release
             try:
-                await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc)
+                await release_for_worktree(self.cwd, keep_ws_id=state.ws_id, ssh=ssh, mc=mc,
+                                           skip=frozenset(quarantined))
             except hw.HubFilePolicyError:
                 raise
             except Exception as exc:
@@ -500,7 +514,9 @@ class HubBackend:
         # reached the hub: a turn that failed before it (e.g. tree too large) must retry as a first upload.
         fresh = not (state.uploaded or state.manifest)
         state.paths = self._current_paths(state)
-        options = hw.project_options(self._scope)
+        if state.clean_start:
+            # Never the warm base (it descends from the contaminated copy), and always an explicit scope.
+            options = dataclasses.replace(options, persistent=False)
         hw.require_scope(state.paths, options)
         plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
         yield AgentEvent("status", self._upload_note(fresh, plan))
@@ -592,6 +608,26 @@ class HubBackend:
             self._run_id = None
             hw.rmtree_quiet(scratch)
 
+    def _may_quarantine(self, options: hw.ProjectOptions, old: hw.WorkspaceState) -> bool:
+        """Refused records may be stepped around only for a clean start: the owner's project option, or the
+        persisted authorization of the clean generation being resumed. A clean generation is never exempt."""
+        if old.clean_start:
+            return False
+        current = self._state
+        return options.clean_start or bool(current and current.clean_start and old.ws_id in current.clean_start_of)
+
+    def _quarantine(self, options: hw.ProjectOptions, retained: list[hw.WorkspaceState]) -> set[str]:
+        """Local verdicts only (no hub call): ids of records refused by the file policy and stepped around."""
+        found: set[str] = set()
+        for old in ([self._state] if self._state is not None else []) + retained:
+            try:
+                old.assert_file_policy()
+            except hw.HubFilePolicyError:
+                if not self._may_quarantine(options, old):
+                    raise
+                found.add(old.ws_id)
+        return found
+
     async def _provision(self, mc: MultiCodeClient, ssh: hw.HubSsh, root: Path, state: hw.WorkspaceState,
                          plan: hw.UploadPlan, options: hw.ProjectOptions, fresh: bool, scratch: Path) -> list[str]:
         """Bring the hub copy up to date with the worktree and make sure the hub project exists."""
@@ -605,7 +641,7 @@ class HubBackend:
             await ssh.ensure_uv(scratch)
             self._uv_ready = True
         tar_path = scratch / "in.tar"
-        if fresh and options.persistent:
+        if fresh and options.persistent and not state.clean_start:
             sent, dropped = await hw.provision_from_base(ssh, root, self._scope, plan, state.remote_dir)
             notes.append(f"hub: persistent project copy reused ({sent} changed files sent, {dropped} removed)")
             state.manifest = dict(plan.manifest)
@@ -919,11 +955,12 @@ class HubBackend:
 
 
 async def release_for_worktree(worktree: str, *, keep_ws_id: str = "",
-                               ssh: hw.HubSsh | None = None, mc=None) -> list[str]:
+                               ssh: hw.HubSsh | None = None, mc=None,
+                               skip: frozenset[str] = frozenset()) -> list[str]:
     """Remove the worktree's hub workspaces, optionally keeping its replacement.
     Supplied transports belong to the caller and are not closed here.
     Returns the workspace ids that were cleaned; a failure is raised after the rest ran."""
-    states = [state for state in hw.states_for_worktree(worktree) if state.ws_id != keep_ws_id]
+    states = [state for state in hw.states_for_worktree(worktree) if state.ws_id != keep_ws_id and state.ws_id not in skip]
     if not states:
         return []
     cleaned: list[str] = []

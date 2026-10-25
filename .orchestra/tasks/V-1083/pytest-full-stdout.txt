@@ -1,0 +1,687 @@
+........................................................................ [  9%]
+........................................................................ [ 18%]
+.............................................FF......................... [ 28%]
+........................................................................ [ 37%]
+...................................................................... [ 47%]
+........FFFFFF.......................................................... [ 56%]
+........................................................................ [ 66%]
+....................................................................F... [ 75%]
+........................................................................ [ 85%]
+....................................................................E... [ 94%]
+.........................................                                [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_dynamic_workflow_call_renders_detail_card_and_expands_answer _
+
+fixturedef = <FixtureDef argname='dashboard_browser' scope='module' baseid=''>
+request = <SubRequest 'dashboard_browser' for <Function test_dynamic_workflow_call_renders_detail_card_and_expands_answer>>
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(fixturedef: FixtureDef, request) -> object | None:
+        if (
+            fixturedef.argname == "event_loop_policy"
+            and fixturedef.func.__module__ != __name__
+        ):
+            warnings.warn(
+                PytestDeprecationWarning(_EVENT_LOOP_POLICY_FIXTURE_DEPRECATION_WARNING),
+            )
+        asyncio_mode = _get_asyncio_mode(request.config)
+        if not _is_asyncio_fixture_function(fixturedef.func):
+            if asyncio_mode == Mode.STRICT:
+                # Ignore async fixtures without explicit asyncio mark in strict mode
+                # This applies to pytest_trio fixtures, for example
+>               return (yield)
+                        ^^^^^
+
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_frontend.py:549: in dashboard_browser
+    proc, origin = _start_dashboard_server(db_path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/fe-dash0/orchestra.db')
+
+    def _start_dashboard_server(db_path: Path) -> tuple[subprocess.Popen, str]:
+        # Empty strings beat load_dotenv(): existing keys are not overwritten, so
+        # the subprocess cannot pick up the machine unit's DASHBOARD_* / tunnels.
+        env = os.environ.copy()
+        env["ORCHESTRA_DB_PATH"] = str(db_path)
+        # Сервер поднимается ОТДЕЛЬНЫМ процессом, где `pytest` в sys.modules нет, а
+        # `load_dotenv()` в lifespan читает `.env` чекаута с БОЕВЫМИ путями. Не передав
+        # хранилище задач явно, мы отдаём подпроцессу живое: 22.09.2026 так было
+        # переписано 1863 записи боевого хранилища.
+        env["ORCHESTRA_TASK_REPOSITORY"] = str(db_path.parent / "tasks")
+        env["DASHBOARD_USER"] = ""
+        env["DASHBOARD_PASSWORD"] = ""
+        env["OWNER_MODE"] = ""
+        env["SSH_TUNNELS"] = ""
+        port = _free_port()
+        root = Path(__file__).resolve().parent.parent
+        # A pipe fills across tests and blocks the server event loop on logging.
+        output = tempfile.TemporaryFile(dir=db_path.parent)
+        try:
+            proc = subprocess.Popen(
+                [
+                    sys.executable, "-m", "uvicorn", "app.main:app",
+                    "--host", "127.0.0.1", "--port", str(port),
+                    "--log-level", "warning",
+                ],
+                cwd=str(root),
+                env=env,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+            )
+        except BaseException:
+            output.close()
+            raise
+        proc.stdout = output
+        origin = f"http://127.0.0.1:{port}"
+        started = time.monotonic()
+        deadline = started + _DASHBOARD_START_TIMEOUT_S
+        last = "no attempt"
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                output = _dashboard_output_tail(proc)
+                if proc.stdout is not None:
+                    proc.stdout.close()
+>               raise RuntimeError(
+                    f"dashboard fixture exited {proc.returncode}; "
+                    f"output tail:\n{output}"
+                )
+E               RuntimeError: dashboard fixture exited 3; output tail:
+E               _lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 216, in merged_lifespan
+E                   async with original_context(app) as maybe_original_state:
+E                 File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+E                   return await anext(self.gen)
+E                          ^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/app/main.py", line 517, in lifespan
+E                   with task_runtime_mode(production_runtime()) as task_owner:
+E                                          ^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/app/task_runtime.py", line 201, in production_runtime
+E                   TaskStore(root, origin=new_task_prefix()).initialize()
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/app/task_store.py", line 155, in initialize
+E                   self._commit_files({path: _bytes({'schema_version': SCHEMA_VERSION})}, 'Initialize task store')
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/app/task_store.py", line 296, in _commit_files
+E                   self._git('commit', '--only', '-m', message, '--', *relative)
+E                 File "/home/<publication-runtime-redacted>/orchestra-ws/vmi3407579/hub-945fd71a199e4ce4/app/task_store.py", line 112, in _git
+E                   raise TaskConflict(result.stderr.strip() or result.stdout.strip() or 'Git operation failed')
+E               app.task_store.TaskConflict: Author identity unknown
+E               
+E               *** Please tell me who you are.
+E               
+E               Run
+E               
+E                 git config --global user.email "you@example.com"
+E                 git config --global user.name "Your Name"
+E               
+E               to set your account's default identity.
+E               Omit --global to set the identity only in this repository.
+E               
+E               fatal: unable to auto-detect email address (got '<publication-runtime-redacted>@claude-hub-prod.(none)')
+E               
+E               ERROR:    Application startup failed. Exiting.
+
+tests/test_frontend.py:447: RuntimeError
+=================================== FAILURES ===================================
+______ test_plain_upload_freezes_no_exemptions_even_after_git_init[False] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_plain_upload_freezes_no_e0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6efb2e10>
+legacy = False
+
+    @pytest.mark.parametrize("legacy", [False, True])
+    def test_plain_upload_freezes_no_exemptions_even_after_git_init(tmp_path, monkeypatch, legacy):
+        root = tmp_path / "plain"
+        root.mkdir()
+        (root / "raw.txt").write_text("original input\n")
+        (root / "output.txt").write_text("derived output\n")
+        monkeypatch.setattr(hw, "STATE_DIR", tmp_path / "state")
+        plan = hw.plan_upload(root, known=[])
+        assert set(plan.manifest) == {"raw.txt", "output.txt"}
+        state = hw.WorkspaceState(hw.WorkspaceState.new_id(), str(root), "",
+                                  manifest=dict(plan.manifest) if legacy else {})
+>       hw.capture_inputs(root, state, plan.manifest)
+
+tests/test_hub_inputs_v1063.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_plain_upload_freezes_no_e0/plain')
+state = WorkspaceState(ws_id='hub-ebca445c01944b4e', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931345.7586439, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'output.txt': '92e702751a3c51513c20e9dd3499c49272a996a4446b55765f41a8fcb87e777f', 'raw.txt': '04cc35f442b9257357f9064d77b4a6cc6ce256515543ca182801b7944b5e49f4'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+______ test_plain_upload_freezes_no_exemptions_even_after_git_init[True] _______
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_plain_upload_freezes_no_e1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6efb00e0>
+legacy = True
+
+    @pytest.mark.parametrize("legacy", [False, True])
+    def test_plain_upload_freezes_no_exemptions_even_after_git_init(tmp_path, monkeypatch, legacy):
+        root = tmp_path / "plain"
+        root.mkdir()
+        (root / "raw.txt").write_text("original input\n")
+        (root / "output.txt").write_text("derived output\n")
+        monkeypatch.setattr(hw, "STATE_DIR", tmp_path / "state")
+        plan = hw.plan_upload(root, known=[])
+        assert set(plan.manifest) == {"raw.txt", "output.txt"}
+        state = hw.WorkspaceState(hw.WorkspaceState.new_id(), str(root), "",
+                                  manifest=dict(plan.manifest) if legacy else {})
+>       hw.capture_inputs(root, state, plan.manifest)
+
+tests/test_hub_inputs_v1063.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_plain_upload_freezes_no_e1/plain')
+state = WorkspaceState(ws_id='hub-63aed792e7194536', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931345.9272013, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'output.txt': '92e702751a3c51513c20e9dd3499c49272a996a4446b55765f41a8fcb87e777f', 'raw.txt': '04cc35f442b9257357f9064d77b4a6cc6ce256515543ca182801b7944b5e49f4'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+>               raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+E               app.hub_workspace.HubWorkspaceError: cannot establish hub input provenance with staged changes; commit or unstage first
+
+app/hub_workspace.py:1197: HubWorkspaceError
+____ test_backend_provisions_before_upload_and_rechecks_resumed_turn[False] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_provisions_before0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ed028a0>
+persistent = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("persistent", [False, True])
+    async def test_backend_provisions_before_upload_and_rechecks_resumed_turn(tmp_path, monkeypatch, persistent):
+        from unittest.mock import AsyncMock
+    
+        t = _provision_case(tmp_path, monkeypatch)
+    
+        async def base(*args):
+            t.order.append("upload")
+            return 2, 0
+    
+        monkeypatch.setattr(hw, "provision_from_base", AsyncMock(side_effect=base))
+        options = hw.ProjectOptions(persistent=persistent)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan, options, True, t.scratch)
+
+tests/test_hub_uv.py:283: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:638: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_provisions_before0/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931353.0992582, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac', 'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+____ test_backend_provisions_before_upload_and_rechecks_resumed_turn[True] _____
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_provisions_before1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ed017f0>
+persistent = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("persistent", [False, True])
+    async def test_backend_provisions_before_upload_and_rechecks_resumed_turn(tmp_path, monkeypatch, persistent):
+        from unittest.mock import AsyncMock
+    
+        t = _provision_case(tmp_path, monkeypatch)
+    
+        async def base(*args):
+            t.order.append("upload")
+            return 2, 0
+    
+        monkeypatch.setattr(hw, "provision_from_base", AsyncMock(side_effect=base))
+        options = hw.ProjectOptions(persistent=persistent)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan, options, True, t.scratch)
+
+tests/test_hub_uv.py:283: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:638: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_provisions_before1/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931353.2118905, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac', 'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+_________ test_backend_uv_failure_prevents_upload_and_project_creation _________
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_uv_failure_preven0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ef85fa0>
+
+    @pytest.mark.asyncio
+    async def test_backend_uv_failure_prevents_upload_and_project_creation(tmp_path, monkeypatch):
+        t = _provision_case(tmp_path, monkeypatch)
+        t.ssh.ensure_uv.side_effect = hw.HubWorkspaceError("uv missing")
+        with pytest.raises(hw.HubWorkspaceError, match="uv missing"):
+>           await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                       hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:302: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:638: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_uv_failure_preven0/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931353.3109665, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac', 'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_uv_failure_preven0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ef85fa0>
+
+    @pytest.mark.asyncio
+    async def test_backend_uv_failure_prevents_upload_and_project_creation(tmp_path, monkeypatch):
+        t = _provision_case(tmp_path, monkeypatch)
+        t.ssh.ensure_uv.side_effect = hw.HubWorkspaceError("uv missing")
+>       with pytest.raises(hw.HubWorkspaceError, match="uv missing"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'uv missing'
+E         Actual message: 'cannot inspect Git index for hub input provenance'
+
+tests/test_hub_uv.py:301: AssertionError
+___________ test_backend_incomplete_python_pair_needs_no_uv[files0] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_incomplete_python0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ed872f0>
+files = ()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("files", [(), ("pyproject.toml",), ("uv.lock",)])
+    async def test_backend_incomplete_python_pair_needs_no_uv(tmp_path, monkeypatch, files):
+        t = _provision_case(tmp_path, monkeypatch, files)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                   hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:313: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:638: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_incomplete_python0/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931353.4270287, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+___________ test_backend_incomplete_python_pair_needs_no_uv[files1] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_incomplete_python1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ed87bc0>
+files = ('pyproject.toml',)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("files", [(), ("pyproject.toml",), ("uv.lock",)])
+    async def test_backend_incomplete_python_pair_needs_no_uv(tmp_path, monkeypatch, files):
+        t = _provision_case(tmp_path, monkeypatch, files)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                   hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:313: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:638: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_incomplete_python1/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...0, created_at=1792931353.5521958, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'pyproject.toml': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+___________ test_backend_incomplete_python_pair_needs_no_uv[files2] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_incomplete_python2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e8b6ec99cd0>
+files = ('uv.lock',)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("files", [(), ("pyproject.toml",), ("uv.lock",)])
+    async def test_backend_incomplete_python_pair_needs_no_uv(tmp_path, monkeypatch, files):
+        t = _provision_case(tmp_path, monkeypatch, files)
+>       await t.backend._provision(t.mc, t.ssh, t.root, t.state, t.plan,
+                                   hw.ProjectOptions(), True, t.scratch)
+
+tests/test_hub_uv.py:313: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_hub.py:638: in _provision
+    hw.capture_inputs(root, state, state.manifest if not fresh else plan.manifest)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_backend_incomplete_python2/worktree')
+state = WorkspaceState(ws_id='hub-0123456789abcdef', worktree='/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_...=0, created_at=1792931353.676481, input_manifest=None, file_policy_blocked=False, clean_start=False, clean_start_of=[])
+manifest = {'uv.lock': '9f2d88dc631f806f783aa8ef17512594c045e401f569aa98100f412a847b13ac'}
+
+    def capture_inputs(root: Path, state: WorkspaceState, manifest: dict[str, str]) -> None:
+        """Freeze provenance once, before a mutable upload/sync manifest can replace it.
+    
+        Old records already distinguish hub-made paths. Only uploaded paths still
+        untracked in the index qualify; no directory exemption or Git ignore is used.
+        """
+        if state.input_manifest is not None:
+            return
+        repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+        if repository is not None and repository.returncode:
+            resolved = root.resolve()
+            if not any(os.path.lexists(parent / ".git") for parent in (resolved, *resolved.parents)):
+                # plan_upload also supports plain directories. Without a Git index
+                # they receive no input exemptions, even if Git is initialized later.
+                # Existing/broken Git metadata must still fail closed below.
+                state.input_manifest = {}
+                return
+        if state.manifest:
+            staged = _git_out(root, "diff", "--cached", "--quiet")
+            if staged is None or staged.returncode:
+                # A staged original temporarily looks tracked. Do not permanently
+                # forget its provenance: retry migration after the index is clean.
+                raise HubWorkspaceError("cannot establish hub input provenance with staged changes; commit or unstage first")
+        done = _git_out(root, "ls-files", "--cached", "-z")
+        if done is None or done.returncode:
+>           raise HubWorkspaceError("cannot inspect Git index for hub input provenance")
+E           app.hub_workspace.HubWorkspaceError: cannot inspect Git index for hub input provenance
+
+app/hub_workspace.py:1200: HubWorkspaceError
+_____________ TestCreateWorktree.test_different_repos_no_collision _____________
+
+self = <tests.test_workspace.TestCreateWorktree object at 0x7e8b73565e20>
+tmp_path = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0')
+git_repo = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo')
+wt_root = PosixPath('/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/worktrees')
+
+    def test_different_repos_no_collision(self, tmp_path, git_repo, wt_root):
+        from app.workspace import create_worktree
+        other = tmp_path / "other-repo"
+        other.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.name", "t"], cwd=other, check=True)
+        (other / "f.txt").write_text("x")
+        subprocess.run(["git", "add", "-A"], cwd=other, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=other, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=other, check=True)
+    
+        wt1 = create_worktree(str(git_repo), "worker-1")
+>       wt2 = create_worktree(str(other), "worker-1")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_workspace.py:468: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_path = '/tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/other-repo'
+name = 'worker-1', task_id = '', base_branch = '', worktree_cfg = None
+base_commit = '', sparse_task_id = ''
+
+    def create_worktree(repo_path: str, name: str, task_id: str = "",
+                        base_branch: str = "",
+                        worktree_cfg: "WorktreeCfg | None" = None,
+                        base_commit: str = "", sparse_task_id: str = "") -> Worktree:
+        repo = validate_repo_root(repo_path)
+        if base_branch and base_commit:
+            raise ValueError("pass either base_branch or base_commit, not both")
+        with repo_mutation_lock(repo):
+            if base_commit:
+                base_ref = _resolve_commit_oid(repo, base_commit)
+            else:
+                base_ref = resolve_base_branch(str(repo), base_branch)
+    
+            # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
+            # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
+            repo_slug = _slugify(str(repo))
+            wt_dir = WORKTREE_ROOT / repo_slug
+            _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
+            wt_path = wt_dir / name
+    
+            if task_id:
+                par = _normalize_task_id(task_id)
+                branch = f"task-{par}/{name}"
+            else:
+                branch = f"feat/{repo_slug}/{name}"
+    
+            if wt_path.exists():
+>               raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
+E               ValueError: worktree already exists: /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/worktrees/tmp-pytest-of-<publication-runtime-redacted>-pytest-89-test-different-repos-no/worker-1. Remove session first.
+
+app/workspace.py:764: ValueError
+----------------------------- Captured stderr call -----------------------------
+'CLAUDE.md' is tracked by /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo — copy skipped
+'.mcp.json' is tracked by /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo — copy skipped
+'.env' is tracked by /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo — copy skipped
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:847 'CLAUDE.md' is tracked by /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:847 '.mcp.json' is tracked by /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo — copy skipped
+INFO     app.workspace:workspace.py:847 '.env' is tracked by /tmp/pytest-of-<publication-runtime-redacted>/pytest-89/test_different_repos_no_collis0/repo — copy skipped
+=========================== short test summary info ============================
+FAILED tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init[False]
+FAILED tests/test_hub_inputs_v1063.py::test_plain_upload_freezes_no_exemptions_even_after_git_init[True]
+FAILED tests/test_hub_uv.py::test_backend_provisions_before_upload_and_rechecks_resumed_turn[False]
+FAILED tests/test_hub_uv.py::test_backend_provisions_before_upload_and_rechecks_resumed_turn[True]
+FAILED tests/test_hub_uv.py::test_backend_uv_failure_prevents_upload_and_project_creation
+FAILED tests/test_hub_uv.py::test_backend_incomplete_python_pair_needs_no_uv[files0]
+FAILED tests/test_hub_uv.py::test_backend_incomplete_python_pair_needs_no_uv[files1]
+FAILED tests/test_hub_uv.py::test_backend_incomplete_python_pair_needs_no_uv[files2]
+FAILED tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision
+ERROR tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+9 failed, 749 passed, 1 error, 2 subtests passed in 235.92s (0:03:55)
