@@ -542,6 +542,7 @@ class AgentSession:
     # done-callback tell "superseded by a newer turn" from a genuine death (V-882).
     _ended_listener: Optional[tuple] = field(default=None, repr=False)
     _turn_start_cancel_gen: int = field(default=0, repr=False)
+    _codex_limit_wake_generation: tuple[int, int] | None = field(default=None, repr=False)
     _handoff_config_dir: str = field(default="", repr=False)
     _handoff_recovery_required: bool = field(default=False, repr=False)
     _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
@@ -1345,6 +1346,19 @@ class AgentSession:
 
         while True:
             await self._lifecycle_lock.acquire()
+            codex_limit_wake = False
+            if provenance.subtype == "limit_wake":
+                from app.limit_wake import is_codex_wake_ref
+
+                codex_limit_wake = is_codex_wake_ref(provenance.ref)
+            if codex_limit_wake:
+                from app.limit_wake import validate_codex_wake
+
+                try:
+                    validate_codex_wake(self, provenance.ref)
+                except BaseException:
+                    self._lifecycle_lock.release()
+                    raise
             # Recheck after admission too: Stop or a newer turn can win while
             # this sender is outside the lock waiting for quota data.
             if retry_generation is not None and (
@@ -1363,7 +1377,7 @@ class AgentSession:
                 raise RuntimeError(
                     "handoff_recovery_required: operator recovery is required before sends"
                 )
-            if (
+            if not codex_limit_wake and (
                 self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
                 or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
             ):
@@ -1372,7 +1386,12 @@ class AgentSession:
                 admitted_model = self.model
                 admitted_stop_gen = self._turn_start_cancel_gen
                 self._lifecycle_lock.release()
-                decision = await self._worker_admission(admitted_model)
+                if codex_limit_wake:
+                    from app.limit_wake import codex_wake_admission
+
+                    decision = await codex_wake_admission(admitted_model)
+                else:
+                    decision = await self._worker_admission(admitted_model)
                 continue
             if admitted_stop_gen != self._turn_start_cancel_gen:
                 self._lifecycle_lock.release()
@@ -2787,6 +2806,20 @@ class AgentSession:
         elif event.type == "error":
             if event.metadata.get("codex_quota_exhausted"):
                 self._session_limit_hit = True
+                self._codex_limit_wake_generation = (self._turn_gen, self._turn_start_cancel_gen)
+                # Durable, provider-owned evidence: text alone cannot identify a
+                # limited turn after hibernation/restart. Cached reset hints below
+                # remain display-only and never authorize resumption.
+                self._log("provider_limit", json.dumps({
+                    "status": "rejected", "provider": "codex",
+                    "rate_limit_type": "subscription",
+                    "provider_turn_id": event.metadata.get("provider_turn_id") or "",
+                    "wake_binding": {
+                        "model": self.model, "task_id": self.task_id,
+                        "branch": self.branch, "session_id": self.session_id,
+                        "needs_switch": bool(self.needs_switch),
+                    },
+                }))
                 from app.routes import system
 
                 usage = system._codex_usage_cache.get("data") or {}

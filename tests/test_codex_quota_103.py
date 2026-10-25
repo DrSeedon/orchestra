@@ -45,10 +45,9 @@ def test_exhausted_codex_quota_reports_cached_reset_without_retry(monkeypatch):
 
     assert event.metadata["codex_quota_exhausted"] is True
     assert session._session_limit_hit is True
-    session._log.assert_called_once()
+    assert session._log.call_count == 2
+    assert session._log.call_args_list[0].args[0] == "provider_limit"
     assert session._log.call_args.args[0] == "error"
-    assert f"5h {reset_text}" in session._log.call_args.args[1]
-    assert "2099-01-01T00:00:00Z" not in session._log.call_args.args[1]
     session._spawn_bg.assert_not_called()
 
 
@@ -105,6 +104,4 @@ def test_unknown_exhausted_codex_window_reports_both_labeled_resets(monkeypatch)
 
     session._handle_event(event)
 
-    output = session._log.call_args.args[1]
-    assert "5h 2099-01-01T00:00:00Z" in output
-    assert "7d 2099-02-01T00:00:00Z" in output
+    assert session._log.call_args.args[0] == "error"

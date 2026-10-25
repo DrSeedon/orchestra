@@ -3,10 +3,12 @@
 import asyncio
 import json
 import logging
+import math
 import threading
 import time
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from app.db import (
     _conn,
@@ -28,6 +30,7 @@ WAKE_STAGGER_SECONDS = 10
 MANUAL_ACTION_URL = "https://claude.ai/settings/usage"
 WAKE_MESSAGE_PREFIX = "[system wake:"
 ANTHROPIC_BASE_WINDOWS = ("five_hour", "seven_day")
+CODEX_PROVIDERS = frozenset({"codex", "codex_spark"})
 WAKE_AUTO_DEBOUNCE_SECONDS = 60
 WAKE_RETRY_DELAY_SECONDS = 120
 WAKE_RETRY_MAX_ATTEMPTS = 5
@@ -83,9 +86,26 @@ def _not_worth_waking(ordered: list[dict], previous_key, latest_key, key) -> boo
     ):
         return True
     return any(
-        key(row) > latest_key and row["type"] == "status" and row["content"] == "interrupt requested"
+        (previous_key is None or key(row) > previous_key)
+        and row["type"] == "status" and row["content"] == "interrupt requested"
+        and not any(later["type"] == "user_message" and key(row) < key(later) <= latest_key
+                    for later in ordered)
         for row in ordered
     )
+
+
+def _provider_limits(logs: list[dict]) -> list[dict]:
+    records = []
+    for row in logs:
+        if row["type"] != "provider_limit":
+            continue
+        try:
+            record = json.loads(row["content"])
+        except (ValueError, TypeError):
+            continue
+        if isinstance(record, dict):
+            records.append(record)
+    return records
 
 
 def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
@@ -134,7 +154,7 @@ def _latest_limit_info(logs: list[dict]) -> tuple[str, int, str | None] | None:
         and key(row) <= latest_key
         and row["type"] in {"provider_limit", "error", "status"}
     ]
-    limits = [json.loads(row["content"]) for row in turn_logs if row["type"] == "provider_limit"]
+    limits = _provider_limits(turn_logs)
     if limits:
         if _not_worth_waking(ordered, previous_key, latest_key, key):
             return None
@@ -190,11 +210,29 @@ def find_limit_stopped_agents(
         if not limit:
             continue
         kind, turn_id, reset_at = limit
+        # Codex refusal records bind recovery to the interrupted task/runtime.
+        # A model/task/branch switch must never turn an old refusal into new work.
+        records = _provider_limits(logs_by_session.get(session["id"], []))
+        binding = records[-1].get("wake_binding") if records else None
+        if records and records[-1].get("provider") == "codex" and provider not in CODEX_PROVIDERS:
+            continue
+        if provider in CODEX_PROVIDERS and records and records[-1].get("provider") != "codex":
+            continue
+        binding = binding if isinstance(binding, dict) else None
+        if provider in CODEX_PROVIDERS and binding is not None and any(
+            (bool(session.get(field)) if field == "needs_switch" else session.get(field) or "")
+            != (bool(value) if field == "needs_switch" else value or "")
+            for field, value in binding.items()
+        ):
+            continue
         result.append({
             **session,
             "limit_kind": kind,
             "provider": provider,
             "limit_turn_id": turn_id,
+            **({"limit_wake_binding": binding} if binding is not None else {}),
+            **({"limit_provider_turn_id": records[-1].get("provider_turn_id")}
+               if provider in CODEX_PROVIDERS and records else {}),
             **({"limit_reset_at": reset_at} if reset_at else {}),
         })
     return result
@@ -279,6 +317,28 @@ def provider_readiness(
             "reset_at": max(future).isoformat(),
         }
 
+    if provider in CODEX_PROVIDERS:
+        # The provider can omit a window, but an explicitly unknown/malformed
+        # window cannot be discarded while another window authorizes a wake.
+        if not windows or any(
+            not isinstance(window, dict)
+            or isinstance(window.get("utilization"), bool)
+            or not isinstance(window.get("utilization"), (int, float))
+            or not math.isfinite(window["utilization"])
+            or not 0 <= window["utilization"] <= 100
+            for window in windows
+        ):
+            return {"state": "unavailable", "reason": "provider usage windows are incomplete"}
+        exhausted = [window for window in windows if window["utilization"] >= 100]
+        if not exhausted:
+            return {"state": "available", "reason": "provider capacity is open"}
+        future = [reset for window in exhausted
+                  if (reset := _parse_reset(window.get("resets_at"))) is not None and reset > now]
+        if future:
+            return {"state": "reset", "reason": "provider capacity is exhausted",
+                    "reset_at": max(future).isoformat()}
+        return {"state": "unavailable", "reason": "capacity reset is not yet confirmed"}
+
     observed = [
         window
         for window in windows
@@ -357,7 +417,7 @@ def build_wake_plan(
                     _parse_reset(agent.get("limit_reset_at")) for agent in provider_agents
                 ) if reset is not None and reset > now
             ]
-            if floors:
+            if floors and provider not in CODEX_PROVIDERS:
                 latest = max(floors)
                 known = _parse_reset(readiness.get("reset_at"))
                 readiness = {
@@ -451,7 +511,7 @@ def _load_limit_stopped_agents() -> list[dict]:
                 "SELECT id, ts, type, origin, origin_detail, "
                 "CASE WHEN type IN ('provider_limit','error','status') THEN content ELSE '' END AS content "
                 "FROM logs WHERE session_id=? AND id >= ? ORDER BY ts, id",
-                (session["id"], ends[-1]["id"]),
+                (session["id"], ends[-1]["id"] if len(ends) == TURN_WINDOW_ENDS else 0),
             ).fetchall()
             logs_by_session[session["id"]] = [_decode_detail(dict(row)) for row in rows]
     return find_limit_stopped_agents(eligible, logs_by_session)
@@ -469,7 +529,159 @@ def _active_wake_jobs() -> list[dict]:
     return result
 
 
+def _codex_wake_id(agent: dict) -> str:
+    turn = agent.get("limit_provider_turn_id") or agent["limit_turn_id"]
+    return str(uuid5(NAMESPACE_URL, f"orchestra:limit-wake:{agent['id']}:{agent.get('session_id')}:{turn}"))
+
+
+def _wake_generation(agent: dict) -> str:
+    return (f"session={agent['id']}|task={agent.get('task_id', '')}|"
+            f"branch={agent.get('branch', '')}|needs_switch={int(bool(agent.get('needs_switch')))}")
+
+
+def _codex_wait_decision(model: str, reason: str):
+    from app.quota_gate import evaluate_worker_admission
+
+    # A local parking decision, not a fabricated provider observation. The usual
+    # weekly admission decision is evaluated separately before release/submission.
+    return replace(evaluate_worker_admission(model, {}, {}), state="blocked",
+                   utilization=100, reason=reason, valid_until=time.time() + 5)
+
+
+def is_codex_wake_ref(ref: str) -> bool:
+    """Durable owner of a limit_wake: only Codex continuations are queued as a
+    `limit_wake` delivery keyed by their ref; Claude timer tokens never are. Keyed
+    by the receipt, not the session's current backend, so a Codex receipt stays
+    Codex-owned (and is refused) after the session switches to Claude."""
+    if not ref:
+        return False
+    with _conn() as connection:
+        return connection.execute(
+            "SELECT 1 FROM message_deliveries WHERE delivery_id=? AND source_principal='limit_wake'",
+            (ref,),
+        ).fetchone() is not None
+
+
+def validate_codex_wake(session, token: str) -> dict:
+    """Revalidate under the send lifecycle lock, including after awaited admission."""
+    from app import tm
+    from app.message_deliveries import TargetTaskChangedError
+
+    agent = next((agent for agent in _load_limit_stopped_agents()
+                  if agent["id"] == session.id and _codex_wake_id(agent) == token), None)
+    if (agent is None or agent["provider"] not in CODEX_PROVIDERS
+            or not agent.get("limit_wake_binding")
+            or session.status not in {AgentStatus.IDLE, AgentStatus.WAITING}
+            or getattr(session, "_manually_interrupted", False)
+            or getattr(session, "_compacting", False)
+            or getattr(session, "needs_switch", False)
+            or any((getattr(session, field, "") or "") != (agent.get(field) or "")
+                   for field in ("model", "task_id", "branch", "session_id"))):
+        raise TargetTaskChangedError("limit continuation no longer belongs to the interrupted turn")
+    generation = getattr(session, "_codex_limit_wake_generation", None)
+    if generation is not None and generation != (session._turn_gen, session._turn_start_cancel_gen):
+        raise TargetTaskChangedError("a newer runtime generation superseded limit continuation")
+    with _conn() as connection:
+        # A newer accepted user/agent instruction wins even before its runner
+        # has written user_message. System/platform notices are incidental.
+        newer = connection.execute(
+            "SELECT 1 FROM message_deliveries WHERE target_session_id=? "
+            "AND delivery_id!=? AND origin IN ('user','agent') "
+            "AND state!='CANCELLED' AND created_at>="
+            "COALESCE((SELECT MIN(ts) FROM logs WHERE session_id=? AND type='provider_limit' "
+            "AND CASE WHEN json_valid(content) THEN json_extract(content,'$.provider_turn_id') END=?),"
+            "(SELECT ts FROM logs WHERE id=?)) LIMIT 1",
+            (session.id, token, session.id, agent.get("limit_provider_turn_id"), agent["limit_turn_id"]),
+        ).fetchone()
+    if newer:
+        raise TargetTaskChangedError("new instruction superseded limit continuation")
+    if agent.get("task_id"):
+        with tm._conn() as connection:
+            project = tm.get_project_by_scope(connection, agent["scope"].rstrip("/"))
+            task = tm.resolve_task_ref(connection, agent["task_id"], project["id"]) if project else None
+            if task and task["status"] in {"done", "cancelled"}:
+                raise TargetTaskChangedError("interrupted task is already closed")
+    return agent
+
+
+async def codex_wake_admission(model: str):
+    """Confirmed fresh capacity AND the normal weekly rule, for every Codex wake."""
+    from app.quota_gate import get_worker_admission, quota_bucket_for_model
+    from app.routes.system import current_provider_usage
+
+    provider = quota_bucket_for_model(model)
+    try:
+        snapshot = await current_provider_usage(provider=provider, force_refresh=True)
+        readiness = provider_readiness({"fresh": True, "usage": snapshot.get(provider)}, provider)
+        # The shared display projection omits malformed windows. Inspect provider
+        # evidence too, so an explicitly unknown second window cannot disappear.
+        raw = (snapshot.get("codex") or {}).get("raw_payload")
+        if isinstance(raw, dict):
+            by_id = raw.get("rateLimitsByLimitId") or {}
+            limits = (by_id.get("codex_bengalfox") if provider == "codex_spark"
+                      else by_id.get("codex") or raw.get("rateLimits")) or {}
+            for window_id in ("primary", "secondary"):
+                window = limits.get(window_id)
+                if window is None:
+                    continue
+                value = window.get("usedPercent") if isinstance(window, dict) else None
+                duration = window.get("windowDurationMins") if isinstance(window, dict) else None
+                if (isinstance(value, bool) or not isinstance(value, (int, float))
+                        or not math.isfinite(value) or not 0 <= value <= 100
+                        or isinstance(duration, bool) or not isinstance(duration, int) or duration <= 0):
+                    readiness = {"state": "unavailable", "reason": "provider usage windows are incomplete"}
+    except Exception as error:
+        return _codex_wait_decision(model, f"fresh capacity unavailable: {err_text(error)}")
+    if readiness["state"] != "available":
+        return _codex_wait_decision(model, readiness["reason"])
+    return await get_worker_admission(model)
+
+
+async def queue_codex_limit_wakes(agents: list[dict] | None = None) -> int:
+    """Give each Codex refusal one existing durable queue owner, with no poll timer."""
+    from app.message_deliveries import accept_message_delivery
+
+    queued = 0
+    for agent in agents if agents is not None else _load_limit_stopped_agents():
+        if (agent["provider"] not in CODEX_PROVIDERS or not agent.get("limit_wake_binding")
+                or not agent.get("limit_provider_turn_id")):
+            continue
+        token = _codex_wake_id(agent)
+        with _conn() as connection:
+            existing = connection.execute(
+                "SELECT 1 FROM message_deliveries WHERE delivery_id=?", (token,),
+            ).fetchone()
+        if existing:
+            continue  # Includes cancelled, submitted and ambiguous receipts.
+        message = (f"{WAKE_MESSAGE_PREFIX}{token}] Subscription capacity is available again. "
+                   + platform_interruption_notice("subscription limit", agent.get("task_id") or ""))
+        await accept_message_delivery(
+            delivery_id=token, source_principal="limit_wake", source_name="system",
+            source_scope=agent["scope"], target_session_id=agent["id"], target_name=agent["name"],
+            target_scope=agent["scope"], target_task_id=agent.get("task_id") or "",
+            target_generation=_wake_generation(agent), message=message, rendered_message=message,
+            provenance=MessageProvenance(origin="system", senders=("system",),
+                                         subtype="limit_wake", ref=token),
+            quota_wait=_codex_wait_decision(agent["model"], "waiting for confirmed subscription capacity"),
+        )
+        queued += 1
+    return queued
+
+
 def _mark_for(agent: dict, jobs: list[dict]) -> dict:
+    if agent["provider"] in CODEX_PROVIDERS and agent.get("limit_provider_turn_id"):
+        with _conn() as connection:
+            receipt = connection.execute(
+                "SELECT state FROM message_deliveries WHERE delivery_id=?", (_codex_wake_id(agent),),
+            ).fetchone()
+        if receipt:
+            pending = receipt["state"] in {"WAITING_QUOTA", "QUEUED", "PREPARING"}
+            return {
+                "state": "scheduled" if pending else "no_timer",
+                "wake_at": None,
+                "label": ("⏳ лимит, продолжение в очереди; ждём свежую квоту и допуск"
+                          if pending else f"⏳ продолжение: {receipt['state']}; повтор автоматически не отправляется"),
+            }
     for job in jobs:
         config = job["config"]
         if config.get("provider") != agent["provider"]:
@@ -593,6 +805,12 @@ async def schedule_wake_auto() -> None:
     debounced — a human clicked it deliberately.
     """
     global _last_auto_schedule
+    # Every refused Codex turn gets a durable owner even inside Claude's debounce
+    # window. Recovery also invokes this from the existing quota sweep.
+    try:
+        await queue_codex_limit_wakes()
+    except Exception as error:
+        logger.warning("Codex wake acceptance failed: %s", err_text(error))
     now = datetime.now(timezone.utc)
     if (
         _last_auto_schedule is not None
@@ -617,6 +835,8 @@ async def schedule_wake_after_reset() -> dict:
 
     async with _schedule_lock:
         agents = _load_limit_stopped_agents()
+        await queue_codex_limit_wakes(agents)
+        agents = [agent for agent in agents if agent["provider"] not in CODEX_PROVIDERS]
         existing_jobs = _active_wake_jobs()
         existing_by_provider = {
             job["config"].get("provider"): job
@@ -859,6 +1079,20 @@ async def run_wake_job(
     if not bg_claim_trigger(job_id):
         return
     provider = config["provider"]
+    if provider in CODEX_PROVIDERS:
+        # Migrate pre-existing Codex timers into the same turn-keyed queue owner.
+        # Their historical claimed/send outcome is not proof of non-submission.
+        deliveries = config.get("deliveries") or {}
+        eligible = {
+            target["id"]: target["limit_turn_id"]
+            for target in config.get("agents") or []
+            if target["id"] not in deliveries
+        }
+        agents = [agent for agent in _load_limit_stopped_agents()
+                  if eligible.get(agent["id"]) == agent["limit_turn_id"]]
+        queued = await queue_codex_limit_wakes(agents)
+        bg_finish_trigger(job_id, f"queued {queued} Codex continuations")
+        return
     target_turns = {
         agent["id"]: agent["limit_turn_id"]
         for agent in config.get("agents") or []

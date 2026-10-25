@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import time
+from types import SimpleNamespace
 from datetime import datetime, timezone
 
 from app import db
@@ -148,7 +149,7 @@ async def _admission_allows(model: str):
 def _waiting_rows(table: str, session_column: str) -> list[dict]:
     with db._conn() as connection:
         rows = connection.execute(
-            f"SELECT delivery_id, {session_column} AS session_id, error_json "
+            f"SELECT delivery_id, {session_column} AS session_id, error_json, origin, origin_detail "
             f"FROM {table} WHERE state='WAITING_QUOTA' ORDER BY created_at",
         ).fetchall()
     return [dict(row) for row in rows]
@@ -222,6 +223,11 @@ async def release_waiting() -> int:
 
     released = 0
     async with _release_lock:
+        from app import limit_wake
+
+        # Also recovers a crash between persisting the terminal refusal and
+        # accepting its continuation. This is the existing quota sweep.
+        await limit_wake.queue_codex_limit_wakes()
         verdicts: dict[str, tuple[bool, object]] = {}
 
         async def verdict(model: str):
@@ -248,6 +254,30 @@ async def release_waiting() -> int:
         ):
             session_id = row["session_id"]
             if _has_open_initial(session_id):
+                continue
+            try:
+                detail = json.loads(row["origin_detail"]) if row["origin_detail"] else {}
+            except (ValueError, TypeError):
+                detail = {}
+            if row["origin"] == "system" and isinstance(detail, dict) and detail.get("subtype") == "limit_wake" \
+                    and limit_wake.is_codex_wake_ref(detail.get("ref", "")):
+                session = db.get_session(session_id)
+                try:
+                    if session is None:
+                        raise message_deliveries.TargetTaskChangedError("session disappeared")
+                    limit_wake.validate_codex_wake(SimpleNamespace(**session), detail.get("ref", ""))
+                except message_deliveries.TargetTaskChangedError:
+                    message_deliveries.cancel_message_delivery(row["delivery_id"], None)
+                    continue
+                key = "limit_wake:" + session["model"]
+                if key not in verdicts:
+                    decision = await limit_wake.codex_wake_admission(session["model"])
+                    verdicts[key] = (decision.state != "blocked", decision)
+                allowed, decision = verdicts[key]
+                if allowed:
+                    message_ids.setdefault(session_id, []).append(row["delivery_id"])
+                else:
+                    _refresh_eta("message_deliveries", row["delivery_id"], row["error_json"], decision)
                 continue
             allowed, decision = await verdict(_model_of(session_id))
             if allowed:

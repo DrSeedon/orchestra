@@ -1675,6 +1675,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 content = f"rate_limit: {content}"
             if quota_exhausted:
                 metadata["codex_quota_exhausted"] = True
+                metadata["provider_turn_id"] = params.get("turnId") or self._active_turn_id or ""
             return [AgentEvent("error", content, metadata=metadata)]
 
         if method == "model/rerouted":
@@ -2247,8 +2248,16 @@ class CodexBackend(JsonRpcStdioTransport):
                     f"Deferred interrupt ended with native status {status!r}",
                     {"model_error": "error"},
                 ))
-        if not ok and error.get("message"):
-            events.append(AgentEvent("error", error["message"], {"model_error": model_error}))
+        if not ok and (error.get("message") or error.get("codexErrorInfo") in (
+            "usageLimitExceeded", "sessionBudgetExceeded",
+        )):
+            events.append(AgentEvent("error", error.get("message") or "Codex quota exhausted", {
+                "model_error": model_error,
+                "codex_quota_exhausted": error.get("codexErrorInfo") in (
+                    "usageLimitExceeded", "sessionBudgetExceeded",
+                ),
+                "provider_turn_id": turn_id,
+            }))
         if cost_error:
             metadata["cost_unaccounted"] = True
             metadata["cost_error"] = cost_error

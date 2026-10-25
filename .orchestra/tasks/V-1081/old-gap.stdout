@@ -1,0 +1,378 @@
+FFFFFFFFFFFFFFFF.                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_native_refusal_survives_session_logs[False] _______________
+
+terminal_only = False
+
+    @pytest.mark.parametrize("terminal_only", [False, True])
+    def test_native_refusal_survives_session_logs(terminal_only):
+        backend = CodexBackend(model="gpt-6.1-sol", cwd="/scope")
+        error = {"codexErrorInfo": "usageLimitExceeded", "message": "synthetic quota refusal"}
+        notification = (
+            {"method": "turn/completed", "params": {"turn": {
+                "id": "quota-turn", "status": "failed", "error": error,
+            }}}
+            if terminal_only else {"method": "error", "params": {"error": error}}
+        )
+        session = AgentSession(id="native", name="native", scope="/scope", cwd="/scope",
+                               backend_type="codex", model="gpt-6.1-sol")
+        rows = [{"id": 1, "type": "user_message", "content": "work", "origin": "user"}]
+        session._log = lambda kind, content, **kw: rows.append({
+            "id": len(rows) + 1, "type": kind, "content": content,
+        })
+        session._spawn_bg = Mock(side_effect=lambda coro: coro.close())
+        for event in backend._convert_notification(notification):
+            if event.type != "turn_end":
+                session._handle_event(event)
+        rows.append({"id": len(rows) + 1, "type": "status", "content": "turn ended (failed)"})
+        candidates = limit_wake.find_limit_stopped_agents([
+            {"id": "native", "name": "native", "model": session.model, "status": "idle"},
+        ], {"native": rows})
+>       assert len(candidates) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_codex_limit_resume_v1081.py:44: AssertionError
+_______________ test_native_refusal_survives_session_logs[True] ________________
+
+terminal_only = True
+
+    @pytest.mark.parametrize("terminal_only", [False, True])
+    def test_native_refusal_survives_session_logs(terminal_only):
+        backend = CodexBackend(model="gpt-6.1-sol", cwd="/scope")
+        error = {"codexErrorInfo": "usageLimitExceeded", "message": "synthetic quota refusal"}
+        notification = (
+            {"method": "turn/completed", "params": {"turn": {
+                "id": "quota-turn", "status": "failed", "error": error,
+            }}}
+            if terminal_only else {"method": "error", "params": {"error": error}}
+        )
+        session = AgentSession(id="native", name="native", scope="/scope", cwd="/scope",
+                               backend_type="codex", model="gpt-6.1-sol")
+        rows = [{"id": 1, "type": "user_message", "content": "work", "origin": "user"}]
+        session._log = lambda kind, content, **kw: rows.append({
+            "id": len(rows) + 1, "type": kind, "content": content,
+        })
+        session._spawn_bg = Mock(side_effect=lambda coro: coro.close())
+        for event in backend._convert_notification(notification):
+            if event.type != "turn_end":
+                session._handle_event(event)
+        rows.append({"id": len(rows) + 1, "type": "status", "content": "turn ended (failed)"})
+        candidates = limit_wake.find_limit_stopped_agents([
+            {"id": "native", "name": "native", "model": session.model, "status": "idle"},
+        ], {"native": rows})
+>       assert len(candidates) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_codex_limit_resume_v1081.py:44: AssertionError
+____ test_codex_capacity_needs_actual_complete_observation[windows0-codex] _____
+
+provider = 'codex'
+windows = [{'id': 'primary', 'resets_at': '2000-01-01T00:00:00Z', 'utilization': 100}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+_ test_codex_capacity_needs_actual_complete_observation[windows0-codex_spark] __
+
+provider = 'codex_spark'
+windows = [{'id': 'primary', 'resets_at': '2000-01-01T00:00:00Z', 'utilization': 100}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+____ test_codex_capacity_needs_actual_complete_observation[windows1-codex] _____
+
+provider = 'codex'
+windows = [{'id': 'primary', 'utilization': 0}, {'id': 'secondary', 'utilization': None}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+_ test_codex_capacity_needs_actual_complete_observation[windows1-codex_spark] __
+
+provider = 'codex_spark'
+windows = [{'id': 'primary', 'utilization': 0}, {'id': 'secondary', 'utilization': None}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+____ test_codex_capacity_needs_actual_complete_observation[windows2-codex] _____
+
+provider = 'codex', windows = [{'id': 'primary', 'utilization': False}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+_ test_codex_capacity_needs_actual_complete_observation[windows2-codex_spark] __
+
+provider = 'codex_spark', windows = [{'id': 'primary', 'utilization': False}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+____ test_codex_capacity_needs_actual_complete_observation[windows3-codex] _____
+
+provider = 'codex', windows = [{'id': 'primary', 'utilization': nan}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+_ test_codex_capacity_needs_actual_complete_observation[windows3-codex_spark] __
+
+provider = 'codex_spark', windows = [{'id': 'primary', 'utilization': nan}]
+
+    @pytest.mark.parametrize("provider", ["codex", "codex_spark"])
+    @pytest.mark.parametrize("windows", [
+        [{"id": "primary", "utilization": 100, "resets_at": "2000-01-01T00:00:00Z"}],
+        [{"id": "primary", "utilization": 0}, {"id": "secondary", "utilization": None}],
+        [{"id": "primary", "utilization": False}],
+        [{"id": "primary", "utilization": float("nan")}],
+    ])
+    def test_codex_capacity_needs_actual_complete_observation(provider, windows):
+        result = limit_wake.provider_readiness({"fresh": True, "usage": {"windows": windows}}, provider)
+>       assert result["state"] != "available"
+E       AssertionError: assert 'available' != 'available'
+
+tests/test_codex_limit_resume_v1081.py:58: AssertionError
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6.1-sol-False] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='/home/<publication-runtime-redacted>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='131909194389632'>, admission=<AsyncMock id='131909194393424'>)
+orchestrator = False, model = 'gpt-6.1-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+>       assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+E       AssertionError: assert [] == ['WAITING_QUOTA']
+E         
+E         Right contains one more item: 'WAITING_QUOTA'
+E         Use -v to get more diff
+
+tests/test_codex_limit_resume_v1081.py:192: AssertionError
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6.1-sol-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='/home/<publication-runtime-redacted>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='131909195902672'>, admission=<AsyncMock id='131909198025728'>)
+orchestrator = True, model = 'gpt-6.1-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+>       assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+E       AssertionError: assert [] == ['WAITING_QUOTA']
+E         
+E         Right contains one more item: 'WAITING_QUOTA'
+E         Use -v to get more diff
+
+tests/test_codex_limit_resume_v1081.py:192: AssertionError
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6-luna-False] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='/home/<publication-runtime-redacted>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='131909193099904'>, admission=<AsyncMock id='131909193104320'>)
+orchestrator = False, model = 'gpt-6-luna'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+>       assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+E       AssertionError: assert [] == ['WAITING_QUOTA']
+E         
+E         Right contains one more item: 'WAITING_QUOTA'
+E         Use -v to get more diff
+
+tests/test_codex_limit_resume_v1081.py:192: AssertionError
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6-luna-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='/home/<publication-runtime-redacted>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='131909193566928'>, admission=<AsyncMock id='131909193570912'>)
+orchestrator = True, model = 'gpt-6-luna'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+>       assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+E       AssertionError: assert [] == ['WAITING_QUOTA']
+E         
+E         Right contains one more item: 'WAITING_QUOTA'
+E         Use -v to get more diff
+
+tests/test_codex_limit_resume_v1081.py:192: AssertionError
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-5.3-codex-spark-False] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='/home/<publication-runtime-redacted>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='131909193476256'>, admission=<AsyncMock id='131909193480240'>)
+orchestrator = False, model = 'gpt-5.3-codex-spark'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+>       assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+E       AssertionError: assert [] == ['WAITING_QUOTA']
+E         
+E         Right contains one more item: 'WAITING_QUOTA'
+E         Use -v to get more diff
+
+tests/test_codex_limit_resume_v1081.py:192: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1977 Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-5.3-codex-spark-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='/home/<publication-runtime-redacted>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='131909193103312'>, admission=<AsyncMock id='131909193098656'>)
+orchestrator = True, model = 'gpt-5.3-codex-spark'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+>       assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+E       AssertionError: assert [] == ['WAITING_QUOTA']
+E         
+E         Right contains one more item: 'WAITING_QUOTA'
+E         Use -v to get more diff
+
+tests/test_codex_limit_resume_v1081.py:192: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:1977 Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+=========================== short test summary info ============================
+FAILED tests/test_codex_limit_resume_v1081.py::test_native_refusal_survives_session_logs[False]
+FAILED tests/test_codex_limit_resume_v1081.py::test_native_refusal_survives_session_logs[True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows0-codex]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows0-codex_spark]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows1-codex]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows1-codex_spark]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows2-codex]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows2-codex_spark]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows3-codex]
+FAILED tests/test_codex_limit_resume_v1081.py::test_codex_capacity_needs_actual_complete_observation[windows3-codex_spark]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6.1-sol-False]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6.1-sol-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6-luna-False]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6-luna-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-5.3-codex-spark-False]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-5.3-codex-spark-True]
+16 failed, 1 passed, 33 deselected in 2.81s

@@ -1174,6 +1174,10 @@ class SessionManager:
                 from app.session import _refuse_if_draining
 
                 _refuse_if_draining(session)
+                from app.limit_wake import is_codex_wake_ref, validate_codex_wake
+
+                if provenance.subtype == "limit_wake" and is_codex_wake_ref(provenance.ref):
+                    validate_codex_wake(session, provenance.ref)
                 await self._auto_switch_before_delivery(session)
                 check_generation()
                 await session.send(
