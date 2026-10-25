@@ -1,0 +1,1124 @@
+F..........FFFFFFFFFFFFFFFFFFF.FFFF......                                [100%]
+=================================== FAILURES ===================================
+__________ test_mcp_route_database_scope_dates_order_voice_and_limits __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+api = (<fastapi.applications.FastAPI object at 0x7368fc188920>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+
+    @pytest.mark.asyncio
+    async def test_mcp_route_database_scope_dates_order_voice_and_limits(database, api):
+        _, _, mcp = api
+        with database._conn() as c:
+>           insert(c, [
+                log(1, "[voice: synthetic.oga] транскрипт: встреча у СБЕРБАНКА",
+                    kind="user_message", origin="user"),
+                log(2, "Сбербанк", sid="foreign"),
+                log(3, "Сбербанк", sid="worker"),
+                log(4, "сбербанк", ts="2026-10-25T00:30:00+02:00", origin="agent",
+                    kind="user_message"),
+                log(5, "сбербанк", ts="2026-10-23T23:30:00-02:00", kind="tool_result"),
+                log(6, "сбербанк", ts="2026-10-24T23:30:00-02:00"),
+                log(7, "сбербанк", ts="2026-10-24T00:30:00+02:00"),
+                log(8, "сбербанк", ts="not-a-date"),
+            ])
+
+tests/test_log_search_v1078.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368febe4250>
+rows = [(1, 'own', '2026-10-24T12:00:00Z', 'user_message', '[voice: synthetic.oga] транскрипт: встреча у СБЕРБАНКА', 'user'),...30:00-02:00', 'tool_result', 'сбербанк', None), (6, 'own', '2026-10-24T23:30:00-02:00', 'text', 'сбербанк', None), ...]
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________________ test_candidate_boundary_and_coverage[9999] __________________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+count = 9999
+
+    @pytest.mark.parametrize("count", [9_999, 10_000, 10_001])
+    def test_candidate_boundary_and_coverage(database, count):
+        with database._conn() as c:
+>           insert(c, (log(i, "absent" if i != 1 else "hidden-match")
+                       for i in range(1, count + 1)))
+
+tests/test_log_search_v1078.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb614a50>
+rows = <generator object test_candidate_boundary_and_coverage.<locals>.<genexpr> at 0x7368fb098040>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_________________ test_candidate_boundary_and_coverage[10000] __________________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+count = 10000
+
+    @pytest.mark.parametrize("count", [9_999, 10_000, 10_001])
+    def test_candidate_boundary_and_coverage(database, count):
+        with database._conn() as c:
+>           insert(c, (log(i, "absent" if i != 1 else "hidden-match")
+                       for i in range(1, count + 1)))
+
+tests/test_log_search_v1078.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb24ec50>
+rows = <generator object test_candidate_boundary_and_coverage.<locals>.<genexpr> at 0x7368fb098ba0>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_________________ test_candidate_boundary_and_coverage[10001] __________________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+count = 10001
+
+    @pytest.mark.parametrize("count", [9_999, 10_000, 10_001])
+    def test_candidate_boundary_and_coverage(database, count):
+        with database._conn() as c:
+>           insert(c, (log(i, "absent" if i != 1 else "hidden-match")
+                       for i in range(1, count + 1)))
+
+tests/test_log_search_v1078.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb24f550>
+rows = <generator object test_candidate_boundary_and_coverage.<locals>.<genexpr> at 0x7368fb099700>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________ test_result_limit_fifty_and_scan_limit_can_both_be_reached __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+api = (<fastapi.applications.FastAPI object at 0x7368fb0ae330>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+
+    @pytest.mark.asyncio
+    async def test_result_limit_fifty_and_scan_limit_can_both_be_reached(database, api):
+        with database._conn() as c:
+>           insert(c, (log(i, "match" if i <= 50 else "noise") for i in range(1, 10_051)))
+
+tests/test_log_search_v1078.py:140: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb24fc50>
+rows = <generator object test_result_limit_fifty_and_scan_limit_can_both_be_reached.<locals>.<genexpr> at 0x7368fb0d58c0>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_ test_casefold_expansion_keeps_original_match_in_snippet[\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf-Stra\xdfe-STRASSE] _
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+prefix = 'ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß...ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß'
+match = 'Straße', query = 'STRASSE'
+
+    @pytest.mark.parametrize("prefix,match,query", [
+        ("ß" * 500, "Straße", "STRASSE"),
+        ("İ" * 500, "aßb", "SS"),
+        ("ß" * 500, "İ", "i\u0307"),
+        ("ß" * 500, "ß", "s"),
+    ])
+    def test_casefold_expansion_keeps_original_match_in_snippet(database, prefix, match, query):
+        with database._conn() as c:
+>           insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+
+tests/test_log_search_v1078.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb109250>
+rows = [(1, 'own', '2026-10-24T12:00:00Z', 'text', 'ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß...zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', None)]
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_ test_casefold_expansion_keeps_original_match_in_snippet[\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130-a\xdfb-SS] _
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+prefix = 'İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ...İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ'
+match = 'aßb', query = 'SS'
+
+    @pytest.mark.parametrize("prefix,match,query", [
+        ("ß" * 500, "Straße", "STRASSE"),
+        ("İ" * 500, "aßb", "SS"),
+        ("ß" * 500, "İ", "i\u0307"),
+        ("ß" * 500, "ß", "s"),
+    ])
+    def test_casefold_expansion_keeps_original_match_in_snippet(database, prefix, match, query):
+        with database._conn() as c:
+>           insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+
+tests/test_log_search_v1078.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb109350>
+rows = [(1, 'own', '2026-10-24T12:00:00Z', 'text', 'İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ...zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', None)]
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_ test_casefold_expansion_keeps_original_match_in_snippet[\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf-\u0130-i\u0307] _
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+prefix = 'ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß...ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß'
+match = 'İ', query = 'i̇'
+
+    @pytest.mark.parametrize("prefix,match,query", [
+        ("ß" * 500, "Straße", "STRASSE"),
+        ("İ" * 500, "aßb", "SS"),
+        ("ß" * 500, "İ", "i\u0307"),
+        ("ß" * 500, "ß", "s"),
+    ])
+    def test_casefold_expansion_keeps_original_match_in_snippet(database, prefix, match, query):
+        with database._conn() as c:
+>           insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+
+tests/test_log_search_v1078.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb109f50>
+rows = [(1, 'own', '2026-10-24T12:00:00Z', 'text', 'ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß...zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', None)]
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_ test_casefold_expansion_keeps_original_match_in_snippet[\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf-\xdf-s] _
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+prefix = 'ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß...ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß'
+match = 'ß', query = 's'
+
+    @pytest.mark.parametrize("prefix,match,query", [
+        ("ß" * 500, "Straße", "STRASSE"),
+        ("İ" * 500, "aßb", "SS"),
+        ("ß" * 500, "İ", "i\u0307"),
+        ("ß" * 500, "ß", "s"),
+    ])
+    def test_casefold_expansion_keeps_original_match_in_snippet(database, prefix, match, query):
+        with database._conn() as c:
+>           insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+
+tests/test_log_search_v1078.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10a650>
+rows = [(1, 'own', '2026-10-24T12:00:00Z', 'text', 'ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß...zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', None)]
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates0] __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb101880>
+dates = ('2026-10-24', '2026-10-24'), size = 24
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10ad50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10af40>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates1] __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb13e0f0>
+dates = ('2026-10-23', '2026-10-24'), size = 24
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10b550>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10b740>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates2] __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb13f410>
+dates = (None, '2026-10-24'), size = 24
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10bd50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb124040>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates3] __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb1315b0>
+dates = ('2026-10-23', None), size = 24
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb124650>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb124840>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates4] __________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb09e870>
+dates = (None, None), size = 24
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb124e50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb125040>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates0] _________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fafb2900>
+dates = ('2026-10-24', '2026-10-24'), size = 32768
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb24fa50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10be40>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates1] _________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fafb08f0>
+dates = ('2026-10-23', '2026-10-24'), size = 32768
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10bc50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10b740>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates2] _________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fafb0d10>
+dates = (None, '2026-10-24'), size = 32768
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10b450>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10af40>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates3] _________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb09e300>
+dates = ('2026-10-23', None), size = 32768
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb10ac50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10a940>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates4] _________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb130ec0>
+dates = (None, None), size = 32768
+
+    @pytest.mark.parametrize("dates", [
+        ("2026-10-24", "2026-10-24"), ("2026-10-23", "2026-10-24"),
+        (None, "2026-10-24"), ("2026-10-23", None), (None, None),
+    ])
+    @pytest.mark.parametrize("size", [24, 32_768])
+    def test_narrow_search_loads_only_consumed_payloads(database, monkeypatch, dates, size):
+        with database._conn() as c:
+            # Dates alternate in id order; foreign-project blobs and name collisions
+            # must not become candidates or consume the 10,000-row coverage budget.
+>           insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+                       for i in range(1, 257)))
+
+tests/test_log_search_v1078.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb109f50>
+rows = <generator object test_narrow_search_loads_only_consumed_payloads.<locals>.<genexpr> at 0x7368fb10a340>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+_______________ test_rare_match_still_searches_complete_payload ________________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+
+    def test_rare_match_still_searches_complete_payload(database):
+        payload = "z" * 200_000 + " РЕДКАЯ фраза " + "z" * 200_000
+        with database._conn() as c:
+>           insert(c, [log(1, payload), *(log(i, "noise") for i in range(2, 202))])
+
+tests/test_log_search_v1078.py:223: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb109c50>
+rows = [(1, 'own', '2026-10-24T12:00:00Z', 'text', 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz... 'own', '2026-10-24T12:00:00Z', 'text', 'noise', None), (6, 'own', '2026-10-24T12:00:00Z', 'text', 'noise', None), ...]
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+___ test_worker_connection_ownership_error_cancel_and_recovery[False-False] ____
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb100320>
+api = (<fastapi.applications.FastAPI object at 0x7368fb132570>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+cancel = False, error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel,error", [(False, False), (False, True), (True, False)])
+    async def test_worker_connection_ownership_error_cancel_and_recovery(
+        database, monkeypatch, api, cancel, error,
+    ):
+        from app.routes import sessions
+    
+        entered, release, closed = threading.Event(), threading.Event(), threading.Event()
+        loop_thread = threading.get_ident()
+        opened = []
+        connect = database._conn
+    
+        class ObservedConnection:
+            def __init__(self, c):
+                self.c = c
+    
+            def __enter__(self):
+                assert threading.get_ident() != loop_thread
+                opened.append((self.c, threading.get_ident()))
+                entered.set()
+                assert release.wait(2)
+                if error:
+                    # Fail inside the owned scope so the real DB cleanup path executes.
+                    self.c.execute("SELECT missing_column FROM logs")
+                return self.c
+    
+            def __exit__(self, *args):
+                assert threading.get_ident() == opened[-1][1]
+                try:
+                    return self.c.__exit__(*args)
+                finally:
+                    closed.set()
+    
+        # Keep error injection inside the real connection's context, including enter errors.
+        from contextlib import contextmanager
+    
+        @contextmanager
+        def observed():
+            with connect() as c:
+                wrapped = ObservedConnection(c)
+                try:
+                    yield wrapped.__enter__()
+                finally:
+                    assert threading.get_ident() == opened[-1][1]
+                    closed.set()
+    
+        monkeypatch.setattr(database, "_conn", observed)
+        task = asyncio.create_task(sessions.search_logs_endpoint("marker", scope="/synthetic/own"))
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            assert not task.done()
+            if cancel:
+                task.cancel()
+            release.set()
+            if cancel:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            elif error:
+                with pytest.raises(sqlite3.OperationalError, match="missing_column"):
+                    await task
+            else:
+                assert (await task).status_code == 200
+            assert await asyncio.to_thread(closed.wait, 3)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+        # A same-thread attempt would fail with a threading error; a closed connection
+        # reports closed regardless of the caller's thread.
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+>           opened[0][0].execute("SELECT 1")
+E           sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 126894724294336 and this is thread id 126894841843840.
+
+tests/test_log_search_v1078.py:327: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb100320>
+api = (<fastapi.applications.FastAPI object at 0x7368fb132570>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+cancel = False, error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel,error", [(False, False), (False, True), (True, False)])
+    async def test_worker_connection_ownership_error_cancel_and_recovery(
+        database, monkeypatch, api, cancel, error,
+    ):
+        from app.routes import sessions
+    
+        entered, release, closed = threading.Event(), threading.Event(), threading.Event()
+        loop_thread = threading.get_ident()
+        opened = []
+        connect = database._conn
+    
+        class ObservedConnection:
+            def __init__(self, c):
+                self.c = c
+    
+            def __enter__(self):
+                assert threading.get_ident() != loop_thread
+                opened.append((self.c, threading.get_ident()))
+                entered.set()
+                assert release.wait(2)
+                if error:
+                    # Fail inside the owned scope so the real DB cleanup path executes.
+                    self.c.execute("SELECT missing_column FROM logs")
+                return self.c
+    
+            def __exit__(self, *args):
+                assert threading.get_ident() == opened[-1][1]
+                try:
+                    return self.c.__exit__(*args)
+                finally:
+                    closed.set()
+    
+        # Keep error injection inside the real connection's context, including enter errors.
+        from contextlib import contextmanager
+    
+        @contextmanager
+        def observed():
+            with connect() as c:
+                wrapped = ObservedConnection(c)
+                try:
+                    yield wrapped.__enter__()
+                finally:
+                    assert threading.get_ident() == opened[-1][1]
+                    closed.set()
+    
+        monkeypatch.setattr(database, "_conn", observed)
+        task = asyncio.create_task(sessions.search_logs_endpoint("marker", scope="/synthetic/own"))
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            assert not task.done()
+            if cancel:
+                task.cancel()
+            release.set()
+            if cancel:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            elif error:
+                with pytest.raises(sqlite3.OperationalError, match="missing_column"):
+                    await task
+            else:
+                assert (await task).status_code == 200
+            assert await asyncio.to_thread(closed.wait, 3)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+        # A same-thread attempt would fail with a threading error; a closed connection
+        # reports closed regardless of the caller's thread.
+>       with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'closed'
+E         Actual message: 'SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 126894724294336 and this is thread id 126894841843840.'
+
+tests/test_log_search_v1078.py:326: AssertionError
+____ test_worker_connection_ownership_error_cancel_and_recovery[False-True] ____
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb11fd70>
+api = (<fastapi.applications.FastAPI object at 0x7368f9e9ade0>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+cancel = False, error = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel,error", [(False, False), (False, True), (True, False)])
+    async def test_worker_connection_ownership_error_cancel_and_recovery(
+        database, monkeypatch, api, cancel, error,
+    ):
+        from app.routes import sessions
+    
+        entered, release, closed = threading.Event(), threading.Event(), threading.Event()
+        loop_thread = threading.get_ident()
+        opened = []
+        connect = database._conn
+    
+        class ObservedConnection:
+            def __init__(self, c):
+                self.c = c
+    
+            def __enter__(self):
+                assert threading.get_ident() != loop_thread
+                opened.append((self.c, threading.get_ident()))
+                entered.set()
+                assert release.wait(2)
+                if error:
+                    # Fail inside the owned scope so the real DB cleanup path executes.
+                    self.c.execute("SELECT missing_column FROM logs")
+                return self.c
+    
+            def __exit__(self, *args):
+                assert threading.get_ident() == opened[-1][1]
+                try:
+                    return self.c.__exit__(*args)
+                finally:
+                    closed.set()
+    
+        # Keep error injection inside the real connection's context, including enter errors.
+        from contextlib import contextmanager
+    
+        @contextmanager
+        def observed():
+            with connect() as c:
+                wrapped = ObservedConnection(c)
+                try:
+                    yield wrapped.__enter__()
+                finally:
+                    assert threading.get_ident() == opened[-1][1]
+                    closed.set()
+    
+        monkeypatch.setattr(database, "_conn", observed)
+        task = asyncio.create_task(sessions.search_logs_endpoint("marker", scope="/synthetic/own"))
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            assert not task.done()
+            if cancel:
+                task.cancel()
+            release.set()
+            if cancel:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            elif error:
+                with pytest.raises(sqlite3.OperationalError, match="missing_column"):
+                    await task
+            else:
+                assert (await task).status_code == 200
+            assert await asyncio.to_thread(closed.wait, 3)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+        # A same-thread attempt would fail with a threading error; a closed connection
+        # reports closed regardless of the caller's thread.
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+>           opened[0][0].execute("SELECT 1")
+E           sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 126894715901632 and this is thread id 126894841843840.
+
+tests/test_log_search_v1078.py:327: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb11fd70>
+api = (<fastapi.applications.FastAPI object at 0x7368f9e9ade0>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+cancel = False, error = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel,error", [(False, False), (False, True), (True, False)])
+    async def test_worker_connection_ownership_error_cancel_and_recovery(
+        database, monkeypatch, api, cancel, error,
+    ):
+        from app.routes import sessions
+    
+        entered, release, closed = threading.Event(), threading.Event(), threading.Event()
+        loop_thread = threading.get_ident()
+        opened = []
+        connect = database._conn
+    
+        class ObservedConnection:
+            def __init__(self, c):
+                self.c = c
+    
+            def __enter__(self):
+                assert threading.get_ident() != loop_thread
+                opened.append((self.c, threading.get_ident()))
+                entered.set()
+                assert release.wait(2)
+                if error:
+                    # Fail inside the owned scope so the real DB cleanup path executes.
+                    self.c.execute("SELECT missing_column FROM logs")
+                return self.c
+    
+            def __exit__(self, *args):
+                assert threading.get_ident() == opened[-1][1]
+                try:
+                    return self.c.__exit__(*args)
+                finally:
+                    closed.set()
+    
+        # Keep error injection inside the real connection's context, including enter errors.
+        from contextlib import contextmanager
+    
+        @contextmanager
+        def observed():
+            with connect() as c:
+                wrapped = ObservedConnection(c)
+                try:
+                    yield wrapped.__enter__()
+                finally:
+                    assert threading.get_ident() == opened[-1][1]
+                    closed.set()
+    
+        monkeypatch.setattr(database, "_conn", observed)
+        task = asyncio.create_task(sessions.search_logs_endpoint("marker", scope="/synthetic/own"))
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            assert not task.done()
+            if cancel:
+                task.cancel()
+            release.set()
+            if cancel:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            elif error:
+                with pytest.raises(sqlite3.OperationalError, match="missing_column"):
+                    await task
+            else:
+                assert (await task).status_code == 200
+            assert await asyncio.to_thread(closed.wait, 3)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+        # A same-thread attempt would fail with a threading error; a closed connection
+        # reports closed regardless of the caller's thread.
+>       with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'closed'
+E         Actual message: 'SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 126894715901632 and this is thread id 126894841843840.'
+
+tests/test_log_search_v1078.py:326: AssertionError
+____ test_worker_connection_ownership_error_cancel_and_recovery[True-False] ____
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb102b40>
+api = (<fastapi.applications.FastAPI object at 0x7368fafb2f00>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+cancel = True, error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel,error", [(False, False), (False, True), (True, False)])
+    async def test_worker_connection_ownership_error_cancel_and_recovery(
+        database, monkeypatch, api, cancel, error,
+    ):
+        from app.routes import sessions
+    
+        entered, release, closed = threading.Event(), threading.Event(), threading.Event()
+        loop_thread = threading.get_ident()
+        opened = []
+        connect = database._conn
+    
+        class ObservedConnection:
+            def __init__(self, c):
+                self.c = c
+    
+            def __enter__(self):
+                assert threading.get_ident() != loop_thread
+                opened.append((self.c, threading.get_ident()))
+                entered.set()
+                assert release.wait(2)
+                if error:
+                    # Fail inside the owned scope so the real DB cleanup path executes.
+                    self.c.execute("SELECT missing_column FROM logs")
+                return self.c
+    
+            def __exit__(self, *args):
+                assert threading.get_ident() == opened[-1][1]
+                try:
+                    return self.c.__exit__(*args)
+                finally:
+                    closed.set()
+    
+        # Keep error injection inside the real connection's context, including enter errors.
+        from contextlib import contextmanager
+    
+        @contextmanager
+        def observed():
+            with connect() as c:
+                wrapped = ObservedConnection(c)
+                try:
+                    yield wrapped.__enter__()
+                finally:
+                    assert threading.get_ident() == opened[-1][1]
+                    closed.set()
+    
+        monkeypatch.setattr(database, "_conn", observed)
+        task = asyncio.create_task(sessions.search_logs_endpoint("marker", scope="/synthetic/own"))
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            assert not task.done()
+            if cancel:
+                task.cancel()
+            release.set()
+            if cancel:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            elif error:
+                with pytest.raises(sqlite3.OperationalError, match="missing_column"):
+                    await task
+            else:
+                assert (await task).status_code == 200
+            assert await asyncio.to_thread(closed.wait, 3)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+        # A same-thread attempt would fail with a threading error; a closed connection
+        # reports closed regardless of the caller's thread.
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+>           opened[0][0].execute("SELECT 1")
+E           sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 126894724294336 and this is thread id 126894841843840.
+
+tests/test_log_search_v1078.py:327: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb102b40>
+api = (<fastapi.applications.FastAPI object at 0x7368fafb2f00>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+cancel = True, error = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("cancel,error", [(False, False), (False, True), (True, False)])
+    async def test_worker_connection_ownership_error_cancel_and_recovery(
+        database, monkeypatch, api, cancel, error,
+    ):
+        from app.routes import sessions
+    
+        entered, release, closed = threading.Event(), threading.Event(), threading.Event()
+        loop_thread = threading.get_ident()
+        opened = []
+        connect = database._conn
+    
+        class ObservedConnection:
+            def __init__(self, c):
+                self.c = c
+    
+            def __enter__(self):
+                assert threading.get_ident() != loop_thread
+                opened.append((self.c, threading.get_ident()))
+                entered.set()
+                assert release.wait(2)
+                if error:
+                    # Fail inside the owned scope so the real DB cleanup path executes.
+                    self.c.execute("SELECT missing_column FROM logs")
+                return self.c
+    
+            def __exit__(self, *args):
+                assert threading.get_ident() == opened[-1][1]
+                try:
+                    return self.c.__exit__(*args)
+                finally:
+                    closed.set()
+    
+        # Keep error injection inside the real connection's context, including enter errors.
+        from contextlib import contextmanager
+    
+        @contextmanager
+        def observed():
+            with connect() as c:
+                wrapped = ObservedConnection(c)
+                try:
+                    yield wrapped.__enter__()
+                finally:
+                    assert threading.get_ident() == opened[-1][1]
+                    closed.set()
+    
+        monkeypatch.setattr(database, "_conn", observed)
+        task = asyncio.create_task(sessions.search_logs_endpoint("marker", scope="/synthetic/own"))
+        try:
+            assert await asyncio.to_thread(entered.wait, 3)
+            assert not task.done()
+            if cancel:
+                task.cancel()
+            release.set()
+            if cancel:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            elif error:
+                with pytest.raises(sqlite3.OperationalError, match="missing_column"):
+                    await task
+            else:
+                assert (await task).status_code == 200
+            assert await asyncio.to_thread(closed.wait, 3)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+        # A same-thread attempt would fail with a threading error; a closed connection
+        # reports closed regardless of the caller's thread.
+>       with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'closed'
+E         Actual message: 'SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 126894724294336 and this is thread id 126894841843840.'
+
+tests/test_log_search_v1078.py:326: AssertionError
+____________ test_mcp_chain_avoids_payload_materialization_deadline ____________
+
+database = <module 'app.db' from '/<hub-copy>/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7368fb103b90>
+api = (<fastapi.applications.FastAPI object at 0x7368fb0f2210>, <class 'httpx.AsyncClient'>, <module 'app.mcp_stdio' from '/<hub-copy>/app/mcp_stdio.py'>)
+
+    @pytest.mark.asyncio
+    async def test_mcp_chain_avoids_payload_materialization_deadline(database, monkeypatch, api):
+        """Independent client/server loops enforce an offline, scaled read deadline.
+    
+        A content-access gate stalls only if SQLite evaluates a ninth payload despite
+        limit=8. This reproduces transport timeout causally without a 30-second sleep.
+        The MCP client still sends its unchanged 30-second timeout configuration.
+        """
+        app, real_client, mcp = api
+        with database._conn() as c:
+>           insert(c, (log(i, "audit-marker", ts=f"2026-10-24T{i % 24:02}:00:00Z")
+                       for i in range(1, 65)))
+
+tests/test_log_search_v1078.py:342: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <app.db.OwnedConnection object at 0x7368fb544950>
+rows = <generator object test_mcp_chain_avoids_payload_materialization_deadline.<locals>.<genexpr> at 0x7368fb1685e0>
+
+    def insert(c, rows):
+>       c.executemany(
+            "INSERT INTO logs(id,session_id,ts,type,content,origin) VALUES(?,?,?,?,?,?)", rows,
+        )
+E       sqlite3.IntegrityError: NOT NULL constraint failed: logs.origin
+
+tests/test_log_search_v1078.py:32: IntegrityError
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1078.py::test_mcp_route_database_scope_dates_order_voice_and_limits
+FAILED tests/test_log_search_v1078.py::test_candidate_boundary_and_coverage[9999]
+FAILED tests/test_log_search_v1078.py::test_candidate_boundary_and_coverage[10000]
+FAILED tests/test_log_search_v1078.py::test_candidate_boundary_and_coverage[10001]
+FAILED tests/test_log_search_v1078.py::test_result_limit_fifty_and_scan_limit_can_both_be_reached
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf-Stra\xdfe-STRASSE]
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130\u0130-a\xdfb-SS]
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf-\u0130-i\u0307]
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf\xdf-\xdf-s]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates0]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates1]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates2]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates3]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates4]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates0]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates1]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates2]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates3]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates4]
+FAILED tests/test_log_search_v1078.py::test_rare_match_still_searches_complete_payload
+FAILED tests/test_log_search_v1078.py::test_worker_connection_ownership_error_cancel_and_recovery[False-False]
+FAILED tests/test_log_search_v1078.py::test_worker_connection_ownership_error_cancel_and_recovery[False-True]
+FAILED tests/test_log_search_v1078.py::test_worker_connection_ownership_error_cancel_and_recovery[True-False]
+FAILED tests/test_log_search_v1078.py::test_mcp_chain_avoids_payload_materialization_deadline
+24 failed, 17 passed in 4.40s

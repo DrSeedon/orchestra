@@ -1,0 +1,18 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_search_uses_one_snapshot_during_concurrent_scope_and_content_updates ___
+tests/test_log_search_v1078.py:255: in test_search_uses_one_snapshot_during_concurrent_scope_and_content_updates
+    result = database.search_logs("audit-marker", scope="/synthetic/own")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<search-without-read-transaction>:49: in search_logs
+    ???
+E   TypeError: 'NoneType' object is not subscriptable
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1078.py::test_search_uses_one_snapshot_during_concurrent_scope_and_content_updates
+1 failed, 35 deselected, 1 warning in 2.01s

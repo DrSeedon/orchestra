@@ -20,6 +20,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, field_validator, model_validator
 
 from app.db import (
@@ -79,7 +80,10 @@ async def search_logs_endpoint(query: str, scope: str | None = None,
         return JSONResponse({"error": "agent must contain 1–100 characters"}, status_code=400)
     if agent is not None:
         agent = agent.strip()
-    result = search_logs(
+    # The worker owns the SQLite connection for its entire lifetime. AnyIO bounds
+    # concurrent workers; cancellation never closes a connection from the loop.
+    result = await run_in_threadpool(
+        search_logs,
         query, scope=None if all_projects else scope, agent=agent,
         date_from=date_from, date_to=date_to, limit=max(1, min(limit, 50)),
     )

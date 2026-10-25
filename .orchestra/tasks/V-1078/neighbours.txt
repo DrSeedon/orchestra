@@ -1,0 +1,15 @@
+..............................F......................................... [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 76%]
+...................................................................      [100%]
+=================================== FAILURES ===================================
+__ test_search_uses_one_snapshot_during_concurrent_scope_and_content_updates ___
+tests/test_log_search_v1078.py:255: in test_search_uses_one_snapshot_during_concurrent_scope_and_content_updates
+    assert changed == [True]
+E   assert [] == [True]
+E     
+E     Right contains one more item: True
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1078.py::test_search_uses_one_snapshot_during_concurrent_scope_and_content_updates
+1 failed, 282 passed in 27.68s

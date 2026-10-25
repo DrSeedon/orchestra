@@ -1,0 +1,187 @@
+F..........FFFFFFFFFFFFFFFFFFF.FFFF......                                [100%]
+=================================== FAILURES ===================================
+__________ test_mcp_route_database_scope_dates_order_voice_and_limits __________
+tests/test_log_search_v1078.py:68: in test_mcp_route_database_scope_dates_order_voice_and_limits
+    insert(c, [
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________________ test_candidate_boundary_and_coverage[9999] __________________
+tests/test_log_search_v1078.py:128: in test_candidate_boundary_and_coverage
+    insert(c, (log(i, "absent" if i != 1 else "hidden-match")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+_________________ test_candidate_boundary_and_coverage[10000] __________________
+tests/test_log_search_v1078.py:128: in test_candidate_boundary_and_coverage
+    insert(c, (log(i, "absent" if i != 1 else "hidden-match")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+_________________ test_candidate_boundary_and_coverage[10001] __________________
+tests/test_log_search_v1078.py:128: in test_candidate_boundary_and_coverage
+    insert(c, (log(i, "absent" if i != 1 else "hidden-match")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________ test_result_limit_fifty_and_scan_limit_can_both_be_reached __________
+tests/test_log_search_v1078.py:140: in test_result_limit_fifty_and_scan_limit_can_both_be_reached
+    insert(c, (log(i, "match" if i <= 50 else "noise") for i in range(1, 10_050)))
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+___ test_casefold_expansion_keeps_original_match_in_snippet[sharp-s-prefix] ____
+tests/test_log_search_v1078.py:163: in test_casefold_expansion_keeps_original_match_in_snippet
+    insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+___ test_casefold_expansion_keeps_original_match_in_snippet[dotted-i-prefix] ___
+tests/test_log_search_v1078.py:163: in test_casefold_expansion_keeps_original_match_in_snippet
+    insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+___ test_casefold_expansion_keeps_original_match_in_snippet[expanded-query] ____
+tests/test_log_search_v1078.py:163: in test_casefold_expansion_keeps_original_match_in_snippet
+    insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__ test_casefold_expansion_keeps_original_match_in_snippet[partial-expansion] __
+tests/test_log_search_v1078.py:163: in test_casefold_expansion_keeps_original_match_in_snippet
+    insert(c, [log(1, prefix + " " + match + " " + "z" * 500)])
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates0] __________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates1] __________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates2] __________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates3] __________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+__________ test_narrow_search_loads_only_consumed_payloads[24-dates4] __________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates0] _________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates1] _________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates2] _________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates3] _________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+________ test_narrow_search_loads_only_consumed_payloads[32768-dates4] _________
+tests/test_log_search_v1078.py:197: in test_narrow_search_loads_only_consumed_payloads
+    insert(c, (log(i, "z" * size, ts=f"2026-10-{23 + i % 2}T12:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+_______________ test_rare_match_still_searches_complete_payload ________________
+tests/test_log_search_v1078.py:223: in test_rare_match_still_searches_complete_payload
+    insert(c, [log(1, payload), *(log(i, "noise") for i in range(2, 202))])
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+___ test_worker_connection_ownership_error_cancel_and_recovery[False-False] ____
+tests/test_log_search_v1078.py:310: in test_worker_connection_ownership_error_cancel_and_recovery
+    opened[0][0].execute("SELECT 1")
+E   sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 135281010677440 and this is thread id 135281128272000.
+
+During handling of the above exception, another exception occurred:
+tests/test_log_search_v1078.py:309: in test_worker_connection_ownership_error_cancel_and_recovery
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'closed'
+E     Actual message: 'SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 135281010677440 and this is thread id 135281128272000.'
+____ test_worker_connection_ownership_error_cancel_and_recovery[False-True] ____
+tests/test_log_search_v1078.py:310: in test_worker_connection_ownership_error_cancel_and_recovery
+    opened[0][0].execute("SELECT 1")
+E   sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 135281002284736 and this is thread id 135281128272000.
+
+During handling of the above exception, another exception occurred:
+tests/test_log_search_v1078.py:309: in test_worker_connection_ownership_error_cancel_and_recovery
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'closed'
+E     Actual message: 'SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 135281002284736 and this is thread id 135281128272000.'
+____ test_worker_connection_ownership_error_cancel_and_recovery[True-False] ____
+tests/test_log_search_v1078.py:310: in test_worker_connection_ownership_error_cancel_and_recovery
+    opened[0][0].execute("SELECT 1")
+E   sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 135281010677440 and this is thread id 135281128272000.
+
+During handling of the above exception, another exception occurred:
+tests/test_log_search_v1078.py:309: in test_worker_connection_ownership_error_cancel_and_recovery
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'closed'
+E     Actual message: 'SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 135281010677440 and this is thread id 135281128272000.'
+____________ test_mcp_chain_avoids_payload_materialization_deadline ____________
+tests/test_log_search_v1078.py:325: in test_mcp_chain_avoids_payload_materialization_deadline
+    insert(c, (log(i, "audit-marker", ts=f"2026-10-24T{i % 24:02}:00:00Z")
+tests/test_log_search_v1078.py:32: in insert
+    c.executemany(
+E   sqlite3.IntegrityError: CHECK constraint failed: origin IN ('user','agent','background_task','platform','system','unknown')
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1078.py::test_mcp_route_database_scope_dates_order_voice_and_limits
+FAILED tests/test_log_search_v1078.py::test_candidate_boundary_and_coverage[9999]
+FAILED tests/test_log_search_v1078.py::test_candidate_boundary_and_coverage[10000]
+FAILED tests/test_log_search_v1078.py::test_candidate_boundary_and_coverage[10001]
+FAILED tests/test_log_search_v1078.py::test_result_limit_fifty_and_scan_limit_can_both_be_reached
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[sharp-s-prefix]
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[dotted-i-prefix]
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[expanded-query]
+FAILED tests/test_log_search_v1078.py::test_casefold_expansion_keeps_original_match_in_snippet[partial-expansion]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates0]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates1]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates2]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates3]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[24-dates4]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates0]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates1]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates2]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates3]
+FAILED tests/test_log_search_v1078.py::test_narrow_search_loads_only_consumed_payloads[32768-dates4]
+FAILED tests/test_log_search_v1078.py::test_rare_match_still_searches_complete_payload
+FAILED tests/test_log_search_v1078.py::test_worker_connection_ownership_error_cancel_and_recovery[False-False]
+FAILED tests/test_log_search_v1078.py::test_worker_connection_ownership_error_cancel_and_recovery[False-True]
+FAILED tests/test_log_search_v1078.py::test_worker_connection_ownership_error_cancel_and_recovery[True-False]
+FAILED tests/test_log_search_v1078.py::test_mcp_chain_avoids_payload_materialization_deadline
+24 failed, 17 passed in 4.55s
