@@ -1692,6 +1692,11 @@ HISTORY_FINE_HOURS = 48
 
 @router.get("/api/usage/history")
 async def usage_history(hours: int = 24, step_minutes: int = 0, until: str = ""):
+    """History snapshots with grid resolution, rows and the oldest stored timestamp."""
+    return usage_history_data(hours, step_minutes, until)
+
+
+def usage_history_data(hours: int = 24, step_minutes: int = 0, until: str = ""):
     """История снимков: {step_minutes, rows, oldest_ts}.
 
     step_minutes — шаг сетки в прореженной части ответа. Фронт по нему решает,

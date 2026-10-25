@@ -1,0 +1,12 @@
+........................................................................ [ 22%]
+........................................................................ [ 44%]
+........................................................................ [ 66%]
+..............................................sssss..................... [ 88%]
+....................................                                     [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_tg_bridge.py:5901: ffmpeg/ffprobe not installed
+SKIPPED [1] tests/test_tg_bridge.py:5919: ffmpeg/ffprobe not installed
+SKIPPED [1] tests/test_tg_bridge.py:5933: ffmpeg/ffprobe not installed
+SKIPPED [1] tests/test_tg_bridge.py:5946: ffmpeg/ffprobe not installed
+SKIPPED [1] tests/test_tg_bridge.py:5975: ffmpeg/ffprobe not installed
+319 passed, 5 skipped in 19.04s

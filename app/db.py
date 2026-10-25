@@ -2902,7 +2902,8 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5, until: str = "") -
             prev = raw[ri]
             prev_ts = next_ts
         if t - prev_ts <= stale_limit:
-            grid.append({**prev, "ts": t.isoformat()})
+            # Static charts need the stored time, not the time of a carried grid value.
+            grid.append({**prev, "ts": t.isoformat(), "sample_ts": prev["ts"]})
         t += step
     if not grid or grid[-1].get("id") != raw[-1].get("id"):
         grid.append(raw[-1])
