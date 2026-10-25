@@ -1,0 +1,88 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_________ test_documented_extraction_from_injected_reference[.claude] __________
+
+tmp_path = PosixPath('/home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-6e41d5925f07459e/.orchestra/tasks/V-1080/tmp/pytest-of-<redacted-for-publication>/pytest-2/test_documented_extraction_fro0')
+home = '.claude'
+
+    @pytest.mark.parametrize("home", [".claude", ".codex"])
+    def test_documented_extraction_from_injected_reference(tmp_path, home):
+        from app.prompting import inject_skills_to_worktree_report
+    
+        # Exercise both native deliveries in a working directory containing spaces.
+        repo = tmp_path / "project with spaces"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        inject_skills_to_worktree_report(["html-artifacts"], str(repo), home)
+        reference = repo / home / "skills/html-artifacts/references/animation.md"
+        text = reference.read_text(encoding="utf-8")
+    
+        # Read the executable example and its runtime-specific default from the delivered
+        # instructions. Do not hard-code a corrected source that could hide a regression.
+        command = re.search(r"`(awk\s.*? > out\.html)`", text, re.DOTALL).group(1)
+        command = " ".join(command.splitlines())
+        source_placeholder = re.search(r"<[^>]+>", command).group()
+        source = re.search(rf"`({re.escape(home)}/[^`]+\.md)`", text).group(1)
+        result = subprocess.run(
+            command.replace(source_placeholder, shlex.quote(source)),
+            shell=True, cwd=repo, capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode == 0, result.stderr
+        html = (repo / "out.html").read_text(encoding="utf-8")
+>       assert html.lower().startswith("<!doctype html>")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0xb3c3f0>('<!doctype html>')
+E        +    where <built-in method startswith of str object at 0xb3c3f0> = ''.startswith
+E        +      where '' = <built-in method lower of str object at 0xb3c3f0>()
+E        +        where <built-in method lower of str object at 0xb3c3f0> = ''.lower
+
+tests/test_html_scaffold_extraction_1080.py:48: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Refreshed 1 skill entrypoints into /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-6e41d5925f07459e/.orchestra/tasks/V-1080/tmp/pytest-of-<redacted-for-publication>/pytest-2/test_documented_extraction_fro0/project with spaces/.claude/skills/
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:540 Refreshed 1 skill entrypoints into /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-6e41d5925f07459e/.orchestra/tasks/V-1080/tmp/pytest-of-<redacted-for-publication>/pytest-2/test_documented_extraction_fro0/project with spaces/.claude/skills/
+__________ test_documented_extraction_from_injected_reference[.codex] __________
+
+tmp_path = PosixPath('/home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-6e41d5925f07459e/.orchestra/tasks/V-1080/tmp/pytest-of-<redacted-for-publication>/pytest-2/test_documented_extraction_fro1')
+home = '.codex'
+
+    @pytest.mark.parametrize("home", [".claude", ".codex"])
+    def test_documented_extraction_from_injected_reference(tmp_path, home):
+        from app.prompting import inject_skills_to_worktree_report
+    
+        # Exercise both native deliveries in a working directory containing spaces.
+        repo = tmp_path / "project with spaces"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        inject_skills_to_worktree_report(["html-artifacts"], str(repo), home)
+        reference = repo / home / "skills/html-artifacts/references/animation.md"
+        text = reference.read_text(encoding="utf-8")
+    
+        # Read the executable example and its runtime-specific default from the delivered
+        # instructions. Do not hard-code a corrected source that could hide a regression.
+        command = re.search(r"`(awk\s.*? > out\.html)`", text, re.DOTALL).group(1)
+        command = " ".join(command.splitlines())
+        source_placeholder = re.search(r"<[^>]+>", command).group()
+        source = re.search(rf"`({re.escape(home)}/[^`]+\.md)`", text).group(1)
+        result = subprocess.run(
+            command.replace(source_placeholder, shlex.quote(source)),
+            shell=True, cwd=repo, capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode == 0, result.stderr
+        html = (repo / "out.html").read_text(encoding="utf-8")
+>       assert html.lower().startswith("<!doctype html>")
+E       AssertionError: assert False
+E        +  where False = <built-in method startswith of str object at 0xb3c3f0>('<!doctype html>')
+E        +    where <built-in method startswith of str object at 0xb3c3f0> = ''.startswith
+E        +      where '' = <built-in method lower of str object at 0xb3c3f0>()
+E        +        where <built-in method lower of str object at 0xb3c3f0> = ''.lower
+
+tests/test_html_scaffold_extraction_1080.py:48: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Refreshed 1 skill entrypoints into /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-6e41d5925f07459e/.orchestra/tasks/V-1080/tmp/pytest-of-<redacted-for-publication>/pytest-2/test_documented_extraction_fro1/project with spaces/.codex/skills/
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:540 Refreshed 1 skill entrypoints into /home/<redacted-for-publication>/orchestra-ws/vmi3407579/hub-6e41d5925f07459e/.orchestra/tasks/V-1080/tmp/pytest-of-<redacted-for-publication>/pytest-2/test_documented_extraction_fro1/project with spaces/.codex/skills/
+=========================== short test summary info ============================
+FAILED tests/test_html_scaffold_extraction_1080.py::test_documented_extraction_from_injected_reference[.claude]
+FAILED tests/test_html_scaffold_extraction_1080.py::test_documented_extraction_from_injected_reference[.codex]
+2 failed in 2.62s

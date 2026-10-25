@@ -19,9 +19,9 @@ without watching to the end.
    speed 0.5/1/2, keys (space, ←/→ to step end, Home/End), click chapters,
    `prefers-reduced-motion` (step immediately at final state), print, frame link `#t=12.5`, and
    `window.P` (`seek/play/pause/t/T/S`) for checks. If a shell is available, copy the scaffold
-   from this skill instead of retyping it: `awk '/^```html motion-template/{f=1;next} f&&/^```/{exit} f'
-   <path-to-this-SKILL.md> > out.html` (usually `.claude/skills/html-artifacts/SKILL.md` or
-   `.codex/skills/html-artifacts/SKILL.md` in the working folder).
+   from this reference instead of retyping it: `awk '/^```html motion-template/{f=1;next} f&&/^```/{exit} f'
+   <path-to-this-animation.md> > out.html` (usually `.claude/skills/html-artifacts/references/animation.md` or
+   `.codex/skills/html-artifacts/references/animation.md` in the working folder).
  - **Step:** `{d: seconds, t: 'what happens', x: 'why it matters, with numbers', set: {id: {attribute: value}}, w: {id: [from, to]}, e: 'lin'}`. `set` accumulates: a step changes only named values and holds the rest. `[a, b]` explicitly means “from a to b” (repeat motion). `text` changes text, `along: 'pathId', at: 0..1` moves an element along an SVG path (draw it around 0,0). `w` is the fraction of the step during which an element changes: `[.75,1]` for a result “when it arrives”, `[0,.5]` and `[.5,1]` for ordering within a step.
  - **The scaffold handles smoothness; do not write curves.** Numeric motion (coordinates, `at`,
    width) runs through the whole step with critically damped spring motion: soft start, long
