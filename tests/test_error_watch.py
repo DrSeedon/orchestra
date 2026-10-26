@@ -385,7 +385,7 @@ def test_collect_db_events_keeps_session_scope(tmp_path):
     with sqlite3.connect(db_path) as connection:
         connection.executescript(
             "CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT, scope TEXT);"
-            "CREATE TABLE logs (ts TEXT, type TEXT, content TEXT, tool_is_error INTEGER, session_id TEXT);"
+            "CREATE TABLE logs (ts TEXT, type TEXT, content TEXT, tool_is_error INTEGER, session_id TEXT, tool_name TEXT);"
         )
         connection.executemany(
             "INSERT INTO sessions VALUES (?, ?, ?)",
@@ -395,7 +395,7 @@ def test_collect_db_events_keeps_session_scope(tmp_path):
             ],
         )
         connection.executemany(
-            "INSERT INTO logs VALUES (?, 'error', '/usr/bin/python: No module named pytest', 1, ?)",
+            "INSERT INTO logs VALUES (?, 'error', '/usr/bin/python: No module named pytest', 1, ?, NULL)",
             [(stamp, "orchestra-worker"), (stamp, "seedon-worker")],
         )
 
@@ -579,3 +579,161 @@ def test_hub_scan_keeps_legacy_fix_state_and_only_reports_real_recurrence(tmp_pa
     capsys.readouterr()
     assert scan_reports.call_count == 1
     assert watch._load_state(state_path) == state
+
+
+@pytest.fixture
+def hub_finish_db(tmp_path):
+    path = tmp_path / "orchestra.db"
+    with sqlite3.connect(path) as connection:
+        connection.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT, scope TEXT);"
+            "CREATE TABLE logs (ts TEXT, type TEXT, content TEXT, tool_name TEXT, "
+            "tool_is_error INTEGER, session_id TEXT);"
+        )
+    return path
+
+
+@pytest.fixture
+def hub_finish_row():
+    from app.hub_activity import HubActivityStream
+
+    stream = HubActivityStream("run")
+    stream.feed([{
+        "itemId": "command", "runId": "run", "position": 1,
+        "type": "command_execution", "status": "running", "text": "$ false",
+    }])
+    result, = stream.finish("")
+    return (result.type, result.content, result.metadata["tool_name"], int(result.metadata["is_error"]))
+
+
+def _insert_error_rows(path, rows, stamp):
+    with sqlite3.connect(path) as connection:
+        connection.executemany(
+            "INSERT INTO logs (ts, type, content, tool_name, tool_is_error) VALUES (?, ?, ?, ?, ?)",
+            [(stamp.isoformat(), *row) for row in rows],
+        )
+
+
+def test_hub_finish_db_provenance_separates_identical_command_errors_at_threshold(hub_finish_db, hub_finish_row):
+    now = datetime.now(timezone.utc)
+    assert hub_finish_row == ("tool_result", "(not finished)", "hub", 1)
+    command_error = ("tool_result", "(not finished)", "Bash", 1)
+    _insert_error_rows(hub_finish_db, [hub_finish_row] * 10 + [command_error] * 9 + [
+        ("end_turn", "", None, 0), ("tool_result", "(not finished)", "Bash", 0),
+    ], now)
+    events = watch.collect_db_events(hub_finish_db, now - timedelta(minutes=1))
+    assert len(events) == 19
+    assert {(e["type"], e["tool_name"]) for e in events} == {("tool_result", "hub"), ("tool_result", "Bash")}
+    candidates, noise = watch.aggregate(events, now)
+    assert candidates == []
+    assert [(item["signature"], item["count"], item["noise"]) for item in noise] == [
+        ("(not finished)", 10, "hub unfinished tool closure"),
+    ]
+
+    _insert_error_rows(hub_finish_db, [command_error], now)
+    events = watch.collect_db_events(hub_finish_db, now - timedelta(minutes=1))
+    candidates, noise = watch.aggregate(events, now)
+    assert [(item["signature"], item["count"], item["noise"]) for item in candidates] == [
+        ("(not finished)", 10, None),
+    ]
+    assert [item["count"] for item in noise] == [10]
+    assert watch.post_fix_verdict(events, "(not finished)", now, 168)["count"] == 10
+
+
+@pytest.mark.parametrize("row", [
+    ("error", "(not finished)", "hub", 1),
+    ("error", "(not finished)", None, 0),
+    ("tool_result", "(not finished)", "Bash", 1),
+    ("tool_result", "(not finished)", None, 1),
+    ("tool_result", "(not finished)", "Hub", 1),
+    ("tool_use", "(not finished)", "hub", 1),
+    ("tool_result", " (not finished)", "hub", 1),
+    ("tool_result", "(not finished)\n", "hub", 1),
+    ("tool_result", "(not  finished)", "hub", 1),
+    ("tool_result", "command failed: (not finished)", "hub", 1),
+    ("error", "Hub worker turn failed: (not finished)", "hub", 1),
+    ("error", "Hub worker turn failed: hub thread ended with status failed", "hub", 1),
+    ("tool_result", "fatal: command failed", "Bash", 1),
+])
+def test_only_exact_synthetic_hub_finish_row_is_noise(hub_finish_db, hub_finish_row, row):
+    now = datetime.now(timezone.utc)
+    _insert_error_rows(hub_finish_db, [hub_finish_row] * 10 + [row] * 10, now)
+    events = watch.collect_db_events(hub_finish_db, now - timedelta(minutes=1))
+    signature = watch.normalize_signature(row[1])
+    candidates, noise = watch.aggregate(events, now)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 10)]
+    assert [(item["noise"], item["count"]) for item in noise] == [("hub unfinished tool closure", 10)]
+    assert watch.post_fix_verdict(events, signature, now, 168)["count"] == 10
+
+
+@pytest.mark.parametrize("provenance", [
+    {}, {"type": "tool_result"}, {"tool_name": "hub"},
+    {"source": "journalctl", "type": "tool_result", "tool_name": "hub"},
+])
+def test_marker_without_db_hub_provenance_remains_actionable(provenance):
+    event = dict(_event("(not finished)", source="logs"), **provenance)
+    assert watch.classify_noise("(not finished)") is None
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert [(item["signature"], item["count"]) for item in candidates] == [("(not finished)", 1)]
+    assert noise == []
+    assert watch.post_fix_verdict([event], "(not finished)", datetime.fromisoformat(event["ts"]), 168)["count"] == 1
+
+
+def test_hub_finish_scan_reports_noise_and_preserves_real_post_fix_recurrence(
+    hub_finish_db, hub_finish_row, monkeypatch, capsys, scan_reports,
+):
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stamp = started + timedelta(seconds=1)
+    _insert_error_rows(hub_finish_db, [hub_finish_row] * 10, stamp)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_count"] == 1
+    assert output["noise_events"] == 10
+    assert output["noise_by_class"] == {"hub unfinished tool closure": 10}
+    assert output["events_by_source"] == {"logs": 10, "journalctl": 0}
+
+    signature = "(not finished)"
+    state_path = hub_finish_db.parent / "error_watch.json"
+    fix = {"task": "V-1094", "commit": "example", "started_at": started.isoformat(), "window_hours": 168}
+    watch._write_state(state_path, {"alerts": {}, "fixes": {signature: fix}})
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    state = watch._load_state(state_path)
+    assert state["fixes"] == {signature: fix}
+    assert state["alerts"] == {}
+
+    _insert_error_rows(hub_finish_db, [("tool_result", signature, "Bash", 1)], stamp)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert signals == []
+    assert [(item["signature"], item["count"], item["complete"]) for item in verdicts] == [(signature, 1, False)]
+    state = watch._load_state(state_path)
+    assert state["fixes"][signature]["recurrence_reported"] is True
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
+
+    _insert_error_rows(hub_finish_db, [("tool_result", signature, "Bash", 1)] * 9, stamp)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 10)]
+    assert verdicts == []
+    assert scan_reports.call_count == 2
+    assert watch._load_state(state_path)["alerts"][signature]["count"] == 10
+
+
+def test_hub_finish_post_fix_observation_completes_without_false_recurrence():
+    started = datetime.now(timezone.utc) - timedelta(hours=2)
+    event = dict(_event("(not finished)", source="logs"), type="tool_result", tool_name="hub", ts=started.isoformat())
+    result = watch.post_fix_verdict([event], "(not finished)", started, 1)
+    assert result["count"] == 0
+    assert result["complete"] is True

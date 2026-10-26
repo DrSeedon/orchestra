@@ -27,7 +27,8 @@ _HUB_PROVIDER_LIMIT = re.compile(r"\bhub_provider_limit\b|\busage limit\b", re.I
 _HUB_CREDENTIAL_REFUSAL = re.compile(
     r"the task prompt contains a credential-shaped string; refusing to send it to the hub", re.I,
 )
-_EXPECTED_HUB_NOISE = {"hub provider limit", "hub credential guard refusal"}
+_HUB_UNFINISHED_TOOL_NOISE = "hub unfinished tool closure"
+_EXPECTED_HUB_NOISE = {"hub provider limit", "hub credential guard refusal", _HUB_UNFINISHED_TOOL_NOISE}
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
 _CODEX_QUOTA_RESET = (
@@ -141,6 +142,17 @@ def classify_noise(signature: str) -> str | None:
     return None
 
 
+def _event_noise(event: dict, signature: str) -> str | None:
+    # HubActivityStream.finish closes open tools with this exact synthetic result.
+    # Check raw content and provenance before grouping identical text from real errors.
+    if (event.get("source") == "logs" and event.get("type") == "tool_result"
+            and event.get("tool_name") == "hub" and event["message"] == "(not finished)"):
+        return _HUB_UNFINISHED_TOOL_NOISE
+    if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE:
+        return _FOREIGN_PROJECT_PYTEST_NOISE
+    return classify_noise(signature)
+
+
 def safe_example(message: str) -> str:
     value = normalize_signature(message)
     value = re.sub(r"https?://\S+|\b\S+@\S+", "<URL>", value, flags=re.I)
@@ -159,7 +171,7 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
     uri = db_path.resolve().as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True, timeout=2)) as connection:
         rows = connection.execute(
-            "SELECT l.ts, l.type, l.content, s.scope, s.name FROM logs l "
+            "SELECT l.ts, l.type, l.content, s.scope, s.name, l.tool_name FROM logs l "
             "LEFT JOIN sessions s ON s.id=l.session_id "
             "WHERE (l.tool_is_error=1 OR l.type='error') AND l.ts >= ? ORDER BY l.ts",
             (since.isoformat(),),
@@ -168,8 +180,9 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
         {
             "source": "logs", "ts": ts, "message": content,
             "scope": scope or "", "session_name": session_name or "",
+            "type": kind, "tool_name": tool_name,
         }
-        for ts, _kind, content, scope, session_name in rows
+        for ts, kind, content, scope, session_name, tool_name in rows
         if _parse_ts(ts) and _parse_ts(ts) >= since
     ]
 
@@ -256,16 +269,13 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
     grouped: dict[tuple[str, str | None], list[dict]] = defaultdict(list)
     for event in deduplicate_events(events):
         signature = normalize_signature(event["message"])
-        scoped_noise = (
-            _FOREIGN_PROJECT_PYTEST_NOISE
-            if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE
-            else None
-        )
-        grouped[(signature, scoped_noise)].append(event)
+        grouped[(signature, _event_noise(event, signature))].append(event)
     candidates, noise = [], []
-    for (signature, scoped_noise), rows in grouped.items():
+    for (signature, noise_label), rows in grouped.items():
         timestamps = [parsed for row in rows if (parsed := _parse_ts(row["ts"]))]
-        required = 1 if scoped_noise or _UNEXPECTED_LISTENER_END.search(signature) else threshold
+        required = 1 if (
+            noise_label == _FOREIGN_PROJECT_PYTEST_NOISE or _UNEXPECTED_LISTENER_END.search(signature)
+        ) else threshold
         if len(timestamps) < required or not timestamps:
             continue
         item = {
@@ -274,7 +284,7 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
             "first": min(timestamps).isoformat(),
             "last": max(timestamps).isoformat(),
             "examples": list(dict.fromkeys(safe_example(row["message"]) for row in rows))[:2],
-            "noise": scoped_noise or classify_noise(signature),
+            "noise": noise_label,
         }
         (noise if item["noise"] else candidates).append(item)
     sort_key = lambda item: (-item["count"], item["signature"])
@@ -285,7 +295,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
     matches = [
         event for event in events
         if (event_signature := normalize_signature(event["message"])) == signature
-        and classify_noise(event_signature) not in _EXPECTED_HUB_NOISE
+        and _event_noise(event, event_signature) not in _EXPECTED_HUB_NOISE
         and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
