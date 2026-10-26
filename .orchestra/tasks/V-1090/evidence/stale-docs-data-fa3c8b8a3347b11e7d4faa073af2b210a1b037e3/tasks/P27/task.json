@@ -1,0 +1,12 @@
+{
+  "id": "P27",
+  "package": "rentroll",
+  "prompt": "The property office wants late fees worked out by the tool instead of by hand. Please add a late fee run. It runs as `python -m rentroll.latefees TENANTS LEDGER DATE OUTPUT`, where TENANTS and LEDGER are the files the rent roll already reads and DATE is the cut-off day as YYYY-MM-DD.\n\nOnly ledger lines dated on or before DATE count. The balance of a tenant is the sum of the charges minus the payments and credits of their unit up to DATE (zero if the unit has no such lines). Each tenant gets one of three statuses: current when the balance is zero or less, late when the balance is above zero but not more than one month's rent, and delinquent when the balance is more than one month's rent. The fee is 0.00 for a current tenant, 5% of the monthly rent for a late tenant and 10% of the balance for a delinquent tenant. Round each fee to two digits after the point, with halves rounded up. The calculation should be usable from other code: given the tenants, the ledger lines and the date, it gives back one result per tenant.\n\nWrite OUTPUT as JSON with the keys \"date\" (DATE as given), \"tenants\" and \"total\". \"tenants\" is a list with one object per tenant, in the order of the tenants file, with the keys \"unit\", \"tenant\" (the name), \"balance\", \"status\" and \"fee\". The status is written as \"current\", \"late\" or \"delinquent\". \"total\" is the sum of all fees. Write every amount as a string with two digits after the point, for example \"62.53\", \"0.00\" or \"-40.00\".\n\nIf any ledger line names a unit that is not in the tenants file, the late fee calculation must fail with an error that a caller can catch, and the command exits with status 2 without writing OUTPUT. The command also exits with status 2 without writing OUTPUT when DATE is not a valid date or an input file cannot be read. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "MONEY", "doc_side": "right"},
+    {"id": "D2", "type": "ENUM", "doc_side": "right"},
+    {"id": "D3", "type": "EXC", "doc_side": "right"},
+    {"id": "D4", "type": "TFILE", "doc_side": "right"},
+    {"id": "D5", "type": "GENERIC", "doc_side": "right"}
+  ]
+}

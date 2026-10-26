@@ -1,0 +1,9 @@
+PASS upstream pinned commit/tree and 585 Git blob hashes; archive has no links/devices/traversal
+PASS 17 captured Orchestra rule/checker files unchanged
+PASS syntax of all 4 task-local research utilities
+PASS targeted preservation check: 52 original file/link payloads; private excluded from public walk
+PASS public fixture directory absent; task .gitignore declares /private/; native Git ignored status not checked without .git
+publication-boundary scan: 627 UTF-8 files; hits (paths/lines/shapes only): []
+PASS named credential shapes absent; heuristic scan is not a proof of arbitrary-secret absence
+wrote artifact-sha256.json: 627 files (self manifest and audit output excluded)
+PASS 44 local report links resolve

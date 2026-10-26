@@ -1,0 +1,92 @@
+runs.jsonl SHA256 1c7f53deef2e0b0f3ec3aabc61a72a3402f8a9a252485b94fa4465d3b7f83c75
+coverage: 320 unique valid runs; 40 projects; 2 agents x 2 conditions x 2 repeats/project
+task decision counts {4: 20, 5: 20}
+all record keys ['agent', 'cond', 'conflict', 'diff', 'doc_edited', 'failures', 'final_reply', 'model', 'n_decisions', 'repo', 'run', 'seconds', 'tests', 'tool_calls', 'tool_version', 'valid', 'verdicts']
+S-file 649/720 (90.1%)
+S-code 30/720 (4.2%)
+S-neither 41/720 (5.7%)
+S-report 81/160 (50.6%)
+S-tests 143/160 (89.4%)
+S-file-reported 316/365 (86.6%)
+S-file-notreported 333/355 (93.8%)
+S-file-claude 311/360 (86.4%)
+S-code-claude 27/360 (7.5%)
+S-neither-claude 22/360 (6.1%)
+S-report-claude 79/80 (98.8%)
+S-tests-claude 80/80 (100.0%)
+S-file-reported-claude 307/356 (86.2%)
+S-file-notreported-claude 4/4 (100.0%)
+S-file-codex 338/360 (93.9%)
+S-code-codex 3/360 (0.8%)
+S-neither-codex 19/360 (5.3%)
+S-report-codex 2/80 (2.5%)
+S-tests-codex 63/80 (78.8%)
+S-file-reported-codex 9/9 (100.0%)
+S-file-notreported-codex 329/351 (93.7%)
+P-file 23/720 (3.2%)
+P-code 658/720 (91.4%)
+P-neither 39/720 (5.4%)
+P-report 160/160 (100.0%)
+P-tests 160/160 (100.0%)
+P-file-claude 5/360 (1.4%)
+P-code-claude 340/360 (94.4%)
+P-neither-claude 15/360 (4.2%)
+P-report-claude 80/80 (100.0%)
+P-tests-claude 80/80 (100.0%)
+P-file-codex 18/360 (5.0%)
+P-code-codex 318/360 (88.3%)
+P-neither-codex 24/360 (6.7%)
+P-report-codex 80/80 (100.0%)
+P-tests-codex 80/80 (100.0%)
+PASS all 36 published keyed numerator/denominator aggregates match
+CATEGORY A: type | claude file/code/total | codex file/code/total
+CONFIG [(3, 19, 22), (17, 3, 22)]
+DOCSTR [(22, 0, 22), (22, 0, 22)]
+ENUM [(22, 0, 22), (22, 0, 22)]
+ERR [(20, 0, 22), (18, 0, 22)]
+EXC [(18, 2, 22), (21, 0, 22)]
+FMT [(24, 0, 24), (24, 0, 24)]
+GENERIC [(21, 0, 22), (21, 0, 22)]
+IMPORT [(22, 0, 22), (22, 0, 22)]
+LOG [(20, 0, 24), (22, 0, 24)]
+MONEY [(7, 4, 22), (18, 0, 22)]
+NAME [(20, 0, 22), (19, 0, 22)]
+OPT [(24, 0, 24), (24, 0, 24)]
+PATH [(24, 0, 24), (22, 0, 24)]
+REC [(22, 0, 22), (22, 0, 22)]
+TFILE [(20, 2, 22), (22, 0, 22)]
+TSTYLE [(22, 0, 22), (22, 0, 22)]
+PASS 64 category fractions; file majority for both: 14 ['DOCSTR', 'ENUM', 'ERR', 'EXC', 'FMT', 'GENERIC', 'IMPORT', 'LOG', 'NAME', 'OPT', 'PATH', 'REC', 'TFILE', 'TSTYLE']
+CELL: runs, choices, reported, tests_pass, rewrites, median tools, median seconds, run outcomes
+claude A 80 360 79 80 0 10.0 54.2 {'code/YES': 2, 'file/NO': 1, 'file/YES': 71, 'no-majority/YES': 6}
+claude B 80 360 80 80 0 9.0 51.0 {'code/YES': 80}
+codex A 80 360 2 63 20 9.0 108.4 {'file/NO': 60, 'rewrite-fail/NO': 15, 'rewrite-fail/YES': 2, 'rewrite-pass/NO': 3}
+codex B 80 360 80 80 0 8.0 94.9 {'code/YES': 79, 'no-majority/YES': 1}
+rewrites: runs/fails/projects/median removed/median files 20 17 12 198.0 9.0
+max deletions below rewrite threshold 18
+rewrite IDs ['R164', 'R165', 'R181', 'R188', 'R200', 'R209', 'R212', 'R228', 'R229', 'R240', 'R253', 'R261', 'R268', 'R272', 'R277', 'R289', 'R305', 'R308', 'R313', 'R316']
+reported within rewrites [('R165', 'YES'), ('R308', 'YES')]
+instruction file edited [('R003', 'claude', 'B'), ('R004', 'claude', 'A'), ('R092', 'claude', 'A'), ('R120', 'claude', 'A'), ('R129', 'claude', 'A'), ('R148', 'claude', 'A'), ('R308', 'codex', 'A')]
+failed attempts [('R293', ['sandbox'])]
+versions/models {('claude', '2.1.302', 'claude-sonnet-5-5'): 160, ('codex', '0.163.0', 'gpt-6-sol'): 160}
+B-A percentage points ('claude', 'codex') 87.2
+B-A percentage points ('claude',) 86.9
+B-A percentage points ('codex',) 87.5
+project coverage CONFIG {'config dataclass': 6, 'config dict': 5}
+project coverage DOCSTR {'Google docstring': 5, 'reST docstring': 6}
+project coverage ENUM {'Enum': 5, 'string constants': 6}
+project coverage ERR {'raise': 5, 'return (value, error)': 6}
+project coverage EXC {'builtin exception': 6, 'custom exception class': 5}
+project coverage FMT {'f-string': 6, 'str.format': 6}
+project coverage GENERIC {'list': 5, 'typing.List': 6}
+project coverage IMPORT {'absolute import': 5, 'relative import': 6}
+project coverage LOG {'logging': 6, 'print': 6}
+project coverage MONEY {'Decimal': 5, 'integer cents': 6}
+project coverage NAME {'camelCase': 5, 'snake_case': 6}
+project coverage OPT {'X | None': 6, 'typing.Optional': 6}
+project coverage PATH {'os.path': 6, 'pathlib': 6}
+project coverage REC {'dataclass': 5, 'namedtuple': 6}
+project coverage TFILE {'*_test.py': 6, 'test_*.py': 5}
+project coverage TSTYLE {'pytest functions': 6, 'unittest classes': 5}
+NOT RECOMPUTED: verdicts from diffs, model conflict judgments, test outcomes, bootstrap intervals, token count
+PASS offline recount completed; no network, provider, subprocess or author-code execution

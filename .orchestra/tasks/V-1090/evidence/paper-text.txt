@@ -1,0 +1,1011 @@
+
+
+
+Stale Instruction Files Override the Code in Coding Agents: A One-Sentence Fix
+
+
+
+
+
+
+
+
+
+
+
+
+
+Skip to main content
+
+  
+    
+      
+Report GitHub Issue
+
+      ×
+    
+
+    
+      Title:
+      
+
+      
+Content selection saved. Describe the issue below:
+
+
+      Description:
+      
+    
+
+    
+      Submit without GitHub
+      Submit in GitHub
+    
+  
+
+
+
+
+
+  
+  
+    
+  
+  
+    
+      
+    
+  
+    Why HTML?
+    
+      Report Issue
+        
+      Back to Abstract
+    
+    
+      Download PDF
+        
+      Contents
+    
+    
+      Reading mode
+    
+    
+      Colour theme
+    
+
+
+
+
+
+Abstract
+
+
+1 Introduction
+
+
+2 How instruction files go stale
+
+
+3 Why agents follow the file
+
+
+Instruction files describe the code in the form of commands
+
+
+Agent software delivers the file as an instruction
+
+
+Models give instructions priority over tool output
+
+
+
+
+4 Experiment
+
+
+Projects
+
+
+The sentence
+
+
+Agents
+
+
+Measures
+
+
+
+
+5 Results
+
+
+5.1 Agents follow the stale file
+
+
+5.2 Claude Code reports the conflict and still follows the file
+
+
+5.3 One sentence makes agents follow the code
+
+
+5.4 Without the sentence, Codex CLI rewrote working code
+
+
+5.5 Tests pass in every run with the sentence
+
+
+
+
+6 What users, teams and makers can do
+
+
+Users
+
+
+Makers of agent software
+
+
+Makers of models
+
+
+
+
+7 Related work
+
+
+8 Scope
+
+
+9 Conclusion
+
+
+10 Run settings
+
+
+Agent commands
+
+
+Failed attempts
+
+
+Conflict judge
+
+
+
+
+References
+
+
+
+
+
+  
+    License: arXiv.org perpetual non-exclusive license
+  
+  
+arXiv:2610.30571v1 [cs.SE] 22 Oct 2026
+
+
+
+Stale Instruction Files Override the Code in Coding Agents: A One-Sentence Fix
+
+
+Xiaonan Xu
+
+Email: xiaonanxu5@gmail.com
+
+Affiliation: College of Computing, Georgia Institute of Technology, Atlanta, 30332, GA, USA
+
+  
+Wenjing Wu
+
+Email: wuwenjing256@gmail.com
+
+Affiliation: Department of Computer Science, University of Colorado Boulder, Boulder, 80309, CO, USA
+
+
+
+Abstract
+
+    
+
+Purpose: Coding agents follow a project’s instruction file, such as CLAUDE.md or AGENTS.md, even when it disagrees with the existing code and even when they notice the disagreement. We measure this behaviour and test whether one sentence in the user’s own instruction file makes agents follow the code instead.
+
+    
+
+Methods: We built 40 Python projects in which the instruction file asks for one convention while the existing code uses another, for example print instead of logging. Claude Code and Codex CLI added a feature to each project, with and without a sentence in the user-level instruction file that gives the existing code precedence, in 320 runs.
+
+    
+
+Results: Without the sentence, 90.1% of the agents’ choices followed the stale file. Claude Code pointed out the conflict in 79 of 80 runs and still followed the file. Codex CLI rewrote the existing code to match the file in 20 of 80 runs, and the project’s own tests then failed in 17 of them. The sentence raised the share of choices that follow the code from 4.2% to 91.4%, stopped the rewrites and raised the test pass rate from 89.4% to 100%.
+
+    
+
+Conclusion: We attribute the behaviour to how agents receive the two sources: the instruction file reaches the model as an instruction and the code as tool output, which models are trained to rank lower. Users can add the sentence today, and makers of agents and models can build the same rule into their products.
+
+  
+
+
+keywords
+coding agents, instruction files, CLAUDE.md, AGENTS.md, stale documentation, instruction hierarchy
+
+
+
+
+1 Introduction
+
+
+
+
+Coding agents such as Claude Code and Codex CLI read an instruction file before they start work on a project. Claude Code reads CLAUDE.md and Codex CLI reads AGENTS.md, and developers use these files to record how the project is built, how it is organised and which coding conventions it follows (Anthropic, 2026; AGENTS.md, 2025; Chatlatanagulchai et al., 2025; Mohsenimofidi et al., 2026). Because the agent reads the file at the start of every session, the file shapes every change the agent makes.
+
+
+
+
+Instruction files are written once and seldom revisited, while the code around them keeps changing. A team that moves its code from print to logging, for example, may leave the line “Use print() for progress messages” in CLAUDE.md. From then on, every agent that works on the project receives two conflicting accounts of the same convention: the file asks for print, and every existing module uses logging. The same happens with conventions that change how the code behaves, such as how amounts of money are stored and how errors are signalled to the caller.
+
+
+
+
+In this situation agents follow the file. Mohammadi et al. (2026) observed this in every one of their trials, and our study shows two forms of it. Claude Code typically wrote in its final reply that the existing code uses logging while the file asks for print, and then used print in the new code (Figure 1). Codex CLI went further in 20 of its 80 runs: it rewrote existing modules to match the file, and the project’s original tests then failed in 17 of them. A stale file therefore produces new code that does not match the project, and it can lead an agent to break code that worked.
+
+
+
+
+We attribute this behaviour to how the agent receives the two sources. The agent software places the instruction file in the model’s context as an instruction, while the code reaches the model only as the output of a file-reading tool. Models are trained to give instructions priority over tool output, so that text hidden in web pages or files cannot redirect the agent (Wallace et al., 2024; Guo et al., 2026). The same training gives a stale line in the instruction file priority over the code it once described.
+
+
+
+
+The same ordering also provides a fix. We added one sentence to the user’s own instruction file, stating that existing code takes precedence when documentation and code disagree. Across 40 projects and two agents, this moved the agents from following the stale file in most choices to following the code in nine out of ten, and no agent rewrote existing code. It works without anyone first having to find the stale file. Users can apply the sentence today, and the makers of agent software can build the same rule into their products.
+
+
+
+Figure 1: One task from the study, run with Claude Code. The file asks for print and the code uses logging. Without the sentence, the agent reports the conflict and writes print; with the sentence, it writes logging and lists the conflicts it found
+
+
+
+
+
+2 How instruction files go stale
+
+
+
+
+An instruction file describes the project as it was when the file was written, and most files are never brought up to date. In 441 company repositories, 73.8% of AI configuration files were committed once and never modified (Denisov-Blanch et al., 2026). In 356 public repositories, a consistency checker flagged references to code that no longer exists in the instruction files of 23.0% of the repositories (Treude and Baltes, 2026). Files generated once and never reviewed are also among the problems most often found in practice (dos Santos et al., 2026). The same happens in large, actively maintained projects (Figure 2). After Supabase moved its dashboard to React 19, a skill file kept telling agents for 13 days that the dashboard uses React 18 and that React 19 patterns should be skipped. In the repository of Codex CLI, an AGENTS.md file asked agents for 24 days to update a document that had already been deleted. In all three cases in the figure, the maintainers later corrected the file to match the code. Claude Code’s documentation asks users to review their files periodically and remove outdated lines (Anthropic, 2026). This depends on someone noticing which lines have become wrong, which is difficult in a large project.
+
+
+
+Figure 2: Three instruction files that went stale in Supabase and OpenAI Codex in 2026. Each bar runs from the change to the code to the commit that corrected the file. Numbers in parentheses are pull requests in github.com/supabase/supabase and github.com/openai/codex
+
+
+
+A stale file affects a team in three ways. New code stops matching the existing code, so reviewers have to find and correct the difference. Some conventions concern correctness: when a stale rule asked for monetary amounts as floating-point numbers, agents wrote floating-point arithmetic even though the existing code used integer cents (Mohammadi et al., 2026). And because the file is loaded in every session, the same mistake recurs in every task, for every agent and every team member, until someone corrects the file. In our experiment, one agent also rewrote working code to match the file (Section 5.4).
+
+
+
+
+
+
+3 Why agents follow the file
+
+
+
+Figure 3: What the model receives in Claude Code. The instruction file and our sentence arrive as instructions. The existing code arrives as tool output, which models are trained to treat as information
+
+
+
+The behaviour results from three properties of current coding agents: how instruction files are written, how agent software delivers them, and how models are trained to rank their inputs.
+
+
+
+
+
+Instruction files describe the code in the form of commands
+
+
+
+
+A line such as “Use print() for progress messages” is phrased as a command, but what it records is how the code looked when the line was written. When the code changes, the description becomes false while its imperative wording stays the same.
+
+
+
+
+
+
+Agent software delivers the file as an instruction
+
+
+
+
+Claude Code inserts CLAUDE.md into a user message directly after the system prompt (Anthropic, 2026) and introduces it with the text “Codebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.” Codex CLI places AGENTS.md in a user message headed “AGENTS.md instructions for” the project path and wraps its content in an INSTRUCTIONS tag. Both tools put the user-level file and the project file into the same message, with the user-level file first. The existing code reaches the model only when the agent opens a file, as the output of a tool call (Figure 3).
+
+
+
+
+
+
+Models give instructions priority over tool output
+
+
+
+
+Under the instruction hierarchy, models are trained to follow system and user messages ahead of text returned by tools (Wallace et al., 2024). OpenAI’s Model Spec assigns tool output no authority of its own (OpenAI, 2025), and a training dataset released in 2026 strengthens this ordering in current models (Guo et al., 2026). The purpose is protection against prompt injection, in which a web page or a file contains text such as “ignore your previous instructions”. Coding agents show the same ordering in practice, following rules in project files ahead of rules in tool descriptions (Huang et al., 2026). Agents do act on tool output when no instruction covers the matter, for instance by carrying out the steps suggested in a tool’s error message (Xu and Wu, 2026). When an instruction does exist, they keep to it (Xu and Wu, 2026).
+
+
+
+
+Each of these properties is reasonable on its own. This ordering protects agents from injected text, and delivering the instruction file as an instruction is what allows a team’s conventions to take effect. The problem arises when the file describes code that has since changed, because the outdated description still carries the priority of an instruction while the current code carries the lower priority of tool output.
+
+
+
+
+The same ordering shows how the conflict can be resolved. A sentence in the user-level instruction file that gives existing code precedence reaches the model as an instruction, in the same way as the project file. With it in place, following the code is itself what an instruction asks for, so the choice is between two instructions. The sentence is the one that addresses this exact case, a disagreement between documentation and code, while the other lines of the project file, such as build commands, keep their effect.
+
+
+
+
+This explanation leads to two predictions. Agents should follow a stale file even after reading the code and noticing the conflict, and the sentence should reverse the outcome. The experiment below tests both.
+
+
+
+
+
+
+
+4 Experiment
+
+
+
+
+
+Projects
+
+
+
+
+We built 40 small Python projects, each with three to eight working modules, a passing test suite, an instruction file and a feature request. Implementing the feature requires four or five choices between two conventions, drawn from the 16 kinds listed in Figure 4. In each project the existing code uses one convention consistently and the instruction file asks for the other. Each kind appears in both directions across the projects, so that a model’s general preference for one convention favours neither outcome. The feature requests describe only the required behaviour and do not mention conventions.
+
+
+
+Figure 4: The 16 kinds of choice. In each project the instruction file asks for one convention and the existing code uses the other, and both directions occur. Each kind appears in 11 or 12 projects, 5 or 6 in each direction
+
+
+
+
+
+The sentence
+
+
+
+
+Every project was run with and without the following sentence in the user-level instruction file (~/.claude/CLAUDE.md for Claude Code, ~/.codex/AGENTS.md for Codex CLI):
+
+
+
+
+
+When a repository’s documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.
+
+
+
+
+
+
+
+Agents
+
+
+
+
+We used Claude Code 2.1.302 with Claude Sonnet 5.5 and Codex CLI 0.163.0 with GPT-6 Sol in non-interactive mode, with file edits approved automatically. Each run started from a fresh copy of the project, and the prompt contained only the feature request. Every project was run twice for each agent and condition, giving 320 runs.
+
+
+
+
+
+
+Measures
+
+
+
+
+A script examined the code added in each run and classified each choice as matching the instruction file, matching the existing code, or neither. A second model, Claude Opus 5.5, read each final reply without knowing the condition and recorded whether it named a conflict between the file and the code. A run counted as rewriting existing code when it removed 20 or more lines from Python files that existed before the run. After each run we restored the project’s original test files, ran them together with our held-out tests for the new feature, and recorded the number of tool calls and the running time. Appendix 10 gives the agent commands, the handling of failed attempts and the settings of the conflict judge. Results are reported for each agent and each of the 16 kinds, since an overall rate can hide changes in opposite directions (Xu and Wu, 2026).
+
+
+
+
+
+
+
+5 Results
+
+
+
+
+5.1 Agents follow the stale file
+
+
+
+Without the sentence, 90.1% of choices (649 of 720) matched the stale file and 4.2% matched the existing code (Figure 5a). Both agents did this: Claude Code matched the file in 86.4% of its choices and Codex CLI in 93.9%. The file prevailed for both agents in 14 of the 16 kinds of choice (Figure 5b). The two exceptions are Money and Configuration, where Claude Code followed the file in fewer than half of its choices.
+
+
+
+Figure 5: (a) Share of choices that match the instruction file, the existing code or neither. Brackets give the 95% interval of the larger share, from 2,000 resamples of projects. (b) Share of choices that match the stale file without the sentence, by kind of choice; the dashed line marks 50%
+
+
+
+
+5.2 Claude Code reports the conflict and still follows the file
+
+
+
+Claude Code named the conflict in its final reply in 79 of 80 runs, and in those runs 86.2% of its choices still matched the file (Figure 6). One reply reads: “The existing concat.py, reader.py, writer.py and columns.py still use logging, pathlib, str.format() and absolute imports, which go against CLAUDE.md.” The agent read the code, saw the difference and treated the code as the part that was out of line. Codex CLI named the conflict in 2 of 80 replies. In 60 of its 80 runs it followed the file without mentioning the conflict, and in the other 20 it rewrote the existing code.
+
+
+
+Figure 6: What each run did, for the 80 runs of each agent and condition
+
+
+
+
+5.3 One sentence makes agents follow the code
+
+
+
+With the sentence, 91.4% of choices (658 of 720) matched the existing code, 87.2 percentage points more than without it (95% interval 83.6 to 90.9, from resamples of projects). The share rose from 7.5% to 94.4% for Claude Code and from 0.8% to 88.3% for Codex CLI (Figure 5a). Both agents reported the conflicts they found in all 160 runs.
+
+
+
+
+
+5.4 Without the sentence, Codex CLI rewrote working code
+
+
+
+In 20 of its 80 runs without the sentence, Codex CLI rewrote the existing code to match AGENTS.md. These runs removed a median of 198 lines from 9 files that existed before the run, across 12 of the 40 projects. When the project’s original tests were restored after the run, they failed in 17 of the 20 runs. Figure 7 shows one of these runs: the agent replaced the Column enumeration in model.py with string constants, as AGENTS.md asked, and the original tests could no longer import Column. With the sentence, no Codex CLI run rewrote existing code. Claude Code rewrote existing code in neither condition.
+
+
+
+Figure 7: One of the 20 Codex CLI runs that rewrote existing code (project kanbanlite, without the sentence)
+
+
+
+
+5.5 Tests pass in every run with the sentence
+
+
+
+Tests passed in 89.4% of runs without the sentence and in all 160 runs with it. The difference comes from Codex CLI, whose pass rate rose from 78.8% to 100%, and every one of its failing runs was a rewrite. Runs with the sentence also used slightly fewer tool calls and less time.
+
+
+
+
+Both predictions held. Between the two conditions, the stale file, its wording and its place in the context were identical, and the only addition was a statement of which source takes precedence. The outcome followed that statement, which is consistent with the stale file prevailing through its standing as an instruction. This offers an answer to the question, left open by Mohammadi et al. (2026), of why a written rule overrides the code that contradicts it. The emphatic preamble in Claude Code is not needed for this: Codex CLI adds no such text and followed the file in 93.9% of its choices.
+
+
+
+
+
+
+
+6 What users, teams and makers can do
+
+
+
+
+Figure 8 summarises the steps available to each group.
+
+
+
+Figure 8: What each group can do
+
+
+
+
+Users
+
+
+
+
+The sentence is added once to a file the user already maintains, and from then on it applies to every project.
+
+
+
+
+
+
+Makers of agent software
+
+
+
+
+Claude Code’s documentation explains how conflicts between two instruction files are handled and does not address conflicts between an instruction file and the code (Anthropic, 2026). The rule our sentence states can be placed in the agent’s own system prompt, where it reaches every user without any action on their part.
+
+
+
+
+
+
+Makers of models
+
+
+
+
+Instruction files mix rules for the agent with descriptions of the code (Figure 8). Current training treats both as instructions. A model that checks the descriptions against the code would avoid the problem without any action from the user.
+
+
+
+
+
+
+
+7 Related work
+
+
+
+
+Recent studies describe what instruction files contain and how teams maintain them (Chatlatanagulchai et al., 2025; Mohsenimofidi et al., 2026; Galster et al., 2026; Denisov-Blanch et al., 2026; dos Santos et al., 2026). Others measure how the files change agent behaviour, including task success (Gloaguen et al., 2026), running time (Lulla et al., 2026), the effect of different kinds of rules (Zhang et al., 2026) and how reliably rules are followed (Huang et al., 2026). Our earlier work measured how agents respond to skill documents (Xu and Wu, 2026; Xu and Wu, 2026), test feedback (Xu and Wu, 2026) and tool error messages (Xu and Wu, 2026). These studies work with files whose content is correct, whereas this study concerns a file that has gone out of date.
+
+
+
+
+Tools that detect outdated references in documentation already exist (Tan et al., 2024), and Treude and Baltes (2026) applied one to AI instruction files. A checker helps when someone runs it, while the sentence takes effect in every task.
+
+
+
+
+Mohammadi et al. (2026) first showed that agents follow a written rule over code that contradicts it. We show that agents do so while recognising the conflict, trace the behaviour to the instruction hierarchy, and correct it with one sentence. Work on the instruction hierarchy studies conflicts between instructions of different rank (Wallace et al., 2024; Guo et al., 2026), and our results show that the same ordering decides conflicts between an instruction and the code.
+
+
+
+
+
+
+8 Scope
+
+
+
+
+The study covers 40 Python projects in which the instruction file is the outdated source, with 16 kinds of convention, feature tasks completed in a single unattended run, and two agents: Claude Code with Claude Sonnet 5.5 and Codex CLI with GPT-6 Sol.
+
+
+
+
+
+
+9 Conclusion
+
+
+
+
+Instruction files describe a project at one point in time, and coding agents keep following them after the code has moved on. Claude Code did so while pointing out the conflict in its own replies, and Codex CLI at times rewrote working code to match the file. We attribute this to the file reaching the model as an instruction while the code reaches it as tool output. One sentence in the user-level instruction file that gives existing code precedence raises the share of choices that follow the code from 4.2% to 91.4%, without anyone first having to find and correct the stale file.
+
+
+
+
+
+
+Declarations
+
+
+
+
+
+Funding
+
+
+
+
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+
+
+
+
+
+Competing interests
+
+
+
+
+The authors declare no competing financial interests or personal relationships that could have influenced this work.
+
+
+
+
+
+
+Ethics approval and consent to participate
+
+
+
+
+This study involves no human participants and no personal data. All runs are interactions between coding agents and synthetic Python projects. Ethics approval and consent to participate are therefore not applicable.
+
+
+
+
+
+
+Consent for publication
+
+
+
+
+Not applicable.
+
+
+
+
+
+
+Data and code availability
+
+
+
+
+The projects, tasks, run records and analysis scripts are available at https://github.com/WenJing95/stale-docs-data.
+
+
+
+
+
+
+
+10 Run settings
+
+
+
+
+
+Agent commands
+
+
+
+
+Both agents ran without interaction in a fresh copy of the project, with the feature request on standard input and a time limit of 1,800 seconds. Claude Code ran with
+
+
+
+
+claude -p --model sonnet --permission-mode acceptEdits
+  --output-format stream-json --verbose --strict-mcp-config
+  --allowedTools "Bash(python *)" "Bash(python3 *)" "Bash(py *)" "Bash(pytest *)"
+    "PowerShell(python *)" "PowerShell(python3 *)" "PowerShell(py *)"
+    "PowerShell(pytest *)"
+  --disallowedTools "Bash(pip *)" "Bash(python -m pip *)" "Bash(python3 -m pip *)"
+    "Bash(py -m pip *)" "PowerShell(pip *)" "PowerShell(python -m pip *)"
+    "PowerShell(python3 -m pip *)" "PowerShell(py -m pip *)"
+
+
+
+
+
+and the environment variables CLAUDE_CONFIG_DIR (a dedicated folder holding the user-level CLAUDE.md of the condition), CLAUDE_CODE_DISABLE_AUTO_MEMORY=1, DISABLE_AUTOUPDATER=1 and PYTHONIOENCODING=utf-8. Codex CLI ran with
+
+
+
+
+codex exec -s danger-full-access -m gpt-6-sol --json
+  -o <run folder>/final_reply.txt -C <project copy> -
+
+
+
+
+
+and the environment variables CODEX_HOME (a dedicated folder holding the user-level AGENTS.md of the condition), PIP_REQUIRE_VIRTUALENV=1 and PYTHONIOENCODING=utf-8. Before either agent started, the variables whose names begin with CLAUDE, ANTHROPIC, OPENAI, CODEX, AWS_, GOOGLE_, VERTEX, BEDROCK or MCP_, and the variables DISABLE_TELEMETRY, DISABLE_PROMPT_CACHING, DISABLE_FEEDBACK_COMMAND, DISABLE_AUTOUPDATER, PYTHONPATH, PYTHONSTARTUP, PYTHONHOME and VIRTUAL_ENV were removed from the environment.
+
+
+
+
+
+
+Failed attempts
+
+
+
+
+A run stopped by a usage limit was started again from a fresh copy of the project 120 seconds after the reset time that the agent reported (waiting at most 6 hours), or after 30 minutes when no reset time was reported. A run stopped by a login problem was started again from a fresh copy after 15 minutes. Neither case counted as an attempt. After a timeout, a crash or a command rejected by the sandbox, the run was repeated once from a fresh copy, and a second failure would have made the run invalid. One run was repeated after a sandbox rejection, and all 320 runs were valid.
+
+
+
+
+
+
+Conflict judge
+
+
+
+
+The criterion, included in the data package, was fixed before the first run. The final replies of all valid runs were shuffled and each was given an opaque identifier, so that the judge saw only the identifier and the reply, without the condition, the agent, the task or the code changes. Each reply was judged in a separate call of
+
+
+
+
+claude -p --model opus --safe-mode --tools "" --strict-mcp-config
+  --no-session-persistence --output-format json
+  --json-schema <schema> --system-prompt-file criteria/conflict_criteria.md
+
+
+
+
+
+in a new empty folder, with the configuration folder that Claude Code used in the condition without the sentence. The safe-mode option also switches off instruction files, skills, plugins, hooks and MCP servers. The judge returned YES or NO, with the sentence that states the conflict as evidence for YES. Each call had a time limit of 600 seconds and up to three attempts.
+
+
+
+
+
+
+
+
+
+
+References
+
+
+      
+
+Anthropic (2026)
+
+Anthropic, 2026. How Claude remembers your project. Claude Code documentation. https://code.claude.com/docs/en/memory. Accessed 20 October 2026.
+
+
+
+      
+
+AGENTS.md (2025)
+
+AGENTS.md, 2025. AGENTS.md: a simple, open format for guiding coding agents. https://agents.md. Accessed 21 October 2026.
+
+
+
+      
+
+Chatlatanagulchai et al. (2025)
+
+Chatlatanagulchai, W., Thonglek, K., Reid, B., Kashiwa, Y., Leelaprute, P., Rungsawang, A., Manaskasemsak, B., Iida, H., 2025. On the use of agentic coding manifests: an empirical study of Claude Code, in: Product-Focused Software Process Improvement (PROFES 2025). Springer. doi:10.1007/978-3-032-12089-2_40.
+
+
+
+      
+
+Mohsenimofidi et al. (2026)
+
+Mohsenimofidi, S., Galster, M., Treude, C., Baltes, S., 2026. Context engineering for AI agents in open-source software, in: Proceedings of the 23rd International Conference on Mining Software Repositories (MSR ’26). ACM. arXiv:2510.21413.
+
+
+
+      
+
+Mohammadi et al. (2026)
+
+Mohammadi, B., Klein, L., Chadha, A., Arora, A., Bindschaedler, L., 2026. The working set of a coding agent: coherence debt in repository-scale tasks. arXiv:2608.16630.
+
+
+
+      
+
+Wallace et al. (2024)
+
+Wallace, E., Xiao, K., Leike, R., Weng, L., Heidecke, J., Beutel, A., 2024. The instruction hierarchy: training LLMs to prioritize privileged instructions. arXiv:2404.13208.
+
+
+
+      
+
+Guo et al. (2026)
+
+Guo, C., Ceron Uribe, J.F., Zhu, S., Choquette-Choo, C.A., Lin, S., Kandpal, N., Nasr, M., Rai, Toyer, S., Wang, M., Yu, Y., Beutel, A., Xiao, K., 2026. IH-Challenge: a training dataset to improve instruction hierarchy on frontier LLMs. arXiv:2603.10521.
+
+
+
+      
+
+Denisov-Blanch et al. (2026)
+
+Denisov-Blanch, Y., Agarwal, S., Azaletskiy, P., He, H., Schaeffer, R., Miranda, B., Vasilescu, B., Koyejo, S., 2026. A few pages of markdown: committed AI configuration and lower quality cost after coding-agent adoption. arXiv:2608.25241.
+
+
+
+      
+
+Treude and Baltes (2026)
+
+Treude, C., Baltes, S., 2026. Context rot in AI-assisted software development: repurposing documentation consistency for AI configuration artifacts. arXiv:2606.09090.
+
+
+
+      
+
+dos Santos et al. (2026)
+
+dos Santos, H.V.F., Costa, V., Montandon, J.E., Silva, L.L., Valente, M.T., 2026. Configuration smells in AGENTS.md files: common mistakes in configuring coding agents. arXiv:2606.15828.
+
+
+
+      
+
+OpenAI (2025)
+
+OpenAI, 2025. OpenAI Model Spec. https://model-spec.openai.com/. Accessed 21 October 2026.
+
+
+
+      
+
+Huang et al. (2026)
+
+Huang, Z., Que, H., Zeng, H., Zhang, G., Wang, Z., Chen, J., Wang, H., Hou, Z., Pu, C., Yan, S., Huang, W., 2026. Harness-IF: evaluating instruction following across instruction surfaces in coding agents. arXiv:2608.11727.
+
+
+
+      
+
+Xu and Wu (2026)
+
+Xu, X., Wu, W., 2026. MCP error messages written for developers hurt the most capable agents most. arXiv:2609.35381.
+
+
+
+      
+
+Xu and Wu (2026)
+
+Xu, X., Wu, W., 2026. Low reasoning effort is enough for routine office work by language-model agents. arXiv:2608.03169.
+
+
+
+      
+
+Xu and Wu (2026)
+
+Xu, X., Wu, W., 2026. What aggregate scores miss: measuring item-level regressions in commercial LLM API migrations. arXiv:2608.17719.
+
+
+
+      
+
+Galster et al. (2026)
+
+Galster, M., Mohsenimofidi, S., Böhme, L., Lulla, J.L., Abubakar, M.A., Treude, C., Baltes, S., 2026. A dataset of agentic AI coding tool configurations, in: Proceedings of the 3rd ACM International Conference on AI-Powered Software (AIware ’26). ACM, pp. 314–322. doi:10.1145/3805760.3814922.
+
+
+
+      
+
+Gloaguen et al. (2026)
+
+Gloaguen, T., Mündler, N., Müller, M., Raychev, V., Vechev, M., 2026. Evaluating AGENTS.md: are repository-level context files helpful for coding agents?, in: ICLR 2026 Workshop on Memory for LLM-Based Agentic Systems. arXiv:2602.11988.
+
+
+
+      
+
+Lulla et al. (2026)
+
+Lulla, J.L., Mohsenimofidi, S., Galster, M., Zhang, J.M., Baltes, S., Treude, C., 2026. On the impact of AGENTS.md files on the efficiency of AI coding agents. arXiv:2601.20404.
+
+
+
+      
+
+Zhang et al. (2026)
+
+Zhang, X., Wang, G., Cui, Y., Qiu, W., Li, Z., Zhu, B., He, P., 2026. Guardrails beat guidance: a large-scale study of rules, skills, and persistent configuration for coding agents. arXiv:2604.11088.
+
+
+
+      
+
+Xu and Wu (2026)
+
+Xu, X., Wu, W., 2026. Skill availability and presentation granularity in large-language-model agents: a controlled SkillsBench study. arXiv:2605.31408.
+
+
+
+      
+
+Xu and Wu (2026)
+
+Xu, X., Wu, W., 2026. Shortening agent skills leaves LLM agent cost unchanged. arXiv:2607.03048.
+
+
+
+      
+
+Xu and Wu (2026)
+
+Xu, X., Wu, W., 2026. Validation evidence in LLM repair agents: how much of what passes actually tests the bug? arXiv:2607.28871.
+
+
+
+      
+
+Tan et al. (2024)
+
+Tan, W.S., Wagner, M., Treude, C., 2024. Detecting outdated code element references in software repository documentation. Empirical Software Engineering 29, 5.
+
+
+
+    
+
+
+
+
+
+
+  
+    Experimental support, please
+    view the build logs
+    for errors. Generated by
+    
+      
+        L
+        A
+        T
+        E
+      
+      xml
+      
+    .
+  
+  
+    
+Instructions for reporting errors
+    
+We are continuing to improve HTML versions of papers, and your feedback helps enhance accessibility and mobile
+      support. To report errors in the HTML that will help us improve conversion and rendering, choose any of the
+      methods listed below:
+
+    
+      
+Click the "Report Issue" (
+            
+          ) button, located in the page header.
+
+    
+    
+Tip: You can select the relevant text first, to include it in your report.
+
+    
+Our team has already identified the following issues. We appreciate your time reviewing and reporting rendering errors we
+      may not have found yet. Your efforts will help us improve the HTML versions for all readers, because disability
+      should not be a barrier to accessing research. Thank you for your continued support in championing open access for
+      all.
+
+    
+Have a free development cycle? Help support accessibility at arXiv! Our collaborators at LaTeXML maintain a list of packages that need conversion, and welcome developer contributions.
+
+  
+
+  
+    
+      
+        We gratefully acknowledge support from our major funders,
+        member institutions, ,
+        and all contributors.
+      
+      
+        About ·
+        Help ·
+        Contact ·
+        Subscribe ·
+        Copyright ·
+        Privacy ·
+        Accessibility ·
+        Operational Status (opens in new tab)
+      
+    
+  
+
+  
+    
+      
+    
+  
+
+

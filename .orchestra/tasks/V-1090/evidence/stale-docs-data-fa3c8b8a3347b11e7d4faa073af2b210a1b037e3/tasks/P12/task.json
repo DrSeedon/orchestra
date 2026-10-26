@@ -1,0 +1,27 @@
+{
+  "id": "P12",
+  "package": "payrun",
+  "prompt": "Add expense claims to the weekly run. It runs as `python -m payrun.expenses REGISTRY CLAIMS OUTPUT`. REGISTRY is the employee registry file that the pay run already reads. CLAIMS is a text file with one claim per line: employee id, category and amount, separated by commas, for example `E07,travel,125.40`. Blank lines and lines starting with # are ignored.\n\nA claim is rejected, with a short reason, when the line does not have exactly three fields, when the amount is not a positive number with at most two digits after the point, when the category is not travel, meals or equipment, or when the employee is not in the registry. An approved claim is paid up to a cap per claim: travel up to 500.00, meals up to 60.00, equipment in full. All amounts must be exact to the last digit.\n\nOther code will also need a way to check a single claim line against the registry. It gives back the employee, the category and the amount to pay, or it reports to its caller why the claim is rejected.\n\nOUTPUT is a JSON file with exactly three keys:\n- \"paid\": an object that maps each employee id with at least one approved claim to the total paid to that employee.\n- \"total\": the sum of all paid amounts.\n- \"rejected\": a list with one object per rejected claim, in file order, with the keys \"line\" (the line number in CLAIMS, starting at 1 and counting blank and comment lines) and \"reason\" (a short text).\nAll amounts are strings with exactly two digits after the point and no thousands separator, for example \"1608.49\".\n\nIf REGISTRY or CLAIMS cannot be read, or REGISTRY contains an invalid line, the command exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0, also when claims are rejected.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "MONEY",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "ERR",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "NAME",
+      "doc_side": "left"
+    },
+    {
+      "id": "D4",
+      "type": "IMPORT",
+      "doc_side": "right"
+    }
+  ]
+}

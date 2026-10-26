@@ -1,0 +1,2 @@
+instruction_contract_exit=1
+pytest_exit=1

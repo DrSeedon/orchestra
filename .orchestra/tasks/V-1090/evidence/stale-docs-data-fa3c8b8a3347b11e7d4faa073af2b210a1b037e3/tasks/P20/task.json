@@ -1,0 +1,32 @@
+{
+  "id": "P20",
+  "package": "habitlog",
+  "prompt": "Add a streak report per habit. It runs as `python -m habitlog.streaks HABITS OUTPUT [--as-of DAY]`. HABITS is a habit file in the format the weekly command reads, and DAY is written as YYYY-MM-DD.\n\nThe as-of day is DAY. It may be left out, both on the command line and when other code calls the function that works out the streaks; then the as-of day is the latest day in HABITS. Entries after the as-of day are ignored. A habit counts once per day, even when it is listed twice on that day.\n\nFor every habit with at least one entry on or before the as-of day, work out a streak record that other code can use. The record holds the habit name; current, the number of consecutive days that end on the as-of day on which the habit was done (0 when it was not done on the as-of day); longest, the highest number of consecutive days on which it was done; total, the number of days on which it was done; and last, the latest day on which it was done. The new module should offer a function that takes the entries of the habit file and the as-of day and gives back the streak records, sorted by habit name.\n\nIf HABITS has no entries, or the as-of day is earlier than the first day in HABITS, that function must report this to its caller, and the command then exits with status 2 and does not write OUTPUT.\n\nWrite OUTPUT as JSON with two keys: \"as_of\", the as-of day as YYYY-MM-DD, and \"habits\", a list with one object per streak record, sorted by habit name, with the keys \"habit\", \"current\", \"longest\", \"total\" and \"last\" (the day as YYYY-MM-DD).\n\nIf DAY is not a valid day, or HABITS cannot be read or has an invalid line, the command also exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "REC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D2",
+      "type": "ERR",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "OPT",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "GENERIC",
+      "doc_side": "left"
+    },
+    {
+      "id": "D5",
+      "type": "TSTYLE",
+      "doc_side": "right"
+    }
+  ]
+}

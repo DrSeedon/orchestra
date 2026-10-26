@@ -1,0 +1,27 @@
+{
+  "id": "P10",
+  "package": "jobqueue",
+  "prompt": "Our nightly batch needs a way to cancel queued jobs. Please add a command: `python -m jobqueue.cancel QUEUE REPORT [--job ID] [--all] [--now SECONDS]`.\n\nQUEUE is a queue file as written by the storage module. Cancelling a job moves it from pending to a new final state, \"cancelled\"; a cancelled job never runs again. Every cancellation has one of three reasons, and the report gives the reason by name: \"user\" (someone asked for it), \"deadline\" (the job's deadline passed) or \"shutdown\" (the queue is shutting down).\n\nThe command does these steps in this order:\n1. Cancel each job given with --job, reason \"user\". The option may be given more than once.\n2. Cancel every pending job whose deadline is earlier than the reference time, reason \"deadline\". Jobs without a deadline are not touched in this step. The reference time is --now, in seconds since the epoch. It may be left out, and then the current time is used. The function that does this step should also accept a reference time that may be left out.\n3. If --all is given, cancel every job that is still pending, reason \"shutdown\".\n\nThen save the queue back to QUEUE and write REPORT as JSON with exactly two keys. \"cancelled\" is a list of objects with exactly the keys \"id\" and \"reason\", one for each job that this run cancelled, in the order of the jobs in QUEUE. \"pending\" is the list of ids of the jobs that are still pending, in the same order.\n\nCancelling a job id that does not exist, or a job that is not pending (running, done, failed or already cancelled), must fail with an error that a caller can catch. In that case the command tells the user what is wrong, exits with status 2, leaves QUEUE unchanged and writes no REPORT. On success it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "ENUM",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "EXC",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "TSTYLE",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "OPT",
+      "doc_side": "right"
+    }
+  ]
+}

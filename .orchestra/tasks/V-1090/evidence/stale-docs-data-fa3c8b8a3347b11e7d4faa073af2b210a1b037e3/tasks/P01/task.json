@@ -1,0 +1,11 @@
+{
+  "id": "P01",
+  "package": "invoice_tool",
+  "prompt": "Add a batch command that processes a whole folder of supplier files. It runs as `python -m invoice_tool.batch INPUT_DIR OUTPUT_DIR`.\n\nIt takes every file in INPUT_DIR whose name ends in .csv (other files are ignored), in alphabetical order of file name. Each file is read with the existing CSV reader, its supplier is derived from the file name, and its rows are normalized with the existing normalizer. If INPUT_DIR contains a file named aliases.txt, it is used as the supplier alias file. All records from all files go, in that order, to OUTPUT_DIR/invoices.csv, written with the existing exporter. OUTPUT_DIR is created if it does not exist.\n\nA file that cannot be read (for example because a required column is missing) must not stop the run. Skip it and tell the user which file was skipped and why. At the end, tell the user how many files were processed and how many were skipped. Also write OUTPUT_DIR/summary.json with two keys: \"processed\", the list of processed file names, and \"skipped\", an object that maps each skipped file name to a short reason. File names are bare names without the folder. If no records were produced, do not write invoices.csv.\n\nIf INPUT_DIR does not exist, or it contains no .csv files, the batch function must fail with an error that a caller can catch, and the command must exit with status 2 without writing anything. Otherwise the command exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "LOG", "doc_side": "left"},
+    {"id": "D2", "type": "PATH", "doc_side": "left"},
+    {"id": "D3", "type": "EXC", "doc_side": "right"},
+    {"id": "D4", "type": "TFILE", "doc_side": "left"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "P25",
+  "package": "envcheck",
+  "prompt": "Add a command that checks all env files of a folder at once. It runs as `python -m envcheck.scan SETTINGS_FILE ENV_DIR OUTPUT_JSON`.\n\nThe settings file and the schema are read in the same way as by the check command. Add a new setting strict that takes yes or no, like allow_empty, and is no when the file does not set it. The check command keeps working with settings files that set strict.\n\nEvery file in ENV_DIR whose name ends in .env is checked against the schema in the same way as by the check command, in alphabetical order of the file names. Other files are ignored. When strict is yes, the names that a file sets but the schema does not list are unknown. When strict is no, no name is unknown. A file that cannot be read or has a line that is not valid is unreadable and is not checked.\n\nWrite a JSON file with three keys. \"files\" maps the name of every checked file to an object with the keys \"missing\", \"invalid\" and \"unknown\", each a list of names in alphabetical order. \"unreadable\" is the list of unreadable file names in alphabetical order. \"ok\" is true when no file is unreadable and no file has a missing, invalid or unknown name, and false otherwise. The command exits with status 0 when \"ok\" is true and with status 1 when it is false.\n\nWhen ENV_DIR does not exist or holds no .env file, the function that scans the folder must fail with an error that its caller can catch. The command then exits with status 2 and writes nothing. It also exits with status 2 and writes nothing when the settings or the schema cannot be used.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {"id": "D1", "type": "CONFIG", "doc_side": "right"},
+    {"id": "D2", "type": "PATH", "doc_side": "left"},
+    {"id": "D3", "type": "EXC", "doc_side": "left"},
+    {"id": "D4", "type": "DOCSTR", "doc_side": "left"},
+    {"id": "D5", "type": "GENERIC", "doc_side": "left"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "P31",
+  "package": "hostsfile",
+  "prompt": "Add a lint command for hosts files. It runs as `python -m hostsfile.lint HOSTS_FILE OUTPUT_JSON` and reads HOSTS_FILE the same way as the other commands.\n\nOnly entry lines are checked. Blank lines and comment lines are skipped, but they count for line numbers (the first line of the file is line 1). An entry line can have issues of three kinds, reported by name:\n- \"bad_address\": the address is not a valid IPv4 or IPv6 address.\n- \"bad_name\": a host name fails the host name check that the package already has.\n- \"duplicate\": a valid host name that already appeared earlier in the file, or earlier on the same line, for an address of the same family. Case does not matter, so localhost on 127.0.0.1 and on ::1 is fine, but build and Build on two IPv4 lines is a duplicate. Names on a line with a bad address, and bad names, do not take part in this check.\n\nWrite OUTPUT_JSON as an object with four keys: \"file\" (the bare file name of HOSTS_FILE), \"entries\" (the number of entry lines), \"issues\" and \"counts\". \"issues\" is a list of objects with the keys \"line\", \"kind\" and \"value\" (the address or the host name as written). The list follows line order; within a line the bad address comes first, then the names from left to right. \"counts\" maps each of the three kinds to its number of issues and always has all three keys. Create the folder of OUTPUT_JSON if it does not exist.\n\nAn entry line with an address but no host name means that the file is damaged. The function that checks the entries must report this to its caller as invalid input, with the line number. The same applies when HOSTS_FILE does not exist. In both cases the command exits with status 2 and does not write OUTPUT_JSON. Otherwise the command exits with status 0 when there are no issues and with status 1 when there is at least one issue.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {"id": "D1", "type": "PATH", "doc_side": "right"},
+    {"id": "D2", "type": "ERR", "doc_side": "right"},
+    {"id": "D3", "type": "ENUM", "doc_side": "right"},
+    {"id": "D4", "type": "IMPORT", "doc_side": "left"},
+    {"id": "D5", "type": "DOCSTR", "doc_side": "left"}
+  ]
+}

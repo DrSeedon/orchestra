@@ -1,0 +1,12 @@
+{
+  "id": "P23",
+  "package": "tipjar",
+  "prompt": "Add a command that splits a bill between people by weights. It runs as `python -m tipjar.shares BILL_CSV SHARES_CSV OUTPUT_JSON [--tip PERCENT]`.\n\nBILL_CSV is read in the same way as by the summary command, and --tip takes the same values. The tip is computed and rounded in the same way as in the summary. Without --tip there is no tip, which is not the same as a tip of 0.\n\nSHARES_CSV has the header name,weight and one row per person. A weight is a whole number of at least 1. Each person pays the total (subtotal plus tip) times their weight divided by the sum of all weights, rounded down to 0.01. The hundredths that are left over go one at a time to the people in the order of the shares file, so the amounts always add up to the total.\n\nThe shares file is invalid when a weight is not a whole number of at least 1, when a name is empty or appears twice, or when the file has no people. The function that reads the shares file must report the problem to its caller together with the line number of the bad row. The function that computes the amounts takes the tip percentage, which can be missing.\n\nWrite a JSON file with the keys \"subtotal\", \"tip\", \"total\" and \"shares\". \"tip\" is null when there is no tip. \"shares\" is a list in the order of the shares file with one object per person, with the keys \"name\", \"weight\" (a number) and \"amount\". All money values are text with two digits after the point, such as \"12.30\".\n\nThe command exits with status 2 and writes nothing when the bill, the shares file or the tip is invalid, or when a file cannot be read. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "MONEY", "doc_side": "left"},
+    {"id": "D2", "type": "ERR", "doc_side": "right"},
+    {"id": "D3", "type": "FMT", "doc_side": "left"},
+    {"id": "D4", "type": "OPT", "doc_side": "left"},
+    {"id": "D5", "type": "IMPORT", "doc_side": "left"}
+  ]
+}

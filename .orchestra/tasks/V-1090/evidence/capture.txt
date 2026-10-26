@@ -1,0 +1,13 @@
+200 https://arxiv.org/html/2610.30571v1/fig-Main.svg 182955 d7b3c1a2c744b0928907f0a5be9daf1b76cf47f0b9e478330245e69563be68d8
+200 https://arxiv.org/html/2610.30571v1/fig-StaleCases.svg 121774 3c79e5da04f62f54e343f283341d7992dd675e65b5dc27ad9eebb30c7c94c780
+200 https://arxiv.org/html/2610.30571v1/fig-Channels.svg 246173 4f4c13cc2046bccb3e83d2934d9246c813d43021678a580393d1d3c22adcae38
+200 https://arxiv.org/html/2610.30571v1/fig-Kinds.svg 275381 7e9b07134ca0f01ea78fe628ca4583fd5dcfd75014c86dcd9fcaf12f25198202
+200 https://arxiv.org/html/2610.30571v1/fig-Results.svg 193598 0aae8be745d762628c80c9576b3d7f6e26e90cbe9ff114566cd10d8dac568823
+200 https://arxiv.org/html/2610.30571v1/fig-Runs.svg 112537 fc44195e3eda3ae5f8b5df7664f6f2014ec4de7d6ee079b45365c66be43f0c42
+200 https://arxiv.org/html/2610.30571v1/fig-RewriteExample.svg 215858 4d930ce7cffb9d03106926af35c5317ed499ec4fb778f1e0dc001cbb7b79cb03
+200 https://arxiv.org/html/2610.30571v1/fig-Actions.svg 172954 113b6dc7d369be41551f435b59bf0ce1e995a80d30fd075a910005da0a3edaa3
+local source files captured 17
+local .git exists False
+CLAUDE.md symlink False
+app directory exists False
+KB directory exists False

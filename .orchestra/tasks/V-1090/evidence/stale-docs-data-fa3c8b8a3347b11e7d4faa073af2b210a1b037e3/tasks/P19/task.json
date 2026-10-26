@@ -1,0 +1,32 @@
+{
+  "id": "P19",
+  "package": "shiprate",
+  "prompt": "Add a report of the surcharge for parcels to remote zones. It runs as `python -m shiprate.remote DATA_DIR PARCELS REMOTE OUTPUT [--settings FILE]`, where DATA_DIR, PARCELS and the settings file are the same inputs as for the quote command.\n\nREMOTE is a comma-separated list of zone names, for example Z3,Z4. Every name in it must be a zone of the zone table. If one is not, checking the list must fail with an error that a caller can catch, and the message names the unknown zone. The command then exits with status 2 and does not write OUTPUT.\n\nAdd a new setting remote_percent, a whole number with the default 15, to the settings the project already reads, so that a settings file can change it. A value that is not a whole number of at least 0 makes the settings invalid.\n\nFor every parcel, in the order of PARCELS, find its zone and its base rate the same way the quote command does, without the fuel surcharge. When the zone is in REMOTE, the remote surcharge is remote_percent percent of the base rate, rounded half up to two digits after the point (15 percent of 14.70 is 2.21). Otherwise the surcharge is 0.00.\n\nWrite OUTPUT as JSON with four keys: \"currency\" (the currency setting), \"percent\" (remote_percent as a number), \"parcels\", a list with one object per parcel with the keys \"id\", \"zone\", \"base\" and \"surcharge\", and \"surcharge\", the sum of all surcharges. Amounts are strings with two digits after the point, for example \"18.40\". When the file is written, tell the user the number of parcels and the total surcharge.\n\nIf the settings are invalid, an input file cannot be read, or a parcel cannot be quoted (unknown country, no rate band for its weight, or heavier than the max weight setting), the command exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "MONEY",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "CONFIG",
+      "doc_side": "left"
+    },
+    {
+      "id": "D3",
+      "type": "FMT",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "DOCSTR",
+      "doc_side": "left"
+    },
+    {
+      "id": "D5",
+      "type": "EXC",
+      "doc_side": "right"
+    }
+  ]
+}

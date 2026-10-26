@@ -1,0 +1,22 @@
+FIGURE Main
+
+
+FIGURE StaleCases
+
+
+FIGURE Channels
+
+
+FIGURE Kinds
+
+
+FIGURE Results
+
+
+FIGURE Runs
+
+
+FIGURE RewriteExample
+
+
+FIGURE Actions

@@ -1,0 +1,27 @@
+{
+  "id": "P11",
+  "package": "notegrep",
+  "prompt": "Add a backlinks report for a notes folder. It runs as `python -m notegrep.backlinks NOTES_DIR` and writes NOTES_DIR/backlinks.json.\n\nNotes are found and read the same way the index finds them (every .md file below NOTES_DIR; files and folders whose name starts with a dot are skipped). Links are the [[wiki links]] that the parser already understands, including [[name#heading]] and [[name|label]]. A link points to a note when its target equals the note name (the file name without .md), ignoring upper and lower case. A link whose target matches no note is a broken link.\n\nbacklinks.json is a JSON object with exactly four keys:\n- \"notes\": the number of notes read.\n- \"links\": the total number of links. A target that appears several times in one note counts once for that note. Broken links count too.\n- \"backlinks\": an object with one entry for every note name. The value is the sorted list of the names of the notes that link to it, or an empty list if no note links to it.\n- \"broken\": an object that maps the name of each note that has broken links to the list of its missing targets, written as in the link, in order of appearance. Notes without broken links are left out.\n\nTell the user about every broken link (which note, which target). At the end, tell the user how many notes and links were read and how many links are broken.\n\nIf NOTES_DIR does not exist or is not a folder, the command exits with status 2 and writes nothing. Otherwise it exits with status 0, also when there are broken links or no notes at all.\n\nAdd tests for the new feature. Give every new public function a docstring that describes its parameters and return value.",
+  "decisions": [
+    {
+      "id": "D1",
+      "type": "PATH",
+      "doc_side": "right"
+    },
+    {
+      "id": "D2",
+      "type": "DOCSTR",
+      "doc_side": "right"
+    },
+    {
+      "id": "D3",
+      "type": "TFILE",
+      "doc_side": "right"
+    },
+    {
+      "id": "D4",
+      "type": "LOG",
+      "doc_side": "left"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+HTTP/2 200 
+etag: CMz20vHwzpcDEAI=
+content-type: application/pdf
+server: Google Frontend
+content-disposition: inline; filename="2610.30571v1.pdf"
+link: <https://arxiv.org/pdf/2610.30571>; rel='canonical'
+x-cloud-trace-context: 93d8688be650dd3c25631e931665ab2f
+via: 1.1 google, 1.1 varnish, 1.1 varnish, 1.1 varnish
+access-control-allow-origin: *
+last-modified: Fri, 23 Oct 2026 00:28:13 GMT
+accept-ranges: bytes
+age: 273544
+date: Mon, 26 Oct 2026 06:15:30 GMT
+x-served-by: cache-lga-kjfk8660031-LGA, cache-lga-kjfk8660031-LGA, cache-lga-kjfk8660031-LGA, cache-fra-etou8220036-FRA
+x-cache: MISS, HIT, HIT
+x-timer: S1792995330.156395,VS0,VE1
+content-length: 590460
+

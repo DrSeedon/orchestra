@@ -1,0 +1,8 @@
+PUBLIC DERIVATIVE: native hub paths replaced by <hub-user>/<hub-workspace>; not verbatim. Original bytes are preserved under ignored private/raw; see preservation-manifest.json.
+
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 49ms
+/home/<hub-user>/<hub-workspace>/.venv/bin/python
+3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+app: None

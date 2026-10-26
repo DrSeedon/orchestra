@@ -1,0 +1,12 @@
+{
+  "id": "P30",
+  "package": "fuelcost",
+  "prompt": "Riders keep asking what they owe for fuel. Please add a split command that runs as `python -m fuelcost.split TRIPS VEHICLES OUTPUT [--settings FILE]`. TRIPS, VEHICLES and the settings file are the same files the report command reads, and the cost of a trip is exactly the cost the report command computes for it.\n\nThe cost of each trip is shared by its payers. Add a new setting, driver, with the values \"pays\" (the default) and \"free\", read from the settings file like the other settings. With \"pays\", the payers of a trip are its driver and its riders. With \"free\", only the riders pay. A trip without riders is paid by its driver whatever the setting says.\n\nEach payer's share of a trip is the trip cost divided by the number of payers, rounded down to two digits after the point. The amount left over after that goes to the first payer: the driver when the driver pays, otherwise the first rider listed for the trip. The shares of a trip always add up to the trip cost.\n\nWrite OUTPUT as CSV with the header name,trips,share and one row per person who appears in TRIPS as a driver or a rider, sorted by name. trips is the number of trips the person took part in (as driver or rider), and share is the total the person pays over all trips, as an amount with two digits after the point, for example 11.10 or 0.00.\n\nIf the settings file gives driver any other value, or another setting is invalid, or TRIPS or VEHICLES cannot be read or are invalid (this includes a trip with a car that VEHICLES does not list), the command exits with status 2 and writes nothing. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "MONEY", "doc_side": "left"},
+    {"id": "D2", "type": "CONFIG", "doc_side": "right"},
+    {"id": "D3", "type": "NAME", "doc_side": "left"},
+    {"id": "D4", "type": "GENERIC", "doc_side": "left"},
+    {"id": "D5", "type": "TSTYLE", "doc_side": "left"}
+  ]
+}

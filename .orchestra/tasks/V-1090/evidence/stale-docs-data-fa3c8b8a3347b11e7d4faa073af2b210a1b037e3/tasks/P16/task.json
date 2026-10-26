@@ -1,0 +1,12 @@
+{
+  "id": "P16",
+  "package": "budgetbook",
+  "prompt": "Add budget alerts per category. The command runs as `python -m budgetbook.alerts LEDGER BUDGETS MONTH OUTPUT [--near PERCENT]`.\n\nLEDGER is a ledger CSV file and BUDGETS a budget CSV file (category,limit), both in the formats the project already reads. MONTH looks like 2024-03. Only the transactions of that month count. For every category that has a budget, work out how much was spent in the month: expenses add to it, refunds subtract from it, income is ignored. A budget category without transactions has spent 0.00. Categories that have transactions but no budget are not reported.\n\nEach budget category gets one of three alert levels, reported by name: \"over\" when spent is greater than the budget; otherwise \"near\" when a near threshold was given and spent is at least that percentage of the budget (with --near 80 and a budget of 250.00, spent 200.00 or more); otherwise \"ok\". The --near threshold may be left out; then no category is \"near\". PERCENT must be a whole number from 1 to 100.\n\nWrite OUTPUT as JSON with three keys: \"month\" (the MONTH argument), \"near\" (the threshold as a number, or null when it was left out) and \"categories\", a list sorted by category name with one object per budget category. Each object has the keys \"category\", \"budget\", \"spent\", \"remaining\" (budget minus spent, negative when the budget is exceeded) and \"level\". Amounts are strings with two digits after the point, for example \"44.25\" or \"-5.10\".\n\nIf MONTH is not a valid month, PERCENT is not a whole number from 1 to 100, or one of the input files cannot be read, the command exits with status 2 and does not write OUTPUT. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "MONEY", "doc_side": "left"},
+    {"id": "D2", "type": "ENUM", "doc_side": "left"},
+    {"id": "D3", "type": "NAME", "doc_side": "left"},
+    {"id": "D4", "type": "TFILE", "doc_side": "right"},
+    {"id": "D5", "type": "OPT", "doc_side": "left"}
+  ]
+}

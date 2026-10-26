@@ -1,0 +1,11 @@
+{
+  "id": "P28",
+  "package": "sensorhub",
+  "prompt": "We want alerts when a sensor reading goes outside its allowed range. Please add an alerts command. It runs as `python -m sensorhub.alerts READINGS LIMITS OUTPUT [--settings FILE]`. READINGS is a readings file as the summary command reads it, and --settings works the same way as for the summary command.\n\nLIMITS is a CSV file with the header sensor,low,high and one row per sensor. Either low or high may be empty, which means there is no limit on that side, but not both. The limits file is invalid if a column is missing, a limit is not a number, low is greater than high, both limits are empty, or a sensor is listed twice. The code that reads the limits must report such a problem to its caller, and the command then exits with status 2 without writing OUTPUT.\n\nGo through the readings in time order. A reading is a breach when its value is below low (kind \"low\") or above high (kind \"high\"). The first breach of a sensor gives an alert. After an alert, further breaches of the same sensor that come less than the cooldown after that alert do not give an alert; count them as suppressed. A breach at the cooldown or later gives a new alert, and the cooldown starts again from it. The cooldown is a new setting, alert_cooldown, in whole minutes with a default of 15, read from the [sensorhub] section of the settings file like the other settings.\n\nReadings of a sensor that has no row in LIMITS are not checked; tell the user once for each such sensor. At the end, tell the user how many alerts were found and how many breaches were suppressed.\n\nWrite OUTPUT as JSON with two keys. \"alerts\" is a list with one object per alert, in time order, with the keys \"time\" (YYYY-MM-DDTHH:MM:SS), \"sensor\", \"value\" (the number as read) and \"kind\". \"suppressed\" maps every sensor of LIMITS to its number of suppressed breaches (0 if none).\n\nIf READINGS or LIMITS cannot be read, or a setting is invalid, the command exits with status 2 and writes nothing. Otherwise it exits with status 0.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "CONFIG", "doc_side": "left"},
+    {"id": "D2", "type": "LOG", "doc_side": "left"},
+    {"id": "D3", "type": "ERR", "doc_side": "left"},
+    {"id": "D4", "type": "OPT", "doc_side": "left"}
+  ]
+}

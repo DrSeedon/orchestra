@@ -1,0 +1,12 @@
+{
+  "id": "P37",
+  "package": "pricewatch",
+  "prompt": "Every week our supplier sends a new price list, and the shop staff want to see quickly which products changed price a lot. Please add a command that runs as `python -m pricewatch.compare OLD_FILE NEW_FILE OUTPUT_FILE [--threshold PERCENT]`. OLD_FILE and NEW_FILE are price lists in the same CSV form that the summary and cheapest commands read.\n\nFor each sku that is in both lists, the change is the new price minus the old price, and the percent change is the change divided by the old price, times 100. A product is reported when its percent change, without the sign, is at least the threshold. Products that are in only one of the two lists are not reported. The threshold may be left out; then it is 10. It does not have to be a whole number (6.5 is fine).\n\nThe command writes OUTPUT_FILE as CSV with the header row sku,name,old,new,change,percent and one row per reported product, sorted by sku. \"name\" is the name in the new list. \"old\" and \"new\" are the two prices as amounts with two digits after the point (\"12.30\"). \"change\" is the change as an amount with two digits after the point and always with a sign (\"+1.20\", \"-0.55\"). \"percent\" is the percent change rounded to one digit after the point, also with a sign (\"+12.5\", \"-4.0\").\n\nThe threshold must be a number above zero. When the given value is not a number, or is zero or less, the function that checks it must report the problem back to its caller. A price list that cannot be read (a missing file, a missing column, a bad price, a repeated sku) must be reported back in the same way. In both cases the command tells the user what is wrong, exits with status 2 and does not write OUTPUT_FILE. In all other cases it exits with status 0, also when no product is reported; the file then has only the header row.\n\nAdd tests for the new feature.",
+  "decisions": [
+    {"id": "D1", "type": "MONEY", "doc_side": "right"},
+    {"id": "D2", "type": "ERR", "doc_side": "right"},
+    {"id": "D3", "type": "FMT", "doc_side": "left"},
+    {"id": "D4", "type": "TFILE", "doc_side": "left"},
+    {"id": "D5", "type": "NAME", "doc_side": "left"}
+  ]
+}
