@@ -1,0 +1,1 @@
+Instruction contract: CLAUDE.md must be a symlink to AGENTS.md, not a copy: a copy drifts and then one client silently runs on stale rules

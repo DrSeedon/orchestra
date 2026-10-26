@@ -1,0 +1,65 @@
+--- before/app/db.py:search_logs
++++ after/app/db.py:search_logs
+@@ -4,22 +4,35 @@
+     """Search a bounded newest-first slice of project logs, including voice transcripts."""
+     clauses = []
+     params: list[object] = []
+-    if scope is not None:
++    # A single day retains V-1078's ordered day-index lookup: a session can have
++    # a large old history but very few rows on that day.
++    single_day = bool(date_from) and date_from == date_to
++    exact_session = scope is not None and bool(agent) and not single_day
++    if exact_session:
++        # UNIQUE(name, scope) identifies at most one session. Resolve it once,
++        # rather than walking other projects' logs before applying visibility.
++        clauses.append("l.session_id = (SELECT id FROM sessions WHERE scope = ? AND name = ?)")
++        params.extend((scope, agent))
++    elif scope is not None:
+         clauses.append("s.scope = ?")
+         params.append(scope)
+-    if agent:
++    if agent and not exact_session:
+         clauses.append("s.name = ?")
+         params.append(agent)
+-    if date_from and date_from == date_to:
++    # Unary + leaves date()'s TEXT/NULL value unchanged but disqualifies the global
++    # day index here: even ANALYZE must not turn a single-session lookup into a
++    # walk of every project's logs for that day. idx_logs_session supplies id order.
++    day = "+date(l.ts)" if exact_session else "date(l.ts)"
++    if single_day:
+         # Equality on the expression index also supplies descending rowid order.
+         # Two range predicates make SQLite sort even for a single UTC day.
+-        clauses.append("date(l.ts) = date(?)")
++        clauses.append(f"{day} = date(?)")
+         params.append(date_from)
+     elif date_from:
+-        clauses.append("date(l.ts) >= date(?)")
++        clauses.append(f"{day} >= date(?)")
+         params.append(date_from)
+     if date_to and date_to != date_from:
+-        clauses.append("date(l.ts) <= date(?)")
++        clauses.append(f"{day} <= date(?)")
+         params.append(date_to)
+     where = " AND ".join(clauses) or "1"
+     needle = query.casefold()
+@@ -27,14 +40,17 @@
+     scanned = 0
+     # Keep payloads out of any range-query sorter. Load only the bounded ids, then
+     # fetch content on demand so an early result limit never materializes old blobs.
+-    # CROSS JOIN keeps logs outer so unfiltered scans can stop at the candidate bound.
++    # Broad searches keep logs outer so they can stop at the candidate bound.
+     # One explicit read transaction keeps both phases in the same WAL snapshot.
++    tables = "logs AS l" if exact_session else "logs AS l CROSS JOIN sessions AS s"
++    if not exact_session:
++        where = "s.id = l.session_id AND " + where
+     with _conn() as c:
+         c.execute("BEGIN")
+         candidates = c.execute(
+             f"""SELECT l.id
+-                FROM logs AS l CROSS JOIN sessions AS s
+-                WHERE s.id = l.session_id AND {where}
++                FROM {tables}
++                WHERE {where}
+                 ORDER BY l.id DESC LIMIT ?""",
+             (*params, LOG_SEARCH_SCAN_LIMIT + 1),
+         )

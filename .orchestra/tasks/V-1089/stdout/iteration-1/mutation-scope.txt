@@ -1,0 +1,19 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_exact_session_utc_dates_full_unicode_content_and_broad_controls _____
+tests/test_log_search_v1089.py:111: in test_exact_session_utc_dates_full_unicode_content_and_broad_controls
+    assert [r["id"] for r in result["results"]] == [4, 2]
+E   assert [5] == [4, 2]
+E     
+E     At index 0 diff: 5 != 4
+E     Right contains one more item: 2
+E     Use -v to get more diff
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1089.py::test_exact_session_utc_dates_full_unicode_content_and_broad_controls
+1 failed, 33 deselected, 1 warning in 3.26s

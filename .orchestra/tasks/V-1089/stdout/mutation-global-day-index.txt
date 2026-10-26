@@ -1,0 +1,20 @@
+......F.......F.                                                         [100%]
+=================================== FAILURES ===================================
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates2] __
+tests/test_log_search_v1089.py:76: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 131300 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates2] _
+tests/test_log_search_v1089.py:76: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 131300 <= (200 + 1000)
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates2]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates2]
+2 failed, 14 passed, 15 deselected, 1 warning in 5.56s

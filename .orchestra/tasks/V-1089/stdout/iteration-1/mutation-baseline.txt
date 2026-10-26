@@ -1,0 +1,149 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFF                                               [100%]
+=================================== FAILURES ===================================
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates0] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 180400 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates1] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 147600 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates2] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 180400 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates3] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 147700 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates4] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 114800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates0] __
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 278800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates1] __
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 278800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates2] __
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 278800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates3] __
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 246000 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates4] __
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 213200 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates0] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 180400 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates1] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 147600 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates2] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 180400 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates3] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 147700 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates4] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 114800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates0] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 278800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates1] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 278800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates2] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 278800 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates3] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 246000 <= (200 + 1000)
+_ test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates4] _
+tests/test_log_search_v1089.py:77: in test_exact_session_work_is_independent_of_unrelated_logs
+    assert large_work <= small_work + 1_000
+E   assert 213200 <= (200 + 1000)
+________ test_missing_exact_agent_avoids_global_log_walk[False-missing] ________
+tests/test_log_search_v1089.py:93: in test_missing_exact_agent_avoids_global_log_walk
+    assert work[0] < 2_000
+E   assert 90200 < 2000
+_ test_missing_exact_agent_avoids_global_log_walk[False-PROJECT-ORCHESTRATOR] __
+tests/test_log_search_v1089.py:93: in test_missing_exact_agent_avoids_global_log_walk
+    assert work[0] < 2_000
+E   assert 90200 < 2000
+________ test_missing_exact_agent_avoids_global_log_walk[True-missing] _________
+tests/test_log_search_v1089.py:93: in test_missing_exact_agent_avoids_global_log_walk
+    assert work[0] < 2_000
+E   assert 98400 < 2000
+__ test_missing_exact_agent_avoids_global_log_walk[True-PROJECT-ORCHESTRATOR] __
+tests/test_log_search_v1089.py:93: in test_missing_exact_agent_avoids_global_log_walk
+    assert work[0] < 2_000
+E   assert 98400 < 2000
+_______ test_lower_date_mcp_work_deadline_and_transport_recovery[False] ________
+tests/test_log_search_v1089.py:265: in test_lower_date_mcp_work_deadline_and_transport_recovery
+    assert not envelope.isError, envelope.structuredContent
+E   AssertionError: {'error': {'code': 'transport_timeout', 'details': {'elapsed_seconds': 1.011, 'exception_type': 'ReadTimeout', 'method.../logs/search', ...}, 'message': 'ReadTimeout: synthetic SQL-work gate', 'outcome_unknown': False, ...}, 'result': None}
+E   assert not True
+E    +  where True = CallToolResult(meta=None, content=[TextContent(type='text', text='transport_timeout: ReadTimeout: synthetic SQL-work g...se, 'elapsed_seconds': 1.011, 'timeout_seconds': {'connect': 30, 'read': 30, 'write': 30, 'pool': 30}}}}, isError=True).isError
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra-mcp:mcp_stdio.py:243 MCP tool search_logs failed: code=transport_timeout request_id=de653103289748418576af8b2e23ff0d message=ReadTimeout: synthetic SQL-work gate
+________ test_lower_date_mcp_work_deadline_and_transport_recovery[True] ________
+tests/test_log_search_v1089.py:265: in test_lower_date_mcp_work_deadline_and_transport_recovery
+    assert not envelope.isError, envelope.structuredContent
+E   AssertionError: {'error': {'code': 'transport_timeout', 'details': {'elapsed_seconds': 1.005, 'exception_type': 'ReadTimeout', 'method.../logs/search', ...}, 'message': 'ReadTimeout: synthetic SQL-work gate', 'outcome_unknown': False, ...}, 'result': None}
+E   assert not True
+E    +  where True = CallToolResult(meta=None, content=[TextContent(type='text', text='transport_timeout: ReadTimeout: synthetic SQL-work g...se, 'elapsed_seconds': 1.005, 'timeout_seconds': {'connect': 30, 'read': 30, 'write': 30, 'pool': 30}}}}, isError=True).isError
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra-mcp:mcp_stdio.py:243 MCP tool search_logs failed: code=transport_timeout request_id=bbe0e21094b74e6cbb4b1c8feb3b40ab message=ReadTimeout: synthetic transport control
+WARNING  orchestra-mcp:mcp_stdio.py:243 MCP tool search_logs failed: code=transport_timeout request_id=c115c8665e9c4d4ab637d33c04a3eced message=ReadTimeout: synthetic SQL-work gate
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates0]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates1]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates2]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates3]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-False-dates4]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates0]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates1]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates2]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates3]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[14:30-True-dates4]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates0]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates1]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates2]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates3]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-False-dates4]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates0]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates1]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates2]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates3]
+FAILED tests/test_log_search_v1089.py::test_exact_session_work_is_independent_of_unrelated_logs[absent-True-dates4]
+FAILED tests/test_log_search_v1089.py::test_missing_exact_agent_avoids_global_log_walk[False-missing]
+FAILED tests/test_log_search_v1089.py::test_missing_exact_agent_avoids_global_log_walk[False-PROJECT-ORCHESTRATOR]
+FAILED tests/test_log_search_v1089.py::test_missing_exact_agent_avoids_global_log_walk[True-missing]
+FAILED tests/test_log_search_v1089.py::test_missing_exact_agent_avoids_global_log_walk[True-PROJECT-ORCHESTRATOR]
+FAILED tests/test_log_search_v1089.py::test_lower_date_mcp_work_deadline_and_transport_recovery[False]
+FAILED tests/test_log_search_v1089.py::test_lower_date_mcp_work_deadline_and_transport_recovery[True]
+26 failed, 8 deselected, 1 warning in 10.42s

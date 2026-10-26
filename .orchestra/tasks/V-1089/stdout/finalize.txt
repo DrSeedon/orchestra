@@ -1,0 +1,5 @@
+.orchestra/tasks/V-1089/.gitignore:1:/private/	.orchestra/tasks/V-1089/private/raw/probe.txt
+.orchestra/tasks/V-1089/.gitignore:2:/tmp/	.orchestra/tasks/V-1089/tmp/a
+Secret-form scan: clean. Host paths normalized; original stdout bytes retained privately.
+Absolute imported app path is retained in private/raw/profile.jsonl; public alias /<hub-copy>/app/__init__.py.
+No production data, provider, network API, service or repository remote accessed.

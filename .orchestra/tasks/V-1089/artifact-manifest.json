@@ -1,0 +1,190 @@
+[
+  {
+    "path": ".orchestra/tasks/V-1089/.gitignore",
+    "sha256": "a106364e331f5f836616283af4186e9ca12acc714e60eed2e6bd9c72dfb8306c"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/baseline_search.py",
+    "sha256": "bd39236a7c17d5994163741ea609621ba05be37f7005e4d377ecbe4bbf34f812"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/finalize_evidence.py",
+    "sha256": "dc47b686c6bd7d4901c3b4c5e51518afb4809e05faa660860e965b659d3db353"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/implementation.diff",
+    "sha256": "8d7fe6efcc71d2d82d39f767cd88205ff855cb416c6a838457d204bfb3db04df"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/plan_shapes.py",
+    "sha256": "9128e04e01e701649702add82bdb0a8899da282a406be8022c620abd4f350805"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/probe.py",
+    "sha256": "0116b08594553e4310a96ad0fc991acf4219122f3f6f17d6cf84d78746542f84"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/profile_search.py",
+    "sha256": "9eb7a762a0185aac1e6047988d480a143608cd64fc8d8e1a290e73e0a43e516b"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/report.md",
+    "sha256": "07dca166bec215a0b3a29c89ad5ac3096475e18f3a9ffea188e5c1eaa4ba690f"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/run_checks.py",
+    "sha256": "d493530e8a5fa7a8fe8bd8a6fbc3a94fc6ae6d318e7d4abfe971ecce93f7539f"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/run_mutation.py",
+    "sha256": "f4dd248914895eb611dfa064140cb1bb6807ac7c11c104b87c92fd9b3a717a5b"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/save_baseline.py",
+    "sha256": "6082272223e6671451d103868695c7ab360b38928d2df21e17234beab23b5cb5"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/baseline-tests.txt",
+    "sha256": "a67817dcde7e7cd8aed525482b937cd04e6201fd155a3af3371559c6c9d18b43"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/check-runner.txt",
+    "sha256": "f542081631b6c45f4d3e55771f44a322d00cb5903e2273705cd775086ec7622e"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/checks.json",
+    "sha256": "fe22b0f1ec528fb9f80297266f394ab0e325de810960b341d12aad638018290d"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/final-tests.txt",
+    "sha256": "dc826673f3279954a5f17eda4ddcbc519d081ec3b02299263ce7fe7eba2c8604"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/finalize.txt",
+    "sha256": "e45ccbc6a58974dc5972750073c7b47a1d8b555010547d3d3da492599db3f5e4"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/green-tests.txt",
+    "sha256": "f7f8285ff1c48f7766abe41ac9a093a6bf5da1f21c849631ff03aee09f2a88d2"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/instruction-contract.txt",
+    "sha256": "f3ed665ff2b23d6b747d2c3cc610e95cba2b02a14cf4d4d869c304339d8d3f02"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/check-runner.txt",
+    "sha256": "4a2fdbffc07cc1eab5d933b549a5a7022804fbab824ec012d4e090f94a711604"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/checks.json",
+    "sha256": "c117ad714dc5aa9a5a36f73528209fdefc4b0deb1e8779d1a5aa512683bf30b8"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/final-tests.txt",
+    "sha256": "e8fc57ec8a40bd2b2d68e56ba7cde7378af364fe5df3aaa9e1711ecd74a0c9fe"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/instruction-contract.txt",
+    "sha256": "f3ed665ff2b23d6b747d2c3cc610e95cba2b02a14cf4d4d869c304339d8d3f02"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-baseline.txt",
+    "sha256": "f41a89b85fd50e0b627c6ad215e60ab8b13cf3fdeea896ae28aa4f7c23c2b4c1"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-candidate-cap.txt",
+    "sha256": "8133f9c1abfb1652e4b5c9a8bf99092b4719c4a08307a20b0855675335d78b00"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-global-day-index.txt",
+    "sha256": "f6cb7316c6a36f5906f1ee69eb798a6f90aed4a81633ff4080d107a8e769bba5"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-inline.txt",
+    "sha256": "a0b9180b8817829b6470cf6607b84cc1e761cd75c842900be49e6475087fddc2"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-payload-prefix.txt",
+    "sha256": "fc679953f400dad7392bc71a0720f66bfb465c1f613397bd7903cf3783d349ec"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-scope.txt",
+    "sha256": "454ad6729e8e927654eea73a2992b61dbb110f024079e027b94f2a26a2c63056"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/mutation-snapshot.txt",
+    "sha256": "a3cc8434d6604b4b4218e653daac319a533916dd0277818b5c6209505b8a60af"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/iteration-1/profile.jsonl",
+    "sha256": "ed31e36c756621b8bd492a2b502c3da27e1db65dbaae6c51f1c01360ba20e73e"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-baseline.txt",
+    "sha256": "320720b3810f1bc730eba605c0f060d667141bc2b8bebc7951263824a1d01584"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-candidate-cap.txt",
+    "sha256": "b1b8b439b7578ad398534a515efefc54df816d787e6fa41c65e8decace55058a"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-global-day-index.txt",
+    "sha256": "23fdd3e1337396da77066dbdcc4e815a54849d76e1c7970dddaa2f5b8371859c"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-inline.txt",
+    "sha256": "2ff3f571829eaef937426620fd2c26968dd5fc47bb15f072dd5b7ab60c807de0"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-payload-prefix.txt",
+    "sha256": "e35369cb4fce58e17b420749552c8bf956585eaecd5f4491cbacadd9e66d0168"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-scope.txt",
+    "sha256": "4edf410128522efbda97116a5bd2ca4b3c91946ca6680fd1943369b41d98fc1c"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-single-day-session.txt",
+    "sha256": "9a08bfc61affdf84ad15dfc154d4b006eecb3f816e5dbdeebc119b715b589bc9"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/mutation-snapshot.txt",
+    "sha256": "1126b821dc9674bdd9b269463f37dd8afdd60a05363f51609b062d47e97a6021"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/plan-scalar.txt",
+    "sha256": "48ff1405cae5e39347e7164c01d48ed93f8bb7b91a134630840a9954d7d0dff9"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/plan-shapes.txt",
+    "sha256": "bded4e3d8a6bb54fb84f28dac67c6320a2cb703381a3fab3bf9e8193456df161"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/probe.txt",
+    "sha256": "d907aa25308955aa15ef4cf3569735d8dd74ef18da977a2c3a3577e5bb81fc94"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/profile.jsonl",
+    "sha256": "2a23ebd9106e445cc19071e7a2c4674bab5f77e0b1ee90fa3ba4f811beefe572"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout/red-tests.txt",
+    "sha256": "6d053b0c920746e256d3fc2233f2d4b4ea3d5b32b209451822bf9dc4c3651865"
+  },
+  {
+    "path": ".orchestra/tasks/V-1089/stdout-manifest.json",
+    "sha256": "b15a23064e38f782dc0f11add9a9eea11017b3010d3499acaf1e8daa897a0398"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "sha256": "f757d61bda69e2f0157116a9395e5d9192eae7e242b6a1813407478b64a5ad97"
+  },
+  {
+    "path": "app/db.py",
+    "sha256": "6e900e0df877b2a6d9dcd9368c3d64d944613d1cb5a6637875eaed04f595a412"
+  },
+  {
+    "path": "tests/test_log_search_v1089.py",
+    "sha256": "01b864033aa24f37b7b269905bcba55cdfdefd080835e7893769d77d7289fbd6"
+  }
+]

@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_exact_session_snapshot_survives_rename_move_update_and_delete ______
+tests/test_log_search_v1089.py:203: in test_exact_session_snapshot_survives_rename_move_update_and_delete
+    result = database.search_logs("14:30", scope="/synthetic/own", agent="project-orchestrator",
+<search-mutation-snapshot>:65: in search_logs
+    ???
+E   TypeError: 'NoneType' object is not subscriptable
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /<hub-copy>/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_log_search_v1089.py::test_exact_session_snapshot_survives_rename_move_update_and_delete
+1 failed, 30 deselected, 1 warning in 2.78s
