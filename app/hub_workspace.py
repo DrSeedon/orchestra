@@ -1264,8 +1264,21 @@ def commit_sync(root: Path, changed: list[str], deleted: list[str], message: str
 
     staged, failed = paths, []
     if add(paths).returncode != 0:
+        # A failed batch can still stage deletions. Re-adding those paths then
+        # fails because they are absent from both the index and the worktree.
+        removed = set()
+        if deleted:
+            done = subprocess.run(base + ["diff", "--cached", "--name-only", "--diff-filter=D",
+                                          "-z", "--", *deleted],
+                                  capture_output=True, text=True, timeout=30)
+            if done.returncode != 0:
+                raise HubWorkspaceError(f"cannot inspect staged hub deletions: {(done.stderr or done.stdout).strip()[-300:]}")
+            removed = set(done.stdout.split("\0")) - {""}
         staged = []
         for path in paths:
+            if path in removed:
+                staged.append(path)
+                continue
             done = add([path])
             if done.returncode == 0:
                 staged.append(path)

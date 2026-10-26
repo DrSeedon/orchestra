@@ -1002,6 +1002,100 @@ def test_one_unstageable_path_does_not_cost_the_rest_of_the_turn(repo):
     assert _git(repo, "show", "--name-only", "--format=", "HEAD").split() == ["calc.py"]
 
 
+@pytest.mark.parametrize("mixed", [False, True])
+@pytest.mark.parametrize("refused", [None, "private/new.txt", "missing.txt"])
+@pytest.mark.parametrize("deletion_staged", [False, True])
+def test_commit_returned_deletions_preserves_unrelated_index(repo, mixed, refused, deletion_staged):
+    for name in ("native-modified.txt", "native-deleted.txt"):
+        (repo / name).write_text("original\n")
+    (repo / ".gitignore").write_text("/private/\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "baseline")
+    before = _git(repo, "rev-parse", "HEAD").strip()
+
+    # Preserve additions, deletions and different staged/unstaged native content.
+    (repo / "native-modified.txt").write_text("native staged\n")
+    (repo / "native-added.txt").write_text("native staged addition\n")
+    (repo / "native-deleted.txt").unlink()
+    _git(repo, "add", "-A")
+    (repo / "native-modified.txt").write_text("native unstaged\n")
+    (repo / "native-added.txt").write_text("native unstaged addition\n")
+    staged = _git(repo, "diff", "--cached", "--binary")
+    unstaged = _git(repo, "diff", "--binary")
+
+    (repo / "src/keep.txt").unlink()
+    if deletion_staged:
+        _git(repo, "add", "-A", "--", "src/keep.txt")
+    changed = []
+    expected = {"src/keep.txt"}
+    if mixed:
+        (repo / "calc.py").write_text("# hub modification\n")
+        # Identical content makes Git's default diff classify the delete/add as
+        # a rename; the deletion must still be included in the commit.
+        (repo / "hub-new.txt").write_text("keep\n")
+        changed += ["calc.py", "hub-new.txt"]
+        expected.update(changed)
+    if refused:
+        changed.append(refused)
+        if refused.startswith("private/"):
+            (repo / "private").mkdir()
+            (repo / refused).write_text("local only\n")
+
+    sha, failed = hw.commit_sync(repo, changed, ["src/keep.txt"], "hub return")
+
+    assert sha
+    assert [path for path, _ in failed] == ([refused] if refused else [])
+    assert all(reason for _, reason in failed)
+    assert set(_git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()) == expected
+    assert _git(repo, "rev-list", "--count", f"{before}..HEAD").strip() == "1"
+    assert not _git(repo, "ls-tree", "HEAD", "src/keep.txt")
+    assert _git(repo, "status", "--porcelain", "--", *sorted(expected)) == ""
+    assert _git(repo, "diff", "--cached", "--binary") == staged
+    assert _git(repo, "diff", "--binary") == unstaged
+    if mixed:
+        assert _git(repo, "show", "HEAD:calc.py") == "# hub modification\n"
+        assert _git(repo, "show", "HEAD:hub-new.txt") == "keep\n"
+    if refused == "private/new.txt":
+        assert (repo / refused).read_text() == "local only\n"
+        assert _git(repo, "ls-files", "--", refused) == ""
+        assert _git(repo, "check-ignore", "--", refused).strip() == refused
+    if refused:
+        retry_sha, retry_failed = hw.commit_sync(repo, [refused], [], "refused only")
+        assert retry_sha == "" and [path for path, _ in retry_failed] == [refused]
+        assert _git(repo, "rev-parse", "--short", "HEAD").strip() == sha
+        assert _git(repo, "diff", "--cached", "--binary") == staged
+        assert _git(repo, "diff", "--binary") == unstaged
+
+
+def test_sync_commits_deletion_with_new_ignore_and_does_not_replay(repo, tmp_path):
+    plan = hw.plan_upload(repo, known=[])
+    before = _git(repo, "rev-parse", "HEAD").strip()
+    snap = _tar_of({
+        "calc.py": b"# hub modification\n",
+        ".gitignore": b"/private/\n",
+        "private/new.txt": b"local only\n",
+    }, tmp_path)
+    result = hw.apply_changes(snap, repo, plan.manifest, known=[])
+    assert set(result.changed) == {"calc.py", ".gitignore", "private/new.txt"}
+    assert result.deleted == ["src/keep.txt"]
+    assert not result.conflicts and not result.rejected
+
+    sha, failed = hw.commit_sync(repo, result.changed, result.deleted, "hub return")
+
+    assert sha and [path for path, _ in failed] == ["private/new.txt"]
+    assert set(_git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines()) == {
+        "calc.py", ".gitignore", "src/keep.txt"}
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _git(repo, "ls-files", "--", "private/new.txt") == ""
+    assert (repo / "private/new.txt").read_bytes() == b"local only\n"
+    again = hw.apply_changes(snap, repo, result.manifest, known=[])
+    assert again.changed == [] and again.deleted == []
+    assert not again.conflicts and not again.rejected
+    assert hw.commit_sync(repo, again.changed, again.deleted, "same snapshot") == ("", [])
+    assert _git(repo, "rev-parse", "--short", "HEAD").strip() == sha
+    assert _git(repo, "rev-list", "--count", f"{before}..HEAD").strip() == "1"
+
+
 @pytest.mark.asyncio
 async def test_first_prompt_names_the_task_artifact_directory(repo, tmp_path, monkeypatch):
     backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, lambda d: None)
