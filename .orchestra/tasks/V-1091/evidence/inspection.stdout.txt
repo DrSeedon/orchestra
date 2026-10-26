@@ -1,0 +1,1383 @@
+2026-10-26T06:16:23Z
+v22.23.3
+16356 AGENTS.md
+18801 .orchestra/tasks/V-1091/sources/github/landing-page-design.SKILL.md
+35157 total
+AGENTS.md: OK
+pyproject.toml: OK
+uv.lock: OK
+     1	# AI Design Skills
+     2	
+     3	A growing collection of design skills for AI coding tools — Claude Code, Cursor, Codex, Windsurf, and anything else that reads a markdown rules file.
+     4	
+     5	Each skill is a self-contained folder. Install the ones you need.
+     6	
+     7	---
+     8	
+     9	## Skills
+    10	
+    11	| Skill | What it does |
+    12	|---|---|
+    13	| [`landing-page-design`](./skills/landing-page-design/SKILL.md) | Builds a landing page from scratch — intake questions, page structure, conversion copy, plus a full visual system (type, spacing, radius, motion) |
+    14	| [`design-to-motion`](./skills/design-to-motion/SKILL.md) | Turns a static design into a pixel exact animated showcase — empty state to loaded, every visual acting out its story on a loop, background kept untouched, exported as an MP4 for X plus website and 800×500 GIFs |
+    15	
+    16	More on the way. [Upgrading an existing site instead of building new?](https://github.com/elayadesign/redesign-skill) That one lives in its own repo since it predates this collection.
+    17	
+    18	---
+    19	
+    20	## Install
+    21	
+    22	Pick a skill from the table above, then swap `<skill-name>` below for its folder name.
+    23	
+    24	<details open>
+    25	<summary><b>Claude Code</b></summary>
+    26	
+    27	```bash
+    28	mkdir -p .claude/skills
+    29	git clone https://github.com/elayadesign/ai-design-skills.git /tmp/ai-design-skills
+    30	cp -r /tmp/ai-design-skills/skills/<skill-name> .claude/skills/
+    31	```
+    32	
+    33	Then just ask, in plain language, for what that skill covers.
+    34	</details>
+    35	
+    36	<details>
+    37	<summary><b>Cursor</b></summary>
+    38	
+    39	```bash
+    40	mkdir -p .cursor/rules
+    41	curl -o .cursor/rules/<skill-name>.md \
+    42	  https://raw.githubusercontent.com/elayadesign/ai-design-skills/main/skills/<skill-name>/SKILL.md
+    43	```
+    44	
+    45	Or paste the file into **Settings → Rules for AI**.
+    46	</details>
+    47	
+    48	<details>
+    49	<summary><b>Codex / Windsurf / other</b></summary>
+    50	
+    51	Copy the skill's `SKILL.md` into whatever your tool uses for project rules:
+    52	
+    53	| Tool | Path |
+    54	|---|---|
+    55	| Codex | `AGENTS.md` |
+    56	| Windsurf | `.windsurfrules` |
+    57	| Cline | `.clinerules` |
+    58	| Generic | paste into your system prompt |
+    59	</details>
+    60	
+    61	<details>
+    62	<summary><b>Claude.ai (no terminal)</b></summary>
+    63	
+    64	Download the skill's `SKILL.md` and upload it to a Project, or attach it to a chat and say *"follow this."*
+    65	</details>
+    66	
+    67	---
+    68	
+    69	## Make it yours
+    70	
+    71	Every skill's design values (fonts, colors, spacing, motion) live in one section near the bottom of its file. Fork this repo, edit that section, and the rest of the skill follows automatically.
+    72	
+    73	---
+    74	
+    75	## Credits
+    76	
+    77	`landing-page-design` adapts content realism and motion ideas from [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) by Leon Lin, MIT licensed. Details are at the end of [its SKILL.md](./skills/landing-page-design/SKILL.md#credits).
+    78	
+    79	`design-to-motion` adapts a few general motion rules from [emilkowalski/skills](https://github.com/emilkowalski/skills), [Owl-Listener/designer-skills](https://github.com/Owl-Listener/designer-skills), and [dylantarre/animation-principles](https://github.com/dylantarre/animation-principles), all MIT licensed. Details are at the end of [its SKILL.md](./skills/design-to-motion/SKILL.md#credits).
+    80	
+    81	---
+    82	
+    83	## License
+    84	
+    85	MIT. Use it, fork it, ship it, sell what you build with it. No attribution needed.
+     1	MIT License
+     2	
+     3	Copyright (c) 2026 Elaya
+     4	
+     5	Permission is hereby granted, free of charge, to any person obtaining a copy
+     6	of this software and associated documentation files (the "Software"), to deal
+     7	in the Software without restriction, including without limitation the rights
+     8	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     9	copies of the Software, and to permit persons to whom the Software is
+    10	furnished to do so, subject to the following conditions:
+    11	
+    12	The above copyright notice and this permission notice shall be included in all
+    13	copies or substantial portions of the Software.
+    14	
+    15	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    16	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    17	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    18	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    19	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    20	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    21	SOFTWARE.
+     1	---
+     2	name: landing-page-design
+     3	description: "Complete system for building high converting landing pages: intake questions, page structure, layout selection, conversion copywriting, SEO, plus strict visual rules for typography, spacing, corner radius, backgrounds, hero layout, icons, and motion. Use this skill whenever building, editing, styling, reviewing, or writing copy for ANY landing page, marketing site, web UI, page section, component, or prototype, even when the user does not mention design, conversion, tokens, or a design system. Always consult it before choosing page sections, headlines, CTAs, fonts, font sizes, spacing values, border radii, background colors, icons, or transitions."
+     4	---
+     5	
+     6	# Landing Page Design
+     7	
+     8	A landing page is not a homepage. A homepage serves multiple intents. A landing page wins one intent:
+     9	
+    10	**one offer → one audience → one primary action.**
+    11	
+    12	This skill has two halves. **Part A** decides what the page says and how it is structured. **Part B** is the non negotiable visual system. Work through A before touching B.
+    13	
+    14	## Scope
+    15	
+    16	Apply to all web UI work: landing pages, marketing sites, components, dashboards, prototypes, and design reviews. When a rule here conflicts with a framework default, this file wins. When the user's explicit prompt conflicts with a rule, the user wins.
+    17	
+    18	**Companion skill.** For upgrading an *existing* site rather than building a new one, use `redesign-existing-projects` ([github.com/elayadesign/redesign-skill](https://github.com/elayadesign/redesign-skill)). It diagnoses generic patterns and defers to this file for every concrete value.
+    19	
+    20	---
+    21	
+    22	# PART A — Strategy and structure
+    23	
+    24	## A1. Intake
+    25	
+    26	Gather these before designing or writing. Ask only for what is missing, and ask in one batch rather than one question at a time.
+    27	
+    28	**Purpose**
+    29	- What is the ONE primary action? (trial, demo, buy, waitlist, download)
+    30	- What is the offer, exactly what do they get?
+    31	- What counts as a conversion? (click, signup, purchase)
+    32	
+    33	**Audience and context**
+    34	- Who is the ICP?
+    35	- What problem are they trying to solve?
+    36	- Top three objections, meaning why they do not convert today
+    37	- Traffic source: ads, search, social, email
+    38	- What do visitors already know when they land?
+    39	
+    40	**Proof and assets**
+    41	- Proof points: logos, testimonials, numbers, case studies
+    42	- Screenshots, demo video, product GIFs
+    43	- Guarantees, refund terms, cancellation terms
+    44	
+    45	**Constraints**
+    46	- Brand voice: casual or professional
+    47	- Design direction: minimal editorial, playful 3D, glass UI
+    48	- Mobile priority?
+    49	
+    50	If the user cannot answer, make a reasonable assumption, state it in one line, and continue. Do not stall the build.
+    51	
+    52	## A2. Page structure
+    53	
+    54	**Above the fold (required)**
+    55	1. Headline, outcome plus audience
+    56	2. Subheadline, clarifies how and adds specificity
+    57	3. Primary CTA, clear verb plus what they get
+    58	4. One proof signal, logo strip, stat, or short testimonial
+    59	5. Hero visual, product screenshot or video, or a strong illustration
+    60	
+    61	**Mid page (the argument)**
+    62	6. Problem to solution, one section
+    63	7. Benefits, three to five, outcome driven
+    64	8. How it works, three steps
+    65	9. Social proof, testimonials or a case study
+    66	
+    67	**Bottom (objection handling)**
+    68	10. FAQ, six to twelve questions
+    69	11. Risk reversal, trial, cancel anytime, guarantee
+    70	12. Final CTA, identical to the top
+    71	
+    72	Include the mandatory tagline reveal section from B11 somewhere in the mid page argument, typically right after the hero or after benefits.
+    73	
+    74	## A3. Layout selection
+    75	
+    76	Pick one and say why.
+    77	
+    78	| Type | Use when |
+    79	|---|---|
+    80	| **A. Classic hero plus sections** | The product is understandable from a hero screenshot. Most common. |
+    81	| **B. Long form story** | You need to educate and overcome skepticism. |
+    82	| **C. Minimal conversion page** | High intent traffic (email to known users), or a short offer like a download or waitlist. |
+    83	| **D. Comparison page** | Search intent includes alternatives ("X vs Y", "best for"). Usually paired with SEO pages. |
+    84	
+    85	## A4. Conversion rules
+    86	
+    87	**Match message to source.** If traffic comes from ads, mirror the ad headline in the hero and keep the same promise and visual tone.
+    88	
+    89	**Make the next step obvious.** One primary CTA. Never place competing CTAs above the fold.
+    90	
+    91	**Write benefit first.** Features are what it does. Benefits are what that means for them.
+    92	
+    93	**Be specific.**
+    94	- ❌ "Save time and streamline"
+    95	- ✅ "Cut your weekly reporting from 4 hours to 15 minutes"
+    96	
+    97	**Reduce risk.** Pick at least one: free trial, free plan, no credit card, cancel anytime, money back guarantee.
+    98	
+    99	**Treat objections as a section, not a footnote.** Move the FAQ earlier for high friction offers. Put proof directly beside the claim it supports.
+   100	
+   101	## A5. Copywriting
+   102	
+   103	**Headline formulas**
+   104	- "{Outcome} without {pain}"
+   105	- "The {category} for {audience}"
+   106	- "Ship {result} in {time}"
+   107	
+   108	**Subheadline.** One or two sentences. Clarify what it is and who it is for.
+   109	
+   110	**CTA.** Verb plus what they get. Never "Learn more" or "Submit". Use "Start free trial", "Book a demo", "Get the checklist".
+   111	
+   112	**Benefit bullets.** Bold benefit, then the proof or detail. Example: **Faster iteration** — generate three layout variants in one click.
+   113	
+   114	Note: the copy rules in B1 still apply. No hyphens inside sentences, no orphaned words.
+   115	
+   116	## A6. Build order
+   117	
+   118	Work section by section, in this order:
+   119	
+   120	1. Hero
+   121	2. Benefits
+   122	3. How it works
+   123	4. Proof
+   124	5. FAQ
+   125	6. Final CTA
+   126	
+   127	Never rebuild the whole page on each iteration. Section by section keeps control and keeps diffs reviewable.
+   128	
+   129	## A7. SEO and AEO
+   130	
+   131	**Do not index** ad only campaign pages or highly time bound offers. Use `noindex` or keep them behind a non indexed path.
+   132	
+   133	**Do index** evergreen offers and pages where search intent matches the promise. Add a clear title and meta description, internal links from the homepage and feature pages, and the FAQ in plain question and answer form for AEO. Add FAQ schema if appropriate.
+   134	
+   135	## A8. Pitfalls
+   136	
+   137	- Too many CTAs above the fold
+   138	- Vague value prop: "streamline", "optimize"
+   139	- A large feature list with no outcomes
+   140	- Proof buried at the bottom
+   141	- Mobile layout that breaks readability
+   142	- No clear next step
+   143	
+   144	---
+   145	
+   146	# PART B — Visual system
+   147	
+   148	Every visual value must resolve through these rules instead of being invented ad hoc.
+   149	
+   150	## B1. Typography
+   151	
+   152	### Fonts
+   153	
+   154	**Use:** Geist, Manrope, Geist Mono, Poppins.
+   155	
+   156	**Never use:** Inter, Roboto, Arial, Open Sans, Helvetica.
+   157	
+   158	**Never use italic fonts** anywhere in the interface.
+   159	
+   160	**One typeface per site.** Do not pair two fonts unless the prompt explicitly asks for it. Geist Mono is allowed alongside a primary font only for code, data, or numeric UI where a monospace is functionally required.
+   161	
+   162	**Never use ultra bold weights** (900 / black). Cap at semibold or bold.
+   163	
+   164	### Copy rules
+   165	
+   166	**No hyphens in text.** Do not use `-` inside body copy, headings, or labels. Rewrite the phrase instead.
+   167	
+   168	**No orphaned words.** A single word must never sit alone on the last line. Apply `text-wrap: balance` for headings and `text-wrap: pretty` for body copy.
+   169	
+   170	### Type scale
+   171	
+   172	Always resolve font sizes to Tailwind's default type scale. Never leave arbitrary values in place, including `text-[19px]`, `font-size: 22px`, or `1.4rem`.
+   173	
+   174	If an existing size does not land exactly on a step, snap it to the **closest step below**, taking both the size and its paired line height.
+   175	
+   176	| Class | Size | Line height |
+   177	|---|---|---|
+   178	| `text-xs` | 12px (0.75rem) | 16px |
+   179	| `text-sm` | 14px (0.875rem) | 20px |
+   180	| `text-base` | 16px (1rem) | 24px |
+   181	| `text-lg` | 18px (1.125rem) | 28px |
+   182	| `text-xl` | 20px (1.25rem) | 28px |
+   183	| `text-2xl` | 24px (1.5rem) | 32px |
+   184	| `text-3xl` | 30px (1.875rem) | 36px |
+   185	| `text-4xl` | 36px (2.25rem) | 40px |
+   186	| `text-5xl` | 48px (3rem) | 1 |
+   187	| `text-6xl` | 60px (3.75rem) | 1 |
+   188	| `text-7xl` | 72px (4.5rem) | 1 |
+   189	| `text-8xl` | 96px (6rem) | 1 |
+   190	| `text-9xl` | 128px (8rem) | 1 |
+   191	
+   192	Do not combine scale snapping with independently set custom line heights elsewhere in an audit. Tracking and line height may only be adjusted **within** the value the matched step already provides, so the two rules never fight each other.
+   193	
+   194	### Button type
+   195	
+   196	- Main buttons: `text-base` (16px), semibold.
+   197	- Smaller header buttons: `text-sm` (14px), semibold.
+   198	
+   199	## B2. Spacing
+   200	
+   201	Only these values. Nothing between them, nothing outside them.
+   202	
+   203	| Token | Value |
+   204	|---|---|
+   205	| Spacing-0 | 0 |
+   206	| Spacing-25 | 2px |
+   207	| Spacing-50 | 4px |
+   208	| Spacing-75 | 8px |
+   209	| Spacing-100 | 12px |
+   210	| Spacing-200 | 16px |
+   211	| Spacing-300 | 24px |
+   212	| Spacing-400 | 32px |
+   213	| Spacing-500 | 40px |
+   214	| Spacing-600 | 48px |
+   215	| Spacing-700 | 64px |
+   216	| Spacing-800 | 80px |
+   217	| Spacing-900 | 96px |
+   218	
+   219	**Main buttons:** 8px vertical padding, 12px horizontal padding.
+   220	
+   221	## B3. Corner radius
+   222	
+   223	Only use Tailwind's radius values.
+   224	
+   225	**Nested radius formula.** When a shape sits inside another shape and the gap between them is **less than 32px**:
+   226	
+   227	```
+   228	inner radius = outer radius − gap
+   229	```
+   230	
+   231	Apply this only when the result is **greater than 2**. Below that, leave the inner shape square or unchanged.
+   232	
+   233	Example: an outer card at `rounded-2xl` (16px) with 8px of internal padding gives an inner element an 8px radius (`rounded-lg`).
+   234	
+   235	## B4. Borders and backgrounds
+   236	
+   237	- **Never apply a border to only one side of a card.** Borders go all the way around or not at all.
+   238	- **Never use gradients in backgrounds.** Backgrounds are flat.
+   239	
+   240	### Dark mode background colors
+   241	
+   242	Use only these:
+   243	
+   244	`#000000` · `#181818` · `#1F1F1F` · `#272727` · `#313131` · `#131209`
+   245	
+   246	## B5. Hero section
+   247	
+   248	### Heading color
+   249	
+   250	- **Dark theme:** left to right gradient on the heading text, `#FFFFFF` → `#9B9B9B`.
+   251	- **Light theme:** left to right gradient on the heading text, `#000000` → `#666666`.
+   252	
+   253	This is the one place gradients are used, and only on text, never on the background.
+   254	
+   255	### Layout
+   256	
+   257	- Heading and subheading both get a **max width of 680px**.
+   258	- Read the heading copy and insert line breaks at **meaningful** points.
+   259	- Never break a line in a way that cuts a phrase awkwardly or makes the sentence harder to read. Break where the thought breaks.
+   260	
+   261	## B6. Icons
+   262	
+   263	**Use:** Phosphor, Solar, or Iconamoon.
+   264	
+   265	**Never use:** Material Icons, Material Symbols.
+   266	
+   267	## B7. Motion
+   268	
+   269	Motion should feel weighted and decelerate into place. Never ship a browser default curve (`ease`, `linear`, `ease-in-out`).
+   270	
+   271	**Base curve:** `ease-[cubic-bezier(0.22,1,0.36,1)]` with `duration-500` for layout and position changes. Color and opacity shifts on hover may use `duration-300`, never shorter than 200ms.
+   272	
+   273	Animate only `transform` and `opacity`. Never animate `top`, `left`, `width`, or `height`.
+   274	
+   275	Respect `prefers-reduced-motion`: replace movement with a plain opacity change.
+   276	
+   277	### Navigation
+   278	
+   279	**Resting state.** A compact bar that floats off the top edge rather than sitting flush against it, centered and sized to its content. It uses a translucent surface over a background blur so page content stays faintly visible behind it. Spacing comes from B2, radius from B3.
+   280	
+   281	**Menu toggle.** The open and close icon transforms between its two states instead of swapping instantly. Use an icon from B6 or draw the lines yourself; either way the change is animated with the base curve.
+   282	
+   283	**Mobile menu.** Opens as a full height panel, not a small dropdown. The panel background uses the theme's base surface at high opacity with a strong blur.
+   284	
+   285	**Link entrance.** Links inside the open menu arrive one after another in reading order, each moving up a short distance (Spacing-300, 24px) while fading in. Step each item 60ms after the previous one and cap the total sequence at 400ms so long menus never feel slow.
+   286	
+   287	### Scroll reveals
+   288	
+   289	Sections entering the viewport rise a short distance (Spacing-400, 32px) and fade from 0 to full opacity over 600 to 800ms on the base curve. Reveal each section once; do not replay on scroll back up.
+   290	
+   291	Trigger reveals with `IntersectionObserver` or Framer Motion's `whileInView`. Never attach work to an unthrottled `window.addEventListener('scroll')`, since it runs on every frame and drags down mobile performance.
+   292	
+   293	---
+   294	
+   295	## B8. Content realism
+   296	
+   297	Every piece of sample content should read like it came from a real product with real users.
+   298	
+   299	- **Write the copy.** No placeholder Latin, no "Your headline here". Draft real sentences in the product's voice.
+   300	- **People.** Give testimonials and team members full, specific names that fit the product's audience and region. Never reuse one face for two people.
+   301	- **Brands and logos.** Invent names that sound like they belong in the product's industry. A logistics tool's customers sound like logistics companies, not generic tech startups.
+   302	- **Numbers.** Avoid suspiciously round figures. Pricing should look like real pricing, metrics should carry a decimal or an odd final digit, and dates across a list should vary.
+   303	- **Banned filler words.** Do not write "revolutionize", "supercharge", "cutting edge", "effortless", "transform your workflow", "take it to the next level", "harness the power", or "world class". Say what the product does in plain terms instead.
+   304	- **Sentence case** for headings and buttons.
+   305	- **System messages.** Confirmations are calm and specific ("Invoice sent to Dana"). Errors say what failed and what to do next ("Upload failed. The file is over 20 MB."). No cute interjections, no exclamation marks.
+   306	
+   307	## B9. States
+   308	
+   309	Every interactive element ships with its full state set:
+   310	
+   311	- **Hover** — background shift, slight scale, or translate
+   312	- **Active** — `scale(0.98)` or `translateY(1px)` for physical feedback
+   313	- **Focus** — a visible focus ring. Accessibility requirement, not optional.
+   314	- **Loading** — skeleton loaders shaped like the real layout, not circular spinners
+   315	- **Empty** — a composed "getting started" view, never a blank panel
+   316	- **Error** — inline and specific. Never `window.alert()`.
+   317	
+   318	No dead links. A button pointing at `#` is either linked or visually disabled. The current page must be indicated in the navigation.
+   319	
+   320	## B10. Ship requirements
+   321	
+   322	Things that get forgotten and make a page feel unfinished:
+   323	
+   324	- Privacy policy and terms links in the footer
+   325	- A custom, branded 404
+   326	- Client side form validation for email format and required fields
+   327	- A skip to content link for keyboard users
+   328	- Cookie consent where the jurisdiction requires it
+   329	- A branded favicon
+   330	- `<title>`, meta description, `og:image`, and social sharing tags
+   331	- Alt text on every meaningful image
+   332	- Semantic HTML: `<nav>`, `<main>`, `<article>`, `<aside>`, `<section>`
+   333	- A way back from every page
+   334	
+   335	## B11. Tagline reveal section (mandatory)
+   336	
+   337	Every landing page includes one large type section stating the core benefit or tagline, separate from the hero. It sits further down the page as its own moment, not stacked directly under the hero.
+   338	
+   339	**Copy**
+   340	- Minimum two lines of text.
+   341	- A benefit statement or tagline, written in the voice of A5, not a generic section heading.
+   342	
+   343	**Typography**
+   344	- Size `text-4xl` to `text-6xl` depending on line count, following the B1 type scale.
+   345	- Max width capped like the hero, so lines break at meaningful points per B5.
+   346	
+   347	**Animation**
+   348	- Text starts in a subtle, muted tone, roughly 25 to 35% opacity of the theme's base text color.
+   349	- As the section scrolls into view, each word transitions individually from that muted tone to the full text color, in reading order.
+   350	- Words activate one at a time as they cross a trigger line, not the entire block flipping at once. The transition uses the base curve from B7, never a linear fade.
+   351	- Implement with `IntersectionObserver` per word, or a single scroll listener throttled through `requestAnimationFrame`. Never an unthrottled `window.addEventListener('scroll')`, per B7.
+   352	
+   353	---
+   354	
+   355	# Output format
+   356	
+   357	When generating a landing page from scratch, return these in order before writing code:
+   358	
+   359	1. **Page outline** — sections and their order
+   360	2. **Hero copy** — headline, subheadline, CTA, proof line
+   361	3. **Benefits** — three to five outcome driven bullets
+   362	4. **How it works** — three steps
+   363	5. **FAQ** — six to twelve questions and answers
+   364	6. **SEO / AEO** — index or noindex recommendation, plus title and meta if indexed
+   365	7. **Layout recommendation** — A, B, C, or D, and why
+   366	
+   367	Then build section by section per A6.
+   368	
+   369	---
+   370	
+   371	# Quick checklist
+   372	
+   373	**Strategy**
+   374	- [ ] One offer, one audience, one primary action
+   375	- [ ] No competing CTAs above the fold
+   376	- [ ] Specific numbers instead of vague verbs
+   377	- [ ] At least one risk reversal
+   378	- [ ] Proof sits next to the claim it supports
+   379	- [ ] Layout type chosen deliberately
+   380	
+   381	**Visual**
+   382	- [ ] Single approved typeface, no italics, no ultra bold
+   383	- [ ] No hyphens in copy, no orphaned words
+   384	- [ ] Every font size lands on a Tailwind scale step
+   385	- [ ] Every spacing value comes from the spacing table
+   386	- [ ] Nested radii follow the formula
+   387	- [ ] No single sided card borders, no background gradients
+   388	- [ ] Hero heading and subheading capped at 680px with meaningful line breaks
+   389	- [ ] Icons from Phosphor, Solar, or Iconamoon
+   390	- [ ] Every transition uses the B7 base curve, scroll reveals use IntersectionObserver
+   391	- [ ] Tagline reveal section present, minimum two lines, words activate one at a time on scroll
+   392	
+   393	**Content and ship**
+   394	- [ ] Real draft copy, believable names and numbers, no banned filler words
+   395	- [ ] Hover, active, focus, loading, empty, and error states all present
+   396	- [ ] No dead links, current nav item indicated
+   397	- [ ] 404, legal links, form validation, favicon, meta tags, alt text
+   398	
+   399	---
+   400	
+   401	## Credits
+   402	
+   403	Parts of this skill were adapted from [taste-skill](https://github.com/Leonxlnx/taste-skill) by Leon Lin ([@LexnLin](https://x.com/LexnLin)), MIT licensed. Its redesign audit structure, content realism checks, and motion and navigation ideas informed the matching sections here, which have since been rewritten.
+   404	
+   405	<details>
+   406	<summary>taste-skill license</summary>
+   407	
+   408	```
+   409	MIT License
+   410	
+   411	Copyright (c) 2026 Leonxlnx
+   412	
+   413	Permission is hereby granted, free of charge, to any person obtaining a copy
+   414	of this software and associated documentation files (the "Software"), to deal
+   415	in the Software without restriction, including without limitation the rights
+   416	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   417	copies of the Software, and to permit persons to whom the Software is
+   418	furnished to do so, subject to the following conditions:
+   419	
+   420	The above copyright notice and this permission notice shall be included in all
+   421	copies or substantial portions of the Software.
+   422	
+   423	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   424	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   425	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   426	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   427	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   428	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   429	SOFTWARE.
+   430	```
+   431	</details>
+1:---
+4:---
+6:# Design to Motion
+14:## Scope
+18:**Not for** interaction motion inside a shipping product (hovers, menus, toasts). For that, use a product motion skill such as [emilkowalski/skills](https://github.com/emilkowalski/skills). **Companion skill:** `landing-page-design` in this repo, when the animation will live on a landing page.
+20:## Two contexts
+35:### Website: which sections get which motion
+54:---
+56:# PART A — Fidelity
+58:## A1. Intake
+72:## A2. Source of truth
+74:**Figma.** Use the REST API with a personal access token.
+80:- The image URLs the API returns point at a CDN that sometimes resets connections. Retry every download, and check each PNG's size before using it.
+84:## A3. Layer export
+107:- **Containers whose children move on their own.** The API always exports a frame together with its children, so exporting a card or panel bakes in everything inside it. When its children must load or act separately, rebuild the container in CSS from the node data: fills, corner radii, inside strokes (including `individualStrokeWeights`), and effects. Then export each child separately.
+126:## A4. Background (sacred)
+138:## A5. Layout: app frame or separate cards
+172:## A6. Page architecture (showcase)
+184:## A7. Verify the still
+192:---
+194:# PART B — Motion system
+198:## B1. Start empty
+205:## B2. Loading choreography
+229:## B3. Bars fill like progress
+234:## B4. Story loops (the main act)
+298:## B5. The loop cycle (showcase)
+315:## B6. Easing and duration
+328:## B7. Camera
+333:## B8. Performance and accessibility
+340:## B9. Motion checks
+352:---
+354:# PART C — Recording and export
+356:## C1. Deterministic capture
+361:await page.clock.install({ time: 0 });
+395:## C2. Formats
+404:ffmpeg -start_number $A -framerate 60 -i frames/%05d.png -frames:v $N \
+408:ffmpeg -start_number $A -framerate 60 -i frames/%05d.png -filter_complex \
+419:---
+421:# Output format
+439:---
+441:# Make it yours
+465:---
+467:# Quick checklist
+503:---
+505:# Credits
+507:Part of [ai-design-skills](https://github.com/elayadesign/ai-design-skills) by Elaya, MIT licensed.
+511:- [emilkowalski/skills](https://github.com/emilkowalski/skills) — animating only cheap properties, keeping blur small, never growing objects from zero, reduced motion handling
+512:- [Owl-Listener/designer-skills](https://github.com/Owl-Listener/designer-skills) — skeletons shaped like the real content, staggered entrances
+513:- [dylantarre/animation-principles](https://github.com/dylantarre/animation-principles) — offsetting sibling loops, loops whose last frame flows into the first
+---
+name: design-to-motion
+description: "Turns a static design (a Figma frame, dashboard, card set, app screen, or a UI on a photo background) into a pixel exact HTML replica that loads in from an empty state, then has every visual act out what it does (a chart being read, a list receiving items, a prompt being typed) in a seamless loop, and exports an MP4 for X, a website GIF, and an 800×500 GIF. Use this skill whenever the user asks to animate a design, a Figma link, a screenshot, UI cards, a dashboard, or a hero image, to make a loading or appear animation, a showcase loop, a motion mockup, or a video or GIF of a design, even when they only say \"animate this\". Also use it on landing pages and websites for bento and feature cards that pair text with a visual, and for product or dashboard mockups. Always consult it before exporting layers, choosing what moves, building the intro, writing the visual story loops, or encoding video and GIFs."
+---
+
+# Design to Motion
+
+A showcase animation is not a redesign. The viewer must see **the exact design**, and must see that **it is alive**.
+
+**exact frame → empty state → smooth load → every visual acts out its story → seamless repeat.**
+
+This skill has three parts. **Part A** rebuilds the design so the finished frame is indistinguishable from the source. **Part B** is the motion system. **Part C** records and exports. Work through A before touching B, and never encode anything before the checks in A7 and B9 pass. Parts A and B apply in both contexts below; Part C is for the showcase, or for a website only when exports are asked for.
+
+## Scope
+
+Apply to any request to animate a static design: Figma frames, UI cards, dashboards, app screens, marketing heroes, product mockups, and designs placed on a photo background. When a rule here conflicts with a framework default, this file wins. When the user's explicit prompt conflicts with a rule, the user wins.
+
+**Not for** interaction motion inside a shipping product (hovers, menus, toasts). For that, use a product motion skill such as [emilkowalski/skills](https://github.com/emilkowalski/skills). **Companion skill:** `landing-page-design` in this repo, when the animation will live on a landing page.
+
+## Two contexts
+
+Decide the context before anything else. It changes what you animate, how the motion starts and ends, and what you deliver.
+
+| | **Showcase** | **Website** |
+|---|---|---|
+| Typical request | "Animate this design for me", a Figma link and nothing else | Building or editing a landing page or site, or the request names one |
+| What gets animated | The whole frame | Only the sections that qualify (table below) |
+| Start | Page load, from the empty state | When the section scrolls into view, once |
+| After the intro | Stories run, then the frame dissolves and the cycle repeats (B5) | Stories run forever. No dissolve, no cycle |
+| Text | Exported layers, so the frame is pixel exact | Live HTML text in the site's font, for SEO and accessibility. Only the visual parts are exported images or SVG |
+| Deliverables | The page plus MP4 for X, website GIF, 800×500 GIF (Part C) | The animated sections inside the site's code. Exports only when asked |
+
+If the request does not say which, look at where you are working: inside a site's codebase, assume website. With only a design and no site, assume showcase. If it is still unclear, ask once.
+
+### Website: which sections get which motion
+
+Scan the page section by section. Apply this skill only where a section has a visual part. Never animate a text section with it.
+
+| Section | Apply |
+|---|---|
+| Bento and feature sections: cards with text plus a visual (a chart, list, flow, calendar, prompt, player) | Card intro on scroll (B2, `card` kind, text included), then a story loop on each card's visual (B4). This is the main use on a landing page |
+| Product or dashboard mockup (a hero shot of the app, a product screenshot) | The loading intro on scroll: surfaces stay, contents load (A5). Then **ask the user** whether they also want stories after loading. Do not add them unasked |
+| Logo rows, integrations | A marquee or a gentle light up story |
+| Text only sections: headline blocks, testimonials, FAQ, pricing, CTA, footer | Not this skill. Use the page's normal scroll reveal (for example `landing-page-design` B7) |
+
+Website rules:
+
+- **Trigger with `IntersectionObserver`.** Start the intro when about 30% of the section is visible. Play it once. Never use a scroll listener.
+- **Pause stories off screen.** Stop the clock when the section leaves the viewport and resume it on return.
+- **Stagger by reading order inside the section**, never across the whole page.
+- **Respect the site's system.** Use its components, tokens, radii, and fonts. Fidelity to the design still applies (A7), compared section by section.
+- `prefers-reduced-motion: reduce` shows each section in its final state with no stories.
+
+---
+
+# PART A — Fidelity
+
+## A1. Intake
+
+Gather these before building. Ask only for what is missing, and ask in one batch.
+
+- **Context.** Showcase or website (see "Two contexts"). Decide this first.
+- **Source.** A Figma link with a node id is best. A flat image works, but its layers cannot be separated perfectly (see A2).
+- **Layout.** Decide it yourself from the tree (A5): an **app frame** (a dashboard or app screen built from joined surfaces, such as a sidebar and a body) or **separate cards** (a bento grid, a card set, widgets). The two load differently.
+- **Background.** Is there a photo or texture behind the UI? Assume it must stay exactly as designed.
+- **Visuals.** Which parts are visuals that should act out a story after load (B4)? Assume every chart, list, stack, calendar, flow, prompt, photo, media control, and status indicator.
+- **Deliverables.** Showcase: default to all three, MP4 for X, website GIF, 800×500 GIF. Website: the animated sections in the site's code, with exports only when asked.
+- **Camera.** Assume no zoom and no pan (B7).
+
+If the user cannot answer, make a reasonable assumption, state it in one line, and continue. On the first design of a session, show the live page before recording exports, so the direction can be corrected cheaply.
+
+## A2. Source of truth
+
+**Figma.** Use the REST API with a personal access token.
+
+- Read the token from a secure store (an environment variable or the OS keychain). Never print it, echo it, paste it into chat, or commit it.
+- `GET /v1/files/:key/nodes?ids=:node&geometry=paths` gives the tree, bounds, fills, effects, and radii.
+- `GET /v1/images/:key?ids=:node&format=png&scale=2` renders the **reference frame**. The finished still must match this image (A7).
+- Note the frame's absolute origin. Every layer position is `absolute bounds − origin`.
+- The image URLs the API returns point at a CDN that sometimes resets connections. Retry every download, and check each PNG's size before using it.
+
+**Flat image only.** The image is the reference. Rebuild what you can isolate, and tell the user plainly which parts cannot be separated before you animate them. Never fake fidelity by animating a screenshot as one block.
+
+## A3. Layer export
+
+Export every element that will move as its own PNG at **3x** through `/v1/images`, batched 20 to 25 ids per call.
+
+| Case | Placement |
+|---|---|
+| PNG size equals `absoluteRenderBounds` (text layers always do) | Place at the render bounds |
+| PNG larger than the render bounds (a parent clipped it), effects that overhang evenly | `x = bbox.x − (pngW − bbox.w) / 2`. Use `renderBounds.y` when the top was not clipped, otherwise derive it from the effect radius and offset |
+| Overhang that is not even (a line with an arrowhead, a stroke with one square cap) | Take the bounds of `strokeGeometry` or `fillGeometry` from the `geometry=paths` response instead of the formula |
+| Rotated vectors with a large layer blur (soft colour blobs) | Export with `use_absolute_bounds=true` and place at the bounding box. Run a PSNR offset search against the reference only if that region scores below about 45 dB. Blobs can be stored at 1x; the loss is invisible |
+| Zero height or zero width stroked vectors | `use_absolute_bounds=true` returns null for them. Export without it |
+| Mask group with blurred content | Anchor on the edge that was not clipped (usually the bottom of the mask plus its stroke) |
+| Arcs, donuts, partial ellipses | Export with `use_absolute_bounds=true` |
+| Patterns or overlays far larger than their surface | Export with `use_absolute_bounds=true`, then crop to the surface rectangle |
+| Instance children (ids like `I12:34;56:78`) | They often return null. Export the parent instance |
+| Lines that should draw on, dashed or not | Figma outlines strokes into filled shapes, so there is no centerline to animate. Write the centerline yourself and use it as a mask over the exported PNG (example below) |
+| A photo baked inside a larger exported layer | Export the photo node on its own as well. Cover the baked photo with a skeleton, and put the separate photo layer on top for the `photo` resolve. At rest it must equal the reference |
+
+Rules that keep the frame exact:
+
+- **Text stays an exported layer in a showcase.** Never retype it in HTML there: fonts, kerning, and line metrics will not match. On a website, text is live HTML (see "Two contexts").
+- **Keep Figma's z order.** Static layers can sit between animated ones in the same order the tree has them.
+- **Frame strokes usually draw above children.** Render a card's stroke as a separate overlay above its clipped content, then confirm against the reference: a glow inside the card can tint the stroke in Figma's render.
+- **Containers whose children move on their own.** The API always exports a frame together with its children, so exporting a card or panel bakes in everything inside it. When its children must load or act separately, rebuild the container in CSS from the node data: fills, corner radii, inside strokes (including `individualStrokeWeights`), and effects. Then export each child separately.
+- **Shadow mapping.** A Figma drop shadow with blur `R` is a CSS `box-shadow` with blur `R` on a single element, or `filter: drop-shadow()` with blur about `R / 2` on a group. Both give the same Gaussian. Verify against the reference.
+- **A group shadow is the shadow of the union.** When a drop shadow sits on a group of joined surfaces (an app frame), put all surface shapes in one static container with `filter: drop-shadow()`. Per element `box-shadow` would darken neighbours where surfaces overlap. Separate cards each carry their own shadow inside their `card` unit, so the shadow moves with the card.
+- **Skip hidden layers** (`visible: false`) and stray layers buried under opaque shapes.
+
+**Drawing a line on.** Read the corner points and arc radii from the outline in `strokeGeometry`: the centerline sits halfway across the stroke width, and a rounded corner's centerline radius is the outline's inner radius plus half the stroke. Most UI connectors are straight runs and arcs, so the path is short:
+
+```html
+<svg class="ly" viewBox="0 0 1440 990" style="left:0;top:0;width:1440px;height:990px">
+  <mask id="draw1">
+    <path d="M193 832 V700 A45 45 0 0 1 238 655 H380" fill="none" stroke="#fff" stroke-width="8"
+          pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+  </mask>
+  <image href="data:image/png;base64,..." x="192" y="653" width="190" height="181" mask="url(#draw1)"/>
+</svg>
+```
+
+Animate `stroke-dashoffset` from 1 to 0 on the JS clock. `pathLength="1"` means no length measuring, and the wide mask stroke covers the line's antialiasing. For pulses that travel along it, read positions with `getPointAtLength` on the same path.
+
+## A4. Background (sacred)
+
+When the design sits on a photo or texture, the background is part of the design, not decoration. Often the whole canvas outside the app frame is background.
+
+- **It never changes.** Not in the intro, not in the loop, not in the dissolve, not in any zoom. It never moves, blurs, scales, fades, or recolours.
+- **Every version keeps it.** A "loading only" or "no zoom" variant is still the same design on the same background. Never drop the photo to make a variant simpler.
+- **Export the original image, not a render.** `GET /v1/files/:key/images` returns the raw image fills. Apply the fill's scale mode and `imageTransform` as CSS: for a stretch fill with a transform, `background-size` is the frame size divided by the transform scale, and `background-position` is the negative offset.
+- **Verify it.** Compare the background region of your still against the reference. Aim above 45 dB PSNR. A crop or offset error shows up instantly.
+- **Frosted panels must see the photo.** A surface with `backdrop-filter: blur()` is its own element, a sibling above the background, never inside an ancestor that has `filter` or `opacity` below 1. Headless Chrome only renders it with `transform: translateZ(0)` and a `z-index` on that element.
+- **If you cannot reproduce it, say so before building.** No image access, a generated texture, a missing fill: tell the user and ask. Never swap in a flat colour silently.
+- Store photos as high quality JPEG or WebP, not PNG.
+
+## A5. Layout: app frame or separate cards
+
+## A6. Page architecture (showcase)
+
+On a website, build inside the site's code instead, following the website rules in "Two contexts". The clock, units, and modes below still apply per section.
+
+
+- One self contained HTML file: a fixed size stage at the frame's exact size, scaled to fit the viewport. Images inline as base64, deduplicated when the same image repeats. Wait for decode on `<img>` elements only; CSS gradients are not images.
+- **Modes:** `?still` renders the exact Figma frame with no motion (also used for reduced motion). `?loop` repeats the cycle like the exports. `?capture` turns off `requestAnimationFrame` and exposes `window.__start()`, `window.__tick(dt)`, and the loop time `window.__lt`, so the recorder drives the clock (C1).
+- **Units.** Every animated element is wrapped in a full stage layer `.u` carrying its delay `--d`. The intro is CSS transitions keyed on `.stage.in`. Because a unit covers the whole stage, any percentage in `clip-path` or `transform-origin` on it refers to the stage, not the element. Use pixel values computed from the element's rectangle.
+- **Static layers stay composited.** Give clips and stroke overlays `transform: translateZ(0)`, so their antialiasing does not change when nearby transitions start. Otherwise a 1px edge flickers at every cycle start.
+- **One JS clock** (`requestAnimationFrame`) drives everything time based: masks, sweeps, stories, accents. Drive it from loop time, never from wall clock, so capture is deterministic. In `?capture` the clock advances only through `__tick`.
+- Default page behaviour: wait for image decode, play the intro once (when the frame scrolls into view, if it sits on a longer page), then keep the stories running.
+
+## A7. Verify the still
+
+Render `?still` at 2x and compare it with the reference before any motion work.
+
+- PSNR for the whole frame and for each container, after a light blur (`gblur sigma≈1.2`) so sub pixel antialiasing does not dominate. Aim above 35 dB overall and above 30 dB per container. Text heavy containers sit near 30 dB because 3x layers are resampled to 2x; if one is lower, retest it at `sigma≈2.5`, where text edges stop counting and only structure remains.
+- Look at a blurred, amplified difference image. It reveals structural errors: a glow placed too high, wrong stacking, a missing stroke, a shifted shadow.
+- **Do not chase sub pixel offsets.** Measuring at 2x cannot resolve errors under half a pixel, and "corrections" overshoot. Fix structure, not antialiasing.
+
+---
+
+## B5. The loop cycle (showcase)
+
+On a website there is no cycle: the intro plays once on scroll and the stories run until the section leaves the viewport.
+
+
+| Phase | Default timing |
+|---|---|
+| Build in | 0 → 2.4s |
+| Stories | 2.4 → 11.0s |
+| Dissolve | 11.0 → 11.6s (opacity 0.5s) |
+| Empty beat | 11.6 → 12.0s |
+
+- **The story phase holds at least one full story of every card.** Lengthen the cycle rather than cutting a story short. Time the stories so every card is back at rest when the dissolve starts.
+- **The live page keeps telling stories forever** after its intro. Only `?loop` and the exports dissolve and restart.
+- **Dissolve back to the empty state (B1).** For an app frame, only the contents dissolve and the joined surfaces stay. For separate cards, the cards dissolve too. The background never dissolves.
+- **Reset everything.** A class that disables transitions for one frame resets the CSS, but every JS driven value (masks, tracks, helpers, typed text, pulses) must be set back to its empty state too, or it ghosts through the empty beat. The frame at the end of a cycle must equal the frame at its start.
+
+## B6. Easing and duration
+
+Never use default `ease` or `linear` for entrances.
+
+| Token | Curve | Use |
+|---|---|---|
+| `--e` | `cubic-bezier(0.16, 1, 0.3, 1)` | Transforms on entrance (1.05s) |
+| `--e2` | `cubic-bezier(0.33, 1, 0.68, 1)` | Opacity and blur (0.7–0.8s) |
+| `--io` | `cubic-bezier(0.65, 0, 0.35, 1)` | Wipes, fills, sweeps, camera moves |
+| linear | `linear` | Constant motion only (shimmer, playback) |
+
+Showcase timing is slower than product UI timing on purpose. Product rules like "under 300ms" do not apply here; slow and smooth is the brief.
+
+## B7. Camera
+
+- **No zoom and no pan** by default. The user has to ask for it.
+- When asked: only the app frame scales toward the items, the background never moves (A4), moves use `--io`, and the frame returns to its resting position before the dissolve.
+
+## B8. Performance and accessibility
+
+- Animate `transform`, `opacity`, `filter`, and `clip-path` only. Never `top`, `left`, `width`, or `height`.
+- Keep animated blur at 14px or less. Static `backdrop-filter` is fine.
+- `prefers-reduced-motion: reduce` renders the still frame.
+- CSS transitions for the intro, the JS clock only for time based effects.
+
+## B9. Motion checks
+
+Run these on the recorded frames (C1) before encoding.
+
+- **Overflow check.** Test with the containers' real shapes, rounded corners included, not rectangles: render a mask from the page itself (every container as a solid white shape with its exact radii on black, plus its shadow area if it has one), grow it by 2px to skip antialiasing, and compare only the black pixels. Any `?still` used for comparison here is rendered at the capture's device scale factor, not at the 2x of A7.
+  - **App frame:** every pixel outside the joined surfaces must be identical to the empty first frame in every frame of the cycle (PSNR `inf`).
+  - **Separate cards:** during the story phase, every pixel outside the cards (and their shadows, when they have any) must be identical to the `?still` frame, so no story, helper, or content escapes its card. The intro frames are excluded, because the cards' own rise moves pixels there; the contact sheet must show contents moving with their card, never ahead of it or outside it.
+- **Seam check.** The first frame of the export window equals the frame one cycle later.
+- **Empty beat check.** Every frame of the empty beat equals the frame before `__start`. The seam check cannot catch JS state that failed to reset, because both its frames are at loop time 0; this one can.
+- **Rest check.** The last frame before the dissolve equals `?still` at the capture scale, proving every story came back to the design.
+- **Contact sheet.** Tile frames at key moments (empty, mid intro, landed, several points through the stories, mid dissolve, end) and look for overflow, ghosting, pops, and stories too timid to notice.
+
+---
+
+# PART C — Recording and export
+
+## C1. Deterministic capture
+
+Never screen record in real time. Step a fake clock and screenshot every frame. Three details decide whether the loop is smooth and the seam is clean; all three are in the snippet.
+
+```js
+await page.clock.install({ time: 0 });
+await page.goto(url + '?capture', { waitUntil: 'load' });
+await page.evaluate(() => document.fonts.ready);
+await page.clock.pauseAt(10000);
+const loopTime = [];
+for (let i = 0; i < frames; i++) {
+  // 1. whole milliseconds that average exactly 1000/60 (17, 17, 16, ...); runFor(1000 / 60) drifts
+  const dt = Math.round((i + 1) * 1000 / 60) - Math.round(i * 1000 / 60);
+  await page.clock.runFor(dt);
+  loopTime.push(await page.evaluate(([i, PRE, dt]) => {
+    if (i === PRE) window.__start();          // 2. start inside the same evaluate as the seek
+    if (i >= PRE) window.__tick(dt / 1000);   // 3. the page clock advances here, never through rAF
+    const now = performance.now();
+    for (const a of document.getAnimations()) {  // CSS transitions follow the fake clock
+      a.__m ??= window.__mark;                    // each one keeps the mark it was created under
+      a.pause(); a.currentTime = Math.max(0, now - a.__m);
+    }
+    return i >= PRE ? window.__lt : 0;
+  }, [i, PRE, dt]));
+  await page.screenshot({ path: `${out}/${String(i).padStart(5, '0')}.png` });
+}
+```
+
+On the page side, in `?capture`:
+
+- `__start()` adds the `in` class. Every change of the stage's state classes (`in`, `out`, the reset) sets `window.__mark = performance.now()`, so each transition is seeked from the moment it was created. Transition delays (`--d`) are counted inside `currentTime`.
+- `__tick(dt)` advances the loop time, runs the cycle phases (B5), draws every story and accent, and sets `window.__lt`.
+- Loops that never end (shimmer, marquee) are driven by the JS clock, not by infinite CSS keyframes, which the seek would restart.
+
+`PRE` is a few frames (about 15) recorded before the start, so the page has settled. Save `loopTime` beside the frames.
+
+- Viewport is the frame size. `deviceScaleFactor = min(1920 / W, 1200 / H)` so the long side hits the X limit. Screenshots round to whole pixels and can come out one pixel odd (1745×1200 for a 1440×990 frame); the MP4 crop to even dimensions takes care of it, so expect 1744×1200.
+- **The export window** starts at frame `PRE − 1` (loop time 0, the empty state) and spans exactly `cycle × 60` frames. Record at least 10 frames past it for the seam check.
+
+## C2. Formats
+
+| File | Spec |
+|---|---|
+| `<name>-x.mp4` | H.264, `yuv420p`, 60fps, CRF 14–15, preset slow, `+faststart`, max 1920×1200, even dimensions |
+| `<name>-loop.gif` | 960px wide, 15–20fps, about 2 to 3MB, for the website |
+| `<name>-800x500.gif` | Always delivered. When the frame has wide empty borders (most card and bento frames), crop to the content with about 40px of margin at exactly 1.6:1. When the content fills the frame, fit it and pad with the page background colour. On a photo background, always crop, so no flat band sits beside the photo. 20fps, 12fps if heavy |
+
+```bash
+ffmpeg -start_number $A -framerate 60 -i frames/%05d.png -frames:v $N \
+  -vf "crop=trunc(iw/2)*2:trunc(ih/2)*2" -c:v libx264 -preset slow -crf 15 \
+  -pix_fmt yuv420p -movflags +faststart name-x.mp4
+
+ffmpeg -start_number $A -framerate 60 -i frames/%05d.png -filter_complex \
+  "trim=end_frame=$N,fps=20,scale=960:-2:flags=lanczos,split[a][b];\
+   [a]palettegen=max_colors=192:stats_mode=diff[p];\
+   [b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 name-loop.gif
+```
+
+For the 800×500 GIF, add `scale=800:500:force_original_aspect_ratio=decrease,pad=800:500:(ow-iw)/2:(oh-ih)/2:color=<page bg>` before `split`.
+
+- Keep bayer dithering whenever a photo is in frame; without it photos band.
+- If a GIF is too heavy, lower the frame rate or colours before lowering the size.
+
+---
+
+# Output format
+
+Before building, state in a few lines:
+
+1. **Context** — showcase or website. For a website, list each section and what it gets (intro and stories, intro only, or nothing)
+2. **Layout** — app frame (which joined surfaces stay static) or separate cards (which cards rise in), and the clip shapes
+3. **Background** — kept exactly, or what cannot be reproduced
+4. **Choreography** — load order and the kind per element group
+5. **Stories** — one sentence per visual saying what it acts out, plus any accents
+6. **Cycle** — total length and phases
+
+After building, report:
+
+- Still frame fidelity (overall and worst surface PSNR)
+- Overflow check and seam check results
+- The three files with size, dimensions, frame rate, and duration
+- Anything not reproduced exactly, named plainly
+
+---
+# Make it yours
+
+Every motion and export value lives here. Edit this section and the rest of the skill follows.
+
+| Value | Default |
+|---|---|
+| Rise distance | 10px (`up`), 8px (`down`), 10px (`left`) |
+| Entrance blur | 4px, photos 14px |
+| Pop start scale | 0.82–0.88 |
+| Transform duration | 1.05s with `--e` |
+| Opacity and blur duration | 0.7–0.8s with `--e2` |
+| Wipe duration | 0.7s, slow bars 1.1s, with `--io` |
+| Card rise | 24px, `scale(0.985)`, `blur(6px)`, 0.9s transform with `--e`, 0.6s opacity |
+| Container stagger | 80–90ms |
+| Tray and folder rise | 40px |
+| Typing | one glyph every 45–70ms, caret blink 1s |
+| Item stagger | 30–80ms |
+| Story start | 2.4s |
+| Story length | 3–8s per card, offset between cards |
+| Cycle | 12s (dissolve at 11.0s, reset at 11.6s), longer if a story needs it |
+| MP4 | 60fps, CRF 15, max 1920×1200 |
+| Website GIF | 960px wide, 20fps |
+| Small GIF | 800×500, 20fps |
+
+---
+# Credits
+
+Part of [ai-design-skills](https://github.com/elayadesign/ai-design-skills) by Elaya, MIT licensed.
+
+A few general motion rules were adapted, not copied, from these MIT licensed skill collections:
+
+- [emilkowalski/skills](https://github.com/emilkowalski/skills) — animating only cheap properties, keeping blur small, never growing objects from zero, reduced motion handling
+- [Owl-Listener/designer-skills](https://github.com/Owl-Listener/designer-skills) — skeletons shaped like the real content, staggered entrances
+- [dylantarre/animation-principles](https://github.com/dylantarre/animation-principles) — offsetting sibling loops, loops whose last frame flows into the first
+     1	# Build skills
+     2	
+     3	> For the complete documentation index, see [llms.txt](https://learn.chatgpt.com/llms.txt). Markdown versions of documentation pages are available by appending `.md` to the page URL.
+     4	
+     5	Use agent skills to extend ChatGPT and Codex with task-specific capabilities. A
+     6	skill packages instructions, resources, and optional scripts so either product
+     7	can follow a workflow reliably. Skills build on the
+     8	[open agent skills standard](https://agentskills.io).
+     9	
+    10	Skills are the authoring format for reusable workflows. Plugins distribute
+    11	reusable skills and connectors through the universal plugin directory shared
+    12	by ChatGPT and Codex. Plugins work in Chat and Work across ChatGPT on the web,
+    13	desktop, and mobile, in Codex in the ChatGPT desktop app, and through Codex
+    14	CLI. Use skills to design the workflow itself, then package it as a
+    15	[plugin](https://developers.openai.com/plugins/build/plugins) when you want
+    16	other people to install it.
+    17	
+    18	Standalone skills are available in the ChatGPT desktop app, Codex CLI, and IDE
+    19	extension. Skills bundled in plugins are also available in Chat and Work across
+    20	ChatGPT on the web, desktop, and mobile.
+    21	
+    22	In the ChatGPT desktop app, open **Skills** in the sidebar to view and explore skills
+    23	created across your projects.
+    24	
+    25	
+    26	  
+    27	
+    28	> Illustration: Skills picker showing available skills in the ChatGPT desktop app
+    29	
+    30	
+    31	
+    32	
+    33	Skills use **progressive disclosure** to manage context efficiently. ChatGPT and
+    34	Codex start with each skill's name and description, then load the full
+    35	`SKILL.md` instructions when they decide to use that skill.
+    36	
+    37	In Codex, the initial list also includes each skill's file path. By default,
+    38	this list uses at most 2% of the model's
+    39	context window, or 8,000 characters when the context window is unknown. If many
+    40	skills are installed, Codex shortens skill descriptions first. For large skill
+    41	sets, Codex may omit some skills from the initial list and show a warning.
+    42	
+    43	Use [`skills.max_context_tokens`](https://learn.chatgpt.com/docs/config-file/config-reference) to set a
+    44	different budget, up to 10,000 tokens.
+    45	
+    46	This budget applies only to the initial skills list. When Codex selects a skill, it still reads the full SKILL.md instructions for that skill.
+    47	
+    48	A skill is a directory with a `SKILL.md` file plus optional scripts and references. The `SKILL.md` file must include `name` and `description`.
+    49	
+    50	<FileTree
+    51	  class="mt-4"
+    52	  tree={[
+    53	    {
+    54	      name: "my-skill/",
+    55	      open: true,
+    56	      children: [
+    57	        {
+    58	          name: "SKILL.md",
+    59	          comment: "Required: instructions + metadata",
+    60	        },
+    61	        {
+    62	          name: "scripts/",
+    63	          comment: "Optional: executable code",
+    64	        },
+    65	        {
+    66	          name: "references/",
+    67	          comment: "Optional: documentation",
+    68	        },
+    69	        {
+    70	          name: "assets/",
+    71	          comment: "Optional: templates, resources",
+    72	        },
+    73	        {
+    74	          name: "agents/",
+    75	          open: true,
+    76	          children: [
+    77	            {
+    78	              name: "openai.yaml",
+    79	              comment: "Optional: appearance and dependencies",
+    80	            },
+    81	          ],
+    82	        },
+    83	      ],
+    84	    },
+    85	
+    86	]}
+    87	/>
+    88	
+    89	<a id="how-codex-uses-skills"></a>
+    90	
+    91	## How ChatGPT and Codex use skills
+    92	
+    93	ChatGPT and Codex can activate skills in two ways:
+    94	
+    95	1. **Explicit invocation:** Include the skill directly in your prompt. In
+    96	   ChatGPT, type `@` to select a skill. In Codex CLI or the IDE extension, run
+    97	   `/skills` or type `$` to mention a skill.
+    98	2. **Implicit invocation:** ChatGPT or Codex can choose a skill when your task
+    99	   matches the skill `description`.
+   100	
+   101	Because implicit matching depends on `description`, write concise descriptions
+   102	with clear scope and boundaries. Front-load the key use case and trigger words
+   103	so a host can still match the skill if descriptions are shortened.
+   104	
+   105	## Create a skill
+   106	
+   107	If you already know the workflow and it's easier to show than describe, use
+   108	[Record & Replay](https://learn.chatgpt.com/docs/extend/record-and-replay). The recorder captures the
+   109	workflow, inspects the steps, and drafts a reusable skill from the
+   110	demonstration.
+   111	
+   112	If you want to describe the skill instead, use the built-in creator. In ChatGPT
+   113	Work, invoke it as `@skill-creator`. In Codex, invoke it as:
+   114	
+   115	```text
+   116	$skill-creator
+   117	```
+   118	
+   119	The creator asks what the skill does, when it should trigger, and whether it should stay instruction-only or include scripts. Instruction-only is the default.
+   120	
+   121	You can also create a skill manually by creating a folder with a `SKILL.md` file:
+   122	
+   123	```md
+   124	---
+   125	name: skill-name
+   126	description: Explain exactly when this skill should and should not trigger.
+   127	---
+   128	
+   129	Skill instructions for ChatGPT or Codex to follow.
+   130	```
+   131	
+   132	Codex detects skill changes automatically. If an update doesn't appear, restart Codex.
+   133	
+   134	<a id="where-to-save-skills"></a>
+   135	
+   136	## Where Codex loads local skills
+   137	
+   138	Codex reads skills from repository, user, admin, and system locations. For repositories, Codex scans `.agents/skills` in every directory from your current working directory up to the repository root. If two skills share the same `name`, Codex doesn't merge them; both can appear in skill selectors.
+   139	
+   140	| Skill Scope | Location                                                                                                  | Suggested use                                                                                                                                                                                        |
+   141	| :---------- | :-------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   142	| `REPO`      | `$CWD/.agents/skills` <br /> Current working directory: where you launch Codex.                           | If you're in a repository or code environment, teams can check in skills relevant to a working folder. For example, skills only relevant to a microservice or a module.                              |
+   143	| `REPO`      | `$CWD/../.agents/skills` <br /> A folder above CWD when you launch Codex inside a Git repository.         | If you're in a repository with nested folders, organizations can check in skills relevant to a shared area in a parent folder.                                                                       |
+   144	| `REPO`      | `$REPO_ROOT/.agents/skills` <br /> The topmost root folder when you launch Codex inside a Git repository. | If you're in a repository with nested folders, organizations can check in skills relevant to everyone using the repository. These serve as root skills available to any subfolder in the repository. |
+   145	| `USER`      | `$HOME/.agents/skills` <br /> Any skills checked into the user's personal folder.                         | Use to curate skills relevant to a user that apply to any repository the user may work in.                                                                                                           |
+   146	| `ADMIN`     | `/etc/codex/skills` <br /> Any skills checked into the machine or container in a shared, system location. | Use for SDK scripts, automation, and for checking in default admin skills available to each user on the machine.                                                                                     |
+   147	| `SYSTEM`    | Bundled with Codex by OpenAI.                                                                             | Useful skills relevant to a broad audience such as the skill-creator and plan skills. Available to everyone when they start Codex.                                                                   |
+   148	
+   149	Codex supports symlinked skill folders and follows the symlink target when scanning these locations.
+   150	
+   151	These locations are for authoring and local discovery. When you want to
+   152	distribute reusable skills beyond a single repo, or optionally bundle them with
+   153	connectors, use [plugins](https://developers.openai.com/plugins/build/plugins).
+   154	
+   155	## Distribute skills with plugins
+   156	
+   157	Direct skill folders are best for local authoring and repo-scoped workflows. If
+   158	you want to distribute a reusable skill, bundle two or more skills together, or
+   159	ship a skill alongside a connector, package them as a
+   160	[plugin](https://developers.openai.com/plugins/build/plugins).
+   161	
+   162	Plugins can include one or more skills. They can also optionally bundle
+   163	registered MCP server connections, bundled MCP server configuration, and
+   164	presentation assets in a single package.
+   165	
+   166	## Install curated skills for local use
+   167	
+   168	To add curated skills beyond the built-ins for your own local Codex setup, use `$skill-installer`. For example, to install the `$linear` skill:
+   169	
+   170	```bash
+   171	$skill-installer linear
+   172	```
+   173	
+   174	You can also prompt the installer to download skills from other repositories.
+   175	Codex detects newly installed skills automatically; if one doesn't appear,
+   176	restart Codex.
+   177	
+   178	Use this for local setup and experimentation. For reusable distribution of your
+   179	own skills, prefer plugins.
+   180	
+   181	## Enable or disable local Codex skills
+   182	
+   183	Use `[[skills.config]]` entries in `~/.codex/config.toml` to disable a skill without deleting it:
+   184	
+   185	```toml
+   186	[[skills.config]]
+   187	path = "/path/to/skill/SKILL.md"
+   188	enabled = false
+   189	```
+   190	
+   191	Restart Codex after changing `~/.codex/config.toml`.
+   192	
+   193	## Optional metadata
+   194	
+   195	Add `agents/openai.yaml` to configure UI metadata in the [ChatGPT desktop app](https://learn.chatgpt.com/docs/app), to set invocation policy, and to declare tool dependencies for a more seamless experience with using the skill.
+   196	
+   197	```yaml
+   198	interface:
+   199	  display_name: "Optional user-facing name"
+   200	  short_description: "Optional user-facing description"
+   201	  icon_small: "./assets/small-logo.svg"
+   202	  icon_large: "./assets/large-logo.png"
+   203	  brand_color: "#3B82F6"
+   204	  default_prompt: "Optional surrounding prompt to use the skill with"
+   205	
+   206	policy:
+   207	  allow_implicit_invocation: false
+   208	
+   209	dependencies:
+   210	  tools:
+   211	    - type: "mcp"
+   212	      value: "openaiDeveloperDocs"
+   213	      description: "OpenAI Docs MCP server"
+   214	      transport: "streamable_http"
+   215	      url: "https://developers.openai.com/mcp"
+   216	```
+   217	
+   218	`allow_implicit_invocation` (default: `true`): When `false`, Codex won't implicitly invoke the skill based on user prompt; explicit `$skill` invocation still works.
+   219	
+   220	## Best practices
+   221	
+   222	- Keep each skill focused on one job.
+   223	- Prefer instructions over scripts unless you need deterministic behavior or external tooling.
+   224	- Write imperative steps with explicit inputs and outputs.
+   225	- Test prompts against the skill description to confirm the right trigger behavior.
+   226	
+   227	For more examples, see
+   228	[GitHub CI repair](https://github.com/openai/skills/tree/main/skills/.curated/gh-fix-ci),
+   229	[PDF](https://github.com/openai/skills/tree/main/skills/.curated/pdf),
+   230	[Linear](https://github.com/openai/skills/tree/main/skills/.curated/linear),
+   231	[openai/skills](https://github.com/openai/skills), and the
+   232	[agent skills specification](https://agentskills.io/specification). For
+   233	installable distribution, prefer [plugins](https://developers.openai.com/plugins/build/plugins).
+     1	# Custom instructions with AGENTS.md
+     2	
+     3	> For the complete documentation index, see [llms.txt](https://learn.chatgpt.com/llms.txt). Markdown versions of documentation pages are available by appending `.md` to the page URL.
+     4	
+     5	Codex reads `AGENTS.md` files before doing any work. By layering global guidance with project-specific overrides, you can start each task with consistent expectations, no matter which repository you open.
+     6	
+     7	## How Codex discovers guidance
+     8	
+     9	Codex builds an instruction chain when it starts (once per run; in the TUI this usually means once per launched session). Discovery follows this precedence order:
+    10	
+    11	1. **Global scope:** In your Codex home directory (defaults to `~/.codex`, unless you set `CODEX_HOME`), Codex reads `AGENTS.override.md` if it exists. Otherwise, Codex reads `AGENTS.md`. Codex uses only the first non-empty file at this level.
+    12	2. **Project scope:** Starting at the project root (typically the Git root), Codex walks down to your current working directory. If Codex cannot find a project root, it only checks the current directory. In each directory along the path, it checks for `AGENTS.override.md`, then `AGENTS.md`, then any fallback names in `project_doc_fallback_filenames`. Codex includes at most one file per directory.
+    13	3. **Merge order:** Codex concatenates files from the root down, joining them with blank lines. Files closer to your current directory override earlier guidance because they appear later in the combined prompt.
+    14	
+    15	Codex skips empty files and stops adding files once the combined size reaches the limit defined by `project_doc_max_bytes` (32 KiB by default). For details on these knobs, see [Project instructions discovery](https://learn.chatgpt.com/docs/config-file/config-advanced#project-instructions-discovery). Raise the limit or split instructions across nested directories when you hit the cap.
+    16	
+    17	## Create global guidance
+    18	
+    19	Create persistent defaults in your Codex home directory so every repository inherits your working agreements.
+    20	
+    21	1. Ensure the directory exists:
+    22	
+    23	```bash
+    24	   mkdir -p ~/.codex
+    25	```
+    26	
+    27	2. Create `~/.codex/AGENTS.md` with reusable preferences:
+    28	
+    29	```md
+    30	   # ~/.codex/AGENTS.md
+    31	
+    32	   ## Working agreements
+    33	
+    34	   - Always run `npm test` after modifying JavaScript files.
+    35	   - Prefer `pnpm` when installing dependencies.
+    36	   - Ask for confirmation before adding new production dependencies.
+    37	```
+    38	
+    39	3. Run Codex anywhere to confirm it loads the file:
+    40	
+    41	```bash
+    42	   codex --ask-for-approval never "Summarize the current instructions."
+    43	```
+    44	
+    45	   Expected: Codex quotes the items from `~/.codex/AGENTS.md` before proposing work.
+    46	
+    47	Use `~/.codex/AGENTS.override.md` when you need a temporary global override without deleting the base file. Remove the override to restore the shared guidance.
+    48	
+    49	## Layer project instructions
+    50	
+    51	Repository-level files keep Codex aware of project norms while still inheriting your global defaults.
+    52	
+    53	1. In your repository root, add an `AGENTS.md` that covers basic setup:
+    54	
+    55	```md
+    56	   # AGENTS.md
+    57	
+    58	   ## Repository expectations
+    59	
+    60	   - Run `npm run lint` before opening a pull request.
+    61	   - Document public utilities in `docs/` when you change behavior.
+    62	```
+    63	
+    64	2. Add overrides in nested directories when specific teams need different rules. For example, inside `services/payments/` create `AGENTS.override.md`:
+    65	
+    66	```md
+    67	   # services/payments/AGENTS.override.md
+    68	
+    69	   ## Payments service rules
+    70	
+    71	   - Use `make test-payments` instead of `npm test`.
+    72	   - Never rotate API keys without notifying the security channel.
+    73	```
+    74	
+    75	3. Start Codex from the payments directory:
+    76	
+    77	```bash
+    78	   codex --cd services/payments --ask-for-approval never "List the instruction sources you loaded."
+    79	```
+    80	
+    81	   Expected: Codex reports the global file first, the repository root `AGENTS.md` second, and the payments override last.
+    82	
+    83	Codex stops searching once it reaches your current directory, so place overrides as close to specialized work as possible.
+    84	
+    85	Here is a sample repository after you add a global file and a payments-specific override:
+    86	
+    87	<FileTree
+    88	  class="mt-4"
+    89	  tree={[
+    90	    {
+    91	      name: "AGENTS.md",
+    92	      comment: "Repository expectations",
+    93	      highlight: true,
+    94	    },
+    95	    {
+    96	      name: "services/",
+    97	      open: true,
+    98	      children: [
+    99	        {
+   100	          name: "payments/",
+   101	          open: true,
+   102	          children: [
+   103	            {
+   104	              name: "AGENTS.md",
+   105	              comment: "Ignored because an override exists",
+   106	            },
+   107	            {
+   108	              name: "AGENTS.override.md",
+   109	              comment: "Payments service rules",
+   110	              highlight: true,
+   111	            },
+   112	            { name: "README.md" },
+   113	          ],
+   114	        },
+   115	        {
+   116	          name: "search/",
+   117	          children: [{ name: "AGENTS.md" }, { name: "…", placeholder: true }],
+   118	        },
+   119	      ],
+   120	    },
+   121	  ]}
+   122	/>
+   123	
+   124	## Add code review rules
+   125	
+   126	For [Codex code review in GitHub](https://learn.chatgpt.com/docs/third-party/github#customize-what-codex-reviews),
+   127	add a `## Code Review Rules` section to the `AGENTS.md` closest to the code the
+   128	rules govern. Put repository-wide checks at the root and service-specific
+   129	checks in a nested file.
+   130	
+   131	```md
+   132	## Code Review Rules
+   133	
+   134	### Experiment cohorts
+   135	
+   136	- Do not filter treatment comparisons on post-exposure behavior, including conversion or retention.
+   137	  Safe path: build cohorts from assignment or exposure; report conversion as an outcome.
+   138	```
+   139	
+   140	Keep rules concise, explain the behavior to flag and any safe path or
+   141	exception, and reserve formatting and lint checks for CI. See [Customize what
+   142	Codex reviews](https://learn.chatgpt.com/docs/third-party/github#customize-what-codex-reviews) for
+   143	setup and rule-writing guidance.
+   144	
+   145	## Customize fallback filenames
+   146	
+   147	If your repository already uses a different filename (for example `TEAM_GUIDE.md`), add it to the fallback list so Codex treats it like an instructions file.
+   148	
+   149	1. Edit your Codex configuration:
+   150	
+   151	```toml
+   152	   # ~/.codex/config.toml
+   153	   project_doc_fallback_filenames = ["TEAM_GUIDE.md", ".agents.md"]
+   154	   project_doc_max_bytes = 65536
+   155	```
+   156	
+   157	2. Restart Codex or run a new command so the updated configuration loads.
+   158	
+   159	Now Codex checks each directory in this order: `AGENTS.override.md`, `AGENTS.md`, `TEAM_GUIDE.md`, `.agents.md`. Filenames not on this list are ignored for instruction discovery. The larger byte limit allows more combined guidance before truncation.
+   160	
+   161	With the fallback list in place, Codex treats the alternate files as instructions:
+   162	
+   163	<FileTree
+   164	  class="mt-4"
+   165	  tree={[
+   166	    {
+   167	      name: "TEAM_GUIDE.md",
+   168	      comment: "Detected via fallback list",
+   169	      highlight: true,
+   170	    },
+   171	    {
+   172	      name: ".agents.md",
+   173	      comment: "Fallback file in root",
+   174	    },
+   175	    {
+   176	      name: "support/",
+   177	      open: true,
+   178	      children: [
+   179	        {
+   180	          name: "AGENTS.override.md",
+   181	          comment: "Overrides fallback guidance",
+   182	          highlight: true,
+   183	        },
+   184	        {
+   185	          name: "playbooks/",
+   186	          children: [{ name: "…", placeholder: true }],
+   187	        },
+   188	      ],
+   189	    },
+   190	  ]}
+   191	/>
+   192	
+   193	Set the `CODEX_HOME` environment variable when you want a different profile, such as a project-specific automation user:
+   194	
+   195	```bash
+   196	CODEX_HOME=$(pwd)/.codex codex exec "List active instruction sources"
+   197	```
+   198	
+   199	Expected: The output lists files relative to the custom `.codex` directory.
+   200	
+   201	## Verify your setup
+   202	
+   203	- Run `codex --ask-for-approval never "Summarize the current instructions."` from a repository root. Codex should echo guidance from global and project files in precedence order.
+   204	- Use `codex --cd subdir --ask-for-approval never "Show which instruction files are active."` to confirm nested overrides replace broader rules.
+   205	- To audit which instruction files Codex loaded, opt into a plaintext TUI log with `codex -c log_dir=./.codex-log` and check `./.codex-log/codex-tui.log`, or inspect the most recent `session-*.jsonl` file if you enabled session logging.
+   206	- If instructions look stale, restart Codex in the target directory. Codex rebuilds the instruction chain on every run (and at the start of each TUI session), so there is no cache to clear manually.
+   207	
+   208	## Troubleshoot discovery issues
+   209	
+   210	- **Nothing loads:** Verify you are in the intended repository and that `codex status` reports the workspace root you expect. Ensure instruction files contain content; Codex ignores empty files.
+   211	- **Wrong guidance appears:** Look for an `AGENTS.override.md` higher in the directory tree or under your Codex home. Rename or remove the override to fall back to the regular file.
+   212	- **Codex ignores fallback names:** Confirm you listed the names in `project_doc_fallback_filenames` without typos, then restart Codex so the updated configuration takes effect.
+   213	- **Instructions truncated:** Raise `project_doc_max_bytes` or split large files across nested directories to keep critical guidance intact.
+   214	- **Profile confusion:** Run `echo $CODEX_HOME` before launching Codex. A non-default value points Codex at a different home directory than the one you edited.
+   215	
+   216	## Next steps
+   217	
+   218	- Visit the official [AGENTS.md](https://agents.md) website for more information.
+   219	- Review [Prompting Codex](https://learn.chatgpt.com/docs/prompting) for conversational patterns that pair well with persistent guidance.

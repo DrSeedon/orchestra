@@ -1,0 +1,11 @@
+axis	pinned_fact	source	dependencies	license	limitation	native_html_artifacts
+packaging	One SKILL.md; 18801 bytes; 431 lines; no references/assets/scripts	L:1-431; recursive tree	Instruction host	Elaya MIT + embedded Leonxlnx MIT	No build/eval assets	NOT_READ_ABSENT_IN_HUB_COPY
+activation	Any web UI including edit/review/dashboard; explicit user overrides	L:3,16	Host discovery/routing	E+T	Broad text trigger; no enforcement	NOT_READ_ABSENT_IN_HUB_COPY
+planning	Batch missing intake; assumptions fallback; seven outputs before code; section edits	L:24-50,116-127,355-367	Product input; coding host	E+T	No scaffold or file destinations	NOT_READ_ABSENT_IN_HUB_COPY
+content	One action; proof; 3-5 benefits; three steps; FAQ6-12; realism	L:52-114,295-305	Proof/assets/user context	E+T; external input rights unknown	No provenance/fictional labeling gate	NOT_READ_ABSENT_IN_HUB_COPY
+visual	Font allow/ban; type/spacing scales; nested radius; flat dark palette; hero gradient	L:150-265	CSS; local fonts/icons or supplied libraries	E+T; external assets separate	No pinned framework/assets or full responsive tokens	NOT_READ_ABSENT_IN_HUB_COPY
+motion	Custom bezier; once section reveal; mobile menu stagger; per-word tagline	L:267-291,335-351	CSS; IO or optional Framer Motion; rAF alternative	E+T; external library separate	Placement/property/checklist ambiguities	NOT_READ_ABSENT_IN_HUB_COPY
+adaptive_accessibility	Wrapping; full-height mobile menu; focus/skip/alt/semantic/reduced motion	L:48,141,168,275-345	Browser and state implementation	E+T	No breakpoint/WCAG contrast/keyboard test matrix	NOT_READ_ABSENT_IN_HUB_COPY
+execution	No model API/install/build/test/export commands in landing	L:1-431; recursive tree	Coding host; implementation environment unspecified	E+T	No runnable app or demonstrated offline output	NOT_READ_ABSENT_IN_HUB_COPY
+verification	Written quick checklist; no executable tests/evals	L:371-397; recursive tree	Agent/manual review	E+T	No measured conversion/quality or video provenance	NOT_READ_ABSENT_IN_HUB_COPY
+license	MIT Elaya plus embedded taste-skill MIT Leonxlnx notice	LICENSE:1-21; L:401-431	Preserve applicable notices when distributing source/material	E+T	External fonts/icons/media rights not established	NOT_READ_ABSENT_IN_HUB_COPY

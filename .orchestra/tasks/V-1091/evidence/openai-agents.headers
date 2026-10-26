@@ -1,0 +1,11 @@
+HTTP/2 200 
+age: 0
+cache-control: public, max-age=0, must-revalidate
+content-type: text/markdown; charset=utf-8
+date: Mon, 26 Oct 2026 06:14:02 GMT
+server: Vercel
+strict-transport-security: max-age=63072000
+vary: Accept
+x-vercel-cache: MISS
+x-vercel-id: fra1::iad1::ffplz-1792995242535-e81b468ad975
+
