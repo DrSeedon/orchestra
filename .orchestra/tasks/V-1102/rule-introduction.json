@@ -1,0 +1,113 @@
+{
+  "sha": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+  "node_id": "C_kwDOOiiGL9oAKDQxZDBhOWYwMTA5M2Y3Y2Q2ZWU0NDY3YmJiYmE1OTAzM2IyMjlhYTg",
+  "commit": {
+    "author": {
+      "name": "Kit Langton",
+      "email": "kit.langton@gmail.com",
+      "date": "2026-07-10T15:33:04Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-07-10T15:33:04Z"
+    },
+    "message": "fix(tui): hide editor context from transcript (#36264)",
+    "tree": {
+      "sha": "2c6e67f24c053f63fa4c7415c2e38d60c72b191f",
+      "url": "https://api.github.com/repos/anomalyco/opencode/git/trees/2c6e67f24c053f63fa4c7415c2e38d60c72b191f"
+    },
+    "url": "https://api.github.com/repos/anomalyco/opencode/git/commits/41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+    "comment_count": 0,
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJqURCwCRC1aQ7uu5UhlAAANnQQAK2Eec1Ahp7fAig1uCeWV8Ss\nX1FZG7ch+P3KOa4OBl9Y0x8sg7WnaMr+uaRC6yoQFkuW/z8AZyRtmlvSVjUhoQWk\nV3C6Jg8iRews8ZToqGHDGvMXnNX5dMzmJw4mxve3maBvNUUY0yYqJWHJKZqB9Px2\nvDkEt8DT9E+I/9o1c+v5Fm/3JQJlIKMqI9KTvxtOGXHjJYKJAMSoe1kGoeG8Rh58\nGL3gm64WFxGLfDiQ9CaBbGk0Ff23KK+75YSNBnhJ4r+hSzu8rq113KJnE8FiQurs\nhikoD5XJpn6NEQ9wggBocrRjdQLbz03P9IJkdJBVeh9aWgJhINDh2CyEFOCIVxZa\nYegMJctTdeFhPh1jNOvcGAS7OjEB2ENCGsuRoOu+8NHJTfCZU+s4DilqAlLnM8pz\neCmKs5NY5Io4tST9AfBpbJWQpPGL4x63mnzZW8q0xSB8lDghRicGlQv4m1Is+XEG\nJkQFCFLotOFfxCFJP4BuUeVhT2boXKXcPYbWDlwcwuSN+OT1OIcHCeCfoI2dBV29\n/Aoho28apfXefZihgwNXitdIZDaHf/YurOsP26XyQXeJvDZoKGMGQ3wxTm4QJxRM\nQ18ZRsZTXKWcWIcJwQyQykdcckvHD2p2YLybohtnUlL9ki7pKFx/zAqTZoiy9KbS\nkRGK6hA2OurIlMIV7dKx\n=4BMc\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 2c6e67f24c053f63fa4c7415c2e38d60c72b191f\nparent accaa792d870c42bf3d426656c830c24b43812d4\nauthor Kit Langton <kit.langton@gmail.com> 1783697584 -0400\ncommitter GitHub <noreply@github.com> 1783697584 -0400\n\nfix(tui): hide editor context from transcript (#36264)",
+      "verified_at": "2026-07-10T15:33:05Z"
+    }
+  },
+  "url": "https://api.github.com/repos/anomalyco/opencode/commits/41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+  "html_url": "https://github.com/anomalyco/opencode/commit/41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+  "comments_url": "https://api.github.com/repos/anomalyco/opencode/commits/41d0a9f01093f7cd6ee4467bbbba59033b229aa8/comments",
+  "author": {
+    "login": "kitlangton",
+    "id": 7587245,
+    "node_id": "MDQ6VXNlcjc1ODcyNDU=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/7587245?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/kitlangton",
+    "html_url": "https://github.com/kitlangton",
+    "followers_url": "https://api.github.com/users/kitlangton/followers",
+    "following_url": "https://api.github.com/users/kitlangton/following{/other_user}",
+    "gists_url": "https://api.github.com/users/kitlangton/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/kitlangton/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/kitlangton/subscriptions",
+    "organizations_url": "https://api.github.com/users/kitlangton/orgs",
+    "repos_url": "https://api.github.com/users/kitlangton/repos",
+    "events_url": "https://api.github.com/users/kitlangton/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/kitlangton/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "web-flow",
+    "id": 19864447,
+    "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+    "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/web-flow",
+    "html_url": "https://github.com/web-flow",
+    "followers_url": "https://api.github.com/users/web-flow/followers",
+    "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+    "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+    "organizations_url": "https://api.github.com/users/web-flow/orgs",
+    "repos_url": "https://api.github.com/users/web-flow/repos",
+    "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/web-flow/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "accaa792d870c42bf3d426656c830c24b43812d4",
+      "url": "https://api.github.com/repos/anomalyco/opencode/commits/accaa792d870c42bf3d426656c830c24b43812d4",
+      "html_url": "https://github.com/anomalyco/opencode/commit/accaa792d870c42bf3d426656c830c24b43812d4"
+    }
+  ],
+  "stats": {
+    "total": 41,
+    "additions": 22,
+    "deletions": 19
+  },
+  "files": [
+    {
+      "sha": "2cd225fba0be8859695b7e350a0e8b1c267bcc2b",
+      "filename": "AGENTS.md",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 0,
+      "changes": 1,
+      "blob_url": "https://github.com/anomalyco/opencode/blob/41d0a9f01093f7cd6ee4467bbbba59033b229aa8/AGENTS.md",
+      "raw_url": "https://github.com/anomalyco/opencode/raw/41d0a9f01093f7cd6ee4467bbbba59033b229aa8/AGENTS.md",
+      "contents_url": "https://api.github.com/repos/anomalyco/opencode/contents/AGENTS.md?ref=41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+      "patch": "@@ -27,6 +27,7 @@ Never bypass Git hooks. Do not use `--no-verify` or otherwise disable, skip, or\n \n - Keep things in one function unless composable or reusable\n - Do not extract single-use helpers preemptively. Inline the logic at the call site unless the helper is reused, hides a genuinely complex boundary, or has a clear independent name that improves the caller.\n+- Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.\n - Avoid `try`/`catch` where possible\n - Avoid using the `any` type\n - Use Bun APIs when possible, like `Bun.file()`"
+    },
+    {
+      "sha": "d6d09b0b4f07bb6cc8e0cf407f0072db7e931f5c",
+      "filename": "packages/tui/src/component/prompt/index.tsx",
+      "status": "modified",
+      "additions": 21,
+      "deletions": 19,
+      "changes": 40,
+      "blob_url": "https://github.com/anomalyco/opencode/blob/41d0a9f01093f7cd6ee4467bbbba59033b229aa8/packages%2Ftui%2Fsrc%2Fcomponent%2Fprompt%2Findex.tsx",
+      "raw_url": "https://github.com/anomalyco/opencode/raw/41d0a9f01093f7cd6ee4467bbbba59033b229aa8/packages%2Ftui%2Fsrc%2Fcomponent%2Fprompt%2Findex.tsx",
+      "contents_url": "https://api.github.com/repos/anomalyco/opencode/contents/packages%2Ftui%2Fsrc%2Fcomponent%2Fprompt%2Findex.tsx?ref=41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+      "patch": "@@ -1044,22 +1044,7 @@ export function Prompt(props: PromptProps) {\n     // Capture mode before it gets reset\n     const currentMode = store.mode\n     const editorSelection = editorContext()\n-    const editorParts =\n-      editorSelection && editor.labelState() === \"pending\"\n-        ? [\n-            {\n-              type: \"text\" as const,\n-              text: formatEditorContext(editorSelection),\n-              synthetic: true,\n-              metadata: {\n-                kind: \"editor_context\",\n-                source: editorSelection.source ?? \"editor\",\n-                filePath: editorSelection.filePath,\n-                ranges: editorSelection.ranges,\n-              },\n-            },\n-          ]\n-        : []\n+    const pendingEditorSelection = editorSelection && editor.labelState() === \"pending\" ? editorSelection : undefined\n \n     if (store.mode === \"shell\") {\n       move.startSubmit()\n@@ -1135,10 +1120,27 @@ export function Prompt(props: PromptProps) {\n           return false\n         }\n       }\n+      if (pendingEditorSelection) {\n+        // Keep editor context hidden while admitting it before the corresponding user prompt.\n+        const error = await sdk.api.session\n+          .synthetic({\n+            sessionID,\n+            text: formatEditorContext(pendingEditorSelection),\n+            resume: false,\n+          })\n+          .then(\n+            () => undefined,\n+            (error) => error,\n+          )\n+        if (error) {\n+          toast.show({ title: \"Failed to send editor context\", message: errorMessage(error), variant: \"error\" })\n+          return false\n+        }\n+      }\n       const error = await sdk.api.session\n         .prompt({\n           sessionID,\n-          text: [...editorParts.map((part) => part.text), inputText].filter(Boolean).join(\"\\n\\n\"),\n+          text: inputText,\n           files: store.prompt.files,\n           agents: store.prompt.agents,\n         })\n@@ -1150,7 +1152,7 @@ export function Prompt(props: PromptProps) {\n         toast.show({ title: \"Failed to send prompt\", message: errorMessage(error), variant: \"error\" })\n         return false\n       }\n-      if (editorParts.length > 0) editor.markSelectionSent()\n+      if (pendingEditorSelection) editor.markSelectionSent()\n     }\n     history.append({\n       ...store.prompt,\n@@ -1163,7 +1165,7 @@ export function Prompt(props: PromptProps) {\n \n     // temporary hack to make sure the message is sent\n     if (!props.sessionID) {\n-      if (editorParts.length > 0) editor.preserveSelectionFromNewSession()\n+      if (pendingEditorSelection) editor.preserveSelectionFromNewSession()\n       setTimeout(() => {\n         route.navigate({\n           type: \"session\","
+    }
+  ]
+}

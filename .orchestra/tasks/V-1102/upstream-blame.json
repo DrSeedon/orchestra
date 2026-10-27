@@ -1,0 +1,5179 @@
+{
+  "payload": {
+    "codeViewBlameRoute": {
+      "blame": {
+        "ranges": {
+          "1": {
+            "start": 1,
+            "oldStart": 1,
+            "end": 1,
+            "oldEnd": 1,
+            "commitOid": "e57a1c793030363c9c484347169922a0c92bbb68",
+            "reblamePath": "AGENTS.md"
+          },
+          "2": {
+            "start": 2,
+            "oldStart": 2,
+            "end": 2,
+            "oldEnd": 2,
+            "commitOid": "f28c10aa4db7c30a2eabcf6ccc9bae5254675b0c",
+            "reblamePath": "AGENTS.md"
+          },
+          "3": {
+            "start": 3,
+            "oldStart": 4,
+            "end": 3,
+            "oldEnd": 4,
+            "commitOid": "d82a0b28a92cd52ca77f7381b34750cc6ddb41e0",
+            "reblamePath": "AGENTS.md"
+          },
+          "4": {
+            "start": 4,
+            "oldStart": 4,
+            "end": 4,
+            "oldEnd": 4,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "5": {
+            "start": 5,
+            "oldStart": 4,
+            "end": 5,
+            "oldEnd": 4,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "6": {
+            "start": 6,
+            "oldStart": 6,
+            "end": 6,
+            "oldEnd": 6,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "7": {
+            "start": 7,
+            "oldStart": 8,
+            "end": 7,
+            "oldEnd": 8,
+            "commitOid": "0e3da4b4f1951d58b166a362065f43a7ec2464ac",
+            "reblamePath": "AGENTS.md"
+          },
+          "8": {
+            "start": 8,
+            "oldStart": 11,
+            "end": 8,
+            "oldEnd": 11,
+            "commitOid": "bb564f96a30716597588183929e61525b31a6500",
+            "reblamePath": "AGENTS.md"
+          },
+          "9": {
+            "start": 9,
+            "oldStart": 10,
+            "end": 9,
+            "oldEnd": 10,
+            "commitOid": "0e3da4b4f1951d58b166a362065f43a7ec2464ac",
+            "reblamePath": "AGENTS.md"
+          },
+          "10": {
+            "start": 10,
+            "oldStart": 13,
+            "end": 10,
+            "oldEnd": 13,
+            "commitOid": "bb564f96a30716597588183929e61525b31a6500",
+            "reblamePath": "AGENTS.md"
+          },
+          "11": {
+            "start": 11,
+            "oldStart": 12,
+            "end": 12,
+            "oldEnd": 13,
+            "commitOid": "0e3da4b4f1951d58b166a362065f43a7ec2464ac",
+            "reblamePath": "AGENTS.md"
+          },
+          "13": {
+            "start": 13,
+            "oldStart": 13,
+            "end": 13,
+            "oldEnd": 13,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "14": {
+            "start": 14,
+            "oldStart": 16,
+            "end": 19,
+            "oldEnd": 21,
+            "commitOid": "bdbccca1f33fba0f10282a508908788c0840f2b0",
+            "reblamePath": "AGENTS.md"
+          },
+          "20": {
+            "start": 20,
+            "oldStart": 22,
+            "end": 26,
+            "oldEnd": 28,
+            "commitOid": "1d44d56d9cfb7e51576403a3cf7df52c335a7d9d",
+            "reblamePath": "AGENTS.md"
+          },
+          "27": {
+            "start": 27,
+            "oldStart": 5,
+            "end": 32,
+            "oldEnd": 10,
+            "commitOid": "cc226464676843a60b0d418b20e5519ecb36e165",
+            "reblamePath": "AGENTS.md"
+          },
+          "33": {
+            "start": 33,
+            "oldStart": 7,
+            "end": 40,
+            "oldEnd": 14,
+            "commitOid": "f5a8202b41aa8f8cdc4ead902fba800882ea4e34",
+            "reblamePath": "AGENTS.md"
+          },
+          "41": {
+            "start": 41,
+            "oldStart": 41,
+            "end": 42,
+            "oldEnd": 42,
+            "commitOid": "5a023ed6627226e84738e3776fd49ac949863827",
+            "reblamePath": "AGENTS.md"
+          },
+          "43": {
+            "start": 43,
+            "oldStart": 5,
+            "end": 44,
+            "oldEnd": 6,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "45": {
+            "start": 45,
+            "oldStart": 8,
+            "end": 46,
+            "oldEnd": 9,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "47": {
+            "start": 47,
+            "oldStart": 7,
+            "end": 47,
+            "oldEnd": 7,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "48": {
+            "start": 48,
+            "oldStart": 49,
+            "end": 48,
+            "oldEnd": 49,
+            "commitOid": "6a2c3e91c780e4291d72e75a148793557201a1f3",
+            "reblamePath": "AGENTS.md"
+          },
+          "49": {
+            "start": 49,
+            "oldStart": 12,
+            "end": 49,
+            "oldEnd": 12,
+            "commitOid": "85ce6a5f95e47fe0c683100113c495b55e6c069c",
+            "reblamePath": "AGENTS.md"
+          },
+          "50": {
+            "start": 50,
+            "oldStart": 30,
+            "end": 50,
+            "oldEnd": 30,
+            "commitOid": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+            "reblamePath": "AGENTS.md"
+          },
+          "51": {
+            "start": 51,
+            "oldStart": 9,
+            "end": 53,
+            "oldEnd": 12,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "54": {
+            "start": 54,
+            "oldStart": 13,
+            "end": 54,
+            "oldEnd": 13,
+            "commitOid": "022265829eca0032d310e0f177d729290eb6f8fa",
+            "reblamePath": "AGENTS.md"
+          },
+          "55": {
+            "start": 55,
+            "oldStart": 15,
+            "end": 55,
+            "oldEnd": 15,
+            "commitOid": "83d0e48e3854a4a9f8c28ec17398a8554c988d39",
+            "reblamePath": "AGENTS.md"
+          },
+          "56": {
+            "start": 56,
+            "oldStart": 54,
+            "end": 56,
+            "oldEnd": 54,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "57": {
+            "start": 57,
+            "oldStart": 31,
+            "end": 57,
+            "oldEnd": 31,
+            "commitOid": "9bb5370205283688cc653eec5255c7c2b93cfd94",
+            "reblamePath": "AGENTS.md"
+          },
+          "58": {
+            "start": 58,
+            "oldStart": 13,
+            "end": 58,
+            "oldEnd": 13,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "59": {
+            "start": 59,
+            "oldStart": 32,
+            "end": 59,
+            "oldEnd": 32,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "60": {
+            "start": 60,
+            "oldStart": 20,
+            "end": 61,
+            "oldEnd": 21,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "62": {
+            "start": 62,
+            "oldStart": 35,
+            "end": 67,
+            "oldEnd": 40,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "68": {
+            "start": 68,
+            "oldStart": 23,
+            "end": 69,
+            "oldEnd": 24,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "70": {
+            "start": 70,
+            "oldStart": 43,
+            "end": 72,
+            "oldEnd": 45,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "73": {
+            "start": 73,
+            "oldStart": 26,
+            "end": 74,
+            "oldEnd": 27,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "75": {
+            "start": 75,
+            "oldStart": 48,
+            "end": 82,
+            "oldEnd": 55,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "83": {
+            "start": 83,
+            "oldStart": 50,
+            "end": 85,
+            "oldEnd": 52,
+            "commitOid": "7f571d36ea56cc3dd7059cfe82c729fb52b121eb",
+            "reblamePath": "AGENTS.md"
+          },
+          "86": {
+            "start": 86,
+            "oldStart": 87,
+            "end": 86,
+            "oldEnd": 87,
+            "commitOid": "a5312e169b13c0f08b93c4b6e0c3076c94785aca",
+            "reblamePath": "AGENTS.md"
+          },
+          "87": {
+            "start": 87,
+            "oldStart": 53,
+            "end": 87,
+            "oldEnd": 53,
+            "commitOid": "7f571d36ea56cc3dd7059cfe82c729fb52b121eb",
+            "reblamePath": "AGENTS.md"
+          },
+          "88": {
+            "start": 88,
+            "oldStart": 89,
+            "end": 88,
+            "oldEnd": 89,
+            "commitOid": "a5312e169b13c0f08b93c4b6e0c3076c94785aca",
+            "reblamePath": "AGENTS.md"
+          },
+          "89": {
+            "start": 89,
+            "oldStart": 55,
+            "end": 89,
+            "oldEnd": 55,
+            "commitOid": "7dd2306dad4428a702d27a3e4f447ae3026e4dac",
+            "reblamePath": "AGENTS.md"
+          },
+          "90": {
+            "start": 90,
+            "oldStart": 55,
+            "end": 90,
+            "oldEnd": 55,
+            "commitOid": "7f571d36ea56cc3dd7059cfe82c729fb52b121eb",
+            "reblamePath": "AGENTS.md"
+          },
+          "91": {
+            "start": 91,
+            "oldStart": 56,
+            "end": 93,
+            "oldEnd": 58,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "94": {
+            "start": 94,
+            "oldStart": 29,
+            "end": 94,
+            "oldEnd": 29,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "95": {
+            "start": 95,
+            "oldStart": 60,
+            "end": 100,
+            "oldEnd": 65,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "101": {
+            "start": 101,
+            "oldStart": 30,
+            "end": 104,
+            "oldEnd": 33,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "105": {
+            "start": 105,
+            "oldStart": 70,
+            "end": 105,
+            "oldEnd": 70,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "106": {
+            "start": 106,
+            "oldStart": 35,
+            "end": 106,
+            "oldEnd": 35,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "107": {
+            "start": 107,
+            "oldStart": 72,
+            "end": 107,
+            "oldEnd": 72,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "108": {
+            "start": 108,
+            "oldStart": 39,
+            "end": 109,
+            "oldEnd": 40,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "110": {
+            "start": 110,
+            "oldStart": 75,
+            "end": 110,
+            "oldEnd": 75,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "111": {
+            "start": 111,
+            "oldStart": 41,
+            "end": 115,
+            "oldEnd": 46,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "116": {
+            "start": 116,
+            "oldStart": 81,
+            "end": 116,
+            "oldEnd": 81,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "117": {
+            "start": 117,
+            "oldStart": 50,
+            "end": 122,
+            "oldEnd": 55,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "123": {
+            "start": 123,
+            "oldStart": 76,
+            "end": 145,
+            "oldEnd": 98,
+            "commitOid": "8345152319b8c4e38431ec7c0cd85c2caafd9338",
+            "reblamePath": "AGENTS.md"
+          },
+          "146": {
+            "start": 146,
+            "oldStart": 88,
+            "end": 146,
+            "oldEnd": 88,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "147": {
+            "start": 147,
+            "oldStart": 57,
+            "end": 147,
+            "oldEnd": 57,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "148": {
+            "start": 148,
+            "oldStart": 90,
+            "end": 148,
+            "oldEnd": 90,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "149": {
+            "start": 149,
+            "oldStart": 62,
+            "end": 150,
+            "oldEnd": 63,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "151": {
+            "start": 151,
+            "oldStart": 93,
+            "end": 163,
+            "oldEnd": 105,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "164": {
+            "start": 164,
+            "oldStart": 75,
+            "end": 164,
+            "oldEnd": 75,
+            "commitOid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "reblamePath": "AGENTS.md"
+          },
+          "165": {
+            "start": 165,
+            "oldStart": 76,
+            "end": 167,
+            "oldEnd": 78,
+            "commitOid": "f0830a74bb36d5836c4ca4e20e406ad541c262ff",
+            "reblamePath": "AGENTS.md"
+          },
+          "168": {
+            "start": 168,
+            "oldStart": 140,
+            "end": 168,
+            "oldEnd": 140,
+            "commitOid": "34b3d59a23eb979d1d66a8f2ede1dae6a33c277a",
+            "reblamePath": "AGENTS.md"
+          },
+          "169": {
+            "start": 169,
+            "oldStart": 111,
+            "end": 169,
+            "oldEnd": 111,
+            "commitOid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "reblamePath": "AGENTS.md"
+          },
+          "170": {
+            "start": 170,
+            "oldStart": 169,
+            "end": 170,
+            "oldEnd": 169,
+            "commitOid": "e57a1c793030363c9c484347169922a0c92bbb68",
+            "reblamePath": "AGENTS.md"
+          },
+          "171": {
+            "start": 171,
+            "oldStart": 169,
+            "end": 171,
+            "oldEnd": 169,
+            "commitOid": "28c2a86f8fa75bc99926f2ed302fb57c2b15f71a",
+            "reblamePath": "AGENTS.md"
+          },
+          "172": {
+            "start": 172,
+            "oldStart": 125,
+            "end": 172,
+            "oldEnd": 125,
+            "commitOid": "613562f5047aa0bad934da401146a04ed8adce84",
+            "reblamePath": "AGENTS.md"
+          },
+          "173": {
+            "start": 173,
+            "oldStart": 173,
+            "end": 173,
+            "oldEnd": 173,
+            "commitOid": "1eeaaab7a6acbbd9143af913728df7a933206412",
+            "reblamePath": "AGENTS.md"
+          },
+          "174": {
+            "start": 174,
+            "oldStart": 127,
+            "end": 174,
+            "oldEnd": 127,
+            "commitOid": "613562f5047aa0bad934da401146a04ed8adce84",
+            "reblamePath": "AGENTS.md"
+          },
+          "175": {
+            "start": 175,
+            "oldStart": 175,
+            "end": 176,
+            "oldEnd": 176,
+            "commitOid": "1eeaaab7a6acbbd9143af913728df7a933206412",
+            "reblamePath": "AGENTS.md"
+          },
+          "177": {
+            "start": 177,
+            "oldStart": 175,
+            "end": 178,
+            "oldEnd": 176,
+            "commitOid": "84578e123ffd31e31a174457e7350961da4fabbc",
+            "reblamePath": "AGENTS.md"
+          },
+          "179": {
+            "start": 179,
+            "oldStart": 141,
+            "end": 179,
+            "oldEnd": 141,
+            "commitOid": "76ee87ead84ab5c5583074a19ea0894c5e8e361a",
+            "reblamePath": "AGENTS.md"
+          },
+          "180": {
+            "start": 180,
+            "oldStart": 175,
+            "end": 180,
+            "oldEnd": 175,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "181": {
+            "start": 181,
+            "oldStart": 143,
+            "end": 181,
+            "oldEnd": 143,
+            "commitOid": "76ee87ead84ab5c5583074a19ea0894c5e8e361a",
+            "reblamePath": "AGENTS.md"
+          },
+          "182": {
+            "start": 182,
+            "oldStart": 154,
+            "end": 182,
+            "oldEnd": 154,
+            "commitOid": "62af66a74fb9b01bbcea1fe5369ccd24c56085ff",
+            "reblamePath": "AGENTS.md"
+          },
+          "183": {
+            "start": 183,
+            "oldStart": 178,
+            "end": 183,
+            "oldEnd": 178,
+            "commitOid": "014a364dfdbb14b566663dfd53e6b45d45fc1507",
+            "reblamePath": "AGENTS.md"
+          },
+          "184": {
+            "start": 184,
+            "oldStart": 179,
+            "end": 184,
+            "oldEnd": 179,
+            "commitOid": "1d89e911e8bcd80416461c7be6c48b9d7ce0896b",
+            "reblamePath": "AGENTS.md"
+          },
+          "185": {
+            "start": 185,
+            "oldStart": 180,
+            "end": 185,
+            "oldEnd": 180,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "186": {
+            "start": 186,
+            "oldStart": 147,
+            "end": 186,
+            "oldEnd": 147,
+            "commitOid": "76ee87ead84ab5c5583074a19ea0894c5e8e361a",
+            "reblamePath": "AGENTS.md"
+          },
+          "187": {
+            "start": 187,
+            "oldStart": 182,
+            "end": 187,
+            "oldEnd": 182,
+            "commitOid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "reblamePath": "AGENTS.md"
+          },
+          "188": {
+            "start": 188,
+            "oldStart": 183,
+            "end": 188,
+            "oldEnd": 183,
+            "commitOid": "014a364dfdbb14b566663dfd53e6b45d45fc1507",
+            "reblamePath": "AGENTS.md"
+          },
+          "189": {
+            "start": 189,
+            "oldStart": 186,
+            "end": 189,
+            "oldEnd": 186,
+            "commitOid": "7ca047b2b95fc2db5e1a573c3db8e7c90021f772",
+            "reblamePath": "AGENTS.md"
+          },
+          "190": {
+            "start": 190,
+            "oldStart": 161,
+            "end": 190,
+            "oldEnd": 161,
+            "commitOid": "ca861fdf43500ff7a59489b7aa01cb45b8780abb",
+            "reblamePath": "AGENTS.md"
+          },
+          "191": {
+            "start": 191,
+            "oldStart": 186,
+            "end": 191,
+            "oldEnd": 186,
+            "commitOid": "014a364dfdbb14b566663dfd53e6b45d45fc1507",
+            "reblamePath": "AGENTS.md"
+          }
+        },
+        "commits": {
+          "e57a1c793030363c9c484347169922a0c92bbb68": {
+            "oid": "e57a1c793030363c9c484347169922a0c92bbb68",
+            "message": "docs: refresh agent guidance",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/e57a1c793030363c9c484347169922a0c92bbb68\">docs: refresh agent guidance</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-14T23:25:47.000-04:00",
+            "firstParentOid": "98f5e86122d06ae5c93cec083657ba82c1f3680d"
+          },
+          "f28c10aa4db7c30a2eabcf6ccc9bae5254675b0c": {
+            "oid": "f28c10aa4db7c30a2eabcf6ccc9bae5254675b0c",
+            "message": "feat(sdk): prepare v2 packages for publishing",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/f28c10aa4db7c30a2eabcf6ccc9bae5254675b0c\">feat(sdk): prepare v2 packages for publishing</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "Dax Raad",
+            "committerEmail": "d@ironbay.co",
+            "committedDate": "2026-08-21T17:28:34.000-04:00",
+            "firstParentOid": "97ccafce3bc294cc6b8f43e628acfc4e9c62f273"
+          },
+          "d82a0b28a92cd52ca77f7381b34750cc6ddb41e0": {
+            "oid": "d82a0b28a92cd52ca77f7381b34750cc6ddb41e0",
+            "message": "docs: clarify release workflow (#46025)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/d82a0b28a92cd52ca77f7381b34750cc6ddb41e0\">docs: clarify release workflow (#46025)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-28T17:18:47.000-04:00",
+            "firstParentOid": "bd379e13cbdf9f33cbb0207e3a937d30c8e90303"
+          },
+          "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c": {
+            "oid": "4d3d8fd769523b4e2f6b523e3df9fa965130fb4c",
+            "message": "docs: trim agent instructions (#54678)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/4d3d8fd769523b4e2f6b523e3df9fa965130fb4c\">docs: trim agent instructions (#54678)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-10-11T22:32:18.000-05:00",
+            "firstParentOid": "e5a557efeee02c94486d391afc48f24a49ebc9a5"
+          },
+          "9407a6fd7c1e844a88ba409504f0ccf8c9013c74": {
+            "oid": "9407a6fd7c1e844a88ba409504f0ccf8c9013c74",
+            "message": "ignore: rm STYLE_GUIDE, consolidate in AGENTS.md",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/9407a6fd7c1e844a88ba409504f0ccf8c9013c74\">ignore: rm STYLE_GUIDE, consolidate in AGENTS.md</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "Aiden Cline",
+            "committerEmail": "aidenpcline@gmail.com",
+            "committedDate": "2026-01-25T11:56:21.000-05:00",
+            "firstParentOid": "d75dca29e99af798989371ee1a889a1d3875d2dc"
+          },
+          "0e3da4b4f1951d58b166a362065f43a7ec2464ac": {
+            "oid": "0e3da4b4f1951d58b166a362065f43a7ec2464ac",
+            "message": "feat(tui): add vertical session tabs (#40072)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/0e3da4b4f1951d58b166a362065f43a7ec2464ac\">feat(tui): add vertical session tabs (#40072)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-01T13:10:08.000-04:00",
+            "firstParentOid": "003b22edda8291a9480b3550a4601a644a2dc203"
+          },
+          "bb564f96a30716597588183929e61525b31a6500": {
+            "oid": "bb564f96a30716597588183929e61525b31a6500",
+            "message": "feat(cli): rename command to opencode",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/bb564f96a30716597588183929e61525b31a6500\">feat(cli): rename command to opencode</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-09-11T15:03:45.000-04:00",
+            "firstParentOid": "a555f24dedc71efd4d6d96673e378c45c249296e"
+          },
+          "bdbccca1f33fba0f10282a508908788c0840f2b0": {
+            "oid": "bdbccca1f33fba0f10282a508908788c0840f2b0",
+            "message": "feat(tui): refine question form interactions (#42493)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/bdbccca1f33fba0f10282a508908788c0840f2b0\">feat(tui): refine question form interactions (#42493)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-14T14:54:32.000Z",
+            "firstParentOid": "3d3bbd48f94c004e7c686184c69dec1c7e0ebd1a"
+          },
+          "1d44d56d9cfb7e51576403a3cf7df52c335a7d9d": {
+            "oid": "1d44d56d9cfb7e51576403a3cf7df52c335a7d9d",
+            "message": "fix(tui): use semantic form tokens (#42599)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/1d44d56d9cfb7e51576403a3cf7df52c335a7d9d\">fix(tui): use semantic form tokens (#42599)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-14T17:49:06.000Z",
+            "firstParentOid": "9adc9bb5dfbfffc6fa003954e7443ef331b6a3ed"
+          },
+          "cc226464676843a60b0d418b20e5519ecb36e165": {
+            "oid": "cc226464676843a60b0d418b20e5519ecb36e165",
+            "message": "docs: add branch naming guidance",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/cc226464676843a60b0d418b20e5519ecb36e165\">docs: add branch naming guidance</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "Dax Raad",
+            "committerEmail": "d@ironbay.co",
+            "committedDate": "2026-06-10T19:09:56.000-04:00",
+            "firstParentOid": "eb70b6137b1a9a02ccf9e53c7e20c7a7e714f478"
+          },
+          "f5a8202b41aa8f8cdc4ead902fba800882ea4e34": {
+            "oid": "f5a8202b41aa8f8cdc4ead902fba800882ea4e34",
+            "message": "fix(tui): simplify thinking toggle styling (#28487)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/f5a8202b41aa8f8cdc4ead902fba800882ea4e34\">fix(tui): simplify thinking toggle styling (#28487)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-05-20T15:54:29.000-05:00",
+            "firstParentOid": "43c24d8d0f42f22c8ceba19e75ccadc6fc66c301"
+          },
+          "5a023ed6627226e84738e3776fd49ac949863827": {
+            "oid": "5a023ed6627226e84738e3776fd49ac949863827",
+            "message": "feat(desktop): show who made each beta change and what it does (#57886)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/5a023ed6627226e84738e3776fd49ac949863827\">feat(desktop): show who made each beta change and what it does (#57886)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-10-22T13:22:40.000-07:00",
+            "firstParentOid": "c916bf2840db8644a5af2159e957250437b83daa"
+          },
+          "eade8ee07ba36ab3ee2e409135172c5503ae1c11": {
+            "oid": "eade8ee07ba36ab3ee2e409135172c5503ae1c11",
+            "message": "docs: Restructure AGENTS.md style guide with organized sections and code examples",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/eade8ee07ba36ab3ee2e409135172c5503ae1c11\">docs: Restructure AGENTS.md style guide with organized sections and c…</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "Dax Raad",
+            "committerEmail": "d@ironbay.co",
+            "committedDate": "2026-02-01T22:28:00.000-05:00",
+            "firstParentOid": "8fbba8de73461b82dfa72c870b8686c9e177ead5"
+          },
+          "6a2c3e91c780e4291d72e75a148793557201a1f3": {
+            "oid": "6a2c3e91c780e4291d72e75a148793557201a1f3",
+            "message": "feat(plugin): add typed rpc and custom events (#46105)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/6a2c3e91c780e4291d72e75a148793557201a1f3\">feat(plugin): add typed rpc and custom events (#46105)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-30T21:28:19.000-04:00",
+            "firstParentOid": "4afd8e81be59046d26780f6c1dbd0782db61719b"
+          },
+          "85ce6a5f95e47fe0c683100113c495b55e6c069c": {
+            "oid": "85ce6a5f95e47fe0c683100113c495b55e6c069c",
+            "message": "feat: better image handling (auto resize & max size constraints) (#26401)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/85ce6a5f95e47fe0c683100113c495b55e6c069c\">feat: better image handling (auto resize &amp; max size constraints) (#26…</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-05-10T01:48:19.000-05:00",
+            "firstParentOid": "5217e6c1af3a4ecb77eb3e727596f20f40534c9b"
+          },
+          "41d0a9f01093f7cd6ee4467bbbba59033b229aa8": {
+            "oid": "41d0a9f01093f7cd6ee4467bbbba59033b229aa8",
+            "message": "fix(tui): hide editor context from transcript (#36264)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/41d0a9f01093f7cd6ee4467bbbba59033b229aa8\">fix(tui): hide editor context from transcript (#36264)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-07-10T11:33:04.000-04:00",
+            "firstParentOid": "accaa792d870c42bf3d426656c830c24b43812d4"
+          },
+          "022265829eca0032d310e0f177d729290eb6f8fa": {
+            "oid": "022265829eca0032d310e0f177d729290eb6f8fa",
+            "message": "ignore: update AGENTS.md to state that inference should be used",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/022265829eca0032d310e0f177d729290eb6f8fa\">ignore: update AGENTS.md to state that inference should be used</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "Aiden Cline",
+            "committerEmail": "aidenpcline@gmail.com",
+            "committedDate": "2026-01-26T00:04:00.000-05:00",
+            "firstParentOid": "23d85f47397c594e62929682b27835099b788fdf"
+          },
+          "83d0e48e3854a4a9f8c28ec17398a8554c988d39": {
+            "oid": "83d0e48e3854a4a9f8c28ec17398a8554c988d39",
+            "message": "tui: fix task status to show current tool state from message store",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/83d0e48e3854a4a9f8c28ec17398a8554c988d39\">tui: fix task status to show current tool state from message store</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "Dax Raad",
+            "committerEmail": "d@ironbay.co",
+            "committedDate": "2026-02-01T20:52:17.000-05:00",
+            "firstParentOid": "6c9b2c37a5e12f0e79ce5a18af33073c9e646cc1"
+          },
+          "9bb5370205283688cc653eec5255c7c2b93cfd94": {
+            "oid": "9bb5370205283688cc653eec5255c7c2b93cfd94",
+            "message": "feat(core): add session snapshot and revert system (#33226)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/9bb5370205283688cc653eec5255c7c2b93cfd94\">feat(core): add session snapshot and revert system (#33226)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-06-24T23:41:16.000Z",
+            "firstParentOid": "25c6abc31a8497e1a741e86857195b05fc09fec9"
+          },
+          "7f571d36ea56cc3dd7059cfe82c729fb52b121eb": {
+            "oid": "7f571d36ea56cc3dd7059cfe82c729fb52b121eb",
+            "message": "refactor(core): move database schema ownership (#29068)\n\nCo-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/7f571d36ea56cc3dd7059cfe82c729fb52b121eb\">refactor(core): move database schema ownership (#29068)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-05-30T21:08:38.000-04:00",
+            "firstParentOid": "6bcb9cb9bbeedd97cacc3998177eaab4b8010eaa"
+          },
+          "a5312e169b13c0f08b93c4b6e0c3076c94785aca": {
+            "oid": "a5312e169b13c0f08b93c4b6e0c3076c94785aca",
+            "message": "refactor(packages): migrate to the opencode npm scope (#47852)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/a5312e169b13c0f08b93c4b6e0c3076c94785aca\">refactor(packages): migrate to the opencode npm scope (#47852)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-09-07T17:19:33.000-04:00",
+            "firstParentOid": "16aca14bc7835ee0ea288ff536972dc1e347853d"
+          },
+          "7dd2306dad4428a702d27a3e4f447ae3026e4dac": {
+            "oid": "7dd2306dad4428a702d27a3e4f447ae3026e4dac",
+            "message": "refactor(opencode): improve startup time by 38% (#30453)\n\nCo-authored-by: starptech <starptech@starptechs-MBP.fritz.box>",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/7dd2306dad4428a702d27a3e4f447ae3026e4dac\">refactor(opencode): improve startup time by 38% (#30453)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/1764424?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-06-02T21:20:25.000+02:00",
+            "firstParentOid": "83c12f334e9a0f0625ff375cc9dce4428d8d43cc"
+          },
+          "8345152319b8c4e38431ec7c0cd85c2caafd9338": {
+            "oid": "8345152319b8c4e38431ec7c0cd85c2caafd9338",
+            "message": "core: expose v2 model listing API (#25821)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/8345152319b8c4e38431ec7c0cd85c2caafd9338\">core: expose v2 model listing API (#25821)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-05-13T14:43:08.000Z",
+            "firstParentOid": "bebe5442a5c2395f2eafe9d7dca463e453532e52"
+          },
+          "f0830a74bb36d5836c4ca4e20e406ad541c262ff": {
+            "oid": "f0830a74bb36d5836c4ca4e20e406ad541c262ff",
+            "message": "ignore: update AGENTS.md",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/f0830a74bb36d5836c4ca4e20e406ad541c262ff\">ignore: update AGENTS.md</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "Aiden Cline",
+            "committerEmail": "aidenpcline@gmail.com",
+            "committedDate": "2026-01-25T17:54:17.000-05:00",
+            "firstParentOid": "57532326f7b3526348b14e82bb61ecd41ac7d480"
+          },
+          "34b3d59a23eb979d1d66a8f2ede1dae6a33c277a": {
+            "oid": "34b3d59a23eb979d1d66a8f2ede1dae6a33c277a",
+            "message": "ignore: update agents.md (#33446)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/34b3d59a23eb979d1d66a8f2ede1dae6a33c277a\">ignore: update agents.md (#33446)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/63023139?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-06-22T15:52:43.000-05:00",
+            "firstParentOid": "a0a500316ee009b5f84f593ec6b304e737224ad7"
+          },
+          "28c2a86f8fa75bc99926f2ed302fb57c2b15f71a": {
+            "oid": "28c2a86f8fa75bc99926f2ed302fb57c2b15f71a",
+            "message": "chore(app): replace Storybook with a story server for component tests (#57966)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/28c2a86f8fa75bc99926f2ed302fb57c2b15f71a\">chore(app): replace Storybook with a story server for component tests…</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-10-21T23:45:25.000-07:00",
+            "firstParentOid": "767de0de2eecf33b2b76ac18a03e22a52395d9d1"
+          },
+          "613562f5047aa0bad934da401146a04ed8adce84": {
+            "oid": "613562f5047aa0bad934da401146a04ed8adce84",
+            "message": "core: make account login upgrades safe while adding multi-account workspace auth (#15487)\n\nCo-authored-by: Kit Langton <kit.langton@gmail.com>\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/613562f5047aa0bad934da401146a04ed8adce84\">core: make account login upgrades safe while adding multi-account wor…</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-03-10T12:53:47.000-04:00",
+            "firstParentOid": "9c4325bcf8070d84a6911ae78b898c116ebad2ac"
+          },
+          "1eeaaab7a6acbbd9143af913728df7a933206412": {
+            "oid": "1eeaaab7a6acbbd9143af913728df7a933206412",
+            "message": "refactor: restrict reflective access (#48860)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/1eeaaab7a6acbbd9143af913728df7a933206412\">refactor: restrict reflective access (#48860)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/826656?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-09-13T17:08:43.000-04:00",
+            "firstParentOid": "b901cb28af5a2a648101f206567366a63ac437fc"
+          },
+          "84578e123ffd31e31a174457e7350961da4fabbc": {
+            "oid": "84578e123ffd31e31a174457e7350961da4fabbc",
+            "message": "chore: use bun check for local typechecks and TypeScript 7.1 in CI (#58253)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/84578e123ffd31e31a174457e7350961da4fabbc\">chore: use bun check for local typechecks and TypeScript 7.1 in CI (#…</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/10430890?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-10-23T09:23:31.000+10:00",
+            "firstParentOid": "3d213123cdf574e55f88711554edfe6fd66a95ad"
+          },
+          "76ee87ead84ab5c5583074a19ea0894c5e8e361a": {
+            "oid": "76ee87ead84ab5c5583074a19ea0894c5e8e361a",
+            "message": "feat(core): add embedded v2 session runtime and tool foundation (#30632)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/76ee87ead84ab5c5583074a19ea0894c5e8e361a\">feat(core): add embedded v2 session runtime and tool foundation (#30632)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-06-03T23:02:17.000-04:00",
+            "firstParentOid": "c35267776a5945ec935c4a13e979eac2188e5b36"
+          },
+          "62af66a74fb9b01bbcea1fe5369ccd24c56085ff": {
+            "oid": "62af66a74fb9b01bbcea1fe5369ccd24c56085ff",
+            "message": "fix(tui): distinguish variant switch notices (#35315)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/62af66a74fb9b01bbcea1fe5369ccd24c56085ff\">fix(tui): distinguish variant switch notices (#35315)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-07-04T10:58:56.000-04:00",
+            "firstParentOid": "5b44e5bf41ed3503b8d1633762e7fd42aa4a0f03"
+          },
+          "014a364dfdbb14b566663dfd53e6b45d45fc1507": {
+            "oid": "014a364dfdbb14b566663dfd53e6b45d45fc1507",
+            "message": "docs(core): refresh session architecture",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/014a364dfdbb14b566663dfd53e6b45d45fc1507\">docs(core): refresh session architecture</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-14T20:32:06.000-04:00",
+            "firstParentOid": "a45b12cfa46a5210f336a0395c68038f53a6f5be"
+          },
+          "1d89e911e8bcd80416461c7be6c48b9d7ce0896b": {
+            "oid": "1d89e911e8bcd80416461c7be6c48b9d7ce0896b",
+            "message": "refactor(core): make prompt ID reuse idempotent (#43548)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/1d89e911e8bcd80416461c7be6c48b9d7ce0896b\">refactor(core): make prompt ID reuse idempotent (#43548)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-08-20T01:56:40.000Z",
+            "firstParentOid": "c85b09de6f926714a9cce0886eede332498e74d4"
+          },
+          "7ca047b2b95fc2db5e1a573c3db8e7c90021f772": {
+            "oid": "7ca047b2b95fc2db5e1a573c3db8e7c90021f772",
+            "message": "fix(core): prioritize compaction over pending steers (#47340)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/7ca047b2b95fc2db5e1a573c3db8e7c90021f772\">fix(core): prioritize compaction over pending steers (#47340)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-09-04T13:23:55.000-04:00",
+            "firstParentOid": "b78c2ea7b4aa4634e4fb36125c54ff2957fa2f37"
+          },
+          "ca861fdf43500ff7a59489b7aa01cb45b8780abb": {
+            "oid": "ca861fdf43500ff7a59489b7aa01cb45b8780abb",
+            "message": "docs: consolidate session work-unit vocabulary (#35218)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/anomalyco/opencode/commit/ca861fdf43500ff7a59489b7aa01cb45b8780abb\">docs: consolidate session work-unit vocabulary (#35218)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/7587245?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2026-07-03T14:49:05.000-04:00",
+            "firstParentOid": "34a08cbdb807a3e3bcdd43ac7f570a75df0a899d"
+          }
+        },
+        "ignoreRevs": {
+          "path": ".git-blame-ignore-revs",
+          "present": false,
+          "timedOut": null
+        }
+      }
+    },
+    "codeViewLayoutRoute": {
+      "repo": {
+        "id": 975734319,
+        "defaultBranch": "dev",
+        "name": "opencode",
+        "ownerLogin": "anomalyco",
+        "currentUserCanPush": false,
+        "isFork": false,
+        "isEmpty": false,
+        "createdAt": "2025-04-30T20:08:00.000Z",
+        "ownerAvatar": "https://avatars.githubusercontent.com/u/66570915?v=4",
+        "public": true,
+        "private": false,
+        "isOrgOwned": true,
+        "isArchived": false
+      },
+      "currentUser": null,
+      "uploadToken": "4Yj7zcYMAXshLhxuAfJWcmEuCUaKXGunV6QUZiSdhcCqY2CrHRlwI105Tjy3R0BDJCzqi572MrVM1bXED9zT1A",
+      "allShortcutsEnabled": false,
+      "treeExpanded": true,
+      "path": "AGENTS.md",
+      "symbolsExpanded": false,
+      "refInfo": {
+        "name": "f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+        "listCacheKey": "v0:1793085565.0",
+        "canEdit": false,
+        "currentOid": "f993a89d13c73ff6f6537d6b97e78e138a3ea363"
+      },
+      "helpUrl": "https://docs.github.com",
+      "githubDevUrl": null
+    },
+    "codeViewFileTreeLayoutRoute": {
+      "fileTree": {
+        "": {
+          "items": [
+            {
+              "name": ".github",
+              "path": ".github",
+              "contentType": "directory"
+            },
+            {
+              "name": ".husky",
+              "path": ".husky",
+              "contentType": "directory"
+            },
+            {
+              "name": ".opencode",
+              "path": ".opencode",
+              "contentType": "directory"
+            },
+            {
+              "name": ".vscode",
+              "path": ".vscode",
+              "contentType": "directory"
+            },
+            {
+              "name": ".zed",
+              "path": ".zed",
+              "contentType": "directory"
+            },
+            {
+              "name": "infra",
+              "path": "infra",
+              "contentType": "directory"
+            },
+            {
+              "name": "nix",
+              "path": "nix",
+              "contentType": "directory"
+            },
+            {
+              "name": "packages",
+              "path": "packages",
+              "contentType": "directory"
+            },
+            {
+              "name": "patches",
+              "path": "patches",
+              "contentType": "directory"
+            },
+            {
+              "name": "perf",
+              "path": "perf",
+              "contentType": "directory"
+            },
+            {
+              "name": "salesforce",
+              "path": "salesforce",
+              "contentType": "directory"
+            },
+            {
+              "name": "script",
+              "path": "script",
+              "contentType": "directory"
+            },
+            {
+              "name": "sdks",
+              "path": "sdks",
+              "contentType": "directory"
+            },
+            {
+              "name": "services",
+              "path": "services",
+              "contentType": "directory"
+            },
+            {
+              "name": "specs",
+              "path": "specs",
+              "contentType": "directory"
+            },
+            {
+              "name": ".dockerignore",
+              "path": ".dockerignore",
+              "contentType": "file"
+            },
+            {
+              "name": ".editorconfig",
+              "path": ".editorconfig",
+              "contentType": "file"
+            },
+            {
+              "name": ".gitattributes",
+              "path": ".gitattributes",
+              "contentType": "file"
+            },
+            {
+              "name": ".gitignore",
+              "path": ".gitignore",
+              "contentType": "file"
+            },
+            {
+              "name": ".gitleaksignore",
+              "path": ".gitleaksignore",
+              "contentType": "file"
+            },
+            {
+              "name": ".oxlintrc.json",
+              "path": ".oxlintrc.json",
+              "contentType": "file"
+            },
+            {
+              "name": ".prettierignore",
+              "path": ".prettierignore",
+              "contentType": "file"
+            },
+            {
+              "name": "AGENTS.md",
+              "path": "AGENTS.md",
+              "contentType": "file"
+            },
+            {
+              "name": "CHANGELOG.md",
+              "path": "CHANGELOG.md",
+              "contentType": "file"
+            },
+            {
+              "name": "CONTRIBUTING.md",
+              "path": "CONTRIBUTING.md",
+              "contentType": "file"
+            },
+            {
+              "name": "LICENSE",
+              "path": "LICENSE",
+              "contentType": "file"
+            },
+            {
+              "name": "README.ar.md",
+              "path": "README.ar.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.bn.md",
+              "path": "README.bn.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.br.md",
+              "path": "README.br.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.bs.md",
+              "path": "README.bs.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.da.md",
+              "path": "README.da.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.de.md",
+              "path": "README.de.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.es.md",
+              "path": "README.es.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.fr.md",
+              "path": "README.fr.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.gr.md",
+              "path": "README.gr.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.it.md",
+              "path": "README.it.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.ja.md",
+              "path": "README.ja.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.ko.md",
+              "path": "README.ko.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.md",
+              "path": "README.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.no.md",
+              "path": "README.no.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.pl.md",
+              "path": "README.pl.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.ru.md",
+              "path": "README.ru.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.th.md",
+              "path": "README.th.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.tr.md",
+              "path": "README.tr.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.uk.md",
+              "path": "README.uk.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.vi.md",
+              "path": "README.vi.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.zh.md",
+              "path": "README.zh.md",
+              "contentType": "file"
+            },
+            {
+              "name": "README.zht.md",
+              "path": "README.zht.md",
+              "contentType": "file"
+            },
+            {
+              "name": "SECURITY.md",
+              "path": "SECURITY.md",
+              "contentType": "file"
+            },
+            {
+              "name": "bun.lock",
+              "path": "bun.lock",
+              "contentType": "file"
+            },
+            {
+              "name": "bunfig.toml",
+              "path": "bunfig.toml",
+              "contentType": "file"
+            },
+            {
+              "name": "flake.lock",
+              "path": "flake.lock",
+              "contentType": "file"
+            },
+            {
+              "name": "flake.nix",
+              "path": "flake.nix",
+              "contentType": "file"
+            },
+            {
+              "name": "install",
+              "path": "install",
+              "contentType": "file"
+            },
+            {
+              "name": "package.json",
+              "path": "package.json",
+              "contentType": "file"
+            },
+            {
+              "name": "screenshot-uk.png",
+              "path": "screenshot-uk.png",
+              "contentType": "file"
+            },
+            {
+              "name": "sst-env.d.ts",
+              "path": "sst-env.d.ts",
+              "contentType": "file"
+            },
+            {
+              "name": "sst.config.ts",
+              "path": "sst.config.ts",
+              "contentType": "file"
+            },
+            {
+              "name": "tsconfig.json",
+              "path": "tsconfig.json",
+              "contentType": "file"
+            },
+            {
+              "name": "turbo.json",
+              "path": "turbo.json",
+              "contentType": "file"
+            }
+          ],
+          "totalCount": 60
+        }
+      },
+      "fileTreeProcessingTime": 9.05247,
+      "foldersToFetch": [],
+      "refName": "f993a89d13c73ff6f6537d6b97e78e138a3ea363"
+    },
+    "codeViewBlobLayoutRoute": {
+      "codeLineWrapEnabled": false,
+      "refInfo": {
+        "name": "f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+        "listCacheKey": "v0:1793085565.0",
+        "canEdit": false,
+        "refType": "tree",
+        "currentOid": "f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+        "canEditOnDefaultBranch": false,
+        "fileExistsOnDefault": true
+      },
+      "path": "AGENTS.md",
+      "blob": {
+        "copilotSWEAgentEnabled": false,
+        "dependabotInfo": {
+          "showConfigurationBanner": false,
+          "configFilePath": null,
+          "networkDependabotPath": "/anomalyco/opencode/network/updates",
+          "dismissConfigurationNoticePath": "/settings/dismiss-notice/dependabot_configuration_notice",
+          "configurationNoticeDismissed": null
+        },
+        "displayName": "AGENTS.md",
+        "displayUrl": "https://github.com/anomalyco/opencode/blob/f993a89d13c73ff6f6537d6b97e78e138a3ea363/AGENTS.md?raw=true",
+        "headerInfo": {
+          "blobSize": "14.2 KB",
+          "deleteTooltip": "You must be signed in to make or propose changes",
+          "editTooltip": "You must be signed in to make or propose changes",
+          "ghDesktopPath": null,
+          "isGitLfs": false,
+          "onBranch": false,
+          "shortPath": "0971dbb",
+          "siteNavLoginPath": "/login?return_to=https%3A%2F%2Fgithub.com%2Fanomalyco%2Fopencode%2Fblame%2Ff993a89d13c73ff6f6537d6b97e78e138a3ea363%2FAGENTS.md",
+          "isCSV": false,
+          "isRichtext": true,
+          "lineInfo": {
+            "truncatedLoc": "191",
+            "truncatedSloc": "142"
+          },
+          "mode": "file"
+        },
+        "image": false,
+        "isCodeownersFile": null,
+        "isPlain": false,
+        "isValidLegacyIssueTemplate": false,
+        "isIssueTemplate": false,
+        "isDiscussionTemplate": false,
+        "language": "Markdown",
+        "languageID": 222,
+        "large": false,
+        "planSupportInfo": {
+          "repoIsFork": null,
+          "repoOwnedByCurrentUser": null,
+          "requestFullPath": "/anomalyco/opencode/blame/f993a89d13c73ff6f6537d6b97e78e138a3ea363/AGENTS.md",
+          "showFreeOrgGatedFeatureMessage": null,
+          "showPlanSupportBanner": null,
+          "upgradeDataAttributes": null,
+          "upgradePath": null
+        },
+        "publishBannersInfo": {
+          "dismissActionNoticePath": "/settings/dismiss-notice/publish_action_from_dockerfile",
+          "releasePath": "/anomalyco/opencode/releases/new?marketplace=true",
+          "showPublishActionBanner": false
+        },
+        "rawBlobUrl": "https://github.com/anomalyco/opencode/raw/f993a89d13c73ff6f6537d6b97e78e138a3ea363/AGENTS.md",
+        "renderImageOrRaw": false,
+        "shortPath": null,
+        "symbolsEnabled": true,
+        "tabSize": 2,
+        "topBannersInfo": {
+          "overridingGlobalFundingFile": false,
+          "globalPreferredFundingPath": null,
+          "showInvalidCitationWarning": false,
+          "citationHelpUrl": "https://docs.github.com/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/about-citation-files",
+          "actionsOnboardingTip": null
+        },
+        "truncated": false,
+        "viewable": true,
+        "workflowRedirectUrl": null
+      },
+      "copilotInfo": null,
+      "copilotAccessAllowed": false,
+      "copilotSpacesEnabled": false,
+      "modelsAccessAllowed": false,
+      "modelsRepoIntegrationEnabled": false,
+      "isMarketplaceEnabled": true
+    },
+    "codeViewBlobLayoutRoute.StyledBlob": {
+      "rawLines": [
+        "- After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.",
+        "- Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.",
+        "- This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.",
+        "- The default branch is `dev`. Base branches and worktrees on `origin/dev`, target PRs at `dev`, and diff against `origin/dev` unless told otherwise.",
+        "",
+        "## Live TUI Testing",
+        "",
+        "- Run `bun run dev:live` from a development worktree to test its TUI against the currently elected `opencode` background server and live sessions.",
+        "- Pass a directory after the script when needed, for example `bun run dev:live /path/to/project`.",
+        "- The script discovers the server with `opencode service status`, injects its private local credential from `opencode service get password`, and uses the `dev` TUI storage channel so tabs and other client-local state match the installed client.",
+        "- Prefer `dev:live` over plain `bun run dev` for this workflow. An implicit managed-service connection may replace the live server when the worktree client version differs; explicit `--server` warns and continues without replacing it.",
+        "",
+        "## TUI Stories",
+        "",
+        "- When a user asks for a TUI story, add a fixture-driven story under `packages/tui/src/feature-plugins/system/storybook` and register it in `index.tsx`.",
+        "- Render the real production component rather than a visual copy. Keep submissions and other side effects local to the story so it is safe to explore repeatedly.",
+        "- Expose the meaningful state dimensions through story keybindings and list them in `StoryFooter`; include a reset command when combinations can leave the fixture in a confusing state.",
+        "- Run a specific story with `OPENCODE_STORY=<story-id> bun run dev:live` from the development worktree, and exercise narrow and wide terminal sizes when layout is relevant.",
+        "",
+        "## TUI Theme Tokens",
+        "",
+        "- Choose theme tokens by semantic role, not by their current color. Do not use raw `theme.hue` values or borrow an unrelated semantic token to achieve a preferred appearance.",
+        "- Use `text.feedback` and `background.feedback` only for outcome or status feedback such as errors, warnings, success messages, and informational messages. Use `formfield` states for form-control text, ordinals, and selection markers, and `action` states for actions.",
+        "- If the theme does not expose a token for the required semantic role, extend the theme schema, defaults, resolution, and types with that role before using it in a component. Do not repurpose the nearest-looking existing token.",
+        "- When changing the public theme token surface, verify the built-in light and dark defaults and the custom-theme fallback path in addition to the affected TUI component.",
+        "",
+        "## Branch Names",
+        "",
+        "Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.",
+        "",
+        "Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.",
+        "",
+        "## Commits and PR Titles",
+        "",
+        "Use conventional commit-style messages and PR titles: `type(scope): summary`.",
+        "",
+        "Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. Scopes are optional; use the affected package or area when helpful, e.g. `core`, `opencode`, `tui`, `app`, `desktop`, `sdk`, or `plugin`.",
+        "",
+        "Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributing guide`, `chore(sdk): regenerate types`.",
+        "",
+        "For user-facing `feat`, `fix` and `perf` PRs, add a small looping animated SVG of the change under `### Visual` in the PR body (a `svg` code block, 240×72, for example a dock growing out of the composer or spinners turning in step). Draw with `currentColor` and opacity so it works in light and dark, make the unanimated state a good still (it is shown under reduced motion), animate with CSS or SMIL only, and keep it under 8 KB with no scripts or external references. The desktop beta's \"What's new\" dialog shows it.",
+        "",
+        "## Style Guide",
+        "",
+        "### General Principles",
+        "",
+        "- Keep things in one function unless composable or reusable",
+        "- Validate unknown values once at the boundary that owns them. Pass typed values inward instead of repeating `typeof value === \"object\"` and property-existence checks. Do not defensively revalidate values already guaranteed by a schema, constructor, or internal type.",
+        "- Do not extract single-use helpers preemptively. Inline the logic at the call site unless the helper is reused, hides a genuinely complex boundary, or has a clear independent name that improves the caller.",
+        "- Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.",
+        "- Avoid `try`/`catch` where possible",
+        "- Avoid using the `any` type",
+        "- Use Bun APIs when possible, like `Bun.file()`",
+        "- Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity",
+        "- Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream",
+        "- In `src/config`, follow the existing self-export pattern at the top of the file (for example `export * as ConfigAgent from \"./agent.js\"`) when adding a new config module.",
+        "- In Effect generators, bind services to named variables before calling methods. Do not use nested service yields such as `yield* (yield* Foo.Service).bar()`.",
+        "",
+        "Reduce total variable count by inlining when a value is only used once.",
+        "",
+        "```ts",
+        "// Good",
+        "const journal = await Bun.file(path.join(dir, \"journal.json\")).json()",
+        "",
+        "// Bad",
+        "const journalPath = path.join(dir, \"journal.json\")",
+        "const journal = await Bun.file(journalPath).json()",
+        "```",
+        "",
+        "### Destructuring",
+        "",
+        "Avoid unnecessary destructuring. Use dot notation to preserve context.",
+        "",
+        "```ts",
+        "// Good",
+        "obj.a",
+        "obj.b",
+        "",
+        "// Bad",
+        "const { a, b } = obj",
+        "```",
+        "",
+        "### Imports",
+        "",
+        "- Never alias imports. Do not use `import { foo as bar } from \"...\"` or renamed imports like `resolve as pathResolve`.",
+        "- Never use type-position `import(\"...\")` references such as `Schema.declare<import(\"@opencode/plugin/effect/plugin\").Plugin[\"effect\"]>`. Only when two imports genuinely collide on a name and no other option exists, an aliased type import (`import type { Plugin as PluginDefinition } from \"...\"`) is permitted as a last resort — still strongly preferred not to.",
+        "- Never use star imports. Do not use `import * as Foo from \"...\"` or `import type * as Foo from \"...\"`.",
+        "- If a namespace-style value is needed, import the module's own exported namespace by name, for example `import { Project } from \"@opencode/core/project\"`, then reference `Project.ID`.",
+        "- Prefer dynamic imports for heavy modules that are only needed in selected code paths, especially in startup-sensitive entrypoints. Destructure dynamic import bindings near the top of the narrowest scope that needs them so they read like normal imports. Avoid inline chains such as `await import(\"./module\").then((mod) => mod.value())` or `(await import(\"./module\")).value()`. Keep branch-specific imports inside the branch that needs them to preserve lazy loading.",
+        "",
+        "### Variables",
+        "",
+        "Prefer `const` over `let`. Use ternaries or early returns instead of reassignment.",
+        "",
+        "```ts",
+        "// Good",
+        "const foo = condition ? 1 : 2",
+        "",
+        "// Bad",
+        "let foo",
+        "if (condition) foo = 1",
+        "else foo = 2",
+        "```",
+        "",
+        "### Control Flow",
+        "",
+        "Avoid `else` statements. Prefer early returns.",
+        "",
+        "```ts",
+        "// Good",
+        "function foo() {",
+        "  if (condition) return 1",
+        "  return 2",
+        "}",
+        "",
+        "// Bad",
+        "function foo() {",
+        "  if (condition) return 1",
+        "  else return 2",
+        "}",
+        "```",
+        "",
+        "### Complex Logic",
+        "",
+        "When a function has several validation branches or supporting details, make the main function read as the happy path and move supporting details into small helpers below it.",
+        "",
+        "```ts",
+        "// Good",
+        "export function loadThing(input: unknown) {",
+        "  const config = requireConfig(input)",
+        "  const metadata = readMetadata(input)",
+        "  return createThing({ config, metadata })",
+        "}",
+        "",
+        "function requireConfig(input: unknown) {",
+        "  ...",
+        "}",
+        "```",
+        "",
+        "- Keep helpers close to the code they support, below the main export when that improves readability.",
+        "- Do not over-abstract simple expressions into many single-use helpers; extract only when it names a real concept like `requireConfig` or `readMetadata`.",
+        "- Do not return `Effect` from helpers unless they actually perform effectful work. Synchronous parsing, validation, and option building should stay synchronous.",
+        "- Prefer Effect schema helpers such as `Schema.UnknownFromJsonString` and `Schema.decodeUnknownOption` over manual `JSON.parse` wrapped in `Effect.try` when parsing untrusted JSON strings.",
+        "- Add comments for non-obvious constraints and surprising behavior, not for obvious assignments or control flow.",
+        "",
+        "### Schema Definitions (Drizzle)",
+        "",
+        "Use snake_case for field names so column names don't need to be redefined as strings.",
+        "",
+        "```ts",
+        "// Good",
+        "const table = sqliteTable(\"session\", {",
+        "  id: text().primaryKey(),",
+        "  project_id: text().notNull(),",
+        "  created_at: integer().notNull(),",
+        "})",
+        "",
+        "// Bad",
+        "const table = sqliteTable(\"session\", {",
+        "  id: text(\"id\").primaryKey(),",
+        "  projectID: text(\"project_id\").notNull(),",
+        "  createdAt: integer(\"created_at\").notNull(),",
+        "})",
+        "```",
+        "",
+        "## Testing",
+        "",
+        "- Avoid mocks as much as possible, you shouldn't be using globalThis.\\* at all unless it's the only option.",
+        "- Test actual implementation, do not duplicate logic into tests",
+        "- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package directories such as `packages/core`.",
+        "- Before writing or changing tests, read the matching skill in `.opencode/skills`: `unit-tests` (bun test), `tui-tests` (OpenTUI renderer tests), `app-e2e-tests` (Playwright in `packages/app/e2e`) or `component-tests` (Playwright on stories, `packages/stories`). They cover what has made tests slow or flaky in CI.",
+        "",
+        "## Checks",
+        "",
+        "- Run `bun run check` from the repository root as the canonical full lint and type-check verification.",
+        "- During focused iteration, run `bun typecheck` from the affected package directory (for example, `packages/core`). Never run `tsc` directly.",
+        "- Local `typecheck` scripts use `bun check`. CI and package publishing run `typecheck:tsc`, which uses the official TypeScript compiler (`@typescript/native`). When the two disagree, `tsc` is the source of truth; reproduce with `bun run typecheck:tsc` from the package directory.",
+        "- `bun check` aims to match TypeScript 7.1, not the `7.0.2` that `process.versions.typescript` reports (oven-sh/bun#46536). When `bun check` and `tsc` from the pinned `@typescript/native` report different errors, file a minimal, dependency-free repro at https://github.com/oven-sh/bun/issues, with the output of both. `bun check` writes no declaration files, so declaration-emit errors such as TS5088 or TS2883 are expected to appear only in `tsc`; do not report those.",
+        "",
+        "## Session Core",
+        "",
+        "- Keep durable events minimal: record irreducible new facts and do not repeat state derivable by folding the ordered aggregate history. Enrich projections and read models with previous or derived state when consumers need self-contained views.",
+        "- Keep durable prompt admission separate from model execution. `Session.prompt(...)` publishes `session.inbox.enqueued`, whose projection inserts one durable `session_inbox` row, before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. Delivery publishes `session.inbox.delivered`; its projection consumes the inbox row and inserts the visible message in the same transaction. `session_inbox` stores only unconsumed work.",
+        "- Reusing a Session ID adopts the existing Session. Reusing a user or synthetic inbox item ID is idempotent when Session and type match: the first admission wins and the retried payload, metadata, and delivery mode are ignored, whether the item is still pending or already delivered (reconciled from the projected message without retained enqueue history). Cross-Session or cross-type reuse fails. Control items keep their operation-specific conflict behavior.",
+        "- Keep `SessionExecution` process-global and Session-ID based. Its local implementation owns the process-local Session coordinator and discovers placement through `SessionStore` plus `LocationServiceMap.get(session.location)` only when a drain starts; no layer should take a Session ID. Interruption targets the active process-local ownership chain for that Session; interruption of a known but idle or locally unowned Session is a no-op, while the public API rejects an unknown Session.",
+        "- Keep `SessionRunner`, model resolution, tool registry, permissions, and filesystem Location-scoped. Omitted `Location.workspaceID` means implicit-local placement; explicit workspace identity remains reserved for future placement semantics.",
+        "- Each step is one explicit `llm.stream` call that continues from reloaded history. Do not add an in-memory tool loop.",
+        "- Keep local Session drains process-local until clustering is implemented. `SessionRunCoordinator` joins explicit same-Session resumes, coalesces prompt wakeups, and allows different Sessions to run concurrently. A write-ahead execution claim marks a process-local busy period for restart recovery: terminal completion, failure, or user interruption releases it, while shutdown interruption and process death preserve it. Startup recovery resumes claimed top-level Sessions with durable per-execution attempt accounting. The claim is a recovery marker, not clustered ownership, fencing, or an exactly-once guarantee.",
+        "- Keep delivery vocabulary explicit. Prompts steer by default. At safe step boundaries, steered compaction takes priority up to the first steered move control; other steers retain enqueue order. At an idle boundary, steers take priority; otherwise exactly one queued item delivers before the runner reevaluates continuation. Inbox items may be cancelled or changed between queue and steer before delivery. Promoting new user input resets the selected agent's step allowance; a batch of steers resets it once.",
+        "- One step is one logical LLM call; its durable record covers only the model-visible span. Do not write \"provider turn\", and do not use bare \"turn\" for a single call: \"turn\" is reserved for the future assistant-turn unit containing all steps from prompt promotion until the session would go idle.",
+        "- Keep event replay ownership separate from clustered Session execution ownership."
+      ],
+      "stylingDirectives": [
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            47,
+            48,
+            "pl-s"
+          ],
+          [
+            48,
+            55,
+            "pl-c1"
+          ],
+          [
+            55,
+            56,
+            "pl-s"
+          ],
+          [
+            62,
+            63,
+            "pl-s"
+          ],
+          [
+            63,
+            79,
+            "pl-c1"
+          ],
+          [
+            79,
+            80,
+            "pl-s"
+          ],
+          [
+            86,
+            87,
+            "pl-s"
+          ],
+          [
+            87,
+            102,
+            "pl-c1"
+          ],
+          [
+            102,
+            103,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            190,
+            191,
+            "pl-s"
+          ],
+          [
+            191,
+            194,
+            "pl-c1"
+          ],
+          [
+            194,
+            195,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            54,
+            55,
+            "pl-s"
+          ],
+          [
+            55,
+            65,
+            "pl-c1"
+          ],
+          [
+            65,
+            66,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            24,
+            25,
+            "pl-s"
+          ],
+          [
+            25,
+            28,
+            "pl-c1"
+          ],
+          [
+            28,
+            29,
+            "pl-s"
+          ],
+          [
+            62,
+            63,
+            "pl-s"
+          ],
+          [
+            63,
+            73,
+            "pl-c1"
+          ],
+          [
+            73,
+            74,
+            "pl-s"
+          ],
+          [
+            90,
+            91,
+            "pl-s"
+          ],
+          [
+            91,
+            94,
+            "pl-c1"
+          ],
+          [
+            94,
+            95,
+            "pl-s"
+          ],
+          [
+            114,
+            115,
+            "pl-s"
+          ],
+          [
+            115,
+            125,
+            "pl-c1"
+          ],
+          [
+            125,
+            126,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            19,
+            "pl-mh"
+          ],
+          [
+            3,
+            19,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            6,
+            7,
+            "pl-s"
+          ],
+          [
+            7,
+            23,
+            "pl-c1"
+          ],
+          [
+            23,
+            24,
+            "pl-s"
+          ],
+          [
+            99,
+            100,
+            "pl-s"
+          ],
+          [
+            100,
+            108,
+            "pl-c1"
+          ],
+          [
+            108,
+            109,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            61,
+            62,
+            "pl-s"
+          ],
+          [
+            62,
+            95,
+            "pl-c1"
+          ],
+          [
+            95,
+            96,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            39,
+            40,
+            "pl-s"
+          ],
+          [
+            40,
+            63,
+            "pl-c1"
+          ],
+          [
+            63,
+            64,
+            "pl-s"
+          ],
+          [
+            108,
+            109,
+            "pl-s"
+          ],
+          [
+            109,
+            138,
+            "pl-c1"
+          ],
+          [
+            138,
+            139,
+            "pl-s"
+          ],
+          [
+            154,
+            155,
+            "pl-s"
+          ],
+          [
+            155,
+            158,
+            "pl-c1"
+          ],
+          [
+            158,
+            159,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            9,
+            10,
+            "pl-s"
+          ],
+          [
+            10,
+            18,
+            "pl-c1"
+          ],
+          [
+            18,
+            19,
+            "pl-s"
+          ],
+          [
+            31,
+            32,
+            "pl-s"
+          ],
+          [
+            32,
+            43,
+            "pl-c1"
+          ],
+          [
+            43,
+            44,
+            "pl-s"
+          ],
+          [
+            182,
+            183,
+            "pl-s"
+          ],
+          [
+            183,
+            191,
+            "pl-c1"
+          ],
+          [
+            191,
+            192,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            14,
+            "pl-mh"
+          ],
+          [
+            3,
+            14,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            69,
+            70,
+            "pl-s"
+          ],
+          [
+            70,
+            119,
+            "pl-c1"
+          ],
+          [
+            119,
+            120,
+            "pl-s"
+          ],
+          [
+            140,
+            141,
+            "pl-s"
+          ],
+          [
+            141,
+            150,
+            "pl-c1"
+          ],
+          [
+            150,
+            151,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            84,
+            85,
+            "pl-s"
+          ],
+          [
+            85,
+            96,
+            "pl-c1"
+          ],
+          [
+            96,
+            97,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            28,
+            29,
+            "pl-s"
+          ],
+          [
+            29,
+            71,
+            "pl-c1"
+          ],
+          [
+            71,
+            72,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            19,
+            "pl-mh"
+          ],
+          [
+            3,
+            19,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            83,
+            84,
+            "pl-s"
+          ],
+          [
+            84,
+            93,
+            "pl-c1"
+          ],
+          [
+            93,
+            94,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            6,
+            7,
+            "pl-s"
+          ],
+          [
+            7,
+            20,
+            "pl-c1"
+          ],
+          [
+            20,
+            21,
+            "pl-s"
+          ],
+          [
+            26,
+            27,
+            "pl-s"
+          ],
+          [
+            27,
+            46,
+            "pl-c1"
+          ],
+          [
+            46,
+            47,
+            "pl-s"
+          ],
+          [
+            160,
+            161,
+            "pl-s"
+          ],
+          [
+            161,
+            170,
+            "pl-c1"
+          ],
+          [
+            170,
+            171,
+            "pl-s"
+          ],
+          [
+            239,
+            240,
+            "pl-s"
+          ],
+          [
+            240,
+            246,
+            "pl-c1"
+          ],
+          [
+            246,
+            247,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            15,
+            "pl-mh"
+          ],
+          [
+            3,
+            15,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            114,
+            115,
+            "pl-s"
+          ],
+          [
+            115,
+            120,
+            "pl-c1"
+          ],
+          [
+            120,
+            121,
+            "pl-s"
+          ],
+          [
+            125,
+            126,
+            "pl-s"
+          ],
+          [
+            126,
+            130,
+            "pl-c1"
+          ],
+          [
+            130,
+            131,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            10,
+            11,
+            "pl-s"
+          ],
+          [
+            11,
+            27,
+            "pl-c1"
+          ],
+          [
+            27,
+            28,
+            "pl-s"
+          ],
+          [
+            30,
+            31,
+            "pl-s"
+          ],
+          [
+            31,
+            47,
+            "pl-c1"
+          ],
+          [
+            47,
+            48,
+            "pl-s"
+          ],
+          [
+            50,
+            51,
+            "pl-s"
+          ],
+          [
+            51,
+            65,
+            "pl-c1"
+          ],
+          [
+            65,
+            66,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            24,
+            "pl-mh"
+          ],
+          [
+            3,
+            24,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            54,
+            55,
+            "pl-s"
+          ],
+          [
+            55,
+            75,
+            "pl-c1"
+          ],
+          [
+            75,
+            76,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            16,
+            17,
+            "pl-s"
+          ],
+          [
+            17,
+            21,
+            "pl-c1"
+          ],
+          [
+            21,
+            22,
+            "pl-s"
+          ],
+          [
+            24,
+            25,
+            "pl-s"
+          ],
+          [
+            25,
+            28,
+            "pl-c1"
+          ],
+          [
+            28,
+            29,
+            "pl-s"
+          ],
+          [
+            31,
+            32,
+            "pl-s"
+          ],
+          [
+            32,
+            36,
+            "pl-c1"
+          ],
+          [
+            36,
+            37,
+            "pl-s"
+          ],
+          [
+            39,
+            40,
+            "pl-s"
+          ],
+          [
+            40,
+            45,
+            "pl-c1"
+          ],
+          [
+            45,
+            46,
+            "pl-s"
+          ],
+          [
+            48,
+            49,
+            "pl-s"
+          ],
+          [
+            49,
+            57,
+            "pl-c1"
+          ],
+          [
+            57,
+            58,
+            "pl-s"
+          ],
+          [
+            64,
+            65,
+            "pl-s"
+          ],
+          [
+            65,
+            69,
+            "pl-c1"
+          ],
+          [
+            69,
+            70,
+            "pl-s"
+          ],
+          [
+            145,
+            146,
+            "pl-s"
+          ],
+          [
+            146,
+            150,
+            "pl-c1"
+          ],
+          [
+            150,
+            151,
+            "pl-s"
+          ],
+          [
+            153,
+            154,
+            "pl-s"
+          ],
+          [
+            154,
+            162,
+            "pl-c1"
+          ],
+          [
+            162,
+            163,
+            "pl-s"
+          ],
+          [
+            165,
+            166,
+            "pl-s"
+          ],
+          [
+            166,
+            169,
+            "pl-c1"
+          ],
+          [
+            169,
+            170,
+            "pl-s"
+          ],
+          [
+            172,
+            173,
+            "pl-s"
+          ],
+          [
+            173,
+            176,
+            "pl-c1"
+          ],
+          [
+            176,
+            177,
+            "pl-s"
+          ],
+          [
+            179,
+            180,
+            "pl-s"
+          ],
+          [
+            180,
+            187,
+            "pl-c1"
+          ],
+          [
+            187,
+            188,
+            "pl-s"
+          ],
+          [
+            190,
+            191,
+            "pl-s"
+          ],
+          [
+            191,
+            194,
+            "pl-c1"
+          ],
+          [
+            194,
+            195,
+            "pl-s"
+          ],
+          [
+            200,
+            201,
+            "pl-s"
+          ],
+          [
+            201,
+            207,
+            "pl-c1"
+          ],
+          [
+            207,
+            208,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            10,
+            11,
+            "pl-s"
+          ],
+          [
+            11,
+            53,
+            "pl-c1"
+          ],
+          [
+            53,
+            54,
+            "pl-s"
+          ],
+          [
+            56,
+            57,
+            "pl-s"
+          ],
+          [
+            57,
+            88,
+            "pl-c1"
+          ],
+          [
+            88,
+            89,
+            "pl-s"
+          ],
+          [
+            91,
+            92,
+            "pl-s"
+          ],
+          [
+            92,
+            120,
+            "pl-c1"
+          ],
+          [
+            120,
+            121,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            16,
+            17,
+            "pl-s"
+          ],
+          [
+            17,
+            21,
+            "pl-c1"
+          ],
+          [
+            21,
+            22,
+            "pl-s"
+          ],
+          [
+            24,
+            25,
+            "pl-s"
+          ],
+          [
+            25,
+            28,
+            "pl-c1"
+          ],
+          [
+            28,
+            29,
+            "pl-s"
+          ],
+          [
+            34,
+            35,
+            "pl-s"
+          ],
+          [
+            35,
+            39,
+            "pl-c1"
+          ],
+          [
+            39,
+            40,
+            "pl-s"
+          ],
+          [
+            99,
+            100,
+            "pl-s"
+          ],
+          [
+            100,
+            110,
+            "pl-c1"
+          ],
+          [
+            110,
+            111,
+            "pl-s"
+          ],
+          [
+            130,
+            131,
+            "pl-s"
+          ],
+          [
+            131,
+            134,
+            "pl-c1"
+          ],
+          [
+            134,
+            135,
+            "pl-s"
+          ],
+          [
+            243,
+            244,
+            "pl-s"
+          ],
+          [
+            244,
+            256,
+            "pl-c1"
+          ],
+          [
+            256,
+            257,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            14,
+            "pl-mh"
+          ],
+          [
+            3,
+            14,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            22,
+            "pl-mh"
+          ],
+          [
+            4,
+            22,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            109,
+            110,
+            "pl-s"
+          ],
+          [
+            110,
+            135,
+            "pl-c1"
+          ],
+          [
+            135,
+            136,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            8,
+            9,
+            "pl-s"
+          ],
+          [
+            9,
+            12,
+            "pl-c1"
+          ],
+          [
+            12,
+            13,
+            "pl-s"
+          ],
+          [
+            14,
+            15,
+            "pl-s"
+          ],
+          [
+            15,
+            20,
+            "pl-c1"
+          ],
+          [
+            20,
+            21,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            18,
+            19,
+            "pl-s"
+          ],
+          [
+            19,
+            22,
+            "pl-c1"
+          ],
+          [
+            22,
+            23,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            35,
+            36,
+            "pl-s"
+          ],
+          [
+            36,
+            46,
+            "pl-c1"
+          ],
+          [
+            46,
+            47,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            5,
+            6,
+            "pl-s"
+          ],
+          [
+            6,
+            16,
+            "pl-c1"
+          ],
+          [
+            16,
+            17,
+            "pl-s"
+          ],
+          [
+            95,
+            96,
+            "pl-s"
+          ],
+          [
+            96,
+            137,
+            "pl-c1"
+          ],
+          [
+            137,
+            138,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            122,
+            123,
+            "pl-s"
+          ],
+          [
+            123,
+            156,
+            "pl-c1"
+          ],
+          [
+            156,
+            157,
+            "pl-s"
+          ]
+        ],
+        [],
+        [],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            5,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            7,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            14,
+            15,
+            "pl-k"
+          ],
+          [
+            16,
+            21,
+            "pl-k"
+          ],
+          [
+            22,
+            25,
+            "pl-smi"
+          ],
+          [
+            26,
+            30,
+            "pl-c1"
+          ],
+          [
+            31,
+            35,
+            "pl-smi"
+          ],
+          [
+            36,
+            40,
+            "pl-c1"
+          ],
+          [
+            41,
+            44,
+            "pl-smi"
+          ],
+          [
+            46,
+            60,
+            "pl-s"
+          ],
+          [
+            46,
+            47,
+            "pl-pds"
+          ],
+          [
+            59,
+            60,
+            "pl-pds"
+          ],
+          [
+            63,
+            67,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            6,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            18,
+            19,
+            "pl-k"
+          ],
+          [
+            20,
+            24,
+            "pl-smi"
+          ],
+          [
+            25,
+            29,
+            "pl-c1"
+          ],
+          [
+            30,
+            33,
+            "pl-smi"
+          ],
+          [
+            35,
+            49,
+            "pl-s"
+          ],
+          [
+            35,
+            36,
+            "pl-pds"
+          ],
+          [
+            48,
+            49,
+            "pl-pds"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            14,
+            15,
+            "pl-k"
+          ],
+          [
+            16,
+            21,
+            "pl-k"
+          ],
+          [
+            22,
+            25,
+            "pl-smi"
+          ],
+          [
+            26,
+            30,
+            "pl-c1"
+          ],
+          [
+            31,
+            42,
+            "pl-smi"
+          ],
+          [
+            44,
+            48,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            17,
+            "pl-mh"
+          ],
+          [
+            4,
+            17,
+            "pl-en"
+          ]
+        ],
+        [],
+        [],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            5,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            7,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            3,
+            "pl-smi"
+          ],
+          [
+            4,
+            5,
+            "pl-smi"
+          ]
+        ],
+        [
+          [
+            0,
+            3,
+            "pl-smi"
+          ],
+          [
+            4,
+            5,
+            "pl-smi"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            6,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            15,
+            16,
+            "pl-k"
+          ],
+          [
+            17,
+            20,
+            "pl-smi"
+          ]
+        ],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            11,
+            "pl-mh"
+          ],
+          [
+            4,
+            11,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            34,
+            35,
+            "pl-s"
+          ],
+          [
+            35,
+            67,
+            "pl-c1"
+          ],
+          [
+            67,
+            68,
+            "pl-s"
+          ],
+          [
+            93,
+            94,
+            "pl-s"
+          ],
+          [
+            94,
+            116,
+            "pl-c1"
+          ],
+          [
+            116,
+            117,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            26,
+            27,
+            "pl-s"
+          ],
+          [
+            27,
+            40,
+            "pl-c1"
+          ],
+          [
+            40,
+            41,
+            "pl-s"
+          ],
+          [
+            61,
+            62,
+            "pl-s"
+          ],
+          [
+            62,
+            135,
+            "pl-c1"
+          ],
+          [
+            135,
+            136,
+            "pl-s"
+          ],
+          [
+            240,
+            241,
+            "pl-s"
+          ],
+          [
+            241,
+            294,
+            "pl-c1"
+          ],
+          [
+            294,
+            295,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            37,
+            38,
+            "pl-s"
+          ],
+          [
+            38,
+            64,
+            "pl-c1"
+          ],
+          [
+            64,
+            65,
+            "pl-s"
+          ],
+          [
+            69,
+            70,
+            "pl-s"
+          ],
+          [
+            70,
+            101,
+            "pl-c1"
+          ],
+          [
+            101,
+            102,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            104,
+            105,
+            "pl-s"
+          ],
+          [
+            105,
+            153,
+            "pl-c1"
+          ],
+          [
+            153,
+            154,
+            "pl-s"
+          ],
+          [
+            171,
+            172,
+            "pl-s"
+          ],
+          [
+            172,
+            182,
+            "pl-c1"
+          ],
+          [
+            182,
+            183,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            283,
+            284,
+            "pl-s"
+          ],
+          [
+            284,
+            335,
+            "pl-c1"
+          ],
+          [
+            335,
+            336,
+            "pl-s"
+          ],
+          [
+            340,
+            341,
+            "pl-s"
+          ],
+          [
+            341,
+            375,
+            "pl-c1"
+          ],
+          [
+            375,
+            376,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            13,
+            "pl-mh"
+          ],
+          [
+            4,
+            13,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            7,
+            8,
+            "pl-s"
+          ],
+          [
+            8,
+            13,
+            "pl-c1"
+          ],
+          [
+            13,
+            14,
+            "pl-s"
+          ],
+          [
+            20,
+            21,
+            "pl-s"
+          ],
+          [
+            21,
+            24,
+            "pl-c1"
+          ],
+          [
+            24,
+            25,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            5,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            7,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            10,
+            11,
+            "pl-k"
+          ],
+          [
+            12,
+            21,
+            "pl-smi"
+          ],
+          [
+            22,
+            23,
+            "pl-k"
+          ],
+          [
+            24,
+            25,
+            "pl-c1"
+          ],
+          [
+            26,
+            27,
+            "pl-k"
+          ],
+          [
+            28,
+            29,
+            "pl-c1"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            6,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            3,
+            "pl-k"
+          ]
+        ],
+        [
+          [
+            0,
+            2,
+            "pl-k"
+          ],
+          [
+            4,
+            13,
+            "pl-smi"
+          ],
+          [
+            15,
+            18,
+            "pl-smi"
+          ],
+          [
+            19,
+            20,
+            "pl-k"
+          ],
+          [
+            21,
+            22,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            0,
+            4,
+            "pl-k"
+          ],
+          [
+            5,
+            8,
+            "pl-smi"
+          ],
+          [
+            9,
+            10,
+            "pl-k"
+          ],
+          [
+            11,
+            12,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            16,
+            "pl-mh"
+          ],
+          [
+            4,
+            16,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            6,
+            7,
+            "pl-s"
+          ],
+          [
+            7,
+            11,
+            "pl-c1"
+          ],
+          [
+            11,
+            12,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            5,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            7,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            8,
+            "pl-k"
+          ]
+        ],
+        [
+          [
+            2,
+            4,
+            "pl-k"
+          ],
+          [
+            6,
+            15,
+            "pl-smi"
+          ],
+          [
+            17,
+            23,
+            "pl-k"
+          ],
+          [
+            24,
+            25,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            2,
+            8,
+            "pl-k"
+          ],
+          [
+            9,
+            10,
+            "pl-c1"
+          ]
+        ],
+        [],
+        [],
+        [
+          [
+            0,
+            6,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            8,
+            "pl-k"
+          ]
+        ],
+        [
+          [
+            2,
+            4,
+            "pl-k"
+          ],
+          [
+            6,
+            15,
+            "pl-smi"
+          ],
+          [
+            17,
+            23,
+            "pl-k"
+          ],
+          [
+            24,
+            25,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            2,
+            6,
+            "pl-k"
+          ],
+          [
+            7,
+            13,
+            "pl-k"
+          ],
+          [
+            14,
+            15,
+            "pl-c1"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            17,
+            "pl-mh"
+          ],
+          [
+            4,
+            17,
+            "pl-en"
+          ]
+        ],
+        [],
+        [],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            5,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            7,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            6,
+            "pl-k"
+          ],
+          [
+            7,
+            15,
+            "pl-k"
+          ],
+          [
+            26,
+            31,
+            "pl-v"
+          ],
+          [
+            31,
+            32,
+            "pl-k"
+          ],
+          [
+            33,
+            40,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            2,
+            7,
+            "pl-k"
+          ],
+          [
+            2,
+            7,
+            "pl-k"
+          ],
+          [
+            15,
+            16,
+            "pl-k"
+          ],
+          [
+            17,
+            30,
+            "pl-en"
+          ],
+          [
+            31,
+            36,
+            "pl-smi"
+          ]
+        ],
+        [
+          [
+            2,
+            7,
+            "pl-k"
+          ],
+          [
+            2,
+            7,
+            "pl-k"
+          ],
+          [
+            17,
+            18,
+            "pl-k"
+          ],
+          [
+            19,
+            31,
+            "pl-en"
+          ],
+          [
+            32,
+            37,
+            "pl-smi"
+          ]
+        ],
+        [
+          [
+            2,
+            8,
+            "pl-k"
+          ],
+          [
+            9,
+            20,
+            "pl-en"
+          ],
+          [
+            23,
+            29,
+            "pl-smi"
+          ],
+          [
+            31,
+            39,
+            "pl-smi"
+          ]
+        ],
+        [],
+        [],
+        [
+          [
+            0,
+            8,
+            "pl-k"
+          ],
+          [
+            23,
+            28,
+            "pl-v"
+          ],
+          [
+            28,
+            29,
+            "pl-k"
+          ],
+          [
+            30,
+            37,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            2,
+            5,
+            "pl-k"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            119,
+            120,
+            "pl-s"
+          ],
+          [
+            120,
+            133,
+            "pl-c1"
+          ],
+          [
+            133,
+            134,
+            "pl-s"
+          ],
+          [
+            138,
+            139,
+            "pl-s"
+          ],
+          [
+            139,
+            151,
+            "pl-c1"
+          ],
+          [
+            151,
+            152,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            16,
+            17,
+            "pl-s"
+          ],
+          [
+            17,
+            23,
+            "pl-c1"
+          ],
+          [
+            23,
+            24,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            39,
+            40,
+            "pl-s"
+          ],
+          [
+            40,
+            68,
+            "pl-c1"
+          ],
+          [
+            68,
+            69,
+            "pl-s"
+          ],
+          [
+            74,
+            75,
+            "pl-s"
+          ],
+          [
+            75,
+            101,
+            "pl-c1"
+          ],
+          [
+            101,
+            102,
+            "pl-s"
+          ],
+          [
+            115,
+            116,
+            "pl-s"
+          ],
+          [
+            116,
+            126,
+            "pl-c1"
+          ],
+          [
+            126,
+            127,
+            "pl-s"
+          ],
+          [
+            139,
+            140,
+            "pl-s"
+          ],
+          [
+            140,
+            150,
+            "pl-c1"
+          ],
+          [
+            150,
+            151,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            32,
+            "pl-mh"
+          ],
+          [
+            4,
+            32,
+            "pl-en"
+          ]
+        ],
+        [],
+        [],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            5,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            0,
+            7,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            12,
+            13,
+            "pl-k"
+          ],
+          [
+            14,
+            25,
+            "pl-en"
+          ],
+          [
+            26,
+            35,
+            "pl-s"
+          ],
+          [
+            26,
+            27,
+            "pl-pds"
+          ],
+          [
+            34,
+            35,
+            "pl-pds"
+          ]
+        ],
+        [
+          [
+            6,
+            10,
+            "pl-en"
+          ],
+          [
+            13,
+            23,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            14,
+            18,
+            "pl-en"
+          ],
+          [
+            21,
+            28,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            14,
+            21,
+            "pl-en"
+          ],
+          [
+            24,
+            31,
+            "pl-en"
+          ]
+        ],
+        [],
+        [],
+        [
+          [
+            0,
+            6,
+            "pl-c"
+          ],
+          [
+            0,
+            2,
+            "pl-c"
+          ]
+        ],
+        [
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            0,
+            5,
+            "pl-k"
+          ],
+          [
+            12,
+            13,
+            "pl-k"
+          ],
+          [
+            14,
+            25,
+            "pl-en"
+          ],
+          [
+            26,
+            35,
+            "pl-s"
+          ],
+          [
+            26,
+            27,
+            "pl-pds"
+          ],
+          [
+            34,
+            35,
+            "pl-pds"
+          ]
+        ],
+        [
+          [
+            6,
+            10,
+            "pl-en"
+          ],
+          [
+            11,
+            15,
+            "pl-s"
+          ],
+          [
+            11,
+            12,
+            "pl-pds"
+          ],
+          [
+            14,
+            15,
+            "pl-pds"
+          ],
+          [
+            17,
+            27,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            13,
+            17,
+            "pl-en"
+          ],
+          [
+            18,
+            30,
+            "pl-s"
+          ],
+          [
+            18,
+            19,
+            "pl-pds"
+          ],
+          [
+            29,
+            30,
+            "pl-pds"
+          ],
+          [
+            32,
+            39,
+            "pl-en"
+          ]
+        ],
+        [
+          [
+            13,
+            20,
+            "pl-en"
+          ],
+          [
+            21,
+            33,
+            "pl-s"
+          ],
+          [
+            21,
+            22,
+            "pl-pds"
+          ],
+          [
+            32,
+            33,
+            "pl-pds"
+          ],
+          [
+            35,
+            42,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            3,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            10,
+            "pl-mh"
+          ],
+          [
+            3,
+            10,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            69,
+            71,
+            "pl-c1"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            42,
+            43,
+            "pl-s"
+          ],
+          [
+            43,
+            69,
+            "pl-c1"
+          ],
+          [
+            69,
+            70,
+            "pl-s"
+          ],
+          [
+            110,
+            111,
+            "pl-s"
+          ],
+          [
+            111,
+            124,
+            "pl-c1"
+          ],
+          [
+            124,
+            125,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            63,
+            64,
+            "pl-s"
+          ],
+          [
+            64,
+            80,
+            "pl-c1"
+          ],
+          [
+            80,
+            81,
+            "pl-s"
+          ],
+          [
+            83,
+            84,
+            "pl-s"
+          ],
+          [
+            84,
+            94,
+            "pl-c1"
+          ],
+          [
+            94,
+            95,
+            "pl-s"
+          ],
+          [
+            108,
+            109,
+            "pl-s"
+          ],
+          [
+            109,
+            118,
+            "pl-c1"
+          ],
+          [
+            118,
+            119,
+            "pl-s"
+          ],
+          [
+            146,
+            147,
+            "pl-s"
+          ],
+          [
+            147,
+            160,
+            "pl-c1"
+          ],
+          [
+            160,
+            161,
+            "pl-s"
+          ],
+          [
+            177,
+            178,
+            "pl-s"
+          ],
+          [
+            178,
+            194,
+            "pl-c1"
+          ],
+          [
+            194,
+            195,
+            "pl-s"
+          ],
+          [
+            200,
+            201,
+            "pl-s"
+          ],
+          [
+            201,
+            216,
+            "pl-c1"
+          ],
+          [
+            216,
+            217,
+            "pl-s"
+          ],
+          [
+            242,
+            243,
+            "pl-s"
+          ],
+          [
+            243,
+            259,
+            "pl-c1"
+          ],
+          [
+            259,
+            260,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            9,
+            "pl-mh"
+          ],
+          [
+            3,
+            9,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            6,
+            7,
+            "pl-s"
+          ],
+          [
+            7,
+            20,
+            "pl-c1"
+          ],
+          [
+            20,
+            21,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            32,
+            33,
+            "pl-s"
+          ],
+          [
+            33,
+            46,
+            "pl-c1"
+          ],
+          [
+            46,
+            47,
+            "pl-s"
+          ],
+          [
+            98,
+            99,
+            "pl-s"
+          ],
+          [
+            99,
+            112,
+            "pl-c1"
+          ],
+          [
+            112,
+            113,
+            "pl-s"
+          ],
+          [
+            126,
+            127,
+            "pl-s"
+          ],
+          [
+            127,
+            130,
+            "pl-c1"
+          ],
+          [
+            130,
+            131,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            8,
+            9,
+            "pl-s"
+          ],
+          [
+            9,
+            18,
+            "pl-c1"
+          ],
+          [
+            18,
+            19,
+            "pl-s"
+          ],
+          [
+            32,
+            33,
+            "pl-s"
+          ],
+          [
+            33,
+            42,
+            "pl-c1"
+          ],
+          [
+            42,
+            43,
+            "pl-s"
+          ],
+          [
+            75,
+            76,
+            "pl-s"
+          ],
+          [
+            76,
+            89,
+            "pl-c1"
+          ],
+          [
+            89,
+            90,
+            "pl-s"
+          ],
+          [
+            137,
+            138,
+            "pl-s"
+          ],
+          [
+            138,
+            156,
+            "pl-c1"
+          ],
+          [
+            156,
+            157,
+            "pl-s"
+          ],
+          [
+            183,
+            184,
+            "pl-s"
+          ],
+          [
+            184,
+            187,
+            "pl-c1"
+          ],
+          [
+            187,
+            188,
+            "pl-s"
+          ],
+          [
+            228,
+            229,
+            "pl-s"
+          ],
+          [
+            229,
+            250,
+            "pl-c1"
+          ],
+          [
+            250,
+            251,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            2,
+            3,
+            "pl-s"
+          ],
+          [
+            3,
+            12,
+            "pl-c1"
+          ],
+          [
+            12,
+            13,
+            "pl-s"
+          ],
+          [
+            52,
+            53,
+            "pl-s"
+          ],
+          [
+            53,
+            58,
+            "pl-c1"
+          ],
+          [
+            58,
+            59,
+            "pl-s"
+          ],
+          [
+            65,
+            66,
+            "pl-s"
+          ],
+          [
+            66,
+            93,
+            "pl-c1"
+          ],
+          [
+            93,
+            94,
+            "pl-s"
+          ],
+          [
+            104,
+            121,
+            "pl-s"
+          ],
+          [
+            104,
+            115,
+            "pl-corl"
+          ],
+          [
+            116,
+            121,
+            "pl-corl"
+          ],
+          [
+            129,
+            130,
+            "pl-s"
+          ],
+          [
+            130,
+            139,
+            "pl-c1"
+          ],
+          [
+            139,
+            140,
+            "pl-s"
+          ],
+          [
+            145,
+            146,
+            "pl-s"
+          ],
+          [
+            146,
+            149,
+            "pl-c1"
+          ],
+          [
+            149,
+            150,
+            "pl-s"
+          ],
+          [
+            167,
+            168,
+            "pl-s"
+          ],
+          [
+            168,
+            186,
+            "pl-c1"
+          ],
+          [
+            186,
+            187,
+            "pl-s"
+          ],
+          [
+            254,
+            291,
+            "pl-corl"
+          ],
+          [
+            318,
+            319,
+            "pl-s"
+          ],
+          [
+            319,
+            328,
+            "pl-c1"
+          ],
+          [
+            328,
+            329,
+            "pl-s"
+          ],
+          [
+            442,
+            443,
+            "pl-s"
+          ],
+          [
+            443,
+            446,
+            "pl-c1"
+          ],
+          [
+            446,
+            447,
+            "pl-s"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            15,
+            "pl-mh"
+          ],
+          [
+            3,
+            15,
+            "pl-en"
+          ]
+        ],
+        [],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            63,
+            64,
+            "pl-s"
+          ],
+          [
+            64,
+            83,
+            "pl-c1"
+          ],
+          [
+            83,
+            84,
+            "pl-s"
+          ],
+          [
+            95,
+            96,
+            "pl-s"
+          ],
+          [
+            96,
+            118,
+            "pl-c1"
+          ],
+          [
+            118,
+            119,
+            "pl-s"
+          ],
+          [
+            158,
+            159,
+            "pl-s"
+          ],
+          [
+            159,
+            172,
+            "pl-c1"
+          ],
+          [
+            172,
+            173,
+            "pl-s"
+          ],
+          [
+            206,
+            207,
+            "pl-s"
+          ],
+          [
+            207,
+            239,
+            "pl-c1"
+          ],
+          [
+            239,
+            240,
+            "pl-s"
+          ],
+          [
+            248,
+            249,
+            "pl-s"
+          ],
+          [
+            249,
+            262,
+            "pl-c1"
+          ],
+          [
+            262,
+            263,
+            "pl-s"
+          ],
+          [
+            313,
+            314,
+            "pl-s"
+          ],
+          [
+            314,
+            337,
+            "pl-c1"
+          ],
+          [
+            337,
+            338,
+            "pl-s"
+          ],
+          [
+            435,
+            436,
+            "pl-s"
+          ],
+          [
+            436,
+            449,
+            "pl-c1"
+          ],
+          [
+            449,
+            450,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            7,
+            8,
+            "pl-s"
+          ],
+          [
+            8,
+            24,
+            "pl-c1"
+          ],
+          [
+            24,
+            25,
+            "pl-s"
+          ],
+          [
+            163,
+            164,
+            "pl-s"
+          ],
+          [
+            164,
+            176,
+            "pl-c1"
+          ],
+          [
+            176,
+            177,
+            "pl-s"
+          ],
+          [
+            183,
+            184,
+            "pl-s"
+          ],
+          [
+            184,
+            224,
+            "pl-c1"
+          ],
+          [
+            224,
+            225,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            7,
+            8,
+            "pl-s"
+          ],
+          [
+            8,
+            21,
+            "pl-c1"
+          ],
+          [
+            21,
+            22,
+            "pl-s"
+          ],
+          [
+            110,
+            111,
+            "pl-s"
+          ],
+          [
+            111,
+            131,
+            "pl-c1"
+          ],
+          [
+            131,
+            132,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            28,
+            29,
+            "pl-s"
+          ],
+          [
+            29,
+            39,
+            "pl-c1"
+          ],
+          [
+            39,
+            40,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ],
+          [
+            75,
+            76,
+            "pl-s"
+          ],
+          [
+            76,
+            97,
+            "pl-c1"
+          ],
+          [
+            97,
+            98,
+            "pl-s"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            "pl-v"
+          ]
+        ]
+      ],
+      "colorizedLines": null
+    }
+  },
+  "title": "Blaming opencode/AGENTS.md at f993a89d13c73ff6f6537d6b97e78e138a3ea363 · anomalyco/opencode",
+  "appPayload": {},
+  "meta": {
+    "title": "Blaming opencode/AGENTS.md at f993a89d13c73ff6f6537d6b97e78e138a3ea363 · anomalyco/opencode"
+  }
+}

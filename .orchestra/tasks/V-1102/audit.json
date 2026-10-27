@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-27T07:44:49.474Z",
+  "offline": true,
+  "purpose": "Research citation and artifact audit; no prompt behavior or prose regression tests",
+  "localInputsUnchanged": true,
+  "localInputFiles": 33,
+  "modules": 15,
+  "upstreamSHA": "f993a89d13c73ff6f6537d6b97e78e138a3ea363",
+  "upstreamLines": 191,
+  "comparedRows": 69,
+  "substantiveRuleLinesCovered": 65,
+  "verdicts": {
+    "не брать": 56,
+    "уже есть": 11,
+    "взять": 2
+  },
+  "alreadyRowsWithVerifiedQuotes": 11,
+  "localLinkTargets": 62,
+  "primaryReferencesPinned": 67,
+  "introductionVerified": true,
+  "sourceSecretShapeScan": {
+    "files": 16,
+    "patterns": 8,
+    "findings": []
+  },
+  "unavailableChecks": [
+    "scripts/check_instruction_contract.py absent",
+    "scripts/run_tests.py absent",
+    "pytest test paths absent",
+    "app import unavailable"
+  ],
+  "errors": [],
+  "passed": true
+}
