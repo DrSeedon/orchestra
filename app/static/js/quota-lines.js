@@ -12,6 +12,7 @@ const _QL_W = 960, _QL_H = 470, _QL_ML = 54, _QL_MR = 20, _QL_MT = 18, _QL_MB = 
 const _QL_PW = _QL_W - _QL_ML - _QL_MR, _QL_PH = _QL_H - _QL_MT - _QL_MB;
 const _QL_REFRESH_MS = 120000;
 const _QL_RESET_HISTORY_HOURS = 252, _QL_RESET_HISTORY_STEP_MINUTES = 30;
+const _QL_RESET_JUMP_MS = 3600000;
 const _QL_RESET_HISTORY_CACHE_MS = 300000;
 const _QL_LABEL_STEP = 12;
 const _QL_LABEL_TOP_PAD = 8;
@@ -272,8 +273,11 @@ function _qlObservedWindowResets(history, bucketId, window) {
             previous = null;
             continue;
         }
-        if (previous && ts - previous.ts <= maxGap
-            && previous.utilization > 0 && utilization === 0 && resetAt > previous.resetAt) {
+        // The 30-min grid can skip the 0% sample (Codex 58% -> 0% -> 1% within one step),
+        // so a forward jump of resets_at larger than its own jitter/drift also marks a reset.
+        if (previous && ts - previous.ts <= maxGap && resetAt > previous.resetAt
+            && (resetAt - previous.resetAt > _QL_RESET_JUMP_MS
+                || (previous.utilization > 0 && utilization === 0))) {
             resets.push({at: ts, window_minutes: expectedMinutes});
         }
         previous = {ts, utilization, resetAt};
