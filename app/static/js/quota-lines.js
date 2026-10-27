@@ -278,11 +278,30 @@ function _qlObservedWindowResets(history, bucketId, window) {
         if (previous && ts - previous.ts <= maxGap && resetAt > previous.resetAt
             && (resetAt - previous.resetAt > _QL_RESET_JUMP_MS
                 || (previous.utilization > 0 && utilization === 0))) {
-            resets.push({at: ts, window_minutes: expectedMinutes});
+            resets.push({at: ts, window_minutes: expectedMinutes, prev_resets_at: previous.resetAt});
         }
         previous = {ts, utilization, resetAt};
     }
     return resets;
+}
+
+// The gate measures progress against the resets_at it saw at that moment, so a cycle
+// ended by an early reset is drawn up to the reset only, never stretched to the ceiling.
+function _qlResetCycles(events, reset, duration, now) {
+    const sorted = events.filter(e => Number.isFinite(Number(e.at)) && Number(e.at) <= now)
+        .sort((a, b) => a.at - b.at);
+    const cycles = [];
+    const lead = sorted[0]?.prev_resets_at;
+    if (Number.isFinite(lead)) cycles.push({start: lead - duration, end: sorted[0].at, windowStart: lead - duration});
+    for (let i = 0; i < sorted.length; i++) {
+        const nextEvent = sorted[i + 1];
+        const resetAt = nextEvent ? nextEvent.prev_resets_at : reset;
+        const end = nextEvent ? nextEvent.at : reset;
+        if (Number.isFinite(resetAt) && end > sorted[i].at) {
+            cycles.push({start: sorted[i].at, end, windowStart: resetAt - duration});
+        }
+    }
+    return cycles;
 }
 
 function _qlApplyWindowResetHistory(data, history) {
@@ -523,15 +542,7 @@ function _qlTimelineSvg(panel, rule) {
         const cycles = [];
         if (Array.isArray(bucket.timeline?.reset_events)
             && bucket.timeline.reset_events.length > 0) {
-            const starts = bucket.timeline.reset_events
-                .map(event => Number(event.at))
-                .filter(at => Number.isFinite(at) && at <= now)
-                .sort((a, b) => a - b);
-            for (let i = 0; i < starts.length; i++) {
-                const start = starts[i];
-                const end = starts[i + 1] || reset;
-                if (end > start) cycles.push({start, end});
-            }
+            cycles.push(..._qlResetCycles(bucket.timeline.reset_events, reset, duration, now));
         } else {
             for (let end = reset; end - duration < to; end += duration) {
                 cycles.push({start: end - duration, end});
@@ -540,11 +551,11 @@ function _qlTimelineSvg(panel, rule) {
                 cycles.push({start: end - duration, end});
             }
         }
-        for (const {start, end} of cycles) {
-            const span = end - start;
+        for (const {start, end, windowStart} of cycles) {
+            const span = duration;
             const left = Math.max(from, start), right = Math.min(to, end);
             if (right <= left) continue;
-            const progressAt = ts => Math.max(0, Math.min(1, (ts - start) / span));
+            const progressAt = ts => Math.max(0, Math.min(1, (ts - (windowStart ?? start)) / span));
             const events = (_quotaLinesData?.rule_history || [])
                 .map(event => Number(event.effective_from) * 1000)
                 .filter(ts => Number.isFinite(ts) && ts > left && ts < right)
@@ -565,7 +576,7 @@ function _qlTimelineSvg(panel, rule) {
                         for (let i = 0; i <= 50; i++) {
                             const ts = segmentLeft + (segmentRight - segmentLeft) * i / 50;
                             coords.push(`${x(ts)},${y(_qlMonotoneLimitAt(
-                                progressAt(ts), segmentRule, lane, span / 60000, start,
+                                progressAt(ts), segmentRule, lane, span / 60000, windowStart ?? start,
                                 _quotaLinesData?.rule_history, ts,
                             ))}`);
                         }
@@ -573,7 +584,7 @@ function _qlTimelineSvg(panel, rule) {
                         p.push(`<polyline class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-start="${start / 1000}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
                         if (segmentRight === to) {
                             const value = _qlMonotoneLimitAt(
-                                progressAt(segmentRight), segmentRule, lane, span / 60000, start,
+                                progressAt(segmentRight), segmentRule, lane, span / 60000, windowStart ?? start,
                                 _quotaLinesData?.rule_history, segmentRight,
                             );
                             const laneName = lane === 'sol' ? T('Sol') : T('Claude');

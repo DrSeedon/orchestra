@@ -359,7 +359,10 @@ def test_codex_threshold_uses_observed_boundaries_after_early_reset(browser):
     assert first_x == pytest.approx(54.0)
 
     chart_from = datetime.fromisoformat(payload["generated_at"]).timestamp() - 84 * 3600
-    progress = (chart_from - start) / (end - start)
+    # The gate saw resets_at 2026-10-14T03:29:43Z for this cycle, so progress runs over
+    # the full 7 days from that window start and the curve stops at the early reset.
+    window_start = datetime.fromisoformat("2026-10-14T03:29:43+00:00").timestamp() - 7 * 24 * 3600
+    progress = (chart_from - window_start) / (7 * 24 * 3600)
     expected_y = 18 + (1 - _limit(progress, "sol") / 100) * (470 - 18 - 44)
     assert first_y == pytest.approx(expected_y, abs=0.1)
 

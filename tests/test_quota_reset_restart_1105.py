@@ -69,3 +69,43 @@ def test_scheduled_rollover_still_detected_and_steady_state_is_not():
         ["2026-10-30T18:30:00Z", 1, "2026-11-06T17:43:01Z"],
     ]
     assert run(rows) == [ms("2026-10-30T18:00:00Z")]
+
+
+CYCLES = r"""
+const src = process.argv[1];
+const grab = re => new RegExp(re).exec(src)[0];
+eval(grab(String.raw`const _QL_RESET_HISTORY_HOURS[^\n]*`).replace('const ', 'var ')
+  + ';' + grab(String.raw`const _QL_RESET_JUMP_MS[^\n]*`).replace('const ', 'var ')
+  + ';' + grab(String.raw`function _qlObservedWindowResets[\s\S]*?\n}\n`)
+  + ';' + grab(String.raw`function _qlResetCycles[\s\S]*?\n}\n`));
+const win = (u, r) => ({id: 'w', window_minutes: 10080, utilization: u, resets_at: r});
+const rows = JSON.parse(process.argv[2]).map(([ts, u, r]) => ({ts, providers: {codex: {windows: [win(u, r)]}}}));
+const events = _qlObservedWindowResets({rows, step_minutes: 30}, 'codex', win(0, ''));
+const reset = Date.parse(process.argv[3]), duration = 10080 * 60000;
+console.log(JSON.stringify(_qlResetCycles(events, reset, duration, Date.parse('2026-12-01T00:00:00Z'))));
+"""
+
+
+def test_past_cycle_ends_at_early_reset_with_gate_progress():
+    # Window announced for +7d, reset after ~1 day: the gate then saw progress ~1/7, not 1.
+    rows = [
+        ["2026-10-25T06:00:00Z", 30, "2026-11-01T06:00:00Z"],
+        ["2026-10-26T06:00:00Z", 58, "2026-11-01T06:00:00Z"],
+        ["2026-10-26T06:30:00Z", 4, "2026-11-02T06:30:00Z"],
+        ["2026-10-26T07:00:00Z", 9, "2026-11-02T06:30:00Z"],
+    ]
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node unavailable")
+    res = subprocess.run([node, "-e", CYCLES, SRC, json.dumps(rows), "2026-11-02T06:30:00Z"],
+                         capture_output=True, text=True, timeout=30)
+    assert res.returncode == 0, res.stderr
+    cycles = json.loads(res.stdout)
+    past = next(c for c in cycles if c["end"] == ms("2026-10-26T06:30:00Z"))
+    duration = 10080 * 60000
+    progress = (past["end"] - past["windowStart"]) / duration
+    assert past["windowStart"] == ms("2026-11-01T06:00:00Z") - duration
+    assert progress == pytest.approx(1 / 7, abs=0.01)
+    current = cycles[-1]
+    assert current["start"] == ms("2026-10-26T06:30:00Z")
+    assert current["windowStart"] == ms("2026-11-02T06:30:00Z") - duration
