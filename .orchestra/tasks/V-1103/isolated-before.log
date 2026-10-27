@@ -1,0 +1,81 @@
+Imported app.error_watch: <hub-workspace>/app/error_watch.py
+FFF......F                                                               [100%]
+=================================== FAILURES ===================================
+_ test_merge_full_sha_refusal_is_noise_raw_and_normalized[Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED \u2014 expected_head must be the full 40-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.] _
+
+message = 'Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED — expected_head must be the full 40-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.'
+
+    @pytest.mark.parametrize("message", [
+        _MERGE_SHA_REFUSAL,
+        _MERGE_SHA_REFUSAL.replace("40-character", "64-character"),
+        _MERGE_SHA_REFUSAL.replace("12345678-abcd-4321-abcd-123456789abc", "<ID>").replace("40-character", "<N>-character"),
+    ])
+    def test_merge_full_sha_refusal_is_noise_raw_and_normalized(message):
+>       assert watch.classify_noise(message) == "merge refused: full expected_head required"
+E       AssertionError: assert None == 'merge refused: full expected_head required'
+E        +  where None = <function classify_noise at 0x7f8b8f70e700>('Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED — expected_head must be the full 40-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.')
+E        +    where <function classify_noise at 0x7f8b8f70e700> = watch.classify_noise
+
+tests/test_error_watch.py:452: AssertionError
+_ test_merge_full_sha_refusal_is_noise_raw_and_normalized[Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED \u2014 expected_head must be the full 64-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.] _
+
+message = 'Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED — expected_head must be the full 64-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.'
+
+    @pytest.mark.parametrize("message", [
+        _MERGE_SHA_REFUSAL,
+        _MERGE_SHA_REFUSAL.replace("40-character", "64-character"),
+        _MERGE_SHA_REFUSAL.replace("12345678-abcd-4321-abcd-123456789abc", "<ID>").replace("40-character", "<N>-character"),
+    ])
+    def test_merge_full_sha_refusal_is_noise_raw_and_normalized(message):
+>       assert watch.classify_noise(message) == "merge refused: full expected_head required"
+E       AssertionError: assert None == 'merge refused: full expected_head required'
+E        +  where None = <function classify_noise at 0x7f8b8f70e700>('Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED — expected_head must be the full 64-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.')
+E        +    where <function classify_noise at 0x7f8b8f70e700> = watch.classify_noise
+
+tests/test_error_watch.py:452: AssertionError
+_ test_merge_full_sha_refusal_is_noise_raw_and_normalized[Merge operation <ID>: FAILED \u2014 expected_head must be the full <N>-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.] _
+
+message = 'Merge operation <ID>: FAILED — expected_head must be the full <N>-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.'
+
+    @pytest.mark.parametrize("message", [
+        _MERGE_SHA_REFUSAL,
+        _MERGE_SHA_REFUSAL.replace("40-character", "64-character"),
+        _MERGE_SHA_REFUSAL.replace("12345678-abcd-4321-abcd-123456789abc", "<ID>").replace("40-character", "<N>-character"),
+    ])
+    def test_merge_full_sha_refusal_is_noise_raw_and_normalized(message):
+>       assert watch.classify_noise(message) == "merge refused: full expected_head required"
+E       AssertionError: assert None == 'merge refused: full expected_head required'
+E        +  where None = <function classify_noise at 0x7f8b8f70e700>('Merge operation <ID>: FAILED — expected_head must be the full <N>-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.')
+E        +    where <function classify_noise at 0x7f8b8f70e700> = watch.classify_noise
+
+tests/test_error_watch.py:452: AssertionError
+____ test_merge_full_sha_refusal_scan_and_old_fix_keep_real_failure_visible ____
+
+tmp_path = PosixPath('<hub-workspace>/.orchestra/tasks/V-1103/tmp/pytest-of-<hub-user>/pytest-0/test_merge_full_sha_refusal_sc0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f8b8df13fe0>
+capsys = <_pytest.capture.CaptureFixture object at 0x7f8b8df103b0>
+scan_reports = <Mock id='140237358573584'>
+
+    def test_merge_full_sha_refusal_scan_and_old_fix_keep_real_failure_visible(
+        tmp_path, monkeypatch, capsys, scan_reports,
+    ):
+        started = datetime.now(timezone.utc) - timedelta(minutes=1)
+        events = [
+            dict(_event(_MERGE_SHA_REFUSAL, source="logs"), ts=(started + timedelta(seconds=i)).isoformat())
+            for i in range(12)
+        ]
+        signature = watch.normalize_signature(_MERGE_SHA_REFUSAL)
+        candidates, noise = watch.aggregate(events, datetime.now(timezone.utc))
+>       assert candidates == []
+E       AssertionError: assert [{'count': 12...+00:00', ...}] == []
+E         
+E         Left contains one more item: {'count': 12, 'examples': ['Merge operation <ID>: FAILED — expected_head must be the full <N>-character SHA from worke...start a new operation.'], 'first': '2026-10-27T08:11:29.481398+00:00', 'last': '2026-10-27T08:11:40.481398+00:00', ...}
+E         Use -v to get more diff
+
+tests/test_error_watch.py:485: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_error_watch.py::test_merge_full_sha_refusal_is_noise_raw_and_normalized[Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED \u2014 expected_head must be the full 40-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.]
+FAILED tests/test_error_watch.py::test_merge_full_sha_refusal_is_noise_raw_and_normalized[Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED \u2014 expected_head must be the full 64-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.]
+FAILED tests/test_error_watch.py::test_merge_full_sha_refusal_is_noise_raw_and_normalized[Merge operation <ID>: FAILED \u2014 expected_head must be the full <N>-character SHA from worker_wip. Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, then start a new operation.]
+FAILED tests/test_error_watch.py::test_merge_full_sha_refusal_scan_and_old_fix_keep_real_failure_visible
+4 failed, 6 passed, 68 deselected in 1.38s

@@ -435,6 +435,99 @@ def test_v952_merge_refused_for_busy_worker_is_expected_noise():
     assert watch.classify_noise(watch.normalize_signature(message)) == "merge refused: worker not idle"
 
 
+_MERGE_SHA_REFUSAL = (
+    "Merge operation 12345678-abcd-4321-abcd-123456789abc: FAILED — "
+    "expected_head must be the full 40-character SHA from worker_wip. "
+    "Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, "
+    "then start a new operation."
+)
+
+
+@pytest.mark.parametrize("message", [
+    _MERGE_SHA_REFUSAL,
+    _MERGE_SHA_REFUSAL.replace("40-character", "64-character"),
+    _MERGE_SHA_REFUSAL.replace("12345678-abcd-4321-abcd-123456789abc", "<ID>").replace("40-character", "<N>-character"),
+])
+def test_merge_full_sha_refusal_is_noise_raw_and_normalized(message):
+    assert watch.classify_noise(message) == "merge refused: full expected_head required"
+    assert watch.classify_noise(watch.normalize_signature(message)) == "merge refused: full expected_head required"
+    assert watch.classify_noise(watch.normalize_signature("ERROR:app.merge:" + message)) == "merge refused: full expected_head required"
+
+
+@pytest.mark.parametrize("message", [
+    "Merge operation x: FAILED — expected_head does not match worker_wip HEAD.",
+    "Merge operation x: FAILED — merge conflict in app/example.py",
+    "Merge operation x: FAILED — acceptance gate failed: tests did not pass",
+    "Merge operation x: FAILED — expected_head validation failed unexpectedly",
+    _MERGE_SHA_REFUSAL + " Gate failed unexpectedly.",
+    "Unexpected merge failure: " + _MERGE_SHA_REFUSAL,
+])
+def test_other_merge_failures_stay_actionable(message):
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(watch.normalize_signature(message)) is None
+    candidates, noise = watch.aggregate(
+        [_event(message, i, source="logs") for i in range(12)], datetime.now(timezone.utc),
+    )
+    assert [(item["signature"], item["count"]) for item in candidates] == [(watch.normalize_signature(message), 12)]
+    assert noise == []
+
+
+def test_merge_full_sha_refusal_scan_and_old_fix_keep_real_failure_visible(
+    tmp_path, monkeypatch, capsys, scan_reports,
+):
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    events = [
+        dict(_event(_MERGE_SHA_REFUSAL, source="logs"), ts=(started + timedelta(seconds=i)).isoformat())
+        for i in range(12)
+    ]
+    signature = watch.normalize_signature(_MERGE_SHA_REFUSAL)
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc))
+    assert candidates == []
+    assert [(item["signature"], item["count"], item["noise"]) for item in noise] == [
+        (signature, 12, "merge refused: full expected_head required"),
+    ]
+
+    db_path = tmp_path / "orchestra.db"
+    assert watch.record_fix(SimpleNamespace(
+        db=str(db_path), signature=_MERGE_SHA_REFUSAL, task="V-1103", commit="example",
+        started_at=started.isoformat(), window_hours=168,
+    )) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: events)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: [])
+    args = SimpleNamespace(db=str(db_path), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_by_class"] == {"merge refused: full expected_head required": 12}
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    assert watch.post_fix_verdict(events, signature, started, 168)["count"] == 0
+
+    failure = "Merge operation x: FAILED — expected_head does not match worker_wip HEAD."
+    failure_events = [
+        dict(_event(failure, source="logs"), ts=(started + timedelta(seconds=i)).isoformat())
+        for i in range(12)
+    ]
+    events.extend(failure_events)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    assert [(item["signature"], item["count"]) for item in signals] == [(failure, 12)]
+    assert verdicts == []
+    state = watch._load_state(tmp_path / "error_watch.json")
+    assert set(state["alerts"]) == {failure}
+    assert not state["fixes"][signature].get("recurrence_reported")
+    assert watch.post_fix_verdict(events, failure, started, 168)["count"] == 12
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(tmp_path / "error_watch.json") == state
+
+
 def test_hub_turn_failure_signatures_preserve_error_class_and_http_status():
     causes = [
         ("ReadError('connection reset')", "ReadError"),

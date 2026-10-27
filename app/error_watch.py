@@ -39,6 +39,14 @@ _CODEX_QUOTA_RESET = (
 _CODEX_QUOTA_REFUSAL = re.compile(
     rf"^квота Codex исчерпана, сброс {_CODEX_QUOTA_RESET}(?:, {_CODEX_QUOTA_RESET})*$", re.I,
 )
+# Match only the recoverable input refusal, including its complete recovery hint.
+# Other expected_head failures and appended gate/conflict errors remain visible.
+_MERGE_EXPECTED_HEAD_REFUSAL = re.compile(
+    r"\AMerge operation [^\s:]+: FAILED — "
+    r"expected_head must be the full (?:\d+|<N>)-character SHA from worker_wip\. "
+    r"Inspect worker_wip and supply its full SHA and a meaningful acceptance_note, "
+    r"then start a new operation\.\Z", re.I,
+)
 _NOISE = (
     ("hub provider limit", _HUB_PROVIDER_LIMIT),
     ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
@@ -49,6 +57,7 @@ _NOISE = (
     ("expected command termination", re.compile(r"command exited with code", re.I)),
     ("merge gate refusal", re.compile(r"DIFF TOO LARGE", re.I)),
     ("merge refused: worker not idle", re.compile(r"Worker is (?:waiting|running); wait until it is idle", re.I)),
+    ("merge refused: full expected_head required", _MERGE_EXPECTED_HEAD_REFUSAL),
     ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
     ("external app tool argument", re.compile(r"This app tool requires", re.I)),
     ("external app unknown tool", re.compile(r"codex_apps/.*Unknown tool", re.I)),
@@ -297,6 +306,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
         if (event_signature := normalize_signature(event["message"])) == signature
         and _event_noise(event, event_signature) not in _EXPECTED_HUB_NOISE
         and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
+        and not _MERGE_EXPECTED_HEAD_REFUSAL.fullmatch(event_signature)
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
     ]
