@@ -6,6 +6,13 @@ Before answering about a past event, conversation or decision, search the logs w
 voice-message transcripts too; do not rely only on Markdown files. Quote the relevant
 finding and include its date.
 
+Search method: `search_logs` is a case-insensitive regex over conversation (user messages,
+voice transcripts, agent messages, assistant text); tool output needs `kinds`. Guess 2-4
+words the ORIGINAL text probably used, not the words of the question. Many hits: add a
+word or narrow the dates. No hits: try another word form or a synonym via `a|b`. Read
+the hit with `get_log_context` before answering. If `scan_truncated` is true, narrow
+`date_from`/`date_to`.
+
 owner decision, 2026-10-21: Search past logs before answering from memory because conversations and voice transcripts are retained there.
 
 ## Knowledge — one policy for every role

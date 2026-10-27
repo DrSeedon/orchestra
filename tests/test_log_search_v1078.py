@@ -79,7 +79,7 @@ async def test_mcp_route_database_scope_dates_order_voice_and_limits(database, a
         ])
     result = json.loads(await mcp.search_logs(
         "СБЕР", date_from="2026-10-24", date_to="2026-10-24",
-        agent="project-orchestrator", limit=50,
+        agent="project-orchestrator", limit=50, kinds="all",
     ))
     assert [r["id"] for r in result["results"]] == [5, 4, 1]
     assert [r["type"] for r in result["results"]] == ["tool", "agent message", "user message"]
@@ -95,7 +95,7 @@ async def test_mcp_route_database_scope_dates_order_voice_and_limits(database, a
     assert limited["result_limit_reached"] and limited["scanned"] == 1
     empty = json.loads(await mcp.search_logs("absent", date_from="2026-10-24",
                                            date_to="2026-10-24"))
-    assert empty["results"] == [] and empty["scanned"] == 4
+    assert empty["results"] == [] and empty["scanned"] == 3
     assert not empty["result_limit_reached"] and not empty["scan_truncated"]
 
 

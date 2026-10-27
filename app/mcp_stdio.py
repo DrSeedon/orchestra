@@ -1957,11 +1957,20 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
 @mcp.tool()
 async def search_logs(query: str, date_from: str = "", date_to: str = "",
                       agent: str = "", all_projects: bool = False,
-                      limit: int = 20) -> str:
-    """Search past user messages, voice transcripts, assistant text, tools, and agent messages.
+                      limit: int = 20, kinds: str = "") -> str:
+    """Search past conversation: user messages, voice transcripts, agent messages, assistant text.
 
     Dates use YYYY-MM-DD. Searches this caller's project by default; set all_projects=true
     explicitly to search every project. Results include log ids for get_log_context.
+    By default only conversation (user_message, text) is scanned. kinds is a comma list of
+    log types to scan instead (tool, tool_result, thinking, status, ...; "all" = every type).
+    The query is a case-insensitive regex, e.g. "violet|lilac"; invalid or nested-quantifier
+    patterns are matched as plain text. Each call scans at most 10000 newest rows
+    (scan_truncated=true means older rows were not looked at: narrow date_from/date_to).
+
+    Method: guess 2-4 distinctive words the ORIGINAL text probably used, not the words of
+    your question. Too many hits: add a word or narrow the dates. No hits: another word
+    form or a synonym via "a|b". Read the hit with get_log_context, then answer.
     """
     params: dict[str, Any] = {
         "query": query,
@@ -1976,6 +1985,8 @@ async def search_logs(query: str, date_from: str = "", date_to: str = "",
         params["date_to"] = date_to
     if agent:
         params["agent"] = agent
+    if kinds:
+        params["kinds"] = kinds
     result = await _api("GET", "/api/logs/search", params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"

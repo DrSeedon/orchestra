@@ -34,6 +34,7 @@ from app.db import (
     get_runtime_handoff,
     get_session as get_session_row,
     get_session_by_name,
+    parse_log_kinds,
     search_logs,
 )
 from app.deps import manager
@@ -58,7 +59,7 @@ router = APIRouter()
 async def search_logs_endpoint(query: str, scope: str | None = None,
                               all_projects: bool = False, agent: str | None = None,
                               date_from: str | None = None, date_to: str | None = None,
-                              limit: int = 20):
+                              limit: int = 20, kinds: str | None = None):
     query = query.strip()
     if not query or len(query) > 200:
         return JSONResponse({"error": "query must contain 1–200 characters"}, status_code=400)
@@ -80,12 +81,16 @@ async def search_logs_endpoint(query: str, scope: str | None = None,
         return JSONResponse({"error": "agent must contain 1–100 characters"}, status_code=400)
     if agent is not None:
         agent = agent.strip()
+    try:
+        parse_log_kinds(kinds)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
     # The worker owns the SQLite connection for its entire lifetime. AnyIO bounds
     # concurrent workers; cancellation never closes a connection from the loop.
     result = await run_in_threadpool(
         search_logs,
         query, scope=None if all_projects else scope, agent=agent,
-        date_from=date_from, date_to=date_to, limit=max(1, min(limit, 50)),
+        date_from=date_from, date_to=date_to, limit=max(1, min(limit, 50)), kinds=kinds,
     )
     return JSONResponse(result)
 
