@@ -1,0 +1,187 @@
+[
+  {
+    "id": "terra",
+    "url": "https://developers.openai.com/api/docs/models/gpt-6.1-terra.md",
+    "finalURL": "https://developers.openai.com/api/docs/models/gpt-6.1-terra.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.579091+00:00",
+    "privateFile": "terra.md",
+    "bytes": 4178,
+    "sha256": "cd34faa8904d85961ab5fe270f079b8be45a9c876af6c809b38b2c069f687a7a"
+  },
+  {
+    "id": "luna",
+    "url": "https://developers.openai.com/api/docs/models/gpt-6-luna.md",
+    "finalURL": "https://developers.openai.com/api/docs/models/gpt-6-luna.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.566708+00:00",
+    "privateFile": "luna.md",
+    "bytes": 4111,
+    "sha256": "20b10b062d96a4b0745f7675624c564271a229046c5fafc9e63c76f776dcee59"
+  },
+  {
+    "id": "sol",
+    "url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol.md",
+    "finalURL": "https://developers.openai.com/api/docs/models/gpt-6.1-sol.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.575367+00:00",
+    "privateFile": "sol.md",
+    "bytes": 3886,
+    "sha256": "374c323fe934443bd6d5f90f3e16dc4fb06552c83bde433dee60b0a84d9bd388"
+  },
+  {
+    "id": "selection",
+    "url": "https://developers.openai.com/api/docs/guides/model-selection.md",
+    "finalURL": "https://developers.openai.com/api/docs/guides/model-selection.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.474528+00:00",
+    "privateFile": "selection.md",
+    "bytes": 4480,
+    "sha256": "7215c1367a2ed0505116182e7a8e2f14b8001a6822b53e5545a2bc94f1930410"
+  },
+  {
+    "id": "codex-pricing",
+    "url": "https://developers.openai.com/codex/pricing.md",
+    "finalURL": "https://learn.chatgpt.com/docs/pricing.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.751475+00:00",
+    "privateFile": "codex-pricing.md",
+    "bytes": 46857,
+    "sha256": "8661157d337fb17d1a7b3ed43e4109883bc7622ab18e0523830a612959dd7351"
+  },
+  {
+    "id": "pricing",
+    "url": "https://developers.openai.com/api/docs/pricing.md",
+    "finalURL": "https://developers.openai.com/api/docs/pricing.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.602135+00:00",
+    "privateFile": "pricing.md",
+    "bytes": 22824,
+    "sha256": "93d302a9b7a384877533bc3ab5bb48eebf4b56bd6add0f194095054b2a13f952"
+  },
+  {
+    "id": "codex-models",
+    "url": "https://developers.openai.com/codex/models.md",
+    "finalURL": "https://learn.chatgpt.com/docs/models.md",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:32:27.783002+00:00",
+    "privateFile": "codex-models.md",
+    "bytes": 19360,
+    "sha256": "87a2915f285b10cafd7e5bc8875edd640d273fe63a4ec0cd13a62866e75828fb"
+  },
+  {
+    "id": "system-card",
+    "url": "https://deploymentsafety.openai.com/gpt-6-1-terra",
+    "finalURL": "https://deploymentsafety.openai.com/gpt-6-1-terra",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:33:23.471783+00:00",
+    "privateFile": "system-card.html",
+    "bytes": 492081,
+    "sha256": "7555f194c2ec69d203eb05461aea9ed5c5f1a77482a6510c9f5ac94835a48d2d"
+  },
+  {
+    "id": "telegram-embed-secondary",
+    "url": "https://t.me/forgetmeai/6481?embed=1&mode=tme",
+    "finalURL": "https://t.me/forgetmeai/6481?embed=1&mode=tme",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:34:16.785739+00:00",
+    "privateFile": "telegram-embed.html",
+    "bytes": 19069,
+    "sha256": "1a9ddfed38ce24a75441fcd4a3e232013f7cff4adc7f1f7d6c791fa6d6c73be5"
+  },
+  {
+    "id": "launch-hydration-chart-extraction",
+    "url": "https://openai.com/index/introducing-gpt-6-1-terra/",
+    "retrievedAt": "2026-10-27T05:32:01.172Z",
+    "privateFile": "launch-chart-payloads.json",
+    "bytes": 45528,
+    "sha256": "d7d664bf5e7e5102cbccfb00dc0cc223f98fdf108e7e35ad4069cd846cbae485",
+    "method": "browser DOM inline self.__next_f.push payloads JSON-decoded; balanced-object extraction without numeric reconstruction",
+    "decodedHydrationBytes": 222558,
+    "decodedHydrationSHA256": "8530fdbb0dec2ac594b08aeac56bc290f5b550970b7777a721a809602c616d0e",
+    "publicationDateText": "October 26, 2026",
+    "charts": [
+      {
+        "id": "C1",
+        "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#agents-last-exam-v1",
+        "retrievedAt": "2026-10-27T05:32:01.172Z",
+        "title": "Agents’ Last Exam v1",
+        "offsetInDecodedHydration": 143813,
+        "rawSpecBytes": 6425,
+        "rawSpecSHA256": "cb83794dfb40d86e298ac4e3feedd34410cc5b37e5f4bea78dc8d7b1a2062140",
+        "publishedRows": 26
+      },
+      {
+        "id": "C2",
+        "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#mmmu-pro-vision",
+        "retrievedAt": "2026-10-27T05:32:01.172Z",
+        "title": "MMMU-Pro (Vision)",
+        "offsetInDecodedHydration": 161422,
+        "rawSpecBytes": 9493,
+        "rawSpecSHA256": "7afec46b50d1cfdec607d5eea30a93ed6d4002f6be035b96c87684e18834b32e",
+        "publishedRows": 25
+      },
+      {
+        "id": "C3",
+        "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#osworld-2-1-offline",
+        "retrievedAt": "2026-10-27T05:32:01.172Z",
+        "title": "OSWorld 2.1, offline set",
+        "offsetInDecodedHydration": 176578,
+        "rawSpecBytes": 6990,
+        "rawSpecSHA256": "e9d0b384403f9ff8401212ab22ae506259aecc0b3ae03ce7caa4b2849a45200a",
+        "publishedRows": 30
+      },
+      {
+        "id": "C4",
+        "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#factuality",
+        "retrievedAt": "2026-10-27T05:32:01.172Z",
+        "title": "Factual error rate on difficult prompts (lower is better)",
+        "offsetInDecodedHydration": 189828,
+        "rawSpecBytes": 6260,
+        "rawSpecSHA256": "82989f54960a9114add227b297044e7cadb84c3ff0dc2e3580d842a8ed1b2398",
+        "publishedRows": 25
+      },
+      {
+        "id": "C5",
+        "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-4-0",
+        "retrievedAt": "2026-10-27T05:32:01.172Z",
+        "title": "Terminal-Bench 4.0",
+        "offsetInDecodedHydration": 201949,
+        "rawSpecBytes": 5132,
+        "rawSpecSHA256": "f3b4d5de387faae47325b02aa400f2696f775f328d3200c93e0927df45c517df",
+        "publishedRows": 21
+      },
+      {
+        "id": "C6",
+        "sourceURL": "https://openai.com/index/introducing-gpt-6-1-terra/#terminal-bench-science-0-1",
+        "retrievedAt": "2026-10-27T05:32:01.172Z",
+        "title": "Terminal-Bench-Science 0.1",
+        "offsetInDecodedHydration": 212809,
+        "rawSpecBytes": 5145,
+        "rawSpecSHA256": "2dcb5dd4decaaee123a20ddee3a1dc50530b14916f7559229e190bab540046e4",
+        "publishedRows": 16
+      }
+    ]
+  },
+  {
+    "id": "shneural-1435-author-small-test",
+    "url": "https://t.me/shneural/1435?embed=1&mode=tme",
+    "finalURL": "https://t.me/shneural/1435?embed=1&mode=tme",
+    "status": 200,
+    "retrievedAt": "2026-10-27T05:38:27.710525+00:00",
+    "privateFile": "shneural-1435.html",
+    "bytes": 18238,
+    "sha256": "242f8d299d5cfe4ad0dea0ab3b75089f6926e09176cc945c173639e3713710f6",
+    "sourceClass": "author small test; not OpenAI; forwarded by owner via root"
+  },
+  {
+    "id": "shneural-1435-author-chart",
+    "url": "https://t.me/shneural/1435",
+    "retrievedAt": "2026-10-27T05:38:40.839473+00:00",
+    "status": 200,
+    "privateFile": "shneural-1435.jpg",
+    "bytes": 43512,
+    "sha256": "ce2b3e45d9fe4beb0778d6d176d7b8c830dae75ea11e4e938fcbc40bb8d9cb11",
+    "sourceClass": "embedded chart image; exact CDN URL retained in private manifest"
+  }
+]
