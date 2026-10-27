@@ -1,0 +1,5 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 85ms
+<HUB_WORKSPACE>/.venv/bin/python: can't open file '<HUB_WORKSPACE>/scripts/check_instruction_contract.py': [Errno 2] No such file or directory
+Sanitized: raw hub workspace path replaced with <HUB_WORKSPACE>; byte-for-byte original privately preserved by root.
