@@ -15,7 +15,7 @@ def relative(value):
 def read(path):
     path = Path(path).resolve()
     c = json.loads(path.read_text())
-    allowed = {'version', 'name', 'source', 'prompt', 'oracle', 'controls', 'arms', 'timeout_seconds', 'grace_seconds', 'budget_usd', 'preparation_cost_usd', 'preparation_cost_note', 'writable_paths', 'runtime_paths'}
+    allowed = {'version', 'name', 'source', 'prompt', 'oracle', 'controls', 'arms', 'timeout_seconds', 'grace_seconds', 'budget_usd', 'preparation_cost_usd', 'preparation_cost_note', 'writable_paths', 'runtime_paths', 'sandbox'}
     if set(c) - allowed:
         raise ValueError(f'unknown configuration keys: {sorted(set(c)-allowed)}')
     if c.get('version') != 1:
@@ -53,8 +53,15 @@ def read(path):
                 if not original.is_file():
                     raise ValueError(f'overlay file absent: {original}')
                 group[target] = str(original)
-    if c.get('controls', {}).get('expect_baseline_failure') and not c.get('controls', {}).get('reference_files'):
-        raise ValueError('red baseline control requires reference_files')
+    controls = c.get('controls', {})
+    if controls.get('expect_baseline_failure') and not (controls.get('reference_files') or controls.get('reference_response')):
+        raise ValueError('red baseline control requires reference_files or reference_response')
+    # Answer-style questions: the control feeds a recorded response to the oracle as {response}.
+    if controls.get('reference_response'):
+        controls['reference_response'] = response_file(base, controls['reference_response'])
+    for label, original in list(controls.get('negative_responses', {}).items()):
+        relative(label)
+        controls['negative_responses'][label] = response_file(base, original)
     arms = c.get('arms', [])
     names = [a.get('name') for a in arms]
     if not arms or len(set(names)) != len(names):
@@ -81,6 +88,9 @@ def read(path):
     if len(modes) != 1:
         raise ValueError('do not mix synthetic fixtures and provider arms in one comparison')
     c['_provider'] = not next(iter(modes))
+    if c.get('sandbox', 'bwrap') not in ('bwrap', 'none'):
+        raise ValueError("sandbox must be 'bwrap' or 'none'")
+    c['_unboxed'] = c['_provider'] and c.get('sandbox') == 'none'
     for key, default, minimum in [('timeout_seconds', 600, 0.01), ('grace_seconds', 15, 0.01), ('budget_usd', 0, 0)]:
         c.setdefault(key, default)
         finite(c[key], minimum, key)
@@ -95,6 +105,13 @@ def read(path):
             raise ValueError('sum of reserved arm budgets exceeds run budget')
     c['runtime_paths'] = [str((base / p).resolve()) for p in c.get('runtime_paths', [])]
     return c
+
+
+def response_file(base, name):
+    path = (base / name).resolve()
+    if not path.is_file():
+        raise ValueError(f'control response absent: {path}')
+    return str(path)
 
 
 def finite(value, minimum, label):
