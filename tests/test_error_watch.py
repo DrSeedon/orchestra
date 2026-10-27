@@ -707,6 +707,62 @@ def _insert_error_rows(path, rows, stamp):
         )
 
 
+@pytest.mark.parametrize("message", ["Terminated", "Terminated ", "Terminated\n", " \tTerminated\r\n"])
+def test_bash_terminated_result_is_noise(message):
+    event = dict(_event(message, source="logs"), type="tool_result", tool_name="Bash")
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert candidates == []
+    assert [(item["signature"], item["count"], item["noise"]) for item in noise] == [
+        ("Terminated", 1, "bash child process termination"),
+    ]
+
+
+@pytest.mark.parametrize("overrides", [
+    {"tool_name": "Read"},
+    {"tool_name": "hub"},
+    {"tool_name": "bash"},
+    {"tool_name": None},
+    {"type": "error"},
+    {"type": "tool_use"},
+    {"type": None},
+    {"source": "journalctl"},
+    {"source": None},
+    {"message": "Traceback (most recent call last):\nRuntimeError: Terminated"},
+    {"message": "Terminated\nTraceback (most recent call last):\nRuntimeError: failed"},
+    {"message": "Terminated unexpectedly"},
+    {"message": "terminated"},
+])
+def test_other_terminated_events_stay_actionable(overrides):
+    event = dict(_event("Terminated", source="logs"), type="tool_result", tool_name="Bash")
+    event.update(overrides)
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert [(item["signature"], item["count"]) for item in candidates] == [
+        (watch.normalize_signature(event["message"]), 1),
+    ]
+    assert noise == []
+
+
+def test_bash_terminated_scan_reports_noise_separately_from_other_tool(
+    hub_finish_db, monkeypatch, capsys,
+):
+    now = datetime.now(timezone.utc)
+    _insert_error_rows(hub_finish_db, [("tool_result", "Terminated\n", "Bash", 1)] * 10, now)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_by_class"] == {"bash child process termination": 10}
+    assert output["noise_events"] == 10
+
+    _insert_error_rows(hub_finish_db, [("tool_result", "Terminated", "Read", 1)] * 10, now)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert [(item["signature"], item["count"]) for item in output["signals"]] == [("Terminated", 10)]
+    assert output["noise_by_class"] == {"bash child process termination": 10}
+
+
 def test_hub_finish_db_provenance_separates_identical_command_errors_at_threshold(hub_finish_db, hub_finish_row):
     now = datetime.now(timezone.utc)
     assert hub_finish_row == ("tool_result", "(not finished)", "hub", 1)

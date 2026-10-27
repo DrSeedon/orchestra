@@ -28,6 +28,7 @@ _HUB_CREDENTIAL_REFUSAL = re.compile(
     r"the task prompt contains a credential-shaped string; refusing to send it to the hub", re.I,
 )
 _HUB_UNFINISHED_TOOL_NOISE = "hub unfinished tool closure"
+_BASH_TERMINATED_NOISE = "bash child process termination"
 _EXPECTED_HUB_NOISE = {"hub provider limit", "hub credential guard refusal", _HUB_UNFINISHED_TOOL_NOISE}
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
@@ -157,6 +158,10 @@ def _event_noise(event: dict, signature: str) -> str | None:
     if (event.get("source") == "logs" and event.get("type") == "tool_result"
             and event.get("tool_name") == "hub" and event["message"] == "(not finished)"):
         return _HUB_UNFINISHED_TOOL_NOISE
+    # Bash prints this when a command terminates its own child process.
+    if (event.get("source") == "logs" and event.get("type") == "tool_result"
+            and event.get("tool_name") == "Bash" and event["message"].strip() == "Terminated"):
+        return _BASH_TERMINATED_NOISE
     if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE:
         return _FOREIGN_PROJECT_PYTEST_NOISE
     return classify_noise(signature)
