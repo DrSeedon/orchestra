@@ -1,0 +1,1531 @@
+{
+  "task": "V-1096",
+  "counting_rule": "Одна строка на один реально прочитанный bullet '* ' SKILL.md, включая 3 фазовых bullet; 61 строка. Frontmatter и заголовки не считаются.",
+  "facts": [
+    {
+      "id": "R01",
+      "rule": "Порядок: работоспособность",
+      "mechanism": "Текстовый порядок фаз.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 12,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L12"
+      },
+      "claim": "Сначала получить работающий результат.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Нет машины состояний фаз.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Нет машины состояний фаз.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R02",
+      "rule": "Порядок: качество",
+      "mechanism": "Текстовый порядок фаз.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 13,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L13"
+      },
+      "claim": "После работоспособности улучшить устройство.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Фактическое выполнение фаз не регистрируется.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Фактическое выполнение фаз не регистрируется.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R03",
+      "rule": "Порядок: практика",
+      "mechanism": "Текстовое требование.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 14,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L14"
+      },
+      "claim": "После решения соблюдать рабочие практики.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Факт загрузки текста не доказывает исполнение.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Факт загрузки текста не доказывает исполнение.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R04",
+      "rule": "Единственный владелец решения",
+      "mechanism": "Архитектурное суждение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 20,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L20"
+      },
+      "claim": "Не дублировать одно решение.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Механического поиска одинаковых решений нет.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Механического поиска одинаковых решений нет.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R05",
+      "rule": "Минимальное исправление",
+      "mechanism": "Самоконтроль размера.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 21,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L21"
+      },
+      "claim": "Ограничить edit решаемой проблемой.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Лимит вставок не доказывает минимальность.",
+      "Orchestraequivalent": {
+        "reference": "B",
+        "rules": "code-quality.md:9,13-16,36-39; git-workflow.md:29-42",
+        "code": "app/diff_budget.py:16,27-117; app/workspace.py:1699-1716; app/routes/merge_operations.py:51-61",
+        "tests": "tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Лимит вставок не доказывает минимальность.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R06",
+      "rule": "Сначала структура данных",
+      "mechanism": "Порядок проектирования.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 25,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L25"
+      },
+      "claim": "Определить представление до алгоритма.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Наличие типов/структур не доказывает удачный выбор.",
+      "Orchestraequivalent": {
+        "reference": "D",
+        "rules": "AGENTS.md:89-95; code-quality.md:91-97",
+        "code": "Частный пример: app/merge_operations.py:671-843 — транзакции и один исполнитель, не общая проверка архитектуры.",
+        "tests": "tests/test_merge_operations.py:77-123 — конкурирующие процессы; :126+ — один executor (прочитаны части, не запускались)."
+      },
+      "gap": "Наличие типов/структур не доказывает удачный выбор.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R07",
+      "rule": "Порядок по полезности",
+      "mechanism": "Планирование зависимостей.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 26,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L26"
+      },
+      "claim": "Начать с шага, полезного последующим фазам.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Критерий полезности не формализован.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Критерий полезности не формализован.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R08",
+      "rule": "Несовместимые писатели",
+      "mechanism": "Структурное разделение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 27,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L27"
+      },
+      "claim": "Избежать общего состояния при значимой конкуренции.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Изолированная мутация файла не изолирует внешние ресурсы.",
+      "Orchestraequivalent": {
+        "reference": "D",
+        "rules": "AGENTS.md:89-95; code-quality.md:91-97",
+        "code": "Частный пример: app/merge_operations.py:671-843 — транзакции и один исполнитель, не общая проверка архитектуры.",
+        "tests": "tests/test_merge_operations.py:77-123 — конкурирующие процессы; :126+ — один executor (прочитаны части, не запускались)."
+      },
+      "gap": "Изолированная мутация файла не изолирует внешние ресурсы.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R09",
+      "rule": "Red-before-green: сначала тест",
+      "mechanism": "TDD как инструкция.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 31,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L31"
+      },
+      "claim": "До изменения кода написать падающий тест.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Rollback после реализации не доказывает хронологию TDD.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Rollback после реализации не доказывает хронологию TDD.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R10",
+      "rule": "Red: нужная причина",
+      "mechanism": "Причинная проверка красного.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 32,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L32"
+      },
+      "claim": "Наблюдать ожидаемую причину падения.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Любой ненулевой exit не является нужной причиной.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Любой ненулевой exit не является нужной причиной.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R11",
+      "rule": "Green: минимальное изменение",
+      "mechanism": "Малый edit после red.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 33,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L33"
+      },
+      "claim": "Достичь зелёного минимальным исправлением.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Размер diff не измеряет достаточность исправления.",
+      "Orchestraequivalent": {
+        "reference": "B",
+        "rules": "code-quality.md:9,13-16,36-39; git-workflow.md:29-42",
+        "code": "app/diff_budget.py:16,27-117; app/workspace.py:1699-1716; app/routes/merge_operations.py:51-61",
+        "tests": "tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Размер diff не измеряет достаточность исправления.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R12",
+      "rule": "Честный тест",
+      "mechanism": "Исключение к TDD.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 34,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L34"
+      },
+      "claim": "Не подменять невозможный содержательный тест плохим.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Исключение требует суждения; возможно злоупотребление.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Исключение требует суждения; возможно злоупотребление.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R13",
+      "rule": "Новый дизайн: без пристройки",
+      "mechanism": "Архитектурное суждение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 38,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L38"
+      },
+      "claim": "Пересмотреть старую структуру для нового требования.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Может расширить scope согласованной задачи.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Может расширить scope согласованной задачи.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R14",
+      "rule": "Новый дизайн: по частям",
+      "mechanism": "План и последовательность.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 39,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L39"
+      },
+      "claim": "Продумать исходный дизайн с новым требованием, доставлять частями.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Части без проверки не доказывают совместимость.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Части без проверки не доказывают совместимость.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R15",
+      "rule": "После двух неудач: предпосылка",
+      "mechanism": "Условный диагностический протокол.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 43,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L43"
+      },
+      "claim": "Назвать общую предпосылку и сосчитать участников дисбаланса.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не заданы формат actor/imbalance и машинный gate.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Не заданы формат actor/imbalance и машинный gate.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R16",
+      "rule": "Убрать assignment",
+      "mechanism": "Неоднозначное предметное действие.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 44,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L44"
+      },
+      "claim": "Текст требует убрать assignment после этого анализа.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не определено, какую именно assignment убрать; смысл не достраивался.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Не определено, какую именно assignment убрать; смысл не достраивался.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R17",
+      "rule": "Остановка третьей попытки",
+      "mechanism": "Запрет в тексте.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 45,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L45"
+      },
+      "claim": "Не продолжать исправления до предыдущих шагов.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Счётчика попыток и блокировки tools нет.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Счётчика попыток и блокировки tools нет.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R18",
+      "rule": "Уменьшать сложность заранее",
+      "mechanism": "Архитектурное суждение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 49,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L49"
+      },
+      "claim": "Убирать сложность перед добавлением.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Автоматическое уменьшение метрики не доказывает качество.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Автоматическое уменьшение метрики не доказывает качество.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R19",
+      "rule": "Проверяемый итог",
+      "mechanism": "Приёмка по результату.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 53,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L53"
+      },
+      "claim": "Задать наблюдаемое конечное состояние.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Неполный oracle пропускает дефекты.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Неполный oracle пропускает дефекты.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R20",
+      "rule": "Обратимая промежуточная поломка",
+      "mechanism": "План восстановления.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 54,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L54"
+      },
+      "claim": "Допускается запланированная обратимая поломка в процессе.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не даёт разрешения ломать live-сервис.",
+      "Orchestraequivalent": {
+        "reference": "G",
+        "rules": "git-workflow.md:4-16,29-42; orchestration.md:93-100; AGENTS.md:24-37",
+        "code": "app/merge_operations.py:248-255,2430-2500; app/routes/merge_operations.py:51-61; app/workspace.py:1699-1735",
+        "tests": "tests/test_work_acceptance.py:43-83; tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Не даёт разрешения ломать live-сервис.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R21",
+      "rule": "Автоматизировать неочевидную работу",
+      "mechanism": "Создание локального рычага.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 58,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L58"
+      },
+      "claim": "Создать инструмент для сложной операции.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Дополнительный инструмент сам нуждается в проверке.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Дополнительный инструмент сам нуждается в проверке.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R22",
+      "rule": "Ручной эталон автоматизации",
+      "mechanism": "Эталон на одном примере.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 59,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L59"
+      },
+      "claim": "Сделать одну единицу вручную, сверить автоматизацию.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Один пример не покрывает границы.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Один пример не покрывает границы.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R23",
+      "rule": "Модель домена",
+      "mechanism": "Дизайн представления.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 65,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L65"
+      },
+      "claim": "Структурой исключить незаконные состояния.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Универсального доказательства невозможности нет.",
+      "Orchestraequivalent": {
+        "reference": "D",
+        "rules": "AGENTS.md:89-95; code-quality.md:91-97",
+        "code": "Частный пример: app/merge_operations.py:671-843 — транзакции и один исполнитель, не общая проверка архитектуры.",
+        "tests": "tests/test_merge_operations.py:77-123 — конкурирующие процессы; :126+ — один executor (прочитаны части, не запускались)."
+      },
+      "gap": "Универсального доказательства невозможности нет.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R24",
+      "rule": "Глоссарий",
+      "mechanism": "Документирование.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 66,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L66"
+      },
+      "claim": "Вести словарь доменных терминов.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Нет проверки наличия/актуальности словаря.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Нет проверки наличия/актуальности словаря.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R25",
+      "rule": "Сохранить ясный локальный код",
+      "mechanism": "Ограничение рефакторинга.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 67,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L67"
+      },
+      "claim": "Не перестраивать уже понятное локальное решение.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Оценка ясности субъективна.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Оценка ясности субъективна.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R26",
+      "rule": "Проверять входную границу",
+      "mechanism": "Граничная валидация.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 71,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L71"
+      },
+      "claim": "Валидировать поступающие данные.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Видимая валидация SHA — пример, не универсальное правило.",
+      "Orchestraequivalent": {
+        "reference": "G",
+        "rules": "git-workflow.md:4-16,29-42; orchestration.md:93-100; AGENTS.md:24-37",
+        "code": "app/merge_operations.py:248-255,2430-2500; app/routes/merge_operations.py:51-61; app/workspace.py:1699-1735",
+        "tests": "tests/test_work_acceptance.py:43-83; tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Видимая валидация SHA — пример, не универсальное правило.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R27",
+      "rule": "Доверять внутри границы",
+      "mechanism": "Архитектурное правило.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 72,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L72"
+      },
+      "claim": "После проверки опираться на внутренний контракт.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не отменяет authorization/integrity checks конкретной операции.",
+      "Orchestraequivalent": {
+        "reference": "R",
+        "rules": "orchestration.md:54-66; code-quality.md:45-69; AGENTS.md:85-93",
+        "code": "Причину ошибки программа в общем случае не устанавливает; merge rollback проверяет лишь наблюдаемость изменения (T).",
+        "tests": "tests/test_merge_test_gate.py:239-444 — смежные поведенческие проверки; общего root-cause oracle нет."
+      },
+      "gap": "Не отменяет authorization/integrity checks конкретной операции.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R28",
+      "rule": "Чистая бизнес-функция",
+      "mechanism": "Архитектурное правило.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 73,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L73"
+      },
+      "claim": "Выделять бизнес-логику без побочных эффектов.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Чистота в Python автоматически не контролируется здесь.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Чистота в Python автоматически не контролируется здесь.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R29",
+      "rule": "Невыразимое незаконное значение",
+      "mechanism": "Типовой дизайн.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 77,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L77"
+      },
+      "claim": "Типом исключать недопустимые значения.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Гарантия зависит от языка и используемых типов.",
+      "Orchestraequivalent": {
+        "reference": "D",
+        "rules": "AGENTS.md:89-95; code-quality.md:91-97",
+        "code": "Частный пример: app/merge_operations.py:671-843 — транзакции и один исполнитель, не общая проверка архитектуры.",
+        "tests": "tests/test_merge_operations.py:77-123 — конкурирующие процессы; :126+ — один executor (прочитаны части, не запускались)."
+      },
+      "gap": "Гарантия зависит от языка и используемых типов.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R30",
+      "rule": "Однократный parsing",
+      "mechanism": "Граничный контракт.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 78,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L78"
+      },
+      "claim": "Разбирать внешние данные на границе один раз.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Повторная проверка полномочий может быть самостоятельной необходимостью.",
+      "Orchestraequivalent": {
+        "reference": "R",
+        "rules": "orchestration.md:54-66; code-quality.md:45-69; AGENTS.md:85-93",
+        "code": "Причину ошибки программа в общем случае не устанавливает; merge rollback проверяет лишь наблюдаемость изменения (T).",
+        "tests": "tests/test_merge_test_gate.py:239-444 — смежные поведенческие проверки; общего root-cause oracle нет."
+      },
+      "gap": "Повторная проверка полномочий может быть самостоятельной необходимостью.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R31",
+      "rule": "Не подавлять компилятор",
+      "mechanism": "Инструкция для разработки.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 79,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L79"
+      },
+      "claim": "Не скрывать его диагностику.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не задан компилятор/линтер; у динамического кода иной контур.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Не задан компилятор/линтер; у динамического кода иной контур.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R32",
+      "rule": "Идемпотентность и crash recovery",
+      "mechanism": "Свойство операций.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 83,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L83"
+      },
+      "claim": "Повтор и продолжение после сбоя дают тот же итог.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Повтор без ключа идемпотентности и recovery-протокола опасен.",
+      "Orchestraequivalent": {
+        "reference": "I",
+        "rules": "AGENTS.md:91-93; orchestration.md:54-66",
+        "code": "app/merge_operations.py:671-843,846-873 — дедупликация/claim и журнал commit point; частный пример.",
+        "tests": "tests/test_merge_operations.py:77-123,388-445,540-560 — часть найдена rg, первые прочитаны; не запускались."
+      },
+      "gap": "Повтор без ключа идемпотентности и recovery-протокола опасен.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R33",
+      "rule": "Сначала разделить состояние",
+      "mechanism": "Структурное разделение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 87,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L87"
+      },
+      "claim": "Дать независимым участникам отдельные mutable-объекты.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Worktree не изолирует БД, сеть и symlink-ресурсы.",
+      "Orchestraequivalent": {
+        "reference": "D",
+        "rules": "AGENTS.md:89-95; code-quality.md:91-97",
+        "code": "Частный пример: app/merge_operations.py:671-843 — транзакции и один исполнитель, не общая проверка архитектуры.",
+        "tests": "tests/test_merge_operations.py:77-123 — конкурирующие процессы; :126+ — один executor (прочитаны части, не запускались)."
+      },
+      "gap": "Worktree не изолирует БД, сеть и symlink-ресурсы.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R34",
+      "rule": "Общее состояние: один писатель",
+      "mechanism": "Сериализация при необходимости.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 88,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L88"
+      },
+      "claim": "Структурой разрешить только одного писателя.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Транзакционный claim — частный пример, не глобальное single-writer.",
+      "Orchestraequivalent": {
+        "reference": "D",
+        "rules": "AGENTS.md:89-95; code-quality.md:91-97",
+        "code": "Частный пример: app/merge_operations.py:671-843 — транзакции и один исполнитель, не общая проверка архитектуры.",
+        "tests": "tests/test_merge_operations.py:77-123 — конкурирующие процессы; :126+ — один executor (прочитаны части, не запускались)."
+      },
+      "gap": "Транзакционный claim — частный пример, не глобальное single-writer.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R35",
+      "rule": "Root cause: воспроизведение",
+      "mechanism": "Диагностика.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 94,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L94"
+      },
+      "claim": "Сначала воспроизвести сбой.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Без reproducer зелёный тест не закрывает жалобу.",
+      "Orchestraequivalent": {
+        "reference": "R",
+        "rules": "orchestration.md:54-66; code-quality.md:45-69; AGENTS.md:85-93",
+        "code": "Причину ошибки программа в общем случае не устанавливает; merge rollback проверяет лишь наблюдаемость изменения (T).",
+        "tests": "tests/test_merge_test_gate.py:239-444 — смежные поведенческие проверки; общего root-cause oracle нет."
+      },
+      "gap": "Без reproducer зелёный тест не закрывает жалобу.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R36",
+      "rule": "Root cause: исправление",
+      "mechanism": "Диагностика и проверка.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 95,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L95"
+      },
+      "claim": "Устранить причину сбоя.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Mutation score не определяет корневую причину.",
+      "Orchestraequivalent": {
+        "reference": "R",
+        "rules": "orchestration.md:54-66; code-quality.md:45-69; AGENTS.md:85-93",
+        "code": "Причину ошибки программа в общем случае не устанавливает; merge rollback проверяет лишь наблюдаемость изменения (T).",
+        "tests": "tests/test_merge_test_gate.py:239-444 — смежные поведенческие проверки; общего root-cause oracle нет."
+      },
+      "gap": "Mutation score не определяет корневую причину.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R37",
+      "rule": "Root cause: не скрывать падение",
+      "mechanism": "Ограничение защитных проверок.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 96,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L96"
+      },
+      "claim": "Защитный guard, лишь скрывающий crash, недостаточен.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не различать скрывающий guard и обязательную проверку полномочий опасно.",
+      "Orchestraequivalent": {
+        "reference": "R",
+        "rules": "orchestration.md:54-66; code-quality.md:45-69; AGENTS.md:85-93",
+        "code": "Причину ошибки программа в общем случае не устанавливает; merge rollback проверяет лишь наблюдаемость изменения (T).",
+        "tests": "tests/test_merge_test_gate.py:239-444 — смежные поведенческие проверки; общего root-cause oracle нет."
+      },
+      "gap": "Не различать скрывающий guard и обязательную проверку полномочий опасно.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R38",
+      "rule": "Малая проверенная единица",
+      "mechanism": "Последовательная доставка.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 100,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L100"
+      },
+      "claim": "Завершить и проверить один небольшой блок работы.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Порог 2000 строк существенно грубее этого понятия.",
+      "Orchestraequivalent": {
+        "reference": "B",
+        "rules": "code-quality.md:9,13-16,36-39; git-workflow.md:29-42",
+        "code": "app/diff_budget.py:16,27-117; app/workspace.py:1699-1716; app/routes/merge_operations.py:51-61",
+        "tests": "tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Порог 2000 строк существенно грубее этого понятия.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R39",
+      "rule": "Следующая единица после проверки",
+      "mechanism": "Порядок исполнения.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 101,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L101"
+      },
+      "claim": "Переходить дальше после завершения предыдущей.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Нет платформенной блокировки начала следующего edit.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Нет платформенной блокировки начала следующего edit.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R40",
+      "rule": "Поведенческий тест",
+      "mechanism": "Дизайн теста.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 105,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L105"
+      },
+      "claim": "Вызывать публичный путь и проверять наблюдаемый итог.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Замоканные внутренности могут оставить реальный путь непроверенным.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Замоканные внутренности могут оставить реальный путь непроверенным.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R41",
+      "rule": "Null-output oracle",
+      "mechanism": "Контрфактическая проверка oracle в тексте.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 106,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L106"
+      },
+      "claim": "Отбраковать тест, терпящий отсутствие результата всех функций.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Companion mutator не реализует массовую замену return на None; side effects требуют своего oracle.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Companion mutator не реализует массовую замену return на None; side effects требуют своего oracle.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R42",
+      "rule": "Использовать Crapper",
+      "mechanism": "CLI CRAP + coverage.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 110,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L110"
+      },
+      "claim": "Запустить указанный анализатор.",
+      "toolrequirements_supportedlanguages": "Crapper: Python>=3.11, tree-sitter; Clojure/Java/Go/TS+JS/Rust/Python.",
+      "actualenforcement": "SKILL: инструкция; CLI: опциональный threshold, сравнение >.",
+      "failuremode": "Не установлен/не вызван — нет результата; установка SKILL этого не делает.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Интеграция CRAP tool/threshold в проверенном merge-path не найдена.",
+      "adoptioncostconditions": "CC",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R43",
+      "rule": "CRAP строго меньше 10",
+      "mechanism": "Формула и ручное изменение кода.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 111,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L111"
+      },
+      "claim": "Снижать метрику каждой функции тестами/разделением.",
+      "toolrequirements_supportedlanguages": "Crapper: Python>=3.11, tree-sitter; Clojure/Java/Go/TS+JS/Rust/Python.",
+      "actualenforcement": "SKILL: инструкция; CLI: опциональный threshold, сравнение >.",
+      "failuremode": "CLI с --threshold 10 допускает ровно 10; дефолт вообще не блокирует.",
+      "Orchestraequivalent": {
+        "reference": "N",
+        "rules": "Явного соответствующего общего пункта в проверенных модулях/AGENTS не найдено.",
+        "code": "Общий механизм не найден в проверенной области.",
+        "tests": "Соответствующий тест не найден в проверенной области."
+      },
+      "gap": "Интеграция CRAP tool/threshold в проверенном merge-path не найдена.",
+      "adoptioncostconditions": "CC",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R44",
+      "rule": "Оценить case-ветви",
+      "mechanism": "Человеческое суждение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 112,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L112"
+      },
+      "claim": "Отдельно рассудить, стоит ли уменьшать case-конструкции.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Исключение не формализовано и не задаёт иного threshold.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Исключение не формализовано и не задаёт иного threshold.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R45",
+      "rule": "Dryer: пары от 0.8",
+      "mechanism": "Структурные fingerprints/Jaccard.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 116,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L116"
+      },
+      "claim": "Устранять дубли с similarity не ниже 0.8.",
+      "toolrequirements_supportedlanguages": "Dryer: Python>=3.11, tree-sitter; Clojure/Java/Go/TS/Rust/Python; JS extensions отсутствуют.",
+      "actualenforcement": "SKILL: инструкция; CLI: отчёт, не failing gate.",
+      "failuremode": "CLI default 0.82 пропускает [0.8,0.82); даже при находках exit 0.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Структурный duplicate-score gate в проверенном merge-path не найден.",
+      "adoptioncostconditions": "CD",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R46",
+      "rule": "Использовать Mutator",
+      "mechanism": "CLI с baseline и overlay.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 120,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L120"
+      },
+      "claim": "Запустить мутационный инструмент.",
+      "toolrequirements_supportedlanguages": "Mutator + crapper: Python>=3.11, tree-sitter, project tests/coverage; Clojure/Java/Go/TS+JS/Rust/Python.",
+      "actualenforcement": "SKILL: инструкция; CLI: baseline/exit по исполненным мутантам, без semantic correctness oracle.",
+      "failuremode": "Не эквивалент локальному rollback gate; возможен no-op exit 0.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Есть rollback исходников; общего операторного перебора/обязательного coverage-score нет.",
+      "adoptioncostconditions": "CM",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R47",
+      "rule": "Покрыть uncovered",
+      "mechanism": "Агент меняет тесты по отчёту.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 121,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L121"
+      },
+      "claim": "Добавить проверки непокрытых участков.",
+      "toolrequirements_supportedlanguages": "Mutator + crapper: Python>=3.11, tree-sitter, project tests/coverage; Clojure/Java/Go/TS+JS/Rust/Python.",
+      "actualenforcement": "SKILL: инструкция; CLI: baseline/exit по исполненным мутантам, без semantic correctness oracle.",
+      "failuremode": "CLI не исполняет uncovered и не требует их отсутствия.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Есть rollback исходников; общего операторного перебора/обязательного coverage-score нет.",
+      "adoptioncostconditions": "CM",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R48",
+      "rule": "Убить survivors",
+      "mechanism": "Агент усиливает oracle.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 122,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L122"
+      },
+      "claim": "Добиться обнаружения оставшихся мутаций.",
+      "toolrequirements_supportedlanguages": "Mutator + crapper: Python>=3.11, tree-sitter, project tests/coverage; Clojure/Java/Go/TS+JS/Rust/Python.",
+      "actualenforcement": "SKILL: инструкция; CLI: baseline/exit по исполненным мутантам, без semantic correctness oracle.",
+      "failuremode": "Equivalent mutants/сборочные ошибки/таймауты мешают интерпретации score.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Есть rollback исходников; общего операторного перебора/обязательного coverage-score нет.",
+      "adoptioncostconditions": "CM",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R49",
+      "rule": "Удалить мёртвый код",
+      "mechanism": "Агент анализирует достижимость.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 123,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L123"
+      },
+      "claim": "Удалять неиспользуемый код.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Непокрытость не доказывает недостижимость; SKILL не содержит production-root proof.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Непокрытость не доказывает недостижимость; SKILL не содержит production-root proof.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R50",
+      "rule": "Рефакторинг: закрепить контракт",
+      "mechanism": "Набор поведенческих проверок.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 127,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L127"
+      },
+      "claim": "Зафиксировать исходное поведение.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Набор может не описывать старые данные и внешних callers.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Набор может не описывать старые данные и внешних callers.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R51",
+      "rule": "Рефакторинг: структура",
+      "mechanism": "Рефакторинг.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 128,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L128"
+      },
+      "claim": "Изменить устройство при закреплённом поведении.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Scope в Orchestra остаётся ограниченным задачей.",
+      "Orchestraequivalent": {
+        "reference": "Q",
+        "rules": ".orchestra/pipelines/default/prompts/modules/code-quality.md:4-16,36-39,91-97; AGENTS.md:85-93",
+        "code": "Общего семантического запрета нет; отдельные механизмы B/T ниже.",
+        "tests": "Общего теста соблюдения этого инженерного суждения не найдено."
+      },
+      "gap": "Scope в Orchestra остаётся ограниченным задачей.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R52",
+      "rule": "Рефакторинг: эквивалентность",
+      "mechanism": "Сравнение по тестам.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 129,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L129"
+      },
+      "claim": "Проверить сохранение поведения.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Прохождение тестов не является полной семантической эквивалентностью.",
+      "Orchestraequivalent": {
+        "reference": "T",
+        "rules": "code-quality.md:65-87; AGENTS.md:91-95; orchestration.md:93-100",
+        "code": "app/merge_test_gate.py:839-1092; app/merge_operations.py:2053-2140",
+        "tests": "tests/test_merge_test_gate.py:214-444; tests/test_merge_gate_mutation_702.py:1-72 (прочитаны, не запускались)."
+      },
+      "gap": "Прохождение тестов не является полной семантической эквивалентностью.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R53",
+      "rule": "Лог действий и причин",
+      "mechanism": "Ручной журнал.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 135,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L135"
+      },
+      "claim": "Записывать каждое действие с причиной.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Событийный лог не гарантирует объяснение WHY.",
+      "Orchestraequivalent": {
+        "reference": "L",
+        "rules": "AGENTS.md:68-75,103-106; worker-lifecycle.md:55-71",
+        "code": "app/session.py:4822-4875 — запись событий, не доказательство причин каждого действия.",
+        "tests": "tests/test_log_write_loss.py (просмотрен фрагмент); вся последовательность причин автоматически не проверяется."
+      },
+      "gap": "Событийный лог не гарантирует объяснение WHY.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R54",
+      "rule": "Передать лог",
+      "mechanism": "Ручная доставка.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 136,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L136"
+      },
+      "claim": "Отчитаться журналом при завершении.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Локальная запись сама не гарантирует доставку; сырые журналы могут содержать секреты.",
+      "Orchestraequivalent": {
+        "reference": "L",
+        "rules": "AGENTS.md:68-75,103-106; worker-lifecycle.md:55-71",
+        "code": "app/session.py:4822-4875 — запись событий, не доказательство причин каждого действия.",
+        "tests": "tests/test_log_write_loss.py (просмотрен фрагмент); вся последовательность причин автоматически не проверяется."
+      },
+      "gap": "Локальная запись сама не гарантирует доставку; сырые журналы могут содержать секреты.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R55",
+      "rule": "Сдерживать основной контекст",
+      "mechanism": "Дисциплина контекста.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 140,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L140"
+      },
+      "claim": "Держать главный thread небольшим.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Нет заданного числа токенов и enforcement в SKILL.",
+      "Orchestraequivalent": {
+        "reference": "C",
+        "rules": "orchestration.md:257-262,293; worker-lifecycle.md:8-21",
+        "code": "В этой проверке механизм лимита размера main-thread не исследован.",
+        "tests": "Не найден/не проверен тест ограничения размера main-thread."
+      },
+      "gap": "Нет заданного числа токенов и enforcement в SKILL.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R56",
+      "rule": "Выносить объём и хранить summary",
+      "mechanism": "Разделение контекста.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 141,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L141"
+      },
+      "claim": "Переносить подробности, оставлять сводку.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Не предписана конкретная модель/делегатор; summary может терять факты.",
+      "Orchestraequivalent": {
+        "reference": "C",
+        "rules": "orchestration.md:257-262,293; worker-lifecycle.md:8-21",
+        "code": "В этой проверке механизм лимита размера main-thread не исследован.",
+        "tests": "Не найден/не проверен тест ограничения размера main-thread."
+      },
+      "gap": "Не предписана конкретная модель/делегатор; summary может терять факты.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R57",
+      "rule": "Безопасная очистка",
+      "mechanism": "Инструкция; локально есть recoverability check.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 145,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L145"
+      },
+      "claim": "Доказать ненужность копий перед освобождением диска.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Завершение merge не доказывает завершение линии persistent worker.",
+      "Orchestraequivalent": {
+        "reference": "W",
+        "rules": "worker-lifecycle.md:23-39; git-workflow.md:44-53; AGENTS.md:30-37",
+        "code": "app/worktree_cleanup.py:1-240; app/merge_operations.py:2254-2303; app/routes/sessions.py:2197-2266 (force обходит часть guard).",
+        "tests": "tests/test_worktree_cleanup_v984.py:71-151; tests/test_worktree_cleanup_v1072.py:44-120 (прочитаны, не запускались)."
+      },
+      "gap": "Завершение merge не доказывает завершение линии persistent worker.",
+      "adoptioncostconditions": "CW",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R58",
+      "rule": "Решение по незакоммиченному",
+      "mechanism": "Отложенное решение.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 146,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L146"
+      },
+      "claim": "Не удалять незакоммиченную работу автоматически.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "delete_session(force=true) обходит обычные WIP-проверки; запрет шире механики.",
+      "Orchestraequivalent": {
+        "reference": "W",
+        "rules": "worker-lifecycle.md:23-39; git-workflow.md:44-53; AGENTS.md:30-37",
+        "code": "app/worktree_cleanup.py:1-240; app/merge_operations.py:2254-2303; app/routes/sessions.py:2197-2266 (force обходит часть guard).",
+        "tests": "tests/test_worktree_cleanup_v984.py:71-151; tests/test_worktree_cleanup_v1072.py:44-120 (прочитаны, не запускались)."
+      },
+      "gap": "delete_session(force=true) обходит обычные WIP-проверки; запрет шире механики.",
+      "adoptioncostconditions": "CW",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R59",
+      "rule": "Малые частые коммиты",
+      "mechanism": "Git-практика.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 150,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L150"
+      },
+      "claim": "Коммитить небольшими упорядоченными порциями.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Orchestra squash оставляет в main один commit на задачу.",
+      "Orchestraequivalent": {
+        "reference": "G",
+        "rules": "git-workflow.md:4-16,29-42; orchestration.md:93-100; AGENTS.md:24-37",
+        "code": "app/merge_operations.py:248-255,2430-2500; app/routes/merge_operations.py:51-61; app/workspace.py:1699-1735",
+        "tests": "tests/test_work_acceptance.py:43-83; tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Orchestra squash оставляет в main один commit на задачу.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R60",
+      "rule": "Содержание сообщения коммита",
+      "mechanism": "Требование к сообщению.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 151,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L151"
+      },
+      "claim": "Сообщать причину, изменение и проверку.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Шаблон #task не доказывает полноту WHY/WHAT/PROOF.",
+      "Orchestraequivalent": {
+        "reference": "G",
+        "rules": "git-workflow.md:4-16,29-42; orchestration.md:93-100; AGENTS.md:24-37",
+        "code": "app/merge_operations.py:248-255,2430-2500; app/routes/merge_operations.py:51-61; app/workspace.py:1699-1735",
+        "tests": "tests/test_work_acceptance.py:43-83; tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Шаблон #task не доказывает полноту WHY/WHAT/PROOF.",
+      "adoptioncostconditions": "C0",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    },
+    {
+      "id": "R61",
+      "rule": "Доставка в main",
+      "mechanism": "Git-практика в тексте.",
+      "source": {
+        "repository": "unclebob/ub-mode",
+        "commit": "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f",
+        "path": "SKILL.md",
+        "line": 152,
+        "url": "https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md#L152"
+      },
+      "claim": "В конце отправить изменения в основную линию.",
+      "toolrequirements_supportedlanguages": "Требование к агенту; отдельный tool/runtime не задан; язык не ограничен (типовые гарантии зависят от языка).",
+      "actualenforcement": "SKILL: только инструкция; код запрета/автоисправления в ub-mode отсутствует.",
+      "failuremode": "Работнику Orchestra запрещён прямой main/push; это выполняет orchestrator по своим правилам.",
+      "Orchestraequivalent": {
+        "reference": "G",
+        "rules": "git-workflow.md:4-16,29-42; orchestration.md:93-100; AGENTS.md:24-37",
+        "code": "app/merge_operations.py:248-255,2430-2500; app/routes/merge_operations.py:51-61; app/workspace.py:1699-1735",
+        "tests": "tests/test_work_acceptance.py:43-83; tests/test_diff_budget.py:47-114 (прочитаны, не запускались)."
+      },
+      "gap": "Работнику Orchestra запрещён прямой main/push; это выполняет orchestrator по своим правилам.",
+      "adoptioncostconditions": "CG",
+      "license": "U: ub-mode — декларация не найдена; companion executable licenses: 0BSD, отдельный источник."
+    }
+  ]
+}

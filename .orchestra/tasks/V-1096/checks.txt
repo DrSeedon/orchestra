@@ -1,0 +1,32 @@
+PASS: 61 unique rule IDs and exact upstream bullet-line inventory; all required fields present.
+PASS: 43 consulted sources have pinned identity, hashes and valid read ranges.
+AGENTS.md: OK
+.orchestra/pipelines/default/prompts/modules/code-quality.md: OK
+.orchestra/pipelines/default/prompts/modules/worker-lifecycle.md: OK
+.orchestra/pipelines/default/prompts/modules/orchestration.md: OK
+.orchestra/pipelines/default/prompts/modules/git-workflow.md: OK
+app/merge_test_gate.py: OK
+app/merge_operations.py: OK
+app/routes/merge_operations.py: OK
+app/routes/sessions.py: OK
+app/diff_budget.py: OK
+app/workspace.py: OK
+app/worktree_cleanup.py: OK
+app/session.py: OK
+tests/test_merge_test_gate.py: OK
+tests/test_merge_gate_mutation_702.py: OK
+tests/test_diff_budget.py: OK
+tests/test_merge_operations.py: OK
+tests/test_work_acceptance.py: OK
+tests/test_worktree_cleanup_v984.py: OK
+tests/test_worktree_cleanup_v1072.py: OK
+scripts/run_tests.py: OK
+pyproject.toml: OK
+uv.lock: OK
+tests/test_log_write_loss.py: OK
+PASS: supplied local context files unchanged.
+Inventory table rows=61, malformed=0
+PASS: all upstream GitHub report citations use one of the four pinned commits.
+PASS: no supported credential-shaped material in publication artifacts (heuristic, not proof).
+Git metadata absent: commit/clean cannot be verified in broker copy; platform owns import.
+All artifact checks passed. Product/companion pytest and runtime smoke were not run.

@@ -1,0 +1,13 @@
+Task: V-1096
+Result: RESEARCH DONE
+Branch handoff: task-V-1096/research-ub-mode
+Scope: task artifacts only; product source hashes unchanged
+Commit/clean: unavailable before platform import (no .git)
+Verification: bash .orchestra/tasks/V-1096/check-artifacts.sh, exit 0
+Artifact SHA256 (handoff file excluded):
+cf2afc8855f702a31881e9bad488972d2d83e5107c8054019352380ff94a864d  .orchestra/tasks/V-1096/report.md
+4b43f479822ff013210f81e9e4dc86f8749d060f7ca263e2c8815e2ef2531ad4  .orchestra/tasks/V-1096/facts.json
+541a6b473f236fb00a1c393ee94fae1fd0c2d8456556daf8b1c2033f4291ce0c  .orchestra/tasks/V-1096/source-manifest.json
+345cc0ede8d0cf8bd21c969e7ac43aac918f165711cd74b3b3b33768bfeac834  .orchestra/tasks/V-1096/notes.md
+5297f404df80297f31f05a49576b399b1139ec7694c45b1a62222f9cc43ef631  .orchestra/tasks/V-1096/check-artifacts.sh
+7cb583b8a282889dd797b90bd7d936d554b36590cf896942374dc8f725780081  .orchestra/tasks/V-1096/checks.txt
