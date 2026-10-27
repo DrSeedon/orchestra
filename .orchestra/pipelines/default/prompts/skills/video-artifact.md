@@ -13,8 +13,8 @@ say and show, in what order and at what pace (script, storyboard, pauses, the "f
 check); this skill does not repeat it. Numbers and facts come from a source (report, data, or code), as in
 every artifact.
 
-**Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes phrases in parallel
-with one loaded TTS model, then sets step duration to intro + phrase + pause (0.35 and 0.55 s
+**Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes the phrases, then sets
+step duration to intro + the real length of the decoded WAV + pause (0.35 and 0.55 s
 divided by `--rate`, default 1.0; `hold: seconds` replaces the default end pause on any step to give the viewer time). Do not write `d` in
 steps: it is replaced. State changes are constructed to begin with the phrase. The phrase fills
 almost the whole step, so `w: {id: [a, b]}` approximates its fraction: an object mentioned in
@@ -22,7 +22,31 @@ the middle uses `[.4, .6]`. For a second precise accent, split the phrase into t
 than tuning windows. HTML renders each ordered step as soon as its phrase is ready; Manim waits
 for all phrases because `construct()` needs the complete timing plan.
 
-**TeraTTSv2 weights have no declared license; check [the model-license discussion](https://huggingface.co/TeraSpace/TeraTTSv2/discussions/1) before preparing audio for public or commercial use.**
+**Narration engine (owner decision, 2026-10-25): ElevenLabs `eleven_flash_v2_5` for Russian and English.**
+The voice is the owner's saved voice **Sergey - Rich, Engaging and Captivating**, ID
+`XuEV9VY3VUASYgJVNBh0`, for both languages (the English voice is not switched automatically).
+Override with `--voice ID`, else `ELEVENLABS_VOICE_ID`, else Sergey; after changing the voice or the
+plan, re-check the character rate (some library voices carry a surcharge). Checked on the account
+on 25.10.2026: Flash is supported with model character multiplier 0.5, `cost_discount_multiplier` 1.0,
+Sergey `sharing.rate` 1.0; `token_cost_factor` is not the price per character. There is no automatic
+fallback to a costlier model or another paid provider, and a failed ElevenLabs request never falls
+back to a local engine. The local Tera, Vosk and Kokoro engines are no longer defaults; they run only
+when chosen with `--tts-engine` (see "Local engines" below), and their stress rules apply only to them.
+
+- **Secret:** `ELEVENLABS_API_KEY` only, from the environment or the `.env` in the root of the checkout
+  that holds `make.py` (read lazily, an exported variable wins). Never print it, never pass it as an
+  argument, never put it in a scene, code, cache, settings or report.
+- **No paid call without a purpose:** tests, help and previews never need the key. `--preview-step` and
+  `--preview-range` synthesize nothing and do not read `.env`; `--stills` and `--timing-only` do
+  synthesize (and spend). Do not generate audio "to see what happens".
+- **Cache and failures:** the cache key is text + model + voice + settings + language (not the key), in
+  `<out>/.tts-cache`; do not delete it between visual edits, a new directory or a deleted cache means
+  a new paid generation. The request marker `<hash>.request.json` is written before each POST. After a
+  timeout, transport error, 5xx or an invalid success response the tool does not resend, not even in a
+  later run: check the result with the provider through the orchestrator and do not delete the marker
+  by hand. An accepted `<hash>.mp3` is stored before decoding, so a failed ffmpeg step is repaired
+  locally without a new POST.
+- Details: `scripts/video_artifact/README.md`.
 
 - **Scene:** for HTML, use the player scaffold in `html-artifacts`, with `<svg id="stage" viewBox="0 0 1200 520">`.
   Immediately after `STEPS`, include `STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);` — without it the tool stops. The video label is subtitles (Telegram's feed plays without sound): use `say`; if it contains transliteration or numbers written as words, use `sub` with the screen form (for example "Together", "7 680"); `t` is a short step heading.
@@ -37,20 +61,23 @@ for all phrases because `construct()` needs the complete timing plan.
   mixed, so build it with `--theme dark` or recolor it.
 - Build repeated structures (grid, byte row) with a JS loop up to `STEPS`, and generate steps.
 
-- **`say` phrase:** speak in Russian and write Latin names as Cyrillic pronunciation (for example
-  «Дип Инфра», «опен роутер»); keep original names and digits in the screen subtitle. Tera expands
-  numeric literals, but does not infer their grammatical case (`в 2026 году` becomes an uninflected
-  «две тысячи двадцать шесть году»). Write Russian numbers as words with the required case for both
-  Tera and Vosk (for example «в две тысячи двадцать шестом году»). Use 1–2 sentences, 2–6 s at
-  rate 1.0, and 30–90 s total. Tera synthesizes each sentence whole, so the model itself
-  intonates commas, colons and dashes; between sentences the tool adds only the missing silence up to 0.42 s divided
-  by `--rate` (the model's own tail counts). A sentence of three vowels or fewer is glued to the next one. Add `[0.6]`
-  in `say` for an explicit pause.
-  A silent beat uses `say: ""` with a positive `hold`. Avoid officialese; write as spoken.
-- **English video:** `make.py … --lang en` uses Kokoro-82M instead of Vosk and Deepgram with
-  `language=en`. English `say` may contain digits, names, and `#2`; Kokoro reads them, rejecting
-  only Cyrillic. Voice `--voice af_heart` (default, female) or `am_michael` (male); five tested
-  voices were recognized verbatim by Deepgram (V-686). `--rate 1.1` sounds more natural than 1.25.
+- **`say` phrase (ElevenLabs):** plain Russian or English text; digits, Latin names and `#2` are accepted
+  and no `+` stress marks, RUAccent or `<name>.stress.txt` are needed (old intra-word `+` and combining
+  acute marks are stripped before sending). Do not assume that numbers, dates, units, abbreviations
+  and Latin names will be read correctly: the tool sends no text-normalization option and Flash on the
+  Starter tier is not guaranteed to normalize. Check every such reading before the full build, and where
+  it matters (case endings, years, units, acronyms) write the spoken form in `say`
+  (Russian numbers as words with the right case) and keep the digits in the screen `sub`. Hear or
+  Deepgram-check the result; a wrong reading is fixed by rewriting `say`, there is no stress dictionary
+  for ElevenLabs. Use 1–2 sentences, 2–6 s at rate 1.0, and 30–90 s total. The model itself
+  intonates commas, colons and dashes. `[0.6]` in `say` is an explicit pause of exactly 0.05–10 s of
+  local silence between speech segments (never sent to the API, not scaled by `--rate`); a silent beat
+  is `say: ""` with a positive `hold`. One speech segment is at most 40,000 characters. Avoid
+  officialese; write as spoken.
+- **English video:** `make.py … --lang en` uses the same ElevenLabs Flash and Sergey voice, and Deepgram
+  with `language=en`. English `say` may contain digits and names; the same reading check applies.
+  `--rate` is passed to ElevenLabs as speed and accepts 0.7–1.2 (also `--tts-stability` and
+  `--tts-similarity`, 0–1); the default stays 1.0 (owner decision, 16.10.2026).
 
 ## Paper style (default)
 
@@ -222,39 +249,48 @@ frame, do not crop a 16:9 one:
 
 ## Build
 
-Run outside the platform cgroup (Chromium + TTS model need ~2 GB); pass the Deepgram key through
-stdin so it does not appear in the command line:
+Run from the repository root with the project environment, outside the platform cgroup (Chromium
+frame writers need ~2 GB; ElevenLabs needs no local model). Pass the Deepgram key through stdin so it
+does not appear in the command line; `ELEVENLABS_API_KEY` comes from the root `.env` or the
+environment and is never written on the command line:
 
 ```
 printf '%s\n' "$DEEPGRAM_API_KEY" | ssh -o BatchMode=yes kesha@localhost \
-  'read -r K; cd <work folder> && DEEPGRAM_API_KEY=$K uv run --frozen --project /home/kesha/orchestra \
-   python /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out <folder>'
+  'read -r K; cd <repository root> && DEEPGRAM_API_KEY=$K uv run --frozen python \
+   scripts/video_artifact/make.py <scene.html or scene.py> --out <folder>'
 ```
 
-Always use `bg_create(type="run")`: a 69 s video took 9.5 min (model loading ~2 min, six
-parallel Chromium frame writers via `--jobs`; one thread took 25 min). Phrases cache in
-`<folder>/.tts-cache`; changing the scene without changing `say` does not reload the model.
-`--stills` skips video and produces phrase timing/contact sheets; `--check-only` checks an
-existing MP4. `--speaker` selects the Vosk voice (1 is its default; 0–2 are female and 3–4 male).
-`--rate` defaults to 1.0; speech and standard punctuation pauses shorten together.
+Add `--lang en` for an English scene. Always use `bg_create(type="run")`: a 69 s video took 9.5 min
+(six parallel Chromium frame writers via `--jobs`; one thread took 25 min). `--stills` skips video and
+produces phrase timing/contact sheets (it synthesizes); `--timing-only` checks phrase and animation
+lengths without rendering (it synthesizes too); `--check-only` checks an existing MP4 against the
+matching `<name>.timing.json` and generates no speech. `--rate` defaults to 1.0; the pauses the tool
+adds scale with it, `hold` and explicit `[sec]` do not.
 
-Russian video uses local TeraTTSv2 by default (`ru_m1`); choose a Tera voice with `--voice m1|m5|f1|f2` (`m1` is default, `f2` is the alternate female voice),
-or pass `--tts-engine vosk` to use Vosk. TeraTTSv2 expands numbers in Russian tags and applies its
-bundled RUAccent-derived stress pass. If a word needs correction, put `+` before the stressed vowel
-(`лим+ита`): manual markers win for that word, while RUAccent still accents other words in the phrase.
-`--stress-only` prints the normalized text before synthesis and warns when more than two numerals are
-consecutive; `--no-stress` disables automatic stress but keeps manual markers. The existing
-`--rate` maps to Tera's inverse `duration_scale`, so timing and pause semantics remain the same.
+### Local engines (explicit choice only)
 
-Vosk remains available as an explicit Russian fallback and keeps its separate RUAccent worker.
-English video continues to use Kokoro.
+`--tts-engine tera|vosk|kokoro` selects a local engine; it is a deliberate choice, never a fallback
+for a failed ElevenLabs request. Their environments and rules are unchanged and apply only to them:
+- **Tera** (Russian): `--voice m1|m5|f1|f2` (`m1` default, `f2` the alternate female voice). Tera
+  expands numbers but not their grammatical case (`в 2026 году` becomes «две тысячи двадцать шесть
+  году»): write Russian numbers as words with the required case, and Latin names as Cyrillic
+  pronunciation («Дип Инфра»). Each sentence is synthesized whole, so the model intonates commas,
+  colons and dashes; between sentences the tool adds the missing silence up to 0.42 s divided by
+  `--rate`; a sentence of three vowels or fewer is glued to the next one. `--rate` maps to Tera's
+  inverse `duration_scale`. The weights have no declared license; check
+  [the model-license discussion](https://huggingface.co/TeraSpace/TeraTTSv2/discussions/1) before
+  public or commercial use.
+- **Vosk** (Russian): `--speaker 0..4` (1 default; 0–2 female, 3–4 male), its own RUAccent worker.
+- **Kokoro** (English): `--lang en --tts-engine kokoro --voice af_heart|am_michael`; rejects Cyrillic.
+- **Stress** (these engines only; ElevenLabs needs none). Tera applies its bundled RUAccent-derived
+  stress pass; to correct a word put `+` before the stressed vowel (`лим+ита`): a manual marker wins
+  for that word, the other words are still stressed automatically. `--stress-only` prints the
+  normalized text without synthesis and warns when more than two numerals are consecutive (it refuses
+  to run for ElevenLabs); `--no-stress` disables automatic stress but keeps manual markers. If Tera's
+  stress pass or the Vosk RUAccent worker fails to load, stop and report the broken environment; do
+  not use `--no-stress` as a workaround and do not replace automatic stress with hand-marking.
 
-If Tera's bundled stress pass or the Vosk RUAccent worker fails to load, stop and report the broken
-TTS environment. Do not use `--no-stress` as a workaround for a broken requested build. Manual `+`
-markers are targeted corrections for specific words the automatic pass marks incorrectly; do not
-replace automatic stress with hand-marking.
-
-**Stress dictionary and homograph gate** (`scripts/video_artifact/stress_ru.json`, V-935). The
+**Stress dictionary and homograph gate** (Tera/Vosk only; `scripts/video_artifact/stress_ru.json`, V-935). The
 automatic pass marks words one at a time and cannot see meaning: in V-929 it said «ход+а» for
 «хо́да», «ст+оит» in «блок сто́ит в конце» and «з+амка» for the lock «замка́». `fixed` words are
 corrected before synthesis automatically; a word from `homographs` without a manual `+` stops the
@@ -262,7 +298,7 @@ build with the step number. Every Tera build writes `<name>.stress.txt` next to 
 you hear or find a new mistake, add the word to `fixed` (one stress for every meaning) or
 `homographs` (stress depends on meaning).
 
-**Check stress yourself before the build.** Automatic stress can make mistakes: in V-696 RUAccent marked
+**Check stress yourself before the build (Tera/Vosk only).** Automatic stress can make mistakes: in V-696 RUAccent marked
 «посл+е» instead of «по́сле» once in five edits. The owner hears every such word. Before a full
 build, run `make.py scene.html --out <folder> --stress-only`. Read every phrase in the output
 (also `<folder>/<name>.stress.txt`) and check every `+`
@@ -318,6 +354,11 @@ their `CREDITS.md` stay in the external kit directory. `make.py` runs sound QA a
 - Send with `send_file(path_to_mp4)`; MP4 goes as an inline video.
 
 ## Environment (already on VPS; restore if missing)
+
+ElevenLabs needs the project dependencies (`uv sync --frozen`: `httpx`, `python-dotenv`, Playwright),
+`ffmpeg` and `ELEVENLABS_API_KEY` in the environment or the root `.env`; no local TTS model.
+
+### Local engine environments (only for an explicit `--tts-engine`)
 
 TeraTTSv2 uses local CPU ONNX inference; the distilled sampler needs about 0.4 GB of weights.
 The app pins revision `f05ea799094571a3553904a555df3834fb0b963b`, defaults to `ru_m1`, and loads
@@ -385,17 +426,18 @@ script and log: `.orchestra/tasks/V-685/install-tex.sh`.
 
 HTML builds need a Playwright browser. On Ubuntu 26.04, project Playwright 1.60.0 ends with
 `Playwright does not support chromium on ubuntu26.04-x64`; Playwright 1.61.0 adds support. Keep
-the project lockfile intact by using a separate environment and that Python for `make.py`; only
-Playwright belongs to the calling environment, while TTS and Manim stay in theirs:
+the project lockfile intact by using a separate environment and that Python for `make.py`; the calling
+environment needs Playwright plus `httpx` and `python-dotenv` (`make.py` imports the ElevenLabs
+client), while the local TTS engines and Manim stay in theirs:
 
 ```
 P=~/.local/share/orchestra-playwright
 uv venv --python 3.12 "$P"
-uv pip install --python "$P/bin/python" playwright==1.61.0
+uv pip install --python "$P/bin/python" playwright==1.61.0 httpx python-dotenv
 PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
   "$P/bin/python" -m playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
-  "$P/bin/python" /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out video
+  "$P/bin/python" scripts/video_artifact/make.py scene.html --out video   # from the repository root
 ```
 
 If `/mnt/data` is unavailable or lacks space, choose another storage location for
