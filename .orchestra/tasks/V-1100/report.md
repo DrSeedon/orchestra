@@ -27,3 +27,5 @@ Owner requested merging and removing unnecessary workers. All 21 visible workers
 | feat-private-folder | `task-V-1014/feat-private-folder` | `4b1084c41a538747327f4d84bcf40b834d79e1f2` | archive: owner cleanup; completed branch fully in main, no WIP or queued assignment |
 
 Research-rules-lifecycle V-931 and research-video-style V-935 were checked in canonical task records: both done; old text about waiting for approval is historical. Active V-1006 and both queued assignments are retained. Final archive receipts will be appended after ordinary guarded kill_worker calls.
+
+Final result: all 18 selected workers archived through normal kill_worker after a fresh clean/no-unmerged check; no force flag. Fresh list_agents shows exactly the three retained workers. Their queued deliveries and V-1006 task remain. No new code was merged because all 21 initial HEADs were already ancestors of main. Private inventory and ordinary archive receipts retained under .orchestra/private/V-1100/.
