@@ -27,6 +27,8 @@ import os
 import re
 from typing import AsyncIterator, Callable
 
+import httpx
+
 from app.events import AgentEvent
 from app.harness import tools as builtin
 from app.harness.llm import OpenRouterClient
@@ -64,6 +66,23 @@ WIND_DOWN_AT = (10, 3)        # warn the agent N rounds before the cap so it can
 CONTEXT_GUARD_RATIO = 0.85    # compact when estimated tokens exceed this × max_context
 CARRIED_OVER_PREFIX = "[carried over from the previous turn — not the latest instruction] "
 BYTES_PER_TOKEN = 3.5         # conservative across ASCII/Cyrillic; no tokenizer dependency
+
+
+def _is_context_overflow(error: Exception) -> bool:
+    """Only an explicit HTTP 400 context overflow permits history recovery."""
+    if not isinstance(error, httpx.HTTPStatusError) or error.response.status_code != 400:
+        return False
+    # The client truncates str(error) to 500 chars; provider metadata may be later.
+    detail = error.response.text.lower()
+    if re.search(r"context[_ -]length[_ -]exceeded", detail):
+        return True
+    context = r"(?:context[ _-](?:length|window)|maximum context)"
+    return bool(re.search(
+        rf"{context}.{{0,100}}(?:exceed|too (?:long|large))|"
+        rf"exceed.{{0,100}}{context}|"
+        r"maximum context(?: length)?.{0,200}requested",
+        detail,
+    ))
 
 
 def _inspected_path(name: str, args: dict) -> str:
@@ -163,6 +182,7 @@ class AgentLoop:
         self.new_messages: list[dict] = []  # messages produced this turn (for persistence)
 
     async def run(self, user_msg: str) -> AsyncIterator[AgentEvent]:
+        context_retried = False
         for stale in self.carried_over:
             entry = {"role": "user", "content": CARRIED_OVER_PREFIX + stale}
             self.history.append(entry)
@@ -205,17 +225,47 @@ class AgentLoop:
                     self.history.append(entry)
                     self.new_messages.append(entry)
 
-                assistant_msg = {"role": "assistant", "content": None}  # filled by _one_round
-                try:
-                    # _one_round yields text live AND fills assistant_msg in place.
-                    async for ev in self._one_round(assistant_msg):
-                        yield ev
-                except Exception as e:
-                    detail = str(e) or type(e).__name__
-                    logger.error(f"harness loop round failed: {detail}")
-                    yield AgentEvent("error", f"llm round failed: {detail}")
-                    self._terminal("error", ok=False, detail=f"llm_error: {e}")
-                    return
+                for attempt in range(2):
+                    if attempt and self._abort():
+                        self._terminal("aborted", ok=False, detail="aborted by interrupt")
+                        return
+                    assistant_msg = {"role": "assistant", "content": None}
+                    try:
+                        async for ev in self._one_round(assistant_msg):
+                            yield ev
+                        break
+                    except Exception as e:
+                        overflow = _is_context_overflow(e)
+                        if overflow and not context_retried and attempt == 0:
+                            context_retried = True
+                            # Halve the actual estimate, even when below the proactive guard.
+                            # Anchors remain inviolable; remove complete assistant/tool units.
+                            anchors = [m for m in self.history
+                                       if m.get("role") in ("system", "user")]
+                            anchor_tokens = self._estimate_messages(anchors)
+                            if self._round_hint:
+                                anchor_tokens += self._estimate_messages([self._round_hint])
+                            budget = max(anchor_tokens, self._estimate_tokens() // 2)
+                            before = len(self.history)
+                            fitted = self._fit_context(token_budget=budget)
+                            if fitted and len(self.history) < before:
+                                self.truncated_history = False
+                                msg = ("[context guard] provider context overflow: history "
+                                       f"truncated by {before - len(self.history)} messages; "
+                                       "retrying once")
+                                logger.warning(msg)
+                                yield AgentEvent("warning", msg)
+                                continue
+                            detail = "provider context overflow: no history can be safely reduced"
+                        elif overflow:
+                            detail = "provider context overflow after one compaction retry"
+                        else:
+                            detail = str(e) or type(e).__name__
+                        logger.error(f"harness loop round failed: {detail}")
+                        yield AgentEvent("error", f"llm round failed: {detail}")
+                        self._terminal("context_limit" if overflow else "error", ok=False,
+                                       detail=f"llm_error: {detail}")
+                        return
 
                 self.history.append(assistant_msg)
                 self.new_messages.append(assistant_msg)
@@ -565,7 +615,7 @@ class AgentLoop:
     def _estimate_tokens(self) -> int:
         return self._estimate_messages(self.history + ([self._round_hint] if self._round_hint else []))
 
-    def _fit_context(self) -> bool:
+    def _fit_context(self, *, token_budget: int | None = None) -> bool:
         """Compact old assistant/tool rounds while preserving instructions and protocol.
 
         Every system/user message is an anchor: dropping the task to keep an old tool result
@@ -574,6 +624,8 @@ class AgentLoop:
         Returns False when the anchors alone exceed the guard.
         """
         guard = int(self.max_context * CONTEXT_GUARD_RATIO)
+        if token_budget is not None:
+            guard = min(guard, token_budget)
         if self._round_hint:
             guard -= self._estimate_messages([self._round_hint])
         if self._estimate_messages(self.history) <= guard:

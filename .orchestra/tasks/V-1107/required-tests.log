@@ -1,0 +1,44 @@
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/test_harness_cap_overflow_1107.py ___________
+ImportError while importing test module '<hub-workspace>/tests/test_harness_cap_overflow_1107.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_harness_cap_overflow_1107.py:11: in <module>
+    from app.harness import llm as llm_module, tools
+app/harness/llm.py:31: in <module>
+    from app import openrouter_counter as _counter
+E   ImportError: cannot import name 'openrouter_counter' from 'app' (unknown location)
+______________ ERROR collecting tests/test_harness_production.py _______________
+ImportError while importing test module '<hub-workspace>/tests/test_harness_production.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_harness_production.py:10: in <module>
+    from app.harness.llm import OpenRouterClient
+app/harness/llm.py:31: in <module>
+    from app import openrouter_counter as _counter
+E   ImportError: cannot import name 'openrouter_counter' from 'app' (unknown location)
+__________ ERROR collecting tests/test_harness_tool_args_sanitize.py ___________
+ImportError while importing test module '<hub-workspace>/tests/test_harness_tool_args_sanitize.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_harness_tool_args_sanitize.py:9: in <module>
+    from app.harness.loop import _sanitize_tool_args
+app/harness/loop.py:32: in <module>
+    from app.events import AgentEvent
+E   ModuleNotFoundError: No module named 'app.events'
+=========================== short test summary info ============================
+ERROR tests/test_harness_cap_overflow_1107.py
+ERROR tests/test_harness_production.py
+ERROR tests/test_harness_tool_args_sanitize.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
+3 errors in 1.47s
