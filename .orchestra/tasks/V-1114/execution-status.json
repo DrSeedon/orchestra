@@ -1,0 +1,17 @@
+{
+  "claude_calls": 0,
+  "claude_observed_spend_usd": 0,
+  "claude_billing": "api_credit required, not available here",
+  "sleep_prompt_runs": 0,
+  "model_performance_verdict": "unmeasured",
+  "blockers": [
+    "dynamic_workflow tool absent in worker tool catalog",
+    "exact live reader model/effort not present in copied sources"
+  ],
+  "not_used": [
+    "subscription Claude CLI",
+    "direct paid API",
+    "child workers"
+  ],
+  "app_import": "not available: app/ absent in provisioned copy"
+}

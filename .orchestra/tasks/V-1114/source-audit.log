@@ -1,0 +1,7 @@
+letta-ai/sleep-time-compute run_stateful_gsm_symbolic.py 13328 {'rethink_memory': [34, 36, 39, 82, 99, 109, 124, 175, 179, 180], 'run_memory_edits': [55, 231]}
+joonspk-research/generative_agents reverie/backend_server/persona/cognitive_modules/reflect.py 8569 {'run_reflect': [99, 184], 'reflection_trigger': [135, 183], 'generate_insights_and_evidence': [38, 39, 121]}
+WujiangXu/A-mem-sys agentic_memory/memory_system.py 33308 {'class MemoryNote': [24], 'process_memory': [267, 625, 753], '_evolution_system_prompt': [131, 647]}
+mem0ai/mem0 mem0/memory/main.py 169881 {'_add_to_vector_store': [871, 881, 2546, 2556], '_create_memory': [905, 1975, 2045, 2587, 3671, 3763], '_update_memory': [1879, 2052, 3558, 3770]}
+gepa-ai/gepa src/gepa/core/engine.py 59528 {'class GEPAEngine': [113], 'eval_before': [74, 75, 76], 'eval_after': [82, 83, 84]}
+openai/codex codex-rs/memories/README.md 7488 {'Phase 1': [5, 14, 38, 40, 42, 67, 77, 127, 156], 'Phase 2': [5, 14, 38, 79, 81, 105, 112, 124, 128, 129, 145, 148], 'global phase-2 lock': [85, 141]}
+openai/codex codex-rs/memories/write/templates/memories/consolidation.md 51237 {'progressive disclosure': [6], 'Raw rollouts are immutable': [41], 'INCREMENTAL UPDATE': [50, 117, 126, 145, 763, 782]}
