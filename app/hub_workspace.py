@@ -184,7 +184,7 @@ def blocked_reason(rel: str) -> str | None:
     """Why a worktree-relative path must not cross the boundary, by name alone."""
     if _company_path(rel):
         return _COMPANY_REASON
-    if rel == OUTBOX_NAME:
+    if Path(rel).name == OUTBOX_NAME:
         return "broker outbox file"
     parts = rel.split("/")
     for part in parts[:-1]:

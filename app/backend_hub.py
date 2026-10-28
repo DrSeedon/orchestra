@@ -60,7 +60,7 @@ OUTBOX_SECTION = (
     "<orchestra-link>\n"
     "## Reaching Orchestra (optional)\n"
     "You have no Orchestra tools. To reach it, append one JSON object per line to "
-    f"`{OUTBOX_NAME}` in the root of this directory; the platform runs the lines when your turn "
+    f"`{OUTBOX_NAME}` in the root of this copy (not inside `.orchestra/`); the platform runs the lines when your turn "
     "ends. It is not part of your result and no answer arrives during this turn. Only these exist:\n"
     "{send_line}"
     '- `{{"tool":"update_progress","args":{{"percent":40,"status":"short phase description"}}}}`\n'

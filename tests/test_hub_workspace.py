@@ -1569,10 +1569,69 @@ async def test_hub_outbox_without_a_link_to_orchestra_is_dropped_and_logged(repo
     assert not (repo / ob.OUTBOX_NAME).exists()
 
 
-def test_a_local_file_named_like_the_outbox_is_never_uploaded(repo):
-    (repo / ob.OUTBOX_NAME).write_text('{"tool":"send_message","args":{"message":"x"}}\n')
-    plan = hw.plan_upload(repo, ["calc.py"], [])
-    assert ob.OUTBOX_NAME not in plan.manifest
+@pytest.mark.parametrize("parent", ["", ".orchestra", "src/deep", "src/node_modules"])
+def test_a_local_file_named_like_the_outbox_is_never_uploaded(repo, parent):
+    rel = f"{parent}/{ob.OUTBOX_NAME}" if parent else ob.OUTBOX_NAME
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"tool":"send_message","args":{"message":"x"}}\n')
+    plan = hw.plan_upload(repo, known=[])
+    assert rel not in plan.manifest
+    assert dict(plan.skipped)[rel] == "broker outbox file"
+
+
+@pytest.mark.parametrize("parent", [".orchestra", "src/deep", "src/node_modules"])
+@pytest.mark.parametrize("suffix", ["", "/", "/."])
+def test_nested_outbox_is_rejected_visibly_while_root_outbox_is_read(repo, tmp_path, parent, suffix):
+    rel = f"{parent}/{ob.OUTBOX_NAME}{suffix}"
+    plan = hw.plan_upload(repo, known=[])
+    files = {name: (repo / name).read_bytes() for name in plan.manifest}
+    root_data = b'{"tool":"update_progress","args":{"percent":60}}\n'
+    files.update({ob.OUTBOX_NAME: root_data,
+                  rel: b'{"tool":"update_progress","args":{"percent":10}}\n',
+                  f"src/{ob.OUTBOX_NAME}.notes": b"ordinary file\n"})
+    snapshot = _tar_of(files, tmp_path)
+    result = hw.apply_changes(snapshot, repo, plan.manifest, known=[])
+    assert result.outbox == root_data
+    assert result.rejected == [(rel, "broker outbox file")]
+    assert result.changed == [f"src/{ob.OUTBOX_NAME}.notes"]
+    assert result.deleted == result.conflicts == []
+    assert rel not in result.manifest and ob.OUTBOX_NAME not in result.manifest
+    assert not (repo / rel).exists() and not (repo / ob.OUTBOX_NAME).exists()
+    again = hw.apply_changes(snapshot, repo, result.manifest, known=[])
+    assert again.changed == again.deleted == again.conflicts == []
+    assert again.rejected == result.rejected and again.outbox == root_data
+
+
+@pytest.mark.asyncio
+async def test_nested_outbox_is_reported_and_never_executed_or_committed(repo, tmp_path, monkeypatch):
+    rel = f".orchestra/{ob.OUTBOX_NAME}"
+    # Reproduce seedon's ignore policy: every .orchestra artifact can be staged.
+    (repo / ".gitignore").write_text("!.orchestra/**\n")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-qm", "test ignore policy")
+
+    def edit(workdir):
+        path = workdir / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"tool":"update_progress","args":{"percent":10}}\n')
+        (workdir / ob.OUTBOX_NAME).write_text(
+            '{"tool":"update_progress","args":{"percent":60}}\n')
+        (workdir / "calc.py").write_text("fixed\n")
+
+    monkeypatch.setattr(hw, "known_secret_values", lambda extra=None: [])
+    backend, ssh, mc = _backend(repo, tmp_path, monkeypatch, edit)
+    call = _Calls()
+    backend._bridge = ob.HubBridge(lambda: _who("boss"), call)
+    events = await _turn(backend, "go")
+    assert f"rejected: {rel} (broker outbox file)" in events[-2].content
+    assert "[hub outbox] 1 delivered" in events[-2].content
+    assert len(call.calls) == 1 and call.calls[0][2]["percent"] == 60
+    assert not (repo / rel).exists() and rel not in _git(repo, "ls-files")
+    assert rel not in backend._state.manifest
+    assert "calc.py" in _git(repo, "show", "--stat", "--format=", "HEAD")
+    assert (Path(backend._state.remote_dir) / rel).exists()
+    assert not (Path(backend._state.remote_dir) / ob.OUTBOX_NAME).exists()
 
 
 # ── the trimmed hub prompt ────────────────────────────────────────────────────────────
