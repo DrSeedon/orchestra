@@ -1,0 +1,90 @@
+{
+ "key": "S3-W1_r2_b0",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.1976618,
+ "usage_rows": [
+  [
+   2,
+   280,
+   13069,
+   23680,
+   0.1976618,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M07"
+    ],
+    "id": "B09"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M14"
+    ],
+    "id": "F08"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M46"
+    ],
+    "id": "B05"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M07"
+    ],
+    "id": "F02"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "M50"
+    ],
+    "id": "F23"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "M27"
+    ],
+    "id": "B12"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M32"
+    ],
+    "id": "F18"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M09"
+    ],
+    "id": "F03"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "M31"
+    ],
+    "id": "F16"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "M15"
+    ],
+    "id": "B13"
+   }
+  ]
+ }
+}

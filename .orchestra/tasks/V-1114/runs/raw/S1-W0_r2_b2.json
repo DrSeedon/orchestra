@@ -1,0 +1,87 @@
+{
+ "key": "S1-W0_r2_b2",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.1459858,
+ "usage_rows": [
+  [
+   2,
+   653,
+   13069,
+   16288,
+   0.1459858,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "AGENTS.md:idle_restart_watch"
+    ],
+    "id": "B03"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:live_db_task_repository"
+    ],
+    "id": "B10"
+   },
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "F11"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:merge_gate_worker_branch"
+    ],
+    "id": "F04"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:traps:live_db_task_repository"
+    ],
+    "id": "F01"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:model_id_after_restart",
+     "AGENTS.md:code_on_disk_not_live"
+    ],
+    "id": "B15"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:infra:credit_api_key"
+    ],
+    "id": "F14"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "model-routing:multicode_hub"
+    ],
+    "id": "B07"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:infra:local_tts_tera"
+    ],
+    "id": "F24"
+   },
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "F12"
+   }
+  ]
+ }
+}

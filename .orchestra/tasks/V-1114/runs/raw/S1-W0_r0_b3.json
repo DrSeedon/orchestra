@@ -1,0 +1,89 @@
+{
+ "key": "S1-W0_r0_b3",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.15138179999999998,
+ "usage_rows": [
+  [
+   2,
+   976,
+   13069,
+   16155,
+   0.15138179999999998,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:owner-decisions:cli-update-chain"
+    ],
+    "id": "F20"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:owner-decisions:reestr-demo-frozen"
+    ],
+    "id": "B08"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "AGENTS.md:restart-idle-watchdog"
+    ],
+    "id": "B01"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "model-routing:multicode-hub-first",
+     "model-routing:luna-not-worker-route"
+    ],
+    "id": "B06"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:owner-decisions:no-model-review-V-918"
+    ],
+    "id": "F22"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:owner-decisions:forwarded-news-research-V-1097"
+    ],
+    "id": "F09"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:traps:restart-cuts-running-only"
+    ],
+    "id": "F19"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:owner-decisions:verified-numbers"
+    ],
+    "id": "F17"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:infrastructure:backup-0200-utc"
+    ],
+    "id": "F15"
+   },
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "B16"
+   }
+  ]
+ }
+}

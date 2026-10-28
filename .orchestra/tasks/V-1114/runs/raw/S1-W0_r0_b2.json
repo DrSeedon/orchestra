@@ -1,0 +1,89 @@
+{
+ "key": "S1-W0_r0_b2",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.1487658,
+ "usage_rows": [
+  [
+   2,
+   794,
+   13069,
+   16283,
+   0.1487658,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Ловушки:гейт-мержа"
+    ],
+    "id": "F04"
+   },
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "F12"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Ловушки:новый-id-модели",
+     "AGENTS.md:код-на-диске"
+    ],
+    "id": "B15"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "model-routing:MultiCode-hub"
+    ],
+    "id": "B07"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Инфраструктура:кредитный-ключ"
+    ],
+    "id": "F14"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "MEMORY:Ловушки:боевая-БД-V-655"
+    ],
+    "id": "B10"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "MEMORY:Ловушки:боевая-БД-V-655"
+    ],
+    "id": "F01"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Инфраструктура:сбросы-Codex"
+    ],
+    "id": "F11"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "MEMORY:Инфраструктура:озвучка-27.10"
+    ],
+    "id": "F24"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "AGENTS.md:сторож-простоя"
+    ],
+    "id": "B03"
+   }
+  ]
+ }
+}

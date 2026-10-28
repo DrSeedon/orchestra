@@ -1,0 +1,70 @@
+{
+ "key": "S1-W0_r0_b0",
+ "run": "V-1114-pilot-c2e8b22f",
+ "ok": true,
+ "cost_usd": 0.1421578,
+ "usage_rows": [
+  [
+   2,
+   488,
+   13069,
+   16222,
+   0.1421578,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "C",
+    "evidence_ids": [],
+    "id": "B05"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [],
+    "id": "B13"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [],
+    "id": "B12"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [],
+    "id": "F18"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [],
+    "id": "F08"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [],
+    "id": "F16"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [],
+    "id": "F23"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [],
+    "id": "F03"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [],
+    "id": "F02"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [],
+    "id": "B09"
+   }
+  ]
+ }
+}

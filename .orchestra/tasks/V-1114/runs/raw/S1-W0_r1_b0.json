@@ -1,0 +1,92 @@
+{
+ "key": "S1-W0_r1_b0",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.14774579999999998,
+ "usage_rows": [
+  [
+   2,
+   765,
+   13069,
+   16228,
+   0.14774579999999998,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:traps:X25519MLKEM768"
+    ],
+    "id": "F18"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:trash-git-ls-files"
+    ],
+    "id": "B09"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:kesha-bot-vps-usage"
+    ],
+    "id": "F23"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:turn_usage.cost_usd"
+    ],
+    "id": "F08"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "model-routing:hub-secrets-own-machine",
+     "model-routing:manifest-owner"
+    ],
+    "id": "B05"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:traps:set-property-no-runtime",
+     "AGENTS:resources-set-property"
+    ],
+    "id": "F16"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:infra:tg-kanal-drive-photos-mtime"
+    ],
+    "id": "B12"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:traps:trash-git-ls-files"
+    ],
+    "id": "F02"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:traps:mutation-acceptance"
+    ],
+    "id": "F03"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "AGENTS:research-not-implementation"
+    ],
+    "id": "B13"
+   }
+  ]
+ }
+}

@@ -1,0 +1,88 @@
+{
+ "key": "S1-W0_r2_b3",
+ "run": "V-1114-rest-ba2ac2ed",
+ "ok": true,
+ "cost_usd": 0.15207779999999999,
+ "usage_rows": [
+  [
+   2,
+   1012,
+   13069,
+   16152,
+   0.15207779999999999,
+   null
+  ]
+ ],
+ "response": {
+  "answers": [
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:Ловушки:рестарт режет только running"
+    ],
+    "id": "F19"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:Решения владельца:пересланная новость — исследование, реализация по его слову"
+    ],
+    "id": "F09"
+   },
+   {
+    "choice": "UNKNOWN",
+    "evidence_ids": [],
+    "id": "B16"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:Решения владельца:модельное ревью не предлагать без новых данных (V-918)"
+    ],
+    "id": "F22"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "policy:model-routing:MultiCode hub first route, Luna not a worker route"
+    ],
+    "id": "B06"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:Решения владельца:цифра проверена (n, шум, контроль)"
+    ],
+    "id": "F17"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "policy:AGENTS.md:рестарт делает сторож простоя"
+    ],
+    "id": "B01"
+   },
+   {
+    "choice": "B",
+    "evidence_ids": [
+     "memory:Инфраструктура:БД копируется в 02:00 UTC"
+    ],
+    "id": "F15"
+   },
+   {
+    "choice": "A",
+    "evidence_ids": [
+     "memory:Решения владельца:если версия ломает SDK или app-server, не ставить"
+    ],
+    "id": "F20"
+   },
+   {
+    "choice": "C",
+    "evidence_ids": [
+     "memory:Решения владельца:reestr-demo заморожен, ничего без команды seedon"
+    ],
+    "id": "B08"
+   }
+  ]
+ }
+}

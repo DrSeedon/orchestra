@@ -1,0 +1,35 @@
+{
+ "S1": {
+  "memory_bytes": 8995,
+  "sha256": "51c0f8e29bc7e051bf04ba91bcb7f2d56acb7bed898e2680f2d6a083c1295744",
+  "usage_in_out_cr_cw_usd": [
+   2,
+   6058,
+   0,
+   37879,
+   0.4242
+  ]
+ },
+ "S2": {
+  "memory_bytes": 11671,
+  "sha256": "91cf379743a5ee0733e6b5c64cfd309bc3767e00e69d763b5b76908d4c205a94",
+  "usage_in_out_cr_cw_usd": [
+   2,
+   4226,
+   13069,
+   24920,
+   0.28650180000000003
+  ]
+ },
+ "S3": {
+  "memory_bytes": 13945,
+  "sha256": "39e59c0256bb924c90fe30b9d070875ae17f8860d2c1c2333df64d989db37149",
+  "usage_in_out_cr_cw_usd": [
+   2,
+   11656,
+   13069,
+   25164,
+   0.4370538
+  ]
+ }
+}
