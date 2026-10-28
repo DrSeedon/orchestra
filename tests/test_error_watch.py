@@ -620,6 +620,48 @@ def test_hub_turn_failure_signatures_drop_volatile_details():
         assert "123" not in a and "/home/worker/a" not in a
 
 
+@pytest.mark.parametrize("prefix", [
+    "", "Hub worker turn failed: ",
+    "ERROR:app.backend_hub:Hub worker turn failed: ",
+])
+def test_hub_missing_owned_dirs_refusal_is_expected_noise(prefix):
+    message = prefix + (
+        "this hub worker has no owned_dirs, and only projects marked persistent in data/hub-projects.json "
+        "go to the hub whole. Nothing was uploaded. The orchestrator must set owned_dirs: call "
+        "set_worker_owned_dirs for this worker with the directories (or files) the task touches; "
+        "repo-level files such as CLAUDE.md and pyproject.toml always go along."
+    )
+    signature = watch.normalize_signature(message)
+    assert watch.classify_noise(message) == "hub owned_dirs guard refusal"
+    assert watch.classify_noise(signature) == "hub owned_dirs guard refusal"
+    events = [_event(message, i, source="logs") for i in range(10)]
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=10)
+    assert candidates == []
+    assert [(item["signature"], item["noise"], item["count"]) for item in noise] == [
+        (signature, "hub owned_dirs guard refusal", 10),
+    ]
+    started = datetime.fromisoformat(events[0]["ts"])
+    assert watch.post_fix_verdict(events, signature, started, 24)["count"] == 0
+
+
+@pytest.mark.parametrize("message", [
+    "hub sync FAILED: hub workspace download exceeds the size limit",
+    "Hub worker turn failed: hub sync FAILED: hub workspace download exceeds the size limit",
+    "Hub worker turn failed: something else went wrong",
+    "Hub worker turn failed: this hub worker has no owned_dirs: unexpected configuration failure",
+])
+def test_hub_failures_outside_owned_dirs_guard_stay_actionable(message):
+    signature = watch.normalize_signature(message)
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(signature) is None
+    events = [_event(message, i, source="logs") for i in range(10)]
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=10)
+    assert noise == []
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 10)]
+    started = datetime.fromisoformat(events[0]["ts"])
+    assert watch.post_fix_verdict(events, signature, started, 24)["count"] == 10
+
+
 def _expected_hub_failures():
     return [
         "Hub worker turn failed: Hub claude usage limit; use model='hubsol'",

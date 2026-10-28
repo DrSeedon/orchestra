@@ -29,7 +29,10 @@ _HUB_CREDENTIAL_REFUSAL = re.compile(
 )
 _HUB_UNFINISHED_TOOL_NOISE = "hub unfinished tool closure"
 _BASH_TERMINATED_NOISE = "bash child process termination"
-_EXPECTED_HUB_NOISE = {"hub provider limit", "hub credential guard refusal", _HUB_UNFINISHED_TOOL_NOISE}
+_EXPECTED_HUB_NOISE = {
+    "hub provider limit", "hub credential guard refusal", "hub owned_dirs guard refusal",
+    _HUB_UNFINISHED_TOOL_NOISE,
+}
 # session.py emits only these reset labels and ISO times (or "неизвестно").
 # Accept <N> as well so classification survives numeric signature normalization.
 _CODEX_QUOTA_RESET = (
@@ -51,6 +54,9 @@ _MERGE_EXPECTED_HEAD_REFUSAL = re.compile(
 _NOISE = (
     ("hub provider limit", _HUB_PROVIDER_LIMIT),
     ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
+    ("hub owned_dirs guard refusal", re.compile(
+        r"\bthis hub worker has no owned_dirs, and only projects marked persistent\b", re.I,
+    )),
     # Only intermediate read retries; exhausted attempts surface without this prefix.
     ("hub watch read retry", re.compile(
         r"^hub t3_thread_(?:wait|read) failed; retrying in (?:\d+|<N>)s: .+", re.I,
