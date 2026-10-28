@@ -645,6 +645,7 @@ def test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate(browser):
             lane["gated"] = False
     off_page, errors = _render(browser, lifted)
     off = _gate_node(off_page)
+    assert off_page.locator("#quota-gate-hour").count() == 0
     # Снятая диагональ рисуется призраком: сплошная линия означала бы живой порог.
     assert off_page.locator("[data-ql-threshold='sol'].ql-gated-off").count() == 1
     assert off_page.locator("[data-ql-threshold='claude'].ql-gated-off").count() == 1
@@ -679,14 +680,91 @@ def test_calm_window_says_everyone_works(browser):
     page.close()
 
 
-def test_gate_override_uses_a_browser_local_datetime_and_shows_an_expiry(browser):
+@pytest.mark.parametrize("lifted", [False, True])
+def test_gate_hour_sends_exact_minutes_and_redraws_server_state(browser, lifted):
+    payload = _payload()
+    refreshed = _payload()
+    if lifted:
+        refreshed["rule"].update(
+            override_seconds_left=3600,
+            override_until="2026-10-20T07:00:00+00:00",
+        )
+    page, errors = _render(browser, payload, language="ru")
+    page.evaluate(
+        """raw => {
+            window.__hourRequests = [];
+            api = async (path, options) => {
+                if (path === '/api/usage/quota-override') {
+                    window.__hourRequests.push({path, ...options});
+                    return {};
+                }
+                return raw;
+            };
+        }""",
+        refreshed,
+    )
+    assert page.locator("#quota-gate-until").input_value() == ""
+    page.get_by_role("button", name="снять гейт на час", exact=True).click()
+    expected_state = "override" if lifted else "on"
+    page.wait_for_function(
+        "state => document.querySelector('[data-ql-gate]').dataset.qlGate === state"
+        " && !document.querySelector('#quota-gate-hour:disabled')",
+        arg=expected_state,
+    )
+    requests = page.evaluate("window.__hourRequests")
+    assert len(requests) == 1
+    assert requests[0]["path"] == "/api/usage/quota-override"
+    assert requests[0]["method"] == "POST"
+    assert requests[0]["headers"] == {"Content-Type": "application/json"}
+    assert json.loads(requests[0]["body"]) == {"minutes": 60}
+    assert page.locator("#quota-gate-hour").count() == (0 if lifted else 1)
+    assert page.locator("#quota-gate-until").count() == (0 if lifted else 1)
+    assert page.locator("#quota-gate-submit").inner_text() == (
+        "вернуть гейт сейчас" if lifted else "снять гейт"
+    )
+    assert page.locator("#quota-gate-error").inner_text() == ""
+    assert errors == [], errors
+    page.close()
+
+
+def test_gate_hour_error_allows_retry(browser):
+    page, errors = _render(browser, _payload())
+    page.evaluate(
+        """raw => {
+            window.__hourAttempts = 0;
+            api = async (path, options) => {
+                if (path === '/api/usage/quota-override') {
+                    window.__hourAttempts++;
+                    if (window.__hourAttempts === 1) throw new Error('override refused');
+                }
+                return raw;
+            };
+        }""",
+        _payload(),
+    )
+    page.get_by_role("button", name="lift gate for an hour", exact=True).click()
+    page.wait_for_function(
+        "document.querySelector('#quota-gate-error').textContent === 'override refused'",
+    )
+    assert _gate_node(page)[0] == "on"
+    assert page.locator("#quota-gate-hour").is_enabled()
+    page.locator("#quota-gate-hour").click()
+    page.wait_for_function(
+        "window.__hourAttempts === 2 && !document.querySelector('#quota-gate-hour:disabled')",
+    )
+    assert page.locator("#quota-gate-error").inner_text() == ""
+    assert errors == [], errors
+    page.close()
+
+
+def test_gate_override_uses_a_browser_local_datetime_and_shows_an_expiry(browser, tmp_path):
     payload = _payload()
     page, errors = _render(browser, payload, timezone_id="Asia/Krasnoyarsk")
     expiry = page.locator("#quota-gate-until")
     assert expiry.get_attribute("type") == "datetime-local"
     expiry.fill("2026-10-20T14:00")
     page.locator(".ql-bar").screenshot(
-        path=".orchestra/tasks/V-862/quota-override-form.png",
+        path=str(tmp_path / "quota-override-form.png"),
     )
     page.evaluate("window.__expectedLocalExpiry = new Date('2026-10-20T14:00').toISOString()")
     page.evaluate(
@@ -720,6 +798,7 @@ def test_gate_override_uses_a_browser_local_datetime_and_shows_an_expiry(browser
     assert formatted in active_page.locator("[data-ql-gate='override']").inner_text()
     assert active_page.locator("#quota-gate-submit").count() == 1
     assert active_page.locator("#quota-gate-until").count() == 0
+    assert active_page.locator("#quota-gate-hour").count() == 0
     active_page.evaluate(
         """raw => {
             api = async (path, options) => {
@@ -906,6 +985,7 @@ def test_unified_panel_renders_trace_when_present(browser):
 def test_failed_request_says_no_data_and_does_not_pretend_to_work(browser):
     page, _ = _render(browser, None)
     assert page.locator("#quota-lines [data-ql-gate='nodata']").count() == 1
+    assert page.locator("#quota-gate-hour").count() == 0
     assert page.locator("#quota-lines .ql-sum .ql-nodata").count() == 1
     assert page.locator("#quota-lines [data-ql-verdict].ql-nodata").count() == 1
     assert page.locator(".ql-chart").count() == 0

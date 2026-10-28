@@ -902,11 +902,14 @@ function renderQuotaLines() {
     const body = _QL_PANELS.map(_qlPanelHtml).join('');
     const gate = _qlGateState();
     const overrideOn = gate.state === 'override';
+    const hourControl = gate.state === 'on'
+        ? `<button type="button" id="quota-gate-hour" class="ql-gate-btn">${T('lift gate for an hour')}</button>`
+        : '';
     // Button always present except on connection loss: pressing it blindly,
     // not knowing gate state, means lifting rule at random.
     const overrideControls = gate.state === 'nodata' ? '' : overrideOn
         ? `<button type="button" id="quota-gate-submit" class="ql-gate-btn">${T('return gate now')}</button>`
-        : `<label class="ql-gate-expiry"><span>${T('lift gate until')}</span><input id="quota-gate-until" type="datetime-local" aria-label="${T('gate expiry date and time')}"></label><button type="button" id="quota-gate-submit" class="ql-gate-btn">${T('lift gate')}</button>`;
+        : `<label class="ql-gate-expiry"><span>${T('lift gate until')}</span><input id="quota-gate-until" type="datetime-local" aria-label="${T('gate expiry date and time')}"></label><button type="button" id="quota-gate-submit" class="ql-gate-btn">${T('lift gate')}</button>${hourControl}`;
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} ${T('allowance rule')}</button>
@@ -920,36 +923,43 @@ function renderQuotaLines() {
         _quotaLinesOpen = !_quotaLinesOpen;
         renderQuotaLines();
     };
+    const submitOverride = async (button, payload) => {
+        button.disabled = true;
+        let errorText = '';
+        try {
+            await api('/api/usage/quota-override', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload),
+            });
+        } catch (error) {
+            errorText = error && error.message ? error.message : T('request failed');
+        } finally {
+            // State redraws from server response, not from our intent.
+            _quotaMapData = null;
+            await fetchQuotaLines();
+            if (errorText) {
+                const errorNode = root.querySelector('#quota-gate-error');
+                if (errorNode) errorNode.textContent = errorText;
+            }
+        }
+    };
+    const hourButton = root.querySelector('#quota-gate-hour');
+    if (hourButton) {
+        hourButton.onclick = () => submitOverride(hourButton, {minutes: 60});
+    }
     const overrideButton = root.querySelector('#quota-gate-submit');
     if (overrideButton) {
-        overrideButton.onclick = async () => {
+        overrideButton.onclick = () => {
             const expiryInput = root.querySelector('#quota-gate-until');
             const selected = expiryInput ? new Date(expiryInput.value) : null;
             if (!overrideOn && (!expiryInput.value || Number.isNaN(selected.getTime()))) {
                 root.querySelector('#quota-gate-error').textContent = T('choose a valid expiry date and time');
                 return;
             }
-            overrideButton.disabled = true;
-            let errorText = '';
-            try {
-                await api('/api/usage/quota-override', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(overrideOn
-                        ? {minutes: 0}
-                        : {expires_at: selected.toISOString()}),
-                });
-            } catch (error) {
-                errorText = error && error.message ? error.message : T('request failed');
-            } finally {
-                // State redraws from server response, not from our intent.
-                _quotaMapData = null;
-                await fetchQuotaLines();
-                if (errorText) {
-                    const errorNode = root.querySelector('#quota-gate-error');
-                    if (errorNode) errorNode.textContent = errorText;
-                }
-            }
+            return submitOverride(overrideButton, overrideOn
+                ? {minutes: 0}
+                : {expires_at: selected.toISOString()});
         };
     }
 }

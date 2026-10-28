@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_quota_map_api.py _________________
+ImportError while importing test module '<hub-workspace>/tests/test_quota_map_api.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_quota_map_api.py:13: in <module>
+    import app.db as db
+E   ModuleNotFoundError: No module named 'app.db'
+=========================== short test summary info ============================
+ERROR tests/test_quota_map_api.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.51s

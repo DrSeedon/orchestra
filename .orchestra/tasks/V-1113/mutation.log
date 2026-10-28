@@ -1,0 +1,104 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______ test_gate_hour_sends_exact_minutes_and_redraws_server_state[False] ______
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/<hub-user>/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=149.0.7827.114>
+lifted = False
+
+    @pytest.mark.parametrize("lifted", [False, True])
+    def test_gate_hour_sends_exact_minutes_and_redraws_server_state(browser, lifted):
+        payload = _payload()
+        refreshed = _payload()
+        if lifted:
+            refreshed["rule"].update(
+                override_seconds_left=3600,
+                override_until="2026-10-20T07:00:00+00:00",
+            )
+        page, errors = _render(browser, payload, language="ru")
+        page.evaluate(
+            """raw => {
+                window.__hourRequests = [];
+                api = async (path, options) => {
+                    if (path === '/api/usage/quota-override') {
+                        window.__hourRequests.push({path, ...options});
+                        return {};
+                    }
+                    return raw;
+                };
+            }""",
+            refreshed,
+        )
+        assert page.locator("#quota-gate-until").input_value() == ""
+        page.get_by_role("button", name="снять гейт на час", exact=True).click()
+        expected_state = "override" if lifted else "on"
+        page.wait_for_function(
+            "state => document.querySelector('[data-ql-gate]').dataset.qlGate === state"
+            " && !document.querySelector('#quota-gate-hour:disabled')",
+            arg=expected_state,
+        )
+        requests = page.evaluate("window.__hourRequests")
+        assert len(requests) == 1
+        assert requests[0]["path"] == "/api/usage/quota-override"
+        assert requests[0]["method"] == "POST"
+        assert requests[0]["headers"] == {"Content-Type": "application/json"}
+>       assert json.loads(requests[0]["body"]) == {"minutes": 60}
+E       AssertionError: assert {'minutes': 61} == {'minutes': 60}
+E         
+E         Differing items:
+E         {'minutes': 61} != {'minutes': 60}
+E         Use -v to get more diff
+
+tests/test_t344_quota_lines_browser.py:719: AssertionError
+______ test_gate_hour_sends_exact_minutes_and_redraws_server_state[True] _______
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/<hub-user>/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=149.0.7827.114>
+lifted = True
+
+    @pytest.mark.parametrize("lifted", [False, True])
+    def test_gate_hour_sends_exact_minutes_and_redraws_server_state(browser, lifted):
+        payload = _payload()
+        refreshed = _payload()
+        if lifted:
+            refreshed["rule"].update(
+                override_seconds_left=3600,
+                override_until="2026-10-20T07:00:00+00:00",
+            )
+        page, errors = _render(browser, payload, language="ru")
+        page.evaluate(
+            """raw => {
+                window.__hourRequests = [];
+                api = async (path, options) => {
+                    if (path === '/api/usage/quota-override') {
+                        window.__hourRequests.push({path, ...options});
+                        return {};
+                    }
+                    return raw;
+                };
+            }""",
+            refreshed,
+        )
+        assert page.locator("#quota-gate-until").input_value() == ""
+        page.get_by_role("button", name="снять гейт на час", exact=True).click()
+        expected_state = "override" if lifted else "on"
+        page.wait_for_function(
+            "state => document.querySelector('[data-ql-gate]').dataset.qlGate === state"
+            " && !document.querySelector('#quota-gate-hour:disabled')",
+            arg=expected_state,
+        )
+        requests = page.evaluate("window.__hourRequests")
+        assert len(requests) == 1
+        assert requests[0]["path"] == "/api/usage/quota-override"
+        assert requests[0]["method"] == "POST"
+        assert requests[0]["headers"] == {"Content-Type": "application/json"}
+>       assert json.loads(requests[0]["body"]) == {"minutes": 60}
+E       AssertionError: assert {'minutes': 61} == {'minutes': 60}
+E         
+E         Differing items:
+E         {'minutes': 61} != {'minutes': 60}
+E         Use -v to get more diff
+
+tests/test_t344_quota_lines_browser.py:719: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_t344_quota_lines_browser.py::test_gate_hour_sends_exact_minutes_and_redraws_server_state[False]
+FAILED tests/test_t344_quota_lines_browser.py::test_gate_hour_sends_exact_minutes_and_redraws_server_state[True]
+2 failed, 33 deselected in 3.62s

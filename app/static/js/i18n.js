@@ -688,6 +688,7 @@
     'killed': 'убит',
     'lift for 2 h': 'снять на 2 ч',
     'lift gate': 'снять гейт',
+    'lift gate for an hour': 'снять гейт на час',
     'lift gate until': 'снять гейт до',
     'local': 'локальный',
     'minute': 'минута',
