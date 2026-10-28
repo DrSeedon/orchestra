@@ -51,6 +51,10 @@ _MERGE_EXPECTED_HEAD_REFUSAL = re.compile(
 _NOISE = (
     ("hub provider limit", _HUB_PROVIDER_LIMIT),
     ("hub credential guard refusal", _HUB_CREDENTIAL_REFUSAL),
+    # Only intermediate read retries; exhausted attempts surface without this prefix.
+    ("hub watch read retry", re.compile(
+        r"^hub t3_thread_(?:wait|read) failed; retrying in (?:\d+|<N>)s: .+", re.I,
+    )),
     ("quota/rate limit", re.compile(r"quota|rate[_ -]?limit|rate_limited|subscription limit", re.I)),
     ("quota/rate limit", _CODEX_QUOTA_REFUSAL),
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),

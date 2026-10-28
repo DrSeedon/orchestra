@@ -62,6 +62,54 @@ def test_threshold_and_quota_noise_classification():
     assert watch.classify_noise(watch.normalize_signature(missing)) == "agent read of missing file"
 
 
+@pytest.mark.parametrize("call", ["t3_thread_wait", "t3_thread_read"])
+@pytest.mark.parametrize("cause", [
+    "RemoteProtocolError", "ReadError", "ReadTimeout", "ConnectError", "HTTP 503",
+])
+@pytest.mark.parametrize("delay", [1, 2, 4, 8, "<N>"])
+def test_hub_watch_intermediate_retry_is_noise(call, cause, delay):
+    message = f"hub {call} failed; retrying in {delay}s: MultiCode MCP request failed: {cause}"
+    assert watch.classify_noise(message) == "hub watch read retry"
+    assert watch.classify_noise(watch.normalize_signature(message)) == "hub watch read retry"
+    logged = "WARNING:app.backend_hub:" + message
+    assert watch.classify_noise(watch.normalize_signature(logged)) == "hub watch read retry"
+
+
+@pytest.mark.parametrize("cause", [
+    "RemoteProtocolError", "ReadError", "ReadTimeout", "ConnectError", "HTTP 503",
+])
+@pytest.mark.parametrize("prefix", ["", "Hub worker turn failed: "])
+def test_hub_watch_final_exception_stays_actionable(cause, prefix):
+    message = prefix + "MultiCode MCP request failed: " + cause
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(watch.normalize_signature(message)) is None
+
+
+@pytest.mark.parametrize("message", [
+    "hub watch request exceeded 60 seconds",
+    "Hub worker turn failed: hub watch request exceeded 60 seconds",
+    "hub t3_thread_wait failed: MultiCode MCP request failed: ReadTimeout",
+    "hub t3_thread_read failed: MultiCode MCP request failed: ReadTimeout",
+    "hub t3_thread_send failed; retrying in 1s: MultiCode MCP request failed: ReadTimeout",
+    "hub t3_thread_launch failed; retrying in 1s: MultiCode MCP request failed: ReadTimeout",
+])
+def test_hub_watch_failures_outside_read_retry_stay_actionable(message):
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(watch.normalize_signature(message)) is None
+
+
+def test_hub_watch_retries_do_not_hide_final_failure():
+    retry = "WARNING:app.backend_hub:hub t3_thread_wait failed; retrying in 8s: MultiCode MCP request failed: ReadTimeout"
+    final = "Hub worker turn failed: MultiCode MCP request failed: ReadTimeout"
+    events = [_event(retry, i) for i in range(3)]
+    events += [_event(final, i, source="logs") for i in range(3)]
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=3)
+    assert [(item["signature"], item["count"]) for item in candidates] == [
+        (watch.normalize_signature(final), 3),
+    ]
+    assert [(item["noise"], item["count"]) for item in noise] == [("hub watch read retry", 3)]
+
+
 @pytest.mark.parametrize("reset", [
     "5h 2026-10-24T09:30:34Z",
     "7d 2026-10-31T09:30:34.123456Z",
