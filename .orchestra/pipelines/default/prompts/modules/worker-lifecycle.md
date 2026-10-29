@@ -5,10 +5,35 @@ At spawn and on description updates, `description` MUST start with `lifecycle=on
 `lifecycle=persistent`. Names, prefixes, and roles never determine lifecycle; an unmarked legacy
 worker is `persistent`.
 
-**Killing is the exception, not the end of every task** (owner decision, 05.10.2026). The trigger
-was an orchestrator on a game-fixing project spawning and killing Opus workers for every task, so
-each new fix started with a cold reread of the project. An idle worker costs nothing; its warm
-context is the value. Choose `lifecycle=one-shot` only when the whole line of work is truly
+### Hub workers: archive immediately after completion
+
+**Owner decision, 2026-10-29, 19:26 KRS:** A hub worker must be archived immediately once its
+assigned task is finished, its result is merged into `main` or its research findings are saved,
+and it has no further explicitly assigned task. Finished workers must not accumulate idle on
+the hub. This applies to every hub worker, regardless of lifecycle label or specialization,
+and supersedes the earlier game-design exception and any general warm-context retention rule
+for hub workers.
+
+In the same completion handling, run `worker_wip(name)` and then `kill_worker(name)` once the
+shared kill gate below is satisfied. Do not defer this to another session or a periodic cleanup.
+Warm context, a possible future topic, a project backlog, and the native-worker 72-hour grace
+period do not justify keeping a completed hub worker. A further explicitly assigned task keeps
+the worker active.
+
+Pending required validation, acceptance, or an unfinished assigned phase means the task is not
+complete, even after a merge. Finish those steps promptly; once the completion conditions and
+kill gate are satisfied, archive immediately.
+
+### Native workers: persistent lines and the 72-hour activity boundary
+
+The retention policy in this subsection applies only to native workers; it cannot override the
+hub-worker rule above.
+
+**For native workers, killing is the exception, not the end of every task** (owner decision,
+05.10.2026). The trigger was an orchestrator on a game-fixing project spawning and killing Opus
+workers for every task, so each new fix started with a cold reread of the project. An idle
+worker costs nothing; its warm context is the value. Choose `lifecycle=one-shot` only when the
+whole line of work is truly
 closed: a single investigation or a one-off fix in a project you will not touch again. Ongoing
 work on a project or module is `lifecycle=persistent`; after merge, send the next task of that
 project to the same worker instead of spawning a new one.
@@ -20,23 +45,29 @@ legacy worker is treated as persistent, so the same activity test applies. Revie
 every `merge_worker(task_outcome="complete")` and at the beginning of every session, including
 after compaction or restart.
 
-A restart notice, or a tool result cut by a restart, is neither a stop order nor a user refusal;
-check the last action's outcome and continue the task.
-
-At each review, run `list_agents` and inspect every idle worker with no attached task:
+At each native-worker review, run `list_agents` and inspect every idle native worker with no
+attached task:
 1. `lifecycle=one-shot` → kill immediately.
 2. `lifecycle=persistent` or unmarked → kill when the line has had no task for 72 hours and its
    queue has no `new`/`in_progress` task. Otherwise keep it idle for the active line.
 
-Before killing, run `worker_wip(name)`. Uncommitted files always block the kill: commit them or
-use reversible `stop_worker` first. A clean worktree with old unmerged commits that conflict with
-`main` and are obsolete because the same task was merged in another version does not block the
-kill; the stale branch stays in Git and may be killed with force. Any other unmerged work must be
-merged or stopped before killing. RESEARCH DONE, PLAN READY, “awaiting approval”, or STOP without
-a later final DONE also blocks the kill because the worker has a next phase.
+### Shared kill gate and recovery
+
+Before killing any worker, run `worker_wip(name)`. Uncommitted files always block the kill:
+commit them or use reversible `stop_worker` first. A clean worktree with old unmerged commits
+that conflict with `main` and are obsolete because the same task was merged in another version
+does not block the kill; the stale branch stays in Git and may be killed with force. Any other unmerged work must be
+accepted and merged before killing; use reversible `stop_worker` while that remains unresolved.
+A RESEARCH DONE, PLAN
+READY, “awaiting approval”, or STOP status does not establish completion while required
+validation, acceptance, or a later assigned phase remains unfinished. Accepted research with
+saved findings and no remaining assigned phase can satisfy the hub-worker completion rule.
 
 `stop_worker` preserves the session/worktree; `kill_worker` archives permanently. The gate applies
 even during requested cleanup. If you spawn children, you own their merge/kill lifecycle.
+
+A restart notice, or a tool result cut by a restart, is neither a stop order nor a user refusal;
+check the last action's outcome and continue the task.
 
 ## Assign outcomes; leave the method to the worker
 
