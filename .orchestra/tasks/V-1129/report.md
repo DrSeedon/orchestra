@@ -112,3 +112,9 @@ after DONE, as requested. Real hub service/provider behavior is not exercised.
 The Python code on disk requires the existing idle-watcher lifecycle to become
 active; this worker does not deploy or restart anything. A skipped refresh keeps
 the existing base inputs until an explicitly reconciled branch can safely advance.
+
+## Host acceptance
+
+The parent read the entire report and actual diff, verified the source hashes and publication scan, and ran the complete host follow-up module: **43 passed**, 37.47 s. An independent in-memory mutation restoring the previous `refresh_source` makes the six committed ready-unmerged/dirty-source regression cases fail. Required validation on the branch integrated with accepted V-1128: **6789 passed, 54 skipped**, 437.16 s; instruction contract passed, actual `app` import was from this complete task worktree. Missing real ownership prerequisites remain explicit skips. Generated test screenshots were retained privately and restored.
+
+The correction was accepted and merged; its clean temporary hub worker was immediately archived. No runtime code was changed outside the task branch, and no reporter-project data or services were touched. Publication/CI and activation through the authorized idle watcher remain separate delivery steps; no manual restart was performed.
