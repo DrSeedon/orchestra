@@ -1,0 +1,2 @@
+tests/test_quota_admission_e2e.py: syntax OK
+tests/test_quota_admission_collection.py: syntax OK

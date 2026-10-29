@@ -1,0 +1,6 @@
+tests/test_quota_admission_collection.py::test_quota_admission_collection_does_not_open_sqlite
+
+=========================== short test summary info ============================
+ERROR tests/test_quota_admission_e2e.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 test collected, 1 error in 0.25s

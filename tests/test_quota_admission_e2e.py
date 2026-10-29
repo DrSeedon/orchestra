@@ -19,8 +19,10 @@ WEEK_SECONDS = 10080 * 60
 WEEK_START = NOW - PROGRESS * WEEK_SECONDS
 LIMIT = {
     "sol": line_limit(PROGRESS, "sol"),
+    # Константы собираются до DB-фикстур: нужна текущая линия без истории SQLite.
     "claude": line_limit(
         PROGRESS, "claude", window_minutes=10080, window_start_at=WEEK_START,
+        policy_history=[],
     ),
 }
 ABOVE = {lane: value + 20.0 for lane, value in LIMIT.items()}
