@@ -219,3 +219,13 @@ this worker does not claim an independently verified Git index inventory. No tes
 needed for these documentation-only follow-ups; production/test sources and the marked safe
 stdout versions remain unchanged in this final correction; earlier results and the pending full host
 runner remain as stated above. No live hub/model/paid call was made.
+
+## Host acceptance after integration
+
+The parent read the complete report, publication audit and final diff, then integrated the already accepted local Codex quota gate without conflicts. The required host `uv run --frozen python scripts/run_tests.py` completed: **6675 passed, 54 skipped**, 428.94 seconds. Real ownership checks unavailable without passwordless sudo remain explicit skips. The instruction contract passed; the actual imported module resolves to `app/__init__.py` in this task's complete host worktree.
+
+Independent in-memory mutations against committed regressions each failed for the intended reason: disabling source refresh produced zero of the expected synthetic input files; restoring old continue cleanup removed persisted workspace/history; bypassing remote conflict checking allowed an unsynced rewrite to proceed. No source files were changed for these mutations. Generated test screenshots were preserved privately and restored.
+
+All changed files passed secret-form, forbidden-string and private deployment-identity checks. Published log hashes match the audit; the three original worker stdout files were recovered from the initial host Git result and preserved privately with matching original hashes. Historical CHANGELOG edits are absent from the final diff. The result was accepted and merged, with a clean executor worktree; the temporary hub worker was archived. Model review remains frozen by owner policy.
+
+Python activation is still pending the authorized idle watcher. Publication and remote CI are separate delivery checks; no manual restart, live provider request or reporter-project modification occurred.
