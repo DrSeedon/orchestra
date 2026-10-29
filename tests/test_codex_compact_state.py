@@ -163,7 +163,9 @@ async def h():
 
 
 def test_import_identity():
-    print("APP_IMPORT=" + str(Path(app.__file__).resolve()))
+    imported = Path(app.__file__).resolve().relative_to(Path(__file__).resolve().parents[1])
+    assert imported == Path("app/__init__.py")
+    print("APP_IMPORT=" + imported.as_posix())
 
 
 @pytest.mark.asyncio
@@ -305,12 +307,32 @@ async def test_timeout_cancel_retains_owner_and_reconciles(h, stage, cancel):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("stage", ["ack", "completion", "terminal"])
 @pytest.mark.parametrize("transport", ["eof", "read_error", "disconnect"])
-async def test_transport_failure_wakes_every_stage_without_waiting_process(h, stage, transport):
+@pytest.mark.parametrize("scheduling_delay", [0, 0.09])
+async def test_transport_failure_wakes_every_stage_without_waiting_process(
+    h, monkeypatch, stage, transport, scheduling_delay,
+):
+    # This oracle must be woken by transport failure, never the compact deadline.
+    # The independent asyncio.wait below bounds a broken wakeup; timeout/cancel
+    # behavior keeps its real short deadline in the dedicated tests above.
+    monkeypatch.setattr(source, "CODEX_COMPACT_TIMEOUT_SECONDS", None)
     task, request = await h.begin()
     if stage != "ack":
         await h.ack(request)
     await h.deliver(start(), *([compact()] if stage == "terminal" else []))
+    expected_stage = {
+        "ack": "request acknowledgement",
+        "completion": "completion notification",
+        "terminal": "turn lifecycle",
+    }[stage]
+    assert h.backend.compact_diagnostics["stage"] == expected_stage
     h.exit.clear()
+    process_wait = AsyncMock(side_effect=h.exit.wait)
+    h.backend._proc.wait = process_wait
+    # Simulate a descheduled event loop crossing the old global 60 ms budget.
+    # Advance only this loop's clock: no sleeps, live I/O or wall-clock race.
+    loop = asyncio.get_running_loop()
+    clock = loop.time
+    monkeypatch.setattr(loop, "time", lambda: clock() + scheduling_delay)
     if transport == "eof":
         h.stream.feed_eof()
     elif transport == "read_error":
@@ -318,10 +340,22 @@ async def test_transport_failure_wakes_every_stage_without_waiting_process(h, st
     else:
         h.backend.teardown_owned_pipes = AsyncMock()
         await h.backend._finalize_disconnect()
-    with pytest.raises(RuntimeError) as observed:
-        await h.result(task)
+    done, _ = await asyncio.wait({task}, timeout=0.5)
+    assert task in done, "transport closure left the compact waiter pending"
+    with pytest.raises(RuntimeError, match="transport closed|disconnected") as observed:
+        await task
     assert not isinstance(observed.value, TimeoutError)
     assert not h.backend.compact_pending
+    assert not h.backend._pending_requests
+    assert not h.exit.is_set()
+    assert not h.reader.done()
+    if transport != "disconnect":
+        process_wait.assert_awaited_once()
+    else:
+        process_wait.assert_not_awaited()
+    assert h.backend.compact_diagnostics["outcome"] == "failed"
+    assert h.backend.compact_diagnostics["remote_outcome"] == "transport_closed"
+    assert h.backend.compact_diagnostics["stage"] == expected_stage
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,56 @@
+Selected real pytest output; verbose logs and tracebacks omitted.
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-eof-ack] __
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-eof-completion] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-eof-terminal] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-read_error-ack] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-read_error-completion] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-read_error-terminal] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-disconnect-ack] _
+E   assert not True
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-disconnect-completion] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0-disconnect-terminal] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-ack] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-completion] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-terminal] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-ack] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-completion] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-terminal] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-ack] _
+E   assert not True
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-completion] _
+E   AssertionError: transport closure left the compact waiter pending
+_ test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-terminal] _
+E   AssertionError: transport closure left the compact waiter pending
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-eof-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-eof-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-eof-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-read_error-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-read_error-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-read_error-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-disconnect-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-disconnect-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0-disconnect-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-eof-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-read_error-terminal]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-ack]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-completion]
+FAILED tests/test_codex_compact_state.py::test_transport_failure_wakes_every_stage_without_waiting_process[0.09-disconnect-terminal]
+18 failed, 85 deselected in 31.29s
