@@ -6,119 +6,247 @@ let pendingUserMsgs = [];
 let pendingBubble = null;
 let uiDebounceTimer = null;
 let chatSendInFlight = false;
+let _chatAfterTurnDraft = null;
 
 async function sendChat(options = {}) {
-    if (chatSendInFlight) return;
+    if (chatSendInFlight || !currentScope || !selectedAgent) return;
     const afterTurn = Boolean(options.afterTurn);
+    const targetName = selectedAgent;
+    const targetScope = currentScope;
+    const generation = _queuedViewGeneration;
+    const isCurrent = () => generation === _queuedViewGeneration
+        && targetName === selectedAgent && targetScope === currentScope;
     const input = $('#chat-input');
-    // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
-    // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
-    if (_pendingUploads.size) {
-        const btn = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
-        const label = btn.textContent;
-        btn.textContent = '⏳';
-        await Promise.allSettled([..._pendingUploads]);
-        btn.textContent = label;
-    }
-    const msg = input.value.trim();
-    if (!msg || !currentScope || !selectedAgent) return;
-    chatSendInFlight = true;
     const actionButton = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
+    chatSendInFlight = true;
     if (actionButton) actionButton.disabled = true;
-    input.value = '';
-    clearPastePreview();
-
-    pendingUserMsgs.push(msg);
-    localMessages.add(msg);
-    showPendingBubble();
-
-    if (uiDebounceTimer) clearTimeout(uiDebounceTimer);
-    uiDebounceTimer = setTimeout(() => finalizePending(), UI_DEBOUNCE_MS);
-
+    let afterTurnDraft = null;
     try {
-        const result = await api(`/api/sessions/${selectedAgent}/send`, {
+        // Upload completion must not send another agent's draft after a switch.
+        if (_pendingUploads.size) await Promise.allSettled([..._pendingUploads]);
+        if (!isCurrent()) return;
+        const inputText = input.value;
+        const msg = inputText.trim();
+        if (!msg) return;
+        if (afterTurn) {
+            afterTurnDraft = {targetName, targetScope, generation, inputText, savedDraft: null, restoredGeneration: null};
+            _chatAfterTurnDraft = afterTurnDraft;
+        }
+        // After-turn input stays recoverable until the server accepts it. It is
+        // not an ordinary sent bubble and must not suppress the later SSE echo.
+        if (!afterTurn) {
+            input.value = '';
+            clearPastePreview();
+            pendingUserMsgs.push(msg);
+            localMessages.add(msg);
+            showPendingBubble();
+            if (uiDebounceTimer) clearTimeout(uiDebounceTimer);
+            uiDebounceTimer = setTimeout(() => finalizePending(), UI_DEBOUNCE_MS);
+        }
+        const result = await api(`/api/sessions/${encodeURIComponent(targetName)}/send`, {
             method: 'POST',
-            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard", after_turn: afterTurn }),
+            body: JSON.stringify({ message: msg, scope: targetScope, channel: "dashboard", after_turn: afterTurn }),
             signal: AbortSignal.timeout(15000),
         });
+        // saveDraft runs before selection resets. A late acceptance also owns
+        // that exact saved draft, but never another scope's or a newer draft.
+        if (afterTurnDraft?.savedDraft) {
+            const saved = afterTurnDraft.savedDraft;
+            saved.text = _voiceRemoveSentPrefix(saved.text, inputText);
+            if (!saved.text) saved.images = [];
+        }
+        const restoredDraft = afterTurnDraft
+            && afterTurnDraft.restoredGeneration === _queuedViewGeneration
+            && targetName === selectedAgent && targetScope === currentScope;
+        if (!isCurrent() && !restoredDraft) return;
+        if (afterTurn) {
+            input.value = _voiceRemoveSentPrefix(input.value, inputText);
+            if (!input.value) clearPastePreview();
+        }
         if (result?.queued) {
-            if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
-            pendingUserMsgs = [];
-            if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; }
-            if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
-            removeWaitingIndicator();
+            if (!afterTurn) {
+                if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+                pendingUserMsgs = [];
+                localMessages.delete(msg);
+                if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; }
+                if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
+                removeWaitingIndicator();
+            }
             await refreshQueuedMessages();
         }
     } catch (e) {
-        if (e.name === 'TimeoutError') return;
-        if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
-        if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
-        pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
-        removeWaitingIndicator();
-        // Перезапуск — штатная операция, и красная строка про неё выглядела бы аварией.
+        if (!isCurrent() || e.name === 'TimeoutError') return;
+        if (!afterTurn) {
+            if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+            if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
+            pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
+            removeWaitingIndicator();
+        }
         addChatEntry(e.name === 'RestartPendingError' ? 'notification' : 'error', e.message);
     } finally {
         chatSendInFlight = false;
-        if (actionButton) actionButton.disabled = false;
+        if (_chatAfterTurnDraft === afterTurnDraft) _chatAfterTurnDraft = null;
+        if (actionButton && isCurrent()) actionButton.disabled = false;
     }
 }
 
 let _queuedUnsupported = false;
+let _queuedViewGeneration = 0;
+let _queuedRequestGeneration = 0;
+let _queuedResponseGeneration = 0;
+const _queuedCancellations = new Set();
+
+function _resetQueuedMessages() {
+    const sending = _chatAfterTurnDraft;
+    if (sending && selectedAgent === sending.targetName
+        && (sending.generation === _queuedViewGeneration || sending.restoredGeneration === _queuedViewGeneration)) {
+        const saved = drafts[selectedAgent];
+        if (saved?.text.startsWith(sending.inputText)) sending.savedDraft = saved;
+    }
+    ++_queuedViewGeneration;
+    _queuedResponseGeneration = ++_queuedRequestGeneration;
+    const panel = $('#queued-messages');
+    if (panel) {
+        panel.replaceChildren();
+        delete panel.dataset.target;
+    }
+}
 
 async function refreshQueuedMessages() {
     const panel = $('#queued-messages');
-    if (!panel || !selectedAgent || !currentScope || _queuedUnsupported) return;
+    if (!panel) return;
     const targetName = selectedAgent;
     const targetScope = currentScope;
+    const targetKey = JSON.stringify([targetName, targetScope]);
+    const sending = _chatAfterTurnDraft;
+    if (sending && sending.savedDraft && targetName === sending.targetName && targetScope === sending.targetScope
+        && drafts[targetName] === sending.savedDraft && $('#chat-input')?.value === sending.savedDraft.text) {
+        sending.restoredGeneration = _queuedViewGeneration;
+    }
+    if (panel.dataset.target !== targetKey) {
+        panel.replaceChildren();
+        panel.dataset.target = targetKey;
+    }
+    const generation = _queuedViewGeneration;
+    const requestGeneration = ++_queuedRequestGeneration;
+    const isCurrent = () => generation === _queuedViewGeneration
+        && requestGeneration >= _queuedResponseGeneration
+        && targetName === selectedAgent && targetScope === currentScope;
+    if (!targetName || !targetScope || _queuedUnsupported) return;
     try {
         const result = await api(
             `/api/sessions/${encodeURIComponent(targetName)}/queued-messages?scope=${encodeURIComponent(targetScope)}`,
         );
-        if (targetName !== selectedAgent || targetScope !== currentScope) return;
+        if (!isCurrent()) return;
+        _queuedResponseGeneration = requestGeneration;
         panel.replaceChildren();
-        for (const item of result.messages || []) {
+        panel.classList.remove('hidden');
+        const messages = result.messages || [];
+        if (!messages.length) return;
+        const heading = document.createElement('div');
+        heading.className = 'text-xs font-medium text-slate-300';
+        heading.textContent = T('Message queue · {agent}', {agent: targetName});
+        panel.appendChild(heading);
+        for (const item of messages) {
+            const state = item.state || (item.claimed ? 'handing_off' : 'pending');
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
-            const body = document.createElement('span');
-            body.className = 'min-w-0 flex-1 truncate';
-            body.textContent = `${T('⏳')} ${item.body}`;
-            row.appendChild(body);
-            if (item.claimed) {
-                const state = document.createElement('span');
-                state.textContent = T('delivering');
-                state.className = 'text-slate-500';
-                row.appendChild(state);
-            } else {
+            row.className = 'flex items-start gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
+            row.dataset.queueState = state;
+            row.dataset.queueId = String(item.id);
+            const content = document.createElement('div');
+            content.className = 'min-w-0 flex-1';
+            const body = document.createElement('div');
+            body.className = 'truncate';
+            body.textContent = item.body;
+            body.title = item.body;
+            content.appendChild(body);
+            const status = document.createElement('div');
+            status.className = 'text-slate-400';
+            status.textContent = T({
+                after_turn: 'Waiting for the current turn to end. Will be sent automatically.',
+                handing_off: 'Taken for delivery to the agent. Confirmation is pending.',
+                current_turn: 'Sent to the current turn. Kept until the turn completes.',
+                current_turn_unconfirmed: 'Current-turn delivery is unconfirmed. Saved for retry.',
+            }[state] || 'Waiting for delivery confirmation.');
+            content.appendChild(status);
+            row.appendChild(content);
+            // Old servers do not distinguish steering backups; avoid offering a
+            // cancellation that cannot retract an already submitted message.
+            if (item.cancellable === true && !item.claimed) {
                 const cancel = document.createElement('button');
                 cancel.type = 'button';
                 cancel.textContent = T('Cancel');
                 cancel.className = 'text-red-300 hover:text-red-200';
+                const cancelKey = JSON.stringify([targetName, targetScope, item.id]);
+                cancel.disabled = _queuedCancellations.has(cancelKey);
                 cancel.addEventListener('click', async () => {
+                    if (_queuedCancellations.has(cancelKey)) return;
+                    _queuedCancellations.add(cancelKey);
                     cancel.disabled = true;
+                    // Invalidate GETs begun before the mutation, even if they
+                    // return after the post-cancellation refresh.
+                    _queuedResponseGeneration = ++_queuedRequestGeneration;
+                    const sameView = () => generation === _queuedViewGeneration
+                        && targetName === selectedAgent && targetScope === currentScope;
                     try {
-                        await api(`/api/sessions/${encodeURIComponent(targetName)}/queued-messages/${item.id}?scope=${encodeURIComponent(targetScope)}`, {method: 'DELETE'});
+                        const outcome = await api(`/api/sessions/${encodeURIComponent(targetName)}/queued-messages/${item.id}?scope=${encodeURIComponent(targetScope)}`, {method: 'DELETE'});
+                        if (!sameView()) return;
+                        _queuedResponseGeneration = ++_queuedRequestGeneration;
+                        if (outcome.cancelled === true) {
+                            panel.querySelectorAll('[data-queue-id]').forEach(currentRow => {
+                                if (currentRow.dataset.queueId === String(item.id)) currentRow.remove();
+                            });
+                        }
                         await refreshQueuedMessages();
+                        if (!sameView()) return;
+                        if (outcome.cancelled !== true) {
+                            const message = document.createElement('div');
+                            message.className = 'text-xs text-amber-300';
+                            message.setAttribute('role', 'status');
+                            message.textContent = T('Could not cancel: delivery may have started or the message is no longer queued.');
+                            panel.appendChild(message);
+                        }
                     } catch (error) {
-                        cancel.disabled = false;
-                        addChatEntry('error', error.message);
+                        if (sameView()) {
+                            const message = document.createElement('div');
+                            message.className = 'text-xs text-amber-300';
+                            message.setAttribute('role', 'status');
+                            message.textContent = T('Cancellation was not confirmed. The message may still be sent.');
+                            panel.appendChild(message);
+                        }
+                    } finally {
+                        _queuedCancellations.delete(cancelKey);
+                        if (sameView()) {
+                            panel.querySelectorAll('button').forEach(button => {
+                                if (button.dataset.cancelKey === cancelKey) button.disabled = false;
+                            });
+                        }
                     }
                 });
+                cancel.dataset.cancelKey = cancelKey;
                 row.appendChild(cancel);
             }
             panel.appendChild(row);
         }
     } catch (error) {
-        // 404 означает не сбой, а СТАРЫЙ сервер: маршрут очереди появился вместе с
-        // кнопкой «After turn» и живёт только после рестарта Orchestra, тогда как этот
-        // файл подхватывается браузером сразу. Молча выключаем опрос и прячем панель,
-        // иначе консоль засыпается одинаковой ошибкой каждые несколько секунд.
+        if (!isCurrent()) return;
+        _queuedResponseGeneration = requestGeneration;
         if (String(error.message || '').startsWith('404')) {
             _queuedUnsupported = true;
             panel.replaceChildren();
             panel.classList.add('hidden');
             return;
         }
-        console.warn(`[chat] очередь после хода недоступна: ${error.name}: ${error.message}`);
+        // Keep the last known pending rows during a transient failure.
+        let failure = panel.querySelector('[data-queue-error]');
+        if (!failure) {
+            failure = document.createElement('div');
+            failure.dataset.queueError = 'true';
+            failure.className = 'text-xs text-amber-300';
+            failure.setAttribute('role', 'status');
+            panel.appendChild(failure);
+        }
+        failure.textContent = T('Queue could not be refreshed. Showing the last known status.');
     }
 }
 
@@ -1771,6 +1899,7 @@ function _resetCodexActivityState() {
 }
 
 function resetChatTransientState() {
+    _resetQueuedMessages();
     liveResetActivity();
     localMessages.clear();
     pendingUserMsgs = [];

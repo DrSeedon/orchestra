@@ -1,0 +1,11 @@
+........................................................................ [ 79%]
+...................                                                      [100%]
+=============================== warnings summary ===============================
+tests/test_mailbox.py::test_impl1_concurrent_claim_does_not_double_deliver
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+91 passed, 19 deselected, 1 warning in 14.36s

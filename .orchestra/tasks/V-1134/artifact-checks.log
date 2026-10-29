@@ -1,0 +1,16 @@
+app/mailbox.py: credential-shape scan OK; private-host identity scan OK
+app/routes/sessions.py: credential-shape scan OK; private-host identity scan OK
+app/static/js/chat.js: credential-shape scan OK; private-host identity scan OK
+app/static/js/i18n.js: credential-shape scan OK; private-host identity scan OK
+tests/test_composer_queue_status_v1134.py: credential-shape scan OK; private-host identity scan OK
+tests/test_composer_queue_frontend_v1134.py: credential-shape scan OK; private-host identity scan OK
+tests/queued_messages_v1134_setup.js: credential-shape scan OK; private-host identity scan OK
+tests/queued_messages_v1134_scenarios.js: credential-shape scan OK; private-host identity scan OK
+tests/queued_messages_v1134_node.cjs: credential-shape scan OK; private-host identity scan OK
+.orchestra/tasks/V-1134/browser-tests.log: credential-shape scan OK; private-host identity scan OK
+.orchestra/tasks/V-1134/report.md: credential-shape scan OK; private-host identity scan OK
+.orchestra/tasks/V-1134/targeted.log: credential-shape scan OK; private-host identity scan OK
+.orchestra/tasks/V-1134/frontend-collection.log: credential-shape scan OK; private-host identity scan OK
+.orchestra/tasks/V-1134/source-checks.log: credential-shape scan OK; private-host identity scan OK
+No publication performed. No credentials read.
+Follow-up: V-1134 changelog entry and all task artifacts checked; no credential shapes or private-host identities. Temporary test data removed.

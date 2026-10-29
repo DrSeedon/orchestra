@@ -1656,25 +1656,38 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
 
 @router.get("/api/sessions/{name}/queued-messages")
 async def get_queued_messages(name: str, request: Request = None):
-    """Dashboard projection of the durable after-turn mailbox."""
+    """Pending mailbox entries, including current-turn recovery copies.
+
+    A Codex steering backup is already submitted to the current turn, unlike an
+    after-turn message. Neither a backup nor a claim proves final delivery.
+    """
     from app import mailbox
 
     scope = (request.query_params.get("scope", "") if request is not None else "").strip()
     if not scope:
         return JSONResponse({"error": "scope is required"}, status_code=400)
+    messages = []
+    for item in mailbox.pending(name, scope):
+        provenance = item["provenance"]
+        if provenance.origin != "user" and provenance.subtype != "dashboard":
+            continue
+        state = {
+            "codex_steer_backup": "current_turn",
+            "codex_steer_backup_pending": "current_turn_unconfirmed",
+        }.get(provenance.subtype, "after_turn")
+        if item["claimed_at"] is not None:
+            state = "handing_off"
+        messages.append({
+            "id": item["id"],
+            "body": item["body"],
+            "created_at": item["created_at"],
+            "claimed": item["claimed_at"] is not None,
+            "state": state,
+            "cancellable": state == "after_turn",
+        })
     return {
         "ok": True,
-        "messages": [
-            {
-                "id": item["id"],
-                "body": item["body"],
-                "created_at": item["created_at"],
-                "claimed": item["claimed_at"] is not None,
-            }
-            for item in mailbox.pending(name, scope)
-            if item["provenance"].origin == "user"
-            or item["provenance"].subtype == "dashboard"
-        ],
+        "messages": messages,
     }
 
 
