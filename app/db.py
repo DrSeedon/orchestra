@@ -2418,6 +2418,17 @@ def bg_record_process(job_id: str, process: dict) -> bool:
         return cur.rowcount > 0
 
 
+def bg_record_progress(job_id: str, record: dict) -> bool:
+    """Store the latest progress sample of an active run job (V-1135); never revives a finished one."""
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET config=json_set(config,'$._progress',json(?)) "
+            "WHERE id=? AND status='active'",
+            (json.dumps(record), job_id),
+        )
+        return cur.rowcount > 0
+
+
 def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
                 active_only: bool = False) -> list[dict]:
     with _conn() as c:

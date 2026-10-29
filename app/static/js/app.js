@@ -4190,7 +4190,7 @@ function switchLeftTab(tab) {
         _pollWake('tasks');
     } else _pollStop('tasks');
     if (_jobsTabActive) {
-        _pollRegister('jobs', loadJobs, 10000);
+        _pollRegister('jobs', loadJobs, 5000);
         _pollWake('jobs');
     } else _pollStop('jobs');
     if (_infoTabActive) {

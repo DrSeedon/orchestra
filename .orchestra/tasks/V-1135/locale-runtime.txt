@@ -1,0 +1,1 @@
+Progress number formatting: EN, dynamic RU switch, missing/nonfunction helper fallback passed

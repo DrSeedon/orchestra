@@ -2,6 +2,7 @@
 
 import asyncio
 import array
+import hashlib
 import json
 import logging
 import os
@@ -24,8 +25,9 @@ from app.db import (
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire,
     bg_get_jobs, bg_get_job, bg_fail_job_if_active, bg_replace_job,
-    bg_reset_wake_triggering, bg_record_process,
+    bg_reset_wake_triggering, bg_record_process, bg_record_progress,
 )
+from app import bg_progress
 from app.pidfd_exec import pidfd_send_group
 from app.session_state import AgentStatus
 from app.events import InjectedMessage, MessageProvenance
@@ -106,6 +108,10 @@ def _validate_config(job_type: str, config: dict) -> str | None:
     elif job_type == "run":
         if not config.get("command"):
             return "command is required"
+        if "progress" in config:
+            error = bg_progress.validate_config(config["progress"])
+            if error:
+                return error
         return _validate_regex(config, "success_pattern", required=False)
     elif job_type == "merge":
         if not isinstance(config.get("operation_id"), str) or not config["operation_id"].strip():
@@ -459,10 +465,9 @@ class BgJobManager:
     def set_session_manager(self, mgr) -> None:
         self._session_manager = mgr
 
-    async def _spawn_managed_process(self, job_id, command, *, shell, **kwargs):
-        """Register a process or kill it if the owner is cancelled during spawn."""
-        agent_workload = kwargs.pop("agent_workload", False)
-        env = dict(kwargs.pop("env", os.environ))
+    @staticmethod
+    def _job_env(agent_workload: bool, env: dict) -> dict:
+        """Environment of a job process; agent workloads must have their cgroup (V-915)."""
         if agent_workload:
             env["ORCHESTRA_AGENT_WORKLOAD"] = "1"
             cgroup = os.environ.get("ORCHESTRA_AGENT_JOB_CGROUP", "")
@@ -475,7 +480,13 @@ class BgJobManager:
         else:
             env.pop("ORCHESTRA_AGENT_WORKLOAD", None)
             env.pop("ORCHESTRA_AGENT_CGROUP", None)
-        kwargs["env"] = env
+        return env
+
+    async def _spawn_managed_process(self, job_id, command, *, shell, **kwargs):
+        """Register a process or kill it if the owner is cancelled during spawn."""
+        kwargs["env"] = self._job_env(
+            kwargs.pop("agent_workload", False), dict(kwargs.pop("env", os.environ)),
+        )
         spawn_task = asyncio.create_task(
             _spawn_bg_process(command, shell=shell, **kwargs)
         )
@@ -487,6 +498,10 @@ class BgJobManager:
                      target_session_id: str, target_name: str, target_scope: str,
                      created_by: str, timeout_seconds: int = DEFAULT_TIMEOUT,
                      replace_key: str = "") -> dict:
+        # The progress record is written only by the platform sampler, never by a caller.
+        config = {key: value for key, value in config.items() if key != "_progress"}
+        if job_type != "run" and "progress" in config:
+            return {"error": "progress is supported only for run jobs"}
         err = _validate_config(job_type, config)
         if err:
             return {"error": err}
@@ -590,7 +605,10 @@ class BgJobManager:
             coro = self._adopt_run(job_id, config["_process"], message, target_name,
                                    target_scope, timeout,
                                    success_file=config.get("success_file"),
-                                   success_pattern=config.get("success_pattern", ""))
+                                   success_pattern=config.get("success_pattern", ""),
+                                   progress=config.get("progress"), host=config.get("host"),
+                                   cwd=config.get("cwd"),
+                                   agent_workload=bool(config.get("agent_workload")))
         elif job_type == "run":
             host = config.get("host")
             coro = self._run_exec(job_id, config["command"], message, target_name,
@@ -598,7 +616,8 @@ class BgJobManager:
                                   cwd=config.get("cwd"),
                                   success_file=config.get("success_file"),
                                   success_pattern=config.get("success_pattern", ""),
-                                  agent_workload=bool(config.get("agent_workload")))
+                                  agent_workload=bool(config.get("agent_workload")),
+                                  progress=config.get("progress"))
         elif job_type == "merge":
             coro = self._run_merge_watch(job_id, config["operation_id"], message,
                                          target_name, target_scope, timeout)
@@ -1308,8 +1327,9 @@ class BgJobManager:
 
     async def _run_exec(self, job_id, command, message, target_name,
                         target_scope, timeout, host=None, success_file=None,
-                        success_pattern="", cwd=None, agent_workload=False):
+                        success_pattern="", cwd=None, agent_workload=False, progress=None):
         proc = None
+        sampler = None
         out_path, rc_path = _run_files(job_id)
         process = {"out": str(out_path), "rc": str(rc_path)}
         detached = False
@@ -1330,6 +1350,9 @@ class BgJobManager:
             self._procs[job_id] = proc
             process.update(pid=proc.pid, start=_process_start_ticks(proc.pid))
             bg_record_process(job_id, process)
+            sampler = self._start_progress(
+                job_id, progress, out_path, host, cwd, agent_workload,
+            )
             where = host or "local"
             logger.info(f"bg_job {job_id}: run started pid={proc.pid} on={where} "
                         f"timeout={timeout}s cmd_len={len(command)}")
@@ -1348,6 +1371,10 @@ class BgJobManager:
                         job_id, proc.pid, orphan_count, oldest_age,
                     )
             logger.info(f"bg_job {job_id}: run done pid={proc.pid} exit={proc.returncode}")
+            await self._finish_progress(
+                sampler, job_id, progress, out_path, host, cwd, agent_workload,
+            )
+            sampler = None
             await self._finish_run(
                 job_id, proc.returncode, _read_run_tail(out_path), message,
                 target_name, target_scope, success_file, success_pattern,
@@ -1378,6 +1405,7 @@ class BgJobManager:
                 f"{type(e).__name__}: {e}", _read_run_tail(out_path),
             )
         finally:
+            await self._stop_progress(sampler)
             self._procs.pop(job_id, None)
             if proc and not detached:
                 await _kill_proc(proc)
@@ -1390,17 +1418,26 @@ class BgJobManager:
                 _unlink_run_files(process)
 
     async def _adopt_run(self, job_id, process, message, target_name, target_scope,
-                         timeout, success_file=None, success_pattern=""):
+                         timeout, success_file=None, success_pattern="", progress=None,
+                         host=None, cwd=None, agent_workload=False):
         """Finish a run job whose process a previous Orchestra generation started (V-919)."""
         out_path, rc_path = Path(process["out"]), Path(process["rc"])
         detached = False
+        sampler = None
         try:
             logger.info(f"bg_job {job_id}: adopting run pid={process.get('pid')}")
+            sampler = self._start_progress(
+                job_id, progress, out_path, host, cwd, agent_workload,
+            )
             async with asyncio.timeout(timeout):
                 await self._wait_run(
                     job_id, lambda: not _run_leader_alive(process), out_path,
                     _ADOPT_POLL_INTERVAL,
                 )
+            await self._finish_progress(
+                sampler, job_id, progress, out_path, host, cwd, agent_workload,
+            )
+            sampler = None
             exit_code = _read_run_rc(rc_path)
             output = _read_run_tail(out_path)
             if exit_code is None:
@@ -1428,9 +1465,141 @@ class BgJobManager:
                 f"{type(e).__name__}: {e}", _read_run_tail(out_path),
             )
         finally:
+            await self._stop_progress(sampler)
             if not detached:
                 await _reap_orphan_run(process)
                 _unlink_run_files(process)
+
+    async def _read_progress_command(self, progress, host, cwd, agent_workload) -> str:
+        """Run the read-only sampler once under the job's own env/cgroup; bounded time and bytes."""
+        command = progress["command"]
+        inner = ["ssh", *_SSH_OPTS, host, command] if host else ["/bin/sh", "-c", command]
+        spawn = asyncio.create_task(_spawn_bg_process(
+            inner, shell=False,
+            stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL, cwd=None if host else cwd,
+            env=self._job_env(agent_workload, dict(os.environ)),
+        ))
+        proc = await _await_owned_spawn(spawn)
+        try:
+            # read(n) may return on the first write, before a JSON line is complete.
+            # Bound the entire command, including its exit after stdout closes.
+            async with asyncio.timeout(bg_progress.SAMPLER_TIMEOUT):
+                data = bytearray()
+                while True:
+                    chunk = await proc.stdout.read(bg_progress.SAMPLER_READ_LIMIT + 1 - len(data))
+                    data.extend(chunk)
+                    if len(data) > bg_progress.SAMPLER_READ_LIMIT:
+                        raise ValueError("sampler output exceeds byte limit")
+                    if not chunk:
+                        break
+                code = await proc.wait()
+                if code != 0:
+                    raise ValueError(f"sampler exited with code {code}")
+        finally:
+            await _kill_proc(proc)
+        return data.decode(errors="replace")
+
+    @staticmethod
+    def _read_progress_output(out_path):
+        """A bounded tail and durable identity of the actual progress line.
+
+        Re-reading a line, including after adoption or new unrelated logs, is not
+        another source observation. Equal counters on newly appended lines are.
+        """
+        with open(out_path, "rb") as stream:
+            stat = os.fstat(stream.fileno())
+            start = max(0, stat.st_size - _RUN_TAIL_BYTES)
+            stream.seek(start)
+            data = stream.read(_RUN_TAIL_BYTES)
+        lines = data.splitlines(keepends=True)
+        if start and lines:
+            start += len(lines.pop(0))  # Do not parse a line cut by the tail boundary.
+        end = start + sum(map(len, lines))
+        for line in reversed(lines[-200:]):
+            found = bg_progress.parse_text(line.decode(errors="replace"))
+            if found is not None:
+                digest = hashlib.sha256(line).hexdigest()
+                return found, f"{stat.st_dev}:{stat.st_ino}:{end}:{digest}"
+            end -= len(line)
+        return None, None
+
+    async def _sample_progress_once(self, job_id, progress, out_path, host, cwd,
+                                    agent_workload) -> None:
+        mode, interval = progress["mode"], bg_progress.interval_of(progress)
+        row = bg_get_job(job_id) or {}
+        if row.get("status") != "active":
+            return
+        try:
+            previous = json.loads(row.get("config") or "{}").get("_progress")
+        except ValueError:
+            previous = None
+        try:
+            source_cursor = None
+            if mode == "command":
+                text = await self._read_progress_command(progress, host, cwd, agent_workload)
+                found = bg_progress.parse_text(text)
+            else:
+                found, source_cursor = await asyncio.to_thread(self._read_progress_output, out_path)
+                if (source_cursor and isinstance(previous, dict)
+                        and previous.get("source_cursor") == source_cursor):
+                    return
+            if found is None:
+                raise ValueError("no progress line")
+            record = bg_progress.ingest(previous, found[0], found[1], mode, interval)
+            if source_cursor:
+                record["source_cursor"] = source_cursor
+        except asyncio.CancelledError:
+            raise
+        except asyncio.TimeoutError:
+            record = bg_progress.mark_error(previous, "sampler timed out", mode, interval)
+        except ValueError as error:
+            record = bg_progress.mark_error(previous, str(error), mode, interval)
+        except Exception as error:
+            record = bg_progress.mark_error(
+                previous, f"sampler failed: {type(error).__name__}", mode, interval,
+            )
+        bg_record_progress(job_id, record)
+
+    async def _progress_loop(self, job_id, progress, out_path, host, cwd, agent_workload) -> None:
+        """Durable sampling without the model: nothing here wakes or messages an agent."""
+        interval = bg_progress.interval_of(progress)
+        try:
+            while True:
+                started = time.monotonic()
+                try:
+                    await self._sample_progress_once(
+                        job_id, progress, out_path, host, cwd, agent_workload,
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("bg_job %s: progress sample failed", job_id)
+                await asyncio.sleep(max(0.0, interval - (time.monotonic() - started)))
+        except asyncio.CancelledError:
+            pass
+
+    def _start_progress(self, job_id, progress, out_path, host, cwd, agent_workload):
+        if not isinstance(progress, dict) or bg_progress.validate_config(progress):
+            return None
+        return asyncio.create_task(self._progress_loop(
+            job_id, progress, out_path, host, cwd, agent_workload,
+        ))
+
+    async def _finish_progress(self, sampler, job_id, progress, out_path, host, cwd,
+                               agent_workload) -> None:
+        """Stop sampling; a job reporting through its output gets one last look at it."""
+        await self._stop_progress(sampler)
+        if sampler is not None and progress.get("mode") == "output":
+            await self._sample_progress_once(
+                job_id, progress, out_path, host, cwd, agent_workload,
+            )
+
+    @staticmethod
+    async def _stop_progress(sampler) -> None:
+        if sampler is not None:
+            sampler.cancel()
+            await asyncio.gather(sampler, return_exceptions=True)
 
     async def _wait_run(self, job_id, finished, out_path: Path, interval: float) -> None:
         last_progress = time.time()

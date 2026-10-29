@@ -1,0 +1,101 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+_______ test_output_reread_and_log_noise_do_not_invent_new_observations ________
+
+db = None
+tmp_path = PosixPath('/tmp/pytest-of-<private-host>/pytest-5/test_output_reread_and_log_noi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7afae5b65340>
+
+    @pytest.mark.asyncio
+    async def test_output_reread_and_log_noise_do_not_invent_new_observations(db, tmp_path, monkeypatch):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+        now = datetime.now(timezone.utc).isoformat()
+        config = {"command": "unused", "progress": {"mode": "output"}}
+        bg_save_job({
+            "id": "bg-freshness", "type": "run", "config": json.dumps(config), "message": "m",
+            "target_session_id": "s-1", "target_name": "w1", "target_scope": "/s",
+            "created_by_name": "w1", "status": "active", "expires_at": "2099-01-01T00:00:00+00:00",
+            "trigger_at": None, "created_at": now, "last_output": "",
+        })
+        output = tmp_path / 'out'
+        line = '{"completed": 5, "total": 10}\n'
+        output.write_text(line)
+        mgr = BgJobManager()
+        monkeypatch.setattr(bp.time, 'time', lambda: 100.0)
+        await mgr._sample_progress_once('bg-freshness', config['progress'], output, None, None, False)
+        first = _progress_of('bg-freshness')
+        monkeypatch.setattr(bp.time, 'time', lambda: 200.0)
+        await mgr._sample_progress_once('bg-freshness', config['progress'], output, None, None, False)
+>       assert _progress_of('bg-freshness') == first
+E       AssertionError: assert {'error': '',...0, 5.0]], ...} == {'error': '',...0, 5.0]], ...}
+E         
+E         Omitting 9 identical items, use -vv to show
+E         Differing items:
+E         {'history': [[100.0, 5.0], [200.0, 5.0]]} != {'history': [[100.0, 5.0]]}
+E         {'last_ok_at': '1970-01-01T00:03:20+00:00'} != {'last_ok_at': '1970-01-01T00:01:40+00:00'}
+E         {'sample': {'completed': 5.0, 'eta_seconds': None, 'eta_source': '', 'label': '', ...}} != {'sample': {'completed': 5.0, 'eta_seconds': None, 'eta_source': '', 'label': '', ...}}
+E         {'updated_at': '1970-01-01T00:03:20+00:00'} != {'updated_at': '1970-01-01T00:01:40+00:00'}
+E         Use -v to get more diff
+
+tests/test_bg_progress_v1135.py:372: AssertionError
+_______ test_command_sampler_requires_complete_successful_bounded_output _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7afae3ac8e00>
+
+    @pytest.mark.asyncio
+    async def test_command_sampler_requires_complete_successful_bounded_output(monkeypatch):
+        from app.bg_jobs import BgJobManager
+        mgr = BgJobManager()
+        text = await mgr._read_progress_command(
+            {'command': "printf '{\"completed\":'; sleep 0.05; printf '5}\\n'"}, None, None, False,
+        )
+>       assert bp.parse_text(text)[0]['completed'] == 5
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: 'NoneType' object is not subscriptable
+
+tests/test_bg_progress_v1135.py:394: TypeError
+__________ test_sampler_timeout_includes_waiting_after_stdout_closes ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7afae3b5eed0>
+
+    @pytest.mark.asyncio
+    async def test_sampler_timeout_includes_waiting_after_stdout_closes(monkeypatch):
+        from app.bg_jobs import BgJobManager
+        monkeypatch.setattr(bp, 'SAMPLER_TIMEOUT', 0.1)
+>       with pytest.raises(asyncio.TimeoutError):
+E       Failed: DID NOT RAISE <class 'TimeoutError'>
+
+tests/test_bg_progress_v1135.py:410: Failed
+___ test_sampler_errors_do_not_refresh_the_last_good_observation_or_show_eta ___
+
+    def test_sampler_errors_do_not_refresh_the_last_good_observation_or_show_eta():
+        r = _run("""const p = info({interval:5, updated_at:iso(1), last_ok_at:iso(300),
+            moved_at:iso(300), error:'sampler failed',
+            sample:{observed_at:iso(300), status:'running', completed:5, total:10, percent:50,
+              rate:1, eta_seconds:60}});
+            const q = info({interval:5, updated_at:iso(1), last_ok_at:iso(2), moved_at:iso(2),
+            error:'sampler failed', sample:{observed_at:iso(2), status:'running', completed:5,
+              total:10, rate:1, eta_seconds:60}});
+            console.log(JSON.stringify([p.stale, p.ageText, p.etaText, p.rateText, q.etaText, q.rateText]))""")
+>       assert r[0] is True and '5 мин назад' in r[1]
+E       assert (False is True)
+
+tests/test_jobs_progress_view_v1135.py:106: AssertionError
+____________ test_sampler_error_before_first_measurement_is_visible ____________
+
+    def test_sampler_error_before_first_measurement_is_visible():
+        r = _run("""const panel = {innerHTML:'', scrollTop:0, addEventListener(){}};
+            window.renderJobsPanel(panel, [job({interval:5, updated_at:iso(1), error:'sampler timed out'})]);
+            console.log(JSON.stringify(panel.innerHTML))""")
+>       assert 'sampler timed out' in r and 'не удалось прочитать прогресс' in r
+E       assert ('sampler timed out' in '<div class="job-bar">\n            <span>активно <b>1</b></span>\n            <span class="job-switch"><button data-j...job-prog-meta">ждём первое измерение</div></div><div class="job-line job-next">выполняется</div>\n        </div></div>')
+
+tests/test_jobs_progress_view_v1135.py:114: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_progress_v1135.py::test_output_reread_and_log_noise_do_not_invent_new_observations
+FAILED tests/test_bg_progress_v1135.py::test_command_sampler_requires_complete_successful_bounded_output
+FAILED tests/test_bg_progress_v1135.py::test_sampler_timeout_includes_waiting_after_stdout_closes
+FAILED tests/test_jobs_progress_view_v1135.py::test_sampler_errors_do_not_refresh_the_last_good_observation_or_show_eta
+FAILED tests/test_jobs_progress_view_v1135.py::test_sampler_error_before_first_measurement_is_visible
+5 failed, 27 deselected in 3.57s

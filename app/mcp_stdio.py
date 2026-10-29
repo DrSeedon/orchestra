@@ -34,6 +34,7 @@ from mcp.types import CallToolResult, TextContent
 # Единственный владелец правила «ошибка обязана назвать себя». Модуль на голой
 # stdlib — этот процесс запускается как СКРИПТ (runtime_env: python mcp_stdio.py)
 # и ничего больше из app/ не тянет.
+from app import bg_progress
 from app.errtext import err_text
 from app.tool_scoping import parse_disabled_tools
 
@@ -3702,8 +3703,10 @@ async def bg_create(type: str, message: str = "", target: str = "",
                     delay_seconds: int = 0, path: str = "", pattern: str = "",
                     command: str = "", host: str = "", cron_expr: str = "",
                     interval_seconds: int = 60,
-                    timeout_seconds: int = 3600) -> str:
-    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command."""
+                    timeout_seconds: int = 3600,
+                    progress_command: str = "", progress_from_output: bool = False,
+                    progress_interval_seconds: int = 5) -> str:
+    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command. Progress (run only; the model starts it once and is not woken per sample): set progress_command (a short read-only command run every progress_interval_seconds, min 5, 10 s limit, same host/cwd/limits as the run) or progress_from_output=True (read the run's own output). Each sample is one JSON object, either the last stdout line or a line `ORCHESTRA_PROGRESS {json}`: {"status":"running|paused|waiting|done|error","label":"text","completed":N,"total":N,"unit":"MB","percent":0-100,"rate":N per second,"eta_seconds":N}; every field is optional, send only what is really known (no guessed total or ETA). The dashboard job card shows percent, rate, approximate ETA and freshness; only job completion or failure wakes the target."""
     config = {}
     if type == "timer":
         config = {"delay_seconds": delay_seconds}
@@ -3715,6 +3718,12 @@ async def bg_create(type: str, message: str = "", target: str = "",
         config = {"command": command, "host": host, "pattern": pattern}
     elif type == "run":
         config = {"command": command, "host": host} if host else {"command": command}
+        if progress_command or progress_from_output:
+            progress = {"mode": "command" if progress_command else "output",
+                        "interval_seconds": progress_interval_seconds}
+            if progress_command:
+                progress["command"] = progress_command
+            config["progress"] = progress
     elif type == "cron":
         config = {"cron_expr": cron_expr}
     elif type == "cron_command":
@@ -3810,6 +3819,9 @@ async def bg_list() -> str:
         command = str(cfg.get("command") or cfg.get("path") or "")
         if command:
             lines.append(f"   ⚙ {command[:110]}")
+        progress_line = bg_progress.summary(cfg)
+        if progress_line:
+            lines.append(f"   📈 {progress_line[:180]}")
         msg = " ".join((j.get("message") or "").split())
         if msg:
             lines.append(f"   {msg[:180]}")

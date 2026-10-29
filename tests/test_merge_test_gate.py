@@ -1077,6 +1077,8 @@ def test_browser_inventory_is_explicit():
 
     root = Path(__file__).resolve().parent.parent
     expected = {
+    # V-1135: synthetic JOBS progress transitions at phone and desktop widths.
+    "tests/test_jobs_progress_browser_v1135.py": 2,
     # Collection includes the voice-input test explicitly skipped since #365;
     # V-1027 adds three model-picker request cases using dashboard_browser.
     "tests/test_frontend.py": 105,
