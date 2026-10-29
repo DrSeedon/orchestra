@@ -13,8 +13,9 @@ import pytest
 from app import backend_codex, message_deliveries
 from app.backend_codex import CodexProtocolError, CodexWriterConflictError
 from app.events import MessageProvenance
+from app.quota_gate import QuotaGateError
 from app.session import AgentStatus
-from tests.test_session import mock_db, session
+from tests.test_session import mock_db, session, _quota_decision
 from tests.test_message_delivery_receipts_380 import (
     message_db, _accept, _delivery_row, _request_with_proof,
     SOURCE_ID, SOURCE_NAME, TARGET_ID, TARGET_NAME, SCOPE,
@@ -59,6 +60,7 @@ def test_dead_writer_releases_native_lock_without_unlink(writer_path):
 @pytest.mark.asyncio
 async def test_detached_conflict_visible_and_every_send_refused(session, writer_path):
     session.backend_type = 'codex'
+    session.model = 'gpt-6.1-sol'
     session.session_id = THREAD_ID
     session._worker_admission = AsyncMock(side_effect=AssertionError('must refuse before quota'))
     path = writer_path(session.id)
@@ -72,6 +74,7 @@ async def test_detached_conflict_visible_and_every_send_refused(session, writer_
             assert view['runtime_error']['code'] == 'CODEX_WRITER_CONFLICT'
             with pytest.raises(CodexWriterConflictError):
                 await session.preflight_delivery_admission()
+            session._worker_admission.assert_not_awaited()
             assert not session._lifecycle_lock.locked()
         assert path.stat().st_ino == inode
         with path.open('r+') as rival:
@@ -79,7 +82,25 @@ async def test_detached_conflict_visible_and_every_send_refused(session, writer_
                 fcntl.flock(rival, fcntl.LOCK_EX | fcntl.LOCK_NB)
     assert session.to_dict()['status'] == 'idle'
     session.is_orchestrator = True
+    session._worker_admission.side_effect = None
+    session._worker_admission.return_value = _quota_decision(model=session.model)
     await session.preflight_delivery_admission()
+    session._worker_admission.assert_awaited_once_with(session.model)
+    assert not session._lifecycle_lock.locked()
+
+    blocked = _quota_decision('blocked', model=session.model)
+    session._worker_admission.return_value = blocked
+    with pytest.raises(QuotaGateError) as exc:
+        await session.preflight_delivery_admission()
+    assert exc.value.decision is blocked
+    assert session._worker_admission.await_count == 2
+    assert not session._lifecycle_lock.locked()
+
+    session._worker_admission.return_value = _quota_decision(model=session.model)
+    await session.preflight_delivery_admission()
+    assert session._worker_admission.await_count == 3
+    assert all(call.args == (session.model,) for call in session._worker_admission.await_args_list)
+    assert not session._lifecycle_lock.locked()
     assert session.session_id == THREAD_ID
     assert path.stat().st_ino == inode
 

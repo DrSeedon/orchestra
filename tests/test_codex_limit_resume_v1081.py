@@ -522,6 +522,22 @@ async def test_legacy_claude_timer_wake_reaches_real_manager_send(native_env):
 
 
 @pytest.mark.asyncio
+async def test_legacy_claude_runtime_keeps_preflight_and_pending_recovery(native_env):
+    env = native_env
+    _claude_session(env)
+    env.session._admission_service = AsyncMock(side_effect=AssertionError("legacy Claude quota lookup"))
+
+    await env.session.preflight_delivery_admission()
+    env.session._pending_messages.append("legacy pending recovery")
+    await env.session._flush_pending()
+
+    env.session._admission_service.assert_not_awaited()
+    env.backend.send.assert_awaited_once_with("legacy pending recovery")
+    assert not env.session._pending_messages
+    assert not env.session._lifecycle_lock.locked()
+
+
+@pytest.mark.asyncio
 async def test_claude_waiting_quota_limit_wake_delivery_end_to_end(native_env, monkeypatch):
     from app import message_deliveries, quota_queue
     from app.message_deliveries import accept_message_delivery

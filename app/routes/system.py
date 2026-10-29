@@ -764,12 +764,18 @@ def _normalize_codex_window(window: dict | None) -> dict | None:
         return None
     used = window.get("usedPercent")
     duration = window.get("windowDurationMins")
-    if not isinstance(used, (int, float)) or not isinstance(duration, int) or duration <= 0:
+    if (isinstance(used, bool) or not isinstance(used, (int, float))
+            or not math.isfinite(used) or used < 0 or isinstance(duration, bool)
+            or not isinstance(duration, int) or duration <= 0):
         return None
     resets_at = window.get("resetsAt")
     reset_iso = None
-    if isinstance(resets_at, (int, float)) and resets_at > 0:
-        reset_iso = datetime.fromtimestamp(resets_at, timezone.utc).isoformat().replace("+00:00", "Z")
+    if (not isinstance(resets_at, bool) and isinstance(resets_at, (int, float))
+            and math.isfinite(resets_at) and resets_at > 0):
+        try:
+            reset_iso = datetime.fromtimestamp(resets_at, timezone.utc).isoformat().replace("+00:00", "Z")
+        except (ValueError, OSError, OverflowError):
+            pass  # Optional malformed reset does not discard otherwise known usage.
     utilization = max(0, min(100, used))
     return {
         "utilization": int(utilization) if float(utilization).is_integer() else utilization,
@@ -1994,7 +2000,7 @@ async def build_quota_map() -> dict:
                 "gated": decision.gated,
                 # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
-                "curved": decision.lane in policy.curved_lanes,
+                "curved": decision.lane == "claude" and decision.lane in policy.curved_lanes,
                 "limit_pct": decision.limit_pct,
                 "headroom_pp": (
                     None
@@ -2297,7 +2303,8 @@ async def build_quota_map() -> dict:
             "override_until": gate_override_expiry(),
         },
         "rule_history": db.quota_policy_history_for_window(
-            now - 84 * 60 * 60, now + 84 * 60 * 60,
+            min([now - 84 * 60 * 60, *(meta["start"] for meta in bucket_meta.values())]),
+            now + 84 * 60 * 60,
         ),
         "buckets": buckets,
         "outside_policy": outside_policy,

@@ -17,7 +17,7 @@ const _QL_RESET_HISTORY_CACHE_MS = 300000;
 const _QL_LABEL_STEP = 12;
 const _QL_LABEL_TOP_PAD = 8;
 const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat(orchLocale(), {
-    timeZone: 'Asia/Krasnoyarsk', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    timeZone: 'Asia/Krasnoyarsk', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
 });
 
 const _QL_PANELS = [
@@ -99,7 +99,7 @@ function _qlClaudeDayNightLimit(t, rule, hardStop, windowMinutes, windowStartMs)
     if (Number.isFinite(windowStartMs)) {
         const parts = Object.fromEntries(_QL_KR_HOUR_FORMAT.formatToParts(new Date(windowStartMs))
             .map(part => [part.type, part.value]));
-        startHour = Number(parts.hour) + Number(parts.minute) / 60;
+        startHour = Number(parts.hour) + Number(parts.minute) / 60 + Number(parts.second) / 3600;
     }
     const configuredDayStart = Number(rule.claude_day_start_hour);
     const dayStart = Number.isFinite(configuredDayStart)
@@ -127,6 +127,10 @@ function _qlClaudeDayNightLimit(t, rule, hardStop, windowMinutes, windowStartMs)
 }
 
 function _qlLimitAt(t, rule, lane, windowMinutes = 10080, windowStartMs = null) {
+    if (rule.codex_claude_pacing && ['sol', 'luna', 'spark'].includes(lane)) {
+        return Math.min(_qlHardStop(rule, lane),
+            _qlLimitAt(t, rule, 'claude', windowMinutes, windowStartMs));
+    }
     const start = Number(rule.tolerance_start_pp), end = Number(rule.tolerance_end_pp);
     const exponent = Number(rule.curve_exponent) || 1;
     const hasDayNightShape = lane === 'claude'
@@ -144,6 +148,10 @@ function _qlLimitAt(t, rule, lane, windowMinutes = 10080, windowStartMs = null) 
 }
 
 function _qlMonotoneLimitAt(t, rule, lane, windowMinutes, windowStartMs, history, atMs) {
+    if (rule.codex_claude_pacing && ['sol', 'luna', 'spark'].includes(lane)) {
+        return Math.min(_qlHardStop(rule, lane), _qlMonotoneLimitAt(
+            t, rule, 'claude', windowMinutes, windowStartMs, history, atMs));
+    }
     const current = _qlLimitAt(t, rule, lane, windowMinutes, windowStartMs);
     if (lane !== 'claude' || !Array.isArray(history)) return current;
     let limit = current;
@@ -157,8 +165,7 @@ function _qlMonotoneLimitAt(t, rule, lane, windowMinutes, windowStartMs, history
     return limit;
 }
 
-// Жёсткий стоп — свойство ПОЛОСЫ: хвост пула зарезервирован под дешёвую модель,
-// поэтому Sol встаёт раньше Luna. Зеркало `QuotaPolicy.hard_stop_for`.
+// Явные потолки владельца. Зеркало `QuotaPolicy.hard_stop_for`.
 function _qlHardStop(rule, lane) {
     const hard = Number(rule.hard_stop_pct);
     const laneHard = Number((rule.lane_hard_stop_pct || {})[lane]);
@@ -337,7 +344,7 @@ function _qlLaneLabel(laneId) {
     return T(found ? (found.label || laneId) : laneId);
 }
 
-// Hard-stop ceilings in words: Sol has its own (95%), others share one. Label
+// Hard-stop ceilings in words, including any explicit owner-set lane ceiling. Label
 // must match the `ql-hard` lines on the chart — both use the same numbers.
 function _qlCeilingText(rule) {
     const own = Object.entries(rule.lane_hard_stop_pct || {})
@@ -587,16 +594,13 @@ function _qlTimelineSvg(panel, rule) {
                                 progressAt(segmentRight), segmentRule, lane, span / 60000, windowStart ?? start,
                                 _quotaLinesData?.rule_history, segmentRight,
                             );
-                            const laneName = lane === 'sol' ? T('Sol') : T('Claude');
-                            const label = lane === 'sol' ? T('Sol threshold') : T('Claude threshold');
-                            const title = lane === 'sol'
-                                ? `${label}${(segmentRule.gated_lanes || []).includes('sol') ? T(' — burning pool early') : T(' — lifted')}`
-                                : `${label}${(segmentRule.gated_lanes || []).includes('claude') ? '' : T(' — lifted')}`;
+                            const laneName = T({sol: 'Sol', luna: 'Luna', spark: 'Spark', claude: 'Claude'}[lane] || lane);
+                            const title = T('threshold {label}', {label: laneName});
                             timelineEdgeLabels.push({
                                 text: T('threshold {label}', {label: laneName}),
                                 title,
                                 y: y(value) - 5,
-                                color: _qlLaneColor(lane === 'sol' ? 'sol' : 'claude'),
+                                color: _qlLaneColor(lane),
                             });
                         }
                     }
@@ -649,20 +653,16 @@ function _qlTimelineSvg(panel, rule) {
 
 function _qlChartSvg(panel, rule) {
     const p = [];
-    const claudeWindow = _qlBucket('anthropic')?.window;
-    const claudeWindowMinutes = Number(claudeWindow?.window_minutes);
-    const claudeReset = Date.parse(claudeWindow?.resets_at);
-    const claudeWindowStart = Number.isFinite(claudeReset)
-        && Number.isFinite(claudeWindowMinutes) && claudeWindowMinutes > 0
-        ? claudeReset - claudeWindowMinutes * 60000
-        : null;
-    const limitAt = (t, lane) => _qlMonotoneLimitAt(
-        t, rule, lane,
-        lane === 'claude' ? claudeWindowMinutes : undefined,
-        lane === 'claude' ? claudeWindowStart : null,
-        _quotaLinesData?.rule_history,
-        Number.isFinite(claudeWindowStart) ? claudeWindowStart + t * claudeWindowMinutes * 60000 : Date.now(),
-    );
+    const limitAt = (t, lane) => {
+        const bucketId = {claude: 'anthropic', sol: 'codex', luna: 'codex', spark: 'codex_spark'}[lane];
+        const win = _qlBucket(bucketId)?.window;
+        const minutes = Number(win?.window_minutes);
+        const reset = Date.parse(win?.resets_at);
+        const start = Number.isFinite(reset) && minutes > 0 ? reset - minutes * 60000 : null;
+        return _qlMonotoneLimitAt(t, rule, lane, minutes, start,
+            _quotaLinesData?.rule_history,
+            start !== null ? start + t * minutes * 60000 : Date.now());
+    };
 
     for (let pct = 0; pct <= 100; pct += 20) {
         p.push(`<line class="ql-grid" x1="${_QL_ML}" y1="${_qlY(pct)}" x2="${_QL_ML + _QL_PW}" y2="${_qlY(pct)}"/>`);
@@ -676,26 +676,26 @@ function _qlChartSvg(panel, rule) {
     p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">${T('window progress share')}</text>`);
 
     // Separate thresholds keep each lane's curve, cap and day/night profile accurate.
-    const band = [], lineClaude = [], lineSol = [];
+    const band = [];
     for (let i = 0; i <= 100; i++) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(t * 100)}`); }
     for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(limitAt(t, 'claude'))}`); }
-    for (let i = 0; i <= 100; i++) { const t = i / 100; lineClaude.push(`${_qlX(t)},${_qlY(limitAt(t, 'claude'))}`); }
-    for (let i = 0; i <= 100; i++) { const t = i / 100; lineSol.push(`${_qlX(t)},${_qlY(limitAt(t, 'sol'))}`); }
     p.push(`<polygon class="ql-band" points="${band.join(' ')}"/>`);
     p.push(`<line class="ql-diag" x1="${_qlX(0)}" y1="${_qlY(0)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     // Lifted diagonal drawn as ghost: solid line would imply a threshold that
     // blocks someone, but on this lane it's not applied right now.
     const gatedLanes = Array.isArray(rule.gated_lanes) ? rule.gated_lanes : [];
-    const _ghost = lane => gatedLanes.includes(lane) ? '' : ' ql-gated-off';
-    p.push(`<polyline class="ql-gated${_ghost('claude')}" data-ql-threshold="claude" points="${lineClaude.join(' ')}"/>`);
-    if ((rule.curved_lanes || []).includes('sol')) {
-        p.push(`<polyline class="ql-gated ql-gated-sol${_ghost('sol')}" data-ql-threshold="sol" points="${lineSol.join(' ')}"/>`);
-        const solSuffix = gatedLanes.includes('sol') ? T(' — burning pool early') : T(' — lifted');
-        const claudeSuffix = gatedLanes.includes('claude') ? '' : T(' — lifted');
-        const solTitle = `${T('Sol threshold')}${solSuffix}`;
-        const claudeTitle = `${T('Claude threshold')}${claudeSuffix}`;
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(limitAt(0.30, 'sol')) - 9}" fill="${_qlLaneColor('sol')}"><title>${_escHtml(solTitle)}</title>${T('Sol threshold')}</text>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(limitAt(0.62, 'claude')) + 17}" fill="${_qlLaneColor('claude')}"><title>${_escHtml(claudeTitle)}</title>${T('Claude threshold')}</text>`);
+    const _ghost = lane => gatedLanes.includes(lane) && !(rule.override_seconds_left > 0) ? '' : ' ql-gated-off';
+    for (const {lane, bucket} of _qlLanes(panel)) {
+        if (!bucket?.window) continue;
+        if (!rule.codex_claude_pacing && lane !== 'claude'
+            && !(rule.curved_lanes || []).includes(lane)) continue;
+        const points = [];
+        for (let i = 0; i <= 100; i++) {
+            const t = i / 100;
+            points.push(`${_qlX(t)},${_qlY(limitAt(t, lane))}`);
+        }
+        const colorClass = lane === 'sol' ? ' ql-gated-sol' : '';
+        p.push(`<polyline class="ql-gated${colorClass}${_ghost(lane)}" data-ql-threshold="${_escHtml(lane)}" points="${points.join(' ')}"/>`);
     }
 
     const hard = Number(rule.hard_stop_pct);
@@ -713,7 +713,7 @@ function _qlChartSvg(panel, rule) {
         p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74"><title>${_escHtml(laneStopTitle)}</title>${T('stop {label} {pct}%', {label: _escHtml(laneLabel), pct: _formatPercent(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe"><title>${T('orchestrator always runs — no limit')}</title>${T('orchestrator ∞')}</text>`);
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe"><title>${T('Claude')} · ${T('orchestrator always runs — no limit')}</title>${T('Claude')} · ${T('orchestrator ∞')}</text>`);
 
     const byBucket = [];
     for (const id of panel.buckets) {
@@ -776,9 +776,8 @@ function _qlChartSvg(panel, rule) {
         const avoidHardY = Math.abs(baseY - hardY) < 8 || Math.abs(rawLabelY - hardY) < 28;
         const stackedLabelY = _qlPlaceY(avoidHardY ? hardY + 22 : rawLabelY, usedLabelBands);
         p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
-        // Threshold is a LANE property, not bucket: Sol follows curve, Claude straight,
-        // Luna and Spark not gated at all. Printing bucket straight next to lane curve
-        // would show user the wrong limit their workers get blocked by.
+        // Use the server's lane verdict: explicit owner overrides can remove its
+        // line or lower its ceiling even when the pool still has capacity.
         const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
         const labelTitle = T('actual {util}% · expected {expected}%', {
             util: _formatPercent(point.util), expected: _formatPercent(point.progress * 100),
@@ -873,11 +872,11 @@ function _qlPanelHtml(panel) {
             <span><i style="background:var(--ink-faint)"></i>${T('steady burn')}</span>
             <span><i style="background:var(--model-sol)"></i>${T('threshold for gated lanes')}</span>
             <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _formatPercent(rule.hard_stop_pct)})}</span>
-            <span><i style="background:var(--accent)"></i>${T('orchestrator — no limit')}</span>
+            <span><i style="background:var(--accent)"></i>${T('Claude')} · ${T('orchestrator — no limit')}</span>
         </div>
         ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
         <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>
-        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('Orchestrator: <b>always runs</b>')}</span></div>
+        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('Claude')} · ${T('Orchestrator: <b>always runs</b>')}</span></div>
         ${reasons ? `<ul class="ql-reasons">${reasons}</ul>` : ''}
     </section>`;
 }

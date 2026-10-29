@@ -1,0 +1,3 @@
+Before test adjustment: 1 failed in 2.63s.
+Three held-writer refusals passed. Post-release Codex orchestrator preflight reached the obsolete mock side effect:
+AssertionError: must refuse before quota

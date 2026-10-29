@@ -1,22 +1,10 @@
-"""Единственное правило допуска воркеров по квоте пула (#343).
+"""Единственное правило допуска по квоте местного пула (#343, V-1121).
 
-Для пула считаются две величины в процентах:
-
-* **норма** — доля окна, прошедшая по времени: 0% в начале окна, 100% в момент сброса;
-* **допуск** — линейно ``TOLERANCE_START_PP`` п.п. в начале окна → ``TOLERANCE_END_PP``
-  п.п. в момент сброса.
-
-Гейтящиеся полосы (Sol и Claude-воркеры) блокируются, когда расход ушёл выше суммы
-нормы и допуска; поверх этого на всех воркеров действует жёсткий стоп. Стоп —
-свойство ПОЛОСЫ (``QuotaPolicy.hard_stop_for``): хвост недельного пула Codex
-резервируется под дешёвую модель, поэтому Sol встаёт раньше Luna.
-Luna и Spark диагональ не проходят вовсе — они дешёвые, их единственный стоп жёсткий.
-Оркестраторы гейт не проходят никогда: это свойство ВЫЗЫВАЮЩЕГО, и здесь его нет —
-`is_orchestrator` проверяется в `app/session.py` и `app/manager.py` до вызова гейта.
-
-Порог Claude сохраняет максимум кривых правил, записанных в текущем недельном
-окне; на сбросе окна огибающая начинается заново. Остальные полосы используют
-текущее правило напрямую.
+Claude и местный Codex используют одну линию: день/ночь Красноярска, запас
+восемь часов и огибающую правил текущего окна. Сброс начинает огибающую заново.
+Названия полей ``claude_*`` сохранены для совместимости с историей политик.
+Местные Codex-оркестраторы проходят тот же гейт; Claude-оркестраторы сохраняют
+своё исключение. Hub использует собственный пул и собственный допуск.
 
 Неизвестная квота ПРОПУСКАЕТ. Это сквозное решение, а не послабление одного вызова:
 отказ на `unknown` при спавне создавал сессию, которую следующий обязательный `/send`
@@ -30,6 +18,7 @@ import time
 import os
 import json
 import logging
+import sqlite3
 from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -102,11 +91,9 @@ def _parse_lane_floats(
 _ENV_TOLERANCE_START_DEFAULT = 10.0
 _ENV_TOLERANCE_END_DEFAULT = 1.0
 _ENV_HARD_STOP_DEFAULT = 99.0
-# Потолок отдельных полос, ниже общего. Резерв хвоста пула под дешёвую модель:
-# 5 п.п. недельного пула Codex — это сотни ходов Luna против единиц ходов Sol/Astra,
-# поэтому дорогая полоса встаёт на 95%, а дешёвая доживает окно до 99%.
-_ENV_LANE_HARD_STOP_DEFAULT = (("sol", 95.0),)
-_ENV_GATED_LANES_DEFAULT = ("claude", "sol")
+# Явные потолки владельца сохраняются; прежнего резерва Sol под Luna больше нет.
+_ENV_LANE_HARD_STOP_DEFAULT = ()
+_ENV_GATED_LANES_DEFAULT = ("claude", "sol", "luna", "spark")
 
 # Жёсткий стоп по умолчанию — для полос без своего потолка, поверх диагонали.
 HARD_STOP_PCT = _env_float_var(
@@ -119,18 +106,12 @@ TOLERANCE_START_PP = _env_float_var(
 TOLERANCE_END_PP = _env_float_var(
     "QUOTA_TOLERANCE_END_PP", _ENV_TOLERANCE_END_DEFAULT, minimum=0.0, maximum=100.0,
 )
-# Кривизна порога для полос из `CURVED_LANES`: порог идёт не по диагонали, а по
-# `progress ** (1/CURVE_EXPONENT)` — круто вверх в начале окна и плавно к жёсткому стопу
-# у сброса. Решение юзера 28.08.2026: пул Codex сбрасывают часто, поэтому его надо ЖЕЧЬ
-# в начале окна, а не размазывать ровно. Диагональ (exponent = 1.0) держала четырёх
-# Sol-воркеров запертыми при незанятом Claude-пуле.
+# Старые параметры кривизны читаются для совместимости с историей политик.
 _ENV_CURVE_EXPONENT_DEFAULT = 2.5
 CURVE_EXPONENT = _env_float_var(
     "QUOTA_CURVE_EXPONENT", _ENV_CURVE_EXPONENT_DEFAULT, minimum=1.0, maximum=10.0,
 )
-# Полосы с параболой. Claude намеренно НЕ здесь: его стена означает «работать нечем»,
-# поэтому он остаётся на прежней прямой.
-_ENV_CURVED_LANES_DEFAULT = ("sol",)
+_ENV_CURVED_LANES_DEFAULT = ()
 # Наблюдение старше этого возраста считается отсутствующим.
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 
@@ -192,6 +173,8 @@ class QuotaPolicy:
     claude_weekly_shift_hours: float = 8.0
     claude_day_start_hour: float = 8.0
     claude_night_quota_share: float | None = 0.057
+    # Stored in the existing policy epochs so past Codex curves remain historical.
+    codex_claude_pacing: bool = True
 
     def hard_stop_for(self, lane: str | None) -> float:
         """Жёсткий стоп конкретной полосы.
@@ -347,6 +330,7 @@ def initialize_quota_policy_history(*, effective_from: float | None = None) -> i
         "curved_lanes": ["sol"],
         "claude_weekly_shift_hours": 0.0,
         "claude_night_quota_share": None,
+        "codex_claude_pacing": False,
     })
     shifted = dict(baseline)
     shifted["claude_weekly_shift_hours"] = 8.0
@@ -575,6 +559,7 @@ def _policy_from_snapshot(snapshot: Mapping) -> QuotaPolicy:
         claude_weekly_shift_hours=float(snapshot.get("claude_weekly_shift_hours", 8.0)),
         claude_day_start_hour=float(snapshot.get("claude_day_start_hour", 8.0)),
         claude_night_quota_share=snapshot.get("claude_night_quota_share"),
+        codex_claude_pacing=bool(snapshot.get("codex_claude_pacing", False)),
     )
 
 
@@ -590,7 +575,13 @@ def _claude_policy_history(
     at = start + min(1.0, max(0.0, progress)) * float(window_minutes) * 60.0
     from app import db
 
-    return db.quota_policy_history_for_window(start, at)
+    try:
+        return db.quota_policy_history_for_window(start, at)
+    except (sqlite3.Error, OSError, ValueError) as error:
+        logging.getLogger(__name__).warning(
+            "quota policy history unavailable: %s", type(error).__name__,
+        )
+        return []
 
 
 def _line_limit_for_policy(
@@ -623,13 +614,15 @@ def line_limit(
 ) -> float:
     """Порог гейтящейся полосы: норма + допуск, но никогда выше жёсткого стопа полосы.
 
-    Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
-    в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
-    Claude распределяет прирост по часам Красноярска и добавляет постоянный запас
-    `claude_weekly_shift_hours`; в Claude добавляется огибающая исторических правил
-    этого недельного окна. Остальные полосы используют прежнюю формулу.
+    Местный Codex использует формулу и историю Claude, с началом своего окна.
+    Явный потолок полосы остаётся отдельным ограничением владельца.
     """
     policy = policy or quota_policy()
+    if policy.codex_claude_pacing and lane in {"sol", "luna", "spark"}:
+        return min(policy.hard_stop_for(lane), line_limit(
+            progress, "claude", policy, window_minutes=window_minutes,
+            window_start_at=window_start_at, policy_history=policy_history,
+        ))
     active = _line_limit_for_policy(
         progress, lane, policy, window_minutes, window_start_at,
     )
@@ -673,6 +666,13 @@ def line_release_progress(
     согласованным с порогом гейта.
     """
     policy = policy or quota_policy()
+    if policy.codex_claude_pacing and lane in {"sol", "luna", "spark"}:
+        if utilization > policy.hard_stop_for(lane):
+            return float("inf")
+        return line_release_progress(
+            utilization, "claude", policy, window_minutes=window_minutes,
+            window_start_at=window_start_at, policy_history=policy_history,
+        )
     if lane == "claude" and window_start_at is not None and policy_history is None:
         policy_history = _claude_policy_history(window_start_at, window_minutes, 1.0)
     curved = lane is not None and lane in policy.curved_lanes
@@ -891,6 +891,11 @@ def quota_bucket_for_model(model: str) -> str | None:
     return bucket
 
 
+def session_requires_quota(runtime: str, *, is_orchestrator: bool) -> bool:
+    """Use the session runtime even when its legacy model has left the catalog."""
+    return not is_orchestrator or runtime == "codex"
+
+
 def lane_for_model(resolved_model: str, bucket: str | None) -> str | None:
     """Полоса одной модели — единственный владелец этого отображения."""
     if bucket == "codex_spark":
@@ -967,7 +972,8 @@ def deciding_window(provider: object, bucket: str) -> Mapping | None:
 
     def _length(item: Mapping) -> float:
         value = item.get("window_minutes")
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+        if (isinstance(value, (int, float)) and not isinstance(value, bool)
+                and math.isfinite(value) and value > 0):
             return float(value)
         return 0.0
 
@@ -990,11 +996,14 @@ def window_progress(window: Mapping, now: float) -> tuple[float | None, str | No
     minutes = window.get("window_minutes")
     if reset_at is None or isinstance(minutes, bool):
         return None, None
-    if not isinstance(minutes, (int, float)) or minutes <= 0:
+    if not isinstance(minutes, (int, float)) or not math.isfinite(minutes) or minutes <= 0:
         return None, None
     span = float(minutes) * 60.0
     start = reset_at - span
-    started_at = datetime.fromtimestamp(start, timezone.utc).isoformat()
+    try:
+        started_at = datetime.fromtimestamp(start, timezone.utc).isoformat()
+    except (ValueError, OSError, OverflowError):
+        return None, None
     # Зажим намеренный: окно, чей сброс уже прошёл, пройдено целиком — и правило
     # вырождается в жёсткий стоп, потому что `line_limit(1.0)` равен ему.
     return min(1.0, max(0.0, (now - start) / span)), started_at
@@ -1034,7 +1043,7 @@ def evaluate_worker_admission(
         return lane in policy.gated_lanes and not override_left
 
     def lane_hard_stop(lane: str | None) -> float:
-        # Снятие убирает потолок ПОЛОСЫ (sol 95%), общий жёсткий стоп остаётся.
+        # Снятие убирает явный потолок полосы, общий жёсткий стоп остаётся.
         return policy.hard_stop_pct if override_left else policy.hard_stop_for(lane)
 
     def unknown(
@@ -1122,7 +1131,7 @@ def evaluate_worker_admission(
     tolerance = None if progress is None else tolerance_pp(progress, policy)
     policy_history = (
         _claude_policy_history(started_at, window_minutes, 1.0)
-        if lane == "claude" and gated else None
+        if gated and (lane == "claude" or policy.codex_claude_pacing) else None
     )
     limit = None if (progress is None or not gated) else line_limit(
         progress, lane, policy, window_minutes=window_minutes,
@@ -1204,7 +1213,10 @@ def evaluate_worker_admission(
     exhausted_reset = (
         _exhausted_window_reset(provider, checked_at) if bucket in _CODEX_BUCKETS else None
     )
-    if exhausted_reset is not None and state != "blocked":
+    if exhausted_reset is not None and (
+        state != "blocked" or release_in_seconds is None
+        or exhausted_reset - checked_at > release_in_seconds
+    ):
         state = "blocked"
         reset_at_str = datetime.fromtimestamp(exhausted_reset, timezone.utc).isoformat()
         release_status, release_in_seconds = "at_reset", max(0.0, exhausted_reset - checked_at)
@@ -1255,6 +1267,8 @@ async def get_worker_admission(
             reason_key="observation_failed",
             reason_params={"error": f"{type(error).__name__}: {error}"},
         )
+    if not isinstance(observation, Mapping):
+        observation = {}
     providers = observation.get("providers")
     timestamps = observation.get("observed_at_by_provider")
     decision = evaluate_worker_admission(

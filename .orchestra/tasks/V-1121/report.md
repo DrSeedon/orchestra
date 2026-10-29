@@ -1,0 +1,69 @@
+# V-1121 — Codex quota gate: итог текущей доработки
+
+Гейт местного Codex, включая оркестраторов, использует действующую линию Claude:
+день/ночь Красноярска, запас восемь часов, параметры 10/1/99, огибающую истории
+текущего окна и reset. Дефолтный резерв Sol 95% и исключения Luna/Spark сняты;
+явные полномочия владельца сохранены. Weekly-only Pro и dual windows поддержаны,
+исчерпанное короткое окно учитывается. Для short-only 5h тот же восьмичасовой запас
+поднимает линию до общего стопа. Unknown/stale quota сохраняет прежнюю fail-open
+политику без выдуманных 0/100. Hub использует свой пул.
+
+Доставка проходит preflight → durable WAITING_QUOTA → существующий release sweep
+→ прежний runner → повторный admission перед submission. Отложенные пакеты Codex
+также сохраняются в этой очереди. В ранее принятой поправке исключение существующей
+сессии определяется её фактическим runtime, поэтому legacy Claude recovery работает
+без lookup удалённого из каталога имени, а местный Codex продолжает проходить admission.
+
+## Поправка writer-conflict теста
+
+Полученное последнее host-падение воспроизведено до правки: **1 failed, 2.63 s**,
+`test_detached_conflict_visible_and_every_send_refused`. Все три проверки занятого
+writer прошли; после освобождения flock тест всё ещё оставлял quota mock с
+`AssertionError('must refuse before quota')` и ожидал старого обхода оркестратора.
+Production-дефект в этом сценарии не воспроизведён.
+
+Изменён только `tests/test_codex_writer_conflict_536.py` и артефакты задачи:
+
+- Модель тестовой Codex-сессии согласована с её runtime: `gpt-6.1-sol`.
+- При занятом реальном flock сохранены три отказа CODEX_WRITER_CONFLICT и добавлен
+  явный `assert_not_awaited` quota на каждом проходе; lifecycle lock освобождён.
+- После освобождения writer Codex-оркестратор проверяет quota: allow → blocked
+  с QuotaGateError → allow. Все три вызова передают модель; после каждого lifecycle
+  lock свободен. Проверки неизменности thread id и inode сохранены.
+
+Использован существующий fake QuotaDecision из session unit tests; production
+admission, writer ownership, cgroup, V-1119 и общие fixtures не менялись. Старое
+ожидание обхода заменено проверкой нового контракта, а отказ writer до quota усилен.
+
+## Проверка текущей доработки
+
+Provisioned **uv 0.11.28**, `uv run --frozen`, стандартная `.venv`, offline fixtures
+и временные данные внутри каталога задачи. **160 passed, 22.58 s**, включая все
+семь тестов writer-conflict, новые Codex quota/session admission регрессии, реальные
+SQLite-очереди и весь модуль limit/resume:
+
+```sh
+uv run --frozen python -m pytest tests/test_codex_writer_conflict_536.py tests/test_codex_quota_gate_1121.py tests/test_session.py::TestWeeklyQuotaAdmission tests/test_session.py::TestQuotaGatedDeferredTurns tests/test_quota_admission_e2e.py tests/test_quota_wait_queue.py tests/test_codex_limit_resume_v1081.py -q --timeout=20
+```
+
+Изменённый Python разобран через AST; отчёт проверен фильтром формы секретов.
+Импортирован `app/__init__.py` данной копии; абсолютный путь оставлен только
+в приватном выводе для родителя. Новые временные БД удалены.
+
+По сообщению оркестратора, последний полный host runner **до текущей правки**:
+**6651 passed, 54 skipped, 1 failed, 402.32 s**. Единственное падение — именно
+исправленный здесь writer-conflict тест. Ранее host подтвердил instruction contract,
+35 browser quota panel tests и обнаружение мутаций обхода Codex/общей формулы
+(5 и 4 FAIL соответственно). Это результаты родителя, не новый запуск worker.
+
+**Новый полный интегрированный набор ещё не подтверждён.** По поручению родителя
+полный host runner после DONE запускает он; worker его повторно не запускал.
+Сохранённые восемь host browser PNG не менялись.
+
+## Границы
+
+В этой доработке production-код не менялся. Модельный маршрут и запрет native worker
+spawn, writer/cgroup защиты, env, сервисы, оплата/API и deployment не менялись.
+Нет рестартов, платных или живых модельных запросов, git commit/push; коммит делает
+broker. Активация ранее реализованного Python остаётся за обычным разрешённым
+idle-restart циклом; работу нового кода в живом процессе отчёт не утверждает.

@@ -29,7 +29,7 @@ from app.prompting import (
     inject_skills_to_worktree_report, is_orchestrator_role,
     prompt_template_hash, refresh_worker_memory,
 )
-from app.quota_gate import QuotaGateError
+from app.quota_gate import QuotaGateError, session_requires_quota
 from app.runtime_registry import (
     BackendBuildContext,
     _load_scope_mcp_servers,
@@ -1158,7 +1158,8 @@ class AgentSession:
                 )
             # Direct delivery can be injected into an existing turn.  In that case
             # the normal send path intentionally does not consume a new-turn quota.
-            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+            if (self._compacting or self.status == AgentStatus.RUNNING
+                    or not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator)):
                 self._lifecycle_lock.release()
                 return
             if decision is None:
@@ -1378,8 +1379,9 @@ class AgentSession:
                     "handoff_recovery_required: operator recovery is required before sends"
                 )
             if not codex_limit_wake and (
-                self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
-                or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
+                self._compacting or self.status == AgentStatus.RUNNING
+                or not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator)
+                or (self.backend_type != "codex" and provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS)
             ):
                 break
             if decision is None:
@@ -2894,6 +2896,43 @@ class AgentSession:
             if self._cost.adopt_session_id(event.metadata.get("session_id")):
                 self._persist()
 
+    async def _park_codex_pending_quota(self, decision: "QuotaDecision") -> None:
+        """Transfer the pending batch to the existing durable queue under the lifecycle lock."""
+        from app.message_deliveries import accept_message_delivery
+
+        messages = list(self._pending_messages)
+        if not messages:
+            return
+        combined = messages[0] if len(messages) == 1 else "\n".join(
+            f"--- message {i+1}/{len(messages)} ---\n{message}"
+            for i, message in enumerate(messages)
+        )
+        # Acceptance with quota_wait commits synchronously, without yielding;
+        # the lock and immediate clear make this one transfer. Equal later batches
+        # are distinct messages and must not share an id derived from their text.
+        delivery_id = str(uuid.uuid4())
+        generation = (
+            f"session={self.id}|task={self.task_id}|branch={self.branch}|"
+            f"needs_switch={int(bool(self.needs_switch))}"
+        )
+        provenance = MessageProvenance(
+            origin="user" if self._pending_owner_initiated_turn else "unknown",
+            senders=("user" if self._pending_owner_initiated_turn else "unknown",),
+            subtype="quota_pending", ref=delivery_id,
+        )
+        resource, status = await accept_message_delivery(
+            delivery_id=delivery_id, source_principal="platform:quota-pending",
+            source_scope=self.scope, target_session_id=self.id, target_name=self.name,
+            target_scope=self.scope, target_task_id=self.task_id or "",
+            target_generation=generation, message=combined, rendered_message=combined,
+            provenance=provenance, quota_wait=decision,
+        )
+        if status not in {200, 202}:
+            raise RuntimeError(f"pending quota delivery was not accepted: {resource.get('error')}")
+        # Clear only after the durable acceptance; a failed write retains the batch.
+        self._pending_messages.clear()
+        self._pending_owner_initiated_turn = False
+
     async def _flush_pending(self) -> None:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
         # before starting the next one — avoids nested lock acquisition from the same coroutine
@@ -2909,7 +2948,7 @@ class AgentSession:
             if not self._pending_messages:
                 self._lifecycle_lock.release()
                 return
-            if self.is_orchestrator:
+            if not session_requires_quota(self.backend_type, is_orchestrator=self.is_orchestrator):
                 break
             if decision is None:
                 admitted_model = self.model
@@ -2938,6 +2977,13 @@ class AgentSession:
                 require_worker_admission(decision)
             except QuotaGateError as error:
                 retained = len(self._pending_messages)
+                if self.backend_type == "codex":
+                    try:
+                        await self._park_codex_pending_quota(error.decision)
+                    finally:
+                        self._lifecycle_lock.release()
+                    self._log("status", f"{retained} pending message(s) durably waiting for quota")
+                    return
                 signature = json.dumps({
                     "provider": error.decision.provider,
                     "state": error.decision.state,

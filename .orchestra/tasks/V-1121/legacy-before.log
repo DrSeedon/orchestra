@@ -1,0 +1,3 @@
+Before fix: both unchanged legacy Claude wake tests failed, 14.66s.
+Timer: ValueError: unknown model 'claude-sonnet-5-5' in session_requires_quota.
+Durable delivery: FAILED_BEFORE_SUBMIT instead of SUBMITTED, same catalog lookup error.

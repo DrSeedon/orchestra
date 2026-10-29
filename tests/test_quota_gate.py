@@ -26,9 +26,8 @@ from app.quota_gate import (
 
 NOW = 1_770_000_000.0
 WEEK_SECONDS = 10080 * 60
-CODEX_WINDOW_MINUTES = 300
-# Потолок дорогой полосы: хвост недельного пула Codex зарезервирован под Luna.
-SOL_HARD_STOP_PCT = 95.0
+CODEX_WINDOW_MINUTES = 10080
+SOL_HARD_STOP_PCT = 99.0
 
 
 def _iso(timestamp: float) -> str:
@@ -101,7 +100,7 @@ def test_environment_configuration_defaults(monkeypatch):
     assert gate.TOLERANCE_START_PP == 10.0
     assert gate.TOLERANCE_END_PP == 1.0
     assert gate.HARD_STOP_PCT == 99.0
-    assert gate.GATED_LANES == frozenset({"claude", "sol"})
+    assert gate.GATED_LANES == frozenset({"claude", "sol", "luna", "spark"})
 
 
 def test_environment_overrides_are_honored(monkeypatch):
@@ -335,7 +334,7 @@ def test_line_is_norm_plus_tolerance_and_never_exceeds_the_hard_stop():
     assert line_limit(1.0) == HARD_STOP_PCT
 
 
-def test_claude_weekly_line_is_shifted_eight_hours_but_other_lanes_are_unchanged():
+def test_weekly_lines_share_claude_shift_and_day_night_profile():
     progress = 0.5
     baseline = 100.0 * progress + tolerance_pp(progress)
     legacy_policy = replace(quota_gate.quota_policy(), claude_night_quota_share=None)
@@ -344,9 +343,8 @@ def test_claude_weekly_line_is_shifted_eight_hours_but_other_lanes_are_unchanged
     assert shifted - baseline == pytest.approx(91.0 * 8.0 / 168.0)
     assert line_limit(progress) == pytest.approx(baseline)
     assert quota_gate.line_release_progress(101.0) == pytest.approx(1.0)
-    assert line_limit(progress, "sol") == pytest.approx(
-        progress ** (1.0 / quota_gate.CURVE_EXPONENT) * 100.0 + tolerance_pp(progress)
-    )
+    assert line_limit(progress, "sol", legacy_policy) == pytest.approx(shifted)
+    assert line_limit(progress, "sol") == line_limit(progress, "claude")
 
 
 def test_claude_release_prediction_uses_shifted_line_and_plateau_at_hard_stop():
@@ -632,8 +630,7 @@ def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
     start = NOW - progress * WEEK_SECONDS
     limit = line_limit(
         progress, lane,
-        window_minutes=10080 if lane == "claude" else None,
-        window_start_at=start if lane == "claude" else None,
+        window_minutes=10080, window_start_at=start,
     )
 
     below = _decide(model, _providers(progress=progress, **{key: limit - 0.5}))
@@ -647,7 +644,8 @@ def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
 
 def test_exactly_on_the_line_is_admitted():
     """Отказ строго ВЫШЕ линии: `>`, не `>=`. Граница принадлежит разрешению."""
-    decision = _decide("gpt-6.1-sol", _providers(progress=0.5, codex=line_limit(0.5, "sol")))
+    limit = line_limit(.5, "sol", window_minutes=10080, window_start_at=NOW - .5 * WEEK_SECONDS)
+    decision = _decide("gpt-6.1-sol", _providers(progress=0.5, codex=limit))
     assert decision.state == "available"
 
 
@@ -669,14 +667,14 @@ def test_the_same_percent_flips_verdict_as_the_window_advances():
     ("gpt-6-luna", "codex"),
     ("gpt-5.3-codex-spark", "spark"),
 ])
-def test_luna_and_spark_ignore_the_line_and_stop_only_at_the_hard_limit(model, key):
+def test_luna_and_spark_follow_the_same_line_and_hard_limit(model, key):
     over_the_line = _decide(model, _providers(progress=0.1, **{key: 90.0}))
     at_hard_stop = _decide(model, _providers(progress=0.1, **{key: HARD_STOP_PCT}))
     # Sol на том же значении и в той же точке окна — заблокирован.
     sol = _decide("gpt-6.1-sol", _providers(progress=0.1, codex=90.0))
 
-    assert over_the_line.state == "available", over_the_line.reason
-    assert over_the_line.gated is False and over_the_line.limit_pct is None
+    assert over_the_line.state == "blocked", over_the_line.reason
+    assert over_the_line.gated is True and over_the_line.limit_pct is not None
     assert at_hard_stop.state == "blocked"
     assert sol.state == "blocked"
 
@@ -710,14 +708,14 @@ def test_just_under_the_hard_stop_at_the_end_of_the_window_is_admitted(model, ut
 
 
 @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-astra"])
-def test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work(model):
-    """Оба плеча в ОДНОЙ точке: Sol/Astra стоят, Luna в тот же момент работает."""
+def test_ninety_six_percent_has_no_legacy_luna_reserve(model):
+    """Все местные Codex используют общий стоп 99%."""
     providers = _providers(progress=1.0, codex=96.0)
 
     expensive = _decide(model, providers)
     luna = _decide("gpt-6-luna", providers)
 
-    assert expensive.state == "blocked", expensive.reason
+    assert expensive.state == "available", expensive.reason
     assert expensive.lane == "sol" and expensive.hard_limit_pct == SOL_HARD_STOP_PCT
     assert luna.state == "available", luna.reason
     assert luna.hard_limit_pct == HARD_STOP_PCT
@@ -935,12 +933,11 @@ def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
     assert envelope["retryable"] is False
     assert envelope["details"]["rule"] == "worker_quota_admission"
     assert "Rule 'worker_quota_admission'" in envelope["message"]
-    assert envelope["details"]["limit_pct"] == pytest.approx(line_limit(0.5, "sol"))
+    assert envelope["details"]["limit_pct"] == pytest.approx(line_limit(
+        0.5, "sol", window_minutes=10080, window_start_at=NOW - .5 * WEEK_SECONDS,
+    ))
     assert envelope["details"]["utilization"] == 90.0
-    # Сообщение обязано называть ФАКТИЧЕСКИЙ порог полосы и фактическую норму под ним,
-    # иначе агент читает числа от чужой формулы (прямой) и не понимает отказ.
-    assert "81.29" in str(error.value) and "90%" in str(error.value)
-    assert "norm 75.79%" in str(error.value)
+    assert envelope["details"]["reason_key"] == "above_line"
 
 
 def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
@@ -1035,7 +1032,9 @@ def test_gate_override_does_not_lift_the_hard_stop():
     assert "hard stop" in decision.reason
 
 
-def test_gate_override_lifts_the_lane_ceiling_but_keeps_the_general_one():
+def test_gate_override_lifts_the_lane_ceiling_but_keeps_the_general_one(monkeypatch):
+    policy = replace(quota_gate.quota_policy(), lane_hard_stop_pct={"sol": 95})
+    monkeypatch.setattr(quota_gate, "quota_policy", lambda: policy)
     providers = _providers(codex=96.0, progress=0.9)
     assert _decide("gpt-6.1-sol", providers).state == "blocked"
 
@@ -1095,7 +1094,7 @@ def test_gate_override_discards_corrupt_persisted_expiry():
 
 def _codex_5h_and_weekly(five_hour: float, weekly: float):
     return {"codex": {"label": "Codex", "windows": [
-        _window("primary", CODEX_WINDOW_MINUTES, five_hour, 0.5),
+        _window("primary", 300, five_hour, 0.5),
         _window("secondary", 10080, weekly, 0.5),
     ]}}
 
@@ -1104,17 +1103,17 @@ def test_luna_with_exhausted_five_hour_window_waits_until_its_reset():
     decision = _decide("gpt-6-luna", _codex_5h_and_weekly(100.0, 40.0))
 
     assert decision.state == "blocked"
-    assert decision.gated is False
+    assert decision.gated is True
     assert decision.release_status == "at_reset"
-    assert decision.release_in_seconds == CODEX_WINDOW_MINUTES * 60 * 0.5
-    assert decision.reset_at == _iso(NOW + CODEX_WINDOW_MINUTES * 60 * 0.5)
+    assert decision.release_in_seconds == 300 * 60 * 0.5
+    assert decision.reset_at == _iso(NOW + 300 * 60 * 0.5)
 
 
-def test_luna_high_but_not_exhausted_is_still_delivered_at_once():
+def test_luna_high_but_not_exhausted_still_obeys_weekly_line():
     decision = _decide("gpt-6-luna", _codex_5h_and_weekly(98.0, 90.0))
 
-    assert decision.state == "available", decision.reason
-    assert decision.gated is False and decision.limit_pct is None
+    assert decision.state == "blocked", decision.reason
+    assert decision.gated is True and decision.limit_pct is not None
 
 
 def test_exhausted_window_whose_reset_has_passed_does_not_hold():
@@ -1153,8 +1152,12 @@ async def test_live_codex_snapshot_shape_holds_luna_until_the_five_hour_reset():
     assert decision.state == "blocked"
     with pytest.raises(quota_gate.QuotaGateError):
         require_worker_admission(decision)
-    assert decision.release_in_seconds == pytest.approx(
+    # Weekly pacing now applies to Luna too; both windows must permit release.
+    assert decision.release_in_seconds >= (
         datetime(2026, 10, 21, 12, 1, 30, tzinfo=timezone.utc).timestamp() - now)
+    weekly_only = {"codex": {"windows": [codex["windows"][1]]}}
+    pacing = evaluate_worker_admission("gpt-6-luna", weekly_only, {"codex": now}, now=now)
+    assert decision.release_in_seconds == pytest.approx(pacing.release_in_seconds)
 
 
 def test_owner_gate_override_does_not_release_an_exhausted_codex_window(monkeypatch):
@@ -1166,7 +1169,7 @@ def test_owner_gate_override_does_not_release_an_exhausted_codex_window(monkeypa
 
     assert decision.state == "blocked"
     assert decision.release_status == "at_reset"
-    assert decision.release_in_seconds == CODEX_WINDOW_MINUTES * 60 * 0.5
+    assert decision.release_in_seconds == 300 * 60 * 0.5
     assert below.state == "available"
 
 

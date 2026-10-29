@@ -770,7 +770,9 @@ class SessionManager:
         # Idle creation is a control action; gate only a planned initial turn.
         # Refuse before allocating a task, session or worktree (V-1036).
         # Delivery still rechecks admission if the gate closes after creation.
-        if planned_initial_turn and not is_orch:
+        from app.quota_gate import session_requires_quota
+
+        if planned_initial_turn and session_requires_quota(backend_for_model(model), is_orchestrator=is_orch):
             from app.quota_gate import get_worker_admission, require_worker_admission
 
             require_worker_admission(await get_worker_admission(model))

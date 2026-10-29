@@ -1,0 +1,4 @@
+Historical first hub-copy check; current host status is recorded in report.md.
+5 existing quota-panel browser tests: 5 setup errors in 26.76s.
+Playwright driver startup in sync_playwright().__enter__ exceeded 20s pytest-timeout.
+No test body ran; no fixture was replaced. Host browser check remains required.
