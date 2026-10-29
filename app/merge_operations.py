@@ -2266,6 +2266,14 @@ async def _clean_worktree_after_merge(record: dict[str, Any], result: dict[str, 
         worktree = (row or {}).get("worktree_path") or ""
         target = str((result.get("git") or {}).get("target_branch") or "")
         if worktree:
+            request = record.get("request") or {}
+            if request.get("merge_schema_version") == 2 and request.get("task_outcome") == "continue":
+                from app.hub_workspace import states_for_worktree
+
+                if await asyncio.to_thread(states_for_worktree, worktree):
+                    # The same task still owns its hub copy and conversation.
+                    # Retain input provenance and local/remote recovery data too.
+                    return
             from app.backend_hub import release_for_worktree
 
             try:

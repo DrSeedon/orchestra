@@ -1,0 +1,72 @@
+[EDITED FOR PUBLICATION: private absolute paths and deployment identities generalized; original stdout SHA-256=883ac9f440eaadab7ad43768fe0e7df9a4e1f91554e2d5a70a0dd7bb6554763f. This is a sanitized version, not byte-for-byte original stdout. Test verdicts and timings unchanged.]
+
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______________ test_continue_cleanup_keeps_workspace_and_history _______________
+
+continued = namespace(repo=PosixPath('.orchest...nsertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}}, branch='task-42/followup')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7909e62a4170>
+
+    @pytest.mark.asyncio
+    async def test_continue_cleanup_keeps_workspace_and_history(continued, monkeypatch):
+        from app.merge_operations import _clean_worktree_after_merge
+        from tests.test_hub_inputs_v1062 import _Entering
+        env = continued
+        monkeypatch.setattr('app.backend_hub.MultiCodeClient.from_env', lambda: _Entering(env.mc))
+        await _clean_worktree_after_merge(
+            {'session_id': 'followup', 'request': {'merge_schema_version': 2, 'task_outcome': 'continue'}},
+            {'git': {'target_branch': 'main'}},
+        )
+>       assert env.state.path().exists(), 'continue must retain hub state and thread history'
+E       AssertionError: continue must retain hub state and thread history
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('.orchestra/tasks/V-1125...test-of-<test-user>/pytest-1/test_continue_cleanup_keeps_wo0/hub-state/hub-14a58a1898054f60.json').exists
+E        +      where PosixPath('.orchestra/tasks/V-1125...test-of-<test-user>/pytest-1/test_continue_cleanup_keeps_wo0/hub-state/hub-14a58a1898054f60.json') = path()
+E        +        where path = WorkspaceState(ws_id='hub-14a58a1898054f60', worktree='<repo>, created_at=1793268989.5730865, input_manifest={}, file_policy_blocked=False, clean_start=False, clean_start_of=[]).path
+E        +          where WorkspaceState(ws_id='hub-14a58a1898054f60', worktree='<repo>, created_at=1793268989.5730865, input_manifest={}, file_policy_blocked=False, clean_start=False, clean_start_of=[]) = namespace(repo=PosixPath('.orchest...nsertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}}, branch='task-42/followup').state
+
+tests/test_hub_followup_v1125.py:91: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: .orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-1/test_continue_cleanup_keeps_wo0/worktrees/synthetic-repository/followup reset to main (a781eb20)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: .orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-1/test_continue_cleanup_keeps_wo0/worktrees/synthetic-repository/followup reset to main (a781eb20)
+----------------------------- Captured stderr call -----------------------------
+post-merge worktree cleanup operation_id= worktree=.orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-1/test_continue_cleanup_keeps_wo0/worktrees/synthetic-repository/followup state=cleaned files=0 bytes=0 reason=
+------------------------------ Captured log call -------------------------------
+INFO     orchestra.merge_operations:merge_operations.py:2281 post-merge worktree cleanup operation_id= worktree=.orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-1/test_continue_cleanup_keeps_wo0/worktrees/synthetic-repository/followup state=cleaned files=0 bytes=0 reason=
+___________ test_followup_refreshes_local_source_before_remote_delta ___________
+
+continued = namespace(repo=PosixPath('.orchest...nsertions': 1, 'deletions': 0}]}, 'links': {'42': {'ok': True, 'added': 1, 'task_id': 1}}}}, branch='task-42/followup')
+
+    @pytest.mark.asyncio
+    async def test_followup_refreshes_local_source_before_remote_delta(continued):
+        env = continued
+        files = add_inputs(env)
+        assert not (env.root / 'task/new-inputs').exists()
+        events = await _turn(env.backend, 'read newly committed public inputs')
+        assert not [event.content for event in events if event.type == 'error']
+        actual = {rel: env.observed[-1].get(rel) for rel in files}
+>       assert actual == files, f'expected {len(files)} files, got {sum(v is not None for v in actual.values())}'
+E       AssertionError: expected 41 files, got 0
+E       assert {'task/new-in...t': None, ...} == {'task/new-in...rd 03\n', ...}
+E         
+E         Differing items:
+E         {'task/new-inputs/public-31.txt': None} != {'task/new-inputs/public-31.txt': b'public synthetic record 31\npublic synthetic record 31\npublic synthetic record 31... 31\npublic synthetic record 31\npublic synthetic record 31\npublic synthetic record 31\npublic synthetic record 31\n'}
+E         {'task/new-inputs/public-30.txt': None} != {'task/new-inputs/public-30.txt': b'public synthetic record 30\npublic synthetic record 30\npublic synthetic record 30... 30\npublic synthetic record 30\npublic synthetic record 30\npublic synthetic record 30\npublic synthetic record ...
+E         
+E         ...Full output truncated (41 lines hidden), use '-vv' to show
+
+tests/test_hub_followup_v1125.py:111: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+_reset_worktree_to_ref: .orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-1/test_followup_refreshes_local_0/worktrees/synthetic-repository/followup reset to main (eded21ec)
+------------------------------ Captured log setup ------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+INFO     app.workspace:workspace.py:1495 _reset_worktree_to_ref: .orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-1/test_followup_refreshes_local_0/worktrees/synthetic-repository/followup reset to main (eded21ec)
+=========================== short test summary info ============================
+FAILED tests/test_hub_followup_v1125.py::test_continue_cleanup_keeps_workspace_and_history
+FAILED tests/test_hub_followup_v1125.py::test_followup_refreshes_local_source_before_remote_delta
+2 failed in 9.03s

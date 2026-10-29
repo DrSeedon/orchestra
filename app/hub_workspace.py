@@ -1000,6 +1000,106 @@ def local_delta(root: Path, plan: UploadPlan, manifest: dict[str, str], keep: fr
     return sorted(send), sorted(drop)
 
 
+def check_refresh(snapshot: Path, manifest: dict[str, str], plan: UploadPlan,
+                  send: list[str], drop: list[str], inputs: dict[str, str]) -> None:
+    """Refuse to replace remote WIP when refreshing a retained conversation.
+
+    Read the existing bounded return archive without applying it. Unchanged baselines
+    and already delivered bytes permit retries; immutable inputs retain their existing
+    restore-original contract after rejected remote edits.
+    """
+    affected = set(send) | set(drop)
+    parents = _parents(affected)
+    actual: dict[str, str] = {}
+    with tarfile.open(snapshot, "r:") as archive:
+        for member in archive:
+            if member.isdir() and member.name in (".", "./"):
+                continue
+            rel = _member_path(member.name)
+            if rel is None:
+                raise HubWorkspaceError("hub refresh: invalid remote snapshot; copy retained")
+            if rel in parents and not member.isdir():
+                raise HubWorkspaceError(f"hub refresh: remote path obstruction at {rel}; copy retained")
+            if _parents([rel]) & affected:
+                raise HubWorkspaceError(f"hub refresh: remote directory collision at {rel}; copy retained")
+            if rel not in affected:
+                continue
+            if not member.isreg() or rel in actual or member.size > MAX_FILE_BYTES:
+                raise HubWorkspaceError(f"hub refresh: unsafe remote path at {rel}; copy retained")
+            handle = archive.extractfile(member)
+            if handle is None:
+                raise HubWorkspaceError("hub refresh: unreadable remote snapshot; copy retained")
+            with handle:
+                actual[rel] = hashlib.file_digest(handle, "sha256").hexdigest()
+    for rel in sorted(affected):
+        desired = plan.manifest.get(rel) if rel in send else None
+        if rel in send and inputs.get(rel) == desired:
+            continue
+        if actual.get(rel) not in (manifest.get(rel), desired):
+            raise HubWorkspaceError(f"hub refresh: remote WIP conflict at {rel}; copy and history retained")
+
+
+def refresh_source(root: Path, branch: str, base: str) -> str:
+    """Fast-forward a bound worker to its declared base before planning an upload.
+
+    Never reset/rebase committed work or stash WIP. A diverged base needs an explicit
+    reconciliation; proceeding with the old checkout would silently hide new inputs.
+    Direct/plain-directory callers without a worker binding keep their upload contract.
+    """
+    from app import workspace
+
+    if not base or not branch:
+        raise HubWorkspaceError("hub source refresh: missing worker branch/base binding; nothing uploaded")
+    repository = _git_out(root, "rev-parse", "--is-inside-work-tree")
+    if repository is None:
+        raise HubWorkspaceError("hub source refresh: cannot inspect Git source; nothing uploaded")
+    if repository.returncode:
+        if not any(os.path.lexists(parent / ".git") for parent in (root.resolve(), *root.resolve().parents)):
+            return ""
+        raise HubWorkspaceError("hub source refresh: invalid Git metadata; nothing uploaded")
+    repo = workspace._resolve_repo(str(root), str(root))
+    with workspace.repo_mutation_lock(repo):
+        try:
+            actual_branch, head = workspace.inspect_worktree_identity(str(root))
+            target = workspace._resolve_commit_oid(repo, f"refs/heads/{base}")
+            if actual_branch != branch:
+                raise HubWorkspaceError("hub source refresh: worker branch changed; nothing uploaded")
+            for marker in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply"):
+                done = _git_out(root, "rev-parse", "--git-path", marker)
+                if done is None or done.returncode:
+                    raise HubWorkspaceError("hub source refresh: cannot inspect Git operation state")
+                path = Path(os.fsdecode(done.stdout).strip())
+                if not path.is_absolute():
+                    path = root / path
+                if path.exists():
+                    raise HubWorkspaceError(f"hub source refresh: {marker} in progress; nothing uploaded")
+            contained = _git_out(root, "merge-base", "--is-ancestor", target, head)
+            if contained is not None and contained.returncode == 0:
+                return ""  # already includes the base, possibly with committed worker output
+            behind = _git_out(root, "merge-base", "--is-ancestor", head, target)
+            if contained is None or contained.returncode != 1 or behind is None or behind.returncode != 0:
+                raise HubWorkspaceError(
+                    f"hub source refresh: cannot fast-forward {branch} to {base}; "
+                    "reconcile committed work explicitly before retrying; nothing uploaded")
+            inputs = merge_inputs(root, head, target)
+            dirty = workspace._clean_worktree_error(root, "hub source", hub_inputs=inputs)
+            if dirty:
+                raise HubWorkspaceError(f"hub source refresh: {dirty}; nothing uploaded")
+            advanced = _git_out(root, "merge", "--ff-only", "--no-edit", "--no-overwrite-ignore", target)
+            if advanced is None or advanced.returncode:
+                raise HubWorkspaceError(
+                    "hub source refresh: fast-forward refused; preserve local files and "
+                    "resolve the checkout obstruction before retrying; nothing uploaded")
+            actual_branch, actual_head = workspace.inspect_worktree_identity(str(root))
+            if actual_branch != branch or actual_head != target:
+                raise HubWorkspaceError("hub source refresh: cannot verify updated worker identity; nothing uploaded")
+        except RuntimeError as exc:
+            if isinstance(exc, HubWorkspaceError):
+                raise
+            raise HubWorkspaceError(f"hub source refresh failed: {exc}; nothing uploaded") from exc
+    return f"hub: source fast-forwarded {branch} to {base} ({target[:12]})"
+
+
 # ── persistent record (resume after restart, release by worktree) ────────────────────
 
 

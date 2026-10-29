@@ -44,6 +44,7 @@ class Identity:
     branch: str = ""
     pipeline: str = ""
     turn_gen: int = 0
+    base_branch: str = ""  # live source binding; older/direct callers may omit it
 
 
 @dataclass

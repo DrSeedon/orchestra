@@ -1,0 +1,118 @@
+{
+  "scope": "All known changed source/document/task artifacts inspected in this Git-less worker copy. Zero-new-identity result covers V-1125 additions and task artifacts, not unchanged historical CHANGELOG text. Parent verifies actual tracked diff after integration.",
+  "private_originals_in_public_deliverable": false,
+  "audit_method": [
+    "exact runtime deployment identifiers (values never emitted)",
+    "absolute home/data/runtime root patterns",
+    "host identifier patterns",
+    "credential shapes"
+  ],
+  "source_files_unchanged_during_publication_correction_sha256": {
+    "app/backend_hub.py": "8fc8d359df41fc4fa043ef863ce1af59b61d6b0a5b2a9989a37de93c963f5271",
+    "app/hub_workspace.py": "1bd06911cf353501505613d24159ca1b95bd4330ce321dd68708c1463f23b9c1",
+    "app/hub_outbox.py": "b26676740127b791a123c26bb52c969f48ae06310db100ccd0470579d8456f67",
+    "app/session.py": "b85cc2c5af24917a16e5da698c9102feab827fe359336c91597714bf858ce738",
+    "app/merge_operations.py": "c7d5dc56ae8c082a55e4d1b751004b9c76b2c64bb6f5252843628d2b00ec77c4",
+    "tests/test_hub_followup_v1125.py": "7646abb9655758e70e38bb2d9bbf7526c5f936e54daff3dd4794ed72a38f015e"
+  },
+  "logs": [
+    {
+      "path": ".orchestra/tasks/V-1125/after-initial.txt",
+      "original_stdout_sha256": "262b4f7a4986380fea63223434919956e718572d0b2f6728ee8c0904faf7a9ea",
+      "published_sha256": "262b4f7a4986380fea63223434919956e718572d0b2f6728ee8c0904faf7a9ea",
+      "edited_for_publication": false
+    },
+    {
+      "path": ".orchestra/tasks/V-1125/before.txt",
+      "original_stdout_sha256": "883ac9f440eaadab7ad43768fe0e7df9a4e1f91554e2d5a70a0dd7bb6554763f",
+      "published_sha256": "ee184f26589dfbb569692fafe17fd50d0e2f274d4d3317e981454fd2375c87c9",
+      "edited_for_publication": true
+    },
+    {
+      "path": ".orchestra/tasks/V-1125/final-followup.txt",
+      "original_stdout_sha256": "65f967a84e8c2eb4efcf82e071cb0aa6e161cb6ca03d098b4c839e5d6ccb48a1",
+      "published_sha256": "65f967a84e8c2eb4efcf82e071cb0aa6e161cb6ca03d098b4c839e5d6ccb48a1",
+      "edited_for_publication": false
+    },
+    {
+      "path": ".orchestra/tasks/V-1125/final-targeted.txt",
+      "original_stdout_sha256": "1b7d31d47f54c237414fa0fb8304272ed055dcf43e1fd1f1a10f2c4e775364aa",
+      "published_sha256": "978fce7f263be9832bdb7de9be14526943197962a1d6b085874c930a2784bc80",
+      "edited_for_publication": true
+    },
+    {
+      "path": ".orchestra/tasks/V-1125/followup.txt",
+      "original_stdout_sha256": "c7b680cea83927e442be6cccd11a335d5d7630a7d540787727c15d56d66d1c6f",
+      "published_sha256": "c7b680cea83927e442be6cccd11a335d5d7630a7d540787727c15d56d66d1c6f",
+      "edited_for_publication": false
+    },
+    {
+      "path": ".orchestra/tasks/V-1125/recovery.txt",
+      "original_stdout_sha256": "c162018c4fe791ebdcc3dcdb7e36a3fa768e1deff3cf3e5abb6266a9f865f6e4",
+      "published_sha256": "c162018c4fe791ebdcc3dcdb7e36a3fa768e1deff3cf3e5abb6266a9f865f6e4",
+      "edited_for_publication": false
+    },
+    {
+      "path": ".orchestra/tasks/V-1125/targeted.txt",
+      "original_stdout_sha256": "b9d5d01e02b1b32f9fe7196b6af1c8103f2640af4e55758b11bf33e5577fcd4d",
+      "published_sha256": "44390e29ebf7360f4c5efa8f82e7da24737503c6cc68415e29cbd2d2201ad0b6",
+      "edited_for_publication": true
+    }
+  ],
+  "document_original_sha256": {
+    "report.md": "b92a5fd1210ce938bf3589ec036ba4014d3c4f5dd4f47ad412551f69c36e90fa",
+    "CHANGELOG.md": "2e42fa5cd6e96c47a05bc42372b6e6c5ed28431b743837d3240671355fe881f9"
+  },
+  "inspected_files": [
+    ".orchestra/tasks/V-1125/after-initial.txt",
+    ".orchestra/tasks/V-1125/before.txt",
+    ".orchestra/tasks/V-1125/final-followup.txt",
+    ".orchestra/tasks/V-1125/final-targeted.txt",
+    ".orchestra/tasks/V-1125/followup.txt",
+    ".orchestra/tasks/V-1125/publication-audit.json",
+    ".orchestra/tasks/V-1125/recovery.txt",
+    ".orchestra/tasks/V-1125/report.md",
+    ".orchestra/tasks/V-1125/targeted.txt",
+    "CHANGELOG.md",
+    "app/backend_hub.py",
+    "app/hub_outbox.py",
+    "app/hub_workspace.py",
+    "app/merge_operations.py",
+    "app/session.py",
+    "tests/test_hub_followup_v1125.py"
+  ],
+  "allowed_nonprivate_examples": [
+    {
+      "path": "app/hub_workspace.py",
+      "kind": "generic illustrative absolute remote path, no deployment identity"
+    },
+    {
+      "path": "app/hub_outbox.py",
+      "kind": "loopback-only API default"
+    }
+  ],
+  "result": {
+    "inspected_file_count": 16,
+    "v1125_new_private_identifier_or_remote_root_findings": 0,
+    "new_task_artifact_credential_shape_findings": 0,
+    "log_provenance_verified": true,
+    "production_and_test_sources_unchanged": true,
+    "changelog_exact_turn1_restoration_verified": true,
+    "historical_changelog_zero_path_claim": false,
+    "generic_source_examples": [
+      {
+        "path": "app/hub_workspace.py",
+        "line": 490,
+        "category": "pre-existing explicitly illustrative source comment, no runtime identifier match"
+      }
+    ]
+  },
+  "changelog_restoration": {
+    "status": "exact_turn1_bytes_restored_including_only_the_V1125_added_entry",
+    "turn1_sha256": "2e42fa5cd6e96c47a05bc42372b6e6c5ed28431b743837d3240671355fe881f9",
+    "current_sha256": "2e42fa5cd6e96c47a05bc42372b6e6c5ed28431b743837d3240671355fe881f9",
+    "verification": "Complete restored file matches the hash recorded before publication edits; historical lines recovered from read-only public upstream.",
+    "scope": "Historical entries retained as requested; no historical path or repository-slug cleanups belong to V-1125."
+  },
+  "raw_stdout_retention": "Parent will preserve turn1 original stdout from host Git in private evidence before merge; public marked safe logs and original-byte hashes remain unchanged."
+}

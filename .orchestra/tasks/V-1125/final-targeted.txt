@@ -1,0 +1,35 @@
+[EDITED FOR PUBLICATION: private absolute paths and deployment identities generalized; original stdout SHA-256=1b7d31d47f54c237414fa0fb8304272ed055dcf43e1fd1f1a10f2c4e775364aa. This is a sanitized version, not byte-for-byte original stdout. Test verdicts and timings unchanged.]
+
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 18%]
+...................F.................................................... [ 36%]
+........................................................................ [ 54%]
+........................................................................ [ 73%]
+........................................................................ [ 91%]
+.................................                                        [100%]
+=================================== FAILURES ===================================
+__________ test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools __________
+[gw1] linux -- Python 3.12.3 .venv/bin/python3
+
+repo = PosixPath('.orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-5/popen-gw1/test_hub_model_gets_a_trimmed_0/wt')
+tmp_path = PosixPath('.orchestra/tasks/V-1125/tmp/pytest-of-test-user/pytest-5/popen-gw1/test_hub_model_gets_a_trimmed_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f94073b84d0>
+
+    @pytest.mark.asyncio
+    async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
+        backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
+        await _turn(backend, "implement the thing")
+        prompt = _first_prompt(mc)
+>       assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
+E       AssertionError: assert ('worker wrk' in 'You are a worker on a remote machine. Your current directory is a private copy of a repository (no .git, no remote). ...holds everything you need, and any other line in the file is dropped.\n</orchestra-link>\n\nTask:\nimplement the thing')
+
+tests/test_hub_workspace.py:1649: AssertionError
+----------------------------- Captured stderr call -----------------------------
+HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+------------------------------ Captured log call -------------------------------
+INFO     app.backend_hub:backend_hub.py:291 HubBackend connected: model=hub-claude-haiku-5-5 workspace=None
+=========================== short test summary info ============================
+FAILED tests/test_hub_workspace.py::test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools
+1 failed, 392 passed in 281.67s (0:04:41)

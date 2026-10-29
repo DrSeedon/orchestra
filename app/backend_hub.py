@@ -518,6 +518,12 @@ class HubBackend:
             # Never the warm base (it descends from the contaminated copy), and always an explicit scope.
             options = dataclasses.replace(options, persistent=False)
         hw.require_scope(state.paths, options)
+        if self._bridge is not None:
+            identity = self._bridge.identity()
+            if identity.base_branch:
+                note = await asyncio.to_thread(hw.refresh_source, root, identity.branch, identity.base_branch)
+                if note:
+                    yield AgentEvent("status", note)
         plan = await asyncio.to_thread(hw.plan_upload, root, state.paths or None, known, options)
         yield AgentEvent("status", self._upload_note(fresh, plan))
         scratch = hw.local_scratch()
@@ -655,6 +661,11 @@ class HubBackend:
             state.save()
         else:
             send, drop = hw.local_delta(root, plan, state.manifest, keep=set(state.hub_made))
+            if send or drop:
+                snapshot = scratch / "before-refresh.tar"
+                await ssh.get(state.remote_dir, snapshot)
+                await asyncio.to_thread(hw.check_refresh, snapshot, state.manifest, plan,
+                                        send, drop, state.input_manifest or {})
             if send:
                 await asyncio.to_thread(hw.write_tar, root, send, tar_path)
                 await ssh.put(state.remote_dir, tar_path)
