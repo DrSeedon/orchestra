@@ -1,0 +1,9 @@
+{
+  "html_url": "https://github.com/anthropics/claude-code/issues/80380",
+  "title": "[BUG] Intermittent 401 storms on static setup-token (CLAUDE_CODE_OAUTH_TOKEN): valid token rejected as 'expired' for minutes, simultaneously across machines",
+  "author": "ammbot",
+  "created_at": "2026-07-23T00:50:49Z",
+  "updated_at": "2026-09-18T14:17:48Z",
+  "state": "closed",
+  "state_reason": "not_planned"
+}

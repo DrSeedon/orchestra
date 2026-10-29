@@ -1,0 +1,3 @@
+1990:   *  *Refresh token rotation:* the authorization server issues a new
+2011:   Authorization servers MAY revoke refresh tokens automatically in case
+2017:   Refresh tokens SHOULD expire if the client has been inactive for some

@@ -1,0 +1,8 @@
+PASS: C01-C18 each present once, seven required columns and explicit verdicts
+PASS: A1-A17 source definitions present in standalone report
+PASS: 3 local Markdown links resolve
+PASS: 23 artifact files scanned; no credential-shaped payloads or full HTML retained
+PASS: no product source files present or modified by this research; artifacts live under task directory
+LIMIT: lexical scan is not a proof of absence of every possible secret; report also manually reviewed
+LIMIT: git diff, main source checks and app imports unavailable in gitless source-limited copy
+NOT RUN: Python/pytest/integration/model probes; research artifacts only, no app/tests supplied

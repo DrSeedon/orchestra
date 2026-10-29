@@ -1,0 +1,2 @@
+git_show_backend_main_exit=128
+app_directory=absent
