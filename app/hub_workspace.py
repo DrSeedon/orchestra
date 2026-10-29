@@ -1040,10 +1040,11 @@ def check_refresh(snapshot: Path, manifest: dict[str, str], plan: UploadPlan,
 
 
 def refresh_source(root: Path, branch: str, base: str) -> str:
-    """Fast-forward a bound worker to its declared base before planning an upload.
+    """Optionally fast-forward a bound worker before planning its own upload.
 
-    Never reset/rebase committed work or stash WIP. A diverged base needs an explicit
-    reconciliation; proceeding with the old checkout would silently hide new inputs.
+    Never reset/rebase committed work or stash WIP. Divergence and local changes skip
+    this optimization visibly; an independent follow-up can use the existing branch.
+    Git/binding failures and collisions in an attempted fast-forward still refuse.
     Direct/plain-directory callers without a worker binding keep their upload contract.
     """
     from app import workspace
@@ -1074,17 +1075,28 @@ def refresh_source(root: Path, branch: str, base: str) -> str:
                 if path.exists():
                     raise HubWorkspaceError(f"hub source refresh: {marker} in progress; nothing uploaded")
             contained = _git_out(root, "merge-base", "--is-ancestor", target, head)
-            if contained is not None and contained.returncode == 0:
+            if contained is None or contained.returncode not in (0, 1):
+                raise HubWorkspaceError("hub source refresh: cannot inspect base ancestry; nothing uploaded")
+            # Validate the source we will actually upload even when base refresh is
+            # skipped. Target-tree collisions matter only if we attempt to install it.
+            inputs = merge_inputs(root, head)
+            if contained.returncode == 0:
                 return ""  # already includes the base, possibly with committed worker output
             behind = _git_out(root, "merge-base", "--is-ancestor", head, target)
-            if contained is None or contained.returncode != 1 or behind is None or behind.returncode != 0:
-                raise HubWorkspaceError(
-                    f"hub source refresh: cannot fast-forward {branch} to {base}; "
-                    "reconcile committed work explicitly before retrying; nothing uploaded")
-            inputs = merge_inputs(root, head, target)
-            dirty = workspace._clean_worktree_error(root, "hub source", hub_inputs=inputs)
+            if behind is None or behind.returncode not in (0, 1):
+                raise HubWorkspaceError("hub source refresh: cannot inspect worker ancestry; nothing uploaded")
+            status = workspace._worktree_status(root, nul=True)
+            if status.returncode:
+                raise HubWorkspaceError("hub source refresh: cannot inspect working tree; nothing uploaded")
+            if behind.returncode == 1:
+                return (f"hub: source refresh skipped ({branch} and {base} diverged); "
+                        f"working on existing branch {branch} ({head[:12]}); base inputs not refreshed")
+            dirty = any(record and not (record[:2] == "??" and record[3:] in inputs)
+                        for record in status.stdout.split("\0"))
             if dirty:
-                raise HubWorkspaceError(f"hub source refresh: {dirty}; nothing uploaded")
+                return ("hub: source refresh skipped (local changes retained); "
+                        f"working on existing branch {branch} ({head[:12]}); base inputs not refreshed")
+            merge_inputs(root, target)
             advanced = _git_out(root, "merge", "--ff-only", "--no-edit", "--no-overwrite-ignore", target)
             if advanced is None or advanced.returncode:
                 raise HubWorkspaceError(

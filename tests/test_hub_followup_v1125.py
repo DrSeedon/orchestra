@@ -16,9 +16,7 @@ from tests.test_task_tracker_integration import (
 
 
 @pytest_asyncio.fixture
-async def continued(tmp_path, monkeypatch):
-    from app.routes.sessions import execute_merge_session
-
+async def started(tmp_path, monkeypatch):
     _init_db()
     repo = _make_git_scope(monkeypatch, tmp_path)
     # Source-only project: no project memory/layout is required.
@@ -50,6 +48,16 @@ async def continued(tmp_path, monkeypatch):
     backend._bridge = session._hub_bridge()
     await _turn(backend, 'make output')
     state = backend._state
+    return SimpleNamespace(repo=repo, root=root, backend=backend, ssh=ssh, mc=mc,
+                           state=state, observed=observed, session=session, branch=wt.branch)
+
+
+@pytest_asyncio.fixture
+async def continued(started, monkeypatch):
+    from app.routes.sessions import execute_merge_session
+
+    env = started
+    repo, root = env.repo, env.root
     head = git(root, 'rev-parse', 'HEAD').strip()
     found = _prepare_merge(monkeypatch, session_id='followup', scope=str(repo))
     result = await execute_merge_session(
@@ -63,8 +71,8 @@ async def continued(tmp_path, monkeypatch):
     assert not db.get_session(found.id)['needs_switch']
     assert git(root, 'rev-parse', 'HEAD') == git(repo, 'rev-parse', 'main')
     assert not (repo / '.orchestra').exists()
-    return SimpleNamespace(repo=repo, root=root, backend=backend, ssh=ssh, mc=mc,
-                           state=state, observed=observed, result=result, branch=wt.branch)
+    env.result = result
+    return env
 
 
 def add_inputs(env, count=41):
@@ -115,27 +123,249 @@ async def test_followup_refreshes_local_source_before_remote_delta(continued):
     assert env.backend._paths == ['task']
 
 
+def local_snapshot(root):
+    return {
+        'head': git(root, 'rev-parse', 'HEAD'),
+        'branch': git(root, 'branch', '--show-current'),
+        'status': git(root, 'status', '--porcelain', '--untracked-files=all'),
+        'index': git(root, 'ls-files', '--stage'),
+        'staged': git(root, 'diff', '--cached', '--binary'),
+        'history': git(root, 'log', '--format=%H %P'),
+        'refs': git(root, 'show-ref'),
+        'reflog': git(root, 'reflog', '--format=%H %gs'),
+        'files': {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*')
+                  if p.is_file() and p.name != '.git'},
+    }
+
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'diverged', 'ignored-collision', 'operation', 'binding'])
+@pytest.mark.parametrize('reconnect', [False, True])
+async def test_unmerged_ready_commit_continues_on_diverged_branch(started, reconnect):
+    env = started
+    ready = git(env.root, 'rev-parse', 'HEAD').strip()
+    assert git(env.root, 'rev-list', '--count', 'main..HEAD').strip() == '1'
+    assert git(env.root, 'status', '--porcelain') == ''
+    assert not (env.repo / 'task/output.txt').exists(), 'worker output is still unmerged'
+    files = add_inputs(env, 1)
+    # Even conflicting base content must not force reconciliation for a follow-up.
+    (env.repo / 'task/seed.txt').write_text('independent main edit\n')
+    git(env.repo, 'add', '.')
+    git(env.repo, 'commit', '-qm', 'main advanced independently')
+    before = local_snapshot(env.root)
+    state = env.state
+    provenance = dict(state.input_manifest)
+    baseline = dict(state.manifest)
+    if reconnect:
+        env.backend._resume = state.ws_id
+        env.backend._state = None
+        await env.backend.connect()
+
+    def add_changelog(remote):
+        assert local_snapshot(env.root) == before, 'optional refresh must preserve the task branch'
+        env.observed.append({str(p.relative_to(remote)): p.read_bytes()
+                             for p in remote.rglob('*') if p.is_file()})
+        (remote / 'task/CHANGELOG.md').write_text('Document completed worker output.\n')
+
+    env.mc.hub_edit = add_changelog
+    events = await _turn(env.backend, 'add CHANGELOG before acceptance')
+    assert not [event.content for event in events if event.type == 'error']
+    notes = [event.content for event in events if event.type == 'status']
+    assert any('source refresh skipped' in note and 'diverged' in note
+               and 'existing branch' in note and 'not refreshed' in note for note in notes), notes
+    assert not any('source fast-forwarded' in note for note in notes)
+    assert env.observed[-1]['task/output.txt'] == b'public derived output\n'
+    assert env.observed[-1]['task/seed.txt'] == b'public seed\n'
+    assert not files.keys() & env.observed[-1].keys(), 'skipped base inputs were not delivered'
+    assert not (env.root / 'task/new-inputs').exists()
+    assert (env.root / 'task/CHANGELOG.md').read_text() == 'Document completed worker output.\n'
+    assert git(env.root, 'log', '-1', '--format=%P').strip() == ready
+    assert git(env.root, 'rev-list', '--count', 'main..HEAD').strip() == '2'
+    assert git(env.root, 'branch', '--show-current').strip() == env.branch
+    assert git(env.root, 'status', '--porcelain') == ''
+    assert env.backend._state.ws_id == state.ws_id
+    assert env.backend._state.thread_id == state.thread_id
+    assert env.backend._state.input_manifest == provenance
+    assert all(env.backend._state.manifest[rel] == digest for rel, digest in baseline.items())
+    assert [name for name, _ in env.mc.calls].count('t3_thread_launch') == 1
+    assert [args['threadId'] for name, args in env.mc.calls if name == 't3_thread_send'] == [state.thread_id]
+    assert not env.ssh.removed
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('guard', [
+    'MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply',
+    'binding', 'detached', 'broken-index', 'missing-base',
+])
+async def test_diverged_followup_keeps_git_and_binding_guards(started, guard):
+    env = started
+    add_inputs(env, 1)
+    if guard in ('MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply'):
+        marker = Path(git(env.root, 'rev-parse', '--git-path', guard).strip())
+        if guard.startswith('rebase-'):
+            marker.mkdir()
+        else:
+            marker.write_text(git(env.root, 'rev-parse', 'HEAD'))
+    elif guard == 'binding':
+        git(env.root, 'switch', '-c', 'unexpected-branch')
+    elif guard == 'detached':
+        git(env.root, 'switch', '--detach')
+    elif guard == 'broken-index':
+        index = Path(git(env.root, 'rev-parse', '--git-path', 'index').strip())
+        index.write_bytes(b'broken synthetic index')
+    else:
+        env.session.base_branch = 'missing-base'
+    head = git(env.root, 'rev-parse', 'HEAD')
+    branch = git(env.root, 'rev-parse', '--abbrev-ref', 'HEAD')
+    files = {str(p.relative_to(env.root)): p.read_bytes() for p in env.root.rglob('*')
+             if p.is_file() and p.name != '.git'}
+    remote = Path(env.state.remote_dir)
+    remote_before = {str(p.relative_to(remote)): p.read_bytes() for p in remote.rglob('*') if p.is_file()}
+    manifest, provenance = dict(env.state.manifest), dict(env.state.input_manifest)
+    calls = len(env.mc.calls)
+    events = await _turn(env.backend, 'add changelog')
+    assert any(event.type == 'error' and 'source refresh' in event.content for event in events), events
+    assert not any(event.type == 'status' and 'source refresh skipped' in event.content for event in events)
+    assert not any(name in ('t3_thread_send', 't3_thread_launch') for name, _ in env.mc.calls[calls:])
+    assert len(env.observed) == 1
+    assert git(env.root, 'rev-parse', 'HEAD') == head
+    assert git(env.root, 'rev-parse', '--abbrev-ref', 'HEAD') == branch
+    assert {str(p.relative_to(env.root)): p.read_bytes() for p in env.root.rglob('*')
+            if p.is_file() and p.name != '.git'} == files
+    assert {str(p.relative_to(remote)): p.read_bytes() for p in remote.rglob('*') if p.is_file()} == remote_before
+    assert env.state.manifest == manifest and env.state.input_manifest == provenance
+    assert env.state.path().exists() and not env.ssh.removed
+    if guard == 'broken-index':
+        assert index.read_bytes() == b'broken synthetic index'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('probe,returncode', [('base', 128), ('worker', 128), ('base', None), ('worker', None)])
+async def test_ancestry_inspection_errors_do_not_become_skips(started, monkeypatch, probe, returncode):
+    import subprocess
+
+    env = started
+    add_inputs(env, 1)
+    original = hw._git_out
+    head = git(env.root, 'rev-parse', 'HEAD').strip()
+
+    def fail(root, *args):
+        if args[:2] == ('merge-base', '--is-ancestor') and ((args[2] == head) == (probe == 'worker')):
+            return None if returncode is None else subprocess.CompletedProcess(args, returncode, b'', b'Git error')
+        return original(root, *args)
+
+    monkeypatch.setattr(hw, '_git_out', fail)
+    before = local_snapshot(env.root)
+    events = await _turn(env.backend, 'continue after Git inspection failure')
+    assert any(event.type == 'error' and 'ancestry' in event.content for event in events), events
+    assert local_snapshot(env.root) == before
+    assert len(env.observed) == 1
+
+
+@pytest.mark.asyncio
+async def test_refresh_waits_for_existing_repository_writer(continued, monkeypatch):
+    import asyncio
+    from contextlib import contextmanager
+    import threading
+
+    env = continued
+    add_inputs(env, 1)
+    original_lock = workspace.repo_mutation_lock
+    original_inspect = workspace.inspect_worktree_identity
+    attempting, inspected = threading.Event(), threading.Event()
+
+    @contextmanager
+    def lock(repo):
+        attempting.set()
+        with original_lock(repo):
+            yield
+
+    def inspect(root):
+        inspected.set()
+        return original_inspect(root)
+
+    monkeypatch.setattr(workspace, 'repo_mutation_lock', lock)
+    monkeypatch.setattr(workspace, 'inspect_worktree_identity', inspect)
+    before = local_snapshot(env.root)
+    refresh = None
+    try:
+        with original_lock(env.repo):
+            refresh = asyncio.create_task(asyncio.to_thread(hw.refresh_source, env.root, env.branch, 'main'))
+            assert await asyncio.to_thread(attempting.wait, 5), 'refresh never reached the repository lock'
+            assert not inspected.is_set(), 'identity inspection ran before obtaining the writer lock'
+            assert local_snapshot(env.root) == before
+    finally:
+        if refresh is not None:
+            note = await asyncio.wait_for(refresh, 10)
+    assert inspected.is_set() and 'source fast-forwarded' in note
+    assert git(env.root, 'rev-parse', 'HEAD') == git(env.repo, 'rev-parse', 'main')
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('kind', ['rewrite', 'new-collision'])
+async def test_skipped_refresh_still_protects_unsynced_remote_work(started, kind):
+    env = started
+    add_inputs(env, 1)
+    rel = 'task/seed.txt' if kind == 'rewrite' else 'task/local-output.txt'
+    baseline = env.state.manifest.get(rel)
+    (env.root / rel).write_text('new committed worker content\n')
+    git(env.root, 'add', rel)
+    git(env.root, 'commit', '-qm', 'worker owns this new content')
+    remote = Path(env.state.remote_dir)
+    (remote / rel).write_text('unsynced remote content\n')
+    before = local_snapshot(env.root)
+    manifest = dict(env.state.manifest)
+    events = await _turn(env.backend, 'continue with existing worker branch')
+    assert any(event.type == 'status' and 'source refresh skipped' in event.content for event in events)
+    assert any(event.type == 'error' and 'remote WIP conflict' in event.content for event in events), events
+    assert local_snapshot(env.root) == before
+    assert (remote / rel).read_text() == 'unsynced remote content\n'
+    assert len(env.observed) == 1 and env.state.manifest == manifest
+    assert env.state.path().exists() and not env.ssh.removed
+    if baseline:
+        (remote / rel).write_bytes(env.observed[0][rel])
+    else:
+        (remote / rel).unlink()
+    events = await _turn(env.backend, 'retry after explicit remote reconciliation')
+    assert not [event.content for event in events if event.type == 'error']
+    assert env.observed[-1][rel] == b'new committed worker content\n'
+    assert local_snapshot(env.root) == before
+    assert env.backend._state.thread_id == env.state.thread_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('kind', ['tracked', 'staged', 'untracked', 'rename'])
+async def test_dirty_checkout_skips_optional_ff_and_keeps_local_work(continued, kind):
+    env = continued
+    files = add_inputs(env, 1)
+    if kind == 'untracked':
+        (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
+    elif kind == 'rename':
+        git(env.root, 'mv', 'task/seed.txt', 'task/renamed.txt')
+    else:
+        (env.root / 'task/seed.txt').write_text('local WIP\n')
+        if kind == 'staged':
+            git(env.root, 'add', 'task/seed.txt')
+            (env.root / 'task/seed.txt').write_text('unstaged WIP over staged WIP\n')
+    before = local_snapshot(env.root)
+    events = await _turn(env.backend, 'continue with existing task data')
+    assert not [event.content for event in events if event.type == 'error']
+    notes = [event.content for event in events if event.type == 'status']
+    assert any('source refresh skipped' in note and 'local changes' in note
+               and 'existing branch' in note and 'not refreshed' in note for note in notes), notes
+    assert local_snapshot(env.root) == before
+    assert len(env.observed) == 2
+    assert not files.keys() & env.observed[-1].keys()
+    assert env.observed[-1] == before['files']
+    assert env.backend._state.thread_id == env.state.thread_id
+    assert not env.ssh.removed
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('kind', ['ignored-collision', 'operation', 'binding'])
 async def test_refresh_refuses_wip_without_upload_or_history_loss(continued, kind):
     env = continued
     files = add_inputs(env, 1)
-    if kind == 'tracked':
-        (env.root / 'task/seed.txt').write_text('local WIP\n')
-    elif kind == 'staged':
-        (env.root / 'task/seed.txt').write_text('staged WIP\n')
-        git(env.root, 'add', 'task/seed.txt')
-    elif kind == 'untracked':
-        (env.root / 'task/untracked.txt').write_text('untracked WIP\n')
-    elif kind == 'diverged':
-        (env.root / 'task/seed.txt').write_text('committed worker WIP\n')
-        git(env.root, 'add', '.')
-        git(env.root, 'commit', '-qm', 'worker after continue')
-        # Main also changes the same content: never choose one side automatically.
-        (env.repo / 'task/seed.txt').write_text('different main edit\n')
-        git(env.repo, 'add', '.')
-        git(env.repo, 'commit', '-qm', 'base conflict')
-    elif kind == 'ignored-collision':
+    if kind == 'ignored-collision':
         collision = env.root / next(iter(files))
         collision.parent.mkdir(parents=True)
         collision.write_text('ignored local data\n')
@@ -194,7 +424,7 @@ async def test_refresh_preserves_frozen_input_and_reconnects_same_history(contin
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('kind', ['changed', 'collision'])
+@pytest.mark.parametrize('kind', ['changed', 'missing', 'head-collision', 'collision', 'diverged-collision'])
 async def test_refresh_refuses_frozen_input_changes_or_target_collision(continued, kind):
     env = continued
     original = env.root / 'task/original.txt'
@@ -204,16 +434,32 @@ async def test_refresh_refuses_frozen_input_changes_or_target_collision(continue
     add_inputs(env, 1)
     if kind == 'changed':
         original.write_text('edited original\n')
+    elif kind == 'missing':
+        original.unlink()
+    elif kind == 'head-collision':
+        git(env.root, 'add', 'task/original.txt')
+        git(env.root, 'commit', '-qm', 'tracked original conflicts with frozen provenance')
     else:
         (env.repo / 'task/original.txt').write_text('target collision\n')
         git(env.repo, 'add', '.')
         git(env.repo, 'commit', '-qm', 'colliding target input')
-    before = original.read_bytes()
+        if kind == 'diverged-collision':
+            (env.root / 'task/worker.txt').write_text('ready worker output\n')
+            git(env.root, 'add', 'task/worker.txt')
+            git(env.root, 'commit', '-qm', 'worker diverged from base')
+    before = original.read_bytes() if original.exists() else None
     head = git(env.root, 'rev-parse', 'HEAD')
     events = await _turn(env.backend, 'continue')
-    assert any(event.type == 'error' for event in events)
-    assert len(env.observed) == 1
-    assert original.read_bytes() == before
+    if kind == 'diverged-collision':
+        assert not [event.content for event in events if event.type == 'error']
+        assert len(env.observed) == 2
+        assert env.observed[-1]['task/original.txt'] == before
+        assert env.backend._state.input_manifest == {'task/original.txt': hw.sha256_file(original)}
+        assert any(event.type == 'status' and 'source refresh skipped' in event.content for event in events)
+    else:
+        assert any(event.type == 'error' for event in events)
+        assert len(env.observed) == 1
+    assert (original.read_bytes() if original.exists() else None) == before
     assert git(env.root, 'rev-parse', 'HEAD') == head
 
 
