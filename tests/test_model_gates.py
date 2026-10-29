@@ -63,11 +63,12 @@ def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
     assert "test/vendor-x:free" in ids
 
 
-def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
+def test_t3_worker_spawn_rejected_on_agents_off(vendor_model, monkeypatch):
     registry.set_model_flags("test/vendor-x:free", agents=False)
     with pytest.raises(ValueError, match="agents"):
         registry.ensure_spawn_allowed("test/vendor-x:free")
-    registry.ensure_spawn_allowed("claude-haiku-5-5")
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
+    registry.ensure_spawn_allowed(registry.resolve_model("hubsol"))
 
 
 @pytest.mark.asyncio
@@ -100,13 +101,15 @@ async def test_mcp_change_model_rejects_manual_only_models_before_loading(model,
     ensure_loaded.assert_not_awaited()
 
 
-def test_t3_dashboard_gate_blocks_user_actions_only(vendor_model):
-    registry.set_model_flags("test/vendor-x:free", dashboard=False)
+def test_t3_dashboard_gate_blocks_user_actions_only(monkeypatch):
+    model = registry.resolve_model("hubsol")
+    monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
+    registry.set_model_flags(model, dashboard=False)
     with pytest.raises(ValueError, match="dashboard"):
-        registry.ensure_dashboard_visible("test/vendor-x:free")
-    # Levels are independent: hidden from the dashboard, still allowed to agents.
-    registry.set_model_flags("test/vendor-x:free", agents=True)
-    registry.ensure_spawn_allowed("test/vendor-x:free")
+        registry.ensure_dashboard_visible(model)
+    # Visibility remains independent on the permitted ordinary-worker route.
+    registry.set_model_flags(model, agents=True)
+    registry.ensure_spawn_allowed(model)
 
 
 def test_t3_resolve_model_unaffected_by_flags(vendor_model):

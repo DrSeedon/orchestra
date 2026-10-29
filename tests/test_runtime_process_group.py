@@ -110,7 +110,9 @@ async def test_codex_failed_cleanup_retains_owner_for_retry():
 @pytest.mark.asyncio
 async def test_codex_hibernate_wake_resumes_same_thread_over_real_stdio(group, tmp_path, monkeypatch):
     from app.backend_codex import CodexBackend
-    # The fixture proves delegation is present; connect creates its own group.
+    # Use the fixture-proven disposable parent, never the live runner's group.
+    monkeypatch.setenv('ORCHESTRA_AGENT_CGROUP', str(group.path.parent))
+    monkeypatch.setenv('ORCHESTRA_AGENT_CGROUP_REQUIRED', '1')
     group.path.rmdir()
     native = tmp_path / 'fake_app_server.py'
     calls = tmp_path / 'requests.jsonl'

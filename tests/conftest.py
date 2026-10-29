@@ -241,6 +241,16 @@ def _offline_hub_pool_fetch(monkeypatch):
     monkeypatch.setattr(hub_pool, "_fetch_relay_limits", available)
 
 
+@pytest.fixture
+def configured_hub(tmp_path, monkeypatch):
+    """Supply synthetic settings while keeping hub configuration admission real."""
+    monkeypatch.setenv("MULTICODE_MCP_BASE", "http://hub.invalid")
+    monkeypatch.setenv("MULTICODE_MCP_TOKEN", "orchestra-test-only-token")
+    monkeypatch.delenv("MULTICODE_MCP_TOKEN_FILE", raising=False)
+    monkeypatch.setenv("MULTICODE_HUB_SSH", "test@hub.invalid")
+    monkeypatch.setenv("MULTICODE_HUB_SSH_KEY", str(tmp_path / "unused-hub-key"))
+
+
 @pytest.fixture(autouse=True)
 def _stable_worker_quota(request, monkeypatch):
     """Ordinary tests never read live subscription telemetry."""
@@ -538,18 +548,21 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker("browser")
 
 
-_AGENT_CGROUP_VARS = ("ORCHESTRA_AGENT_CGROUP", "ORCHESTRA_AGENT_ROOT", "ORCHESTRA_AGENT_CGROUP_REQUIRED")
+_AGENT_CGROUP_VARS = (
+    "ORCHESTRA_AGENT_CGROUP", "ORCHESTRA_AGENT_ROOT",
+    "ORCHESTRA_AGENT_CGROUP_REQUIRED", "ORCHESTRA_AGENT_JOB_CGROUP",
+)
 
 
 @pytest.fixture(autouse=True)
 def _restore_agent_cgroup_env():
-    """`initialize_agent_cgroup` writes os.environ directly; monkeypatch does not undo that.
+    """Tests own their cgroup setup, never inherited live-service admission state.
 
-    A test that left ORCHESTRA_AGENT_CGROUP_REQUIRED=1 made every later provider spawn in the
-    same xdist worker raise "delegated agent cgroup is unavailable" (V-928: CI shard 0 after
-    shard composition changed). The vars are process-wide state, so each test gets them back.
+    Restoring alone retains a required-but-missing group inherited by the runner.
+    Clear it for each test, then restore the caller's environment, including direct
+    writes by initialize_agent_cgroup that monkeypatch cannot track.
     """
-    saved = {name: os.environ.get(name) for name in _AGENT_CGROUP_VARS}
+    saved = {name: os.environ.pop(name, None) for name in _AGENT_CGROUP_VARS}
     yield
     for name, value in saved.items():
         if value is None:

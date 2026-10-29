@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_native_agent_admission_refuses_even_with_enabled_catalog_flags[claude-sonnet-5-5[1m]] _
+
+admission = {'GigaChat-2': {'agents': True, 'dashboard': True}, 'GigaChat-2-Max': {'agents': True, 'dashboard': True}, 'GigaChat-2-Pro': {'agents': True, 'dashboard': True}, 'GigaChat-3-Lightning': {'agents': True, 'dashboard': True}, ...}
+model = 'claude-sonnet-5-5[1m]'
+
+    @pytest.mark.parametrize('model', NATIVE)
+    def test_native_agent_admission_refuses_even_with_enabled_catalog_flags(admission, model):
+>       with pytest.raises(ValueError, match=models.AGENT_HUB_ROUTE_RULE):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_agent_hub_routing.py:26: Failed
+=========================== short test summary info ============================
+FAILED tests/test_agent_hub_routing.py::test_native_agent_admission_refuses_even_with_enabled_catalog_flags[claude-sonnet-5-5[1m]]
+1 failed in 0.28s

@@ -1,44 +1,80 @@
 <model-routing>
-## Model routing — which class to pass to `spawn_worker`
-Choose in this order; quota arithmetic must not reverse the priority. **The MultiCode hub comes first (see the hub bullet below); on our own pools, Sonnet 5.5 is the default (Opus for known-heavy work, Haiku for small constrained tasks); Luna is not a worker route.**
-**Owner decision, 2026-10-06, reaffirmed for Sol 2026-10-21 (five Sol workers burned the whole Codex 5-hour window in about 75 minutes):** GPT-6 Astra and GPT-6.1 Sol remain manually selectable for orchestrator sessions;
-agent tools must refuse spawning, changing workers to, or launching dynamic-workflow tasks on either model in OUR Codex pool; hub Sol (`hubsol`) is a separate pool and is allowed.
-On our own pools, use Sonnet for everything that is not
-covered by the Opus or Haiku routes below. **On Claude, Sonnet 5.5 is the default for worker work**
-(owner decision, 2026-09-29), including hard tasks with an
-understandable mechanism; **Opus 5.5 only for work known in advance to be heavy**: hard open
-research, architecture, large tangled systems, nasty bugs. Choose the model only — the effort
-level is fixed per model in the pipeline (Sonnet 5.5 medium, Opus 5.5 medium); do not
-pick max. Basis: `.orchestra/kb/models-and-quotas.md`, section "Sonnet 5.5 versus Sonnet 5 and Opus 5.5"
-— over two rounds on five hard Orchestra tasks (.orchestra/tasks/V-667/report.md) Sonnet 5.5 medium scored 3.9/5 vs Opus 5.5 3.6
-(medium) / 3.9 (high) with ~2× less output; a single run does not separate the models.
+## Model routing
 
-**Auxiliary model runs.** Inside an already approved task, extra Luna sessions used for evals,
-controls, or review are auto-approved. Agents must not launch Astra or Sol for auxiliary work,
-including `codex exec`, a spawned evaluator, or a harness/provider call selecting them. Manual
-orchestrator selection remains an owner action; it does not authorize an agent to start an auxiliary run.
+**Owner decision, effective 2026-10-29 15:11 KRS:** local orchestrators use Codex;
+all ordinary workers use the MultiCode hub. This replaces native-worker defaults,
+native Sonnet/Opus fallback, the former Opus orchestrator route, and routing based
+on old subscription-pool or Plus-versus-Pro ratios. The reason is to keep local
+orchestration separate from worker capacity and use hub Claude for creative quality.
+Routing policy belongs here, not in personal memory or project AGENTS files.
 
-Do not write versioned model ids in this block or in `spawn_worker`. Pass a short alias
-(`luna`, `sonnet`, `opus`, `spark`, `grok`); `spawn_worker` refuses a call without `model`. The
-role default in `.orchestra/pipelines/<name>/pipeline.yaml` never reaches an agent-made spawn.
-A copied id here goes stale; the manifest is the only owner.
+### Choose a hub model
 
-This policy is driven by the asymmetry of consequences, not by price. **the Codex pool is meant to be burned** (since 2026-10-22 the hub absorbs that role: see the hub bullet) deliberately and to exhaustion: hitting Claude's weekly limit is painful because work stops, while hitting Codex is tolerable because we can fall back to Claude (Sonnet, or Opus for complex work) and continue. What decides this is the **cost of exhaustion, not the cost of spend**, so arithmetic about price cannot overturn it. Do not quote old per-percentage-point comparisons: percentages of a pool are not comparable across a tariff change — check the denominator before comparing them. Codex is on Plus ($20, since 22.09.2026, source: https://chatgpt.com/codex/pricing/): its published limit is 1/20 of the $200 Pro, and a single worker task can empty the 5-hour window, so expect the Sonnet fallback often. Reconsider this policy only with evidence about consequences.
+- Use `hubsol` as the general worker default, regardless of local quota headroom.
+- Actively choose `hubsonnet` or `hubopus` for **any creative work**, including prose,
+  visual direction, educational/explanatory video, images, and demanding synthesis.
+  There is no "important creative work" or "known-heavy" threshold on hub Claude.
+  The owner has lifted model-choice restrictions for creative work on the hub.
+- Follow an owner's explicit hub-model choice. Use the pipeline's model effort;
+  the creative permission does not authorize changing unrelated settings.
+- Pass short aliases to `spawn_worker` and `change_worker_model`; the model manifest
+  owns versioned ids. A spawn requires an explicit model. For `hubsonnet`, `hubopus`
+  and `hubhaiku`, pass a non-empty `model_reason` describing the task. This remains
+  required tool metadata under `hub_claude_reason_required`, not an importance test.
 
-- **Luna** — NOT a worker route (owner decision, 2026-10-22); kept as history. GPT-6 Luna was the Codex worker default. In `.orchestra/tasks/V-620/bench-models.md`, the same task cost $0.26 versus $0.57 on GPT-5.6 Luna while preserving the closure basis and rechecking the branch under repository lock. Retired Luna aliases are not valid targets. It was the default for bounded tasks with a clear outcome and acceptance criteria. Provide relevant context and known checks; exact edit lines need not be prescribed. Answer clarification questions and let the worker correct ordinary implementation errors. Escalate for a demonstrated capability gap or lack of progress, not the first red test. Auxiliary-model authorization still applies.
-- **Astra** — manually selectable by the owner for orchestrator sessions. Agent-side spawn, change-model, and dynamic-workflow calls are blocked; do not start auxiliary Astra runs.
-- **Sol** — `sol` resolves to GPT-6.1 Sol. It remains manually selectable by the owner for orchestrator sessions; in our Codex pool, agent-side spawn, change-model, and dynamic-workflow calls are blocked. Do not start auxiliary Sol runs. The 2026-09-23 measurement used GPT-6 Sol, not GPT-6.1 Sol; it does not establish the newer model's quality or cost.
-- **Sonnet 5.5 (medium) — the default worker.** Measured equal to Opus on our work (29.09, 8 Orchestra tasks, 74 runs, .orchestra/tasks/V-667/report.md, V-670, V-671): bug fixes and features with an understandable mechanism, session/delivery lifecycle (lost steer V-562: 5/5, cost baseline V-609, silence signal V-642, in-session compaction V-650: 5/5), research and reports, docs, frontend. Uses ~2× less output than Opus for the same score (16K vs 35K per task) and finishes faster. Weak spots seen: on low it may replace a real check with a stub; on medium it sometimes stops at the minimum set of tests — state the required checks in the task.
-- **Haiku 5.5 (low) — a cheap constrained-task route. Owner decision, 2026-10-08:** use it especially when the Codex pool is exhausted for short factual questions, collecting rows into a fully specified schema, summaries/reducers with every field explicitly defined, or edits to 1–2 files from an exact specification when a ready oracle or regression suite checks the result. V-758 measured 10/10 small-task passes on low, averaging $0.0081 per run versus Sonnet low's $0.128; on hard tasks, low/medium/high/max scored 3.7/3.7/3.6/3.8 at $0.20/$0.45/$0.62/$3.67 per task, so higher effort brought no reliable gain. Do not route difficult/open-ended work, or work where the final handoff must be guaranteed: 4/40 hard runs timed out waiting for background checks, and three left no final message. Source: `.orchestra/tasks/V-758/report.md`. Existing background-job rules already say not to poll/wait on a job; they do not make this route suitable when completion delivery is critical.
-- **Opus 5.5 (medium) — only where it was measurably better; do not pick it "to be safe":**
-  - a defect with several hidden causes, concurrency and ownership races (pidfd leak V-543: only Opus found the cancelled-receive race and split close-vs-kill ownership; Sonnet on every effort patched just the visible path);
-  - a large cross-module restructure or data migration (project catalog V-621, .orchestra/tasks/V-671/report.md: Opus 5/5/4 vs Sonnet 4/4/3, and Opus closed a follow-up the original work needed later);
-  - open-ended architecture or research with no known mechanism, creative prose, images, unusually demanding synthesis;
-  - **owner decision, 2026-10-05:** production of educational/explanatory videos, including narrated 3D scenes (V-723: the vessels in Luna's scene collided, both Sol runs overloaded, Sonnet and Opus were good, and Opus alone checked facts against primary sources). Automated checks do not replace semantic viewing of the scene (sources: `.orchestra/kb/models-and-quotas.md`, `.orchestra/tasks/V-731/report.md`);
-  - work where one wrong action is expensive (destructive operations, shared infrastructure): Opus 5.5 is the least destructive model per Anthropic's system card and asks for permission more often.
-  Orchestrators stay on Opus until the owner decides otherwise.
-- **Spark** — optional narrow fast/overflow leaf route with a separate but small quota wallet, not free capacity. At the current preview limit, #222 measured only 25 identical benchmark batches per week (250 starts, 200 usage-bearing turns, 125 strict PASS). Its dollar price is UNKNOWN (research-preview rates; local price=None), so any money summary that includes Spark is incomplete. Use Spark only when the Codex pool is the binding constraint and all hold: text-only; ≤2 named files; ≤100K total initial context (system prompt + task + supplied files); every correctness-critical decision and value is explicit; an independent pre-existing oracle mechanically covers every correctness-critical criterion. Spark silently invents missing data: in #222 it did so 2/2 times and missed both future oracles (19/42 and 18/42), while Luna stopped and asked 2/2 times; any missing fact or decision forbids this route. At ~164K Spark failed loudly before any answer in 2/2 runs, so keep the ≤100K headroom; the measured context failure was not silent corruption. The excluded classes are explicit: semantic prose, prompt work without literal anchors, review, research, architecture, vision, and security are forbidden. After any failed or incomplete Spark attempt, never retry Spark; hand the ticket to the hub or Sonnet; agent-side Astra and Sol runs remain unavailable.
-- **Fable** — retained in the manual model catalog; the existing agent-routing rule remains “do not use.”
-- **MultiCode hub — the FIRST route.** Owner decision, 2026-10-22 18:30 KRS: model routing belongs only to Orchestra; personal memory and project rules must not carry it. The hub pool is effectively unlimited for us: use `hubsol` by default for any work, regardless of remaining pool. When our own subscription gate is closed, use the hub. Use `hubsonnet` or `hubopus` for important creative work or when the user requests that model; the known-heavy restriction on Opus applies to our own pool. Pass a non-empty `model_reason` to `spawn_worker` and `change_worker_model` for `hubsonnet`, `hubopus` or `hubhaiku`; the platform refuses calls without it under `hub_claude_reason_required`, persists the reason and displays it beside the model. Hub Sol and our own models require no reason. The platform checks every reported usage window for each account across the whole pool; omitted windows are not refusals, but accounts with no window data remain unknown and do not count as usable. Even a named Claude reason cannot admit work when no hub Claude account is usable; use `hubsol` then. A provider-limit failure notifies the worker's parent and suggests the other hub route. Fall back to our own subscriptions (Sonnet) only when the hub is unavailable or unconfigured, or the task must stay on our machines. Keep deployment or infrastructure work on this host, secrets, credentials, client or personal data, and projects whose purpose is a specific model, such as a model-evaluation sandbox, on our own subscriptions or machine. The hub edits a remote repo copy; include all task context in the assignment. The worker copy uploads only `owned_dirs` paths plus repo-level files: tracked files and untracked files that are not gitignored, excluding credential-like files and files above the per-file limit (20 MB by default). Empty `owned_dirs` is refused before upload unless the project is configured as persistent, in which case the whole worktree is uploaded within that project's caps. Owned paths present in HEAD but outside the sparse checkout are materialized automatically; the turn's first hub status line lists what was uploaded. Changes return as commits on the worker's branch for `merge_worker`; the remote workspace is cleaned up on release. Credential-like files are excluded from upload, but treat the machine as foreign.
-- **Orchestrators** — when selecting a worker, apply the same priority above; the orchestrator role does not override it.
+The existing hub configuration, credential, data and pool-admission guards remain
+in force. A reason never bypasses admission. If the selected hub route is unavailable,
+use another suitable permitted hub route or report the blocker. Do not fall back to
+our own Claude subscription, native Codex workers, Grok, or Harness for ordinary work.
+Do not wait for a native subscription to recover as a worker-routing strategy.
+
+### Keep protected work local
+
+Keep all protected personal, client and company data, credentials, secrets, and live
+infrastructure local. Hub assignments receive only safe source bundles with sufficient
+non-sensitive context. Treat the remote machine as foreign: automatic credential-file
+exclusion does not establish that arbitrary source or conversation content is safe.
+
+Use explicit `owned_dirs` to scope source bundles; repo-level files also accompany
+worker copies and need the same safety check. Existing upload-size, sparse-checkout,
+project and credential/data guards still apply. Empty `owned_dirs` is refused unless
+the existing persistent-project contract permits a whole-worktree upload; that
+permission never authorizes sending protected data. If a task cannot be safely
+separated into a source-only assignment, report a blocker to the local orchestrator.
+Local-only work is not permission to start a native worker or upload existing history.
+
+Preserve existing idle native threads and worktrees. Do not delete, migrate, upload,
+or restart them merely to apply this routing decision. The owner selects the local
+Codex orchestrator manually; agent tools do not gain permission to start auxiliary
+native Astra/Sol sessions. Manual model selection and persisted-session recovery keep
+their existing boundaries.
+
+### Explicit API-credit tasks and workflows
+
+API credits are opt-in per specifically authorized task, including approved evals.
+Use `billing: "api_credit"` only for an explicitly authorized Claude task or stage;
+a generic work approval, model preference, subscription failure or model_reason is
+not API spending authorization. No automatic paid or native-subscription fallback.
+Existing credit admission and refusal on exhausted/expired credits still apply.
+
+Ordinary workflow work must follow the same hub route. The current `wf_run` one-shot
+adapter does not support hub dispatch: use ordinary hub workers instead. Its native
+model defaults do not authorize native subscription calls. Explicitly authorized
+API-credit evals retain their existing path. Do not add a new hub workflow runtime
+or change its public contract merely to work around this limitation.
+
+This model-choice decision does not lift data protection, spending authorization,
+restart, deletion, deployment, freeze, or other project boundaries.
+
+### Historical quality evidence (not native-route permission)
+
+V-667, V-670 and V-671 measured Sonnet 5.5 medium near Opus on tasks with an
+understandable mechanism, with about half the output; those samples did not reliably
+separate all model/effort combinations. Sonnet sometimes stopped at minimal checks:
+state required checks explicitly. Opus did better on some concurrency/ownership bugs
+(V-543) and cross-module restructuring (V-621, V-671). V-723 and V-731 found useful
+Claude results on explanatory video and reinforced semantic viewing alongside tests.
+These observations may inform hub Sonnet/Opus selection; they neither benchmark today's
+hub deployment nor restore the former native routes. Historical price and pool-size
+comparisons are not current routing rationale.
 </model-routing>

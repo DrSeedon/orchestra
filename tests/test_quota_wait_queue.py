@@ -368,26 +368,27 @@ async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env)
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", ["initial", "direct"])
 @pytest.mark.parametrize("new_model,admitted", [
-    ("hubsol", True), ("claude-haiku-5-5", False),
+    ("hubsol", True), ("hubsonnet", False),
 ])
 async def test_model_change_rechecks_held_delivery_with_new_route_policy(
-    env, monkeypatch, kind, new_model, admitted,
+    env, monkeypatch, configured_hub, kind, new_model, admitted,
 ):
     """V-1056: changing a model is control; delivery must use the new pool's gate.
 
     Use the real quota/hub decision functions. Only telemetry and the provider
-    submission are fake, so switching to Haiku cannot evade a closed Claude pool.
+    submission are fake, so switching hub providers cannot evade a closed pool.
     """
     from app import hub_pool, initial_deliveries, quota_gate, quota_queue
     from app.models import resolve_model
     from app.routes import sessions as session_routes
+    from app.session import AgentSession
 
-    # Model validation requires a configured hub even when capacity/submission are fake.
-    monkeypatch.setenv("MULTICODE_MCP_BASE", "http://hub.invalid")
-    monkeypatch.setenv("MULTICODE_MCP_TOKEN", "orchestra-test-only-token")
-    monkeypatch.delenv("MULTICODE_MCP_TOKEN_FILE", raising=False)
-    monkeypatch.setenv("MULTICODE_HUB_SSH", "test@hub.invalid")
-    monkeypatch.setenv("MULTICODE_HUB_SSH_KEY", str(env.db.DB_PATH.parent / "unused-hub-key"))
+    worker = AgentSession(
+        id=TARGET_ID, name=TARGET_NAME, scope=SCOPE, cwd="/tmp",
+        model=resolve_model("hubluna"), backend_type="hub", task_id="678",
+        branch="task-678/w", worktree_path="/tmp",
+    )
+    env.db.save_session(worker._to_db_dict())
 
     delivery_id = "00000000-0000-4000-8000-000000001056"
     if kind == "initial":
@@ -414,58 +415,50 @@ async def test_model_change_rechecks_held_delivery_with_new_route_policy(
         expected_message = "[from:x] held message"
     assert state() == "WAITING_QUOTA"
 
-    usage = {"percent": 100.0}
-
-    async def observation(**_kwargs):
-        now = time.time()
-        window = {
-            "id": "seven_day", "window_minutes": 10080,
-            "utilization": usage["percent"],
-            "resets_at": datetime.fromtimestamp(now + 604800, timezone.utc).isoformat(),
-        }
-        return {
-            "providers": {"anthropic": {"label": "Claude", "windows": [window]}},
-            "observed_at_by_provider": {"anthropic": now},
-        }
+    capacity = {"claude_usable": 0, "checks": 0}
 
     async def hub_capacity(**_kwargs):
+        capacity["checks"] += 1
+        # The model change is admitted, then telemetry changes before queue release.
+        claude_usable = 1 if capacity["checks"] == 1 else capacity["claude_usable"]
         return {"available": True, "providers": {
             "codex": {"usable": 1, "accounts": 1, "unknown": 0, "threshold_pct": 100.0},
+            "claude": {"usable": claude_usable, "accounts": 1,
+                       "unknown": 0, "threshold_pct": 100.0},
         }}
 
     checked = []
 
     async def admission(model, observation_loader=None):
         checked.append(model)
-        return await _real_worker_admission(model, observation_loader=observation)
+        return await _real_worker_admission(model, observation_loader=observation_loader)
 
     monkeypatch.setattr(hub_pool, "get_hub_pool", hub_capacity)
     monkeypatch.setattr(quota_gate, "get_worker_admission", admission)
     # FakeManager is only the provider sink here; admission is owned by the real releaser.
     env.gate.open()
 
-    class Worker:
-        async def change_model(self, model):
-            env.db.save_session(_record(TARGET_ID, TARGET_NAME) | {"model": model})
-            return {"ok": True, "changed": True, "model": model}
-
     monkeypatch.setattr(
-        session_routes.manager, "ensure_loaded", AsyncMock(return_value=Worker()), raising=False,
+        session_routes.manager, "ensure_loaded", AsyncMock(return_value=worker), raising=False,
     )
     response = await session_routes.change_model(
-        TARGET_NAME, {"scope": SCOPE, "model": new_model, "via": "mcp"},
+        TARGET_NAME, {"scope": SCOPE, "model": new_model, "via": "mcp",
+                      "model_reason": "Creative task on the new hub route"},
     )
+    await worker._drain_persist()
     await _drain()
 
     assert isinstance(response, dict), getattr(response, "body", response)
     assert response["ok"] is True
+    assert worker.model == resolve_model(new_model)
+    assert capacity["checks"] >= 2
     assert checked and set(checked) == {resolve_model(new_model)}
     assert state() == ("SUBMITTED" if admitted else "WAITING_QUOTA")
     assert env.manager.delivered == ([expected_message] if admitted else [])
 
     if not admitted:
         # Recovery uses the saved new model and the same durable delivery identity.
-        usage["percent"] = 0.0
+        capacity["claude_usable"] = 1
         assert await quota_queue.release_waiting() == 1
         await _drain()
         assert state() == "SUBMITTED"

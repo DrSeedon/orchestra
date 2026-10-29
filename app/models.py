@@ -682,15 +682,34 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
         if runtime not in ("claude", "codex"):
             return ""
     return ("The MultiCode hub pool has its own quota: spawn the worker with model='hubsol' "
-            "for any work instead of waiting. Use model='hubsonnet' only for important creative "
-            "work, with a non-empty model_reason explaining why Claude is needed.")
+            "for general work instead of waiting. Choose model='hubsonnet' or model='hubopus' "
+            "for creative work, with a non-empty model_reason describing the task.")
 
 
-def ensure_spawn_allowed(model_id: str) -> None:
-    """Hard gate for agent-side usage (worker spawn, MCP change-model)."""
+AGENT_HUB_ROUTE_RULE = "agent_workers_require_hub"
+
+
+def ensure_spawn_allowed(model_id: str, *, billing: str = "subscription") -> None:
+    """Gate agent dispatch; explicit Claude API-credit tasks retain their own admission.
+
+    Owner routing decision, 2026-10-29: ordinary workers use the hub. This is
+    independent of stored catalog flags and does not change manual selection or
+    persisted-session recovery. Billing is supplied only by opt-in eval callers;
+    worker spawn and agent model changes use the subscription default.
+    """
     spec = get_model_spec(model_id)
-    if spec.runtime == "harness":
-        validate_harness_model_spec(spec)
+    if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
+        raise ValueError("billing must be 'subscription' or 'api_credit'")
+    if billing == "api_credit":
+        if spec.runtime != "claude":
+            raise ValueError("billing='api_credit' requires a Claude model")
+    elif spec.runtime != "hub":
+        raise ValueError(
+            f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
+            "subscription routes; use hubsol for general work or hubsonnet/hubopus "
+            "for creative work. If safe hub delegation is impossible, report the "
+            "blocker; do not fall back to a native subscription."
+        )
     if spec.runtime == "hub":
         from app.backend_hub import hub_configured
 
@@ -1064,7 +1083,7 @@ HUB_CLAUDE_REASON_RULE = "hub_claude_reason_required"
 
 
 def requires_model_reason(model: str) -> bool:
-    """Hub Claude is an explicit exception to the permanent hub Sol default."""
+    """Hub Claude requires task metadata, including for routine creative work."""
     try:
         return resolve_model(model).startswith("hub-claude-")
     except (ValueError, AttributeError):
@@ -1076,6 +1095,6 @@ def validate_model_reason(model: str, reason: str = "") -> str:
         return ""
     if not isinstance(reason, str) or not reason.strip():
         raise ValueError(
-            f"{HUB_CLAUDE_REASON_RULE}: default hub route for every task is hubsol; "
-            "hub Claude requires a non-empty model_reason naming why this task needs Claude")
+            f"{HUB_CLAUDE_REASON_RULE}: hub Claude requires a non-empty model_reason "
+            "describing the task; choose hubsonnet or hubopus for creative work")
     return reason.strip()

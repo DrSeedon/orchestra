@@ -60,10 +60,16 @@ def test_t6_running_agent_resume_surface_intact(vendor_model):
     assert registry.backend_for_model("test/vendor-x:free") == "harness"
 
 
-def test_t6_new_worker_spawn_rejected_with_actionable_error(vendor_model):
-    registry.set_model_flags("test/vendor-x:free", agents=False)
+def test_t6_new_worker_spawn_rejected_with_actionable_error(configured_hub):
+    model = registry.resolve_model("hubsol")
+    registry.set_model_flags(model, agents=True)
+    registry.ensure_spawn_allowed(model)
+    registry.set_model_flags(model, agents=False)
     with pytest.raises(ValueError, match="[Cc]atalog"):
-        registry.ensure_spawn_allowed("test/vendor-x:free")
+        registry.ensure_spawn_allowed(model)
+    assert registry.backend_for_model(model) == "hub"
+    registry.set_model_flags(model, agents=True)
+    registry.ensure_spawn_allowed(model)
 
 
 def test_t6_switching_away_from_disabled_model_is_allowed(vendor_model):

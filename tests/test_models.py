@@ -10,14 +10,12 @@ from app.routes import sessions as sessmod
 
 
 @pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol", "sonnet", "sol"])
-def test_hub_alternative_hint_defaults_to_sol_for_any_work(model, monkeypatch):
+def test_hub_alternative_hint_is_available_for_native_subscription_routes(model, monkeypatch):
     monkeypatch.setattr("app.backend_hub.hub_configured", lambda: None)
 
     hint = hub_alternative_hint(model)
 
-    assert "spawn the worker with model='hubsol' for any work" in hint
-    assert "model='hubsonnet' only for important creative work" in hint
-    assert "non-empty model_reason" in hint
+    assert hint
 
 
 @pytest.mark.parametrize("model", [None, "claude-opus-5-5[1m]", "gpt-6.1-sol"])

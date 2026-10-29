@@ -229,10 +229,13 @@ def _failed(
     )
 
 
-def _refused(runtime: str, model: str, reason: str, *, billing_mode: str) -> AdapterResult:
+def _refused(
+    runtime: str, model: str, reason: str, *, billing_mode: str,
+    stop_reason: str = "credit_unavailable",
+) -> AdapterResult:
     return AdapterResult(
         text="", runtime=runtime, model=model, ok=False,
-        stop_reason="credit_unavailable", cost_usd=0.0,
+        stop_reason=stop_reason, cost_usd=0.0,
         error=reason[:2000], billing_mode=billing_mode,
     )
 
@@ -465,9 +468,23 @@ async def run_adapter(
     system_prompt: str = "", state_dir: Path | None = None,
     billing_mode: str = "subscription",
 ) -> AdapterResult:
-    from app.models import backend_for_model
+    from app.models import backend_for_model, ensure_spawn_allowed
 
     runtime = backend_for_model(model)
+    try:
+        ensure_spawn_allowed(model, billing=billing_mode)
+    except ValueError as error:
+        return _refused(
+            runtime, model, str(error), billing_mode=billing_mode,
+            stop_reason="model_policy_refused",
+        )
+    if runtime == "hub":
+        return _refused(
+            runtime, model,
+            "Hub models require an ordinary hub worker via spawn_worker; "
+            "wf_run has no hub one-shot adapter. No native fallback was dispatched.",
+            billing_mode=billing_mode, stop_reason="unsupported",
+        )
     if runtime == "codex":
         return await run_codex(
             prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,

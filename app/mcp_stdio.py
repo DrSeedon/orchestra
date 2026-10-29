@@ -1131,7 +1131,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None,
                        model_reason: str = "") -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the permanent default. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. Hub Claude (hubsonnet/hubopus/hubhaiku) requires model_reason naming why the task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. A closed quota gate refuses creation before worktree/session/task allocation; use the suggested hub model. If the gate closes after creation, the initial task is held durably until it opens."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -2429,7 +2429,7 @@ async def change_worker_model(name: str, model: str, model_reason: str = "") -> 
     """Change an idle worker's model while preserving its dialog. Within one runtime the
     native session continues. Between Claude and Codex, recent chat history is handed off
     (chat_history_v1); a refused transfer returns an error. Refused while the worker is
-    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the permanent default."""
+    running or compacting. Hub Claude requires model_reason naming why this task needs Claude; hubsol is the general default; choose hubsonnet/hubopus for creative work."""
     from app.models import validate_model_reason, HUB_CLAUDE_REASON_RULE
 
     try:
@@ -3479,7 +3479,7 @@ async def dynamic_workflow(
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Select each task model through model-routing and pass it explicitly, or inherit an explicit stage model; the implementation still falls back to luna when both omit model. Each task also has an optional JSON schema and billing route (defaults to subscription; set billing='api_credit' only for an explicitly selected Claude task). Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Select each task model through model-routing and pass it explicitly, or inherit an explicit stage model; the implementation still falls back to luna when both omit model. Each task also has an optional JSON schema and billing route (defaults to subscription; set billing='api_credit' only for an explicitly authorized Claude task). Native subscription tasks are refused; hub work requires an ordinary spawn_worker because wf_run has no hub adapter. Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD and see only files committed at `base_commit`. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst
@@ -3677,15 +3677,17 @@ def _normalize_dynamic_task(
         return {}, f"{label}.model: {error}"
     if model_id in MANUAL_ONLY_MODEL_IDS:
         return {}, f"model '{model}' is not allowed for dynamic workflows"
-    try:
-        ensure_spawn_allowed(model_id)
-    except ValueError:
-        return {}, f"model '{model}' is not enabled for agents"
     billing = task.get("billing", default_billing)
     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
         return {}, f"{label}.billing must be 'subscription' or 'api_credit'"
     if billing == "api_credit" and backend_for_model(model_id) != "claude":
         return {}, f"{label}.billing='api_credit' requires a Claude model"
+    try:
+        ensure_spawn_allowed(model_id, billing=billing)
+    except ValueError as error:
+        return {}, str(error)
+    if backend_for_model(model_id) == "hub":
+        return {}, "Hub workflow tasks require spawn_worker; wf_run has no hub one-shot adapter"
     schema = task.get("schema", default_schema)
     if schema is not None and not isinstance(schema, dict):
         return {}, f"{label}.schema must be a JSON object"

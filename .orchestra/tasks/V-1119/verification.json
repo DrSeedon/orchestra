@@ -1,0 +1,229 @@
+{
+  "public_main_sha": "ef0642236ee9bef6d921f948f079fb9adf0ab3a6",
+  "app_paths": [
+    "app"
+  ],
+  "imports": {
+    "app": "app/__init__.py",
+    "app.models": "app/models.py",
+    "app.mcp_stdio": "app/mcp_stdio.py",
+    "scripts.wf_adapters": "scripts/wf_adapters.py"
+  },
+  "files": {
+    "app/models.py": {
+      "baseline_sha256": "c6b79c146a8f1ab63cce8b580d5dbfc2ec06fafdbfd03dac894d7c7fd87a49d1",
+      "result_sha256": "7ba86c0dc5d42ff25ca947281218cd91e84bfb3f38022906b39b5c74d77b6bdc"
+    },
+    "app/mcp_stdio.py": {
+      "baseline_sha256": "ab0f5e942e550005474b0290eb49be0a7f0a2c59c76e58ea52da9e1ae50a5431",
+      "result_sha256": "4ae626b55ae71d82d00223de44d68b1e34e6109eca12de5539017984526e8f55"
+    },
+    "scripts/wf_adapters.py": {
+      "baseline_sha256": "7c22f3709430cc917731943b22f9461b8a81eecd538da08e34fa34c0d688866c",
+      "result_sha256": "f0f083acff1884fb496068ceceb2fe84caa7205852014eb52df622a925625509"
+    },
+    ".orchestra/pipelines/default/prompts/modules/model-routing.md": {
+      "baseline_sha256": "0c85d90a052b15ae2ea1998e363269c229709f4bb0680485ff39539baf237838",
+      "result_sha256": "014fb281f1a6f61661e7c6245eaff774b9fdf458d26fa0ad250d398d1dde88a5"
+    },
+    ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md": {
+      "baseline_sha256": "87ed3b12b861ed551f75fe00da29a521e3f551b204c9fc8b7405da0d47d292e1",
+      "result_sha256": "e9e47f6c87e7ea4d5bac8c9e3f6c948c422a25fa400c66c4f0fa6983c2cf6301"
+    },
+    "CHANGELOG.md": {
+      "baseline_sha256": "af5b6178e4dcf966954e2d512eae7183b199af29bb02f9ca98e19a67b44921cf",
+      "result_sha256": "c865ee9469457d8fc47035382bd5e5bf5ea803850836a6f3f360cdca630fc2b2"
+    },
+    "tests/test_agent_hub_routing.py": {
+      "baseline_sha256": null,
+      "result_sha256": "ae7f8d48c4c747d88a742ec036d901c716b96bb4a5c58230ea89b5a815f01b2c"
+    },
+    "tests/test_models.py": {
+      "baseline_sha256": "49899bc14d69bcbd5ba267086d47c4dbc9ca6260f69e6f53d1c1e58a81b1b10c",
+      "result_sha256": "884960b421fe561a5267cc5cf7a51b7110b718e2587faf050ce1eac3da14d1de"
+    },
+    "tests/test_model_gates.py": {
+      "baseline_sha256": "e70d50e9ad96a433655680dd8a600380cbaa2c25e86a24fe30f2799e709ac198",
+      "result_sha256": "8d38ef72cbfb46e974ce7edae9a5d88b767b26c11eaeb16aac55f4af8581509f"
+    },
+    "tests/test_dynamic_workflows.py": {
+      "baseline_sha256": "5de4bec50b972a8bd4c1770df7ceeb730043790600317e04b4267bd6ec2e20ab",
+      "result_sha256": "0272ff5d19209675c6f2908e280123f3486c27496615af0e4fec9608e0ae11f9"
+    },
+    "tests/conftest.py": {
+      "baseline_sha256": "1406f91901f4f2db09f7fddc6f0f26bb557cbe8ba83cc3a59a35273a4afa20a3",
+      "result_sha256": "c0572b6f743a695dd910159d5793ed7792ec3cf69195ac5bb499df855919e875"
+    },
+    "tests/test_agent_cgroup_env_isolation_v928.py": {
+      "baseline_sha256": "d5219cb1dd6f89f7b319778179d64a1fe550d43d8f01144a251611220b978cc8",
+      "result_sha256": "fdf612bde757a6da4b82fa49651ba6c73d13a3f4e4157c4b50f9151312a7f059"
+    },
+    "tests/test_api.py": {
+      "baseline_sha256": "45f76af4ae021e45ce92ff6f78342ff6147ea65474562cc82db0d443fcde53c7",
+      "result_sha256": "5de1c73deb696eabe4c95dc24c1f78577efee5d0c72db8966a397c8643fd0647"
+    },
+    "tests/test_default_pipeline.py": {
+      "baseline_sha256": "a038bc68f4fbc0398569d1720be49a46fdd9650462daa3fa98ebe1f3a31b5c86",
+      "result_sha256": "69ec3662dcd589416e3706a4e00ff7ae53fa45284b9da1f4ff7397971fc6a008"
+    },
+    "tests/test_manager.py": {
+      "baseline_sha256": "4873acb33a7e8d5d3073b81b9ecd4c05ad1547a7d1cb306c1f47ccd476a6b5ea",
+      "result_sha256": "b6df7193432726673729db0f67665f0674f9b0f80f5aa9fa6dc199591abf8f77"
+    },
+    "tests/test_quota_wait_queue.py": {
+      "baseline_sha256": "b593d9f4aa6778a59110da0af09a0784f08931d5effc0b8e0ded625fd61fac62",
+      "result_sha256": "04601c9691d28e0278b5c2127fa24cf51edf8b891034a319bf616b74995bf7f6"
+    },
+    "tests/test_toggle_live_agent.py": {
+      "baseline_sha256": "95890ecae3b46f90d00486825a02943a2c6b619b8a85d4e70fecf2b6e449c5e4",
+      "result_sha256": "0a5790f2f7abf6c32bc4353a503d98f314d828c23b967fc5a7ced48152254b1a"
+    },
+    "tests/test_runtime_process_group.py": {
+      "baseline_sha256": "a4db85f5d777d4b0dbe202aa6d2f17f877b05bd0f3565de8061f1187a8e8b733",
+      "result_sha256": "cc2f781ca5d195ea441ff282ac23b09c0e949a7944981d851425d0bb26a5e254"
+    }
+  },
+  "original_patch_sha256": "2055d12ad1094f2837e51fded4b1ae27617a231fc5219fa8ffb948e2e6f2d78f",
+  "original_patch_storage": "private local evidence; excluded from public result",
+  "handoff_status": "original 10 files accepted on host; 8 additional real test/isolation files need broker import and host full-suite rerun; not merged",
+  "restored_additional_source_files": [
+    "app/mcp_stdio.py",
+    "scripts/wf_adapters.py",
+    ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md",
+    "tests/test_models.py",
+    "tests/test_model_gates.py",
+    "tests/test_dynamic_workflows.py"
+  ],
+  "checks": {
+    "focused": {
+      "exit_code": 0,
+      "summary": "194 passed in 41.43s",
+      "log": "focused-tests.log"
+    },
+    "compatibility": {
+      "exit_code": 0,
+      "summary": "18 passed in 11.73s",
+      "log": "compatibility-tests.log"
+    },
+    "pipeline_manifest": {
+      "exit_code": 0,
+      "log": "pipeline-contract.log"
+    },
+    "instruction_contract": {
+      "exit_code": 1,
+      "reason": "required CLAUDE.md symlink absent from broker copy",
+      "log": "instruction-contract.log"
+    },
+    "changed_python_compile": {
+      "exit_code": 0,
+      "source_files": 15
+    },
+    "publication": {
+      "exit_code": 0,
+      "source_files": 18,
+      "task_artifacts": 19,
+      "log": "publication-checks.log",
+      "scanner": "scripts/secret_scan.py plus task-artifact identity/path checks"
+    },
+    "compatibility_repair": {
+      "exit_code": 0,
+      "summary": "87 passed, 3 skipped in 39.61s",
+      "log": "compatibility-repair.log",
+      "stage": "before final real model-change and explicit stdio-group test refinements; final changed paths rechecked separately"
+    },
+    "queue_cgroup_compatibility": {
+      "exit_code": 0,
+      "summary": "42 passed in 22.35s",
+      "log": "queue-cgroup-compatibility.log",
+      "stage": "before final real model-change test refinement; superseded by queue_cgroup_final"
+    },
+    "inherited_cgroup_state": {
+      "exit_code": 0,
+      "summary": "7 passed, 3 skipped in 14.28s",
+      "log": "cgroup-isolated.log",
+      "stage": "before explicit stdio-test group binding"
+    },
+    "routing_after_compatibility": {
+      "exit_code": 0,
+      "summary": "194 passed in 46.19s",
+      "log": "routing-after-compatibility.log"
+    },
+    "isolation_negative_control": {
+      "exit_code": 0,
+      "mutated_test_exit_code": 1,
+      "summary": "previous restore-only fixture fails new inherited-state regression",
+      "log": "cgroup-isolation-mutation.log"
+    },
+    "cgroup_baseline_contrast": {
+      "before_isolation_fix": {
+        "current_routing": "1 failed, 1 skipped in 77.62s",
+        "previous_admission_in_memory": "1 failed, 1 skipped in 18.57s"
+      },
+      "shared_failure": "delegated agent cgroup is unavailable; refusing to launch provider process",
+      "baseline_scope": "only prior admission function replaced in memory; unchanged backend/group source; not an untouched main checkout",
+      "logs": [
+        "cgroup-current-summary.log",
+        "cgroup-baseline-summary.log"
+      ]
+    },
+    "final_real_model_change": {
+      "exit_code": 0,
+      "summary": "4 passed in 33.90s",
+      "log": "real-model-change.log",
+      "real_operation": "AgentSession.change_model, hub capacity admission, persistence, queue release"
+    },
+    "inherited_cgroup_state_final": {
+      "exit_code": 0,
+      "summary": "7 passed, 3 skipped in 38.51s",
+      "log": "cgroup-isolated-final.log",
+      "test_timeout_seconds": 45,
+      "preceding_attempt": "20-second timeout during unrelated cold aiogram/Pydantic import; 6 passed, 3 skipped, 1 setup error"
+    },
+    "queue_cgroup_final": {
+      "exit_code": 0,
+      "summary": "42 passed in 32.87s",
+      "log": "queue-cgroup-final.log",
+      "test_timeout_seconds": 45,
+      "real_model_change": true
+    }
+  },
+  "check_environment": {
+    "runner": "provisioned uv 0.11.28",
+    "environment": ".venv",
+    "supplementary_source_tree": false,
+    "normal_repository_conftest": true,
+    "ipv4_ipv6_connections": "rejected by task test plugin"
+  },
+  "additional_compatibility_files": [
+    "tests/conftest.py",
+    "tests/test_agent_cgroup_env_isolation_v928.py",
+    "tests/test_api.py",
+    "tests/test_default_pipeline.py",
+    "tests/test_manager.py",
+    "tests/test_quota_wait_queue.py",
+    "tests/test_toggle_live_agent.py",
+    "tests/test_runtime_process_group.py"
+  ],
+  "host_validation_reported_by_orchestrator": {
+    "stage": "before latest compatibility test changes; reported, not locally rerun",
+    "original_10_source_hashes": "all matched",
+    "duplicate_patch": "absent",
+    "instruction_contract": "PASS",
+    "pipeline_manifest": "PASS",
+    "broad_focused": "278 passed",
+    "full_required_runner": {
+      "passed": 6588,
+      "skipped": 54,
+      "failed": 15,
+      "seconds": 417
+    },
+    "independent_old_admission_mutation": "native Sonnet regression failed with DID NOT RAISE"
+  },
+  "coordination": {
+    "overlap": "tests/test_quota_wait_queue.py::test_model_change_rechecks_held_delivery_with_new_route_policy",
+    "other_task": "V-1121",
+    "transport": "direct Orchestra messaging tool unavailable; broker outbox requested coordination",
+    "delivery": "not confirmed during this turn"
+  },
+  "full_suite_after_compatibility": "not run locally; host required runner must be repeated before merge"
+}
