@@ -1,28 +1,6 @@
 # Temporary agent rules, managed by the temp_rule_* tools; hand edits and git pulls are honoured.
 # An entry without a reason, or without a date in mode expires/review, is skipped with a warning.
 rules:
-- id: rule-e0a8095e6f
-  project: '*'
-  mode: permanent
-  targets:
-  - all
-  author: Orchestra-orchestrator
-  created_at: '2026-10-22T11:30:51.528596+00:00'
-  text: 'Owner decision, 2026-10-29: use Codex for local orchestrators and run all workers on the MultiCode
-    hub. Do not use our own Claude subscription or fall back to it. Use hubsol for general work; actively
-    use hubsonnet or hubopus for any creative work, without the former ''important creative work'' restriction.
-    The owner has removed the former model-choice restrictions for hub creative work; supply model_reason
-    while the tool requires it. Model routing belongs only to Orchestra''s model-routing module and this
-    deployment rule, never to personal memory or project rules. This does not authorize new paid API calls,
-    shipping secrets or personal/client/company data to the hub, or changing deployment, restart, deletion
-    or freeze boundaries. Delegate only safe source-only material to the hub; when safe separation is
-    impossible, report the blocker instead of uploading protected data or enabling local Claude. The suspension
-    and submitted appeal are already confirmed: do not ask the owner to pay or repeat verification as
-    a remedy.'
-  reason: 'Owner''s direct command 2026-10-29 15:11 KRS, verified in logs.id=960402: local Claude access
-    is suspended under Supported Countries Policy and an appeal is submitted; he chose local Codex orchestrators,
-    all workers on the hub, and unrestricted hub Claude selection for creative work. This replaces the
-    2026-10-22 routing decision without lifting data, API spending, restart or project-freeze boundaries.'
 - id: rule-e402924620
   project: '*'
   mode: permanent
