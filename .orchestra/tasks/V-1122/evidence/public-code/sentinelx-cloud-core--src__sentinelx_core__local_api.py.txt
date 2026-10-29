@@ -1,0 +1,969 @@
+     1	"""Talk to a host-local endpoint that already speaks a structured protocol.
+     2	
+     3	WHY THIS EXISTS. To read something a local tool already knows, the assistant
+     4	goes through `exec`: build a command line, spawn a process, and parse output
+     5	written for human eyes. Docker is the clearest case, at 568 distinct users in a
+     6	week, and its most-run subcommands are READS that /var/run/docker.sock already
+     7	answers in JSON.
+     8	
+     9	WHAT IT KNOWS. Open a socket, speak HTTP or JSON-RPC, make the declared request,
+    10	keep the declared fields. Nothing about Docker or any other product lives here;
+    11	that knowledge is in the host's YAML. Same shape as `services:`, where the agent
+    12	holds a generic systemctl mechanism and no nginx profile in code.
+    13	
+    14	PROJECTION IS NOT COSMETIC. Measured against nine real containers: `docker ps`
+    15	text 712 bytes, raw socket JSON for the same question 20,336, curated projection
+    16	1,457. Passing the raw body through would be 28x worse than the text it replaces,
+    17	so every action declares what to keep.
+    18	
+    19	NO SHELL. With transport "unix" there is no process, no argv and no shell, so
+    20	the entire shell-injection class simply cannot occur on this path. In the audit,
+    21	"command_not_allowed: contains shell operator" is among the most frequent
+    22	failures on the exec path. With transport "stdio" there IS a process, the
+    23	binary the host's owner declared, but still no shell: argv is fixed in the
+    24	config and the call's parameters only ever travel inside the JSON-RPC message.
+    25	"""
+    26	
+    27	from __future__ import annotations
+    28	
+    29	import asyncio
+    30	import json
+    31	import logging
+    32	import os
+    33	import sys
+    34	from uuid import uuid4
+    35	from typing import Any
+    36	from sentinelx_core.winspawn import spawn_kwargs
+    37	
+    38	logger = logging.getLogger(__name__)
+    39	
+    40	# A body larger than this is refused rather than buffered. The far side is
+    41	# opaque to us: it can answer with anything, and a container log endpoint can
+    42	# stream indefinitely.
+    43	MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+    44	
+    45	
+    46	class LocalApiError(Exception):
+    47	    """Something went wrong talking to a local endpoint."""
+    48	
+    49	    def __init__(self, code: str, message: str) -> None:
+    50	        super().__init__(message)
+    51	        self.code = code
+    52	        self.message = message
+    53	
+    54	
+    55	def project(data: Any, select: tuple[str, ...]) -> Any:
+    56	    """Keep only `select` from a dict, or from every dict in a list.
+    57	
+    58	    Supports dotted paths ("Config.Image") because the interesting field is
+    59	    often nested. An empty `select` returns the data untouched, which is the
+    60	    escape hatch for endpoints whose answers are already small.
+    61	    """
+    62	    if not select:
+    63	        return data
+    64	    if isinstance(data, list):
+    65	        return [project(item, select) for item in data]
+    66	    if not isinstance(data, dict):
+    67	        return data
+    68	    out: dict[str, Any] = {}
+    69	    for spec in select:
+    70	        cur: Any = data
+    71	        for part in spec.split("."):
+    72	            if isinstance(cur, dict) and part in cur:
+    73	                cur = cur[part]
+    74	            else:
+    75	                cur = None
+    76	                break
+    77	        if cur is not None:
+    78	            out[spec] = cur
+    79	    return out
+    80	
+    81	
+    82	def _render(template: str, params: dict[str, Any]) -> str:
+    83	    """Substitute {name} placeholders from `params`.
+    84	
+    85	    Values are quoted for a URL path, not for a shell: there is no shell here.
+    86	    A missing placeholder is an error rather than an empty string, because
+    87	    silently requesting /containers//json is worse than refusing.
+    88	    """
+    89	    from urllib.parse import quote
+    90	
+    91	    out = template
+    92	    for key, value in (params or {}).items():
+    93	        out = out.replace("{" + str(key) + "}", quote(str(value), safe=""))
+    94	    if "{" in out and "}" in out:
+    95	        missing = out[out.index("{") + 1 : out.index("}")]
+    96	        raise LocalApiError(
+    97	            "missing_param", f"the action needs a value for '{missing}'"
+    98	        )
+    99	    return out
+   100	
+   101	
+   102	async def _read_http_response(reader: asyncio.StreamReader) -> bytes:
+   103	    """Read one HTTP/1.1 response body. Handles both framings Docker uses."""
+   104	    header_blob = await reader.readuntil(b"\r\n\r\n")
+   105	    head = header_blob.decode("latin-1")
+   106	    status_line = head.split("\r\n", 1)[0]
+   107	    try:
+   108	        status = int(status_line.split(" ")[1])
+   109	    except (IndexError, ValueError) as exc:
+   110	        raise LocalApiError("bad_response", f"unparseable status: {status_line!r}") from exc
+   111	
+   112	    headers = {}
+   113	    for line in head.split("\r\n")[1:]:
+   114	        if ":" in line:
+   115	            k, v = line.split(":", 1)
+   116	            headers[k.strip().lower()] = v.strip()
+   117	
+   118	    if headers.get("transfer-encoding", "").lower() == "chunked":
+   119	        chunks = bytearray()
+   120	        while True:
+   121	            size_line = (await reader.readuntil(b"\r\n")).strip()
+   122	            size = int(size_line.split(b";")[0] or b"0", 16)
+   123	            if size == 0:
+   124	                await reader.readuntil(b"\r\n")
+   125	                break
+   126	            chunks += await reader.readexactly(size)
+   127	            await reader.readexactly(2)
+   128	            if len(chunks) > MAX_RESPONSE_BYTES:
+   129	                raise LocalApiError("too_large", "endpoint response exceeded the cap")
+   130	        body = bytes(chunks)
+   131	    else:
+   132	        length = int(headers.get("content-length") or 0)
+   133	        if length > MAX_RESPONSE_BYTES:
+   134	            raise LocalApiError("too_large", "endpoint response exceeded the cap")
+   135	        body = await reader.readexactly(length) if length else b""
+   136	
+   137	    if status >= 400:
+   138	        raise LocalApiError(
+   139	            "endpoint_error",
+   140	            f"endpoint answered HTTP {status}: {body[:200].decode('utf-8', 'replace')}",
+   141	        )
+   142	    return body
+   143	
+   144	
+   145	async def call_http(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+   146	    """One HTTP request over a unix socket. Docker's shape."""
+   147	    raw = (action.request or "").strip()
+   148	    try:
+   149	        method, target = raw.split(" ", 1)
+   150	    except ValueError as exc:
+   151	        raise LocalApiError(
+   152	            "bad_action", f"request must look like 'GET /path', got {raw!r}"
+   153	        ) from exc
+   154	    target = _render(target.strip(), params)
+   155	
+   156	    try:
+   157	        reader, writer = await asyncio.wait_for(
+   158	            asyncio.open_unix_connection(endpoint.path), timeout=endpoint.timeout_s
+   159	        )
+   160	    except (FileNotFoundError, ConnectionRefusedError, PermissionError) as exc:
+   161	        raise LocalApiError(
+   162	            "endpoint_unreachable",
+   163	            f"cannot open {endpoint.path}: {exc.__class__.__name__}",
+   164	        ) from exc
+   165	    except (TimeoutError, asyncio.TimeoutError) as exc:
+   166	        raise LocalApiError("timeout", f"timed out opening {endpoint.path}") from exc
+   167	
+   168	    try:
+   169	        request = (
+   170	            f"{method.upper()} {target} HTTP/1.1\r\n"
+   171	            "Host: localhost\r\n"
+   172	            "Accept: application/json\r\n"
+   173	            "Connection: close\r\n\r\n"
+   174	        )
+   175	        writer.write(request.encode("latin-1"))
+   176	        await writer.drain()
+   177	        body = await asyncio.wait_for(
+   178	            _read_http_response(reader), timeout=endpoint.timeout_s
+   179	        )
+   180	    except (TimeoutError, asyncio.TimeoutError) as exc:
+   181	        raise LocalApiError("timeout", f"{endpoint.name} did not answer in time") from exc
+   182	    except asyncio.IncompleteReadError as exc:
+   183	        raise LocalApiError("bad_response", "endpoint closed mid-response") from exc
+   184	    finally:
+   185	        writer.close()
+   186	        try:
+   187	            await writer.wait_closed()
+   188	        except Exception:  # noqa: BLE001 - closing must not mask the real error
+   189	            pass
+   190	
+   191	    if not body:
+   192	        return None
+   193	    try:
+   194	        return json.loads(body)
+   195	    except ValueError as exc:
+   196	        raise LocalApiError("bad_response", "endpoint did not return JSON") from exc
+   197	
+   198	
+   199	# ---------------------------------------------------------------------------
+   200	# run_as: reach a socket owned by a different Unix user
+   201	#
+   202	# An endpoint like Herdr creates its socket 0600 and checks the peer
+   203	# credentials, so reaching it means BEING that user. Opening it as the agent's
+   204	# own user fails with EACCES, and running the agent as root does not help
+   205	# either: root connects but identifies as uid 0, which is not the owner.
+   206	#
+   207	# So when `run_as` is declared, the connect happens in a tiny helper invoked
+   208	# through `sudo -n -u <user>`. Measured on a real 0600 socket: as the agent
+   209	# user EACCES, as root peer_uid=0, through the helper peer_uid=<target>.
+   210	#
+   211	# WHY NOT CAP_SETUID. Forking and setuid'ing before connect also works and
+   212	# needs no sudo, but it requires AmbientCapabilities=CAP_SETUID on the unit:
+   213	# a permanently privileged agent on every host in the fleet to serve a feature
+   214	# few will use. Sudo keeps the cost on the hosts that opt in.
+   215	#
+   216	# THE OPERATOR HAS TO ALLOW IT. Since the OpenAI security work, sudo is not
+   217	# granted by default, so `run_as` does not silently acquire authority: it fails
+   218	# with an explanation naming the exact sudoers line, and the host's owner
+   219	# decides. That is the same shape the requester asked for, which was not to
+   220	# weaken the socket's permissions nor put the agent in a shared group.
+   221	# ---------------------------------------------------------------------------
+   222	
+   223	
+   224	def _relay_command(endpoint: Any) -> list[str]:
+   225	    return [
+   226	        "sudo", "-n", "-u", endpoint.run_as,
+   227	        sys.executable, "-m", "sentinelx_core.local_api_relay",
+   228	        endpoint.path, str(endpoint.timeout_s),
+   229	    ]
+   230	
+   231	
+   232	async def _call_via_run_as(endpoint: Any, payload: bytes) -> bytes:
+   233	    """Send one request through the relay, under the declared Unix identity."""
+   234	    proc = await asyncio.create_subprocess_exec(
+   235	        *_relay_command(endpoint),
+   236	        **spawn_kwargs(
+   237	            stdin=asyncio.subprocess.PIPE,
+   238	            stdout=asyncio.subprocess.PIPE,
+   239	            stderr=asyncio.subprocess.PIPE,
+   240	        ),
+   241	    )
+   242	    try:
+   243	        out, err = await asyncio.wait_for(
+   244	            proc.communicate(payload), timeout=endpoint.timeout_s + 5
+   245	        )
+   246	    except (TimeoutError, asyncio.TimeoutError) as exc:
+   247	        proc.kill()
+   248	        raise LocalApiError(
+   249	            "timeout", f"{endpoint.name} did not answer in time"
+   250	        ) from exc
+   251	
+   252	    if proc.returncode == 0 and out:
+   253	        return out
+   254	
+   255	    detail = (err or b"").decode("utf-8", "replace").strip()
+   256	    # sudo's own refusal is the common case and deserves a real answer rather
+   257	    # than the raw message, because the fix is a specific sudoers line.
+   258	    if "a password is required" in detail or "not allowed to execute" in detail or (
+   259	        proc.returncode == 1 and "sudo" in detail
+   260	    ):
+   261	        raise LocalApiError(
+   262	            "run_as_not_permitted",
+   263	            f"'{endpoint.name}' declares run_as={endpoint.run_as!r}, but this "
+   264	            f"agent may not become that user. The host's owner can allow just "
+   265	            f"this, and nothing else, with a sudoers rule such as:\n"
+   266	            f"  sentinelx ALL=({endpoint.run_as}) NOPASSWD: "
+   267	            f"{sys.executable} -m sentinelx_core.local_api_relay\n"
+   268	            f"Until then this endpoint is unreachable. ({detail[:120]})",
+   269	        )
+   270	    if proc.returncode == 3:
+   271	        raise LocalApiError(
+   272	            "endpoint_unreachable",
+   273	            f"cannot open {endpoint.path} as {endpoint.run_as}: {detail[:160]}",
+   274	        )
+   275	    raise LocalApiError(
+   276	        "bad_response", f"relay failed (rc={proc.returncode}): {detail[:160]}"
+   277	    )
+   278	
+   279	
+   280	async def call_jsonrpc(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+   281	    """One JSON-RPC 2.0 call over a unix socket, newline framed."""
+   282	    payload = {
+   283	        "jsonrpc": "2.0",
+   284	        # A STRING id. JSON-RPC 2.0 permits either, but a receiver may declare
+   285	        # it as a string in its own schema, and a string is the shape that
+   286	        # satisfies both. Named after the caller so it is recognisable in an
+   287	        # endpoint's logs.
+   288	        "id": f"sentinel-local-api-{uuid4().hex[:8]}",
+   289	        "method": action.method,
+   290	        "params": params or {},
+   291	    }
+   292	    if getattr(endpoint, "run_as", None):
+   293	        line = await _call_via_run_as(
+   294	            endpoint, (json.dumps(payload) + "\n").encode()
+   295	        )
+   296	        try:
+   297	            message = json.loads(line)
+   298	        except ValueError as exc:
+   299	            raise LocalApiError(
+   300	                "bad_response", "endpoint did not return JSON"
+   301	            ) from exc
+   302	        if isinstance(message, dict) and message.get("error"):
+   303	            err = message["error"]
+   304	            raise LocalApiError(
+   305	                "endpoint_error",
+   306	                f"{err.get('code')}: {err.get('message')}"
+   307	                if isinstance(err, dict) else str(err),
+   308	            )
+   309	        return message.get("result") if isinstance(message, dict) else message
+   310	    try:
+   311	        reader, writer = await asyncio.wait_for(
+   312	            asyncio.open_unix_connection(endpoint.path), timeout=endpoint.timeout_s
+   313	        )
+   314	    except (FileNotFoundError, ConnectionRefusedError, PermissionError) as exc:
+   315	        raise LocalApiError(
+   316	            "endpoint_unreachable",
+   317	            f"cannot open {endpoint.path}: {exc.__class__.__name__}",
+   318	        ) from exc
+   319	    except (TimeoutError, asyncio.TimeoutError) as exc:
+   320	        raise LocalApiError("timeout", f"timed out opening {endpoint.path}") from exc
+   321	
+   322	    try:
+   323	        writer.write((json.dumps(payload) + "\n").encode())
+   324	        await writer.drain()
+   325	        line = await asyncio.wait_for(reader.readline(), timeout=endpoint.timeout_s)
+   326	    except (TimeoutError, asyncio.TimeoutError) as exc:
+   327	        raise LocalApiError("timeout", f"{endpoint.name} did not answer in time") from exc
+   328	    finally:
+   329	        writer.close()
+   330	        try:
+   331	            await writer.wait_closed()
+   332	        except Exception:  # noqa: BLE001
+   333	            pass
+   334	
+   335	    if not line:
+   336	        raise LocalApiError("bad_response", "endpoint closed without answering")
+   337	    try:
+   338	        message = json.loads(line)
+   339	    except ValueError as exc:
+   340	        raise LocalApiError("bad_response", "endpoint did not return JSON") from exc
+   341	    if isinstance(message, dict) and message.get("error"):
+   342	        err = message["error"]
+   343	        raise LocalApiError(
+   344	            "endpoint_error",
+   345	            f"{err.get('code')}: {err.get('message')}" if isinstance(err, dict) else str(err),
+   346	        )
+   347	    return message.get("result") if isinstance(message, dict) else message
+   348	
+   349	
+   350	# ---------------------------------------------------------------------------
+   351	# transport: stdio
+   352	#
+   353	# The binary at `path` is DECLARED by the host's owner in config.yaml. The
+   354	# agent starts it, writes JSON-RPC 2.0 to its stdin one message per line (the
+   355	# framing MCP servers use over stdio), reads its stdout until the answer with
+   356	# the same id arrives, and stops it. Policy accepted `transport: stdio` since
+   357	# 0.12.0 while every call opened `path` as a socket and failed with a
+   358	# misleading endpoint_unreachable.
+   359	#
+   360	# ONE PROCESS PER CALL. A resident process would need supervising: restarts,
+   361	# a crash between calls, state from one caller leaking into the next. Starting
+   362	# fresh costs a spawn and gives every call the same clean starting point. A
+   363	# server that is slow to start is what timeout_s is for.
+   364	#
+   365	# NO SHELL, FIXED ARGV. argv is [path, *args] with both from config.yaml. The
+   366	# call's parameters travel only inside the JSON message, so nothing a caller
+   367	# sends can become an argument, a flag or a file name.
+   368	#
+   369	# STOPPING. stdin is closed after the answer (a stdio server exits on EOF);
+   370	# whatever is still running after a short grace is killed as a TREE, because a
+   371	# server that spawned helpers would otherwise leave them behind. With run_as
+   372	# the child runs under sudo as another user and the agent's signal may not
+   373	# reach it; closing stdin is then what ends it, and the agent never waits on
+   374	# it beyond a bounded grace.
+   375	# ---------------------------------------------------------------------------
+   376	
+   377	# Time a binary gets to exit on its own after its stdin closes.
+   378	STDIO_EXIT_GRACE_S = 2.0
+   379	# Time to wait for the tree to go away once killed. Bounded so that a child the
+   380	# agent cannot signal (run_as) does not hold the call open.
+   381	STDIO_KILL_GRACE_S = 5.0
+   382	# Kept from stderr for error messages: the tail is where the reason usually is.
+   383	STDERR_TAIL_BYTES = 8 * 1024
+   384	# Messages that are not our answer (notifications, other ids) tolerated before
+   385	# giving up. The size cap and timeout_s bound the rest.
+   386	MAX_SKIPPED_MESSAGES = 1000
+   387	# Sent in `initialize` with handshake: mcp. A server that prefers another
+   388	# version answers with its own; the agent does not depend on any feature that
+   389	# differs between them.
+   390	MCP_PROTOCOL_VERSION = "2025-06-18"
+   391	
+   392	# The child's environment starts from these, not from the agent's: the agent's
+   393	# environment is not the endpoint's business. Windows programs need the system
+   394	# variables to start at all.
+   395	_INHERITED_ENV_POSIX = (
+   396	    "PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TZ", "TMPDIR", "USER", "LOGNAME",
+   397	)
+   398	_INHERITED_ENV_WINDOWS = (
+   399	    "PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP",
+   400	    "TMP", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA",
+   401	    "PROGRAMDATA", "PROGRAMFILES", "PROGRAMFILES(X86)", "COMPUTERNAME", "USERNAME",
+   402	)
+   403	
+   404	
+   405	def _private_group(st: os.stat_result) -> bool:
+   406	    """True for a user-private group: named after the owner, nobody else in it.
+   407	
+   408	    Distros with umask 002 make a user's files group-writable on purpose; with
+   409	    a group that only holds its owner that grants nobody anything.
+   410	    """
+   411	    try:
+   412	        import grp
+   413	        import pwd
+   414	
+   415	        group = grp.getgrgid(st.st_gid)
+   416	        owner = pwd.getpwuid(st.st_uid)
+   417	    except (ImportError, KeyError):
+   418	        return False
+   419	    return (
+   420	        group.gr_name == owner.pw_name
+   421	        and owner.pw_gid == st.st_gid
+   422	        and all(m == owner.pw_name for m in group.gr_mem)
+   423	    )
+   424	
+   425	
+   426	def _replaceable_by_others(st: os.stat_result) -> bool:
+   427	    """Could a user other than the owner change this file, or swap a directory entry?"""
+   428	    import stat as _stat
+   429	
+   430	    if _stat.S_ISDIR(st.st_mode) and st.st_mode & _stat.S_ISVTX:
+   431	        # Sticky directory (/tmp): only an entry's owner can rename or remove it.
+   432	        return False
+   433	    if st.st_mode & _stat.S_IWOTH:
+   434	        return True
+   435	    return bool(st.st_mode & _stat.S_IWGRP) and not _private_group(st)
+   436	
+   437	
+   438	def binary_problem(path: str, run_as: str | None = None) -> tuple[str, str] | None:
+   439	    """Why the binary at `path` cannot be run, as (code, message), or None.
+   440	
+   441	    unsafe_binary: the binary, or a directory holding it, is writable by
+   442	    someone other than its owner. Whoever can replace the file chooses what
+   443	    the agent runs, the same reasoning systemd applies to its unit files. The
+   444	    check runs at load AND before every call, since permissions can change.
+   445	    """
+   446	    if not os.path.isabs(path):
+   447	        return ("endpoint_unreachable", f"{path} is not an absolute path")
+   448	    try:
+   449	        real = os.path.realpath(path)
+   450	        st = os.stat(real)
+   451	    except FileNotFoundError:
+   452	        return ("endpoint_unreachable", f"{path} does not exist")
+   453	    except OSError as exc:
+   454	        return ("endpoint_unreachable", f"cannot inspect {path}: {exc.__class__.__name__}")
+   455	    import stat as _stat
+   456	
+   457	    if not _stat.S_ISREG(st.st_mode):
+   458	        return ("endpoint_unreachable", f"{path} is not a regular file")
+   459	    if sys.platform == "win32":
+   460	        # POSIX mode bits mean nothing there; ACLs are the operator's job.
+   461	        return None
+   462	    if _replaceable_by_others(st):
+   463	        return (
+   464	            "unsafe_binary",
+   465	            f"{real} is writable by users other than its owner "
+   466	            f"(mode {_stat.S_IMODE(st.st_mode):o}); whoever can replace it "
+   467	            "chooses what the agent runs. Fix with: chmod go-w " + real,
+   468	        )
+   469	    for directory in sorted({os.path.dirname(real), os.path.dirname(path)}):
+   470	        try:
+   471	            dst = os.stat(directory)
+   472	        except OSError:
+   473	            continue
+   474	        if _replaceable_by_others(dst):
+   475	            return (
+   476	                "unsafe_binary",
+   477	                f"{directory} (which holds the binary) is writable by users "
+   478	                f"other than its owner (mode {_stat.S_IMODE(dst.st_mode):o}), "
+   479	                "so the binary can be swapped. Move it, or: chmod go-w "
+   480	                + directory,
+   481	            )
+   482	    if not run_as and not os.access(real, os.X_OK):
+   483	        # With run_as it is the target user who executes it, not the agent.
+   484	        return ("endpoint_unreachable", f"{path} is not executable by the agent's user")
+   485	    return None
+   486	
+   487	
+   488	def _stdio_command(endpoint: Any) -> list[str]:
+   489	    cmd = [endpoint.path, *getattr(endpoint, "args", ())]
+   490	    if getattr(endpoint, "run_as", None):
+   491	        # `--` so that nothing in the declared command is read as a sudo flag.
+   492	        return ["sudo", "-n", "-u", endpoint.run_as, "--", *cmd]
+   493	    return cmd
+   494	
+   495	
+   496	def _child_env(endpoint: Any) -> dict[str, str]:
+   497	    keys = _INHERITED_ENV_WINDOWS if sys.platform == "win32" else _INHERITED_ENV_POSIX
+   498	    env = {k: os.environ[k] for k in keys if k in os.environ}
+   499	    env.setdefault("PATH", os.defpath)
+   500	    if sys.platform != "win32":
+   501	        env.setdefault("LANG", "C.UTF-8")
+   502	    env.update(getattr(endpoint, "env", None) or {})
+   503	    return env
+   504	
+   505	
+   506	def _agent_user() -> str:
+   507	    try:
+   508	        import pwd
+   509	
+   510	        return pwd.getpwuid(os.geteuid()).pw_name
+   511	    except (ImportError, KeyError, AttributeError):
+   512	        return "sentinelx"
+   513	
+   514	
+   515	def _unwrap(message: Any) -> Any:
+   516	    """The `result` of a JSON-RPC response, or endpoint_error for its `error`."""
+   517	    if isinstance(message, dict) and message.get("error"):
+   518	        err = message["error"]
+   519	        raise LocalApiError(
+   520	            "endpoint_error",
+   521	            f"{err.get('code')}: {err.get('message')}" if isinstance(err, dict) else str(err),
+   522	        )
+   523	    return message.get("result") if isinstance(message, dict) else message
+   524	
+   525	
+   526	class _ProcessGone(Exception):
+   527	    """stdout closed, or stdin refused a write: the child is exiting."""
+   528	
+   529	
+   530	class _StdioConversation:
+   531	    """One request/response exchange (plus the MCP handshake) with one child."""
+   532	
+   533	    def __init__(self, proc: Any, endpoint: Any) -> None:
+   534	        self.proc = proc
+   535	        self.endpoint = endpoint
+   536	        self.read_bytes = 0
+   537	
+   538	    async def send(self, message: dict[str, Any]) -> None:
+   539	        try:
+   540	            self.proc.stdin.write((json.dumps(message) + "\n").encode())
+   541	            await self.proc.stdin.drain()
+   542	        except (BrokenPipeError, ConnectionResetError) as exc:
+   543	            raise _ProcessGone() from exc
+   544	
+   545	    async def receive(self, want_id: str) -> dict[str, Any]:
+   546	        """Read until the response to `want_id`, skipping everything else."""
+   547	        skipped = 0
+   548	        while True:
+   549	            try:
+   550	                line = await self.proc.stdout.readline()
+   551	            except (ValueError, asyncio.LimitOverrunError) as exc:
+   552	                raise LocalApiError(
+   553	                    "too_large", f"{self.endpoint.name} wrote a line longer than the cap"
+   554	                ) from exc
+   555	            if not line:
+   556	                raise _ProcessGone()
+   557	            self.read_bytes += len(line)
+   558	            if self.read_bytes > MAX_RESPONSE_BYTES:
+   559	                raise LocalApiError(
+   560	                    "too_large", f"{self.endpoint.name} wrote more than the cap to stdout"
+   561	                )
+   562	            text = line.strip()
+   563	            if not text:
+   564	                continue
+   565	            try:
+   566	                message = json.loads(text)
+   567	            except ValueError as exc:
+   568	                # A stdio JSON-RPC server must keep stdout for protocol
+   569	                # messages only (MCP says so explicitly); logs go to stderr.
+   570	                raise LocalApiError(
+   571	                    "bad_response",
+   572	                    f"{self.endpoint.name} wrote something that is not JSON to "
+   573	                    f"stdout: {text[:120].decode('utf-8', 'replace')!r}",
+   574	                ) from exc
+   575	            if isinstance(message, dict):
+   576	                if message.get("id") == want_id and (
+   577	                    "result" in message or "error" in message
+   578	                ):
+   579	                    return message
+   580	                if message.get("method") and message.get("id") is not None:
+   581	                    # A request FROM the server (an MCP ping, sampling). Answer
+   582	                    # it rather than leave the server waiting on us.
+   583	                    await self.send({
+   584	                        "jsonrpc": "2.0",
+   585	                        "id": message["id"],
+   586	                        "error": {
+   587	                            "code": -32601,
+   588	                            "message": "not supported by the SentinelX agent",
+   589	                        },
+   590	                    })
+   591	            skipped += 1
+   592	            if skipped > MAX_SKIPPED_MESSAGES:
+   593	                raise LocalApiError(
+   594	                    "bad_response",
+   595	                    f"{self.endpoint.name} sent {skipped} messages without answering",
+   596	                )
+   597	
+   598	    async def run(self, action: Any, params: dict[str, Any]) -> dict[str, Any]:
+   599	        if getattr(self.endpoint, "handshake", "none") == "mcp":
+   600	            from sentinelx_core import AGENT_VERSION
+   601	
+   602	            init_id = f"sentinel-local-api-init-{uuid4().hex[:8]}"
+   603	            await self.send({
+   604	                "jsonrpc": "2.0",
+   605	                "id": init_id,
+   606	                "method": "initialize",
+   607	                "params": {
+   608	                    "protocolVersion": MCP_PROTOCOL_VERSION,
+   609	                    "capabilities": {},
+   610	                    "clientInfo": {"name": "sentinelx-agent", "version": AGENT_VERSION},
+   611	                },
+   612	            })
+   613	            reply = await self.receive(init_id)
+   614	            if reply.get("error"):
+   615	                try:
+   616	                    _unwrap(reply)
+   617	                except LocalApiError as exc:
+   618	                    raise LocalApiError(
+   619	                        "endpoint_error", f"initialize was refused: {exc.message}"
+   620	                    ) from exc
+   621	            await self.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+   622	
+   623	        request_id = f"sentinel-local-api-{uuid4().hex[:8]}"
+   624	        await self.send({
+   625	            "jsonrpc": "2.0",
+   626	            "id": request_id,
+   627	            "method": action.method,
+   628	            "params": params or {},
+   629	        })
+   630	        return await self.receive(request_id)
+   631	
+   632	
+   633	def _kill_stdio_tree(proc: Any) -> None:
+   634	    """Kill the child and anything it started. Safe to call after it exited."""
+   635	    if sys.platform == "win32":
+   636	        if proc.returncode is None:
+   637	            from sentinelx_core.executor_engine import _kill_process_tree
+   638	
+   639	            _kill_process_tree(proc)
+   640	        return
+   641	    import signal
+   642	
+   643	    try:
+   644	        # Started with start_new_session, so its process group id is its pid.
+   645	        # Signalling the group after a clean exit sweeps helpers it left.
+   646	        os.killpg(proc.pid, signal.SIGKILL)
+   647	    except (ProcessLookupError, PermissionError):
+   648	        pass
+   649	    if proc.returncode is None:
+   650	        try:
+   651	            proc.kill()
+   652	        except (ProcessLookupError, PermissionError):
+   653	            pass
+   654	
+   655	
+   656	async def _stop_stdio(proc: Any, endpoint: Any) -> None:
+   657	    if proc.stdin is not None and not proc.stdin.is_closing():
+   658	        try:
+   659	            proc.stdin.close()
+   660	        except Exception:  # noqa: BLE001 - stopping must not mask the real result
+   661	            pass
+   662	    if proc.returncode is None:
+   663	        try:
+   664	            await asyncio.wait_for(proc.wait(), STDIO_EXIT_GRACE_S)
+   665	        except (TimeoutError, asyncio.TimeoutError):
+   666	            pass
+   667	    _kill_stdio_tree(proc)
+   668	    if proc.returncode is None:
+   669	        try:
+   670	            await asyncio.wait_for(proc.wait(), STDIO_KILL_GRACE_S)
+   671	        except (TimeoutError, asyncio.TimeoutError):
+   672	            logger.warning(
+   673	                "local_api: %s (pid %s) still running after kill; not waiting for it",
+   674	                endpoint.name, proc.pid,
+   675	            )
+   676	
+   677	
+   678	def _sudo_refused(detail: str, returncode: int | None) -> bool:
+   679	    return (
+   680	        "a password is required" in detail
+   681	        or "is not allowed to execute" in detail
+   682	        or (returncode == 1 and detail.startswith("sudo:"))
+   683	    )
+   684	
+   685	
+   686	async def call_stdio_jsonrpc(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+   687	    """One JSON-RPC 2.0 call to a binary started for this call alone."""
+   688	    problem = binary_problem(endpoint.path, run_as=getattr(endpoint, "run_as", None))
+   689	    if problem is not None:
+   690	        raise LocalApiError(*problem)
+   691	
+   692	    run_as = getattr(endpoint, "run_as", None)
+   693	    extra: dict[str, Any] = {} if sys.platform == "win32" else {"start_new_session": True}
+   694	    try:
+   695	        proc = await asyncio.create_subprocess_exec(
+   696	            *_stdio_command(endpoint),
+   697	            **spawn_kwargs(
+   698	                stdin=asyncio.subprocess.PIPE,
+   699	                stdout=asyncio.subprocess.PIPE,
+   700	                stderr=asyncio.subprocess.PIPE,
+   701	                cwd=getattr(endpoint, "cwd", None),
+   702	                env=_child_env(endpoint),
+   703	                limit=MAX_RESPONSE_BYTES,
+   704	                **extra,
+   705	            ),
+   706	        )
+   707	    except OSError as exc:
+   708	        how = " through sudo" if run_as else ""
+   709	        where = f" in {endpoint.cwd}" if getattr(endpoint, "cwd", None) else ""
+   710	        raise LocalApiError(
+   711	            "endpoint_unreachable",
+   712	            f"cannot start {endpoint.path}{how}{where}: "
+   713	            f"{exc.__class__.__name__}: {exc.strerror or exc}",
+   714	        ) from exc
+   715	
+   716	    stderr_tail = bytearray()
+   717	
+   718	    async def drain_stderr() -> None:
+   719	        # Drained concurrently: a child that fills the stderr pipe would block
+   720	        # and never answer.
+   721	        while True:
+   722	            chunk = await proc.stderr.read(4096)
+   723	            if not chunk:
+   724	                return
+   725	            stderr_tail.extend(chunk)
+   726	            if len(stderr_tail) > STDERR_TAIL_BYTES:
+   727	                del stderr_tail[:-STDERR_TAIL_BYTES]
+   728	
+   729	    def tail() -> str:
+   730	        return bytes(stderr_tail).decode("utf-8", "replace").strip()
+   731	
+   732	    stderr_task = asyncio.create_task(drain_stderr())
+   733	    conversation = _StdioConversation(proc, endpoint)
+   734	    try:
+   735	        try:
+   736	            message = await asyncio.wait_for(
+   737	                conversation.run(action, params), timeout=endpoint.timeout_s
+   738	            )
+   739	        except (TimeoutError, asyncio.TimeoutError) as exc:
+   740	            detail = tail()
+   741	            raise LocalApiError(
+   742	                "timeout",
+   743	                f"{endpoint.name} did not answer within {endpoint.timeout_s:g} s"
+   744	                + (f"; stderr: {detail[-300:]}" if detail else ""),
+   745	            ) from exc
+   746	        except _ProcessGone:
+   747	            try:
+   748	                await asyncio.wait_for(proc.wait(), 1.0)
+   749	            except (TimeoutError, asyncio.TimeoutError):
+   750	                pass
+   751	            await asyncio.wait({stderr_task}, timeout=0.5)
+   752	            detail, rc = tail(), proc.returncode
+   753	            if run_as and _sudo_refused(detail, rc):
+   754	                declared = " ".join([endpoint.path, *endpoint.args])
+   755	                raise LocalApiError(
+   756	                    "run_as_not_permitted",
+   757	                    f"'{endpoint.name}' declares run_as={run_as!r}, but this agent "
+   758	                    f"may not become that user. The host's owner can allow just "
+   759	                    f"this, and nothing else, with a sudoers rule such as:\n"
+   760	                    f"  {_agent_user()} ALL=({run_as}) NOPASSWD: {declared}\n"
+   761	                    f"Until then this endpoint is unreachable. ({detail[:120]})",
+   762	                ) from None
+   763	            raise LocalApiError(
+   764	                "bad_response",
+   765	                f"{endpoint.name} exited (code {'unknown' if rc is None else rc}) "
+   766	                "before answering" + (f"; stderr: {detail[-300:]}" if detail else ""),
+   767	            ) from None
+   768	    finally:
+   769	        await _stop_stdio(proc, endpoint)
+   770	        if not stderr_task.done():
+   771	            stderr_task.cancel()
+   772	        try:
+   773	            await stderr_task
+   774	        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+   775	            pass
+   776	    return _unwrap(message)
+   777	
+   778	
+   779	async def _call_transport(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+   780	    """Route by (transport, protocol). Policy only admits stdio with jsonrpc."""
+   781	    if getattr(endpoint, "transport", "unix") == "stdio":
+   782	        return await call_stdio_jsonrpc(endpoint, action, params)
+   783	    if endpoint.protocol == "http":
+   784	        return await call_http(endpoint, action, params)
+   785	    return await call_jsonrpc(endpoint, action, params)
+   786	
+   787	
+   788	# ---------------------------------------------------------------------------
+   789	# Compatibility, per connection epoch (core#45)
+   790	#
+   791	# THE CONTRACT, in the requester's own words: "the profile declares how to
+   792	# obtain compatibility metadata and which values it accepts; SentinelX
+   793	# evaluates that declared constraint."
+   794	#
+   795	# WHY NOT PER CALL. A probe before every call pays a round trip for a guarantee
+   796	# it does not deliver: the endpoint can restart between the check and the call
+   797	# regardless. Binding validation to a connection epoch gives a real boundary
+   798	# instead of an expensive approximation.
+   799	#
+   800	# WHY NOT AT REGISTRATION. Probing when the agent boots would mean an endpoint
+   801	# that happens to be down at that moment never registers at all, and stays dead
+   802	# until someone restarts the agent. Validation is therefore lazy: first use in
+   803	# an epoch checks, the verdict is cached, and the cache entry is dropped the
+   804	# moment the endpoint becomes unreachable, because that IS the epoch ending.
+   805	#
+   806	# WHY NEVER `>=`. A higher version number does not imply the protocol still
+   807	# matches. `exact` is the default and `allowed` is how a maintainer widens it
+   808	# on purpose, which puts the judgement with whoever actually knows the answer.
+   809	# ---------------------------------------------------------------------------
+   810	
+   811	# endpoint name -> True (passed) | (code, message) (failed). Absent means "not
+   812	# checked in this epoch".
+   813	_compat_verdicts: dict[str, Any] = {}
+   814	# endpoint name -> what identified its epoch when the verdict was reached.
+   815	_compat_epochs: dict[str, Any] = {}
+   816	
+   817	
+   818	def forget_compatibility(endpoint_name: str) -> None:
+   819	    """Drop a cached verdict. Called when an endpoint goes unreachable."""
+   820	    _compat_verdicts.pop(endpoint_name, None)
+   821	    _compat_epochs.pop(endpoint_name, None)
+   822	
+   823	
+   824	def _epoch_key(endpoint: Any) -> Any:
+   825	    """What marks a new epoch beyond losing the endpoint.
+   826	
+   827	    A socket endpoint that is upgraded goes away and comes back, which ends the
+   828	    epoch through endpoint_unreachable. A stdio binary is started fresh on
+   829	    every call and never "goes away", so an upgrade would inherit the old
+   830	    verdict forever. Its epoch is the file itself: a different inode, size or
+   831	    mtime is a different binary, and gets probed again.
+   832	    """
+   833	    if getattr(endpoint, "transport", "unix") != "stdio":
+   834	        return None
+   835	    try:
+   836	        st = os.stat(endpoint.path)
+   837	    except OSError:
+   838	        return None
+   839	    return (st.st_ino, st.st_size, st.st_mtime_ns)
+   840	
+   841	
+   842	def _extract(data: Any, path: str) -> Any:
+   843	    cur = data
+   844	    for part in str(path).split("."):
+   845	        if isinstance(cur, dict) and part in cur:
+   846	            cur = cur[part]
+   847	        else:
+   848	            return None
+   849	    return cur
+   850	
+   851	
+   852	async def ensure_compatible(endpoint: Any) -> None:
+   853	    """Check the declared constraint once per epoch. Raises on mismatch.
+   854	
+   855	    Fails CLOSED: an endpoint that cannot be probed, or whose version cannot be
+   856	    read, is refused rather than allowed through on the assumption it is fine.
+   857	    """
+   858	    constraint = getattr(endpoint, "compatibility", None) or {}
+   859	    if not constraint:
+   860	        return
+   861	
+   862	    key = _epoch_key(endpoint)
+   863	    if _compat_epochs.get(endpoint.name) != key:
+   864	        _compat_verdicts.pop(endpoint.name, None)
+   865	        _compat_epochs[endpoint.name] = key
+   866	
+   867	    cached = _compat_verdicts.get(endpoint.name)
+   868	    if cached is True:
+   869	        return
+   870	    if isinstance(cached, tuple):
+   871	        raise LocalApiError(cached[0], cached[1])
+   872	
+   873	    probe = constraint["probe"]
+   874	    accept = constraint["accept"]
+   875	    field = constraint["extract"]
+   876	
+   877	    # The probe is described exactly like an action, so it goes through the same
+   878	    # transport rather than a parallel code path that could drift from it.
+   879	    probe_action = type(
+   880	        "ProbeAction",
+   881	        (),
+   882	        {
+   883	            "request": probe.get("request"),
+   884	            "method": probe.get("method"),
+   885	            "select": (),
+   886	        },
+   887	    )()
+   888	    try:
+   889	        reply = await _call_transport(endpoint, probe_action, {})
+   890	    except LocalApiError as exc:
+   891	        if exc.code in (
+   892	            "endpoint_unreachable", "timeout", "run_as_not_permitted", "unsafe_binary",
+   893	        ):
+   894	            # Not a verdict: the epoch never started. Leave the cache empty so
+   895	            # the next attempt probes again instead of inheriting a failure
+   896	            # that was only ever about reachability.
+   897	            #
+   898	            # run_as_not_permitted belongs here too, and for a sharper reason:
+   899	            # wrapping it as compatibility_unknown tells the operator their
+   900	            # endpoint has a version problem when what they actually need is a
+   901	            # sudoers line. The probe runs first, so without this the real cause
+   902	            # is hidden behind the first thing that happened to fail.
+   903	            raise
+   904	        verdict = (
+   905	            "compatibility_unknown",
+   906	            f"could not read the compatibility metadata '{field}' from "
+   907	            f"'{endpoint.name}': {exc.message}",
+   908	        )
+   909	        _compat_verdicts[endpoint.name] = verdict
+   910	        raise LocalApiError(*verdict) from exc
+   911	
+   912	    found = _extract(reply, field)
+   913	    if found is None:
+   914	        verdict = (
+   915	            "compatibility_unknown",
+   916	            f"'{endpoint.name}' did not report '{field}', so its compatibility "
+   917	            "cannot be established. Refusing rather than assuming.",
+   918	        )
+   919	        _compat_verdicts[endpoint.name] = verdict
+   920	        raise LocalApiError(*verdict)
+   921	
+   922	    if "exact" in accept:
+   923	        ok = found == accept["exact"]
+   924	        wanted = f"exactly {accept['exact']!r}"
+   925	    else:
+   926	        ok = found in (accept.get("allowed") or [])
+   927	        wanted = f"one of {accept.get('allowed')!r}"
+   928	
+   929	    if not ok:
+   930	        verdict = (
+   931	            "compatibility_mismatch",
+   932	            f"'{endpoint.name}' reports {field}={found!r}, but this profile "
+   933	            f"accepts {wanted}. Widen `compatibility.accept.allowed` if the "
+   934	            "profile's maintainer says the versions are compatible; SentinelX "
+   935	            "will not assume a newer version is.",
+   936	        )
+   937	        _compat_verdicts[endpoint.name] = verdict
+   938	        logger.warning(
+   939	            "local_api compatibility mismatch on %s: %s=%r", endpoint.name, field, found
+   940	        )
+   941	        raise LocalApiError(*verdict)
+   942	
+   943	    _compat_verdicts[endpoint.name] = True
+   944	    logger.info(
+   945	        "local_api compatibility ok on %s: %s=%r", endpoint.name, field, found
+   946	    )
+   947	
+   948	
+   949	async def call_action(endpoint: Any, action_name: str, params: dict[str, Any]) -> Any:
+   950	    """Run one ALLOWLISTED action and return its projected result."""
+   951	    action = endpoint.actions.get(action_name)
+   952	    if action is None:
+   953	        # Naming the permitted actions is deliberate: they are already visible
+   954	        # through `describe`, and guessing is the failure this avoids.
+   955	        raise LocalApiError(
+   956	            "action_not_allowed",
+   957	            f"'{action_name}' is not an allowed action on '{endpoint.name}'. "
+   958	            f"Allowed: {sorted(endpoint.actions)}",
+   959	        )
+   960	    await ensure_compatible(endpoint)
+   961	    try:
+   962	        raw = await _call_transport(endpoint, action, params)
+   963	    except LocalApiError as exc:
+   964	        if exc.code in ("endpoint_unreachable", "timeout"):
+   965	            # The epoch ended. Whatever we concluded about this endpoint no
+   966	            # longer describes whatever comes back, so re-check next time.
+   967	            forget_compatibility(endpoint.name)
+   968	        raise
+   969	    return project(raw, action.select)

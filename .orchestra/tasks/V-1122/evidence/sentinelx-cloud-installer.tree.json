@@ -1,0 +1,106 @@
+{
+  "sha": "8d4b9a7f4433c7268c165add7494f282d98a6a62",
+  "truncated": false,
+  "tree": [
+    {
+      "path": ".github",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": ".github/workflows",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": ".github/workflows/macos-check.yml",
+      "type": "blob",
+      "size": 465
+    },
+    {
+      "path": ".github/workflows/windows-ps51-check.yml",
+      "type": "blob",
+      "size": 899
+    },
+    {
+      "path": ".gitignore",
+      "type": "blob",
+      "size": 28
+    },
+    {
+      "path": "LICENSE",
+      "type": "blob",
+      "size": 11450
+    },
+    {
+      "path": "README.md",
+      "type": "blob",
+      "size": 5891
+    },
+    {
+      "path": "dispatch.sh",
+      "type": "blob",
+      "size": 1788
+    },
+    {
+      "path": "docs",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "docs/ANDROID-TERMUX.md",
+      "type": "blob",
+      "size": 12280
+    },
+    {
+      "path": "enroll.py",
+      "type": "blob",
+      "size": 20044
+    },
+    {
+      "path": "install-macos.sh",
+      "type": "blob",
+      "size": 11817
+    },
+    {
+      "path": "install.ps1",
+      "type": "blob",
+      "size": 36412
+    },
+    {
+      "path": "install.sh",
+      "type": "blob",
+      "size": 33971
+    },
+    {
+      "path": "tests",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "tests/test_enroll.py",
+      "type": "blob",
+      "size": 10030
+    },
+    {
+      "path": "tests/test_install_code.sh",
+      "type": "blob",
+      "size": 3463
+    },
+    {
+      "path": "tests/test_install_preserve.sh",
+      "type": "blob",
+      "size": 3875
+    },
+    {
+      "path": "tests/test_install_ps1.ps1",
+      "type": "blob",
+      "size": 9725
+    },
+    {
+      "path": "tests/test_install_sudo.sh",
+      "type": "blob",
+      "size": 1838
+    }
+  ]
+}

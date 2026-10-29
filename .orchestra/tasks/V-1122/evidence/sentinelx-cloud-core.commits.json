@@ -1,0 +1,20 @@
+[
+  {
+    "sha": "b4207d6149d95f2d3cc9b219d4e617c365b76fda",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-core/commit/b4207d6149d95f2d3cc9b219d4e617c365b76fda",
+    "date": "2026-10-26T15:33:30Z",
+    "subject": "0.23.34: close the exec allowlist bypass via concession segments"
+  },
+  {
+    "sha": "3ea724491b02529d69bd861a5ad5e037a582e9e0",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-core/commit/3ea724491b02529d69bd861a5ad5e037a582e9e0",
+    "date": "2026-10-24T01:20:34Z",
+    "subject": "0.23.33: edit takes secret=true (no backup, no diff, kept out of the local audit)"
+  },
+  {
+    "sha": "418b077e98533c950115a7e057f118fa87265b81",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-core/commit/418b077e98533c950115a7e057f118fa87265b81",
+    "date": "2026-10-23T01:28:53Z",
+    "subject": "0.23.32: connect through whichever hub address answers (happy eyeballs)"
+  }
+]

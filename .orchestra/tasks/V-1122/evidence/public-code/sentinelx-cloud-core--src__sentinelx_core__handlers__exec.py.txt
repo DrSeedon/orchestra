@@ -1,0 +1,288 @@
+     1	"""exec handler: run a whitelisted command via bash -lc.
+     2	
+     3	Allowlist comes from policy (loaded from /etc/sentinelx/config.yaml). Empty
+     4	allowlist = deny-all. Match is by prefix, identical to legacy SentinelX 0.3.5.
+     5	
+     6	When a command is rejected, the handler tries to produce a HELPFUL error
+     7	rather than a blunt one. The goal: an LLM caller, on reading the message,
+     8	should know exactly what to do next — either pick a different op (e.g.
+     9	script_run for multi-line) or stop trying entirely.
+    10	"""
+    11	
+    12	from __future__ import annotations
+    13	
+    14	import re
+    15	import sys
+    16	from typing import Any
+    17	
+    18	from sentinelx_core.executor import HandlerError
+    19	from sentinelx_core.segment_check import (
+    20	    UnparseableCommand,
+    21	    control_character,
+    22	    file_redirection,
+    23	    has_substitution,
+    24	    unauthorised_chain,
+    25	    unauthorised_segment,
+    26	)
+    27	from sentinelx_core.segment_check import first_word as first_word_of
+    28	from sentinelx_core.executor_engine import run_shell
+    29	from sentinelx_core.jobs import BACKGROUND_TIMEOUT_MAX
+    30	from sentinelx_core.policy import Policy
+    31	from sentinelx_core import platform_guidance as _pg
+    32	
+    33	
+    34	# bash control-flow keywords. When a command starts with one of these,
+    35	# "first word" doesn't identify the program being run — it identifies a
+    36	# language construct. The user almost certainly meant a multi-statement
+    37	# script, which belongs in script_run, not exec.
+    38	_BASH_KEYWORDS = frozenset({
+    39	    "for", "while", "until", "if", "case", "select", "function",
+    40	    "do", "done", "then", "else", "elif", "fi", "esac",
+    41	    "{", "(",
+    42	})
+    43	
+    44	# Tokens that signal a multi-statement / piped / redirected command. The
+    45	# `exec` op runs everything through `bash -lc`, so technically these all
+    46	# work, but they almost never represent the LLM's intent — and they
+    47	# obscure what should have been in the allowlist. Recommend script_run
+    48	# when we see them.
+    49	_SHELL_COMPOUND_TOKENS = ("|", "&&", "||", ";", ">", "<")
+    50	
+    51	
+    52	def _classify_rejection(command: str) -> tuple[str, str]:
+    53	    """Decide WHY a command was rejected, and return a helpful message.
+    54	
+    55	    Returns:
+    56	        (problem_summary, suggestion) — both human-readable strings.
+    57	        problem_summary is short (under 60 chars), goes in the error code
+    58	        message. suggestion is longer, goes in details.
+    59	
+    60	    The classification cases (in priority order):
+    61	
+    62	      1. Multi-line input.
+    63	         The agent's exec is single-line by design. Multi-line = script.
+    64	
+    65	      2. Starts with a bash keyword (for/while/if/case/etc).
+    66	         "first word" is misleading. Suggest script_run.
+    67	
+    68	      3. Contains shell compound tokens (| && ; etc).
+    69	         Pipelines/chains usually mean "I have a workflow"; script_run
+    70	         makes that explicit.
+    71	
+    72	      4. Bare command not in allowlist.
+    73	         The plain case — operator needs to add this prefix to the
+    74	         allowlist if it's safe and routine.
+    75	    """
+    76	    if "\n" in command:
+    77	        return (
+    78	            "multi-line input",
+    79	            "exec runs single-line commands only. For multi-statement "
+    80	            "scripts (with newlines, loops, or local variables), use "
+    81	            "script_run with interpreter='bash' or 'python3'. It accepts "
+    82	            "the full script as one payload and runs it via a temp file.",
+    83	        )
+    84	
+    85	    stripped = command.lstrip()
+    86	    first_word = stripped.split(maxsplit=1)[0] if stripped else ""
+    87	
+    88	    if first_word in _BASH_KEYWORDS:
+    89	        return (
+    90	            f"starts with bash keyword '{first_word}'",
+    91	            f"'{first_word}' is a bash control-flow keyword, not a "
+    92	            "command. exec was designed for single binaries with their "
+    93	            "args (like 'systemctl status nginx'). For loops, "
+    94	            "conditionals, or any script-like logic, use script_run "
+    95	            "with interpreter='bash'.",
+    96	        )
+    97	
+    98	    for token in _SHELL_COMPOUND_TOKENS:
+    99	        if token in command:
+   100	            return (
+   101	                f"contains shell operator '{token}'",
+   102	                f"the operator '{token}' is part of a shell pipeline or "
+   103	                "redirection. exec's allowlist matches command PREFIXES "
+   104	                "(e.g. 'ls', 'systemctl status'); a pipeline is several "
+   105	                "commands chained together and won't match any single "
+   106	                "prefix. For chained commands, use script_run with "
+   107	                "interpreter='bash' — you can pipe and redirect freely "
+   108	                "inside the script body.",
+   109	            )
+   110	
+   111	    # Bare command, just not in the allowlist.
+   112	    return (
+   113	        f"command not in allowlist: {first_word}",
+   114	        f"the prefix '{first_word}' isn't in the agent's allowed_commands. "
+   115	        "If it's safe and routine, you can add it with the operator's "
+   116	        f"approval, in three steps: (1) {_pg.config_edit_step()}, "
+   117	        f"inserting a new line '  - {first_word}' under the "
+   118	        "'allowed_commands:' list (anchor on an existing '  - ...' entry so "
+   119	        f"the YAML stays valid); (2) {_pg.reload_agent()}; (3) confirm with "
+   120	        f"the capabilities op that '{first_word}' now appears in "
+   121	        "allowed_commands. For a one-off that leaves the policy unchanged, "
+   122	        "use script_run instead.",
+   123	    )
+   124	
+   125	
+   126	def make_exec_handler(policy: Policy):
+   127	    """Return an async handler bound to the given policy."""
+   128	
+   129	    async def handle_exec(payload: dict[str, Any]) -> dict[str, Any]:
+   130	        command = payload.get("command")
+   131	        timeout = float(payload.get("timeout", policy.exec_timeout_default))
+   132	
+   133	        if not command or not isinstance(command, str):
+   134	            raise HandlerError("invalid_payload", "missing or non-string 'command'")
+   135	
+   136	        # Background ops get a higher wall-clock ceiling (the whole point of
+   137	        # running detached); interactive exec stays bounded by policy.
+   138	        if payload.get("background"):
+   139	            ceiling = max(policy.exec_timeout_max, BACKGROUND_TIMEOUT_MAX)
+   140	        else:
+   141	            ceiling = policy.exec_timeout_max
+   142	        timeout = min(timeout, ceiling)
+   143	
+   144	        # exec_mode: unrestricted -- the operator's choice for a trusted host: any
+   145	        # command line runs under the agent's identity, like script_run. The
+   146	        # boundary is the OS (the agent's user, sudoers, file permissions) and
+   147	        # the audit log, not allowed_commands.
+   148	        if policy.effective_exec_mode == "unrestricted":
+   149	            return await run_shell(command, timeout=timeout)
+   150	
+   151	        # Deny-all is deny-all. With an empty allowed_commands under allowlist or
+   152	        # strict mode, no exec command runs -- not even a chain built only of the
+   153	        # segments the checks below exempt (cd, no-op builtins, read-only
+   154	        # filters). Without this, `cd /etc && cat passwd` passed an empty
+   155	        # allowlist because every segment was a concession (sxrep_CY0WMZK7W01F).
+   156	        if not policy.allowed_commands:
+   157	            raise HandlerError(
+   158	                "command_not_allowed",
+   159	                "allowed_commands is empty for this host, so exec is deny-all and "
+   160	                "runs no command. Add the commands this host should permit to "
+   161	                "allowed_commands in the config and reload the agent, or use "
+   162	                "script_run for a one-off that leaves the policy unchanged.",
+   163	                details={"command": command, "allowed_commands": []},
+   164	            )
+   165	
+   166	        # Strict mode first: the prefix check below asks what the command
+   167	        # STARTS with, which is exactly the question that let `allowed; id`
+   168	        # through. When the operator has asked for it, every segment answers
+   169	        # for itself.
+   170	        if policy.exec_strict:
+   171	            # Checked and executed must be the same string: trim it here, once.
+   172	            # A trailing newline is harmless, but an inner one would split it.
+   173	            command = command.strip()
+   174	            control = control_character(command)
+   175	            if control is not None:
+   176	                raise HandlerError(
+   177	                    "command_not_allowed",
+   178	                    f"exec_strict is on for this host, and this command contains "
+   179	                    f"a control character ({control}). The shell treats a newline "
+   180	                    f"as a separator, so an allowed command followed by one would "
+   181	                    f"run whatever comes next without being checked. Send one "
+   182	                    f"command per call, or use script_run for a multi-line script.",
+   183	                    details={"command": command, "control_character": control},
+   184	                )
+   185	            substitution = has_substitution(command)
+   186	            if substitution is not None:
+   187	                raise HandlerError(
+   188	                    "command_not_allowed",
+   189	                    f"exec_strict is on for this host, and this command uses "
+   190	                    f"{substitution} command substitution. The allowlist matches "
+   191	                    f"command prefixes and cannot say anything about what runs "
+   192	                    f"inside a substitution, so strict mode refuses it rather "
+   193	                    f"than answer 'checked' to a question it did not ask. Use "
+   194	                    f"script_run for anything that needs one.",
+   195	                    details={"command": command, "substitution": substitution},
+   196	                )
+   197	
+   198	            redirection = file_redirection(command)
+   199	            if redirection is not None:
+   200	                raise HandlerError(
+   201	                    "command_not_allowed",
+   202	                    f"exec_strict is on for this host, and this command redirects "
+   203	                    f"to or from a file ({redirection!r}). The allowlist says which "
+   204	                    f"commands may run, not which files they may write or read, so "
+   205	                    f"strict mode only allows /dev/null, 2>&1-style descriptor "
+   206	                    f"copies and heredocs. Use edit or read for files, or "
+   207	                    f"script_run for a workflow.",
+   208	                    details={"command": command, "redirection": redirection},
+   209	                )
+   210	
+   211	            offending = unauthorised_segment(policy, command)
+   212	            if offending is not None:
+   213	                raise HandlerError(
+   214	                    "command_not_allowed",
+   215	                    f"exec_strict is on for this host, and the segment "
+   216	                    f"{offending!r} is not covered by allowed_commands. Every "
+   217	                    f"part of a chained command is checked, not just the first "
+   218	                    f"-- otherwise an allowed prefix followed by ';' would run "
+   219	                    f"anything. Add that segment's prefix to allowed_commands "
+   220	                    f"if it is safe and routine, or use script_run, which is "
+   221	                    f"the explicit path for a workflow.",
+   222	                    details={
+   223	                        "command": command,
+   224	                        "offending_segment": offending,
+   225	                        "allowed_commands": list(policy.allowed_commands),
+   226	                    },
+   227	                )
+   228	
+   229	        # On POSIX every segment, the first included, is checked on its own: by
+   230	        # the chain check below, or by the strict check above. Checking the whole
+   231	        # string here as well refused `uptime; ls` because the ';' touches
+   232	        # `uptime`, before the chain check could look (0.23.28). Windows has no
+   233	        # segment check (exec runs PowerShell), so there the whole string still
+   234	        # answers, and `ls;rm x` stays refused.
+   235	        if sys.platform == "win32" and not policy.is_command_allowed(command):
+   236	            problem, suggestion = _classify_rejection(command)
+   237	            raise HandlerError(
+   238	                "command_not_allowed",
+   239	                f"{problem}. {suggestion}",
+   240	                details={
+   241	                    "command": command,
+   242	                    "problem": problem,
+   243	                    "allowed_commands": list(policy.allowed_commands),
+   244	                },
+   245	            )
+   246	
+   247	        # Every command in a chain answers for itself, not only what the string
+   248	        # starts with: `allowed; id`, `allowed $(id)` and an allowed command
+   249	        # followed by a newline used to run the rest unchecked
+   250	        # (GHSA-r2h3-76g7-m95x). exec_strict already did this and more; this is
+   251	        # the default. POSIX only: on Windows exec runs PowerShell, whose grammar
+   252	        # this check does not model.
+   253	        if not policy.exec_strict and sys.platform != "win32":
+   254	            try:
+   255	                offending = unauthorised_chain(policy, command)
+   256	            except UnparseableCommand as exc:
+   257	                raise HandlerError(
+   258	                    "command_not_allowed",
+   259	                    f"This command couldn't be checked safely ({exc}), so it was "
+   260	                    f"not run. Send a simpler command, or use script_run for a "
+   261	                    f"multi-step workflow.",
+   262	                    details={"command": command, "reason": str(exc)},
+   263	                )
+   264	            if offending is not None:
+   265	                word = first_word_of(offending)
+   266	                raise HandlerError(
+   267	                    "command_not_allowed",
+   268	                    f"`{word}` (in {offending!r}) is not in allowed_commands for "
+   269	                    f"this host. Every command in a chain is checked: after ; && "
+   270	                    f"|| | & or a new line, and inside $(...). If it's safe and "
+   271	                    f"routine, it can be added with the operator's approval, in "
+   272	                    f"three steps: (1) {_pg.config_edit_step()}, inserting a new "
+   273	                    f"line '  - {word}' under the 'allowed_commands:' list; "
+   274	                    f"(2) {_pg.reload_agent()}; (3) confirm with the capabilities "
+   275	                    f"op that '{word}' now appears in allowed_commands. For a "
+   276	                    f"one-off that leaves the policy unchanged, use script_run.",
+   277	                    details={
+   278	                        "command": command,
+   279	                        "offending_segment": offending,
+   280	                        "missing_command": word,
+   281	                        "allowed_commands": list(policy.allowed_commands),
+   282	                    },
+   283	                )
+   284	
+   285	        return await run_shell(command, timeout=timeout)
+   286	
+   287	    return handle_exec
+   288	

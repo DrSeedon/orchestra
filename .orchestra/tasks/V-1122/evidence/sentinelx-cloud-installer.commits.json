@@ -1,0 +1,20 @@
+[
+  {
+    "sha": "8d4b9a7f4433c7268c165add7494f282d98a6a62",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-installer/commit/8d4b9a7f4433c7268c165add7494f282d98a6a62",
+    "date": "2026-10-25T20:00:12Z",
+    "subject": "Short enrollment codes: SENTINELX_ENROLL_CODE and typed codes at the prompt"
+  },
+  {
+    "sha": "a7c790d1c4282f58b30be0ef0cc83dc0d66d59c4",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-installer/commit/a7c790d1c4282f58b30be0ef0cc83dc0d66d59c4",
+    "date": "2026-10-19T04:50:22Z",
+    "subject": "docs: Android guide leads with Debian in PRoot and the one-line installer"
+  },
+  {
+    "sha": "b95b1239b55bd0a29f281520b5beb729da0c4af5",
+    "html_url": "https://github.com/pensados/sentinelx-cloud-installer/commit/b95b1239b55bd0a29f281520b5beb729da0c4af5",
+    "date": "2026-10-19T04:35:47Z",
+    "subject": "install.sh: don't offer passwordless sudo where sudo isn't installed"
+  }
+]

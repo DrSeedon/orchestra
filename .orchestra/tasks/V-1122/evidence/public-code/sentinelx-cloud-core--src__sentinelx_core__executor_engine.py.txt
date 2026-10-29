@@ -1,0 +1,404 @@
+     1	"""Generic execution primitives ported from the legacy SentinelX core.
+     2	
+     3	These are the low-level building blocks used by handlers. They DO NOT know
+     4	about MCP, JSON-RPC, or the wire protocol — they take arguments and return
+     5	results, full stop. That makes them easy to test and reuse.
+     6	
+     7	[omitted: upstream personal/example home path]
+     8	"""
+     9	
+    10	from __future__ import annotations
+    11	
+    12	import asyncio
+    13	import logging
+    14	import os
+    15	import signal
+    16	import subprocess
+    17	import sys
+    18	import time
+    19	from pathlib import Path
+    20	from typing import Any
+    21	
+    22	from sentinelx_core.winspawn import spawn_kwargs
+    23	
+    24	logger = logging.getLogger(__name__)
+    25	
+    26	
+    27	def _process_group_kwargs() -> dict[str, Any]:
+    28	    """Start the shell in a killable process group on POSIX."""
+    29	    if sys.platform == "win32":
+    30	        return {}
+    31	    return {"start_new_session": True}
+    32	
+    33	
+    34	def _kill_process_tree(proc: asyncio.subprocess.Process) -> None:
+    35	    """Best-effort kill of the shell and every descendant it started."""
+    36	    if sys.platform == "win32":
+    37	        try:
+    38	            # spawn_kwargs adds CREATE_NO_WINDOW, like every other child we
+    39	            # start: without it, a per-user install (pythonw) flashes a console.
+    40	            completed = subprocess.run(
+    41	                ["taskkill", "/T", "/F", "/PID", str(proc.pid)],
+    42	                **spawn_kwargs(capture_output=True, timeout=10, check=False),
+    43	            )
+    44	            if completed.returncode == 0:
+    45	                return
+    46	        except (OSError, subprocess.SubprocessError):
+    47	            logger.debug("taskkill process-tree cleanup failed", exc_info=True)
+    48	    else:
+    49	        try:
+    50	            pgid = os.getpgid(proc.pid)
+    51	        except (ProcessLookupError, OSError):
+    52	            pgid = None
+    53	        if pgid is not None:
+    54	            try:
+    55	                os.killpg(pgid, signal.SIGKILL)
+    56	                return
+    57	            except ProcessLookupError:
+    58	                return
+    59	            except PermissionError:
+    60	                pass
+    61	
+    62	    try:
+    63	        proc.kill()
+    64	    except ProcessLookupError:
+    65	        pass
+    66	
+    67	
+    68	# How long to wait for the process tree to go away after the kill. Something that
+    69	# outlives the kill and still holds our pipes - typically a process started through
+    70	# sudo, which runs as root, so an unprivileged agent can't signal it - would otherwise
+    71	# keep proc.wait() blocked until it exits on its own (asyncio's wait() also waits for
+    72	# the pipes to close): a command with a 300 s limit came back at 900 s, when the
+    73	# root process finished (sxrep_64T9VXZEVC61).
+    74	STOP_GRACE_SECONDS = 5.0
+    75	
+    76	
+    77	async def _stop_process_tree(proc: asyncio.subprocess.Process) -> bool:
+    78	    """Kill the tree and wait briefly for it to go. Returns False when something
+    79	    outlived the kill and still held our pipes: we close our end and return
+    80	    instead of waiting for it, and it keeps running on its own."""
+    81	    _kill_process_tree(proc)
+    82	    try:
+    83	        await asyncio.wait_for(proc.wait(), timeout=STOP_GRACE_SECONDS)
+    84	        return True
+    85	    except ProcessLookupError:
+    86	        return True
+    87	    except (asyncio.TimeoutError, TimeoutError):
+    88	        transport = getattr(proc, "_transport", None)
+    89	        if transport is not None:
+    90	            transport.close()
+    91	        logger.warning(
+    92	            "a process started by a timed-out command outlived the kill and was left running (shell pid %s)",
+    93	            proc.pid,
+    94	        )
+    95	        return False
+    96	
+    97	
+    98	async def communicate_partial(
+    99	    proc: asyncio.subprocess.Process, timeout: float | None
+   100	) -> tuple[bytes, bytes, bool]:
+   101	    """proc.communicate() under a timeout that keeps what was already read.
+   102	
+   103	    communicate() inside wait_for() threw away everything a process had written
+   104	    when the timeout hit, so a script that printed its progress (even with
+   105	    flush) came back as a bare "Timeout" (sxrep_AY8JPBQKSAXR). Both streams are
+   106	    read as they arrive; returns (stdout, stderr, timed_out). The caller still
+   107	    owns stopping the process tree on a timeout.
+   108	    """
+   109	    out, err = bytearray(), bytearray()
+   110	
+   111	    async def pump(stream, buf: bytearray) -> None:
+   112	        if stream is None:
+   113	            return
+   114	        while True:
+   115	            chunk = await stream.read(65536)
+   116	            if not chunk:
+   117	                return
+   118	            buf.extend(chunk)
+   119	
+   120	    try:
+   121	        await asyncio.wait_for(
+   122	            asyncio.gather(pump(proc.stdout, out), pump(proc.stderr, err), proc.wait()),
+   123	            timeout=timeout,
+   124	        )
+   125	        return bytes(out), bytes(err), False
+   126	    except TimeoutError:
+   127	        return bytes(out), bytes(err), True
+   128	
+   129	
+   130	LEFT_RUNNING_NOTE = (
+   131	    "A process this command started didn't stop when asked (for example one running "
+   132	    "as root through sudo) and is still running on the host."
+   133	)
+   134	
+   135	
+   136	def timeout_text(partial: str, left_running: bool = False) -> str:
+   137	    """The timeout marker, plus whatever the process wrote before it, if anything.
+   138	
+   139	    It still starts with the marker hub and assistants already recognise.
+   140	    """
+   141	    partial = (partial or "").strip()
+   142	    text = "⏱️ Timeout" if not partial else f"⏱️ Timeout. Output written before the timeout:\n{partial}"
+   143	    return f"{text}\n{LEFT_RUNNING_NOTE}" if left_running else text
+   144	
+   145	
+   146	def _shell_argv(cmd: str) -> list[str]:
+   147	    """Build the argv that runs `cmd` through the platform's default shell.
+   148	
+   149	    POSIX: `bash -lc <cmd>`. Windows has no bash natively, so we use
+   150	    PowerShell — pwsh (PowerShell 7, UTF-8 native) when present, else the
+   151	    always-available Windows PowerShell. `-NoProfile -NonInteractive` keep it
+   152	    fast and non-blocking; `-Command` takes the full command string.
+   153	    """
+   154	    if sys.platform == "win32":
+   155	        return [_win_powershell(), "-NoProfile", "-NonInteractive", "-Command", cmd]
+   156	    return ["bash", "-lc", cmd]
+   157	
+   158	
+   159	# Cache the resolved interpreter: the probing below touches the filesystem and
+   160	# the answer does not change while the process runs.
+   161	_WIN_PS_CACHE: str | None = None
+   162	
+   163	
+   164	def _win_powershell() -> str:
+   165	    """Return a PowerShell executable the SERVICE ACCOUNT can actually launch.
+   166	
+   167	    shutil.which('pwsh') was trusted directly, and under a LocalSystem service
+   168	    it resolves to the per-user WindowsApps execution alias
+   169	    (C:\\Users\\<someone>\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.EXE) --
+   170	    a zero-byte reparse stub in a user profile that LocalSystem cannot execute,
+   171	    failing with WinError 1920. script_run worked and exec did not, on the same
+   172	    host, for exactly this reason. Reported with the alias path and the working
+   173	    Program Files path side by side.
+   174	
+   175	    Resolution order, each candidate checked for real:
+   176	      1. concrete PowerShell 7 install locations (Program Files),
+   177	      2. shutil.which('pwsh'), but ONLY if it is not a WindowsApps alias,
+   178	      3. Windows PowerShell 5.1 at its System32 absolute path,
+   179	      4. the bare name 'powershell' as a last resort.
+   180	    """
+   181	    global _WIN_PS_CACHE
+   182	    if _WIN_PS_CACHE is not None:
+   183	        return _WIN_PS_CACHE
+   184	
+   185	    import os as _os
+   186	    import shutil as _shutil
+   187	
+   188	    def _usable(path: str | None) -> bool:
+   189	        # A real, executable file -- not a WindowsApps alias stub. The alias
+   190	        # lives under ...\Local\Microsoft\WindowsApps and is a reparse point
+   191	        # the service token cannot traverse, so exclude that path outright and
+   192	        # require an ordinary readable file elsewhere.
+   193	        if not path:
+   194	            return False
+   195	        low = path.replace("/", "\\").lower()
+   196	        if "\\microsoft\\windowsapps\\" in low:
+   197	            return False
+   198	        return _os.path.isfile(path)
+   199	
+   200	    candidates: list[str] = []
+   201	    pf = _os.environ.get("ProgramFiles", r"C:\Program Files")
+   202	    pf86 = _os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+   203	    candidates.append(_os.path.join(pf, "PowerShell", "7", "pwsh.exe"))
+   204	    candidates.append(_os.path.join(pf86, "PowerShell", "7", "pwsh.exe"))
+   205	
+   206	    which_pwsh = _shutil.which("pwsh")
+   207	    if which_pwsh:
+   208	        candidates.append(which_pwsh)
+   209	
+   210	    sysroot = _os.environ.get("SystemRoot", r"C:\Windows")
+   211	    candidates.append(
+   212	        _os.path.join(sysroot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+   213	    )
+   214	
+   215	    for cand in candidates:
+   216	        if _usable(cand):
+   217	            _WIN_PS_CACHE = cand
+   218	            return cand
+   219	
+   220	    # Nothing concrete resolved; the bare name lets the OS search PATH and is
+   221	    # the historical behaviour. Not cached, so a later-installed shell is found.
+   222	    return "powershell"
+   223	
+   224	
+   225	async def run_shell(
+   226	    cmd: str,
+   227	    *,
+   228	    timeout: float = 60.0,
+   229	    cwd: str | None = None,
+   230	    env: dict[str, str] | None = None,
+   231	) -> dict[str, Any]:
+   232	    """Run a shell command via `bash -lc`. Returns a dict identical to the legacy shape.
+   233	
+   234	    Returns:
+   235	        {"output": str, "duration": float, "returncode": int}
+   236	
+   237	    The legacy core merges stdout+stderr into one "output" string for backward
+   238	    compatibility. Newer callers can use run_shell_split() for separate streams.
+   239	    """
+   240	    start = time.time()
+   241	
+   242	    full_env = os.environ.copy()
+   243	    if env:
+   244	        full_env.update(env)
+   245	
+   246	    try:
+   247	        proc = await asyncio.create_subprocess_exec(
+   248	            *_shell_argv(cmd),
+   249	            **spawn_kwargs(
+   250	                stdout=asyncio.subprocess.PIPE,
+   251	                stderr=asyncio.subprocess.PIPE,
+   252	                cwd=cwd,
+   253	                env=full_env,
+   254	                **_process_group_kwargs(),
+   255	            ),
+   256	        )
+   257	        try:
+   258	            stdout_b, stderr_b, timed_out = await communicate_partial(proc, timeout)
+   259	        except asyncio.CancelledError:
+   260	            await _stop_process_tree(proc)
+   261	            raise
+   262	        if timed_out:
+   263	            left_running = not await _stop_process_tree(proc)
+   264	            partial = "\n".join(
+   265	                t for t in (stdout_b.decode(errors="replace").strip(),
+   266	                            stderr_b.decode(errors="replace").strip()) if t
+   267	            )
+   268	            return {
+   269	                "output": timeout_text(partial, left_running),
+   270	                "duration": round(time.time() - start, 2),
+   271	                "returncode": -1,
+   272	                "timed_out": True,
+   273	                **({"left_running": True} if left_running else {}),
+   274	            }
+   275	
+   276	        stdout = stdout_b.decode(errors="replace").strip()
+   277	        stderr = stderr_b.decode(errors="replace").strip()
+   278	
+   279	        if not stdout and not stderr:
+   280	            output = "⚠️ Sin salida"
+   281	        else:
+   282	            output = f"{stdout}\n{stderr}".strip()
+   283	
+   284	        return {
+   285	            "output": output,
+   286	            "duration": round(time.time() - start, 2),
+   287	            "returncode": proc.returncode,
+   288	        }
+   289	
+   290	    except Exception as exc:  # noqa: BLE001
+   291	        return {
+   292	            "output": f"❌ Error: {exc}",
+   293	            "duration": round(time.time() - start, 2),
+   294	            "returncode": -1,
+   295	        }
+   296	
+   297	
+   298	async def run_shell_split(
+   299	    cmd: str,
+   300	    *,
+   301	    timeout: float = 60.0,
+   302	    cwd: str | None = None,
+   303	    env: dict[str, str] | None = None,
+   304	) -> dict[str, Any]:
+   305	    """Like run_shell but returns stdout and stderr separately.
+   306	
+   307	    Returns:
+   308	        {"stdout": str, "stderr": str, "duration": float, "returncode": int}
+   309	    """
+   310	    start = time.time()
+   311	    full_env = os.environ.copy()
+   312	    if env:
+   313	        full_env.update(env)
+   314	
+   315	    try:
+   316	        proc = await asyncio.create_subprocess_exec(
+   317	            *_shell_argv(cmd),
+   318	            **spawn_kwargs(
+   319	                stdout=asyncio.subprocess.PIPE,
+   320	                stderr=asyncio.subprocess.PIPE,
+   321	                cwd=cwd,
+   322	                env=full_env,
+   323	                **_process_group_kwargs(),
+   324	            ),
+   325	        )
+   326	        try:
+   327	            stdout_b, stderr_b, timed_out = await communicate_partial(proc, timeout)
+   328	        except asyncio.CancelledError:
+   329	            await _stop_process_tree(proc)
+   330	            raise
+   331	        if timed_out:
+   332	            left_running = not await _stop_process_tree(proc)
+   333	            return {
+   334	                **({"left_running": True} if left_running else {}),
+   335	                "stdout": stdout_b.decode(errors="replace").strip(),
+   336	                "stderr": timeout_text(stderr_b.decode(errors="replace"), left_running),
+   337	                "duration": round(time.time() - start, 2),
+   338	                "returncode": -1,
+   339	                "timed_out": True,
+   340	            }
+   341	
+   342	        return {
+   343	            "stdout": stdout_b.decode(errors="replace"),
+   344	            "stderr": stderr_b.decode(errors="replace"),
+   345	            "duration": round(time.time() - start, 2),
+   346	            "returncode": proc.returncode,
+   347	        }
+   348	
+   349	    except Exception as exc:  # noqa: BLE001
+   350	        return {
+   351	            "stdout": "",
+   352	            "stderr": f"❌ Error: {exc}",
+   353	            "duration": round(time.time() - start, 2),
+   354	            "returncode": -1,
+   355	        }
+   356	
+   357	
+   358	async def get_command_help(cmd: str, timeout: float = 10.0) -> str:
+   359	    """Run `<cmd>` (typically `<bin> --help` or just `<bin>`) and capture output.
+   360	
+   361	    Used to embed live help text in capabilities responses, matching the legacy
+   362	    behavior. Errors are returned as a string rather than raising.
+   363	    """
+   364	    try:
+   365	        proc = await asyncio.create_subprocess_exec(
+   366	            *_shell_argv(cmd),
+   367	            **spawn_kwargs(
+   368	                stdout=asyncio.subprocess.PIPE,
+   369	                stderr=asyncio.subprocess.PIPE,
+   370	                **_process_group_kwargs(),
+   371	            ),
+   372	        )
+   373	        try:
+   374	            stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+   375	        except TimeoutError:
+   376	            await _stop_process_tree(proc)
+   377	            return "Error getting help: timeout"
+   378	        except asyncio.CancelledError:
+   379	            await _stop_process_tree(proc)
+   380	            raise
+   381	
+   382	        text = stdout_b.decode(errors="replace") or stderr_b.decode(errors="replace") or "No help available"
+   383	        return text.strip()
+   384	
+   385	    except Exception as exc:  # noqa: BLE001
+   386	        return f"Error getting help: {exc}"
+   387	
+   388	
+   389	def safe_path_under(base: Path, candidate_str: str) -> Path:
+   390	    """Return resolved path that must live under `base`. Raises ValueError otherwise.
+   391	
+   392	    Used to harden upload/edit endpoints against path traversal.
+   393	    """
+   394	    if not candidate_str or not candidate_str.strip():
+   395	        raise ValueError("missing path")
+   396	
+   397	    raw = candidate_str.strip().lstrip("/")
+   398	    candidate = (base / raw).resolve()
+   399	    base_resolved = base.resolve()
+   400	
+   401	    if candidate != base_resolved and base_resolved not in candidate.parents:
+   402	        raise ValueError("path escapes base directory")
+   403	
+   404	    return candidate

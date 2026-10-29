@@ -1,0 +1,12 @@
+{
+  "source_url": "https://sentinelx.app/privacy",
+  "final_url": "https://sentinelx.app/privacy",
+  "retrieved_utc": "2026-10-29T09:45:25.915682+00:00",
+  "http_status": 200,
+  "response_sha256": "1fb2f9561afecd65c54ede9a7d7cf18276f8209d2787122bd063ccc6e60e1cd3",
+  "last_updated": "October 18, 2026",
+  "account_country_derived_from_ip": true,
+  "agent_country_derived_from_ip": true,
+  "country_not_ip_statement_count": 2,
+  "scope": "public privacy-page metadata only; no raw HTML retained; no first-publication date established"
+}

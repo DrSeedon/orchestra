@@ -1,0 +1,131 @@
+     1	"""Entrypoint: `python -m sentinelx_core` or `sentinelx-core`."""
+     2	
+     3	from __future__ import annotations
+     4	
+     5	import argparse
+     6	import asyncio
+     7	import logging
+     8	import sys
+     9	from pathlib import Path
+    10	
+    11	from sentinelx_core.client import HubClient
+    12	from sentinelx_core.identity import IdentityError, load_identity
+    13	
+    14	
+    15	def main() -> None:
+    16	    parser = argparse.ArgumentParser(prog="sentinelx-core")
+    17	    parser.add_argument("--hub", help="Hub URL (overrides identity.json)")
+    18	    parser.add_argument(
+    19	        "--identity",
+    20	        default="/etc/sentinelx/identity.json",
+    21	        type=Path,
+    22	        help="Path to identity.json (default: /etc/sentinelx/identity.json)",
+    23	    )
+    24	    parser.add_argument("--config", default="/etc/sentinelx/config.yaml", type=Path)
+    25	    parser.add_argument(
+    26	        "--verify-enrollment",
+    27	        action="store_true",
+    28	        help="Check that the hub accepts this host's enrollment token, then "
+    29	             "exit (0 accepted, 1 rejected or unreachable). Opens one "
+    30	             "connection and starts no session, so it is safe to run while "
+    31	             "the agent is running. Use it right after enrolling: a token "
+    32	             "altered while being copied is otherwise only visible as a "
+    33	             "background retry in the logs.",
+    34	    )
+    35	    parser.add_argument("--log-level", default="INFO")
+    36	    parser.add_argument(
+    37	        "--log-file",
+    38	        default=None,
+    39	        type=Path,
+    40	        help="Log to this file instead of stderr (used by the windowless "
+    41	             "Windows user-mode Scheduled Task, which has no console).",
+    42	    )
+    43	    args = parser.parse_args()
+    44	
+    45	    log_kwargs = {
+    46	        "level": args.log_level.upper(),
+    47	        "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+    48	    }
+    49	    if args.log_file:
+    50	        args.log_file.parent.mkdir(parents=True, exist_ok=True)
+    51	        log_kwargs["filename"] = str(args.log_file)
+    52	    else:
+    53	        log_kwargs["stream"] = sys.stderr
+    54	    logging.basicConfig(**log_kwargs)
+    55	
+    56	    # On networks with a TLS-inspecting proxy (common in corporate/enterprise
+    57	    # setups), the hub's certificate is reissued by a private CA that the OS
+    58	    # trusts but Python's bundled OpenSSL may reject (e.g. a CA cert whose Basic
+    59	    # Constraints aren't marked critical). truststore delegates verification to
+    60	    # the OS trust store, which accepts it. Optional: only active if installed
+    61	    # (it ships in the Windows offline bundle); a harmless no-op everywhere else.
+    62	    try:
+    63	        import truststore
+    64	        truststore.inject_into_ssl()
+    65	        logging.getLogger("sentinelx_core").info("truststore active (OS trust store)")
+    66	    except Exception:
+    67	        pass
+    68	
+    69	    try:
+    70	        identity = load_identity(args.identity)
+    71	        # Prefer a rotated credential if a valid one is on disk; otherwise this
+    72	        # returns the original unchanged. Never fails onto a bad credential.
+    73	        from sentinelx_core.rotation import load_effective_identity
+    74	        identity = load_effective_identity(Path(args.identity), identity)
+    75	    except IdentityError as exc:
+    76	        logging.getLogger("sentinelx_core").error("identity: %s", exc)
+    77	        sys.exit(1)
+    78	    hub_url = args.hub or identity.hub
+    79	
+    80	    if args.verify_enrollment:
+    81	        from sentinelx_core.preflight import verify_enrollment
+    82	
+    83	        result = asyncio.run(verify_enrollment(hub_url, identity.token))
+    84	        log = logging.getLogger("sentinelx_core")
+    85	        if result.ok:
+    86	            log.info("enrollment OK: %s accepts this host's token", hub_url)
+    87	            sys.exit(0)
+    88	        if result.reason == "unreachable":
+    89	            log.error(
+    90	                "could not reach the hub at %s (%s). This says nothing about "
+    91	                "the token; check network, DNS and TLS first.",
+    92	                hub_url,
+    93	                result.detail,
+    94	            )
+    95	        else:
+    96	            log.error(
+    97	                "enrollment REJECTED by %s (%s). The token in %s is not one "
+    98	                "the hub will accept -- it can be altered when copied. Re-run "
+    99	                "enrollment from the dashboard and install the fresh token. "
+   100	                "If instead this host was disabled in the dashboard, re-enable "
+   101	                "it there.",
+   102	                hub_url,
+   103	                result,
+   104	                args.identity,
+   105	            )
+   106	        sys.exit(1)
+   107	
+   108	    # One agent per host on this machine: a leftover or duplicate instance
+   109	    # exits here instead of connecting and dropping the running one. Held in a
+   110	    # local for the whole run; the OS releases it when the process ends.
+   111	    from sentinelx_core.instance_lock import hold_or_exit
+   112	
+   113	    _instance_lock = hold_or_exit(  # noqa: F841
+   114	        Path(args.identity), identity.host_id, logging.getLogger("sentinelx_core")
+   115	    )
+   116	
+   117	    client = HubClient(
+   118	        hub_url=hub_url,
+   119	        identity=identity,
+   120	        config_path=args.config,
+   121	        identity_path=Path(args.identity),
+   122	    )
+   123	
+   124	    try:
+   125	        asyncio.run(client.run())
+   126	    except KeyboardInterrupt:
+   127	        sys.exit(0)
+   128	
+   129	
+   130	if __name__ == "__main__":
+   131	    main()

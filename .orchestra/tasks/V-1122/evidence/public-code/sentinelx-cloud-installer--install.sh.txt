@@ -1,0 +1,714 @@
+     1	#!/usr/bin/env bash
+     2	# SentinelX core installer.
+     3	# Designed to be `curl -fsSL https://get.sentinelx.app | bash`-friendly.
+     4	#
+     5	# Environment overrides:
+     6	#   SENTINELX_HUB_URL       Hub URL (default: https://mcp.sentinelx.app)
+     7	#   SENTINELX_INSTALL_DIR   Install dir (default: /opt/sentinelx-cloud-core)
+     8	#   SENTINELX_HOST_ID       Force a specific host_id (default: auto-generated)
+     9	#   SENTINELX_CORE_REPO     Override the git repo URL
+    10	#   SENTINELX_CORE_REF      Override the git ref (branch/tag/commit, default: main)
+    11	#   SENTINELX_ENROLL_MODE   browser | paste (default: paste — works on headless)
+    12	#   SENTINELX_ENROLL_CODE   Short one-time enrollment code (XXXX-XXXX-XXXX) from the
+    13	#                           dashboard or an assistant: enrolls with no prompt. Case,
+    14	#                           dashes and spaces don't matter.
+    15	#   SENTINELX_ENROLL_TOKEN  The full one-time enrollment token, for automation
+    16	#                           (cloud-init, scripts). Wins over SENTINELX_ENROLL_CODE.
+    17	#   SENTINELX_SKIP_SUDO     Set to 1 to skip the sudoers helper
+    18	set -euo pipefail
+    19	
+    20	# Anchor cwd to a stable, always-readable directory before doing anything
+    21	# else. Reason: operators often run uninstall + reinstall back-to-back from
+    22	# inside /opt/sentinelx-cloud-core. The uninstall `rm -rf` removes that
+    23	# directory while the shell is still parked in it. Linux keeps the
+    24	# "phantom" cwd entry (the shell's stored inode is gone but $PWD still
+    25	# points there), and the very next subprocess that calls getcwd() — git,
+    26	# python, anything — fails with "Unable to read current working directory".
+    27	# That broke a real install during May 2026 review prep with a wall of
+    28	# `job-working-directory: error retrieving current directory` messages.
+    29	# Switching to / first guarantees getcwd() works regardless of what the
+    30	# operator did before piping us into bash.
+    31	cd / 2>/dev/null || true
+    32	
+    33	# When `curl | bash` is used, the script's $0 is "bash" (not a file path)
+    34	# and stdin is the pipe carrying the script bytes. That stdin gets
+    35	# inherited by every subprocess we spawn — most notably enroll.py, which
+    36	# needs to read the user's enrollment token. Even with the /dev/tty
+    37	# fallback in enroll.py, having a half-consumed pipe as stdin can cause
+    38	# bash itself to read EOF earlier than expected, killing the install
+    39	# silently after enroll.py succeeds.
+    40	#
+    41	# Solution: detect that we were started via stdin pipe, write ourselves
+    42	# to a tempfile, and re-exec from that file with a clean stdin. After
+    43	# this, stdin is /dev/null (closed) and the script reads its lines from
+    44	# disk, immune to whatever enroll.py or any other subprocess does to
+    45	# stdin.
+    46	if [ ! -t 0 ] && [ -z "${SENTINELX_INSTALLER_RELAUNCHED:-}" ]; then
+    47	    # Heuristic: $0 is something like "bash" or "/bin/bash" rather than a
+    48	    # real file path → we're being piped from curl.
+    49	    if [ "$0" = "bash" ] || [ "$0" = "/bin/bash" ] || [ "$0" = "/usr/bin/bash" ] || [ ! -f "$0" ]; then
+    50	        TMPSCRIPT=$(mktemp /tmp/sentinelx-installer.XXXXXX.sh)
+    51	        cat > "$TMPSCRIPT"
+    52	        chmod +x "$TMPSCRIPT"
+    53	        export SENTINELX_INSTALLER_RELAUNCHED=1
+    54	        # Re-exec with stdin closed. Any subprocess that needs user input
+    55	        # has to use /dev/tty (which enroll.py already does as a fallback).
+    56	        exec bash "$TMPSCRIPT" "$@" </dev/null
+    57	    fi
+    58	fi
+    59	
+    60	# When `set -e` triggers an exit, this trap fires before the script dies and
+    61	# prints what line crashed and what command. Without this, install failures
+    62	# look like "the script just stopped" — exactly the bug we hit during
+    63	# initial deployment.
+    64	on_error() {
+    65	    local rc="$1" line="$2" cmd="$3"
+    66	    echo ""
+    67	    echo "[X] Install FAILED (exit=$rc) at line $line"
+    68	    echo "    Last command: $cmd"
+    69	    echo "    State: $(ls -la /etc/sentinelx/ 2>&1 | head -5)"
+    70	    echo ""
+    71	    # If enrollment is what failed, the overwhelmingly likely cause on modern
+    72	    # Ubuntu is the sudo+use_pty token-prompt issue. Make the fix that works
+    73	    # the LAST thing the user reads, not a generic "see the README".
+    74	    if printf '%s' "$cmd" | grep -qi "enroll"; then
+    75	        echo "    Enrollment couldn't read your token. On modern Ubuntu (sudo with"
+    76	        echo "    'Defaults use_pty') the interactive prompt can't receive input when"
+    77	        echo "    sudo is in the pipe. Re-run as root instead — this works:"
+    78	        echo ""
+    79	        echo "        sudo -i"
+    80	        echo "        curl -fsSL https://get.sentinelx.app | bash"
+    81	    else
+    82	        echo "    To finish manually, see the README or run with bash -x for verbose tracing."
+    83	    fi
+    84	    exit "$rc"
+    85	}
+    86	trap 'on_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
+    87	
+    88	HUB_URL="${SENTINELX_HUB_URL:-https://mcp.sentinelx.app}"
+    89	INSTALL_DIR="${SENTINELX_INSTALL_DIR:-/opt/sentinelx-cloud-core}"
+    90	ETC_DIR="/etc/sentinelx"
+    91	CORE_REPO="${SENTINELX_CORE_REPO:-https://github.com/pensados/sentinelx-cloud-core.git}"
+    92	CORE_REF="${SENTINELX_CORE_REF:-main}"
+    93	ENROLL_MODE="${SENTINELX_ENROLL_MODE:-paste}"
+    94	
+    95	# --- pretty output -----------------------------------------------------------
+    96	c_red=$(tput setaf 1 2>/dev/null || true)
+    97	c_grn=$(tput setaf 2 2>/dev/null || true)
+    98	c_yel=$(tput setaf 3 2>/dev/null || true)
+    99	c_cyan=$(tput setaf 6 2>/dev/null || true)
+   100	c_bold=$(tput bold 2>/dev/null || true)
+   101	c_rst=$(tput sgr0 2>/dev/null || true)
+   102	
+   103	# --- banner ------------------------------------------------------------------
+   104	# Printed once at startup, AFTER the stdin-pipe re-exec dance above (so it
+   105	# only appears in the relaunched run, not twice). tput-based colors degrade
+   106	# gracefully on dumb terminals: if tput fails, the vars are empty strings
+   107	# and the banner just prints in plain text.
+   108	echo "${c_cyan}"
+   109	cat << 'EOF'
+   110	  ███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗     ██╗  ██╗
+   111	  ██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║     ╚██╗██╔╝
+   112	  ███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║      ╚███╔╝
+   113	  ╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║      ██╔██╗
+   114	  ███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗██╔╝ ██╗
+   115	  ╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝  ╚═╝
+   116	EOF
+   117	echo "${c_rst}"
+   118	echo "  ${c_bold}Cloud Installer${c_rst} — connect this server to ${HUB_URL#https://}"
+   119	echo "  via the Model Context Protocol."
+   120	echo ""
+   121	echo "  ${c_yel}What you'll get:${c_rst} a SentinelX agent that lets AI assistants"
+   122	echo "  (Claude, ChatGPT, etc.) operate this server through MCP."
+   123	echo ""
+   124	
+   125	info()  { echo "${c_grn}[+]${c_rst} $*"; }
+   126	warn()  { echo "${c_yel}[!]${c_rst} $*"; }
+   127	
+   128	# --- BEGIN agent-home preservation (tested in tests/test_install_preserve.sh) ---
+   129	# INSTALL_DIR is also the 'sentinelx' user's HOME (useradd --home-dir below), so
+   130	# the clean reinstall's `rm -rf` deleted ~/.ssh (deploy keys, known_hosts),
+   131	# ~/.gitconfig and anything else kept there, on every update, including
+   132	# sentinel_agent_update (sxrep_PQG3QSK9V8M0: a GitHub deploy key gone after
+   133	# 0.11.18 -> 0.23.16). The code is still replaced cleanly; what isn't code is
+   134	# moved aside first and put back after the clone.
+   135	preserve_agent_home() {   # $1 = install dir; prints the holding dir ("" if none)
+   136	    local dir="$1" hold tracked name entry
+   137	    [[ -d "$dir" ]] || { echo ""; return 0; }
+   138	    hold="$(mktemp -d "$(dirname "$dir")/.sentinelx-preserve.XXXXXX")"
+   139	    tracked=""
+   140	    if [[ -d "$dir/.git" ]]; then
+   141	        tracked="$(git -C "$dir" -c safe.directory="$dir" ls-files 2>/dev/null | cut -d/ -f1 | sort -u || true)"
+   142	    fi
+   143	    shopt -s dotglob nullglob
+   144	    for entry in "$dir"/*; do
+   145	        name="$(basename "$entry")"
+   146	        case "$name" in .git|.venv|.github|.gitignore|__pycache__) continue ;; esac
+   147	        if [[ -n "$tracked" ]]; then
+   148	            grep -qxF -- "$name" <<<"$tracked" && continue
+   149	        elif [[ "$name" != .* ]]; then
+   150	            continue    # no git metadata: only keep dotfiles, can't tell code from user files
+   151	        fi
+   152	        mv -- "$entry" "$hold/"
+   153	    done
+   154	    shopt -u dotglob nullglob
+   155	    echo "$hold"
+   156	}
+   157	
+   158	restore_agent_home() {    # $1 = install dir, $2 = holding dir from preserve_agent_home
+   159	    local dir="$1" hold="$2" entry name stamp
+   160	    [[ -n "$hold" && -d "$hold" ]] || return 0
+   161	    stamp="$(date +%Y%m%d%H%M%S)"
+   162	    shopt -s dotglob nullglob
+   163	    for entry in "$hold"/*; do
+   164	        name="$(basename "$entry")"
+   165	        if [[ -e "$dir/$name" ]]; then
+   166	            mv -- "$entry" "$dir/$name.preserved-$stamp"
+   167	            warn "Kept your $name as $name.preserved-$stamp (the new release ships its own $name)"
+   168	        else
+   169	            mv -- "$entry" "$dir/"
+   170	        fi
+   171	    done
+   172	    shopt -u dotglob nullglob
+   173	    rmdir "$hold" 2>/dev/null || true
+   174	}
+   175	# --- END agent-home preservation ---
+   176	
+   177	# --- BEGIN code install (tested in tests/test_install_code.sh) ---
+   178	# Install the agent code without ever leaving the host with none. The old flow
+   179	# deleted $INSTALL_DIR and then cloned into it: when the clone failed (GitHub
+   180	# blocked by host policy, no network, GitHub down) the host was left with an
+   181	# empty install dir, the agent alive only in memory, and the agent user's files
+   182	# stranded in a holding dir (sxrep_AWPBMJKC9DG8). Now the code is downloaded
+   183	# NEXT TO the live install first; only a complete download is swapped in, the
+   184	# previous install is moved aside rather than deleted, and it is put back if
+   185	# the Python setup fails.
+   186	stage_core_code() {    # $1 install dir, $2 repo, $3 ref; prints the staging dir. Fails touching nothing.
+   187	    local dir="$1" repo="$2" ref="$3" stage
+   188	    mkdir -p "$(dirname "$dir")"
+   189	    stage="$(mktemp -d "$(dirname "$dir")/.sentinelx-new.XXXXXX")"
+   190	    if ! git clone --quiet --depth 1 --branch "$ref" "$repo" "$stage" >&2; then
+   191	        rm -rf -- "$stage"
+   192	        return 1
+   193	    fi
+   194	    echo "$stage"
+   195	}
+   196	
+   197	swap_in_core_code() {  # $1 install dir, $2 staging dir; prints where the previous install went ("" if none)
+   198	    local dir="$1" stage="$2" hold prev=""
+   199	    hold="$(preserve_agent_home "$dir")"
+   200	    if [[ -d "$dir" ]]; then
+   201	        prev="$(dirname "$dir")/.sentinelx-prev.$(date +%Y%m%d%H%M%S)"
+   202	        mv -- "$dir" "$prev"
+   203	    fi
+   204	    mv -- "$stage" "$dir"
+   205	    restore_agent_home "$dir" "$hold"
+   206	    echo "$prev"
+   207	}
+   208	
+   209	rollback_core_code() { # $1 install dir, $2 previous install: put it back, the user's files included
+   210	    local dir="$1" prev="$2" hold
+   211	    [[ -n "$prev" && -d "$prev" ]] || return 0
+   212	    hold="$(preserve_agent_home "$dir")"
+   213	    rm -rf -- "$dir"
+   214	    mv -- "$prev" "$dir"
+   215	    restore_agent_home "$dir" "$hold"
+   216	}
+   217	# --- END code install ---
+   218	err()   { echo "${c_red}[!]${c_rst} $*" >&2; }
+   219	fatal() { echo "${c_red}[x]${c_rst} $*" >&2; exit 1; }
+   220	
+   221	
+   222	
+   223	# --- preflight ---------------------------------------------------------------
+   224	[[ "$(uname -s)" == "Linux" ]] || fatal "Only Linux is supported."
+   225	[[ "$EUID" -eq 0 ]] || fatal "Please run as root (use sudo)."
+   226	
+   227	ARCH="$(uname -m)"
+   228	case "$ARCH" in
+   229	    x86_64|aarch64|arm64) ;;
+   230	    *) fatal "Unsupported architecture: $ARCH" ;;
+   231	esac
+   232	
+   233	# Required tools. systemctl is deliberately not one of them: without systemd
+   234	# (containers, WSL1, Debian in PRoot on Android/Termux) the install still
+   235	# completes and the probe near the end prints how to run the agent instead.
+   236	for cmd in curl git; do
+   237	    command -v "$cmd" >/dev/null || fatal "Missing required tool: $cmd"
+   238	done
+   239	
+   240	# Find a Python that meets the >=3.11 requirement AND has pip + venv.
+   241	# Some systems (e.g. Debian Trixie's python3.13) ship the interpreter in
+   242	# /usr/bin but split pip and venv into separate apt packages, so a Python
+   243	# can satisfy the version check while still being unusable for our purposes.
+   244	# We test all three together: version, pip module, venv module. Only a
+   245	# Python that passes all three is selected.
+   246	PYTHON_BIN=""
+   247	PYTHON_REJECTED=""  # accumulator for diagnostic message if nothing works
+   248	
+   249	check_python() {
+   250	    local candidate="$1"
+   251	    command -v "$candidate" >/dev/null 2>&1 || return 1
+   252	    local ver
+   253	    ver=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "")
+   254	    [ -n "$ver" ] || return 1
+   255	    local major minor
+   256	    major=$(echo "$ver" | cut -d. -f1)
+   257	    minor=$(echo "$ver" | cut -d. -f2)
+   258	    [ "$major" -ge 3 ] && [ "$minor" -ge 11 ] || return 1
+   259	    "$candidate" -c "import pip" >/dev/null 2>&1 || {
+   260	        PYTHON_REJECTED="$PYTHON_REJECTED $candidate (no pip)"
+   261	        return 1
+   262	    }
+   263	    "$candidate" -c "import venv" >/dev/null 2>&1 || {
+   264	        PYTHON_REJECTED="$PYTHON_REJECTED $candidate (no venv)"
+   265	        return 1
+   266	    }
+   267	    return 0
+   268	}
+   269	
+   270	for candidate in python3.13 python3.12 python3.11 python3; do
+   271	    if check_python "$candidate"; then
+   272	        PYTHON_BIN=$(command -v "$candidate")
+   273	        break
+   274	    fi
+   275	done
+   276	
+   277	if [ -z "$PYTHON_BIN" ]; then
+   278	    err "No usable Python >=3.11 found on this system."
+   279	    if [ -n "$PYTHON_REJECTED" ]; then
+   280	        err "  Tried but rejected:$PYTHON_REJECTED"
+   281	        err ""
+   282	    fi
+   283	    err "  Install Python 3.11 with pip and venv:"
+   284	    err ""
+   285	    err "  On Ubuntu 22.04 / Debian 11 (which ship Python 3.10):"
+   286	    err "    sudo add-apt-repository -y ppa:deadsnakes/ppa"
+   287	    err "    sudo apt update"
+   288	    err "    sudo apt install -y python3.11 python3.11-venv"
+   289	    err ""
+   290	    err "  On Debian 12+ / Ubuntu 24.04+ (Python 3.11+ in default repos):"
+   291	    err "    sudo apt install -y python3 python3-venv python3-pip"
+   292	    err ""
+   293	    err "  On RHEL/Fedora:"
+   294	    err "    sudo dnf install -y python3.11"
+   295	    err ""
+   296	    err "  Then re-run this installer. It will auto-detect the new Python."
+   297	    exit 1
+   298	fi
+   299	
+   300	info "  Python:      $PYTHON_BIN ($("$PYTHON_BIN" --version 2>&1))"
+   301	
+   302	# Note: pip and venv availability are already verified by check_python() above,
+   303	# so we don't repeat those checks here.
+   304	
+   305	info "SentinelX installer starting"
+   306	info "  Hub:         $HUB_URL"
+   307	info "  Install dir: $INSTALL_DIR"
+   308	info "  Repo:        $CORE_REPO @ $CORE_REF"
+   309	info "  Enroll mode: $ENROLL_MODE"
+   310	
+   311	# --- generate or reuse host_id -----------------------------------------------
+   312	mkdir -p "$ETC_DIR"
+   313	if [[ -n "${SENTINELX_HOST_ID:-}" ]]; then
+   314	    HOST_ID="$SENTINELX_HOST_ID"
+   315	    echo "$HOST_ID" > "$ETC_DIR/host_id"
+   316	    info "Using provided host_id: $HOST_ID"
+   317	elif [[ ! -f "$ETC_DIR/host_id" ]]; then
+   318	    HOST_ID="host_$(cat /proc/sys/kernel/random/uuid | tr -d - | head -c 16)"
+   319	    echo "$HOST_ID" > "$ETC_DIR/host_id"
+   320	    chmod 644 "$ETC_DIR/host_id"
+   321	    info "Generated host_id: $HOST_ID"
+   322	else
+   323	    HOST_ID="$(cat "$ETC_DIR/host_id")"
+   324	    info "Using existing host_id: $HOST_ID"
+   325	fi
+   326	
+   327	# --- create system user ------------------------------------------------------
+   328	if ! id sentinelx >/dev/null 2>&1; then
+   329	    info "Creating system user 'sentinelx'"
+   330	    useradd --system --home-dir "$INSTALL_DIR" --shell /bin/false sentinelx
+   331	fi
+   332	
+   333	# --- optional: passwordless sudo for sentinelx -------------------------------
+   334	#
+   335	# OFF BY DEFAULT. You have to ask for it.
+   336	#
+   337	# Why you might want it: the agent runs as the unprivileged 'sentinelx' user,
+   338	# so operations like `systemctl restart nginx`, editing files under /etc or
+   339	# `apt update` need root. Without sudo those simply fail, and everything else
+   340	# (reading logs, inspecting the system, editing files the sentinelx user owns)
+   341	# keeps working.
+   342	#
+   343	# What it actually means, stated plainly: granting NOPASSWD:ALL makes the
+   344	# agent ROOT-EQUIVALENT on this host. The command allowlist in
+   345	# /etc/sentinelx/config.yaml is a usability guardrail that keeps the model on
+   346	# rails; it is NOT a security boundary, because an agent with sudo can run a
+   347	# script that steps around it. Treat enabling this as handing the machine's
+   348	# root account to whoever can drive the agent -- including anything that can
+   349	# influence the model, such as the contents of a file it reads. That is the
+   350	# same trust you extend to any remote administration tool, and it should be a
+   351	# decision, not a default.
+   352	#
+   353	# To enable, either answer the prompt below, or pass:
+   354	#   SENTINELX_ENABLE_SUDO=1
+   355	#
+   356	# To remove later: rm /etc/sudoers.d/sentinelx
+   357	#
+   358	# --- BEGIN sudo choice
+   359	SUDOERS_FILE="/etc/sudoers.d/sentinelx"
+   360	
+   361	# Whether this host ends up with the agent able to become root. Drives the
+   362	# systemd hardening below: a host without sudo can be locked down further,
+   363	# and a host with sudo must not be, or sudo itself would stop working.
+   364	SUDO_ENABLED=0
+   365	
+   366	if [[ "${SENTINELX_SKIP_SUDO:-0}" == "1" ]]; then
+   367	    # Kept for compatibility with existing automation. Now redundant: not
+   368	    # granting sudo is the default.
+   369	    info "Skipping sudo setup (SENTINELX_SKIP_SUDO=1)"
+   370	elif [[ -f "$SUDOERS_FILE" ]]; then
+   371	    info "Sudoers file already exists at $SUDOERS_FILE — leaving it alone"
+   372	    SUDO_ENABLED=1
+   373	else
+   374	    # Default NO, including the non-interactive curl|bash case: installing the
+   375	    # agent is not the same decision as handing it root, so the privileged
+   376	    # option is never taken on the user's behalf. Only an explicit env var or
+   377	    # an explicit "yes" at the prompt turns it on.
+   378	    if [[ "${SENTINELX_ENABLE_SUDO:-0}" == "1" ]]; then
+   379	        REPLY="y"
+   380	        info "Enabling passwordless sudo (SENTINELX_ENABLE_SUDO=1)"
+   381	    else
+   382	        REPLY="n"
+   383	    fi
+   384	    if [[ "$REPLY" != "y" ]] && ! command -v visudo >/dev/null 2>&1; then
+   385	        # Nothing to offer: answering yes could only fail (PRoot on Android,
+   386	        # minimal containers). Tested 2026-10-19: "y" in PRoot aborted the
+   387	        # install with a misleading "failed visudo validation".
+   388	        info "sudo isn't installed on this system; the agent runs without it."
+   389	    elif [[ "$REPLY" != "y" && -t 0 ]]; then
+   390	        echo
+   391	        echo "${c_yel}[?]${c_rst} Configure passwordless sudo for the 'sentinelx' user?"
+   392	        echo "    This lets the agent run systemctl, edit /etc/, install"
+   393	        echo "    packages and so on."
+   394	        echo
+   395	        echo "    It also makes the agent ROOT-EQUIVALENT on this host. The"
+   396	        echo "    command allowlist keeps the model on rails, but it does not"
+   397	        echo "    contain an agent that has sudo. Say yes only if you want the"
+   398	        echo "    agent to administer this machine."
+   399	        echo
+   400	        echo "    You can enable it later with: SENTINELX_ENABLE_SUDO=1"
+   401	        echo
+   402	        read -r -p "    Allow passwordless sudo for sentinelx? [y/N] " REPLY
+   403	        REPLY="${REPLY:-n}"
+   404	    fi
+   405	
+   406	    if [[ "${REPLY,,}" =~ ^(y|yes)$ ]]; then
+   407	        command -v visudo >/dev/null 2>&1 \
+   408	            || fatal "SENTINELX_ENABLE_SUDO=1, but sudo isn't installed on this system. Install it (e.g. apt install sudo) and run the installer again, or leave SENTINELX_ENABLE_SUDO unset."
+   409	        info "Installing sudoers rule at $SUDOERS_FILE"
+   410	        # Atomic install: write to temp, validate with visudo, then rename.
+   411	        # If validation fails, sudoers stays untouched.
+   412	        SUDOERS_TMP="$(mktemp /tmp/sentinelx-sudoers.XXXXXX)"
+   413	        cat > "$SUDOERS_TMP" <<'EOF'
+   414	# Generated by sentinelx-cloud-installer, at the operator's explicit request.
+   415	# Allows the unprivileged 'sentinelx' user (which the agent runs as) to
+   416	# execute commands as root without a password.
+   417	#
+   418	# This makes the agent root-equivalent on this host. The command allowlist in
+   419	# /etc/sentinelx/config.yaml keeps the model on rails but does not bound an
+   420	# agent that has sudo, so do not rely on it as a security boundary here.
+   421	#
+   422	# To revoke: rm /etc/sudoers.d/sentinelx  (then restart the agent)
+   423	sentinelx ALL=(ALL) NOPASSWD: ALL
+   424	EOF
+   425	
+   426	        if ! visudo -c -f "$SUDOERS_TMP" >/dev/null 2>&1; then
+   427	            rm -f "$SUDOERS_TMP"
+   428	            fatal "Generated sudoers file failed visudo validation. Aborting."
+   429	        fi
+   430	
+   431	        # visudo passed → install
+   432	        chmod 0440 "$SUDOERS_TMP"
+   433	        chown root:root "$SUDOERS_TMP"
+   434	        mv "$SUDOERS_TMP" "$SUDOERS_FILE"
+   435	        SUDO_ENABLED=1
+   436	        info "Sudoers rule installed and validated"
+   437	        warn "This agent is now root-equivalent on this host."
+   438	    else
+   439	        info "No sudo configured (the default). The agent can read the system"
+   440	        info "    and work with files the 'sentinelx' user owns; anything"
+   441	        info "    needing root will fail with a permission error."
+   442	        info "    To grant it later: SENTINELX_ENABLE_SUDO=1 bash install.sh"
+   443	    fi
+   444	fi
+   445	# --- END sudo choice
+   446	
+   447	# --- install core code via git clone -----------------------------------------
+   448	info "Installing sentinelx-cloud-core to $INSTALL_DIR"
+   449	
+   450	# Download first, next to the live install (see "code install" above): a failed
+   451	# download changes nothing. The agent user's own files move to the new code
+   452	# (this directory is also its HOME; see preserve_agent_home).
+   453	if ! STAGE="$(stage_core_code "$INSTALL_DIR" "$CORE_REPO" "$CORE_REF")"; then
+   454	    fatal "Couldn't download the agent from $CORE_REPO ($CORE_REF). Nothing was changed: the installed agent is intact. If this host can't reach GitHub, set SENTINELX_CORE_REPO to a mirror of https://github.com/pensados/sentinelx-cloud-core and run again."
+   455	fi
+   456	PREV_INSTALL="$(swap_in_core_code "$INSTALL_DIR" "$STAGE")"
+   457	
+   458	# Install in a venv to avoid polluting the system Python.
+   459	#
+   460	# We use `pip install -e` (editable mode) so the venv's site-packages
+   461	# imports the code DIRECTLY from $INSTALL_DIR/src rather than a separate
+   462	# copy. The practical benefit: operators can update the agent with a
+   463	#   cd $INSTALL_DIR && sudo -u sentinelx git pull && \
+   464	#       sudo systemctl restart sentinelx-cloud-core
+   465	# and the new code takes effect immediately. With a non-editable install
+   466	# the new code lands in $INSTALL_DIR/src but the agent keeps loading the
+   467	# stale copy from .venv/lib/.../site-packages until the package is
+   468	# reinstalled — a footgun that bit us during the May 2026 reviews.
+   469	info "Setting up Python virtualenv"
+   470	if ! { "$PYTHON_BIN" -m venv "$INSTALL_DIR/.venv" \
+   471	        && "$INSTALL_DIR/.venv/bin/pip" install --quiet --upgrade pip \
+   472	        && "$INSTALL_DIR/.venv/bin/pip" install --quiet -e "$INSTALL_DIR"; }; then
+   473	    rollback_core_code "$INSTALL_DIR" "$PREV_INSTALL"
+   474	    fatal "Couldn't install the agent's Python packages (is PyPI reachable?). The previous installation was put back; nothing else was changed."
+   475	fi
+   476	
+   477	chown -R sentinelx:sentinelx "$INSTALL_DIR"
+   478	
+   479	# --- enroll ------------------------------------------------------------------
+   480	ENROLL_PY="$INSTALL_DIR/../sentinelx-cloud-installer/enroll.py"
+   481	# Above path won't exist — we need to also fetch the installer script.
+   482	# Simpler: ship enroll.py inside core repo, or download it separately.
+   483	# For now we download it on the fly from the installer repo.
+   484	INSTALLER_ENROLL_URL="https://raw.githubusercontent.com/pensados/sentinelx-cloud-installer/main/enroll.py"
+   485	ENROLL_PY="$ETC_DIR/sentinelx-enroll.py"
+   486	
+   487	info "Downloading enrollment helper"
+   488	curl -fsSL "$INSTALLER_ENROLL_URL" -o "$ENROLL_PY"
+   489	chmod 755 "$ENROLL_PY"
+   490	
+   491	if [[ -f "$ETC_DIR/identity.json" ]]; then
+   492	    warn "Existing identity.json found at $ETC_DIR/identity.json"
+   493	    warn "Skipping enrollment. Delete it and re-run to re-enroll."
+   494	else
+   495	    # Preflight: the interactive token prompt hangs when `sudo` uses
+   496	    # `Defaults use_pty` (default on modern Ubuntu). Warn up front with the
+   497	    # clean workaround so a stall is never a silent mystery.
+   498	    if [ -n "${SUDO_USER:-}" ] \
+   499	        && grep -REqs '^[[:space:]]*Defaults[^!]*use_pty' /etc/sudoers /etc/sudoers.d 2>/dev/null; then
+   500	        warn "Your sudo uses 'Defaults use_pty'. If the token prompt below stalls"
+   501	        warn "after you paste, press Ctrl-C and re-run as root (no sudo in the pipe):"
+   502	        warn "    sudo -i"
+   503	        warn "    curl -fsSL https://get.sentinelx.app | bash"
+   504	    fi
+   505	    info "Starting enrollment ($ENROLL_MODE mode)"
+   506	    "$PYTHON_BIN" "$ENROLL_PY" \
+   507	        --hub "$HUB_URL" \
+   508	        --host-id "$HOST_ID" \
+   509	        --output "$ETC_DIR/identity.json" \
+   510	        --mode "$ENROLL_MODE"
+   511	    chmod 600 "$ETC_DIR/identity.json"
+   512	    chown sentinelx:sentinelx "$ETC_DIR/identity.json"
+   513	fi
+   514	
+   515	# --- reconcile host_id with what was actually enrolled ------------------------
+   516	# In non-interactive mode (SENTINELX_ENROLL_TOKEN) enroll.py records the token's
+   517	# own host id, which is not the one this run generated. identity.json is what
+   518	# the agent uses, so make HOST_ID -- shown in the summary -- and the persisted
+   519	# host_id agree with it. When they already match (every interactive install),
+   520	# nothing changes. Never fatal: `|| true` keeps a missing or unreadable file
+   521	# from aborting an install that has otherwise finished.
+   522	ENROLLED_HOST_ID="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1]))["host_id"])' \
+   523	    "$ETC_DIR/identity.json" 2>/dev/null || true)"
+   524	if [[ -n "$ENROLLED_HOST_ID" && "$ENROLLED_HOST_ID" != "$HOST_ID" ]]; then
+   525	    HOST_ID="$ENROLLED_HOST_ID"
+   526	    echo "$HOST_ID" > "$ETC_DIR/host_id"
+   527	    chmod 644 "$ETC_DIR/host_id"
+   528	fi
+   529	
+   530	# --- minimal config ----------------------------------------------------------
+   531	if [[ ! -f "$ETC_DIR/config.yaml" ]]; then
+   532	    # Use the rich example config shipped in the core repo as the starting
+   533	    # point. It comes with ~85 commonly-needed commands organized by category,
+   534	    # and a curated set of optional ones that the user can uncomment.
+   535	    EXAMPLE_CONFIG="$INSTALL_DIR/config.example.yaml"
+   536	    if [[ -f "$EXAMPLE_CONFIG" ]]; then
+   537	        info "Installing rich starter config to $ETC_DIR/config.yaml"
+   538	        info "  (~85 allowed commands by default. Edit to add/remove.)"
+   539	        cp "$EXAMPLE_CONFIG" "$ETC_DIR/config.yaml"
+   540	        # Inject the upload_base which the example doesn't include
+   541	        echo "" >> "$ETC_DIR/config.yaml"
+   542	        echo "# Where uploaded files are temporarily staged" >> "$ETC_DIR/config.yaml"
+   543	        echo "upload_base: /var/lib/sentinelx/uploads" >> "$ETC_DIR/config.yaml"
+   544	    else
+   545	        # No fallback config. config.example.yaml ships with the core repo, so a
+   546	        # missing example means an incomplete or corrupted checkout. Fail loudly
+   547	        # rather than writing a config that would silently drift from the
+   548	        # canonical example (which is exactly how the two drifted before).
+   549	        err "$EXAMPLE_CONFIG not found in the sentinelx-cloud-core checkout."
+   550	        err "config.example.yaml ships with the agent, so this means the download"
+   551	        err "or clone is incomplete/corrupted. Re-fetch the agent and retry."
+   552	        exit 1
+   553	    fi
+   554	    chmod 644 "$ETC_DIR/config.yaml"
+   555	fi
+   556	
+   557	mkdir -p /var/lib/sentinelx/uploads
+   558	chown -R sentinelx:sentinelx /var/lib/sentinelx
+   559	
+   560	# --- install systemd unit ----------------------------------------------------
+   561	#
+   562	# NoNewPrivileges is the difference between the two profiles, and it is
+   563	# enforced by the kernel rather than by anything the agent checks. Without
+   564	# sudo we set it: nothing the agent runs -- an allowlisted command, a script,
+   565	# an edit -- can then acquire privileges by any route, so "this agent cannot
+   566	# become root on this host" is a fact rather than a promise. With sudo we
+   567	# cannot set it, because it would block sudo itself; on those hosts the agent
+   568	# is root-equivalent by the operator's explicit choice.
+   569	if [[ "$SUDO_ENABLED" == "1" ]]; then
+   570	    HARDENING="# This host granted the agent passwordless sudo, so NoNewPrivileges
+   571	# is deliberately NOT set: it would block sudo and every root operation
+   572	# would fail with a permission error. The agent is root-equivalent here.
+   573	# To lock it down, remove /etc/sudoers.d/sentinelx and re-run the installer."
+   574	else
+   575	    HARDENING="# No sudo was granted, so privilege escalation is blocked outright.
+   576	# Kernel-enforced: no command, script or edit run by the agent can gain
+   577	# privileges, regardless of what the agent is asked to do.
+   578	NoNewPrivileges=yes"
+   579	fi
+   580	
+   581	info "Installing systemd unit"
+   582	cat > /etc/systemd/system/sentinelx-cloud-core.service <<EOF
+   583	[Unit]
+   584	Description=SentinelX Core agent
+   585	After=network-online.target
+   586	Wants=network-online.target
+   587	
+   588	[Service]
+   589	Type=simple
+   590	User=sentinelx
+   591	Group=sentinelx
+   592	ExecStart=$INSTALL_DIR/.venv/bin/sentinelx-cloud-core \\
+   593	    --hub $HUB_URL \\
+   594	    --identity $ETC_DIR/identity.json \\
+   595	    --config $ETC_DIR/config.yaml
+   596	Restart=always
+   597	RestartSec=5
+   598	
+   599	# Stopping or restarting the agent ends the agent, not what it started. With
+   600	# the default (control-group), systemd kills every process in this unit's
+   601	# cgroup, and everything launched through SentinelX lives there, nohup or not:
+   602	# an update or a restart took down users' long-running workloads with it
+   603	# (one host had ~20 GB of project processes in this cgroup). Those processes
+   604	# stay in the cgroup until they exit, and systemd logs them as left over.
+   605	KillMode=process
+   606	
+   607	# Scheduling priority. The agent needs very little of the machine, but it needs
+   608	# it promptly. On a saturated host it otherwise cannot answer its keepalive --
+   609	# or even finish the handshake within the connect deadline -- and the operator
+   610	# loses remote access at exactly the moment they need it to diagnose the load.
+   611	# Three users reported that shape in one day, one of them unable to get back in
+   612	# at all. Cheap to grant: a process that is idle most of the time costs a busy
+   613	# host nothing by being scheduled first when it does wake.
+   614	Nice=-5
+   615	IOSchedulingClass=best-effort
+   616	IOSchedulingPriority=0
+   617	
+   618	# And it must not be what the kernel sacrifices when memory runs short. The
+   619	# agent is the way back into the machine, not a workload competing for it; a
+   620	# host that OOM-kills it goes dark with no remote way to find out why.
+   621	OOMScoreAdjust=-500
+   622	
+   623	$HARDENING
+   624	
+   625	[Install]
+   626	WantedBy=multi-user.target
+   627	EOF
+   628	
+   629	mkdir -p /var/log/sentinelx
+   630	chown sentinelx:sentinelx /var/log/sentinelx
+   631	
+   632	# Detect whether we have a working systemd. Rare environments (Docker
+   633	# containers without an init, WSL1, ChromeOS Crostini, some minimal LXC
+   634	# templates) ship `systemctl` but can't actually talk to PID 1.
+   635	# We probe by trying a harmless query — if systemd-as-PID-1 isn't there,
+   636	# this returns non-zero and prints "System has not been booted with systemd".
+   637	if ! systemctl list-units --type=service --no-pager >/dev/null 2>&1; then
+   638	    warn "systemd doesn't appear to be running on this system."
+   639	    warn "Skipping systemctl steps. The agent is installed but won't auto-start."
+   640	    warn ""
+   641	    # sudo is often absent exactly where systemd is (minimal containers, PRoot).
+   642	    if command -v sudo >/dev/null 2>&1; then AS_AGENT="sudo -u sentinelx"; else AS_AGENT="runuser -u sentinelx --"; fi
+   643	    warn "To run it once manually:"
+   644	    warn "  $AS_AGENT $INSTALL_DIR/.venv/bin/sentinelx-cloud-core \\"
+   645	    warn "      --hub $HUB_URL \\"
+   646	    warn "      --identity $ETC_DIR/identity.json \\"
+   647	    warn "      --config $ETC_DIR/config.yaml"
+   648	    warn ""
+   649	    warn "If you DO have systemd, check the unit at:"
+   650	    warn "  /etc/systemd/system/sentinelx-cloud-core.service"
+   651	    # PRoot reports every file as owned by whoever asks, so the 'sentinelx' user
+   652	    # separates nothing there (tested 2026-10-19: it wrote /etc and read /root).
+   653	    if uname -r 2>/dev/null | grep -qi proot; then
+   654	        warn ""
+   655	        warn "This looks like PRoot (e.g. Debian in Termux on Android). There the"
+   656	        warn "'sentinelx' user does not isolate anything: the agent can read and"
+   657	        warn "write everything the Termux app can. To keep it running in the"
+   658	        warn "background (runit, Termux:Boot), see:"
+   659	        warn "  https://github.com/pensados/sentinelx-cloud-installer/blob/main/docs/ANDROID-TERMUX.md"
+   660	    fi
+   661	    exit 0
+   662	fi
+   663	
+   664	systemctl daemon-reload
+   665	systemctl enable sentinelx-cloud-core.service
+   666	
+   667	# restart, not `enable --now`: on a host that already had the agent running,
+   668	# `--now` is a no-op, so the freshly installed code sat on disk while the old
+   669	# process kept serving from memory -- an upgrade that silently did nothing and
+   670	# still printed "SentinelX is running". That is how someone re-running this
+   671	# installer to pick up a security fix would have stayed on the vulnerable
+   672	# version. restart covers both cases: it starts a stopped service and replaces
+   673	# a running one.
+   674	systemctl restart sentinelx-cloud-core.service
+   675	
+   676	# --- final status ------------------------------------------------------------
+   677	sleep 2
+   678	if systemctl is-active --quiet sentinelx-cloud-core.service; then
+   679	    # Report the version the RUNNING process will serve, read from the venv
+   680	    # the unit actually executes. Printing "running" without it is what let a
+   681	    # no-op upgrade look like a successful one.
+   682	    RUNNING_VERSION="$("$INSTALL_DIR/.venv/bin/python" -c \
+   683	        'import importlib.metadata as m; print(m.version("sentinelx-cloud-core"))' \
+   684	        2>/dev/null || echo "unknown")"
+   685	    info "SentinelX is running (agent $RUNNING_VERSION)."
+   686	    if [[ -n "${PREV_INSTALL:-}" && -d "$PREV_INSTALL" ]]; then
+   687	        rm -rf -- "$PREV_INSTALL"
+   688	    fi
+   689	    echo
+   690	    echo "  Status:   systemctl status sentinelx-cloud-core"
+   691	    echo "  Logs:     journalctl -u sentinelx-cloud-core -f"
+   692	    echo "  Hub URL:  $HUB_URL"
+   693	    echo "  Host ID:  $HOST_ID"
+   694	    echo "  Config:   $ETC_DIR/config.yaml"
+   695	    echo
+   696	    info "One step left — connect SentinelX to your AI assistant:"
+   697	    echo
+   698	    echo "  Connector URL:  $HUB_URL/mcp/mcp"
+   699	    echo "  Dashboard:      $HUB_URL/dashboard   (view and manage your hosts)"
+   700	    echo
+   701	    echo "  Claude:   Settings → Connectors → Add custom connector → paste the URL"
+   702	    echo "  ChatGPT:  https://chatgpt.com/apps/sentinelx/asdk_app_69f63e01766881919640f03b5e7912a5"
+   703	    echo
+   704	    echo "  Full guide:  https://sentinelx.app/#setup"
+   705	else
+   706	    warn "Service did not start cleanly."
+   707	    if [[ -n "${PREV_INSTALL:-}" && -d "$PREV_INSTALL" ]]; then
+   708	        warn "The previous installation is kept at $PREV_INSTALL."
+   709	    fi
+   710	    warn "Check 'journalctl -u sentinelx-cloud-core -n 50'"
+   711	    journalctl -u sentinelx-cloud-core -n 20 --no-pager
+   712	    exit 1
+   713	fi
+   714	

@@ -1,0 +1,10 @@
+PASS: research Python scripts parse without importing or running foreign code
+PASS: 14 local source files match the saved manifest; no app imported
+PASS: 42 pinned source links resolve to retained files and valid line bounds
+PASS: task artifacts contain no detected private environment paths or tested secret shapes
+Public-page collector: 18/21 HTTP success; 3 access errors retained explicitly
+  HTTPError 403: https://openai.com/business/plugins/sentinelx/
+  HTTPError 403: https://chatgpt.com/plugins/plugin_asdk_app_69f63e01766881919640f03b5e7912a5
+  HTTPError 403: https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt
+NOT RUN: live ChatGPT/SentinelX E2E, foreign tests, application pytest, model calls
+Research artifact checks completed

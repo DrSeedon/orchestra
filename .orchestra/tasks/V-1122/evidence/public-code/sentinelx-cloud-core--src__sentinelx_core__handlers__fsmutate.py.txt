@@ -1,0 +1,625 @@
+     1	"""fsmutate handlers: the destructive filesystem ops.
+     2	
+     3	Five ops, every one gated by the unified file_ops r/rw model — the
+     4	resolved path (and, for move/copy, BOTH source and destination) must
+     5	fall under a file_ops entry whose access is "rw":
+     6	
+     7	  - move    -> rename/move a file or directory
+     8	  - copy    -> copy a file or directory
+     9	  - delete  -> delete a file or (with explicit recursive) a directory
+    10	  - chmod   -> change mode bits
+    11	  - chown   -> change owner/group
+    12	
+    13	Why a separate module from fileops.py? fileops is STRICTLY read-only
+    14	(read/list/search). Mixing destructive ops into it would blur the one
+    15	property that makes fileops easy to reason about. fsmutate is the
+    16	explicit, auditable home for mutation.
+    17	
+    18	Security model
+    19	==============
+    20	
+    21	  1. PATH ENFORCE (rw). Every path argument is resolved via
+    22	     policy.resolve_path(p, need_write=True). For move/copy that means
+    23	     BOTH endpoints — you cannot move a file out of an rw subtree into
+    24	     a place you don't control, nor copy from outside in by tricking
+    25	     the destination check. Canonicalization resolves symlinks BEFORE
+    26	     the prefix check, so `../` traversal and symlink-escape are
+    27	     defeated (same load-bearing check as read/edit). This is the
+    28	     A1/A2 defense: a compromised hub or LLM cannot reach outside the
+    29	     operator's declared writable surface.
+    30	
+    31	  2. MANDATORY BACKUP BEFORE DELETE. delete always makes a backup
+    32	     first. A single file -> copy via make_backup (the same helper the
+    33	     editor uses, so backups look identical). A directory -> a
+    34	     timestamped .tar.gz next to it. If the backup can't be made, the
+    35	     delete is REFUSED (backup_failed) — we never destroy without a
+    36	     recovery path.
+    37	
+    38	  3. EXPLICIT RECURSION. Deleting a directory requires
+    39	     recursive=true in the payload. Without it, a directory delete is
+    40	     refused (is_directory). This makes "rm -rf"-shaped mistakes
+    41	     impossible to trigger implicitly.
+    42	
+    43	  4. NO SILENT PRIVILEGE FAILURES. chown typically needs root. When
+    44	     the agent isn't privileged enough, chown reports
+    45	     permission_denied with the errno detail rather than pretending
+    46	     it worked — consistent with the editor's copy_metadata refusing
+    47	     to swallow chown EPERM.
+    48	
+    49	  5. BEST-EFFORT AUDIT LOG. Every successful mutation appends one
+    50	     JSON line to /var/log/sentinelx/mutations.log. This is
+    51	     best-effort: if the log can't be written (perms, disk), the op
+    52	     STILL succeeds — an audit-log failure must not make a destructive
+    53	     op fail half-way. The agent-side log is a partial mitigation
+    54	     (THREAT_MODEL §5.5): the authoritative audit trail is still the
+    55	     hub's, but a local record helps post-incident on a compromised
+    56	     hub.
+    57	
+    58	All error codes are English and structured (HandlerError), matching
+    59	fileops.py style: invalid_payload / path_not_allowed / not_found /
+    60	is_directory / not_a_directory / exists / permission_denied /
+    61	backup_failed / move_failed / copy_failed / delete_failed /
+    62	chmod_failed / chown_failed.
+    63	"""
+    64	
+    65	from __future__ import annotations
+    66	
+    67	import json
+    68	import os
+    69	import shutil
+    70	import subprocess
+    71	import sys
+    72	import tarfile
+    73	import time
+    74	from datetime import datetime, timezone
+    75	from pathlib import Path
+    76	from typing import Any
+    77	
+    78	# grp/pwd are POSIX-only (used by chown-by-name). On Windows they don't
+    79	# exist; guard the import so the module loads and chown degrades to a
+    80	# clear "unsupported" error rather than crashing agent startup.
+    81	try:
+    82	    import grp
+    83	    import pwd
+    84	except ModuleNotFoundError:  # Windows
+    85	    grp = None  # type: ignore[assignment]
+    86	    pwd = None  # type: ignore[assignment]
+    87	
+    88	from sentinelx_core.executor import HandlerError
+    89	from sentinelx_core.policy import Policy
+    90	from sentinelx_core.vendored.pensa_safe_edit import make_backup
+    91	
+    92	MUTATION_LOG = (
+    93	    Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+    94	    / "SentinelX" / "logs" / "mutations.log"
+    95	    if sys.platform == "win32"
+    96	    else Path("/var/log/sentinelx/mutations.log")
+    97	)
+    98	
+    99	
+   100	# ---------------------------------------------------------------------------
+   101	# Shared helpers
+   102	# ---------------------------------------------------------------------------
+   103	
+   104	
+   105	def _require_str(payload: dict[str, Any], key: str) -> str:
+   106	    val = payload.get(key)
+   107	    if not isinstance(val, str) or not val.strip():
+   108	        raise HandlerError(
+   109	            "invalid_payload", f"missing or non-string {key!r}"
+   110	        )
+   111	    return val
+   112	
+   113	
+   114	def _resolve_rw(policy: Policy, path: str, *, label: str = "path") -> Path:
+   115	    """Resolve `path` requiring rw access, or raise path_not_allowed.
+   116	
+   117	    This is the fsmutate equivalent of fileops._resolve_or_reject, but
+   118	    with need_write=True: destructive ops only operate inside subtrees
+   119	    the operator explicitly declared access: rw.
+   120	    """
+   121	    if not policy.file_ops_paths:
+   122	        raise HandlerError(
+   123	            "path_not_allowed",
+   124	            "file_ops has no paths configured. Destructive ops require "
+   125	            "an entry with access: rw.",
+   126	            details={label: path, "writable_paths": []},
+   127	        )
+   128	    resolved = policy.resolve_path(path, need_write=True)
+   129	    if resolved is None:
+   130	        rw_paths = [
+   131	            e.path for e in policy.file_ops_paths if e.access == "rw"
+   132	        ]
+   133	        raise HandlerError(
+   134	            "path_not_allowed",
+   135	            f"{label} {path!r} (or its target after resolving "
+   136	            "symlinks) is not under any file_ops entry with access: rw. "
+   137	            "Mutating ops need a writable path. Add or update an entry "
+   138	            "under file_ops.paths in /etc/sentinelx/config.yaml with "
+   139	            "access: rw covering a parent directory (with the operator's "
+   140	            "approval, via sentinel_edit sudo=true and "
+   141	            "validator_preset='yaml'), then reload the agent.",
+   142	            details={label: path, "writable_paths": rw_paths},
+   143	        )
+   144	    return resolved
+   145	
+   146	
+   147	def _audit(op: str, detail: dict[str, Any]) -> None:
+   148	    """Append one JSON line to the mutation log. Best-effort: never
+   149	    raises. An audit-log failure must not fail the operation."""
+   150	    try:
+   151	        MUTATION_LOG.parent.mkdir(parents=True, exist_ok=True)
+   152	        record = {
+   153	            "ts": datetime.now(timezone.utc).isoformat(),
+   154	            "op": op,
+   155	            **detail,
+   156	        }
+   157	        with MUTATION_LOG.open("a", encoding="utf-8") as fh:
+   158	            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+   159	    except Exception:
+   160	        # Intentionally swallowed: see module docstring point 5.
+   161	        pass
+   162	
+   163	
+   164	import re as _re
+   165	
+   166	# A backup this agent created: "<name>.bak.<YYYYMMDD-HHMMSS>" for a file (make_backup
+   167	# adds -%f microseconds), or "...bak.<ts>.tar.gz" for a directory. Matched exactly so
+   168	# a user's own file like "config.bak" or "notes.bak.txt" is NOT treated as ours.
+   169	_OWN_BACKUP_RE = _re.compile(r"\.bak\.\d{8}-\d{6}(-\d+)?(\.tar\.gz)?$")
+   170	
+   171	
+   172	def _is_own_backup(target: Path) -> bool:
+   173	    """True if target is a backup artifact this agent created (see the pattern
+   174	    make_backup / _dir_backup_targz produce)."""
+   175	    return bool(_OWN_BACKUP_RE.search(target.name))
+   176	
+   177	
+   178	def _dir_backup_targz(src: Path) -> Path:
+   179	    """Make a timestamped .tar.gz of a directory next to it."""
+   180	    ts = time.strftime("%Y%m%d-%H%M%S")
+   181	    archive = src.parent / f"{src.name}.bak.{ts}.tar.gz"
+   182	    with tarfile.open(archive, "w:gz") as tar:
+   183	        tar.add(src, arcname=src.name)
+   184	    return archive
+   185	
+   186	
+   187	# ---------------------------------------------------------------------------
+   188	# move
+   189	# ---------------------------------------------------------------------------
+   190	
+   191	
+   192	def make_move_handler(policy: Policy):
+   193	    async def handle_move(payload: dict[str, Any]) -> dict[str, Any]:
+   194	        """Move/rename a file or directory.
+   195	
+   196	        Payload: src (str, required), dst (str, required),
+   197	                 overwrite (bool, default False)
+   198	        BOTH src and dst must resolve under an rw entry.
+   199	        """
+   200	        src_str = _require_str(payload, "src")
+   201	        dst_str = _require_str(payload, "dst")
+   202	        overwrite = bool(payload.get("overwrite", False))
+   203	
+   204	        src = _resolve_rw(policy, src_str, label="src")
+   205	        dst = _resolve_rw(policy, dst_str, label="dst")
+   206	
+   207	        if not src.exists():
+   208	            raise HandlerError(
+   209	                "not_found", f"src does not exist: {src_str!r}"
+   210	            )
+   211	        if dst.exists() and not overwrite:
+   212	            raise HandlerError(
+   213	                "exists",
+   214	                f"dst already exists: {dst_str!r} (pass overwrite=true "
+   215	                "to replace it)",
+   216	            )
+   217	
+   218	        try:
+   219	            if dst.exists() and overwrite:
+   220	                if dst.is_dir() and not dst.is_symlink():
+   221	                    shutil.rmtree(dst)
+   222	                else:
+   223	                    dst.unlink()
+   224	            shutil.move(str(src), str(dst))
+   225	        except PermissionError as exc:
+   226	            raise HandlerError(
+   227	                "permission_denied",
+   228	                f"cannot move: {exc.strerror or exc}. The agent's OS "
+   229	                "user lacks Unix write permission on the target or a "
+   230	                "parent directory. The path is rw-allowed in file_ops, "
+   231	                "so this is a filesystem-permission issue, not an "
+   232	                "allowlist one, and fsmutate ops never use sudo. Ask "
+   233	                "the operator to grant the agent's user write access "
+   234	                "there (chmod/chown or an ACL on the file and its "
+   235	                "parent directory), or run the agent as a user that "
+   236	                "can write. To change a file's contents instead, "
+   237	                "sentinel_edit supports sudo=true.",
+   238	            ) from exc
+   239	        except OSError as exc:
+   240	            raise HandlerError(
+   241	                "move_failed", f"move failed: {exc}"
+   242	            ) from exc
+   243	
+   244	        _audit("move", {"src": str(src), "dst": str(dst)})
+   245	        return {
+   246	            "ok": True,
+   247	            "op": "move",
+   248	            "src": str(src),
+   249	            "dst": str(dst),
+   250	        }
+   251	
+   252	    return handle_move
+   253	
+   254	
+   255	# ---------------------------------------------------------------------------
+   256	# copy
+   257	# ---------------------------------------------------------------------------
+   258	
+   259	
+   260	def make_copy_handler(policy: Policy):
+   261	    async def handle_copy(payload: dict[str, Any]) -> dict[str, Any]:
+   262	        """Copy a file or directory.
+   263	
+   264	        Payload: src (str, required), dst (str, required),
+   265	                 overwrite (bool, default False)
+   266	        BOTH src and dst must resolve under an rw entry — copy is a
+   267	        write at the destination, so the destination must be writable.
+   268	        """
+   269	        src_str = _require_str(payload, "src")
+   270	        dst_str = _require_str(payload, "dst")
+   271	        overwrite = bool(payload.get("overwrite", False))
+   272	
+   273	        src = _resolve_rw(policy, src_str, label="src")
+   274	        dst = _resolve_rw(policy, dst_str, label="dst")
+   275	
+   276	        if not src.exists():
+   277	            raise HandlerError(
+   278	                "not_found", f"src does not exist: {src_str!r}"
+   279	            )
+   280	        if dst.exists() and not overwrite:
+   281	            raise HandlerError(
+   282	                "exists",
+   283	                f"dst already exists: {dst_str!r} (pass overwrite=true "
+   284	                "to replace it)",
+   285	            )
+   286	
+   287	        try:
+   288	            if src.is_dir() and not src.is_symlink():
+   289	                if dst.exists() and overwrite:
+   290	                    shutil.rmtree(dst)
+   291	                shutil.copytree(src, dst)
+   292	                kind = "dir"
+   293	            else:
+   294	                if dst.exists() and overwrite and dst.is_dir():
+   295	                    shutil.rmtree(dst)
+   296	                shutil.copy2(src, dst)
+   297	                kind = "file"
+   298	        except PermissionError as exc:
+   299	            raise HandlerError(
+   300	                "permission_denied",
+   301	                f"cannot copy: {exc.strerror or exc}. The agent's OS "
+   302	                "user lacks Unix write permission on the target or a "
+   303	                "parent directory. The path is rw-allowed in file_ops, "
+   304	                "so this is a filesystem-permission issue, not an "
+   305	                "allowlist one, and fsmutate ops never use sudo. Ask "
+   306	                "the operator to grant the agent's user write access "
+   307	                "there (chmod/chown or an ACL on the file and its "
+   308	                "parent directory), or run the agent as a user that "
+   309	                "can write. To change a file's contents instead, "
+   310	                "sentinel_edit supports sudo=true.",
+   311	            ) from exc
+   312	        except OSError as exc:
+   313	            raise HandlerError(
+   314	                "copy_failed", f"copy failed: {exc}"
+   315	            ) from exc
+   316	
+   317	        _audit("copy", {"src": str(src), "dst": str(dst), "kind": kind})
+   318	        return {
+   319	            "ok": True,
+   320	            "op": "copy",
+   321	            "src": str(src),
+   322	            "dst": str(dst),
+   323	            "kind": kind,
+   324	        }
+   325	
+   326	    return handle_copy
+   327	
+   328	
+   329	# ---------------------------------------------------------------------------
+   330	# delete
+   331	# ---------------------------------------------------------------------------
+   332	
+   333	
+   334	def make_delete_handler(policy: Policy):
+   335	    async def handle_delete(payload: dict[str, Any]) -> dict[str, Any]:
+   336	        """Delete a file or (with explicit recursive) a directory.
+   337	
+   338	        Payload: path (str, required), recursive (bool, default False)
+   339	
+   340	        ALWAYS backs up first:
+   341	          - file      -> sibling .bak.<ts> copy (make_backup)
+   342	          - directory -> sibling .bak.<ts>.tar.gz
+   343	        If the backup can't be made the delete is refused — we never
+   344	        destroy without a recovery path. A directory delete without
+   345	        recursive=true is refused (is_directory).
+   346	
+   347	        EXCEPTION: deleting one of our OWN backup artifacts
+   348	        (name.bak.<ts> / .bak.<ts>.tar.gz) is TERMINAL — no backup of a
+   349	        backup is made, or the user could never reclaim the space. The
+   350	        result carries terminal=true and a note. User files that merely
+   351	        contain ".bak" do not match the pattern and keep the mandatory
+   352	        backup.
+   353	        """
+   354	        path_str = _require_str(payload, "path")
+   355	        recursive = bool(payload.get("recursive", False))
+   356	
+   357	        target = _resolve_rw(policy, path_str, label="path")
+   358	
+   359	        if not target.exists() and not target.is_symlink():
+   360	            raise HandlerError(
+   361	                "not_found", f"path does not exist: {path_str!r}"
+   362	            )
+   363	
+   364	        is_dir = target.is_dir() and not target.is_symlink()
+   365	        if is_dir and not recursive:
+   366	            raise HandlerError(
+   367	                "is_directory",
+   368	                f"{path_str!r} is a directory; pass recursive=true to "
+   369	                "delete it (and its contents) — this is deliberate so a "
+   370	                "directory is never removed implicitly.",
+   371	            )
+   372	
+   373	        # Deleting one of OUR OWN backups is terminal: backing up a backup just
+   374	        # creates another .bak, so the user can never reclaim the space (reported
+   375	        # in a feature request -- 5.2 GB of stranded .bak files). For a backup
+   376	        # artifact we skip the copy and delete it directly. Everything else keeps
+   377	        # the mandatory-backup guarantee unchanged.
+   378	        own_backup = _is_own_backup(target)
+   379	        backup = None
+   380	        if not own_backup:
+   381	            # Mandatory backup BEFORE destruction.
+   382	            try:
+   383	                if is_dir:
+   384	                    backup = _dir_backup_targz(target)
+   385	                else:
+   386	                    backup = make_backup(target, None)
+   387	            except Exception as exc:
+   388	                raise HandlerError(
+   389	                    "backup_failed",
+   390	                    f"refusing to delete: could not back up {path_str!r} "
+   391	                    f"first ({exc})",
+   392	                ) from exc
+   393	
+   394	        try:
+   395	            if is_dir:
+   396	                shutil.rmtree(target)
+   397	            else:
+   398	                target.unlink()
+   399	        except PermissionError as exc:
+   400	            raise HandlerError(
+   401	                "permission_denied",
+   402	                f"cannot delete: {exc.strerror or exc}. The agent's OS "
+   403	                "user lacks Unix write permission on the target or a "
+   404	                "parent directory. The path is rw-allowed in file_ops, "
+   405	                "so this is a filesystem-permission issue, not an "
+   406	                "allowlist one, and fsmutate ops never use sudo. Ask "
+   407	                "the operator to grant the agent's user write access "
+   408	                "there (chmod/chown or an ACL on the file and its "
+   409	                "parent directory), or run the agent as a user that "
+   410	                "can write. To change a file's contents instead, "
+   411	                "sentinel_edit supports sudo=true.",
+   412	            ) from exc
+   413	        except OSError as exc:
+   414	            raise HandlerError(
+   415	                "delete_failed", f"delete failed: {exc}"
+   416	            ) from exc
+   417	
+   418	        # backup is None only when we deliberately skipped it for our own .bak
+   419	        # artifact -- report that clearly rather than the string "None", so the
+   420	        # caller knows this delete was terminal (no recovery copy) by design.
+   421	        backup_str = str(backup) if backup is not None else None
+   422	        _audit(
+   423	            "delete",
+   424	            {
+   425	                "path": str(target),
+   426	                "kind": "dir" if is_dir else "file",
+   427	                "backup": backup_str,
+   428	                "terminal": own_backup,
+   429	            },
+   430	        )
+   431	        result = {
+   432	            "ok": True,
+   433	            "op": "delete",
+   434	            "path": str(target),
+   435	            "kind": "dir" if is_dir else "file",
+   436	            "backup": backup_str,
+   437	        }
+   438	        if own_backup:
+   439	            result["terminal"] = True
+   440	            result["note"] = (
+   441	                "This was a SentinelX backup artifact, so it was deleted "
+   442	                "permanently without making a backup of the backup. Space is "
+   443	                "reclaimed; there is no recovery copy."
+   444	            )
+   445	        return result
+   446	
+   447	    return handle_delete
+   448	
+   449	
+   450	# ---------------------------------------------------------------------------
+   451	# chmod
+   452	# ---------------------------------------------------------------------------
+   453	
+   454	
+   455	def make_chmod_handler(policy: Policy):
+   456	    async def handle_chmod(payload: dict[str, Any]) -> dict[str, Any]:
+   457	        """Change mode bits.
+   458	
+   459	        Payload: path (str, required),
+   460	                 mode (str octal like "644" or "0755", required)
+   461	        """
+   462	        path_str = _require_str(payload, "path")
+   463	        mode_str = _require_str(payload, "mode")
+   464	
+   465	        try:
+   466	            mode = int(mode_str, 8)
+   467	        except ValueError as exc:
+   468	            raise HandlerError(
+   469	                "invalid_payload",
+   470	                f"mode must be octal (e.g. '644', '0755'): "
+   471	                f"{mode_str!r}",
+   472	            ) from exc
+   473	
+   474	        target = _resolve_rw(policy, path_str, label="path")
+   475	        if not target.exists():
+   476	            raise HandlerError(
+   477	                "not_found", f"path does not exist: {path_str!r}"
+   478	            )
+   479	
+   480	        try:
+   481	            target.chmod(mode)
+   482	        except PermissionError as exc:
+   483	            raise HandlerError(
+   484	                "permission_denied",
+   485	                f"cannot chmod: {exc.strerror or exc}. The agent's OS "
+   486	                "user lacks Unix write permission on the target or a "
+   487	                "parent directory. The path is rw-allowed in file_ops, "
+   488	                "so this is a filesystem-permission issue, not an "
+   489	                "allowlist one, and fsmutate ops never use sudo. Ask "
+   490	                "the operator to grant the agent's user write access "
+   491	                "there (chmod/chown or an ACL on the file and its "
+   492	                "parent directory), or run the agent as a user that "
+   493	                "can write. To change a file's contents instead, "
+   494	                "sentinel_edit supports sudo=true.",
+   495	            ) from exc
+   496	        except OSError as exc:
+   497	            raise HandlerError(
+   498	                "chmod_failed", f"chmod failed: {exc}"
+   499	            ) from exc
+   500	
+   501	        _audit("chmod", {"path": str(target), "mode": oct(mode)})
+   502	        return {
+   503	            "ok": True,
+   504	            "op": "chmod",
+   505	            "path": str(target),
+   506	            "mode": oct(mode),
+   507	        }
+   508	
+   509	    return handle_chmod
+   510	
+   511	
+   512	# ---------------------------------------------------------------------------
+   513	# chown
+   514	# ---------------------------------------------------------------------------
+   515	
+   516	
+   517	def make_chown_handler(policy: Policy):
+   518	    async def handle_chown(payload: dict[str, Any]) -> dict[str, Any]:
+   519	        """Change owner and/or group.
+   520	
+   521	        Payload: path (str, required),
+   522	                 owner (str username, optional),
+   523	                 group (str group name, optional)
+   524	        At least one of owner/group is required. chown typically needs
+   525	        root; when the agent isn't privileged the op fails LOUD with
+   526	        permission_denied (never a silent no-op).
+   527	        """
+   528	        path_str = _require_str(payload, "path")
+   529	        owner = payload.get("owner")
+   530	        group = payload.get("group")
+   531	        if not owner and not group:
+   532	            raise HandlerError(
+   533	                "invalid_payload",
+   534	                "at least one of 'owner' or 'group' is required",
+   535	            )
+   536	
+   537	        target = _resolve_rw(policy, path_str, label="path")
+   538	        if not target.exists():
+   539	            raise HandlerError(
+   540	                "not_found", f"path does not exist: {path_str!r}"
+   541	            )
+   542	
+   543	        if sys.platform == "win32":
+   544	            # Windows has no POSIX uid/gid. Map `owner` to the NTFS object
+   545	            # owner via icacls; `group` has no Windows analogue. The agent
+   546	            # runs as LocalSystem (admin), which can assign ownership.
+   547	            if group:
+   548	                raise HandlerError(
+   549	                    "invalid_payload",
+   550	                    "'group' has no Windows equivalent; on Windows chown sets "
+   551	                    "the owner only (pass 'owner').",
+   552	                )
+   553	            proc = subprocess.run(
+   554	                ["icacls", str(target), "/setowner", str(owner)],
+   555	                capture_output=True,
+   556	                text=True,
+   557	            )
+   558	            if proc.returncode != 0:
+   559	                raise HandlerError(
+   560	                    "chown_failed",
+   561	                    "icacls /setowner failed: "
+   562	                    f"{(proc.stderr or proc.stdout or '').strip()}",
+   563	                )
+   564	            _audit(
+   565	                "chown",
+   566	                {"path": str(target), "owner": owner, "backend": "icacls"},
+   567	            )
+   568	            return {
+   569	                "ok": True,
+   570	                "op": "chown",
+   571	                "path": str(target),
+   572	                "owner": owner,
+   573	                "group": None,
+   574	                "backend": "icacls",
+   575	            }
+   576	
+   577	        uid = -1
+   578	        gid = -1
+   579	        if owner:
+   580	            try:
+   581	                uid = pwd.getpwnam(str(owner)).pw_uid
+   582	            except KeyError as exc:
+   583	                raise HandlerError(
+   584	                    "invalid_payload",
+   585	                    f"unknown user: {owner!r}",
+   586	                ) from exc
+   587	        if group:
+   588	            try:
+   589	                gid = grp.getgrnam(str(group)).gr_gid
+   590	            except KeyError as exc:
+   591	                raise HandlerError(
+   592	                    "invalid_payload",
+   593	                    f"unknown group: {group!r}",
+   594	                ) from exc
+   595	
+   596	        try:
+   597	            os.chown(target, uid, gid)
+   598	        except PermissionError as exc:
+   599	            raise HandlerError(
+   600	                "permission_denied",
+   601	                "cannot chown (this usually requires root; the agent "
+   602	                f"is not privileged enough): {exc.strerror or exc}",
+   603	            ) from exc
+   604	        except OSError as exc:
+   605	            raise HandlerError(
+   606	                "chown_failed", f"chown failed: {exc}"
+   607	            ) from exc
+   608	
+   609	        _audit(
+   610	            "chown",
+   611	            {
+   612	                "path": str(target),
+   613	                "owner": owner or None,
+   614	                "group": group or None,
+   615	            },
+   616	        )
+   617	        return {
+   618	            "ok": True,
+   619	            "op": "chown",
+   620	            "path": str(target),
+   621	            "owner": owner or None,
+   622	            "group": group or None,
+   623	        }
+   624	
+   625	    return handle_chown

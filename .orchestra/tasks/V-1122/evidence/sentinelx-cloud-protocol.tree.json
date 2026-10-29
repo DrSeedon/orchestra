@@ -1,0 +1,96 @@
+{
+  "sha": "00169f8fddbab11082f7ff0f24ef5c7e321c9a47",
+  "truncated": false,
+  "tree": [
+    {
+      "path": ".github",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": ".github/workflows",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "type": "blob",
+      "size": 456
+    },
+    {
+      "path": ".gitignore",
+      "type": "blob",
+      "size": 183
+    },
+    {
+      "path": "CHANGELOG.md",
+      "type": "blob",
+      "size": 10200
+    },
+    {
+      "path": "LICENSE",
+      "type": "blob",
+      "size": 11450
+    },
+    {
+      "path": "README.md",
+      "type": "blob",
+      "size": 6573
+    },
+    {
+      "path": "messages.md",
+      "type": "blob",
+      "size": 7349
+    },
+    {
+      "path": "pyproject.toml",
+      "type": "blob",
+      "size": 1608
+    },
+    {
+      "path": "python",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "python/sentinelx_protocol",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "python/sentinelx_protocol/__init__.py",
+      "type": "blob",
+      "size": 1839
+    },
+    {
+      "path": "python/sentinelx_protocol/binary.py",
+      "type": "blob",
+      "size": 3513
+    },
+    {
+      "path": "python/sentinelx_protocol/bounding.py",
+      "type": "blob",
+      "size": 11795
+    },
+    {
+      "path": "python/sentinelx_protocol/messages.py",
+      "type": "blob",
+      "size": 10664
+    },
+    {
+      "path": "tests",
+      "type": "tree",
+      "size": null
+    },
+    {
+      "path": "tests/test_bounding.py",
+      "type": "blob",
+      "size": 7562
+    },
+    {
+      "path": "tests/test_sanity.py",
+      "type": "blob",
+      "size": 4618
+    }
+  ]
+}

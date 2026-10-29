@@ -1,0 +1,634 @@
+     1	"""edit handlers: structured file editing via the `pensa-safe-edit` binary.
+     2	
+     3	Ported from legacy SentinelX 0.3.5. Three ops:
+     4	
+     5	  - edit                         -> single-call edit (small/medium changes)
+     6	  - edit_upload_init             -> begin a multi-step edit (large content)
+     7	  - edit_upload_file             -> upload a role file (new/old) to that step
+     8	  - edit_upload_complete         -> run the edit using uploaded files
+     9	
+    10	Why this complexity? `pensa-safe-edit` accepts content via `--old-file` and
+    11	`--new-file`. For large content, transmitting it inline would be unwieldy.
+    12	The chunked path lets the caller stage files up front, then run the edit.
+    13	
+    14	The agent ENFORCES `path` against the unified file_ops r/rw allowlist:
+    15	`edit` and `edit_upload_complete` are mutating ops, so the resolved
+    16	path must fall under a file_ops entry whose access is "rw" (see
+    17	Policy.resolve_path(need_write=True)). This is a hardening over legacy
+    18	SentinelX 0.3.5, where edit did NO path validation and relied purely
+    19	on filesystem permissions + sudo policy — meaning a compromised hub
+    20	(A1) or LLM (A2) could ask the agent to edit any path the service
+    21	user could write. Now the writable surface is exactly what the
+    22	operator declared rw, and symlink-escape / `../` traversal are
+    23	defeated by canonicalization before the prefix check.
+    24	
+    25	What the agent ALSO guarantees:
+    26	
+    27	  - Only the configured `pensa-safe-edit` binary is called.
+    28	  - Mode/argument validation happens before exec.
+    29	  - Workdirs are created in the upload base, never elsewhere.
+    30	  - Each request gets a fresh workdir and is cleaned up after.
+    31	
+    32	Modes:
+    33	  - replace        literal old -> new_text (count, multiline, dotall)
+    34	  - regex          pattern -> new_text (count, multiline, dotall)
+    35	  - replace-block  start_marker..end_marker -> new_text
+    36	  - append         append new_text to file
+    37	  - prepend        prepend new_text to file
+    38	  - write          overwrite file with new_text
+    39	"""
+    40	
+    41	from __future__ import annotations
+    42	
+    43	import asyncio
+    44	import os
+    45	import shutil
+    46	import sys
+    47	import time
+    48	import uuid
+    49	from pathlib import Path
+    50	from typing import Any
+    51	
+    52	from sentinelx_core.executor import HandlerError
+    53	from sentinelx_core.policy import Policy
+    54	from sentinelx_core.staging import staging_root
+    55	from sentinelx_core.winspawn import spawn_kwargs
+    56	
+    57	VALID_MODES = ("replace", "regex", "replace-block", "append", "prepend", "write")
+    58	VALID_PRESETS = ("nginx", "json", "python", "sh", "yaml", "systemd", "toml")
+    59	
+    60	# pensa-safe-edit binary resolution.
+    61	#
+    62	# We support three locations, in this priority:
+    63	#   1. The bundled entry point alongside the agent. When sentinelx-cloud-core
+    64	#      is installed via pip, pyproject.toml registers a console script named
+    65	#      `sentinelx-pensa-safe-edit` in the same bin/ as `sentinelx-cloud-core`.
+    66	#      We compute its path from sys.executable so it works in any venv layout.
+    67	#   2. The legacy system-wide install at /usr/local/bin/pensa-safe-edit.
+    68	#      Kept for backward compat with pensa-orion, which still has it there.
+    69	#   3. Whatever `pensa-safe-edit` resolves to on $PATH.
+    70	#
+    71	# The caller is the per-request handler so this is dirt cheap to evaluate.
+    72	
+    73	LEGACY_SAFE_EDIT_BIN = "/usr/local/bin/pensa-safe-edit"
+    74	BUNDLED_SCRIPT_NAME = "sentinelx-pensa-safe-edit"
+    75	
+    76	
+    77	def _resolve_safe_edit_bin() -> str:
+    78	    """Find the pensa-safe-edit binary at request time.
+    79	
+    80	    Returns an absolute path when we can resolve one. Falls back to the bare
+    81	    name `pensa-safe-edit` (relying on $PATH) only as a last resort.
+    82	    """
+    83	    # 1. Bundled entry point next to sentinelx-cloud-core. On Windows the pip
+    84	    #    console script is a `.exe` in the venv's Scripts/ dir, so check that
+    85	    #    variant first.
+    86	    bin_dir = Path(sys.executable).parent
+    87	    if sys.platform == "win32":
+    88	        win_bundled = bin_dir / f"{BUNDLED_SCRIPT_NAME}.exe"
+    89	        if win_bundled.exists():
+    90	            return str(win_bundled)
+    91	    bundled = bin_dir / BUNDLED_SCRIPT_NAME
+    92	    if bundled.exists():
+    93	        return str(bundled)
+    94	
+    95	    # 2. Legacy system path
+    96	    if Path(LEGACY_SAFE_EDIT_BIN).exists():
+    97	        return LEGACY_SAFE_EDIT_BIN
+    98	
+    99	    # 3. Bare name — let exec do the lookup
+   100	    return "pensa-safe-edit"
+   101	
+   102	
+   103	SAFE_EDIT_MODULE = "sentinelx_core.vendored.pensa_safe_edit"
+   104	
+   105	
+   106	def _helper_command(binary: str, sudo: bool) -> list[str]:
+   107	    """How to start pensa-safe-edit.
+   108	
+   109	    On Windows the agent's own interpreter runs the module. pip's console-script
+   110	    launcher (sentinelx-pensa-safe-edit.exe) is an unsigned .exe, and Windows App
+   111	    Control (WDAC) blocks it with WinError 4551 (GitHub issue #56), while the
+   112	    interpreter already running the agent is allowed. Same code, same checks: the
+   113	    path authorisation happens in this handler before the helper is started.
+   114	    Elsewhere the binary stays, because a sudo edit is authorised by sudoers for
+   115	    that exact path.
+   116	    """
+   117	    if sys.platform == "win32" and not sudo:
+   118	        return [sys.executable, "-m", SAFE_EDIT_MODULE]
+   119	    return [binary]
+   120	
+   121	
+   122	# Public name the rest of the module reads.
+   123	DEFAULT_SAFE_EDIT_BIN = LEGACY_SAFE_EDIT_BIN  # kept for backward compat with old refs
+   124	
+   125	
+   126	def _validate_mode_payload(mode: str, payload: dict[str, Any]) -> None:
+   127	    """Mirror the legacy EditRequest validators."""
+   128	    if mode not in VALID_MODES:
+   129	        raise HandlerError(
+   130	            "invalid_payload",
+   131	            f"mode must be one of: {', '.join(VALID_MODES)}",
+   132	        )
+   133	
+   134	    validator = payload.get("validator")
+   135	    validator_preset = payload.get("validator_preset")
+   136	    if validator and validator_preset:
+   137	        raise HandlerError(
+   138	            "invalid_payload",
+   139	            "cannot use 'validator' and 'validator_preset' together",
+   140	        )
+   141	    if validator_preset and validator_preset not in VALID_PRESETS:
+   142	        raise HandlerError(
+   143	            "invalid_payload",
+   144	            f"validator_preset must be one of: {', '.join(VALID_PRESETS)}",
+   145	        )
+   146	
+   147	    count = int(payload.get("count", 0) or 0)
+   148	    if count < 0:
+   149	        raise HandlerError("invalid_payload", "count cannot be negative")
+   150	
+   151	    if mode == "replace":
+   152	        if payload.get("old") is None:
+   153	            raise HandlerError("invalid_payload", "mode=replace requires 'old'")
+   154	        if payload.get("new_text") is None:
+   155	            raise HandlerError("invalid_payload", "mode=replace requires 'new_text'")
+   156	
+   157	    elif mode == "regex":
+   158	        if not payload.get("pattern"):
+   159	            raise HandlerError("invalid_payload", "mode=regex requires 'pattern'")
+   160	        if payload.get("new_text") is None:
+   161	            raise HandlerError("invalid_payload", "mode=regex requires 'new_text'")
+   162	
+   163	    elif mode == "replace-block":
+   164	        if not payload.get("start_marker") or not payload.get("end_marker"):
+   165	            raise HandlerError(
+   166	                "invalid_payload",
+   167	                "mode=replace-block requires 'start_marker' and 'end_marker'",
+   168	            )
+   169	        if payload.get("new_text") is None:
+   170	            raise HandlerError(
+   171	                "invalid_payload",
+   172	                "mode=replace-block requires 'new_text'",
+   173	            )
+   174	
+   175	    elif mode in ("append", "prepend", "write"):
+   176	        if payload.get("new_text") is None:
+   177	            raise HandlerError(
+   178	                "invalid_payload",
+   179	                f"mode={mode} requires 'new_text'",
+   180	            )
+   181	
+   182	
+   183	def _build_argv(
+   184	    *,
+   185	    binary: str,
+   186	    workdir: Path,
+   187	    path: str,
+   188	    sudo: bool,
+   189	    mode: str,
+   190	    old: str | None = None,
+   191	    new_text: str | None = None,
+   192	    pattern: str | None = None,
+   193	    start_marker: str | None = None,
+   194	    end_marker: str | None = None,
+   195	    count: int = 0,
+   196	    multiline: bool = False,
+   197	    dotall: bool = False,
+   198	    interpret_escapes: bool = False,
+   199	    backup_dir: str | None = None,
+   200	    validator: str | None = None,
+   201	    validator_preset: str | None = None,
+   202	    diff: bool = False,
+   203	    dry_run: bool = False,
+   204	    allow_no_change: bool = False,
+   205	    create: bool = False,
+   206	    no_backup: bool = False,
+   207	    old_file_path: Path | None = None,
+   208	    new_file_path: Path | None = None,
+   209	) -> list[str]:
+   210	    """Build the argv list for pensa-safe-edit. Faithful port of legacy."""
+   211	    argv: list[str] = []
+   212	    if sudo:
+   213	        argv.append("sudo")
+   214	    argv.extend(_helper_command(binary, sudo) + [path, "--mode", mode])
+   215	
+   216	    # Old content: prefer file path, fall back to writing inline content
+   217	    if old_file_path is not None:
+   218	        argv.extend(["--old-file", str(old_file_path)])
+   219	    elif old is not None:
+   220	        p = workdir / "old.txt"
+   221	        p.write_text(old, encoding="utf-8")
+   222	        argv.extend(["--old-file", str(p)])
+   223	
+   224	    # New content: same pattern
+   225	    if new_file_path is not None:
+   226	        argv.extend(["--new-file", str(new_file_path)])
+   227	    elif new_text is not None:
+   228	        p = workdir / "new.txt"
+   229	        p.write_text(new_text, encoding="utf-8")
+   230	        argv.extend(["--new-file", str(p)])
+   231	
+   232	    if pattern:
+   233	        argv.extend(["--pattern", pattern])
+   234	    if start_marker:
+   235	        argv.extend(["--start-marker", start_marker])
+   236	    if end_marker:
+   237	        argv.extend(["--end-marker", end_marker])
+   238	    if count:
+   239	        argv.extend(["--count", str(count)])
+   240	    if multiline:
+   241	        argv.append("--multiline")
+   242	    if dotall:
+   243	        argv.append("--dotall")
+   244	    if interpret_escapes:
+   245	        argv.append("--interpret-escapes")
+   246	    if backup_dir:
+   247	        argv.extend(["--backup-dir", backup_dir])
+   248	    if validator:
+   249	        argv.extend(["--validator", validator])
+   250	    if validator_preset:
+   251	        argv.extend(["--validator-preset", validator_preset])
+   252	    if diff:
+   253	        argv.append("--diff")
+   254	    if dry_run:
+   255	        argv.append("--dry-run")
+   256	    if allow_no_change:
+   257	        argv.append("--allow-no-change")
+   258	    if create:
+   259	        argv.append("--create")
+   260	    if no_backup:
+   261	        argv.append("--no-backup")
+   262	
+   263	    return argv
+   264	
+   265	
+   266	async def _run_argv(argv: list[str], timeout: int = 60) -> dict[str, Any]:
+   267	    """Run the assembled argv directly (no shell). Returns legacy-shape dict."""
+   268	    start = time.time()
+   269	    try:
+   270	        proc = await asyncio.create_subprocess_exec(
+   271	            *argv,
+   272	            **spawn_kwargs(
+   273	                stdout=asyncio.subprocess.PIPE,
+   274	                stderr=asyncio.subprocess.PIPE,
+   275	            ),
+   276	        )
+   277	        stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+   278	    except asyncio.TimeoutError:
+   279	        proc.kill()
+   280	        await proc.wait()
+   281	        return {
+   282	            "output": "⏱️ Timeout",
+   283	            "duration": round(time.time() - start, 2),
+   284	            "returncode": -1,
+   285	        }
+   286	    except FileNotFoundError as exc:
+   287	        raise HandlerError(
+   288	            "binary_missing",
+   289	            f"required binary not found: {exc.filename}",
+   290	        ) from exc
+   291	
+   292	    duration = round(time.time() - start, 2)
+   293	    stdout = (stdout_b.decode(errors="replace") or "").strip()
+   294	    stderr = (stderr_b.decode(errors="replace") or "").strip()
+   295	    output = (stdout + "\n" + stderr).strip() or "⚠️ Sin salida"
+   296	    return {"output": output, "duration": duration, "returncode": proc.returncode}
+   297	
+   298	
+   299	def make_edit_handler(policy: Policy, upload_base: Path):
+   300	    """Single-call edit, content passed inline as 'old' and 'new_text'."""
+   301	    binary = _resolve_safe_edit_bin()
+   302	
+   303	    async def handle_edit(payload: dict[str, Any]) -> dict[str, Any]:
+   304	        path = payload.get("path")
+   305	        mode = payload.get("mode")
+   306	        sudo = bool(payload.get("sudo", False))
+   307	
+   308	        if not path or not str(path).strip():
+   309	            raise HandlerError("invalid_payload", "missing 'path'")
+   310	        if not mode:
+   311	            raise HandlerError("invalid_payload", "missing 'mode'")
+   312	
+   313	        # Path-enforce under the unified r/rw model. `edit` is a mutating
+   314	        # op: the path must resolve under a file_ops entry with access
+   315	        # rw, and canonicalization (resolve symlinks, collapse `..`)
+   316	        # always happens first so the verdict cannot be dodged by
+   317	        # traversal.
+   318	        #
+   319	        # sudo does NOT exempt an edit from this. It used to: the
+   320	        # reasoning was that a sudo edit crossed a separate boundary,
+   321	        # the operator's sudoers fragment, assumed to be locked to the
+   322	        # pensa-safe-edit binary. The installer never wrote such a
+   323	        # fragment -- it granted NOPASSWD:ALL -- so the assumed boundary
+   324	        # did not exist, and the exemption let any request write any
+   325	        # file as root, including this very policy file. An agent that
+   326	        # can rewrite its own allowlist has no allowlist, which made the
+   327	        # rw model advisory rather than enforced. Reported by OpenAI
+   328	        # Security, 2026-09.
+   329	        #
+   330	        # Operators who genuinely want the agent to administer its own
+   331	        # policy can still have it: add the config file to file_ops as
+   332	        # rw. That is then a visible, deliberate entry in their config
+   333	        # instead of an invisible property of the sudo flag.
+   334	        resolved = policy.resolve_path(str(path), need_write=True)
+   335	        if resolved is not None:
+   336	            # Under an rw entry (sudo or not): use the canonical path.
+   337	            path = str(resolved)
+   338	        else:
+   339	            # Not under any rw entry: reject, sudo or not. This is the
+   340	            # load-bearing check for A2 (compromised LLM).
+   341	            rw_paths = [
+   342	                e.path for e in policy.file_ops_paths if e.access == "rw"
+   343	            ]
+   344	            raise HandlerError(
+   345	                "path_not_allowed",
+   346	                "edit requires a path under a file_ops entry with "
+   347	                "access: rw. The requested path is not within any "
+   348	                "writable allowlist entry. sudo does not lift this: to "
+   349	                "let the agent write here, add the path to file_ops "
+   350	                "with access: rw.",
+   351	                details={"writable_paths": rw_paths},
+   352	            )
+   353	
+   354	        _validate_mode_payload(mode, payload)
+   355	
+   356	        # secret=true: the hub is writing a credential the user typed into a
+   357	        # secret link page. It must not survive anywhere but the target: no
+   358	        # .bak copy of the old value, no diff in the output, never a created
+   359	        # file. local_audit.record keeps the op and path but not the text.
+   360	        secret = payload.get("secret") is True
+   361	        if secret and (payload.get("diff") or payload.get("create") or payload.get("backup_dir")):
+   362	            raise HandlerError(
+   363	                "invalid_payload",
+   364	                "secret edits take no diff, create or backup_dir",
+   365	            )
+   366	
+   367	        tmp_root = staging_root(upload_base)
+   368	
+   369	        workdir = tmp_root / f"edit_job_{uuid.uuid4().hex}"
+   370	        workdir.mkdir(parents=True, exist_ok=True)
+   371	
+   372	        try:
+   373	            argv = _build_argv(
+   374	                binary=binary,
+   375	                workdir=workdir,
+   376	                path=path,
+   377	                sudo=sudo,
+   378	                mode=mode,
+   379	                old=payload.get("old"),
+   380	                new_text=payload.get("new_text"),
+   381	                pattern=payload.get("pattern"),
+   382	                start_marker=payload.get("start_marker"),
+   383	                end_marker=payload.get("end_marker"),
+   384	                count=int(payload.get("count", 0) or 0),
+   385	                multiline=bool(payload.get("multiline", False)),
+   386	                dotall=bool(payload.get("dotall", False)),
+   387	                interpret_escapes=bool(payload.get("interpret_escapes", False)),
+   388	                backup_dir=payload.get("backup_dir"),
+   389	                validator=payload.get("validator"),
+   390	                validator_preset=payload.get("validator_preset"),
+   391	                diff=bool(payload.get("diff", False)),
+   392	                dry_run=bool(payload.get("dry_run", False)),
+   393	                allow_no_change=bool(payload.get("allow_no_change", False)),
+   394	                create=bool(payload.get("create", False)),
+   395	                no_backup=secret or bool(payload.get("no_backup", False)),
+   396	            )
+   397	
+   398	            result = await _run_argv(argv)
+   399	            return {
+   400	                "ok": result["returncode"] == 0,
+   401	                "path": path,
+   402	                "mode": mode,
+   403	                "sudo": sudo,
+   404	                "command": argv,
+   405	                **result,
+   406	            }
+   407	        finally:
+   408	            shutil.rmtree(workdir, ignore_errors=True)
+   409	
+   410	    return handle_edit
+   411	
+   412	
+   413	# --- Chunked edit upload --------------------------------------------------------
+   414	
+   415	def _edit_upload_dir(upload_base: Path, upload_id: str) -> Path:
+   416	    tmp_root = staging_root(upload_base)
+   417	    upload_dir = tmp_root / f"edit_{upload_id}"
+   418	    upload_dir.mkdir(parents=True, exist_ok=True)
+   419	    return upload_dir
+   420	
+   421	
+   422	def _safe_filename(filename: str) -> str:
+   423	    """Refuse path traversal: only basename allowed."""
+   424	    safe = Path(filename).name
+   425	    if not safe or safe.startswith("."):
+   426	        raise HandlerError("invalid_payload", f"invalid filename: {filename}")
+   427	    return safe
+   428	
+   429	
+   430	def make_edit_upload_init_handler(upload_base: Path):
+   431	    async def handle_edit_upload_init(payload: dict[str, Any]) -> dict[str, Any]:
+   432	        """Allocate a workdir, return the upload_id to use in subsequent calls."""
+   433	        upload_id = uuid.uuid4().hex
+   434	        upload_dir = _edit_upload_dir(upload_base, upload_id)
+   435	        return {
+   436	            "upload_id": upload_id,
+   437	            "upload_dir": str(upload_dir),
+   438	        }
+   439	
+   440	    return handle_edit_upload_init
+   441	
+   442	
+   443	def make_edit_upload_file_handler(upload_base: Path):
+   444	    async def handle_edit_upload_file(payload: dict[str, Any]) -> dict[str, Any]:
+   445	        """Receive a role file ('old' or 'new') for an in-progress edit upload.
+   446	
+   447	        Content can come either as 'content' (utf-8 string) or 'content_base64'.
+   448	        Filename is sanitized to its basename only.
+   449	        """
+   450	        upload_id = payload.get("upload_id")
+   451	        role = payload.get("role")
+   452	        # `filename` from the payload is accepted as a hint (kept in the
+   453	        # response for client-side bookkeeping) but is NOT used as the
+   454	        # on-disk name. The disk layout is fixed by role: 'old' -> old.txt,
+   455	        # 'new' -> new.txt. This guarantees that handle_edit_upload_complete,
+   456	        # which looks up the staged files by those exact names, can always
+   457	        # find them — independently of what the client called the file.
+   458	        filename_hint = payload.get("filename")
+   459	        content = payload.get("content")
+   460	        content_b64 = payload.get("content_base64")
+   461	
+   462	        if not upload_id:
+   463	            raise HandlerError("invalid_payload", "missing 'upload_id'")
+   464	        if role not in ("old", "new"):
+   465	            raise HandlerError("invalid_payload", "role must be 'old' or 'new'")
+   466	
+   467	        # Disk name is fixed by role, NOT by the client-supplied filename.
+   468	        # The hint is sanitized only for echo purposes (not used as a path).
+   469	        disk_name = f"{role}.txt"
+   470	        echoed_name = _safe_filename(filename_hint) if filename_hint else disk_name
+   471	
+   472	        upload_dir = _edit_upload_dir(upload_base, upload_id)
+   473	        dest = upload_dir / disk_name
+   474	
+   475	        if content is not None and content_b64 is not None:
+   476	            raise HandlerError(
+   477	                "invalid_payload",
+   478	                "provide exactly one of 'content' or 'content_base64'",
+   479	            )
+   480	        if content is not None:
+   481	            dest.write_text(str(content), encoding="utf-8")
+   482	        elif content_b64 is not None:
+   483	            import base64
+   484	            try:
+   485	                dest.write_bytes(base64.b64decode(content_b64))
+   486	            except Exception as exc:  # noqa: BLE001
+   487	                raise HandlerError("invalid_payload", f"bad base64: {exc}") from exc
+   488	        else:
+   489	            raise HandlerError(
+   490	                "invalid_payload",
+   491	                "missing 'content' or 'content_base64'",
+   492	            )
+   493	
+   494	        return {
+   495	            "upload_id": upload_id,
+   496	            "role": role,
+   497	            # `filename` echoes either the sanitized client hint or the
+   498	            # disk name. Note: `path` always points to <role>.txt — that
+   499	            # is the actual disk location regardless of the hint.
+   500	            "filename": echoed_name,
+   501	            "size_bytes": dest.stat().st_size,
+   502	            "path": str(dest),
+   503	        }
+   504	
+   505	    return handle_edit_upload_file
+   506	
+   507	
+   508	def make_edit_upload_complete_handler(policy: Policy, upload_base: Path):
+   509	    """Run pensa-safe-edit using files staged via edit_upload_file."""
+   510	    binary = _resolve_safe_edit_bin()
+   511	
+   512	    async def handle_edit_upload_complete(payload: dict[str, Any]) -> dict[str, Any]:
+   513	        upload_id = payload.get("upload_id")
+   514	        path = payload.get("path")
+   515	        mode = payload.get("mode")
+   516	        sudo = bool(payload.get("sudo", False))
+   517	
+   518	        if not upload_id:
+   519	            raise HandlerError("invalid_payload", "missing 'upload_id'")
+   520	        if not path or not str(path).strip():
+   521	            raise HandlerError("invalid_payload", "missing 'path'")
+   522	        if not mode:
+   523	            raise HandlerError("invalid_payload", "missing 'mode'")
+   524	
+   525	        # Mode validation, but slightly looser than single-edit because the
+   526	        # 'old' / 'new' content lives in files, not in the payload.
+   527	        if mode not in VALID_MODES:
+   528	            raise HandlerError(
+   529	                "invalid_payload",
+   530	                f"mode must be one of: {', '.join(VALID_MODES)}",
+   531	            )
+   532	        if payload.get("validator") and payload.get("validator_preset"):
+   533	            raise HandlerError(
+   534	                "invalid_payload",
+   535	                "cannot use 'validator' and 'validator_preset' together",
+   536	            )
+   537	        if mode == "regex" and not payload.get("pattern"):
+   538	            raise HandlerError("invalid_payload", "mode=regex requires 'pattern'")
+   539	        if mode == "replace-block" and (
+   540	            not payload.get("start_marker") or not payload.get("end_marker")
+   541	        ):
+   542	            raise HandlerError(
+   543	                "invalid_payload",
+   544	                "mode=replace-block requires 'start_marker' and 'end_marker'",
+   545	            )
+   546	
+   547	        # Path-enforce under the unified r/rw model (same rule as
+   548	        # handle_edit: the chunked-upload path is just as much a write,
+   549	        # so it must not become the bypass that the single-call path no
+   550	        # longer is). sudo does not exempt it either.
+   551	        resolved = policy.resolve_path(str(path), need_write=True)
+   552	        if resolved is not None:
+   553	            path = str(resolved)
+   554	        else:
+   555	            rw_paths = [
+   556	                e.path for e in policy.file_ops_paths if e.access == "rw"
+   557	            ]
+   558	            raise HandlerError(
+   559	                "path_not_allowed",
+   560	                "edit requires a path under a file_ops entry with "
+   561	                "access: rw. The requested path is not within any "
+   562	                "writable allowlist entry. sudo does not lift this: to "
+   563	                "let the agent write here, add the path to file_ops "
+   564	                "with access: rw.",
+   565	                details={"writable_paths": rw_paths},
+   566	            )
+   567	
+   568	        upload_dir = _edit_upload_dir(upload_base, upload_id)
+   569	        old_file = upload_dir / "old.txt"
+   570	        new_file = upload_dir / "new.txt"
+   571	
+   572	        # Fail-loud: refuse to invoke the binary with missing role files
+   573	        # for modes that require them. The previous behaviour was to pass
+   574	        # `None` silently, which produced a corrupt edit (e.g. mode=write
+   575	        # without --new-file leaves the target file empty). The validator
+   576	        # would still pass on the empty result, so the bug was invisible
+   577	        # in the response. Better to refuse the operation here than to
+   578	        # write garbage and report success.
+   579	        modes_needing_new = {"replace", "regex", "replace-block", "append", "prepend", "write"}
+   580	        modes_needing_old = {"replace", "replace-block"}
+   581	        if mode in modes_needing_new and not new_file.exists():
+   582	            raise HandlerError(
+   583	                "missing_role_file",
+   584	                f"mode={mode} requires the 'new' role file to be uploaded "
+   585	                f"first via sentinel_edit_upload_file (role='new'). "
+   586	                f"No file was found at {new_file}.",
+   587	            )
+   588	        if mode in modes_needing_old and not old_file.exists():
+   589	            raise HandlerError(
+   590	                "missing_role_file",
+   591	                f"mode={mode} requires the 'old' role file to be uploaded "
+   592	                f"first via sentinel_edit_upload_file (role='old'). "
+   593	                f"No file was found at {old_file}.",
+   594	            )
+   595	
+   596	        argv = _build_argv(
+   597	            binary=binary,
+   598	            workdir=upload_dir,
+   599	            path=path,
+   600	            sudo=sudo,
+   601	            mode=mode,
+   602	            pattern=payload.get("pattern"),
+   603	            start_marker=payload.get("start_marker"),
+   604	            end_marker=payload.get("end_marker"),
+   605	            count=int(payload.get("count", 0) or 0),
+   606	            multiline=bool(payload.get("multiline", False)),
+   607	            dotall=bool(payload.get("dotall", False)),
+   608	            interpret_escapes=bool(payload.get("interpret_escapes", False)),
+   609	            backup_dir=payload.get("backup_dir"),
+   610	            validator=payload.get("validator"),
+   611	            validator_preset=payload.get("validator_preset"),
+   612	            diff=bool(payload.get("diff", False)),
+   613	            dry_run=bool(payload.get("dry_run", False)),
+   614	            allow_no_change=bool(payload.get("allow_no_change", False)),
+   615	            create=bool(payload.get("create", False)),
+   616	            old_file_path=old_file if old_file.exists() else None,
+   617	            new_file_path=new_file if new_file.exists() else None,
+   618	        )
+   619	
+   620	        try:
+   621	            result = await _run_argv(argv)
+   622	            return {
+   623	                "ok": result["returncode"] == 0,
+   624	                "path": path,
+   625	                "mode": mode,
+   626	                "sudo": sudo,
+   627	                "upload_id": upload_id,
+   628	                "command": argv,
+   629	                **result,
+   630	            }
+   631	        finally:
+   632	            shutil.rmtree(upload_dir, ignore_errors=True)
+   633	
+   634	    return handle_edit_upload_complete

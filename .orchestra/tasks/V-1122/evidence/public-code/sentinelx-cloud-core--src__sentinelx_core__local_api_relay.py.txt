@@ -1,0 +1,69 @@
+     1	"""Relay ONE request to a local socket, as whichever user runs this.
+     2	
+     3	Invoked as `sudo -n -u <run_as> python -m sentinelx_core.local_api_relay <path>
+     4	<timeout>`, so the connect() happens under the target Unix identity. That is the
+     5	whole point: an endpoint like Herdr creates its socket 0600 and checks the peer
+     6	credentials, so reaching it means BEING that user, not having permission to read
+     7	its socket. Running the agent as root does not solve it either: root connects
+     8	but identifies as uid 0.
+     9	
+    10	DELIBERATELY TINY. This is invoked through sudo, so it is the most sensitive
+    11	code in the feature. It takes a socket path and a timeout, writes stdin to the
+    12	socket, reads one newline-terminated reply, writes it to stdout. It does not
+    13	read config, does not interpret the payload, does not touch the filesystem and
+    14	runs nothing. Anything it could be tricked into doing, it also cannot do.
+    15	
+    16	The socket path comes from the agent's own validated config, never from the
+    17	caller: the model can pick which configured endpoint to use, not where it points.
+    18	"""
+    19	
+    20	from __future__ import annotations
+    21	
+    22	import socket
+    23	import sys
+    24	
+    25	MAX_REPLY_BYTES = 8 * 1024 * 1024
+    26	
+    27	
+    28	def main() -> int:
+    29	    if len(sys.argv) != 3:
+    30	        print("usage: local_api_relay <socket-path> <timeout-seconds>", file=sys.stderr)
+    31	        return 2
+    32	    path, timeout = sys.argv[1], float(sys.argv[2])
+    33	
+    34	    payload = sys.stdin.buffer.read()
+    35	    if not payload:
+    36	        print("nothing to send", file=sys.stderr)
+    37	        return 2
+    38	
+    39	    try:
+    40	        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    41	        sock.settimeout(timeout)
+    42	        sock.connect(path)
+    43	    except OSError as exc:
+    44	        print(f"connect failed: {exc}", file=sys.stderr)
+    45	        return 3
+    46	
+    47	    try:
+    48	        sock.sendall(payload)
+    49	        buf = bytearray()
+    50	        while not buf.endswith(b"\n"):
+    51	            chunk = sock.recv(65536)
+    52	            if not chunk:
+    53	                break
+    54	            buf += chunk
+    55	            if len(buf) > MAX_REPLY_BYTES:
+    56	                print("reply exceeded the cap", file=sys.stderr)
+    57	                return 4
+    58	    except OSError as exc:
+    59	        print(f"relay failed: {exc}", file=sys.stderr)
+    60	        return 3
+    61	    finally:
+    62	        sock.close()
+    63	
+    64	    sys.stdout.buffer.write(bytes(buf))
+    65	    return 0
+    66	
+    67	
+    68	if __name__ == "__main__":
+    69	    raise SystemExit(main())

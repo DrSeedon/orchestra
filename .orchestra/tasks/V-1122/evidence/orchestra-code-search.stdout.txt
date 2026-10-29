@@ -1,0 +1,244 @@
+96:    "commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall",
+102:    """The app-server JSONL framing was lost and this transport is unusable."""
+430:def _orchestra_full_mcp_tools() -> tuple[str, ...]:
+432:    from app.mcp_stdio import mcp
+434:    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
+446:    """JSON-RPC error returned by Codex app-server."""
+451:        super().__init__(f"{method}: {error.get('message', 'Codex app-server error')}")
+488:        # The native resume remains the authoritative check.
+494:    """Persistent Codex app-server client with native turn steering.
+496:    One app-server process owns one resumable thread. `send()` starts a turn while idle
+500:    RUNTIME_LABEL = "Codex app-server"
+503:                 resume_thread_id: str | None = None,
+504:                 mcp_env: dict[str, str] | None = None,
+505:                 mcp_servers: dict | None = None,
+513:        self._thread_id: str | None = resume_thread_id
+514:        self._mcp_env: dict[str, str] = mcp_env or {}
+515:        self._mcp_servers: dict = mcp_servers or {}
+519:        # Digest of the managed config actually loaded by the current app-server.
+582:                self._mcp_env.get("WORKER_NAME", "unknown"),
+599:            mcp_servers=self._mcp_servers,
+677:        """Use app-server's per-turn model override without replacing the thread."""
+779:            metadata_only_resume = self._history_import is None and bool(self._thread_id)
+787:            if self._history_import or metadata_only_resume:
+796:                "approvalPolicy": "never",
+797:                "sandbox": "danger-full-access",
+812:                resume_started = time.monotonic()
+813:                result = await self._request("thread/resume", params)
+814:                self._log_connect_stage("cli_thread_resume_import", resume_started)
+817:                # The app-server otherwise reconstructs and serializes the complete native
+821:                resume_started = time.monotonic()
+822:                result = await self._request("thread/resume", params)
+823:                self._log_connect_stage("cli_thread_resume", resume_started)
+826:                result = await self._request("thread/start", params)
+830:                raise RuntimeError("Codex app-server returned no thread id")
+833:                    "Codex app-server resumed a different thread: "
+844:                await self._request("config/mcpServer/reload", None)
+845:                self._log_connect_stage("mcp_reload", reload_started)
+904:            result = await self._request("turn/start", {
+912:                raise RuntimeError("Codex app-server returned no turn id")
+1019:            item.get("type") != "mcpToolCall"
+1111:        if method not in ("turn/started", "turn/completed"):
+1145:            raise RuntimeError("Codex app-server is not running or its transport is closed")
+1261:                future.set_exception(RuntimeError("Codex app-server disconnected"))
+1264:            RuntimeError("Codex app-server disconnected during context compact")
+1311:                        "Codex app-server emitted an oversized JSONL record; "
+1343:                    logger.warning("Codex app-server emitted invalid JSONL")
+1348:                    # `approvalPolicy=never` prevents command prompts; reject any unexpected
+1372:                    if message["method"] == "mcpServer/startupStatus/updated":
+1376:                        self._log_connect_stage(f"mcp_{name}_{status}")
+1385:            logger.exception("Codex app-server reader failed: %s", exc)
+1395:                transport_error = RuntimeError("Codex app-server transport closed during context compact")
+1417:                    f"Codex app-server exited with code {returncode}" if proc is not None
+1418:                    else "Codex app-server transport closed"
+1465:        """Stop only this app-server after JSONL framing becomes ambiguous."""
+1510:        leaves, ordinary turns use their own turn/start ACK to disambiguate early
+1552:        if method == "turn/started":
+1589:                self._fail_compact_operation(op, "completed without a preceding turn/started")
+1639:        if method == "thread/started":
+1651:        if method == "turn/started":
+1757:        if method == "item/mcpToolCall/progress":
+1778:        if method == "mcpServer/startupStatus/updated":
+1784:            content = f"codex mcp {name}: {status}"
+1880:        if item_type == "mcpToolCall":
+1882:            name = f"mcp__{server}__{tool}" if server else tool
+1986:        elif item_type == "mcpToolCall":
+1988:            name = f"mcp__{server}__{tool}" if server else tool
+2498:        приходят из данных (`mcp_servers_custom` со спавна), а сырой перевод строки
+2534:        for arg in self._mcp_config_args():
+2536:        cmd += ["app-server", "--stdio"]
+2539:    def _mcp_config_args(self) -> list[str]:
+2542:        Раньше отсюда уходили `-c mcp_servers.<name>.env={...}` со ЗНАЧЕНИЯМИ секретов —
+2549:    def _mcp_servers_toml(self) -> str:
+2550:        """Секции `[mcp_servers.*]` для config.toml — единственный носитель конфига MCP."""
+2552:        for name, cfg in self._mcp_servers.items():
+2557:            # Имя сервера и ключи env приходят ИЗ ДАННЫХ (`mcp_servers_custom` со спавна),
+2562:            lines = [f"[mcp_servers.{key}]", "enabled = true"]
+2576:                enabled_tools = _orchestra_full_mcp_tools()
+2586:                lines.append(f"[mcp_servers.{key}.env]")
+2609:        if not self._mcp_servers:
+2611:        session_id = (self._mcp_servers.get("orchestra", {}).get("env") or {}).get(
+2615:        # то есть тихо терял thread-id и ломал resume.
+2636:            # `_make_mcp_config` всегда кладёт сервер `orchestra`, — поэтому ветка
+2656:        # перелогине, а без него app-server не авторизуется вовсе (проверено прогоном).
+2668:        servers = self._mcp_servers_toml()
+2684:        """Reconnect an idle managed app-server when its launch config is stale.
+2686:        Codex reads `config.toml` when the app-server starts.  Merely rewriting the file
+2688:        `thread/resume` while making the next turn use current context/config settings.
+2707:                "Codex config refresh resumed a different thread: "
+2713:        env.update(self._mcp_env)
+26:from app.hub_outbox import OUTBOX_NAME, OutboxReport, parse_outbox
+43:WAIT_SLICE_MS = 4_000   # also the poll interval of the live activity feed
+76:    """The trimmed prompt a hub model gets: role, task rules, the outbox tools, the report
+135:    """Run-scoped evidence; incomplete activity must never authorize replaying work."""
+163:        if (isinstance(thread, dict) and thread.get("latestRunId") == self.run_id
+197:        r"quota (?:exceeded|exhausted))", value, re.I,
+206:        (r"usage[_ -]?(?:limit|cap)|quota[_ -]?(?:exceeded|exhausted)|"
+207:         r"insufficient_quota|limit[_ -]?(?:reached|exceeded)|"
+237:                                capture_output=True, text=True, timeout=30).stdout.strip()
+262:        self._bridge = bridge        # hub_outbox.HubBridge: the worker's identity and its outbox executor
+343:                await mc.tool_call("t3_thread_send", {
+377:                await mc.tool_call("t3_thread_configure", {
+398:                    "t3_thread_interrupt", {"threadId": state.thread_id, "reason": "interrupted by Orchestra"})
+458:        from app.quota_gate import QuotaGateError
+598:                        sent = await mc.tool_call("t3_thread_send", {
+613:        persisted authorization of the clean generation being resumed. A clean generation is never exempt."""
+734:                    await mc.tool_call("t3_thread_configure", {
+736:                sent = await mc.tool_call("t3_thread_send", {
+751:        launched = await mc.tool_call("t3_thread_launch", {
+771:            waited = await self._watch_call(mc, "t3_thread_wait", {
+772:                "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
+789:                    await mc.tool_call("t3_thread_interrupt", {"threadId": thread_id})
+796:            async with asyncio.timeout(60):
+820:                page = await self._watch_call(mc, "t3_thread_read", args)
+841:        read = await self._watch_call(mc, "t3_thread_read", {
+861:            # The snapshot is new evidence, including if someone later removes
+865:                       or result.rejected or result.outbox or result.manifest != before)
+870:        outbox_line = await self._run_outbox(ssh, state, result.outbox)
+884:        if outbox_line:
+885:            lines.append(outbox_line)
+897:    async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
+901:        entries, dropped = parse_outbox(data)
+906:            report.dropped.append(f"outbox not cleared on the hub, entries skipped: {exc}")
+914:            logger.warning("hub outbox of %s: dropped %s", state.ws_id, reason)
+1048:                    listed = await mc.tool_call("t3_thread_list", {"projectId": project["id"], "limit": 100})
+app/bg_jobs.py:1:"""Background Jobs — server-side one-shot tasks that survive hibernate."""
+app/bg_jobs.py:183:        # A ready callback can receive the fd just before cancellation wins the
+app/bg_jobs.py:216:            _recv_pidfd(parent), timeout=_PIDFD_HANDSHAKE_TIMEOUT,
+app/bg_jobs.py:236:                await asyncio.wait_for(asyncio.shield(proc.wait()), timeout=2)
+app/bg_jobs.py:375:            await asyncio.wait_for(asyncio.shield(proc.wait()), timeout=2)
+app/bg_jobs.py:448:        timeout=_CRON_COMMAND_TIMEOUT_SECONDS,
+app/bg_jobs.py:488:                     created_by: str, timeout_seconds: int = DEFAULT_TIMEOUT,
+app/bg_jobs.py:510:        no_expiry = job_type in _NO_EXPIRY_TYPES and timeout_seconds <= 0
+app/bg_jobs.py:518:                timeout_seconds = max(
+app/bg_jobs.py:519:                    min(max(timeout_seconds, 1), MAX_TIMEOUT),
+app/bg_jobs.py:523:                timeout_seconds = max(1, min(timeout_seconds, MAX_TIMEOUT))
+app/bg_jobs.py:524:            expires_at = (now + timedelta(seconds=timeout_seconds)).isoformat()
+app/bg_jobs.py:550:                         target_name, target_scope, timeout_seconds,
+app/bg_jobs.py:560:            "timeout_seconds": timeout_seconds,
+app/bg_jobs.py:566:                    target_name, target_scope, timeout, trigger_at=None):
+app/bg_jobs.py:567:        watch_timeout = None if config.get("no_expiry") else timeout
+app/bg_jobs.py:579:                                        message, target_name, target_scope, watch_timeout)
+app/bg_jobs.py:584:                                          watch_timeout)
+app/bg_jobs.py:588:                                       watch_timeout)
+app/bg_jobs.py:591:                                   target_scope, timeout,
+app/bg_jobs.py:597:                                  target_scope, timeout, host=host,
+app/bg_jobs.py:604:                                         target_name, target_scope, timeout)
+app/bg_jobs.py:607:                                  target_name, target_scope, watch_timeout)
+app/bg_jobs.py:611:                target_name, target_scope, watch_timeout,
+app/bg_jobs.py:618:        task.add_done_callback(
+app/bg_jobs.py:639:                job_id, row.get("message") or "Background run", row.get("target_name") or "?",
+app/bg_jobs.py:691:                timeout = max(
+app/bg_jobs.py:698:                    timeout, row.get("last_output") or "",
+app/bg_jobs.py:703:        interrupted_delivery = set(reset_ids)
+app/bg_jobs.py:713:                if row["id"] in interrupted_delivery:
+app/bg_jobs.py:722:                if row["id"] in interrupted_delivery:
+app/bg_jobs.py:782:                origin="background_task",
+app/bg_jobs.py:846:                what=f"result of background job {job_id}",
+app/bg_jobs.py:848:                dedupe_key=f"bgjob:{job_id}",
+app/bg_jobs.py:850:        except Exception as fallback_error:
+app/bg_jobs.py:853:                job_id, type(fallback_error).__name__, fallback_error,
+app/bg_jobs.py:861:        body = f"[Background job completed] {message}"
+app/bg_jobs.py:911:                f"[Background job {outcome.upper()}] {row.get('message', '')}\n"
+app/bg_jobs.py:912:                f"{reason}. No other background jobs are active, so nothing else will wake you."
+app/bg_jobs.py:922:                             timeout, output=""):
+app/bg_jobs.py:927:        dur = f"{round(timeout / 60, 1)} min" if timeout >= 60 else f"{int(timeout)}s"
+app/bg_jobs.py:931:        body = f"[Background job TIMED OUT] {err}"
+app/bg_jobs.py:944:        body = f"[Background job FAILED] {message}\n{error}"
+app/bg_jobs.py:959:        body = f"[Background job INTERRUPTED] {message}\n{reason}"
+app/bg_jobs.py:977:                               target_name, target_scope, timeout):
+app/bg_jobs.py:986:            async with asyncio.timeout(timeout):
+app/bg_jobs.py:996:                        # Keep recovery last, since _trigger delivers the last 3000 chars.
+app/bg_jobs.py:1012:            await self._expire_notify(job_id, message, target_name, target_scope, timeout,
+app/bg_jobs.py:1036:        self, job_id, cron_expr, message, target_name, target_scope, timeout,
+app/bg_jobs.py:1039:        deadline = (time.time() + timeout) if timeout else None
+app/bg_jobs.py:1068:    def _cron_delivery_id(job_id, fire_at=None):
+app/bg_jobs.py:1070:        # reuse its receipt, including after an ambiguous acceptance acknowledgement.
+app/bg_jobs.py:1075:    async def _accept_cron_fire(self, job_id, session, delivery_id, body, provenance,
+app/bg_jobs.py:1077:        from app.message_deliveries import accept_message_delivery
+app/bg_jobs.py:1084:        receipt, status = await accept_message_delivery(
+app/bg_jobs.py:1085:            delivery_id=delivery_id,
+app/bg_jobs.py:1086:            source_principal=f"background_job:{job_id}", source_name=job_id,
+app/bg_jobs.py:1093:            rendered_message=body, message_kind="background_task",
+app/bg_jobs.py:1097:            raise RuntimeError(f"cron delivery acceptance failed: {receipt}")
+app/bg_jobs.py:1105:            delivery_id = self._cron_delivery_id(job_id, fire_at)
+app/bg_jobs.py:1106:            if _row(delivery_id) is not None:
+app/bg_jobs.py:1113:                origin="background_task", senders=(job_id,),
+app/bg_jobs.py:1117:                job_id, session, delivery_id, f"[Cron job fired] {message}", provenance,
+app/bg_jobs.py:1134:            delivery_id = self._cron_delivery_id(job_id, fire_at)
+app/bg_jobs.py:1135:            if _row(delivery_id) is not None:
+app/bg_jobs.py:1172:                            origin="background_task", senders=(job_id,),
+app/bg_jobs.py:1173:                            subtype="cron_command_timeout", ref=job_id,
+app/bg_jobs.py:1201:                origin="background_task", senders=(job_id,),
+app/bg_jobs.py:1205:                job_id, session, delivery_id, body, provenance, source_output=raw_output,
+app/bg_jobs.py:1223:                              target_name, target_scope, timeout):
+app/bg_jobs.py:1232:            async with asyncio.timeout(timeout):
+app/bg_jobs.py:1251:                                 message, target_name, target_scope, timeout):
+app/bg_jobs.py:1252:        deadline = (time.time() + timeout) if timeout is not None else None
+app/bg_jobs.py:1261:                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+app/bg_jobs.py:1282:                              target_name, target_scope, timeout):
+app/bg_jobs.py:1291:            async with asyncio.timeout(timeout):
+app/bg_jobs.py:1310:                        target_scope, timeout, host=None, success_file=None,
+app/bg_jobs.py:1335:                        f"timeout={timeout}s cmd_len={len(command)}")
+app/bg_jobs.py:1337:            async with asyncio.timeout(timeout):
+app/bg_jobs.py:1366:                job_id, message, target_name, target_scope, timeout,
+app/bg_jobs.py:1393:                         timeout, success_file=None, success_pattern=""):
+app/bg_jobs.py:1399:            async with asyncio.timeout(timeout):
+app/bg_jobs.py:1421:                job_id, message, target_name, target_scope, timeout, _read_run_tail(out_path),
+app/initial_delivery_events.py:14:logger = logging.getLogger("orchestra.initial_delivery_events")
+app/initial_delivery_events.py:17:CREATE TABLE IF NOT EXISTS initial_delivery_events (
+app/initial_delivery_events.py:19:    delivery_id TEXT NOT NULL,
+app/initial_delivery_events.py:32:CREATE INDEX IF NOT EXISTS idx_initial_delivery_events_pending
+app/initial_delivery_events.py:33:    ON initial_delivery_events(next_attempt_at) WHERE state='pending';
+app/initial_delivery_events.py:61:        """INSERT INTO initial_delivery_events
+app/initial_delivery_events.py:62:           (event_id, delivery_id, session_id, worker_name, scope, event_type,
+app/initial_delivery_events.py:66:            event_id, row["delivery_id"], row["session_id"], row["worker_name"],
+app/initial_delivery_events.py:76:        """SELECT 1 FROM initial_delivery_events
+app/initial_delivery_events.py:77:           WHERE delivery_id=? AND event_type='WAITING_QUOTA' LIMIT 1""",
+app/initial_delivery_events.py:78:        (row["delivery_id"],),
+app/initial_delivery_events.py:84:        """INSERT INTO initial_delivery_events
+app/initial_delivery_events.py:85:           (event_id, delivery_id, session_id, worker_name, scope, event_type,
+app/initial_delivery_events.py:89:            event_id, row["delivery_id"], row["session_id"], row["worker_name"],
+app/initial_delivery_events.py:100:            """SELECT * FROM initial_delivery_events
+app/initial_delivery_events.py:133:            f"delivery_id={row['delivery_id']}. Reason: {row['reason']}"
+app/initial_delivery_events.py:137:        f"quota wait; delivery_id={row['delivery_id']}."
+app/initial_delivery_events.py:144:            """UPDATE initial_delivery_events
+app/initial_delivery_events.py:154:            "SELECT attempts FROM initial_delivery_events WHERE event_id=? AND state='pending'",
+app/initial_delivery_events.py:162:            """UPDATE initial_delivery_events
+app/initial_delivery_events.py:190:                            subtype="initial_delivery_event", ref=event_id,
+app/initial_delivery_events.py:193:                    timeout=SEND_TIMEOUT_S,
+app/initial_delivery_events.py:203:                    logger.exception("initial delivery event %s retry state failed", event_id)
+app/initial_delivery_events.py:206:                        "initial delivery event %s not delivered: %s",
+app/initial_delivery_events.py:218:    task = asyncio.create_task(deliver_due(manager), name="initial-delivery-events")
+app/initial_delivery_events.py:230:            logger.exception("initial delivery event runner failed")
+app/initial_delivery_events.py:235:            logger.exception("could not reschedule pending initial delivery events")
+app/initial_delivery_events.py:237:    task.add_done_callback(observe)
+app/mcp_stdio.py:59:# Backend plants this nonce in our env. We write a proof file so Grok's same-name
+app/mcp_stdio.py:323:                        timeout_ms: int = 300_000, instance: str = "", model: str = "",
+app/mcp_stdio.py:332:    must be reachable at that base URL (for a loopback-only Hub, open an SSH -L tunnel).
+app/mcp_stdio.py:339:            return await client.run(prompt, title=title, timeout_ms=timeout_ms,
+app/mcp_stdio.py:501:    delivery_id = body.get("delivery_id") or server_error.get("delivery_id")
+app/mcp_stdio.py:502:    if delivery_id:
+app/mcp_stdio.py:503:        details["delivery_id"] = delivery_id
+app/mcp_stdio.py:504:        message += f"; delivery_id={delivery_id}"
+app/mcp_stdio.py:514:        result=body.get("result") or (body if delivery_id else None),

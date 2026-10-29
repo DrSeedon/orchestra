@@ -1,0 +1,432 @@
+   775	                os.close(child_stdout)
+   776	                child_stdin = child_stdout = None
+   777	            self._reader_task = asyncio.create_task(self._read_stdout())
+   778	            self._stderr_task = asyncio.create_task(self._drain_stderr())
+   779	            metadata_only_resume = self._history_import is None and bool(self._thread_id)
+   780	            initialize_params = {
+   781	                "clientInfo": {
+   782	                    "name": "orchestra",
+   783	                    "title": "Orchestra",
+   784	                    "version": "1",
+   785	                },
+   786	            }
+   787	            if self._history_import or metadata_only_resume:
+   788	                initialize_params["capabilities"] = {"experimentalApi": True}
+   789	            initialize_started = time.monotonic()
+   790	            await self._request("initialize", initialize_params)
+   791	            self._log_connect_stage("cli_initialize", initialize_started)
+   792	            await self._notify("initialized", {})
+   793	            params = {
+   794	                "cwd": self.cwd,
+   795	                "model": self.model,
+   796	                "approvalPolicy": "never",
+   797	                "sandbox": "danger-full-access",
+   798	            }
+   799	            history_import = self._history_import
+   800	            developer_instructions = self.system_prompt
+   801	            if history_import:
+   802	                developer_instructions = "\n\n".join(filter(None, (
+   803	                    developer_instructions,
+   804	                    HISTORICAL_TOOL_INSTRUCTION,
+   805	                )))
+   806	            if developer_instructions:
+   807	                params["developerInstructions"] = developer_instructions
+   808	            requested_thread_id = self._thread_id
+   809	            if history_import:
+   810	                params["threadId"] = history_import.thread_id
+   811	                params["history"] = list(history_import.history)
+   812	                resume_started = time.monotonic()
+   813	                result = await self._request("thread/resume", params)
+   814	                self._log_connect_stage("cli_thread_resume_import", resume_started)
+   815	            elif requested_thread_id:
+   816	                params["threadId"] = requested_thread_id
+   817	                # The app-server otherwise reconstructs and serializes the complete native
+   818	                # history into one JSONL response. Image-heavy threads have exceeded 16 MiB
+   819	                # in production; Orchestra only needs the live subscription and thread id.
+   820	                params["excludeTurns"] = True
+   821	                resume_started = time.monotonic()
+   822	                result = await self._request("thread/resume", params)
+   823	                self._log_connect_stage("cli_thread_resume", resume_started)
+   824	            else:
+   825	                start_started = time.monotonic()
+   826	                result = await self._request("thread/start", params)
+   827	                self._log_connect_stage("cli_thread_start", start_started)
+   828	            thread_id = ((result.get("thread") or {}).get("id"))
+   829	            if not thread_id:
+   830	                raise RuntimeError("Codex app-server returned no thread id")
+   831	            if requested_thread_id and not history_import and thread_id != requested_thread_id:
+   832	                raise RuntimeError(
+   833	                    "Codex app-server resumed a different thread: "
+   834	                    f"requested={requested_thread_id}, returned={thread_id}"
+   835	                )
+   890	        self._started_items.clear()
+   891	        self._tool_item_started_monotonic.clear()
+   892	        self._tool_item_intervals.clear()
+   893	        self._tool_item_completed_ids.clear()
+   894	        self._tool_item_intervals_missing = 0
+   895	        self._usage_baseline = (
+   896	            dict(self._thread_usage_total)
+   897	            if self._thread_usage_total is not None
+   898	            else (self._runtime_totals() if self._thread_id else None)
+   899	        )
+   900	        self._active_turn_started_monotonic = time.monotonic()
+   901	        early_notifications: list[dict] = []
+   902	        self._starting_user_turn = early_notifications
+   903	        try:
+   904	            result = await self._request("turn/start", {
+   905	                "threadId": self._thread_id,
+   906	                "input": user_input,
+   907	                "model": self.model,
+   908	                "effort": self.reasoning_effort,
+   909	            })
+   910	            turn_id = ((result.get("turn") or {}).get("id"))
+   911	            if not turn_id:
+   912	                raise RuntimeError("Codex app-server returned no turn id")
+   913	            self._active_turn_id = turn_id
+   914	        finally:
+   915	            self._starting_user_turn = None
+   916	            for notification in early_notifications:
+   917	                self._route_notification(notification)
+   918	
+   919	    async def events(self) -> AsyncIterator[AgentEvent]:
+   920	        if not self.is_alive:
+   921	            return
+   922	        expected_turn_id = self._active_turn_id
+   923	        self._events_active = True
+   924	        try:
+   925	            while True:
+   926	                timeout = CODEX_SILENCE_HEARTBEAT_SECONDS
+   927	                if self.deferred_interrupt_pending:
+   928	                    deadline = self._deferred_terminal_deadline
+   929	                    if deadline is not None:
+   930	                        remaining = deadline - asyncio.get_running_loop().time()
+   931	                        if remaining <= 0:
+   932	                            for event in await self._fail_deferred_interrupt(
+   933	                                "deferred_interrupt_timeout",
+   934	                                "Deferred interrupt did not produce a native terminal in time",
+   935	                            ):
+   936	                                yield event
+   937	                            return
+   938	                        timeout = min(timeout, remaining)
+   939	                try:
+   940	                    message = await asyncio.wait_for(
+   735	                        "threadId": state.thread_id, "modelSelection": selection})
+   736	                sent = await mc.tool_call("t3_thread_send", {
+   737	                    "threadId": state.thread_id, "message": wire, "mode": "auto"})
+   738	            except MultiCodeError as exc:
+   739	                # Delivery is uncertain on transport errors. Launching again can duplicate work.
+   740	                if exc.retryable or exc.invalid_params:
+   741	                    raise
+   742	                logger.warning("hub thread %s unusable (%s); starting a new one", state.thread_id, exc)
+   743	                preamble = self._preamble()
+   744	                if not prompt.startswith(preamble):
+   745	                    prompt = preamble + prompt
+   746	            else:
+   747	                if not isinstance(sent, dict) or not sent.get("runId"):
+   748	                    raise MultiCodeError("MultiCode send returned no runId")
+   749	                return sent["runId"]
+   750	        wire = await self._wire_message(mc, state, prompt)
+   751	        launched = await mc.tool_call("t3_thread_launch", {
+   752	            "title": f"{state.ws_id}", "projectId": state.project_id, "message": wire,
+   753	            "runtimeMode": "full-access",
+   754	            "modelSelection": selection,
+   755	        })
+   756	        if not isinstance(launched, dict) or not launched.get("threadId"):
+   757	            raise MultiCodeError("MultiCode launch returned no threadId")
+   758	        state.thread_id = launched["threadId"]
+   759	        state.save()
+   760	        run_id = launched.get("runId")
+   761	        if not run_id:
+   762	            raise MultiCodeError("MultiCode launch returned no runId")
+   763	        return run_id
+   764	
+   765	    async def _watch(self, mc: MultiCodeClient, thread_id: str, run_id: str,
+   766	                     stream: HubActivityStream) -> AsyncIterator[AgentEvent]:
+   767	        """Wait for the run, translating new timeline items into events every poll slice."""
+   768	        limit = float(os.environ.get("MULTICODE_HUB_TURN_TIMEOUT_S", "14400"))
+   769	        deadline = time.monotonic() + limit
+   770	        while True:
+   771	            waited = await self._watch_call(mc, "t3_thread_wait", {
+   772	                "threadId": thread_id, "runId": run_id, "timeoutMs": WAIT_SLICE_MS})
+   773	            status = waited.get("status", "") if isinstance(waited, dict) else ""
+   774	            status_limit = _provider_limit(status)
+   775	            terminal = not (isinstance(waited, dict) and waited.get("timedOut")) and (status in TERMINAL or status_limit is not None)
+   776	            for event in await self._poll(mc, thread_id, stream):
+   777	                yield event
+   778	            if terminal:
+   779	                if self._run_evidence is not None:
+   780	                    self._run_evidence.failure(waited)
+   781	                self._watch_limit = self._watch_limit or status_limit or _provider_limit(waited)
+   782	                self._watch_status = status
+   783	                return
+   784	            if self._abort:
+   785	                self._watch_status = "interrupted"
+   845	                self._run_evidence.page(read)
+   846	            for run in (read.get("recentRuns") or []) + (read.get("runs") or []):
+   847	                if isinstance(run, dict) and (run.get("id") or run.get("runId")) == run_id:
+   848	                    self._watch_limit = self._watch_limit or _provider_limit(run)
+   849	        return _last_assistant_text(read, run_id) or ""
+   850	
+   851	    async def _sync_back(self, ssh: hw.HubSsh, state: hw.WorkspaceState, root: Path,
+   852	                         scratch: Path) -> str:
+   853	        await hw.check_workspace_file_policy(ssh, state)
+   854	        out = scratch / "out.tar"
+   855	        await ssh.get(state.remote_dir, out)
+   856	        before = dict(state.manifest)
+   857	        hw.capture_inputs(root, state, state.manifest)
+   858	        result = await asyncio.to_thread(hw.apply_changes, out, root, state.manifest,
+   859	                                        inputs=state.input_manifest)
+   860	        if any(hw._company_path(rel) for rel, _ in result.rejected):
+   861	            # The snapshot is new evidence, including if someone later removes
+   862	            # the file. Preserve it as a latch without rewriting old provenance.
+   863	            state.file_policy_blocked = True
+   864	        no_work = not (result.changed or result.deleted or result.conflicts
+   865	                       or result.rejected or result.outbox or result.manifest != before)
+   866	        state.manifest = result.manifest
+   867	        state.hub_made = sorted((set(state.hub_made) | {r for r, d in result.manifest.items()
+   868	                                                         if before.get(r) != d}) & set(result.manifest))
+   869	        state.turns += 1
+   870	        outbox_line = await self._run_outbox(ssh, state, result.outbox)
+   871	        commit, unstaged = "", []
+   872	        if result.changed or result.deleted:
+   873	            message = f"{_branch_task_ref(self.cwd)}: hub worker turn {state.turns} ({self.model})"
+   874	            try:
+   875	                commit, unstaged = await asyncio.to_thread(
+   876	                    hw.commit_sync, root, result.changed, result.deleted, message)
+   877	            except (hw.HubWorkspaceError, subprocess.SubprocessError) as exc:
+   878	                commit = f"NOT COMMITTED ({exc})"
+   879	        state.save()
+   880	        lines = [f"[hub sync] changed {len(result.changed)}, deleted {len(result.deleted)}"
+   881	                 + (f", commit {commit}" if commit else "")]
+   882	        lines.append(f"return archive {out.stat().st_size} bytes; "
+   883	                     f"transport limit {hw.MAX_TOTAL_BYTES * 2} bytes; workspace {state.ws_id}")
+   884	        if outbox_line:
+   885	            lines.append(outbox_line)
+   886	        if unstaged:
+   887	            lines.append("left uncommitted in the worktree (git refused them): "
+   888	                         + "; ".join(f"{p} ({why})" for p, why in unstaged[:20]))
+   889	        if result.conflicts:
+   890	            lines.append("conflicts (both sides changed, hub copy NOT applied): "
+   891	                         + ", ".join(result.conflicts[:20]))
+   892	        if result.rejected:
+   893	            lines.append("rejected: " + "; ".join(f"{p} ({why})" for p, why in result.rejected[:20]))
+   894	        self._sync_no_work = no_work
+   895	        return "\n".join(lines)
+   896	
+   897	    async def _run_outbox(self, ssh: hw.HubSsh, state: hw.WorkspaceState, data: bytes) -> str:
+   898	        """Run what the hub agent queued for Orchestra, then empty the file on the hub."""
+   899	        if not data.strip():
+   900	            return ""
+   901	        entries, dropped = parse_outbox(data)
+   902	        report = OutboxReport(dropped=dropped)
+   903	        try:
+   904	            await ssh.delete_files(state.remote_dir, [OUTBOX_NAME])   # each entry runs at most once
+   905	        except hw.HubWorkspaceError as exc:
+   906	            report.dropped.append(f"outbox not cleared on the hub, entries skipped: {exc}")
+   907	            entries = []
+   908	        if entries and self._bridge is None:
+   909	            report.dropped.append(f"{len(entries)} entries: this worker has no Orchestra link")
+   910	        elif entries:
+   911	            ran = await self._bridge.run(entries)
+   912	            report.done, report.dropped = ran.done, report.dropped + ran.dropped
+   913	        for reason in report.dropped:
+   914	            logger.warning("hub outbox of %s: dropped %s", state.ws_id, reason)
+   915	        return report.summary()
+   916	
+   917	    # ── accounting ──
+   918	
+   919	    def _turn_end(self, ok: bool, stop_reason: str, detail: str) -> AgentEvent:
+   920	        usage = TurnUsage(
+   225	                raise RuntimeError("cannot retarget an active GigaChat session to OpenRouter")
+   226	            self._llm.retarget(model, spec.supported_parameters, spec.input_modalities)
+   227	        self.model = model
+   228	
+   229	    # ── lifecycle ──
+   230	
+   231	    async def connect(self) -> None:
+   232	        from app.models import get_model_spec, validate_harness_model_spec
+   233	
+   234	        spec = get_model_spec(self.model)
+   235	        validate_harness_model_spec(spec)
+   236	        if spec.provider == "gigachat":
+   237	            self._llm = GigaChatClient(model=self.model)
+   238	        else:
+   239	            api_key = (os.environ.get("OPENROUTER_API_KEY")
+   240	                       or os.environ.get("OPENROUTER_KEY", ""))
+   241	            if not api_key:
+   242	                raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+   243	            base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+   244	            if base_url and not base_url.endswith("/v1"):
+   245	                base_url = base_url.rstrip("/") + "/v1"
+   246	            self._llm = OpenRouterClient(
+   247	                api_key=api_key,
+   248	                model=self.model,
+   249	                base_url=base_url,
+   250	                supported_parameters=spec.supported_parameters,
+   251	                input_modalities=spec.input_modalities,
+   252	                workspace_root=self.cwd,
+   253	            )
+   254	
+   255	        # MCP must NEVER break backend startup. connect() is atomic (clears its own state on
+   256	        # a hard error), and merge_tool_schemas can itself raise on a builtin↔MCP name
+   257	        # collision — so connect + merge live in ONE guard. On any failure we tear down any
+   258	        # children that did start and fall back to built-in tools only.
+   259	        self._mcp = MCPClient()
+   260	        try:
+   261	            await self._mcp.connect(self._mcp_servers)
+   262	            self._tool_schemas = prompts.merge_tool_schemas(
+   263	                builtin.tool_schemas(), self._offered_mcp_schemas())
+   264	        except Exception as e:
+   265	            logger.warning(f"MCP unavailable, built-in tools only: {e}")
+   266	            with contextlib.suppress(Exception):
+   267	                await self._mcp.disconnect()
+   268	            self._tool_schemas = prompts.merge_tool_schemas(builtin.tool_schemas(), [])
+   269	        self._single_call = spec.provider == "gigachat"
+   270	        self._full_system_prompt = prompts.build_system_prompt(
+   271	            self.system_prompt, cwd=self.cwd, single_call=self._single_call)
+   272	
+   273	        # Alongside the DB, not /tmp: a reboot must not erase agent history.
+   274	        session_dir = str(Path(__file__).parent.parent / "data" / "harness-sessions")
+   275	        self._store = SessionStore(session_dir, session_id=self._resume_session_id)
+   276	        if self._resume_session_id:
+   277	            self._history = self._store.load()
+   278	        self._reset_system_message()
+   279	        logger.info(f"HarnessBackend connected: model={self.model}, session={self.session_id}, "
+   280	                    f"tools={len(self._tool_schemas)}, history={len(self._history)}")
+   190	            yield AgentEvent("status", "steering carried over from the previous turn")
+   191	
+   192	        user_entry = {"role": "user", "content": user_msg}
+   193	        self.history.append(user_entry)
+   194	        self.new_messages.append(user_entry)
+   195	
+   196	        try:
+   197	            for round_no in range(self.max_rounds):
+   198	                self._round_hint = None
+   199	                remaining = self.max_rounds - round_no
+   200	                if remaining in WIND_DOWN_AT and self.max_rounds > max(WIND_DOWN_AT):
+   201	                    msg = (f"[round guard] {remaining} tool rounds remain THIS TURN — "
+   202	                           f"wrap up and report your findings now.")
+   203	                    self._round_hint = {"role": "user", "content": msg}
+   204	                    logger.warning(f"round guard: {remaining} rounds left (cap {self.max_rounds})")
+   205	                    yield AgentEvent("warning", msg)
+   206	
+   207	                if self._abort():
+   208	                    self._terminal("aborted", ok=False, detail="aborted by interrupt")
+   209	                    return
+   210	
+   211	                for _ in self._absorb_injected():
+   212	                    yield AgentEvent("status", "message steered into active turn")
+   213	
+   214	                if not self._fit_context():
+   215	                    self._terminal("context_limit", ok=False,
+   216	                                   detail="history exceeds context window even after truncation")
+   217	                    return
+   218	                if self.truncated_history:
+   219	                    self.truncated_history = False
+   220	                    msg = (f"[context guard] history truncated: {self.truncated_dropped} middle "
+   221	                           f"messages dropped to fit the window")
+   222	                    logger.warning(msg)
+   223	                    yield AgentEvent("warning", msg)
+   224	                    entry = {"role": "user", "content": msg}
+   225	                    self.history.append(entry)
+   226	                    self.new_messages.append(entry)
+   227	
+   228	                for attempt in range(2):
+   229	                    if attempt and self._abort():
+   230	                        self._terminal("aborted", ok=False, detail="aborted by interrupt")
+   231	                        return
+   232	                    assistant_msg = {"role": "assistant", "content": None}
+   233	                    try:
+   234	                        async for ev in self._one_round(assistant_msg):
+   235	                            yield ev
+   236	                        break
+   237	                    except Exception as e:
+   238	                        overflow = _is_context_overflow(e)
+   239	                        if overflow and not context_retried and attempt == 0:
+   240	                            context_retried = True
+   241	                            # Halve the actual estimate, even when below the proactive guard.
+   242	                            # Anchors remain inviolable; remove complete assistant/tool units.
+   243	                            anchors = [m for m in self.history
+   244	                                       if m.get("role") in ("system", "user")]
+   245	                            anchor_tokens = self._estimate_messages(anchors)
+   246	                            if self._round_hint:
+   247	                                anchor_tokens += self._estimate_messages([self._round_hint])
+   248	                            budget = max(anchor_tokens, self._estimate_tokens() // 2)
+   249	                            before = len(self.history)
+   250	                            fitted = self._fit_context(token_budget=budget)
+   251	                            if fitted and len(self.history) < before:
+   252	                                self.truncated_history = False
+   253	                                msg = ("[context guard] provider context overflow: history "
+   254	                                       f"truncated by {before - len(self.history)} messages; "
+   255	                                       "retrying once")
+   256	                                logger.warning(msg)
+   257	                                yield AgentEvent("warning", msg)
+   258	                                continue
+   259	                            detail = "provider context overflow: no history can be safely reduced"
+   260	                        elif overflow:
+   261	                            detail = "provider context overflow after one compaction retry"
+   262	                        else:
+   263	                            detail = str(e) or type(e).__name__
+   264	                        logger.error(f"harness loop round failed: {detail}")
+   265	                        yield AgentEvent("error", f"llm round failed: {detail}")
+   266	                        self._terminal("context_limit" if overflow else "error", ok=False,
+   267	                                       detail=f"llm_error: {detail}")
+   268	                        return
+   269	
+   270	                self.history.append(assistant_msg)
+   271	                self.new_messages.append(assistant_msg)
+   272	
+   273	                tool_calls = assistant_msg.get("tool_calls") or []
+   274	                if not tool_calls:
+   275	                    # Steering that landed while this round was streaming has no later drain
+   350	                    elif k != "index":
+   351	                        slot[k] = v          # overlay later fields (signature/data/...), never drop
+   352	
+   353	    def finished(self) -> list[dict]:
+   354	        return [self._by_index[i] for i in self._order]
+   355	
+   356	
+   357	class OpenRouterClient:
+   358	    def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_BASE_URL,
+   359	                 http: httpx.AsyncClient | None = None,
+   360	                 supported_parameters: Iterable[str] = (),
+   361	                 input_modalities: Iterable[str] = (),
+   362	                 attachments_root: str | Path | None = None,
+   363	                 workspace_root: str | Path | None = None):
+   364	        self.api_key = api_key
+   365	        self.model = model
+   366	        self.supported_parameters = frozenset(str(p) for p in supported_parameters)
+   367	        self.input_modalities = frozenset(str(m) for m in input_modalities)
+   368	        self.attachments_root = Path(attachments_root or Path(__file__).resolve().parents[2] / "data" / "uploads")
+   369	        self.workspace_root = Path(workspace_root).resolve() if workspace_root else None
+   370	        self.base_url = base_url.rstrip("/")
+   371	        # Allow injecting a client (tests); otherwise own one.
+   372	        self._http = http
+   373	        self._owns_http = http is None
+   374	
+   375	    async def _client(self) -> httpx.AsyncClient:
+   376	        if self._http is None:
+   377	            self._http = httpx.AsyncClient(
+   378	                timeout=httpx.Timeout(REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT))
+   379	        return self._http
+   380	
+   381	    async def aclose(self) -> None:
+   382	        if self._owns_http and self._http is not None:
+   383	            await self._http.aclose()
+   384	            self._http = None
+   385	
+   386	    def retarget(self, model: str, supported_parameters: Iterable[str],
+   387	                 input_modalities: Iterable[str] = ()) -> None:
+   388	        """Change the exact route and its request contract together.
+   389	
+   390	        Keeping these fields atomic prevents a seamless model switch from sending the
+   391	        previous provider's optional parameters to the new one.
+   392	        """
+   393	        self.model = model
+   394	        self.supported_parameters = frozenset(str(p) for p in supported_parameters)
+   395	        self.input_modalities = frozenset(str(m) for m in input_modalities)
+   396	
+   397	    def _prepare_messages(self, messages: list[dict]) -> list[dict]:
+   398	        """Inline only validated Telegram uploads for routes that advertise image input."""
+   399	        if "image" not in self.input_modalities:
+   400	            return messages

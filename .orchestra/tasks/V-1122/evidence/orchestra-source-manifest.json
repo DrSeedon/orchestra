@@ -1,0 +1,72 @@
+[
+  {
+    "path": "app/backend_codex.py",
+    "sha256": "ef96690394c582881f9420408b56f6903d999bc7e68d4f4032e8f0338d3cf232",
+    "bytes": 122849
+  },
+  {
+    "path": "app/backend_hub.py",
+    "sha256": "8dee6f1c4d76e089b4f96a9cbb2d9f1d98b955342e04bbfb03f403a23765cfb4",
+    "bytes": 55231
+  },
+  {
+    "path": "app/backend_harness.py",
+    "sha256": "ec12cdb462c4f453c617d72929f030c2eaf41739c29834f62f6b4dbd1fabd92e",
+    "bytes": 27865
+  },
+  {
+    "path": "app/harness/loop.py",
+    "sha256": "9e87059a53bfa755fedd00ad0a77f8ed7af208094e750cc033f71ec4224ff80d",
+    "bytes": 38209
+  },
+  {
+    "path": "app/harness/mcp.py",
+    "sha256": "4473d0ffc2780697b71a5b6dd630f6fe81ac6efc67b6bb8bfbd5a642e9e674a6",
+    "bytes": 15783
+  },
+  {
+    "path": "app/harness/tools.py",
+    "sha256": "60ac4034ea603f155f30de6a789c3c98b0553b472c06129efa04d8169d4ddd16",
+    "bytes": 30221
+  },
+  {
+    "path": "app/harness/sessions.py",
+    "sha256": "9ec5aeee92208d0a9122768d8e0bf9b16f31edce206552cae952311691e23054",
+    "bytes": 5180
+  },
+  {
+    "path": "app/harness/llm.py",
+    "sha256": "d6d415964aa2014ab8580c2af955c1e9a407cfd4f11a8e90453060d8c06e642e",
+    "bytes": 46887
+  },
+  {
+    "path": "app/hub_workspace.py",
+    "sha256": "7e3749ba92d45b4072d82239f4b3cc47be0cadaec8b0a990f18460c1cbd2a892",
+    "bytes": 63614
+  },
+  {
+    "path": "app/hub_outbox.py",
+    "sha256": "b14bbc47a4a8a3af55973f1d195b58c83de57672768ab80e59408179c33da51e",
+    "bytes": 8628
+  },
+  {
+    "path": "app/mcp_stdio.py",
+    "sha256": "ab0f5e942e550005474b0290eb49be0a7f0a2c59c76e58ea52da9e1ae50a5431",
+    "bytes": 218488
+  },
+  {
+    "path": "app/message_deliveries.py",
+    "sha256": "fb321dfb740932a927b1ae60486efc764d288ee0b5bb2821097ccc76e7e17a15",
+    "bytes": 67101
+  },
+  {
+    "path": "app/bg_jobs.py",
+    "sha256": "e02f0f5a20a2ad1d57076ece27da9318f1498b2946d4bca69faa7aedca245d39",
+    "bytes": 64717
+  },
+  {
+    "path": "app/initial_delivery_events.py",
+    "sha256": "d49497791b80a48261b0c310e270364642cba809e833143666c07c90a5c8ab7f",
+    "bytes": 8128
+  }
+]

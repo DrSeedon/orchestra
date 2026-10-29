@@ -1,0 +1,111 @@
+     1	"""Background job helpers for the agent side of the async-jobs feature.
+     2	
+     3	This is a leaf module (stdlib only) so the handlers and the WS client can all
+     4	import it without a cycle. It owns two things:
+     5	
+     6	1. The background execution limits (timeout ceiling, event output cap).
+     7	2. Building the ``job_completed`` event payload from an executor dispatch
+     8	   response — the payload the agent emits over the existing ``EventMessage``
+     9	   channel (kind="job_completed") when a background op finishes.
+    10	
+    11	See sentinelx-notifications-integration-spec.md §2e (schema) and §3b (frame).
+    12	"""
+    13	
+    14	from __future__ import annotations
+    15	
+    16	from datetime import datetime
+    17	from typing import Any
+    18	
+    19	# When an op runs with background=true its wall-clock ceiling is raised from
+    20	# the interactive default (script_run's 600s / exec's policy max) to this, so
+    21	# genuinely long jobs — the whole point of the feature — aren't rejected. The
+    22	# handler still enforces it via its own asyncio.wait_for; the hub keeps a §3d
+    23	# hard-timeout / agent-disconnect reaper as the backstop.
+    24	BACKGROUND_TIMEOUT_MAX = 3600  # 1 hour
+    25	
+    26	# The job_completed event carries the output inline. Cap it well under the
+    27	# protocol frame limit (sentinelx_protocol.MAX_FRAME_BYTES = 1 MiB); the hub
+    28	# stores this copy and serves it via notifications(get). Larger real outputs
+    29	# are truncated here with a flag so the caller knows the tail was dropped.
+    30	MAX_EVENT_OUTPUT_BYTES = 256 * 1024  # 256 KiB
+    31	
+    32	
+    33	def _truncate_output(text: str | None) -> tuple[str, bool]:
+    34	    """Return (possibly-truncated text, was_truncated). Byte-bounded so a
+    35	    multibyte tail can't push us over the frame cap; splits on a char
+    36	    boundary via errors='replace' on decode."""
+    37	    if not text:
+    38	        return "", False
+    39	    raw = text.encode("utf-8", errors="replace")
+    40	    if len(raw) <= MAX_EVENT_OUTPUT_BYTES:
+    41	        return text, False
+    42	    clipped = raw[:MAX_EVENT_OUTPUT_BYTES].decode("utf-8", errors="replace")
+    43	    return clipped, True
+    44	
+    45	
+    46	def build_completed_event_data(
+    47	    *,
+    48	    job_id: str,
+    49	    op: str,
+    50	    host: str,
+    51	    dispatch_response: dict[str, Any],
+    52	    started_at: datetime,
+    53	    finished_at: datetime,
+    54	) -> dict[str, Any]:
+    55	    """Translate an ``Executor.dispatch`` response into the job_completed
+    56	    event ``data`` payload.
+    57	
+    58	    ``dispatch_response`` is the dict returned by Executor.dispatch (or the
+    59	    client's internal-error fallback):
+    60	      - success:  {"ok": True,  "result": {<handler result>}, ...}
+    61	      - handler error / crash: {"ok": False, "error": {"code", "message", ...}}
+    62	
+    63	    Status mapping:
+    64	      - ok False                         -> "failed"   (handler raised)
+    65	      - ok True + result.timed_out       -> "timeout"  (wall-clock exceeded)
+    66	      - ok True + returncode == 0        -> "succeeded"
+    67	      - ok True + returncode != 0        -> "failed"
+    68	
+    69	    The handler result shapes vary (script_run vs exec vs others) but all the
+    70	    executing ops expose ``returncode`` and ``output``; ``timed_out`` is set by
+    71	    the handlers' timeout branch (see script.py / executor_engine.run_shell).
+    72	    """
+    73	    ok = bool(dispatch_response.get("ok"))
+    74	    result = dispatch_response.get("result") or {}
+    75	    error = dispatch_response.get("error") or {}
+    76	    duration_s = round((finished_at - started_at).total_seconds(), 2)
+    77	
+    78	    if not ok:
+    79	        status = "failed"
+    80	        exit_code: int | None = None
+    81	        output = ""
+    82	        error_msg: str | None = (
+    83	            error.get("message") if isinstance(error, dict) else str(error)
+    84	        ) or "operation failed"
+    85	    else:
+    86	        returncode = result.get("returncode")
+    87	        if result.get("timed_out"):
+    88	            status = "timeout"
+    89	        elif returncode == 0:
+    90	            status = "succeeded"
+    91	        else:
+    92	            status = "failed"
+    93	        exit_code = returncode if isinstance(returncode, int) else None
+    94	        output = result.get("output") or ""
+    95	        error_msg = None
+    96	
+    97	    clipped_output, output_truncated = _truncate_output(output)
+    98	
+    99	    return {
+   100	        "job_id": job_id,
+   101	        "tool": op,
+   102	        "host": host,
+   103	        "status": status,
+   104	        "exit_code": exit_code,
+   105	        "started_at": started_at.isoformat(),
+   106	        "finished_at": finished_at.isoformat(),
+   107	        "duration_s": duration_s,
+   108	        "output": clipped_output,
+   109	        "output_truncated": output_truncated,
+   110	        "error": error_msg,
+   111	    }

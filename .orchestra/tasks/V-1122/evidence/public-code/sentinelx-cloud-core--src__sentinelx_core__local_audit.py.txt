@@ -1,0 +1,306 @@
+     1	"""On-host audit log: append each executed op (with payload) to a local JSONL file.
+     2	
+     3	This is the host-side counterpart to the hub's metadata ring buffer. Unlike the
+     4	hub — which deliberately stores only metadata (op, host, time, status) and never
+     5	the payload — this log keeps the full payload of each operation, on the host
+     6	itself. It is the only place the actual command/script/content is retained, it
+     7	never leaves the host except in response to a `read_audit` op, and it is the host
+     8	owner's own record.
+     9	
+    10	Format: JSON Lines (one JSON object per line), append-only, at AUDIT_PATH.
+    11	Retention: capped at MAX_LINES; when exceeded, the file is trimmed to the most
+    12	recent MAX_LINES entries. Per-host, so this is far more history than the hub's
+    13	shared buffer holds for any one user.
+    14	
+    15	Design constraints:
+    16	- Writing must NEVER break the operation being audited. Every failure here is
+    17	  swallowed (best-effort) — a broken log is not worth failing a real op over.
+    18	- No redaction: entries are stored as-is. The payload may contain secrets the
+    19	  user themselves passed; that is their record on their own machine.
+    20	- No bulk data: file bytes (content_base64) are kept as their size and SHA-256,
+    21	  and any text field over MAX_FIELD_CHARS as its size, SHA-256 and first 2 KB.
+    22	  Retention counts lines, and a 1.4 MB upload chunk per line grew one host's log
+    23	  to ~1.7 GB in an hour (sxrep_1G8KEZHMGKBA). Commands and scripts stay whole.
+    24	"""
+    25	from __future__ import annotations
+    26	
+    27	import base64
+    28	import hashlib
+    29	import json
+    30	import logging
+    31	import os
+    32	import sys
+    33	import tempfile
+    34	import threading
+    35	from datetime import UTC, datetime
+    36	from pathlib import Path
+    37	from typing import Any
+    38	
+    39	logger = logging.getLogger(__name__)
+    40	
+    41	# Default location, resolved cross-platform. An explicit SENTINELX_AUDIT_PATH
+    42	# always wins (installers set it per mode). Otherwise: on Linux, /var/lib is the
+    43	# canonical home for variable application state and is owned by the agent user;
+    44	# on macOS there is no /var/lib, so fall back to the user's Library/Logs, which
+    45	# is writable for user-mode installs. System-mode (LaunchDaemon) installs point
+    46	# SENTINELX_AUDIT_PATH at a path their service user owns.
+    47	def _default_audit_path() -> Path:
+    48	    override = os.environ.get("SENTINELX_AUDIT_PATH")
+    49	    if override:
+    50	        return Path(override)
+    51	    if sys.platform == "win32":
+    52	        base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    53	        return Path(base) / "SentinelX" / "audit.jsonl"
+    54	    if sys.platform == "darwin":
+    55	        return Path.home() / "Library" / "Logs" / "sentinelx" / "audit.jsonl"
+    56	    return Path("/var/lib/sentinelx/audit.jsonl")
+    57	
+    58	
+    59	AUDIT_PATH = _default_audit_path()
+    60	
+    61	# Retention: keep the most recent N entries. Matches the hub ring buffer size
+    62	# for conceptual consistency, but because this is per-host it represents far
+    63	# more real history than 5000 shared entries ever would.
+    64	MAX_LINES = 5000
+    65	
+    66	# Only trim once we've drifted a bit past the cap, so we're not rewriting the
+    67	# whole file on every single append once it's full. Amortizes the trim cost.
+    68	TRIM_TRIGGER = MAX_LINES + 500
+    69	
+    70	# How often the retention CHECK itself runs. Counting the log's lines means
+    71	# reading the whole file, and 5000 retained rows of full payloads is several
+    72	# megabytes — paid on every single audited op if checked every time (issue
+    73	# #31). Instead the count is taken on the first audited write after process
+    74	# start (so an oversized log left behind by an earlier run is repaired
+    75	# promptly) and then once every RETENTION_CHECK_EVERY writes.
+    76	#
+    77	# Deliberately NOT a persisted line-count cache: re-reading the real file is
+    78	# what keeps us tolerant of external rotation or truncation. The existing
+    79	# TRIM_TRIGGER hysteresis is unchanged; this cadence only adds a bounded
+    80	# overshoot of at most RETENTION_CHECK_EVERY - 1 further rows.
+    81	RETENTION_CHECK_EVERY = 100
+    82	
+    83	# Block size for reading the log's tail backwards. One block covers a typical
+    84	# read_audit(limit=50) comfortably; a single record larger than a block is
+    85	# handled by reading further blocks, never by truncating the record.
+    86	_TAIL_BLOCK_SIZE = 64 * 1024
+    87	
+    88	# Guarded because record() can be called from more than one thread (handlers
+    89	# now run in the default executor).
+    90	_retention_lock = threading.Lock()
+    91	_writes_since_check = 0
+    92	_checked_this_process = False
+    93	
+    94	# Ops we never record, to avoid noise / recursion. read_audit reads this very
+    95	# log; auditing the read would grow the log every time someone views it.
+    96	SKIP_OPS = frozenset({"read_audit", "ping"})
+    97	
+    98	# Fields that carry file bytes rather than a description of what was done.
+    99	_BINARY_FIELDS = frozenset({"content_base64"})
+   100	MAX_FIELD_CHARS = 65536
+   101	_HEAD_CHARS = 2048
+   102	
+   103	
+   104	def _binary_summary(b64: str) -> dict[str, Any]:
+   105	    try:
+   106	        raw = base64.b64decode(b64, validate=False)
+   107	    except Exception:  # noqa: BLE001 - keep what can be said about it
+   108	        return {"omitted": "base64", "chars": len(b64)}
+   109	    return {"omitted": "base64", "bytes": len(raw),
+   110	            "sha256": hashlib.sha256(raw).hexdigest()}
+   111	
+   112	
+   113	def _compact(value: Any) -> Any:
+   114	    """A copy of a payload without bulk data; the original is left alone."""
+   115	    if isinstance(value, dict):
+   116	        return {
+   117	            k: _binary_summary(v) if k in _BINARY_FIELDS and isinstance(v, str) else _compact(v)
+   118	            for k, v in value.items()
+   119	        }
+   120	    if isinstance(value, list):
+   121	        return [_compact(v) for v in value]
+   122	    if isinstance(value, str) and len(value) > MAX_FIELD_CHARS:
+   123	        return {"omitted": "text", "chars": len(value),
+   124	                "sha256": hashlib.sha256(value.encode("utf-8", "replace")).hexdigest(),
+   125	                "head": value[:_HEAD_CHARS]}
+   126	    return value
+   127	
+   128	
+   129	# A payload marked secret=true (an edit the hub sends from a secret link page)
+   130	# keeps everything that says what was done, but not the text: the user typed a
+   131	# credential into that page precisely so it would not be recorded anywhere. Not
+   132	# even a hash: a hash of a short secret can be guessed.
+   133	_SECRET_FIELDS = ("new_text", "old")
+   134	
+   135	
+   136	def _without_secret(payload: Any) -> Any:
+   137	    if not isinstance(payload, dict) or payload.get("secret") is not True:
+   138	        return payload
+   139	    out = dict(payload)
+   140	    for k in _SECRET_FIELDS:
+   141	        if isinstance(out.get(k), str):
+   142	            out[k] = {"omitted": "secret", "chars": len(out[k])}
+   143	    return out
+   144	
+   145	
+   146	def record(op: str, payload: dict[str, Any], ok: bool,
+   147	           error: str | None = None, duration_ms: int | None = None,
+   148	           result_ok: bool | None = None,
+   149	           result_returncode: int | None = None) -> None:
+   150	    """Append one entry to the local audit log. Best-effort; never raises.
+   151	
+   152	    `ok` keeps its historical meaning: the handler completed without raising
+   153	    (dispatch-level success). It is NOT the outcome of whatever the handler
+   154	    ran. An op like script_run reports a failed child as a normal nested
+   155	    result — {"ok": false, "returncode": 7} — so an audit that only carried
+   156	    `ok` showed a failed script as ok=true with nothing to say otherwise
+   157	    (issue #30).
+   158	
+   159	    `result_ok` / `result_returncode` carry that nested outcome when the
+   160	    handler's result has one. Both are optional and omitted when absent, so
+   161	    entries written before this existed stay valid and readers that ignore
+   162	    the fields keep working. Only these two scalars are lifted — never
+   163	    stdout, stderr or any other result body.
+   164	    """
+   165	    if op in SKIP_OPS:
+   166	        return
+   167	    try:
+   168	        entry: dict[str, Any] = {
+   169	            "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
+   170	            "op": op,
+   171	            "payload": _compact(_without_secret(payload)),
+   172	            "ok": ok,
+   173	            "error": error,
+   174	            "duration_ms": duration_ms,
+   175	        }
+   176	        if result_ok is not None:
+   177	            entry["result_ok"] = bool(result_ok)
+   178	        if result_returncode is not None:
+   179	            entry["result_returncode"] = int(result_returncode)
+   180	        line = json.dumps(entry, ensure_ascii=False, default=str)
+   181	
+   182	        AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+   183	        with AUDIT_PATH.open("a", encoding="utf-8") as f:
+   184	            f.write(line + "\n")
+   185	
+   186	        if _should_check_retention():
+   187	            _maybe_trim()
+   188	    except Exception as exc:  # never let auditing break the op
+   189	        logger.warning("local_audit_write_failed: %s", exc)
+   190	
+   191	
+   192	def _should_check_retention() -> bool:
+   193	    """True on this process's first audited write and every
+   194	    RETENTION_CHECK_EVERY writes after that.
+   195	
+   196	    The append itself is O(1); it was the retention CHECK that read the
+   197	    whole log on every op (issue #31). Keeping the cadence in memory —
+   198	    rather than caching a line count on disk — means every check still
+   199	    measures the real file, so external rotation or truncation is picked
+   200	    up at the next check instead of being masked by a stale cache.
+   201	    """
+   202	    global _writes_since_check, _checked_this_process
+   203	    with _retention_lock:
+   204	        if not _checked_this_process:
+   205	            _checked_this_process = True
+   206	            _writes_since_check = 0
+   207	            return True
+   208	        _writes_since_check += 1
+   209	        if _writes_since_check >= RETENTION_CHECK_EVERY:
+   210	            _writes_since_check = 0
+   211	            return True
+   212	        return False
+   213	
+   214	
+   215	def _reset_retention_state() -> None:
+   216	    """Forget the cadence, as if the process had just started. Test-only."""
+   217	    global _writes_since_check, _checked_this_process
+   218	    with _retention_lock:
+   219	        _writes_since_check = 0
+   220	        _checked_this_process = False
+   221	
+   222	
+   223	def _maybe_trim() -> None:
+   224	    """If the log has grown past TRIM_TRIGGER lines, rewrite it keeping the
+   225	    most recent MAX_LINES. Atomic replace so a crash mid-trim can't corrupt or
+   226	    truncate the live file."""
+   227	    try:
+   228	        # Cheap line count without loading the whole file into memory.
+   229	        with AUDIT_PATH.open("rb") as f:
+   230	            count = sum(1 for _ in f)
+   231	        if count <= TRIM_TRIGGER:
+   232	            return
+   233	
+   234	        with AUDIT_PATH.open("r", encoding="utf-8") as f:
+   235	            lines = f.readlines()
+   236	        keep = lines[-MAX_LINES:]
+   237	
+   238	        # Write to a temp file in the same dir, then atomically replace.
+   239	        fd, tmp = tempfile.mkstemp(dir=str(AUDIT_PATH.parent), prefix=".audit-", suffix=".tmp")
+   240	        try:
+   241	            with os.fdopen(fd, "w", encoding="utf-8") as out:
+   242	                out.writelines(keep)
+   243	            os.replace(tmp, AUDIT_PATH)
+   244	        except Exception:
+   245	            # Clean up the temp file if the replace didn't happen.
+   246	            try:
+   247	                os.unlink(tmp)
+   248	            except OSError:
+   249	                pass
+   250	            raise
+   251	    except Exception as exc:
+   252	        logger.warning("local_audit_trim_failed: %s", exc)
+   253	
+   254	
+   255	def _read_tail_lines(path: Path, limit: int) -> list[bytes]:
+   256	    """Return at most the last `limit` physical lines of `path`, oldest first.
+   257	
+   258	    Reads backwards from EOF in _TAIL_BLOCK_SIZE blocks and stops as soon as
+   259	    enough newlines have been seen, so a 50-entry request touches kilobytes
+   260	    instead of the whole retained log (issue #31). A record longer than one
+   261	    block simply costs another block — records are never split.
+   262	    """
+   263	    with path.open("rb") as f:
+   264	        f.seek(0, os.SEEK_END)
+   265	        pos = f.tell()
+   266	        buf = b""
+   267	        # `<= limit` rather than `< limit`: the log normally ends with a
+   268	        # newline, so N complete lines carry N newlines and the first one
+   269	        # seen going backwards closes the newest line rather than opening it.
+   270	        while pos > 0 and buf.count(b"\n") <= limit:
+   271	            step = min(_TAIL_BLOCK_SIZE, pos)
+   272	            pos -= step
+   273	            f.seek(pos)
+   274	            buf = f.read(step) + buf
+   275	
+   276	    return buf.splitlines()[-limit:]
+   277	
+   278	
+   279	def read_recent(limit: int = 200) -> list[dict[str, Any]]:
+   280	    """Return the most recent `limit` entries, newest first. Best-effort:
+   281	    returns whatever parses; a malformed line is skipped, not fatal.
+   282	
+   283	    Only the newest `limit` PHYSICAL lines are ever inspected. A malformed
+   284	    line among them is skipped and NOT backfilled from further back in the
+   285	    log — the caller asked for the last N rows, not for N parseable rows.
+   286	    That is the historical behaviour, kept deliberately.
+   287	    """
+   288	    limit = max(1, min(int(limit), MAX_LINES))
+   289	    try:
+   290	        if not AUDIT_PATH.exists():
+   291	            return []
+   292	        tail = _read_tail_lines(AUDIT_PATH, limit)
+   293	    except Exception as exc:
+   294	        logger.warning("local_audit_read_failed: %s", exc)
+   295	        return []
+   296	
+   297	    out: list[dict[str, Any]] = []
+   298	    for raw in reversed(tail):
+   299	        line = raw.decode("utf-8", errors="replace").strip()
+   300	        if not line:
+   301	            continue
+   302	        try:
+   303	            out.append(json.loads(line))
+   304	        except (json.JSONDecodeError, TypeError):
+   305	            continue
+   306	    return out

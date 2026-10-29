@@ -1,0 +1,4 @@
+2026-10-29T09:15:48Z
+.git: absent
+app: present
+uv 0.11.28 (x86_64-unknown-linux-gnu)

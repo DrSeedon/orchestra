@@ -1,0 +1,158 @@
+17:    17	Policy.resolve_path(need_write=True)). This is a hardening over legacy
+19:    19	on filesystem permissions + sudo policy — meaning a compromised hub
+106:   106	def _helper_command(binary: str, sudo: bool) -> list[str]:
+114:   114	    Elsewhere the binary stays, because a sudo edit is authorised by sudoers for
+117:   117	    if sys.platform == "win32" and not sudo:
+127:   127	    """Mirror the legacy EditRequest validators."""
+134:   134	    validator = payload.get("validator")
+135:   135	    validator_preset = payload.get("validator_preset")
+136:   136	    if validator and validator_preset:
+139:   139	            "cannot use 'validator' and 'validator_preset' together",
+141:   141	    if validator_preset and validator_preset not in VALID_PRESETS:
+144:   144	            f"validator_preset must be one of: {', '.join(VALID_PRESETS)}",
+188:   188	    sudo: bool,
+199:   199	    backup_dir: str | None = None,
+200:   200	    validator: str | None = None,
+201:   201	    validator_preset: str | None = None,
+206:   206	    no_backup: bool = False,
+212:   212	    if sudo:
+213:   213	        argv.append("sudo")
+214:   214	    argv.extend(_helper_command(binary, sudo) + [path, "--mode", mode])
+246:   246	    if backup_dir:
+247:   247	        argv.extend(["--backup-dir", backup_dir])
+248:   248	    if validator:
+249:   249	        argv.extend(["--validator", validator])
+250:   250	    if validator_preset:
+251:   251	        argv.extend(["--validator-preset", validator_preset])
+260:   260	    if no_backup:
+261:   261	        argv.append("--no-backup")
+306:   306	        sudo = bool(payload.get("sudo", False))
+319:   319	        # sudo does NOT exempt an edit from this. It used to: the
+320:   320	        # reasoning was that a sudo edit crossed a separate boundary,
+321:   321	        # the operator's sudoers fragment, assumed to be locked to the
+333:   333	        # instead of an invisible property of the sudo flag.
+334:   334	        resolved = policy.resolve_path(str(path), need_write=True)
+336:   336	            # Under an rw entry (sudo or not): use the canonical path.
+339:   339	            # Not under any rw entry: reject, sudo or not. This is the
+348:   348	                "writable allowlist entry. sudo does not lift this: to "
+356:   356	        # secret=true: the hub is writing a credential the user typed into a
+357:   357	        # secret link page. It must not survive anywhere but the target: no
+359:   359	        # file. local_audit.record keeps the op and path but not the text.
+360:   360	        secret = payload.get("secret") is True
+361:   361	        if secret and (payload.get("diff") or payload.get("create") or payload.get("backup_dir")):
+364:   364	                "secret edits take no diff, create or backup_dir",
+377:   377	                sudo=sudo,
+388:   388	                backup_dir=payload.get("backup_dir"),
+389:   389	                validator=payload.get("validator"),
+390:   390	                validator_preset=payload.get("validator_preset"),
+395:   395	                no_backup=secret or bool(payload.get("no_backup", False)),
+403:   403	                "sudo": sudo,
+516:   516	        sudo = bool(payload.get("sudo", False))
+532:   532	        if payload.get("validator") and payload.get("validator_preset"):
+535:   535	                "cannot use 'validator' and 'validator_preset' together",
+550:   550	        # longer is). sudo does not exempt it either.
+551:   551	        resolved = policy.resolve_path(str(path), need_write=True)
+562:   562	                "writable allowlist entry. sudo does not lift this: to "
+575:   575	        # without --new-file leaves the target file empty). The validator
+600:   600	            sudo=sudo,
+609:   609	            backup_dir=payload.get("backup_dir"),
+610:   610	            validator=payload.get("validator"),
+611:   611	            validator_preset=payload.get("validator_preset"),
+626:   626	                "sudo": sudo,
+54:    54	    """Reject redirects so an attacker can't bounce a vetted URL into a
+57:    57	    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+60:    60	            f"redirect to {newurl} blocked (file_url does not follow redirects)",
+65:    65	def _is_safe_ip(ip: str) -> bool:
+92:    92	      1. Scheme must be https.
+95:    95	         _is_safe_ip(). This catches DNS rebinding where the host is
+111:   111	    if scheme != "https":
+112:   112	        raise HandlerError("invalid_payload", "file_url must be https")
+117:   117	            "file_url fetching is disabled (trusted_fetch_hosts not configured). "
+118:   118	            f"Add hosts to security.trusted_fetch_hosts in {_pg.CONFIG_PATH}.",
+125:   125	            f"hostname '{host}' isn't in security.trusted_fetch_hosts. Add "
+141:   141	        if not _is_safe_ip(ip):
+237:   237	    """Download a URL into `dest`. Returns (size, sha256_hex).
+240:   240	    and disables redirects so a vetted host can't bounce us elsewhere.
+246:   246	        # follow Location headers — we re-validate any redirect target.
+248:   248	        hasher = hashlib.sha256()
+287:   287	    return len(raw), hashlib.sha256(raw).hexdigest()
+309:   309	    rules. Never trusts meta['target_path'] as-is (GHSA-r2h3-76g7-m95x)."""
+310:   310	    target = str(meta.get("target_path") or "")
+312:   312	        raise HandlerError("invalid_state", "upload has no target_path")
+316:   316	        resolved = policy.resolve_path(target, need_write=True)
+332:   332	            f"target_path {target} is not under the agent's upload_base directory.",
+341:   341	        target_path = payload.get("target_path")
+347:   347	        if not target_path:
+348:   348	            raise HandlerError("invalid_payload", "missing 'target_path'")
+357:   357	            dest = safe_path_under(upload_base, str(target_path))
+361:   361	                f"target_path rejected: {exc}. It must resolve to a location "
+381:   381	                size, sha256 = _decode_base64_to(content_b64, tmp)
+383:   383	                size, sha256 = await _fetch_url(
+386:   386	                    trusted_hosts=policy.trusted_fetch_hosts,
+400:   400	            "target_path": str(dest),
+402:   402	            "sha256": sha256,
+411:   411	        target_path = payload.get("target_path")
+419:   419	        if not target_path:
+420:   420	            raise HandlerError("invalid_payload", "missing 'target_path'")
+431:   431	        # resolve_path(need_write=True) canonicalises symlinks and defeats
+438:   438	            resolved_rw = policy.resolve_path(str(target_path), need_write=True)
+444:   444	                dest = safe_path_under(upload_base, str(target_path))
+448:   448	                    f"target_path rejected: {exc}. It must resolve to a location "
+467:   467	            "target_path": str(target_path) if landed else str(dest),
+480:   480	            "target_path": str(dest),
+534:   534	        sha256_expected = payload.get("sha256")
+557:   557	        hasher = hashlib.sha256()
+582:   582	        sha256 = hasher.hexdigest()
+591:   591	        if sha256_expected:
+602:   602	            expected_norm = str(sha256_expected).strip().lower()
+607:   607	                    "invalid_sha256",
+608:   608	                    f"{sha256_expected!r} is not a valid hex SHA-256 digest. "
+613:   613	                    "invalid_sha256",
+617:   617	            if expected_norm != sha256:
+620:   620	                    f"sha256 does not match: the assembled file hashes to "
+621:   621	                    f"{sha256}, the upload declared {expected_norm}. The bytes "
+638:   638	            "target_path": str(dest),
+640:   640	            "sha256": sha256,
+1:     1	"""On-host audit log: append each executed op (with payload) to a local JSONL file.
+7:     7	never leaves the host except in response to a `read_audit` op, and it is the host
+11:    11	Retention: capped at MAX_LINES; when exceeded, the file is trimmed to the most
+12:    12	recent MAX_LINES entries. Per-host, so this is far more history than the hub's
+16:    16	- Writing must NEVER break the operation being audited. Every failure here is
+18:    18	- No redaction: entries are stored as-is. The payload may contain secrets the
+21:    21	  and any text field over MAX_FIELD_CHARS as its size, SHA-256 and first 2 KB.
+42:    42	# always wins (installers set it per mode). Otherwise: on Linux, /var/lib is the
+45:    45	# is writable for user-mode installs. System-mode (LaunchDaemon) installs point
+47:    47	def _default_audit_path() -> Path:
+53:    53	        return Path(base) / "SentinelX" / "audit.jsonl"
+55:    55	        return Path.home() / "Library" / "Logs" / "sentinelx" / "audit.jsonl"
+56:    56	    return Path("/var/lib/sentinelx/audit.jsonl")
+59:    59	AUDIT_PATH = _default_audit_path()
+64:    64	MAX_LINES = 5000
+68:    68	TRIM_TRIGGER = MAX_LINES + 500
+72:    72	# megabytes — paid on every single audited op if checked every time (issue
+73:    73	# #31). Instead the count is taken on the first audited write after process
+78:    78	# what keeps us tolerant of external rotation or truncation. The existing
+84:    84	# read_audit(limit=50) comfortably; a single record larger than a block is
+94:    94	# Ops we never record, to avoid noise / recursion. read_audit reads this very
+95:    95	# log; auditing the read would grow the log every time someone views it.
+96:    96	SKIP_OPS = frozenset({"read_audit", "ping"})
+100:   100	MAX_FIELD_CHARS = 65536
+122:   122	    if isinstance(value, str) and len(value) > MAX_FIELD_CHARS:
+129:   129	# A payload marked secret=true (an edit the hub sends from a secret link page)
+132:   132	# even a hash: a hash of a short secret can be guessed.
+136:   136	def _without_secret(payload: Any) -> Any:
+137:   137	    if not isinstance(payload, dict) or payload.get("secret") is not True:
+142:   142	            out[k] = {"omitted": "secret", "chars": len(out[k])}
+150:   150	    """Append one entry to the local audit log. Best-effort; never raises.
+155:   155	    result — {"ok": false, "returncode": 7} — so an audit that only carried
+171:   171	            "payload": _compact(_without_secret(payload)),
+188:   188	    except Exception as exc:  # never let auditing break the op
+189:   189	        logger.warning("local_audit_write_failed: %s", exc)
+193:   193	    """True on this process's first audited write and every
+199:   199	    measures the real file, so external rotation or truncation is picked
+225:   225	    most recent MAX_LINES. Atomic replace so a crash mid-trim can't corrupt or
+236:   236	        keep = lines[-MAX_LINES:]
+239:   239	        fd, tmp = tempfile.mkstemp(dir=str(AUDIT_PATH.parent), prefix=".audit-", suffix=".tmp")
+252:   252	        logger.warning("local_audit_trim_failed: %s", exc)
+288:   288	    limit = max(1, min(int(limit), MAX_LINES))
+294:   294	        logger.warning("local_audit_read_failed: %s", exc)

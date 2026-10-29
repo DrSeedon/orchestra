@@ -1,0 +1,80 @@
+     1	"""SentinelX wire protocol — shared between core and hub."""
+     2	
+     3	PROTOCOL_VERSION = "1.13.2"
+     4	PROTOCOL_MAJOR = 1
+     5	
+     6	MAX_FRAME_BYTES = 1_048_576  # 1 MB
+     7	RECOMMENDED_CHUNK_BYTES = 262_144  # 256 KB
+     8	HEARTBEAT_INTERVAL_SECONDS = 30
+     9	HEARTBEAT_TIMEOUT_SECONDS = 90
+    10	
+    11	from sentinelx_protocol.messages import (
+    12	    ConfigSummary,
+    13	    ErrorMessage,
+    14	    EventMessage,
+    15	    HelloMessage,
+    16	    HostInfo,
+    17	    PingMessage,
+    18	    PongMessage,
+    19	    RequestMessage,
+    20	    ResponseError,
+    21	    ResponseMessage,
+    22	    WelcomeMessage,
+    23	    parse_message,
+    24	)
+    25	from sentinelx_protocol.binary import (
+    26	    BINARY_HEADER_BYTES,
+    27	    MAX_BINARY_FRAME_BYTES,
+    28	    TRANSFER_CHUNK_BYTES,
+    29	    TRANSFER_ID_BYTES,
+    30	    BinaryFrame,
+    31	    BinaryFrameError,
+    32	    decode_binary_frame,
+    33	    encode_binary_frame,
+    34	    is_binary_transfer_frame,
+    35	)
+    36	
+    37	from sentinelx_protocol.bounding import (
+    38	    RESPONSE_SOFT_LIMIT_BYTES,
+    39	    RESPONSE_HEAD_RATIO,
+    40	    TRUNCATION_KEY,
+    41	    bound_response,
+    42	    serialized_size,
+    43	)
+    44	
+    45	__all__ = [
+    46	    "PROTOCOL_VERSION",
+    47	    "PROTOCOL_MAJOR",
+    48	    "MAX_FRAME_BYTES",
+    49	    "RECOMMENDED_CHUNK_BYTES",
+    50	    "HEARTBEAT_INTERVAL_SECONDS",
+    51	    "HEARTBEAT_TIMEOUT_SECONDS",
+    52	    "HelloMessage",
+    53	    "HostInfo",
+    54	    "ConfigSummary",
+    55	    "WelcomeMessage",
+    56	    "RequestMessage",
+    57	    "ResponseMessage",
+    58	    "ResponseError",
+    59	    "PingMessage",
+    60	    "PongMessage",
+    61	    "EventMessage",
+    62	    "ErrorMessage",
+    63	    "parse_message",
+    64	    # response bounding (issue #24, repro C)
+    65	    "RESPONSE_SOFT_LIMIT_BYTES",
+    66	    "RESPONSE_HEAD_RATIO",
+    67	    "TRUNCATION_KEY",
+    68	    "bound_response",
+    69	    "serialized_size",
+    70	    # binary transfer framing (cross-host file transfer)
+    71	    "BINARY_HEADER_BYTES",
+    72	    "MAX_BINARY_FRAME_BYTES",
+    73	    "TRANSFER_CHUNK_BYTES",
+    74	    "TRANSFER_ID_BYTES",
+    75	    "BinaryFrame",
+    76	    "BinaryFrameError",
+    77	    "decode_binary_frame",
+    78	    "encode_binary_frame",
+    79	    "is_binary_transfer_frame",
+    80	]

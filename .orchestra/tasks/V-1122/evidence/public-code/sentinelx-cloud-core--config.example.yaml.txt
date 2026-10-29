@@ -1,0 +1,1408 @@
+     1	# ============================================================================
+     2	# AGENT PROFILE (optional) — advisory MCP toolset preference
+     3	# ============================================================================
+     4	# Advertise which MCP toolset profile this host prefers: 'compact' or 'full'.
+     5	# ADVISORY only: an explicit dashboard/connection choice always wins; the hub
+     6	# applies 'compact' only when ALL of your connected agents agree (a mix never
+     7	# collapses the connection's toolset); an invalid value is sanitized to no
+     8	# preference. Omit entirely (the default) and stock SentinelX gets the full
+     9	# catalog. Uncomment to use:
+    10	#
+    11	# agent:
+    12	#   preferred_profile: compact   # compact | full
+    13	
+    14	# Default config for sentinelx-cloud-core.
+    15	#
+    16	# Edit this file to control what the agent can do, then restart the service:
+    17	#   sudo systemctl restart sentinelx-cloud-core
+    18	#
+    19	# Security model:
+    20	#   - 'exec' op only runs command lines covered by allowed_commands (see exec_mode)
+    21	#   - 'edit' op respects unix file permissions (sudo NOPASSWD if installed)
+    22	#   - 'service' op only manages units listed in `services:` below
+    23	#
+    24	# When in doubt, less is more. You can always add more later.
+    25	
+    26	# ============================================================================
+    27	# Ops this host will not perform at all.
+    28	#
+    29	# An op named here is not built at all: it disappears from `capabilities` and
+    30	# any call to it is answered `unsupported_op`, exactly as if this agent had
+    31	# never shipped it.
+    32	#
+    33	# READ THIS IF YOU CAME HERE FROM allowed_commands. That list governs the
+    34	# `exec` op and nothing else. `script_run` hands a script body to an
+    35	# interpreter and has never been bound by it, so an empty allowed_commands
+    36	# does NOT mean "this host runs nothing" -- it means "this host runs nothing
+    37	# THROUGH exec". If you want the stronger statement, that is what this key is
+    38	# for:
+    39	#
+    40	#   disabled_ops:
+    41	#     - script_run
+    42	#
+    43	# ping, capabilities, state and help cannot be switched off. They are how the
+    44	# hub learns what this host is and whether it is alive; an agent that cannot
+    45	# answer them still holds a slot and still looks connected, which is worse
+    46	# than one that is absent.
+    47	# ============================================================================
+    48	disabled_ops: []
+    49	
+    50	# ============================================================================
+    51	# How `exec` decides what may run. Three modes:
+    52	#
+    53	#   exec_mode: allowlist     (the default)
+    54	#     Every command in the line must be covered by allowed_commands below, not
+    55	#     just the first: the line is split on ; && || | & and newlines (outside
+    56	#     quotes), and commands inside $(...), backticks and <( ) are checked too.
+    57	#     Entries match whole words: `ls` allows `ls -la`, not `lsof`. Free in any
+    58	#     position: cd, shell grammar (if/then/else/fi, for/do/done, while...),
+    59	#     harmless builtins (set, test, true, read...), and read-only filters after
+    60	#     the first command (head, grep, sort, cut, wc...) when they get no file and
+    61	#     no write option. `VAR=value cmd` must match an entry as written.
+    62	#     bash -lc '...' is one argument and isn't looked into: allowing bash (or
+    63	#     sh, python3, php, node) allows anything.
+    64	#
+    65	#   exec_mode: strict
+    66	#     As allowlist, and newlines, $(...)/backticks and file redirections are
+    67	#     refused outright. This is what `exec_strict: true` meant; it still works.
+    68	#
+    69	#   exec_mode: unrestricted
+    70	#     For trusted development hosts: exec runs any command line under the
+    71	#     agent's identity, as script_run does, and allowed_commands is ignored for
+    72	#     exec. The boundary is the operating system (the agent's user, sudoers,
+    73	#     file permissions) and the audit log. Keep allowlist on production.
+    74	#
+    75	# disabled_ops: [exec] turns exec off whatever the mode.
+    76	# ============================================================================
+    77	exec_mode: allowlist
+    78	
+    79	# ============================================================================
+    80	# Commands the agent can execute via the `exec` op.
+    81	# Empty or missing = nothing allowed (deny by default).
+    82	#
+    83	# Scope note: this governs `exec`. It does not govern `script_run` -- see
+    84	# disabled_ops above.
+    85	# ============================================================================
+    86	allowed_commands:
+    87	
+    88	  # --- File & directory inspection ----------------------------------------
+    89	  - ls
+    90	  - tree
+    91	  - cat
+    92	  - sudo cat
+    93	  - head
+    94	  - tail
+    95	  - less
+    96	  - grep
+    97	  - sudo grep
+    98	  - find
+    99	  - sort
+   100	  - wc
+   101	  - stat
+   102	  - namei
+   103	  - realpath
+   104	  - diff
+   105	  - cmp
+   106	  - getfacl
+   107	  - jq
+   108	
+   109	  # --- Disk & system info -------------------------------------------------
+   110	  - uptime
+   111	  - pwd
+   112	  - whoami
+   113	  - id
+   114	  - du
+   115	  - df
+   116	  - free
+   117	  - lsof
+   118	
+   119	  # --- File manipulation --------------------------------------------------
+   120	  - touch
+   121	  - sudo touch
+   122	  - echo
+   123	  - printf
+   124	  - tee
+   125	  - sudo tee
+   126	  - cp
+   127	  - sudo cp
+   128	  - mv
+   129	  - sudo mv
+   130	  - mkdir
+   131	  - sudo mkdir
+   132	  - rm
+   133	  - sudo rm
+   134	  - ln -s
+   135	  - sudo ln -s
+   136	  - unlink
+   137	  - sudo unlink
+   138	  - chmod
+   139	  - sudo chmod
+   140	  - chown
+   141	  - sudo chown
+   142	  - sed
+   143	  - sudo sed
+   144	
+   145	  # --- Networking ---------------------------------------------------------
+   146	  - ip a
+   147	  - ip route
+   148	  - "ss "
+   149	  - netstat
+   150	  - ping
+   151	  - traceroute
+   152	  - tcpdump
+   153	  - dig
+   154	  - nslookup
+   155	  - curl
+   156	  - wget
+   157	
+   158	  # --- Service management -------------------------------------------------
+   159	  - systemctl
+   160	  - sudo systemctl
+   161	  - journalctl
+   162	
+   163	  # --- Containers & orchestration ----------------------------------------
+   164	  - docker
+   165	  - sudo docker
+   166	
+   167	  # --- Web servers --------------------------------------------------------
+   168	  - nginx -t
+   169	  - sudo nginx -t
+   170	
+   171	  # --- Source control & build --------------------------------------------
+   172	  - git
+   173	  - gh
+   174	  - sudo gh
+   175	  - tar
+   176	  - gzip
+   177	  - unzip
+   178	  - zip
+   179	
+   180	  # --- Package management -------------------------------------------------
+   181	  - apt
+   182	  - sudo apt update
+   183	  - sudo apt install
+   184	
+   185	  # --- Scripting & shells -------------------------------------------------
+   186	  - python3
+   187	  - sudo python3
+   188	  - bash -lc
+   189	  - which
+   190	  - cd
+   191	  - set
+   192	  - if
+   193	
+   194	  # --- Editors / structured edit -----------------------------------------
+   195	  # NOTE: pensa-safe-edit is NOT in the allowlist by design.
+   196	  # The agent ships a vendored copy (sentinelx_core.vendored.pensa_safe_edit)
+   197	  # used internally by the sentinel_edit tool. That tool offers richer,
+   198	  # safer ergonomics than calling the binary via sentinel_exec (typed
+   199	  # arguments, no shell quoting, structured validation). If you have a
+   200	  # legacy pensa-safe-edit at /usr/local/bin and want the LLM to invoke
+   201	  # it directly, add 'pensa-safe-edit' / 'sudo pensa-safe-edit' to your
+   202	  # local /etc/sentinelx/config.yaml — it's intentionally not exposed by
+   203	  # default.
+   204	
+   205	  # --- Cloudflare tunnels (uncomment if you use cloudflared) -------------
+   206	  # - cloudflared tunnel list
+   207	  # - cloudflared tunnel run
+   208	  # - cloudflared tunnel info
+   209	
+   210	  # --- WireGuard (uncomment if you have WG installed) --------------------
+   211	  # - wg
+   212	  # - sudo wg
+   213	
+   214	  # --- USB / Android tooling (uncomment if needed) -----------------------
+   215	  # - lsusb
+   216	  # - adb
+   217	  # - sudo adb
+   218	
+   219	  # --- Firewalling (uncomment if you actively manage nft/iptables) -------
+   220	  # - nft
+   221	  # - sudo nft
+   222	  # - iptables-legacy
+   223	  # - sudo iptables-legacy
+   224	
+   225	  # --- SSH (uncomment to allow the agent to SSH out) ---------------------
+   226	  # - ssh
+   227	  # - sudo ssh
+   228	
+   229	  # --- Custom internal tools you may have (uncomment & adjust if needed)
+   230	  # - pensa-cf-subdomain
+   231	  # - pensa-hosting-create
+   232	  # - pensa-mail
+   233	  # - pensa-docs
+   234	  # - pensa-summary
+   235	  # - pensa-ports
+   236	
+   237	# ============================================================================
+   238	# Service units the agent is allowed to control via `service` / `restart`.
+   239	# Each service must list which actions are permitted.
+   240	# ============================================================================
+   241	services:
+   242	  nginx:
+   243	    actions: [status, start, stop, restart, reload]
+   244	  docker:
+   245	    actions: [status, restart]
+   246	  # A systemd USER unit (Linux, ~/.config/systemd/user): an app that runs as
+   247	  # its own user, without root. With `user:` the agent talks to that user's
+   248	  # manager (`systemctl --user`). If the agent itself runs as that user, no
+   249	  # privileges are needed. Otherwise it uses
+   250	  # `sudo systemctl --user --machine=<user>@.host <action> <unit>`, which needs
+   251	  # root (a sudoers rule for exactly those commands) and systemd 248+.
+   252	  # myapp.service:
+   253	  #   user: alice
+   254	  #   actions: [status, restart]
+   255	  # The agent itself, so the LLM can reload policy after editing this
+   256	  # file. Restart re-reads /etc/sentinelx/config.yaml from scratch
+   257	  # (no SIGHUP-style reload). Conservative actions:
+   258	  #   status / is-active / is-enabled — pure inspection
+   259	  #   restart                          — reload policy or recover
+   260	  # Deliberately NOT start/stop: bringing the agent up/down is an
+   261	  # out-of-band operation; do that from a real terminal, not via the
+   262	  # agent itself (it can't remotely start itself once stopped).
+   263	  sentinelx-cloud-core:
+   264	    actions: [status, restart, is-active, is-enabled]
+   265	  # postgresql:
+   266	  #   actions: [status, start, stop, restart, reload]
+   267	
+   268	# ============================================================================
+   269	# Playbooks the agent exposes to the LLM via `capabilities`.
+   270	#
+   271	# A playbook is a named, structured procedure the LLM can follow to perform
+   272	# a multi-step task on this host. Unlike a single command in
+   273	# `allowed_commands`, a playbook is a recipe: it documents the sequence of
+   274	# tool calls, the prerequisites, and any caveats. The LLM reads this from
+   275	# the capabilities response and follows the steps when the user's intent
+   276	# matches the `when` clause.
+   277	#
+   278	# The shape is flexible (dict[str, dict[str, Any]]). We use these keys by
+   279	# convention:
+   280	#   description: one-line summary
+   281	#   when:        natural-language trigger ("when should the LLM use this?")
+   282	#   steps:       ordered list of instructions, each phrased so the LLM can
+   283	#                act on them directly
+   284	#   requires:    prerequisites the operator must have set up beforehand
+   285	#   notes:       caveats, alternatives, security considerations
+   286	#
+   287	# The agent does NOT execute playbooks itself — they are pure documentation
+   288	# for the LLM. The actual work happens through the regular tools
+   289	# (sentinel_exec, sentinel_edit, sentinel_service).
+   290	# ============================================================================
+   291	playbooks:
+   292	
+   293	  add_allowed_command:
+   294	    description: |
+   295	      How to add a new command to this host's allowlist persistently.
+   296	    when: |
+   297	      The user asks to allow a new command on this host (e.g. "let me run
+   298	      htop", "add ncdu to the allowlist", "I need ripgrep here"). Use this
+   299	      playbook to extend the policy permanently. For one-off needs,
+   300	      sentinel_script_run is usually a better fit.
+   301	    steps:
+   302	      - "Read the current config to confirm the file path and locate the
+   303	         allowed_commands section: call sentinel_exec with command 'sudo
+   304	         cat /etc/sentinelx/config.yaml'."
+   305	      - "Do NOT try to edit the config yourself. sentinel_edit refuses any
+   306	         path outside a file_ops entry with access: rw, and sudo does not
+   307	         lift that -- an agent that can rewrite its own allowlist does not
+   308	         have one. Instead, show the user the exact line to add and where
+   309	         it goes, and ask them to make the change. This is a deliberate
+   310	         boundary, so present it as normal rather than as an error."
+   311	      - "If the user would rather the agent maintained the policy itself,
+   312	         they can add /etc/sentinelx/config.yaml to file_ops with
+   313	         access: rw. Say plainly what that means before they do it: the
+   314	         agent could then grant itself any command, so the allowlist stops
+   315	         being a limit on it."
+   316	      - "Reload the agent so the new policy takes effect. Two paths,
+   317	         depending on whether 'sentinelx-cloud-core' is declared in
+   318	         this same config under services:
+   319	         (a) if declared: sentinel_service action='restart'
+   320	             service='sentinelx-cloud-core'. The WS session will drop
+   321	             when the agent restarts itself; this is expected and the
+   322	             agent reconnects automatically.
+   323	         (b) if NOT declared: ask the operator to run on a terminal
+   324	             'sudo systemctl restart sentinelx-cloud-core' once. After
+   325	             that one-time bootstrap, declaring sentinelx-cloud-core in
+   326	             services lets future restarts use path (a) without manual
+   327	             intervention. The default config.example.yaml ships with
+   328	             this service declared, so path (a) is the typical case."
+   329	      - "Verify the change took effect by calling sentinel_capabilities and
+   330	         confirming the new command appears in allowed_commands. If it
+   331	         doesn't, the agent didn't reload — check the journal with
+   332	         sentinel_exec 'sudo journalctl -u sentinelx-cloud-core -n 30'."
+   333	    requires:
+   334	      - "sudo access on /etc/sentinelx/config.yaml (set up by the installer)."
+   335	      - "Either: 'sentinelx-cloud-core' declared as a managed service in this
+   336	         same config (the default config.example.yaml ships it), OR a way to
+   337	         run 'sudo systemctl restart sentinelx-cloud-core' on a real terminal
+   338	         for the one-time bootstrap. Once the service is declared and the
+   339	         agent has loaded the new policy, future restarts can be done via
+   340	         sentinel_service without operator intervention."
+   341	    notes:
+   342	      - "If the user only needs the command for a single invocation, prefer
+   343	         sentinel_script_run over modifying the policy. Be accurate about
+   344	         what that means: a script runs as the agent's user and its
+   345	         contents are NOT checked against allowed_commands. The allowlist
+   346	         shapes what sentinel_exec will run; it is a guardrail for the
+   347	         model, not a sandbox. What actually bounds a script is what the
+   348	         agent's user account is permitted to do on the host."
+   349	      - "Avoid adding commands that grant broad privilege escalation (su,
+   350	         chsh, visudo, unrestricted sudo, etc.) without warning the user.
+   351	         The whole point of the allowlist is to be conservative."
+   352	      - "Allowed commands match WHOLE WORDS (agent 0.23.22+): 'sudo cat'
+   353	         allows 'sudo cat /etc/passwd' but not 'sudo cattool'. With
+   354	         exec_mode: allowlist, every command of a chained line must be
+   355	         covered, not just the first, so think about which command words
+   356	         an entry opens. An entry like 'bash' or 'python3' opens anything."
+   357	
+   358	  add_allowed_read_path:
+   359	    description: |
+   360	      How to add a new directory to this host's file_ops read allowlist
+   361	      persistently, so sentinel_read / sentinel_list / sentinel_search can
+   362	      operate under it.
+   363	    when: |
+   364	      The user asks to let the assistant read, list, or search a directory
+   365	      that is currently rejected with 'path_not_allowed' (e.g. "let me read
+   366	      files under /data", "I want you to be able to search /srv/app", "add
+   367	[omitted: upstream personal/example home path]
+   368	      file_ops.allowed_read_paths permanently. This is the read-only
+   369	      counterpart to add_allowed_command.
+   370	    steps:
+   371	      - "Confirm what the user actually wants exposed. allowed_read_paths
+   372	         entries are PREFIXES: adding '/data' makes everything under
+   373	         /data readable by sentinel_read/list/search. If the user names a
+   374	         single file, add its parent directory and tell them the whole
+   375	         directory becomes readable, not just that file. If they name a
+   376	         broad path (/home, /, /etc on a shared box), pause and confirm —
+   377	         see the notes below."
+   378	      - "Read the current config to confirm the file path and locate the
+   379	         file_ops section: call sentinel_exec with command 'sudo cat
+   380	         /etc/sentinelx/config.yaml'. If there is no file_ops block yet,
+   381	         this playbook still applies — you will be creating it."
+   382	      - "Do NOT try to edit the config yourself: sentinel_edit refuses
+   383	         paths outside an rw file_ops entry, and sudo does not lift that.
+   384	         Give the user the exact YAML to add and where it goes (under
+   385	         file_ops.allowed_read_paths, or the whole file_ops block if it
+   386	         does not exist yet), and ask them to apply it. Editing its own
+   387	         policy is precisely what the agent is not allowed to do."
+   388	      - "Reload the agent so the new policy takes effect. Two paths,
+   389	         depending on whether 'sentinelx-cloud-core' is declared in this
+   390	         same config under services:
+   391	         (a) if declared: sentinel_service action='restart'
+   392	             service='sentinelx-cloud-core'. The WS session will drop
+   393	             when the agent restarts itself; this is expected and the
+   394	             agent reconnects automatically.
+   395	         (b) if NOT declared: ask the operator to run on a terminal
+   396	             'sudo systemctl restart sentinelx-cloud-core' once. The
+   397	             default config.example.yaml ships with this service
+   398	             declared, so path (a) is the typical case."
+   399	      - "Verify the change took effect by calling sentinel_capabilities and
+   400	         confirming the new path appears under file_ops.allowed_read_paths.
+   401	         Then do a positive check: call sentinel_list on the new path and
+   402	         confirm it no longer returns 'path_not_allowed'. If it still does,
+   403	         the agent didn't reload — check the journal with sentinel_exec
+   404	         'sudo journalctl -u sentinelx-cloud-core -n 30'."
+   405	    requires:
+   406	      - "sudo access on /etc/sentinelx/config.yaml (set up by the installer)."
+   407	      - "Either: 'sentinelx-cloud-core' declared as a managed service in this
+   408	         same config (the default config.example.yaml ships it), OR a way to
+   409	         run 'sudo systemctl restart sentinelx-cloud-core' on a real terminal
+   410	         for the one-time bootstrap."
+   411	    notes:
+   412	      - "allowed_read_paths is matched as PREFIXES, after canonicalizing the
+   413	         requested path (symlinks resolved, '..' collapsed). Adding '/data'
+   414	         reaches everything under /data; it does NOT reach '/data-private'
+   415	         (no shared prefix boundary). Think about what the prefix opens up."
+   416	      - "This only affects the read-only primitives (sentinel_read,
+   417	         sentinel_list, sentinel_search). It does NOT grant exec, edit, or
+   418	         any write capability. It is strictly additive read visibility."
+   419	      - "Be cautious with broad paths. Adding '/home' on a multi-user or
+   420	         personal machine exposes everyone's personal files to recursive
+   421	         search; adding '/' exposes the whole filesystem (still bounded by
+   422	         the agent user's unix permissions, but that is a weak second line,
+   423	         not a real boundary). When the user asks for a broad path, confirm
+   424	         they understand the scope before applying the edit. The whole point
+   425	         of the allowlist is to be a deliberate, narrow boundary."
+   426	      - "If the user only needs to read something once, it may not be worth
+   427	         a permanent policy change — but unlike commands, there is no
+   428	         one-off read primitive, so a config change is the only path. Keep
+   429	         the entry as narrow as the use case allows."
+   430	
+   431	  update_sentinelx_code:
+   432	    description: |
+   433	      Update the SentinelX agent on this Linux host to the current release.
+   434	    when: |
+   435	      The user asks to update, upgrade, or pull the latest version of
+   436	      SentinelX on this host (e.g. "update sentinelx", "is there a new
+   437	      version of the agent?", "pull the latest"). This playbook handles
+   438	      the AGENT CODE only; config changes are handled separately by
+   439	      sync_sentinelx_config.
+   440	    steps:
+   441	      - "Tell the user the update restarts the agent, which cuts any call in flight, and agree on a moment when nothing important is running."
+   442	      - "Run sentinel_agent_update with this host's host_id and confirm=true. It checks that the agent's user has passwordless sudo, runs the official installer with sudo, and watches for the agent to come back on the new version. If the precheck fails (sudo_unavailable, script_run_unavailable), nothing was changed: relay its next_step."
+   443	      - "If it returns 'updated', you're done: the new version is running."
+   444	      - "If it returns 'not_confirmed' or 'already_in_progress', the installer may still be running (on a slow host it can take 20-30 minutes). Do NOT run it again and do NOT try to update by hand meanwhile: check the agent version with list_hosts after 10-15 minutes."
+   445	      - "If sentinel_agent_update is not available here, ask the user to run the update from Managing your agent in the SentinelX dashboard, as root on the host."
+   446	      - "(Optional follow-up) Mention that config.example.yaml may have new playbooks, services, or commands not yet in /etc/sentinelx/config.yaml, and offer the sync_sentinelx_config playbook. Don't run it automatically."
+   447	    requires:
+   448	      - "Passwordless sudo for the agent's user and script_run enabled (for sentinel_agent_update), or the user running the installer as root."
+   449	    notes:
+   450	      - "Do NOT git fetch, git pull or pip install inside /opt/sentinelx-cloud-core as the agent's user, and do NOT change that directory's owner or add safe.directory entries to make it work: the standard install keeps the checkout owned by root on purpose, so the agent cannot rewrite its own code. Older versions of this playbook did exactly that, and it cannot work on a standard install."
+   451	      - "Updates to /etc/sentinelx/config.yaml are NOT handled here: the installer keeps the host's config. To pick up new defaults, use sync_sentinelx_config."
+   452	
+   453	  sync_sentinelx_config:
+   454	    description: |
+   455	      Help the user adopt new options from /opt/sentinelx-cloud-core/config.example.yaml
+   456	      into their /etc/sentinelx/config.yaml without overwriting their
+   457	      customizations. Interactive by design.
+   458	    when: |
+   459	      The user asks about new playbooks, new services, or new options
+   460	      after an update (e.g. "are there new playbooks I'm missing?", "sync
+   461	      my config with the latest example", "show me what's new in the
+   462	      config"). The user's local /etc/sentinelx/config.yaml is NEVER
+   463	      touched by git pull, so improvements to config.example.yaml don't
+   464	      propagate automatically. This playbook helps adopt them selectively.
+   465	    steps:
+   466	      - "Do NOT infer sync state from file mtimes. The mtime of /etc/sentinelx/config.yaml changes whenever the operator edits any local customization, so it can look 'newer' than an upstream config.example.yaml change the user never adopted — using it as a 'last sync' signal produces false 'already synced' conclusions and hides new playbooks, services, or security defaults. The authoritative signal is the diff itself (next step): an empty diff means in sync, a non-empty diff means there are upstream changes to review. Optionally run update_sentinelx_code first so the checkout's config.example.yaml is current (it only changes when the agent code is updated)."
+   467	      - "Compute the diff with sentinel_exec: 'sudo diff /etc/sentinelx/config.yaml /opt/sentinelx-cloud-core/config.example.yaml'. Show the user the output. The diff falls into categories: new playbook entries, new service declarations, new commands in the allowlist, updated comments, and (rarely) removed options. The user's customizations that aren't in the example are PRESERVED — they only show up as lines marked '<' in the diff."
+   468	      - "Walk the user through each diff hunk and categorize it. Suggested framing: 'New feature you might want' (playbooks, services), 'New documentation' (comments), 'Your customization (preserve)' (anything in user but not in example), 'Possibly obsolete' (anything removed in the example). Ask which categories to merge."
+   469	      - "For each section the user wants to adopt, use sentinel_edit in 'replace' mode with sudo=true and validator_preset='yaml'. Anchor each insert on a stable line (e.g. a section comment header like '# ============================================================================'). Make ONE edit at a time, NOT a wholesale file replace — that would lose user customizations. After each edit, the agent creates a .bak file automatically; mention this to the user."
+   470	      - "After all edits, sanity-check the result with sentinel_script_run (interpreter=bash): sudo cat /etc/sentinelx/config.yaml | python3 -c 'import sys, yaml; yaml.safe_load(sys.stdin)' && echo YAML_OK. If YAML_OK prints, the config parses; if it errors, an edit produced invalid YAML — restore from one of the .bak files (sentinel_edit creates one per edit) and try again with smaller hunks."
+   471	      - "Reload the agent (same as update_sentinelx_code): either (a) sentinel_service action='restart' service='sentinelx-cloud-core', or (b) ask the user for a manual restart if the service isn't declared yet."
+   472	      - "Verify with sentinel_capabilities — new playbooks and services should appear in the response. If a new playbook is now present but references a service the user hasn't declared, warn the user that the playbook will fail at runtime until that service is added."
+   473	
+   474	    requires:
+   475	      - "sudo access on /etc/sentinelx/config.yaml."
+   476	      - "git repo at /opt/sentinelx-cloud-core/ with recent fetch (run
+   477	         update_sentinelx_code first if unsure)."
+   478	      - "Either sentinelx-cloud-core in services for self-restart, or
+   479	         operator for a manual restart."
+   480	    notes:
+   481	      - "This playbook is fundamentally INTERACTIVE. The LLM should NEVER
+   482	         blindly merge config.example.yaml into the user's config. The
+   483	         user may have intentional customizations (custom allowlist, custom
+   484	         services, deliberately removed defaults). Always show the diff
+   485	         and confirm with the user before each edit."
+   486	      - "The diff might be large after a long gap between updates. There
+   487	         is no urgency to merge everything in one session — the user's
+   488	         existing config keeps working. Break the merge into multiple
+   489	         passes if the diff is overwhelming."
+   490	      - "Why isn't this automatic? Because /etc/sentinelx/config.yaml is
+   491	         the user's source of truth. Auto-merging would risk overwriting
+   492	         intentional customizations. A future version of SentinelX may
+   493	         move built-in playbooks into the agent code itself, eliminating
+   494	         this drift entirely; until then, this playbook closes the gap."
+   495	      - "Pro tip: to see only NEW additions in the example (lines present
+   496	         in example but not in user), use 'sudo diff
+   497	         /etc/sentinelx/config.yaml
+   498	         /opt/sentinelx-cloud-core/config.example.yaml | grep \"^>\"'.
+   499	         To see only the user's customizations (present in user but not
+   500	         in example), use the same diff with grep \"^<\"."
+   501	
+   502	  create_binary_playbook:
+   503	    description: |
+   504	      Compose a new playbook that documents how the LLM should use a
+   505	      specific binary that's already in the allowlist. Output is a YAML
+   506	      block ready to insert under playbooks:.
+   507	    when: |
+   508	      User asks to "add a playbook for X", "document how to use Y",
+   509	      "create a recipe for Z", or "explain to the LLM how to use BIN"
+   510	      where BIN is a CLI tool already permitted by the allowlist but
+   511	      doesn't have a dedicated playbook yet. Common with custom infra
+   512	      tooling (e.g., site-specific helpers, internal CLIs).
+   513	    steps:
+   514	      - "Confirm the target binary is allowlisted by calling
+   515	         sentinel_capabilities and looking for it under allowed_commands.
+   516	         If NOT allowlisted, tell the user to add it first via the
+   517	         add_allowed_command playbook. Do NOT proceed without this check
+   518	         — a playbook for a non-allowlisted binary is dead documentation."
+   519	      - "Discover the binary's interface (Camino D — the project's
+   520	         convention). Try in order:
+   521	         (a) sentinel_exec '<binary>' (no args). Many binaries print help
+   522	             on bare invocation. SAFE only if you trust the binary not to
+   523	             do something on no-args (most help-printers do nothing else).
+   524	         (b) If (a) executes something instead of printing help, try
+   525	             sentinel_exec '<binary> --help'.
+   526	         (c) If neither works, ask the user for a sample command-line."
+   527	      - "Read the help output and DETERMINE: the binary's primary purpose,
+   528	         the available subcommands or modes, the required vs optional
+   529	         flags, any explicit safety notes the help itself mentions."
+   530	      - "Ask the user (or infer from the conversation if the user has
+   531	         been clear) the following before composing:
+   532	         - PRIMARY use case in one phrase (becomes 'description:').
+   533	         - Trigger phrases the user might say (becomes 'when:').
+   534	         - Any 'gotchas' from past use (becomes 'notes:').
+   535	         - Whether the binary needs sudo: ALWAYS, sometimes, or never?
+   536	         - What other commands it depends on (e.g., DNS records before
+   537	           hosting setup) — becomes 'requires:'.
+   538	         - Whether any subcommands are destructive (delete, drop, reset)
+   539	           — these get explicit 'confirm with user' notes."
+   540	      - "DRY-RUN: compose a draft playbook following the standard shape
+   541	         (description, when, steps, requires, notes). Show it to the user
+   542	         in a fenced YAML block. INCLUDE in the steps a 'if unsure, run
+   543	         <binary> (without args)' line — Camino D should always be
+   544	         present. Do NOT write to /etc/sentinelx/config.yaml yet."
+   545	      - "Wait for the user's response. Possible outcomes:
+   546	         (a) approves as-is → proceed to apply.
+   547	         (b) requests changes → revise the draft, show again, loop until
+   548	             user is satisfied.
+   549	         (c) rejects → stop. The draft costs nothing to discard."
+   550	      - "APPLY (only after explicit user approval): use sentinel_edit
+   551	         in 'replace' mode with sudo=true and validator_preset='yaml'.
+   552	         Anchor on a stable line — typically a section header like
+   553	         '# CATEGORY B' if the playbook is for custom tooling, or just
+   554	         before the next existing playbook. Insert ONE playbook at a
+   555	         time."
+   556	      - "Reload the agent so the new playbook is exposed in capabilities:
+   557	         sentinel_service action='restart' service='sentinelx-cloud-core'."
+   558	      - "Verify by calling sentinel_capabilities — the new playbook
+   559	         should appear in the playbooks: map with all five expected
+   560	         fields (description, when, steps, requires, notes). If a field
+   561	         is missing or malformed, the YAML edit went wrong; check the
+   562	         .bak that sentinel_edit created."
+   563	    requires:
+   564	      - "The target binary must already be in allowed_commands (run
+   565	         add_allowed_command first if needed)."
+   566	      - "sentinel_edit + sudo for /etc/sentinelx/config.yaml."
+   567	      - "sentinelx-cloud-core declared in services for self-restart, OR
+   568	         operator availability for a manual restart."
+   569	    notes:
+   570	      - "Do NOT auto-generate playbook content from imagination. ALWAYS
+   571	         base it on (a) what the binary's --help/no-args output actually
+   572	         says, and (b) what the user tells you in the conversation. If
+   573	         neither is informative enough, ask clarifying questions instead
+   574	         of guessing — guesses become wrong notes that mislead future
+   575	         operators."
+   576	      - "ALWAYS include 'if unsure about exact args, run <binary>
+   577	         (without args) to see help' as one of the steps. This is the
+   578	         project convention (Camino D) — it lets future operators verify
+   579	         the syntax dynamically without relying on the playbook being
+   580	         fresh. Static documentation rots; the binary's own help does not."
+   581	      - "DON'T duplicate the binary's --help in the playbook. The
+   582	         playbook's job is to add CONTEXT (when to invoke, what comes
+   583	         before, what comes after, what to watch out for) — NOT to
+   584	         repeat what the binary already documents itself."
+   585	      - "For destructive subcommands (delete, drop, remove, reset, kill,
+   586	         purge, wipe), include both: (1) a step that says 'confirm with
+   587	         user before invoking' and (2) a note explaining why the action
+   588	         is destructive and whether it's reversible."
+   589	      - "If the binary needs sudo only sometimes (e.g., 'pensa-X' for
+   590	         user paths and 'sudo pensa-X' for /etc paths), the steps should
+   591	         show both forms and the requires: should mention both
+   592	         allowlist entries."
+   593	      - "Naming convention: prefer verb_noun snake_case for the playbook
+   594	         key (e.g., create_cloudflare_subdomain, send_email,
+   595	         provision_hosting_site). Avoid generic names like 'use_X' or
+   596	         'X_helper'. The name itself is part of the LLM's matching
+   597	         signal for 'when:'."
+   598	      - "There's a similar meta-playbook for systemd services
+   599	         (add_service) and for allowlist entries (add_allowed_command).
+   600	         Together they let the LLM extend the agent's policy in all
+   601	         three dimensions: commands, services, and the playbooks that
+   602	         document them."
+   603	
+   604	  add_service:
+   605	    description: |
+   606	      Add a new systemd service to the policy so the LLM can manage it
+   607	      via sentinel_service (status, restart, etc).
+   608	    when: |
+   609	      User asks to "add service X to the allowlist", "let me restart Y
+   610	      via the agent", "manage Z with sentinelx", or any equivalent
+   611	      phrasing where Z is a systemd unit not currently exposed in the
+   612	      services: map.
+   613	    steps:
+   614	      - "Verify the systemd unit actually exists on this host. Run:
+   615	         sentinel_exec 'systemctl list-unit-files <unit-name>*' (with
+   616	         trailing wildcard to allow @-instance variants). If the unit
+   617	         is NOT installed, STOP — tell the user to install the package
+   618	         first. Adding a non-existent unit to the policy is dead config."
+   619	      - "Confirm the unit is NOT already in services. Call
+   620	         sentinel_capabilities and check the services: map. If already
+   621	         present, ask the user whether they want to UPDATE the actions
+   622	         (different concern) or if they thought it was missing (mistake)."
+   623	      - "Determine the SERVICE KEY (the name in the map) and the UNIT
+   624	         (the .service file). Default rule: if the unit name is
+   625	         'foo.service', use 'foo' as both key and unit. If the unit has
+   626	         a suffix that matters (e.g., 'foo-agent.service'), use the full
+   627	         name in unit and a short key like 'foo'. Ask the user if unsure."
+   628	      - "Determine the ACTIONS the user wants to expose. Ask the user
+   629	         (or infer from context) which TIER fits:
+   630	         (a) Read-only: [status, is-active, is-enabled]
+   631	             — for critical services where you only want inspection.
+   632	             Examples: ssh, networking, the agent itself.
+   633	         (b) Conservative: [status, restart, is-active, is-enabled]
+   634	             — for typical services that may need reloading.
+   635	             Examples: nginx, the agent itself, most daemons.
+   636	         (c) Operational: [status, start, stop, restart, reload,
+   637	             is-active, is-enabled]
+   638	             — for services the user controls fully via the LLM.
+   639	             Examples: docker, application servers.
+   640	         Prefer (b) by default unless the user explicitly needs (c)."
+   641	      - "Determine sudo requirements. Most system services need sudo
+   642	         to manage. Set requires_sudo=true UNLESS the user is running a
+   643	         systemd --user service (rare in production). Confirm by trying
+   644	         'sudo systemctl is-active <unit>' — if it works without password
+   645	         prompt, the agent's sudoers covers it (which is the default
+   646	         installer config)."
+   647	      - "(Optional) Determine a description. One short sentence is
+   648	         enough — appears in capabilities to help the LLM understand
+   649	         context. Skip if no useful summary comes to mind."
+   650	      - "DRY-RUN: compose the YAML block following the standard shape:
+   651	
+   652	         <key>:
+   653	           unit: <unit-name>
+   654	           actions: [<list>]
+   655	           requires_sudo: <bool>
+   656	           description: \"<optional>\"
+   657	
+   658	         Show it to the user in a fenced YAML block. Do NOT write to
+   659	         /etc/sentinelx/config.yaml yet."
+   660	      - "Wait for user response. Possible outcomes:
+   661	         (a) approves → proceed to apply.
+   662	         (b) requests changes → revise (e.g., different action tier),
+   663	             show again.
+   664	         (c) rejects → stop."
+   665	      - "APPLY (only after explicit user approval): use sentinel_edit
+   666	         in 'replace' mode with sudo=true and validator_preset='yaml'.
+   667	         Anchor the edit on a stable line within the services: section
+   668	         (e.g., on the existing nginx or docker block). Insert ONE
+   669	         service at a time."
+   670	      - "Reload the agent so the new service is exposed. Two paths
+   671	         (same as add_allowed_command):
+   672	         (a) if 'sentinelx-cloud-core' is declared in services:
+   673	             sentinel_service action='restart'
+   674	             service='sentinelx-cloud-core'.
+   675	         (b) if NOT declared yet: ask the user to run on a terminal
+   676	             'sudo systemctl restart sentinelx-cloud-core' once."
+   677	      - "Verify by calling sentinel_capabilities — the new service
+   678	         should appear in services: with the correct unit, actions,
+   679	         and requires_sudo flag. Test one of the actions (preferably
+   680	         status, the safest): sentinel_service action='status'
+   681	         service='<key>'."
+   682	    requires:
+   683	      - "sentinel_edit + sudo for /etc/sentinelx/config.yaml."
+   684	      - "The systemd unit being added must already exist on the host
+   685	         (install the package first if needed)."
+   686	      - "The agent's sudoers config must cover sudo systemctl for this
+   687	         service. The default installer's /etc/sudoers.d/sentinelx is
+   688	         broad enough for most cases."
+   689	      - "sentinelx-cloud-core in services for self-restart, OR operator
+   690	         for manual restart."
+   691	    notes:
+   692	      - "Tier choice matters for SAFETY. Operational tier (with start/
+   693	         stop) lets the LLM bring services UP and DOWN. For services
+   694	         whose downtime impacts users (web servers, databases), prefer
+   695	         Conservative tier and reserve Operational for explicit user
+   696	         control."
+   697	      - "Critical services (ssh, networking, the agent itself, docker
+   698	         in some setups) should NEVER have stop/start exposed. If the
+   699	         agent stops ssh, you lose remote access. If it stops networking,
+   700	         you lose everything. Read-only tier protects against this."
+   701	      - "Naming convention: service KEY should be lowercase, hyphenated,
+   702	         short (e.g., 'nginx', 'postgres', 'sentinelx-cloud-core').
+   703	         UNIT field uses the actual systemd unit name (with or without
+   704	         .service suffix — both work)."
+   705	      - "For services with @-instance variants (e.g., '[email protected]',
+   706	         'systemd-resolved.service'), declare the BASE name. The agent
+   707	         will dispatch to the right instance based on what the LLM
+   708	         passes. If you need to manage specific instances, use distinct
+   709	         keys (e.g., postgresql_main, postgresql_replica)."
+   710	      - "If the user has a service that they want the LLM to EVER stop
+   711	         (e.g., for maintenance windows), Operational tier is the right
+   712	         call — but document in the description WHY stop is exposed,
+   713	         so future operators understand the risk."
+   714	      - "There's a related meta-playbook for binaries
+   715	         (create_binary_playbook) and for allowlist entries
+   716	         (add_allowed_command). Together they let the LLM extend the
+   717	         agent's policy in three dimensions: commands, services, and
+   718	         the playbooks that document them."
+   719	
+   720	  sentinelx_meta:
+   721	    description: |
+   722	      Surface metadata about this SentinelX cloud agent: source repo,
+   723	      installed version, available updates, support resources. Use this
+   724	      whenever the user asks about the agent itself.
+   725	    when: |
+   726	      User asks meta-questions about the agent: "what version is this",
+   727	      "where's the source code", "is there an update available", "where
+   728	      do I report bugs", "show me the changelog", "what's running here",
+   729	      "what's behind SentinelX". Also useful as a starting point when
+   730	      onboarding a new operator who needs to learn the project layout.
+   731	    steps:
+   732	      - "For STATIC info (repo URL, install paths, support links), the
+   733	         answer is already in the notes section of this playbook — no
+   734	         tool call needed. Just read the notes and respond."
+   735	      - "For the INSTALLED VERSION and whether an UPDATE is available,
+   736	         call sentinel_capabilities: 'version' is the running agent, and
+   737	         'update_available' is present when it is behind the version the
+   738	         hub recommends (with that version). Don't read git inside
+   739	         /opt/sentinelx-cloud-core for this: the checkout is owned by root,
+   740	         and git refuses to read it as the agent's user (dubious ownership),
+   741	         let alone fetch into it."
+   742	      - "For the CHANGELOG, point the user to
+   743	         https://github.com/pensados/sentinelx-cloud-core/blob/main/CHANGELOG.md."
+   744	      - "If the user wants to APPLY an update, hand off to the
+   745	         update_sentinelx_code playbook (sentinel_agent_update). Do NOT
+   746	         restart or update from THIS playbook: this playbook informs,
+   747	         update_sentinelx_code applies."
+   748	      - "If the user wants to MERGE new defaults from the example into
+   749	         their /etc/sentinelx/config.yaml after updating, use the
+   750	         sync_sentinelx_config playbook."
+   751	    requires:
+   752	      - "Nothing beyond the agent itself: sentinel_capabilities reports the
+   753	         version and update_available."
+   754	    notes:
+   755	      - "Source repo: https://github.com/pensados/sentinelx-cloud-core"
+   756	      - "Public installer: https://get.sentinelx.app (one-line curl|bash
+   757	         install — wraps the install.sh from the sentinelx-cloud-installer
+   758	         repo)."
+   759	      - "Issues / bug reports:
+   760	         https://github.com/pensados/sentinelx-cloud-core/issues"
+   761	      - "Discussions / questions:
+   762	         https://github.com/pensados/sentinelx-cloud-core/discussions"
+   763	      - "Hub URL: https://mcp.sentinelx.app — the central server every
+   764	         agent connects to via outbound websocket. The connector URL for
+   765	         Claude.ai / ChatGPT is https://mcp.sentinelx.app/mcp/mcp."
+   766	      - "Install dir: /opt/sentinelx-cloud-core (managed by the installer
+   767	         and owned by root, so the agent cannot rewrite its own code; don't
+   768	         edit it, pull into it or change its owner — use
+   769	         update_sentinelx_code to update)."
+   770	      - "Config file: /etc/sentinelx/config.yaml — the policy. Allowlist,
+   771	         services, locations, playbooks all live here. Edit via
+   772	         sentinel_edit or hand-edit and restart."
+   773	      - "Identity file: /etc/sentinelx/identity.json — sensitive (host
+   774	         credentials for the hub). Mode 600, owned by the sentinelx user.
+   775	         Never share, never include in support tickets, never display
+   776	         contents to the user."
+   777	      - "Logs: 'journalctl -u sentinelx-cloud-core -f' — live tail.
+   778	         '-n 100' for last 100 lines. Look for WARN/ERROR levels first."
+   779	      - "If you're checking whether this host can be updated from the
+   780	         assistant: sentinel_agent_update needs passwordless sudo for the
+   781	         agent's user and script_run enabled. Otherwise the update is run
+   782	         by the user from Managing your agent in the SentinelX dashboard."
+   783	      - "The PROJECT considers updates user-driven, not automatic. There
+   784	         is intentionally NO auto-update mechanism — the operator
+   785	         decides when to update, and the agent should INFORM
+   786	         (via this playbook) but not ACT autonomously on updates."
+   787	      - "Related meta-playbooks: add_allowed_command (extend allowlist),
+   788	         add_service (declare systemd services), create_binary_playbook
+   789	         (document custom CLIs). Together with update_sentinelx_code +
+   790	         sync_sentinelx_config they form the agent's self-extension
+   791	         surface."
+   792	
+   793	  drop_share:
+   794	    description: |
+   795	      Use drop.pensa.ar as a temporary buffer for files when transferring
+   796	      between hosts, sharing host-side files with the operator/LLM, or
+   797	      replicating one file to many hosts. drop.pensa.ar is a self-hosted
+   798	      file-drop service (https://github.com/pensados/drop-pensa) that
+   799	      accepts uploads up to 50 MB and returns a public URL with
+   800	      configurable expiry. Files NEVER pass through the LLM's context.
+   801	
+   802	    when: |
+   803	      Use this playbook in any of these scenarios:
+   804	
+   805	        (1) HOST-TO-HOST TRANSFER: copy a file from one enrolled host to
+   806	            another (e.g., move /var/log/nginx/error.log from orion to
+   807	            atlas for offline analysis). Bytes never touch the LLM
+   808	            context.
+   809	
+   810	        (2) SHARE WITH OPERATOR / LLM FOR REVIEW: the user asks Claude
+   811	            to look at a file that lives on a host (logs, configs,
+   812	            dumps). Uploading via drop and pasting the URL into the
+   813	            chat lets Claude web_fetch it without paying the cost of
+   814	            base64-inlining a multi-MB file.
+   815	
+   816	        (3) REPLICATE ONE FILE TO MANY HOSTS: if the same artifact must
+   817	            land on 3+ hosts (a config snippet, a binary, a cert), drop
+   818	            it once and use sentinel_upload_file with file_url N times.
+   819	            One POST instead of N base64 encodes.
+   820	
+   821	        (4) USER WANTS TO PUSH A FILE TO A HOST: the operator uploads
+   822	            via the drop web UI (https://drop.pensa.ar), pastes the URL
+   823	            in chat, then sentinel_upload_file with file_url lands it
+   824	            on the target host without any base64 routing through the
+   825	            LLM.
+   826	
+   827	      DO NOT use this playbook when:
+   828	
+   829	        - The LLM is creating a NEW file (text, config, code) and
+   830	          uploading it to ONE host. In that case, sentinel_upload_file
+   831	          with content_base64 (or sentinel_edit with mode='write' for
+   832	          text) is one call versus three, with the same actual cost
+   833	          on the LLM side. Drop adds steps without saving anything.
+   834	
+   835	        - The file is already at its destination. Don't round-trip
+   836	          through drop just because.
+   837	
+   838	    steps:
+   839	      - "(SCENARIO 1 — HOST-TO-HOST TRANSFER): on the SOURCE host, run:
+   840	         sentinel_exec command='curl -s -F file=@/PATH/TO/FILE
+   841	         https://drop.pensa.ar/upload?expires_in=600'.
+   842	         The response is JSON; parse out the .url field. Tip: pipe to
+   843	         python3 to extract cleanly:
+   844	         sentinel_exec command='curl -s -F file=@/PATH https://drop.pensa.ar/upload
+   845	         | python3 -c \"import sys,json; print(json.load(sys.stdin)[\\\"url\\\"])\"'.
+   846	         Then on the DESTINATION host, call sentinel_upload_file with
+   847	         file_url=<that URL> and target_path=<where you want it>.
+   848	         The destination agent fetches drop.pensa.ar directly. Verify
+   849	         with the sha256 returned in both responses — they MUST match."
+   850	
+   851	      - "(SCENARIO 2 — SHARE WITH OPERATOR/LLM): on the host that has
+   852	         the file, run: sentinel_exec command='curl -s -F file=@/PATH
+   853	         https://drop.pensa.ar/upload?expires_in=3600 | python3 -c
+   854	         \"import sys,json; print(json.load(sys.stdin)[\\\"url\\\"])\"'.
+   855	         Show the resulting URL to the operator. The operator pastes
+   856	         it in the chat as a separate message — that is the cue for
+   857	         Claude to use web_fetch on it. Claude's web_fetch will NOT
+   858	         work on URLs the agent generated dynamically; the operator's
+   859	         paste is what authorizes the fetch."
+   860	
+   861	      - "(SCENARIO 3 — ONE-TO-MANY REPLICATION): identical to Scenario 1,
+   862	         but instead of a single sentinel_upload_file call, repeat that
+   863	         call N times with the same file_url against each destination.
+   864	         drop.pensa.ar's default 1-hour expiry covers most multi-host
+   865	         pushes; bump expires_in if the operation will span longer."
+   866	
+   867	      - "(SCENARIO 4 — OPERATOR PUSHES A FILE TO A HOST): the operator
+   868	         uploads via https://drop.pensa.ar (web UI, drag-and-drop) and
+   869	         pastes the resulting URL in chat. Claude then calls
+   870	         sentinel_upload_file with file_url=<that URL> on the target
+   871	         host. Same flow as Scenario 1, just with a human as the
+   872	         original uploader instead of a host."
+   873	
+   874	      - "(VERIFICATION, ALL SCENARIOS): the upload response from drop
+   875	         includes 'sha256'. The sentinel_upload_file response after
+   876	         file_url fetch includes 'sha256' too. Compare them — they
+   877	         must be identical. If they differ, the file was modified
+   878	         in transit; abort and investigate."
+   879	
+   880	      - "(CLEANUP, OPTIONAL): drop responses include a 'delete_url'
+   881	         with a one-time token. To remove the file before its TTL
+   882	         expires (e.g., for sensitive content), run sentinel_exec
+   883	         command='curl -s -X DELETE \"<delete_url>\"'. Even if you
+   884	         skip this, the file auto-expires per its TTL (1h default,
+   885	         7d max)."
+   886	
+   887	    requires:
+   888	      - "'curl' in the host's allowlist (default config has it)."
+   889	      - "'python3' in the host's allowlist if you want to parse the
+   890	         JSON response on-host (default config has it; alternatively
+   891	         the operator/LLM can parse the JSON in the chat)."
+   892	      - "Network access from each participating host to drop.pensa.ar.
+   893	         For this to work behind restrictive firewalls, allow outbound
+   894	         HTTPS to drop.pensa.ar (port 443) — same constraint as any
+   895	         other outbound HTTPS call."
+   896	      - "drop.pensa.ar must be reachable. It's a self-hosted service;
+   897	         if it's down, this playbook doesn't work. Status check:
+   898	         curl -s https://drop.pensa.ar/healthz."
+   899	
+   900	    notes:
+   901	      - "Drop's hard limits: 50 MB per file, 7-day max retention,
+   902	         255-char max filename (POSIX NAME_MAX). Rate limits: 30
+   903	         uploads/hour per IP, 200 fetches/min per IP plus 100/hour
+   904	         per (file, IP) pair, 60 deletes/hour. For files >50 MB,
+   905	         fall back to sentinel_upload_init / chunk / complete with
+   906	         content_base64 chunks (the chunked upload path supports
+   907	         arbitrarily large files but pays the base64 cost per
+   908	         chunk)."
+   909	
+   910	      - "HTTP semantics worth knowing when a fetch fails:
+   911	         (a) 404 = the file ID was never registered or has fully
+   912	             expired (TTL elapsed). Treat as 'try again with a
+   913	             fresh upload'.
+   914	         (b) 410 Gone = a one-shot upload that has already been
+   915	             consumed. Re-fetching is impossible; the file is
+   916	             permanently gone. Treat as 'someone else got there
+   917	             first, ask the operator to re-upload'.
+   918	         (c) 416 = a Range request asked for bytes outside the
+   919	             file. Adjust the Range header.
+   920	         (d) 429 = rate limited. Wait and retry, or split work
+   921	             across hosts.
+   922	         The drop service supports HTTP Range requests (RFC 9110)
+   923	         for resumable downloads — useful for very large fetches
+   924	         over flaky links, though sentinel_upload_file does not
+   925	         currently use range-resume."
+   926	
+   927	      - "Since agent v0.2.0 the file_url path of
+   928	         sentinel_upload_file enforces a strict allowlist:
+   929	         only hostnames in security.trusted_fetch_hosts are
+   930	         accepted, the resolved IP must be public-routable
+   931	         (loopback / RFC1918 / link-local rejected), https
+   932	         only, and redirects are disabled. The current
+   933	         allowlist is exposed by sentinel_capabilities under
+   934	         the fetch_policy key — check it before passing a
+   935	         file_url, and prefer drop.pensa.ar (which is in
+   936	         the default allowlist). Any URL outside the
+   937	         allowlist will fail with fetch_blocked."
+   938	
+   939	      - "Why drop is faster than the base64-inline path WHEN the
+   940	         file does NOT originate in the LLM: the LLM generates ~50
+   941	         tokens (the URL) instead of ~12,000 tokens for a 30 KB
+   942	         base64 payload. Cost difference scales linearly with
+   943	         file size. For LLM-originated files, the LLM still has
+   944	         to emit the bytes once somewhere — drop adds steps without
+   945	         saving the emission cost in that case (see when: above)."
+   946	
+   947	      - "The sha256 returned by drop is computed at upload time. The
+   948	         sha256 returned by sentinel_upload_file (file_url path) is
+   949	         computed at fetch time. Matching them confirms end-to-end
+   950	         integrity across both networks (LLM → drop → host)."
+   951	
+   952	      - "Drop URLs are unguessable (~78 bits of entropy in the file
+   953	         id) but PUBLIC during their TTL. Do NOT upload secrets
+   954	         (private keys, passwords, tokens) without setting
+   955	         one_shot=true (file deleted on first download) AND keeping
+   956	         expires_in short. Even then, treat drop as 'better than
+   957	         pasting in chat, worse than a real secret store'."
+   958	
+   959	      - "Reference URLs:
+   960	         - service:    https://drop.pensa.ar
+   961	         - source:     https://github.com/pensados/drop-pensa
+   962	         - api docs:   https://drop.pensa.ar/api"
+   963	
+   964	# ============================================================================
+   965	# Logging
+   966	# ============================================================================
+   967	
+   968	  systemd_debug:
+   969	    description: |
+   970	      Quick check on systemd unit health for the services this host depends on
+   971	      (the SentinelX agent, your web server, and any others you've registered).
+   972	    when: |
+   973	      User asks for an overall services snapshot, or as a starting point when
+   974	      something feels broken but it's not clear which subsystem. Triggers:
+   975	      "are the services up", "system health check", "what's running".
+   976	    steps:
+   977	      - "Inspect installed unit files: sentinel_exec 'ls /etc/systemd/system'.
+   978	         Shows the units this host has explicitly enabled (vs. distro defaults)."
+   979	      - "Check the agent: sentinel_service action='is-active'
+   980	         service='sentinelx-cloud-core'."
+   981	      - "Check the web server: sentinel_service action='status' service='nginx'
+   982	         (or 'httpd'/'apache2' on Apache hosts)."
+   983	      - "Check any other service in your services: map the same way
+   984	         (action='status')."
+   985	      - "If any look off, drill into that one with its dedicated playbook
+   986	         (e.g. nginx_debug, docker_debug)."
+   987	    requires:
+   988	      - "Each service to inspect must be declared in the services: map"
+   989	    notes:
+   990	      - "This is a SHALLOW snapshot. For deeper diagnosis on a specific
+   991	         subsystem, use the dedicated debug playbook."
+   992	      - "If many services are unhealthy at once, suspect host-level issues
+   993	         (disk full, OOM kill, network outage) before per-service debugging."
+   994	
+   995	  nginx_debug:
+   996	    description: |
+   997	      Quick diagnostic when nginx is misbehaving — service down, proxy errors,
+   998	      certificate problems, or unexpected 502/504s.
+   999	    when: |
+  1000	      User reports nginx issues (e.g., "nginx is not responding", "502 errors",
+  1001	      "site is down", "check nginx") or when troubleshooting a web service that
+  1002	      goes through nginx as a reverse proxy.
+  1003	    steps:
+  1004	      - "Check service state: sentinel_service action='status' service='nginx'.
+  1005	         If inactive, that's the obvious cause."
+  1006	      - "Validate nginx config syntax: sentinel_exec 'sudo nginx -t'. Even a
+  1007	         small typo in any sites-available file will prevent reload/restart."
+  1008	      - "Inspect recent error log: sentinel_exec 'sudo tail -n 50
+  1009	         /var/log/nginx/error.log'. Most 502/504 issues are visible here."
+  1010	      - "Inspect recent access log if needed: sentinel_exec 'sudo tail -n 30
+  1011	         /var/log/nginx/access.log'. Confirms requests are reaching nginx."
+  1012	      - "List configured sites: sentinel_exec 'ls /etc/nginx/sites-available'.
+  1013	         Helps spot orphaned or recently-modified configs."
+  1014	    requires:
+  1015	      - "sentinel_service permission for nginx (in the default services map)"
+  1016	      - "sudo access for log files in /var/log/nginx/"
+  1017	    notes:
+  1018	      - "If nginx -t fails, the FIX comes BEFORE any restart attempt — restarting
+  1019	         a service with broken config produces an inactive service."
+  1020	      - "Common upstream culprit for 502: a backend service is down (check what
+  1021	         nginx proxies to — often docker containers or local services on ports)."
+  1022	      - "If the issue is SSL-related, check certificate expiry with
+  1023	         'openssl x509 -in CERT -noout -dates'."
+  1024	
+  1025	  docker_debug:
+  1026	    description: |
+  1027	      General-purpose Docker diagnostic — daemon health, running containers,
+  1028	      image inventory, and stack-specific checks.
+  1029	    when: |
+  1030	      User asks about Docker state, container issues, or wants an overview of
+  1031	      what's running. Triggers: "docker status", "what containers are up",
+  1032	      "is X running", "docker stack health".
+  1033	    steps:
+  1034	      - "Check daemon health: sentinel_service action='status' service='docker'
+  1035	         (register 'docker' in your services: map first if it isn't already)."
+  1036	      - "List running containers: sentinel_exec 'docker ps'. For ALL containers
+  1037	         (including stopped): 'docker ps -a'."
+  1038	      - "List images: sentinel_exec 'docker images'. Useful if the user is
+  1039	         concerned about disk usage or stale images."
+  1040	      - "If you keep compose stacks in a directory, inspect it: sentinel_exec
+  1041	         'ls <your compose dir>' (e.g. ~/docker or /srv/docker)."
+  1042	    requires:
+  1043	      - "sentinel_service permission for docker (register it if needed)"
+  1044	      - "docker in the allowlist"
+  1045	    notes:
+  1046	      - "For container-specific debugging, follow up with 'docker logs <name>
+  1047	         --tail 50' or 'docker inspect <name>'."
+  1048	      - "If the daemon itself is unhealthy, 'sudo journalctl -u docker -n 50'
+  1049	         is more informative than the systemctl status output."
+  1050	
+  1051	  network_debug:
+  1052	    description: |
+  1053	      Basic network diagnostic — interfaces, routes, listening ports, and
+  1054	      reachability tests.
+  1055	    when: |
+  1056	      User reports network issues (e.g., "internet not working", "can't reach
+  1057	      X", "what's listening on port Y") or when troubleshooting a service that
+  1058	      depends on network connectivity.
+  1059	    steps:
+  1060	      - "Check interfaces and IPs: sentinel_exec 'ip a'."
+  1061	      - "Check routing table: sentinel_exec 'ip route'. The default route tells
+  1062	         you the gateway."
+  1063	      - "Check listening ports: sentinel_exec 'ss -tuln'. Each :PORT line tells
+  1064	         you what's bound where."
+  1065	      - "Test reachability: sentinel_exec 'ping -c 3 1.1.1.1' (or any host the
+  1066	         user expects to reach)."
+  1067	      - "Test DNS: sentinel_exec 'dig example.com' (or the relevant domain)."
+  1068	    requires:
+  1069	      - "The commands above (ip, ss, ping, dig) must be in the allowlist"
+  1070	    notes:
+  1071	      - "If ping fails but dig works, suspect ICMP filtering rather than actual
+  1072	         connectivity loss — try curl as an alternative reachability test."
+  1073	      - "If DNS fails locally, check /etc/resolv.conf and try a public resolver:
+  1074	         'dig @8.8.8.8 example.com'."
+  1075	      - "For deeper packet-level inspection, tcpdump helps but use it sparingly
+  1076	         — captures grow fast (and it must be in the allowlist)."
+  1077	
+  1078	  ports_debug:
+  1079	    description: |
+  1080	      List the ports in use on this host with the process bound to each.
+  1081	    when: |
+  1082	      User asks 'what's on port X' or 'what ports are listening' or wants a
+  1083	      full inventory of network-exposed services.
+  1084	    steps:
+  1085	      - "List listening ports with their process: sentinel_exec 'sudo ss -tulnp'.
+  1086	         Each line shows protocol, local address:port, and the process/PID bound
+  1087	         to it. (Without sudo, process info is hidden.)"
+  1088	      - "For a specific port: sentinel_exec 'sudo ss -tulnp | grep :PORT'."
+  1089	      - "For more detail (owning user, full binary path): sentinel_exec
+  1090	         'sudo lsof -i -P -n' — richer but slower."
+  1091	    requires:
+  1092	      - "'sudo ss' (and optionally 'sudo lsof') in the allowlist"
+  1093	    notes:
+  1094	      - "ss is the modern replacement for netstat; prefer it. lsof is the
+  1095	         fallback when you need the owning user or the full binary path."
+  1096	      - "'-tul' covers both TCP and UDP; drop the 'u' for TCP-only."
+  1097	
+  1098	log:
+  1099	  path: /var/log/sentinelx/core.log
+  1100	  level: INFO
+  1101	
+  1102	
+  1103	# ============================================================================
+  1104	# Security: SSRF defense for file_url uploads
+  1105	# ============================================================================
+  1106	# When the hub asks the agent to fetch a URL (`upload_file` with `file_url`),
+  1107	# the URL's hostname must be in this allowlist AND its resolved IP must
+  1108	# not be private/loopback/link-local.
+  1109	#
+  1110	# Default empty list = `file_url` fetching is effectively disabled. You
+  1111	# must opt in explicitly for any host you want the agent to fetch from.
+  1112	#
+  1113	# RECOMMENDED: keep this list to services YOU control (your own drop
+  1114	# server, your own installer endpoint). Adding third-party hosts
+  1115	# (github.com, pypi.org, random CDNs) means the agent runs HTTP
+  1116	# requests against those services with elevated privileges — they can
+  1117	# log your traffic, return malicious responses, or get compromised.
+  1118	# If you need to fetch from third parties, do it from the hub side and
+  1119	# forward via `content_base64` instead.
+  1120	security:
+  1121	  trusted_fetch_hosts:
+  1122	    - drop.pensa.ar       # SentinelX drop service (file transfer)
+  1123	    - get.sentinelx.app   # SentinelX installer & assets
+  1124	
+  1125	  # Hard timeout for any single fetch (seconds). Tighter than urllib's
+  1126	  # 60s default — lets the agent fail fast if a vetted host hangs.
+  1127	  file_url_timeout_seconds: 15
+  1128	
+  1129	# ============================================================================
+  1130	# file_ops: filesystem primitives, unified r/rw path model.
+  1131	#
+  1132	# `file_ops.paths` is the security boundary for ALL filesystem tools:
+  1133	#   - read-only:  sentinel_read / sentinel_list / sentinel_search
+  1134	#   - mutating:   sentinel_edit  and
+  1135	#                 sentinel_move / sentinel_copy / sentinel_delete /
+  1136	#                 sentinel_chmod / sentinel_chown
+  1137	#
+  1138	# Each entry has a `path` (a directory PREFIX) and an `access` level:
+  1139	#   - access: r   -> read/list/search only. Edit and the destructive
+  1140	#                    ops are refused with path_not_allowed.
+  1141	#   - access: rw  -> read AND mutate. Required for edit/move/copy/
+  1142	#                    delete/chmod/chown.
+  1143	# A request is permitted only if the requested path, after
+  1144	# canonicalization (symlinks resolved, '..' collapsed), falls under an
+  1145	# entry that grants the needed access. An unknown/missing access value
+  1146	# degrades to `r` (never `rw`) — safe by default. An empty or missing
+  1147	# list disables every filesystem tool (path_not_allowed for all).
+  1148	#
+  1149	# Most-permissive match wins: if a path is under both an `r` parent and
+  1150	# an `rw` subtree entry, a write to the subtree is allowed.
+  1151	#
+  1152	# BACK-COMPAT: the legacy key `file_ops.allowed_read_paths:` (a bare
+  1153	# list of strings) is still accepted and each entry is treated as
+  1154	# `access: r`. If BOTH `paths:` and `allowed_read_paths:` are present,
+  1155	# `paths:` wins and a deprecation warning is logged. Migrate at your
+  1156	# leisure; nothing breaks. Mixing is not recommended.
+  1157	#
+  1158	# This is SEPARATE from allowed_commands (which gates exec).
+  1159	#
+  1160	# Why a conservative default: the agent runs unattended on a remote
+  1161	# host. Read feeds file content to the model (prompt-injection
+  1162	# surface); write/delete can destroy data. The default below grants
+  1163	# READ for system/service administration and grants RW to NOTHING —
+  1164	# you must consciously opt a subtree into `rw`.
+  1165	# ============================================================================
+  1166	file_ops:
+  1167	  paths:
+  1168	    - path: /etc          # system and service configuration
+  1169	      access: r
+  1170	    - path: /var/log      # logs
+  1171	      access: r
+  1172	    - path: /var/www      # web content, if any
+  1173	      access: r
+  1174	    - path: /opt          # installed applications
+  1175	      access: r
+  1176	    - path: /srv          # served data
+  1177	      access: r
+  1178	
+  1179	    # To let the assistant EDIT/move/delete in a directory, add it
+  1180	    # with access: rw — deliberately, and as narrow as possible, e.g.:
+  1181	[omitted: upstream personal/example home path]
+  1182	    #     access: rw
+  1183	    # Granting rw on a broad path (e.g. /etc) lets the model rewrite
+  1184	    # or delete anything under it. Keep rw subtrees small and specific.
+  1185	    #
+  1186	    # Need read in a personal directory? Add the SPECIFIC path with
+  1187	    # access: r (avoid all of /home). You can ask the assistant to do
+  1188	    # it — it follows the add_allowed_read_path playbook (edit this
+  1189	    # file, reload the agent, verify).
+  1190	
+  1191	  # LEGACY (still works, treated as access: r). Prefer `paths:` above.
+  1192	  # allowed_read_paths:
+  1193	  #   - /etc
+  1194	  #   - /var/log
+  1195	
+  1196	  # Caps for the read primitives. Defaults shown; uncomment to override.
+  1197	  # max_read_bytes: 65536       # per sentinel_read; larger files are truncated
+  1198	  # max_list_entries: 1000      # per sentinel_list
+  1199	  # max_search_results: 200     # per sentinel_search
+  1200	
+  1201	# ─────────────────────────────────────────────────────────────────────────────
+  1202	# local_apis  (optional)  —  sentinel_local_api
+  1203	#
+  1204	# Bridge to host-local tools that ALREADY speak a structured protocol, so the
+  1205	# model receives data instead of text meant for a terminal. `exec` remains the
+  1206	# right answer for plain-text CLIs; this does not replace it.
+  1207	#
+  1208	# Leave this block out entirely and nothing changes: the agent registers no
+  1209	# handler and advertises no such capability.
+  1210	#
+  1211	# ┌───────────────────────────────────────────────────────────────────────────
+  1212	# │ READ THIS BEFORE ENABLING THE DOCKER ENDPOINT
+  1213	# │
+  1214	# │ /var/run/docker.sock is root:docker 0660, so the agent's user must be in
+  1215	# │ the `docker` group to reach it. THAT GROUP IS ROOT-EQUIVALENT: whoever can
+  1216	# │ talk to that socket can start a privileged container with the host
+  1217	# │ filesystem mounted and take over the machine. Adding the agent to it
+  1218	# │ widens what a compromised agent could do, no matter how tight
+  1219	# │ `allowed_commands` is.
+  1220	# │
+  1221	# │   sudo usermod -aG docker sentinelx
+  1222	# │   sudo systemctl restart sentinelx-cloud-core
+  1223	# │
+  1224	# │ That is a deliberate security decision, not a configuration detail. If it
+  1225	# │ is not acceptable on this host, leave the endpoint out. Without the group
+  1226	# │ the endpoint still loads and every call returns endpoint_unreachable.
+  1227	# │
+  1228	# │ TO UNDO IT: deleting this block does NOT remove the group membership. The
+  1229	# │ agent keeps root-equivalent reach over Docker until you take it away:
+  1230	# │
+  1231	# │   sudo gpasswd -d sentinelx docker
+  1232	# │   sudo systemctl restart sentinelx-cloud-core
+  1233	# └───────────────────────────────────────────────────────────────────────────
+  1234	#
+  1235	# TWO RULES WORTH UNDERSTANDING BEFORE WRITING YOUR OWN:
+  1236	#
+  1237	# 1. `actions` is the entire security boundary, and it is required. `exec` is
+  1238	#    bounded by allowed_commands (exec_mode), but a socket bridge is bounded only by what
+  1239	#    the far side exposes, which the agent cannot see or enumerate. An endpoint
+  1240	#    that declares no actions is NOT registered.
+  1241	#
+  1242	# 2. `select` is not cosmetic. Measured against nine real containers: the text
+  1243	#    `docker ps` prints is 712 bytes, the raw socket JSON answering the same
+  1244	#    question is 20,340, and the projection below is 1,811. Without `select`
+  1245	#    the answer is worse than the text it replaces. Omit it only for endpoints
+  1246	#    whose replies are already small.
+  1247	#
+  1248	# With transport `unix`, `path` is NOT a binary and actions are NOT
+  1249	# subcommands: the agent opens a socket, so there is no process, no argv and
+  1250	# no shell. The whole shell-injection class cannot occur on this path. (With
+  1251	# transport `stdio`, at the end of this section, `path` is a binary you
+  1252	# declare, still without a shell.)
+  1253	#
+  1254	# ON `run_as`. Some endpoints create their socket 0600 and check who is
+  1255	# connecting, so reaching one means BEING its owner, not merely having
+  1256	# permission to open it. Running the agent as root does not solve that: root
+  1257	# connects but identifies as uid 0, which is not the owner.
+  1258	#
+  1259	# When `run_as` is set, the connect happens in a tiny relay invoked through
+  1260	# `sudo -n -u <user>`. Since the agent is not granted sudo by default, the
+  1261	# host's owner has to allow exactly that and nothing else:
+  1262	#
+  1263	#   sentinelx ALL=(youruser) NOPASSWD: /path/to/.venv/bin/python -m sentinelx_core.local_api_relay
+  1264	#
+  1265	# Until that rule exists the endpoint answers run_as_not_permitted and names
+  1266	# the line to add. The relay takes a socket path and a timeout, writes one
+  1267	# request and reads one reply: it loads no config, interprets no payload and
+  1268	# runs nothing, and the path comes from this file rather than from the caller.
+  1269	#
+  1270	# local_apis:
+  1271	#   docker:
+  1272	#     transport: unix                  # unix | stdio
+  1273	#     path: /var/run/docker.sock
+  1274	#     protocol: http                   # http | jsonrpc
+  1275	#     timeout_s: 20
+  1276	#     actions:
+  1277	#       # Reads only. The socket is root-equivalent, so nothing here starts,
+  1278	#       # stops, removes or executes.
+  1279	#       containers.list:
+  1280	#         request: GET /v1.44/containers/json
+  1281	#         select: [Names, Image, State, Status, Ports]
+  1282	#         description: what is running on this host
+  1283	#       containers.inspect:
+  1284	#         request: GET /v1.44/containers/{id}/json    # {id} comes from params
+  1285	#         select: [Name, State, Config.Image, HostConfig.RestartPolicy]
+  1286	#         description: full detail for one container
+  1287	#       images.list:
+  1288	#         request: GET /v1.44/images/json
+  1289	#         select: [RepoTags, Size, Created]
+  1290	#
+  1291	#   # A JSON-RPC endpoint looks like this instead. Actions name methods.
+  1292	#   # some_tool:
+  1293	#   #   transport: unix
+  1294	#   #   path: /run/user/1000/some_tool.sock
+  1295	#   #   protocol: jsonrpc
+  1296	#   #   run_as: youruser                # connect AS this Unix user
+  1297	#   #   compatibility:
+  1298	#   #     probe:   { method: session.describe }  # how to ASK for the version
+  1299	#   #     extract: protocol                      # where to read it in the reply
+  1300	#   #     accept:  { exact: 20 }                 # or { allowed: [20, 21] }
+  1301	#   #   actions:
+  1302	#   #     session.snapshot: { method: session.snapshot }
+  1303	#   #     # `params:` on an action declares its parameter SHAPE, not values.
+  1304	#   #     # An HTTP action does not need it: the names are already readable
+  1305	#   #     # from the {placeholders} in its request. A JSON-RPC action has no
+  1306	#   #     # template, so without this a caller is told the action exists and
+  1307	#   #     # nothing about what it takes.
+  1308	#   #     #
+  1309	#   #     # Carried verbatim and never interpreted here, so nesting, arrays
+  1310	#   #     # and enums mean whatever the endpoint says they mean.
+  1311	#   #     agent.wait:
+  1312	#   #       method: agent.wait
+  1313	#   #       params:
+  1314	#   #         type: object
+  1315	#   #         required: [target]
+  1316	#   #         properties:
+  1317	#   #           target: { type: string }
+  1318	#   #           until:
+  1319	#   #             type: array
+  1320	#   #             items:
+  1321	#   #               enum: [idle, done, blocked]
+  1322	#   #           timeout_ms:
+  1323	#   #             type: [integer, "null"]
+  1324	#
+  1325	# On `compatibility`, both halves are declared: the profile says how to obtain
+  1326	# the metadata and which values it accepts, and SentinelX evaluates that
+  1327	# declared constraint. It is NEVER inferred from `new_version >= configured`,
+  1328	# because a higher number does not imply the protocol still matches; `accept.
+  1329	# allowed` is how whoever does know widens it deliberately.
+  1330	#
+  1331	# It is checked once per connection epoch, not per call: probing before every
+  1332	# call pays a round trip for a guarantee it cannot give, since the endpoint can
+  1333	# restart between the check and the call either way. The verdict is dropped the
+  1334	# moment the endpoint becomes unreachable, so an endpoint that comes back
+  1335	# speaking something else is judged again rather than inheriting the old answer.
+  1336	#
+  1337	# It fails CLOSED. An endpoint that cannot be probed, or that does not report
+  1338	# the field named in `extract`, is refused rather than assumed fine. A block
+  1339	# missing any of the three keys is dropped with a warning instead of being
+  1340	# half-enforced, because a constraint that silently does nothing reads as
+  1341	# protection that is not there.
+  1342	#
+  1343	# ── transport: stdio  —  a binary that speaks JSON-RPC on stdin/stdout ──────
+  1344	#
+  1345	# For tools that run as a process instead of listening on a socket: MCP
+  1346	# servers launched over stdio, language servers, small JSON-RPC helpers. It is
+  1347	# also the transport that works on Windows, which has no unix sockets.
+  1348	#
+  1349	# Here `path` IS a binary, and you declare it. The agent starts it once per
+  1350	# call, writes the JSON-RPC request as one line, reads stdout until the answer
+  1351	# with the same id, then stops it: stdin closed, and whatever is still running
+  1352	# after a short grace killed as a whole process tree. There is no shell: argv
+  1353	# is `path` plus the FIXED `args`, and a call's parameters travel only inside
+  1354	# the JSON message, never as arguments, flags or file names.
+  1355	#
+  1356	#   protocol   must be jsonrpc.
+  1357	#   path       absolute. The binary, and the directories holding it, must not
+  1358	#              be writable by anyone but their owner: whoever can replace the
+  1359	#              file chooses what the agent runs. Such an endpoint is skipped at
+  1360	#              load and refused at call time (unsafe_binary). A binary that does
+  1361	#              not exist yet still registers; calls fail until it is installed.
+  1362	#   args       optional, a fixed list. `describe` shows how many, not what they
+  1363	#              are, so a token passed this way is not echoed to the model.
+  1364	#   cwd        optional, absolute.
+  1365	#   env        optional variables, added to a MINIMAL environment (PATH, HOME,
+  1366	#              locale; the system variables on Windows). The agent's own
+  1367	#              environment is not passed on.
+  1368	#   handshake  none (default) | mcp. With mcp the agent sends `initialize` and
+  1369	#              `notifications/initialized` first, as an MCP server requires.
+  1370	#   timeout_s  the whole call: start-up and handshake included.
+  1371	#   run_as     starts it as `sudo -n -u <user> -- <path> <args>`. The sudoers
+  1372	#              rule names that exact command and nothing wider, e.g.
+  1373	#                sentinelx ALL=(youruser) NOPASSWD: /opt/tools/bin/inventory --stdio
+  1374	#              `env` cannot be combined with run_as: sudo would drop it.
+  1375	#
+  1376	# ON MCP SERVERS. The allowlist is of METHODS. An action with
+  1377	# `method: tools/call` reaches EVERY tool the server offers, whatever its
+  1378	# `params` schema says: the schema is shown to the caller, not enforced. Pick
+  1379	# servers whose whole tool set you accept, or limit their tools with the
+  1380	# server's own options in `args`.
+  1381	#
+  1382	#   # inventory:
+  1383	#   #   transport: stdio
+  1384	#   #   protocol: jsonrpc
+  1385	#   #   path: /opt/tools/bin/inventory
+  1386	#   #   args: ["--stdio"]
+  1387	#   #   timeout_s: 15
+  1388	#   #   actions:
+  1389	#   #     hosts.list: { method: hosts.list }
+  1390	#   #
+  1391	#   # An MCP server over stdio, declared the way an MCP client declares it:
+  1392	#   # files:
+  1393	#   #   transport: stdio
+  1394	#   #   protocol: jsonrpc
+  1395	#   #   path: /usr/bin/node              # Windows: 'C:\Program Files\nodejs\node.exe'
+  1396	#   #   args: ["/opt/mcp/server-filesystem/dist/index.js", "/srv/shared"]
+  1397	#   #   handshake: mcp
+  1398	#   #   timeout_s: 30
+  1399	#   #   actions:
+  1400	#   #     tools.list: { method: tools/list }
+  1401	#   #     tools.call:
+  1402	#   #       method: tools/call             # params: { name, arguments }
+  1403	#   #       params:
+  1404	#   #         type: object
+  1405	#   #         required: [name]
+  1406	#   #         properties:
+  1407	#   #           name: { type: string }
+  1408	#   #           arguments: { type: object }

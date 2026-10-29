@@ -1,0 +1,570 @@
+     1	"""script_run handler: execute a temporary bash/python script with optional sudo.
+     2	
+     3	Ported from legacy SentinelX 0.3.5 /script/run endpoint. Writes the script
+     4	content to a workdir under the upload base, executes it, returns stdout/stderr/
+     5	returncode. Cleans up unless cleanup=False is requested (in which case the
+     6	caller gets the path back, useful for debugging).
+     7	
+     8	Security model:
+     9	- The script is written to a per-request workdir (no name collisions).
+    10	- Optional `sudo` requires that the agent user is in sudoers without password
+    11	  for the relevant binary. We don't try to validate that here.
+    12	- timeout is hard-capped at 600 seconds (10 min); longer work should run
+    13	  in the background and be polled rather than blocking the caller.
+    14	- The script's content itself is NOT validated against the policy allowlist
+    15	  — the allowlist applies to `exec` only. `script_run` is a separate
+    16	  capability with its own scope, intentionally more powerful.
+    17	
+    18	Text integrity on Windows (issue #28)
+    19	=====================================
+    20	
+    21	Unicode must survive `script_run` without the caller adding boilerplate,
+    22	and Windows breaks that in three places, each handled at its own boundary:
+    23	
+    24	  - Python inherits the console's legacy code page for stdio and raises
+    25	    UnicodeEncodeError on ordinary accented text -> PYTHONIOENCODING=utf-8
+    26	    is set for the child (setdefault: an explicit value still wins).
+    27	  - Windows PowerShell 5.1 reads a BOM-less .ps1 through the ANSI code
+    28	    page, mojibaking non-ASCII literals before the script runs -> .ps1
+    29	    files are written with a UTF-8 BOM on Windows.
+    30	  - the same shell encodes REDIRECTED output in the console code page,
+    31	    destroying anything outside it before we ever see the bytes -> the
+    32	    user's script runs through a UTF-8 bootstrap (see
+    33	    _POWERSHELL_BOOTSTRAP), in a child console of its own.
+    34	
+    35	As a safety net, captured bytes are decoded as UTF-8 first and fall back
+    36	to the host's code page only when that fails, which covers children that
+    37	still emit legacy bytes (a caller who pins a legacy PYTHONIOENCODING, a
+    38	bash port, pwsh on an exotic host).
+    39	
+    40	Argv, exit-code semantics, the user's script text and the workstation's
+    41	console code page are all left exactly as they were — each verified on a
+    42	real Windows PowerShell 5.1 host.
+    43	"""
+    44	
+    45	from __future__ import annotations
+    46	
+    47	import asyncio
+    48	
+    49	from sentinelx_core.executor_engine import communicate_partial, timeout_text
+    50	import logging
+    51	import os
+    52	import shutil
+    53	import signal
+    54	import subprocess
+    55	import sys
+    56	import time
+    57	import uuid
+    58	from pathlib import Path
+    59	from typing import Any
+    60	
+    61	from sentinelx_core.executor import HandlerError
+    62	from sentinelx_core.jobs import BACKGROUND_TIMEOUT_MAX
+    63	from sentinelx_core.policy import Policy
+    64	from sentinelx_core.staging import staging_root
+    65	
+    66	
+    67	def _staging_oserror(exc: OSError, path: str) -> HandlerError:
+    68	    """Turn an OS error while preparing the work area into a named failure.
+    69	
+    70	    These are host conditions, not agent defects, and the operator can act on
+    71	    each one -- but only if we say which it is instead of returning a bare
+    72	    internal_error with an errno in it.
+    73	    """
+    74	    import errno as _errno
+    75	
+    76	    if exc.errno == _errno.ENOSPC:
+    77	        return HandlerError(
+    78	            "no_space",
+    79	            f"cannot prepare the work area at {path!r}: the filesystem is full "
+    80	            f"([Errno {exc.errno}]). This is a host condition, not a policy or "
+    81	            "allowlist issue. Free space on that filesystem (or point "
+    82	            "`upload_base` in the agent config at one with room) and retry. "
+    83	            "A full disk also makes the agent itself unstable, so unrelated "
+    84	            "errors on this host may clear up once space is available.",
+    85	        )
+    86	    if exc.errno in (_errno.EACCES, _errno.EPERM):
+    87	        return HandlerError(
+    88	            "permission_denied",
+    89	            f"cannot prepare the work area at {path!r}: the agent's OS user "
+    90	            f"lacks write permission ([Errno {exc.errno}]). Grant that user "
+    91	            "write access to the staging directory, or set `upload_base` in "
+    92	            "the agent config to a directory it can write.",
+    93	        )
+    94	    if exc.errno == _errno.EROFS:
+    95	        return HandlerError(
+    96	            "read_only_filesystem",
+    97	            f"cannot prepare the work area at {path!r}: the filesystem is "
+    98	            f"mounted read-only ([Errno {exc.errno}]). Set `upload_base` to a "
+    99	            "writable location.",
+   100	        )
+   101	    return HandlerError(
+   102	        "staging_failed",
+   103	        f"cannot prepare the work area at {path!r}: {exc}.",
+   104	    )
+   105	from sentinelx_core.winspawn import spawn_kwargs
+   106	
+   107	logger = logging.getLogger(__name__)
+   108	
+   109	# Hard limits, mirror legacy behavior
+   110	TIMEOUT_MIN = 1
+   111	# 600s (10 min) covers legitimately long operations (large package upgrades,
+   112	# builds, backups) while still bounding how long a stuck operation ties up the
+   113	# hub. For anything longer, the right pattern is to launch it in the background
+   114	# (nohup/systemd/screen) and poll for the result rather than block the caller.
+   115	TIMEOUT_MAX = 600
+   116	ALLOWED_INTERPRETERS = ("bash", "python3", "powershell", "pwsh")
+   117	
+   118	# Interpreters whose script file is a .ps1.
+   119	_POWERSHELL_INTERPRETERS = ("powershell", "pwsh")
+   120	
+   121	# Windows: give the child its own (windowless) console. Two reasons, both
+   122	# measured on a real 5.1 host: the encoding bootstrap below sets a console
+   123	# code page, and without this flag that lands on the console the agent
+   124	# itself inherits — leaking 65001 into every later child. With it, the
+   125	# change dies with the child and the agent's console keeps its own code
+   126	# page. It also guarantees the child HAS a console, which is what makes
+   127	# the bootstrap work at all when the agent runs as a service.
+   128	#
+   129	# The flag itself now lives in sentinelx_core.winspawn, applied at every spawn
+   130	# site rather than only this one -- which is how seven others ended up without
+   131	# it and flashed windows on operators' desktops.
+   132	
+   133	# Windows PowerShell 5.1 encodes redirected output in the console code page
+   134	# (cp437 on a default es/en install), so anything outside it is destroyed at
+   135	# the source: an em dash became "-" and a CJK character became "?" before
+   136	# the bytes ever reached us. No amount of decoding on our side brings those
+   137	# back, so the encoding has to be fixed IN the child (issue #28).
+   138	#
+   139	# The bootstrap sets the process's output encoding to UTF-8 and then runs
+   140	# the user's script as an INNER `powershell -File`. That indirection is the
+   141	# whole point: a wrapper that merely called `& $script` would collapse two
+   142	# different outcomes, because after it an explicit `exit 7` and a handled
+   143	# native failure both leave 7 in $LASTEXITCODE. Measured on 5.1:
+   144	#
+   145	#   invocation            explicit exit 7   handled native 7   throw
+   146	#   -File (reference)            7                 0             1
+   147	#   bootstrap + & $script        7                 7  <-- wrong  1
+   148	#   bootstrap + inner -File      7                 0             1
+   149	#
+   150	# The inner process is a native command, so its exit code is unambiguous and
+   151	# `-File` semantics survive intact — as do argv, `using namespace`, and the
+   152	# user's script text, which is never prefixed with anything.
+   153	_POWERSHELL_BOOTSTRAP = (
+   154	    "param([Parameter(Mandatory=$true)][string]$SentinelXScript,"
+   155	    "[Parameter(ValueFromRemainingArguments=$true)]$SentinelXArgs)\n"
+   156	    "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n"
+   157	    "$OutputEncoding = [Console]::OutputEncoding\n"
+   158	    # -WindowStyle Hidden on the INNER powershell too. The outer process gets
+   159	    # CREATE_NO_WINDOW below, but this one is launched by PowerShell itself and
+   160	    # that flag does not carry across, so it could still paint a window on the
+   161	    # operator's desktop. Placed before -File, which must stay last for its
+   162	    # argument semantics to survive.
+   163	    "& powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass "
+   164	    "-WindowStyle Hidden "
+   165	    "-File $SentinelXScript @SentinelXArgs\n"
+   166	    "exit $LASTEXITCODE\n"
+   167	)
+   168	
+   169	
+   170	def _windows_legacy_encoding() -> str | None:
+   171	    """The code page a Windows child most likely encoded its output in.
+   172	
+   173	    Windows PowerShell 5.1 encodes redirected output using
+   174	    [Console]::OutputEncoding, which comes from the console output code page
+   175	    (or the ANSI one when no console is attached) — not UTF-8. Ask Windows
+   176	    directly; fall back to the locale's preferred encoding if that fails.
+   177	    Returns None when nothing usable can be determined, and never raises.
+   178	    """
+   179	    try:
+   180	        import ctypes
+   181	
+   182	        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+   183	        cp = kernel32.GetConsoleOutputCP() or kernel32.GetACP()
+   184	        if cp:
+   185	            return f"cp{cp}"
+   186	    except Exception:
+   187	        pass
+   188	    try:
+   189	        import locale
+   190	
+   191	        return locale.getpreferredencoding(False) or None
+   192	    except Exception:
+   193	        return None
+   194	
+   195	
+   196	def _kill_process_tree(proc, *, elevated: bool = False) -> None:
+   197	    """Kill a timed-out child and everything it started.
+   198	
+   199	    Killing only the process we spawned leaves its descendants running. On
+   200	    Windows that was already handled; on POSIX it was not, and a timed-out
+   201	    `docker run` left the docker client and its root-owned wrapper alive for
+   202	    hours -- reported after repeated attempts each leaked another pair.
+   203	
+   204	    On POSIX the child is started in its own session (start_new_session), so
+   205	    the whole tree shares one process group and a single signal reaches all of
+   206	    it. Two details decided by experiment rather than assumption:
+   207	
+   208	    - A tree started with sudo is root-owned, and the agent user cannot signal
+   209	      it: killpg raises PermissionError and the processes survive. Those need
+   210	      `sudo kill`.
+   211	    - `kill -9 -<pgid>` is read as an option, not a group. It returns success
+   212	      and kills nothing, which is the worst way to fail. The `--` separator is
+   213	      what makes it a process group.
+   214	    """
+   215	    if sys.platform == "win32":
+   216	        try:
+   217	            subprocess.run(
+   218	                ["taskkill", "/T", "/F", "/PID", str(proc.pid)],
+   219	                capture_output=True,
+   220	                timeout=10,
+   221	            )
+   222	            return
+   223	        except Exception:
+   224	            logger.warning("taskkill failed; falling back to kill()", exc_info=True)
+   225	    # POSIX: signal the whole group.
+   226	    try:
+   227	        pgid = os.getpgid(proc.pid)
+   228	    except (ProcessLookupError, OSError):
+   229	        pgid = None
+   230	
+   231	    if pgid is not None:
+   232	        if elevated:
+   233	            # Root-owned tree: we have no permission of our own.
+   234	            try:
+   235	                subprocess.run(
+   236	                    ["sudo", "-n", "kill", "-9", "--", f"-{pgid}"],
+   237	                    capture_output=True,
+   238	                    timeout=10,
+   239	                )
+   240	                return
+   241	            except Exception:
+   242	                logger.warning("sudo kill of process group failed", exc_info=True)
+   243	        else:
+   244	            try:
+   245	                os.killpg(pgid, signal.SIGKILL)
+   246	                return
+   247	            except ProcessLookupError:
+   248	                return
+   249	            except PermissionError:
+   250	                logger.warning("no permission to kill process group %s", pgid)
+   251	
+   252	    # Last resort: at least the process we spawned.
+   253	    try:
+   254	        proc.kill()
+   255	    except ProcessLookupError:
+   256	        pass
+   257	
+   258	
+   259	def _decode_output(raw: bytes) -> str:
+   260	    """Decode a child's captured bytes to text (issue #28).
+   261	
+   262	    Everywhere except Windows this is what it always was: UTF-8 with
+   263	    replacement. On Windows a child may legitimately emit legacy-code-page
+   264	    bytes — Windows PowerShell 5.1 does exactly that for redirected output —
+   265	    and decoding those as UTF-8 produced mojibake.
+   266	
+   267	    So on Windows: try UTF-8 strictly first, because a child that emits
+   268	    UTF-8 (most of them, and every child once PYTHONIOENCODING is set) must
+   269	    be decoded as UTF-8. Only when that fails do we fall back to the host's
+   270	    code page, and only then to replacement. Accented Latin-1/1252 bytes are
+   271	    not valid UTF-8, so the fallback fires exactly where it should. This
+   272	    touches no invocation, argument or exit-code semantics: it is a decision
+   273	    about bytes we already captured.
+   274	    """
+   275	    if sys.platform != "win32":
+   276	        return raw.decode(errors="replace")
+   277	    try:
+   278	        return raw.decode("utf-8")
+   279	    except UnicodeDecodeError:
+   280	        pass
+   281	    legacy = _windows_legacy_encoding()
+   282	    if legacy:
+   283	        try:
+   284	            return raw.decode(legacy)
+   285	        except (UnicodeDecodeError, LookupError):
+   286	            pass
+   287	    return raw.decode("utf-8", errors="replace")
+   288	
+   289	
+   290	def make_script_run_handler(policy: Policy, upload_base: Path):
+   291	    """Return an async handler that creates a workdir under upload_base."""
+   292	
+   293	    async def handle_script_run(payload: dict[str, Any]) -> dict[str, Any]:
+   294	        interpreter = payload.get("interpreter")
+   295	        content = payload.get("content")
+   296	        args = payload.get("args") or []
+   297	        cwd = payload.get("cwd")
+   298	        timeout = int(payload.get("timeout", 60))
+   299	        sudo = bool(payload.get("sudo", False))
+   300	        cleanup = bool(payload.get("cleanup", True))
+   301	        filename = payload.get("filename")
+   302	        env_extra = payload.get("env") or {}
+   303	        background = bool(payload.get("background", False))
+   304	
+   305	        # Validation, mirrors legacy ScriptRunRequest
+   306	        if interpreter not in ALLOWED_INTERPRETERS:
+   307	            raise HandlerError(
+   308	                "invalid_payload",
+   309	                f"interpreter must be one of: {', '.join(ALLOWED_INTERPRETERS)}",
+   310	            )
+   311	        if not content or not str(content).strip():
+   312	            raise HandlerError("invalid_payload", "missing 'content'")
+   313	        max_timeout = BACKGROUND_TIMEOUT_MAX if background else TIMEOUT_MAX
+   314	        if timeout < TIMEOUT_MIN or timeout > max_timeout:
+   315	            hint = (
+   316	                ""
+   317	                if background
+   318	                else (
+   319	                    f" For work longer than {TIMEOUT_MAX // 60} minutes, run it "
+   320	                    "in the background (background=true) and poll the result "
+   321	                    "with notifications(check) instead of blocking."
+   322	                )
+   323	            )
+   324	            raise HandlerError(
+   325	                "invalid_payload",
+   326	                f"timeout must be between {TIMEOUT_MIN} and {max_timeout} "
+   327	                f"seconds.{hint}",
+   328	            )
+   329	        if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+   330	            raise HandlerError("invalid_payload", "'args' must be a list of strings")
+   331	        if env_extra and not all(
+   332	            isinstance(k, str) and isinstance(v, str)
+   333	            for k, v in env_extra.items()
+   334	        ):
+   335	            raise HandlerError("invalid_payload", "'env' must be dict[str, str]")
+   336	
+   337	        # Workdir. A full disk surfaces here first, and used to escape as a bare
+   338	        # "internal_error: [Errno 28] No space left on device" -- which reads like
+   339	        # an agent defect when it is the host filling up. An operator chased a
+   340	        # duplicate_session symptom for hours before the real cause (ENOSPC
+   341	        # restarting the agent in a loop) became visible. Name it.
+   342	        tmp_root = staging_root(upload_base)
+   343	
+   344	        script_id = uuid.uuid4().hex
+   345	        workdir = tmp_root / f"script_job_{script_id}"
+   346	        try:
+   347	            workdir.mkdir(parents=True, exist_ok=True)
+   348	        except OSError as exc:
+   349	            raise _staging_oserror(exc, str(workdir)) from exc
+   350	
+   351	        ext = {"bash": "sh", "python3": "py", "powershell": "ps1", "pwsh": "ps1"}.get(
+   352	            interpreter, "txt"
+   353	        )
+   354	        # Sanitize filename: only basename, never escapes workdir
+   355	        if filename:
+   356	            safe_name = Path(filename).name
+   357	            if not safe_name or safe_name.startswith("."):
+   358	                safe_name = f"script.{ext}"
+   359	        else:
+   360	            safe_name = f"script.{ext}"
+   361	        script_path = workdir / safe_name
+   362	
+   363	        try:
+   364	            # Windows PowerShell 5.1 reads a BOM-less .ps1 through the legacy
+   365	            # ANSI code page, so a script with non-ASCII literals is mojibaked
+   366	            # before it ever runs (issue #28). A UTF-8 BOM is the documented
+   367	            # way to tell it otherwise, and PowerShell Core reads it happily
+   368	            # too. Everywhere else the file stays plain UTF-8.
+   369	            script_encoding = (
+   370	                "utf-8-sig"
+   371	                if sys.platform == "win32" and interpreter in _POWERSHELL_INTERPRETERS
+   372	                else "utf-8"
+   373	            )
+   374	            try:
+   375	                script_path.write_text(content, encoding=script_encoding)
+   376	            except OSError as exc:
+   377	                raise _staging_oserror(exc, str(script_path)) from exc
+   378	            script_path.chmod(0o700)
+   379	
+   380	            argv: list[str] = []
+   381	            # sudo has no meaning on Windows; ignore it there (M1 is read-only).
+   382	            use_sudo = sudo and sys.platform != "win32"
+   383	            if use_sudo:
+   384	                argv.append("sudo")
+   385	            if interpreter == "bash":
+   386	                argv.extend(["bash", str(script_path)])
+   387	            elif interpreter == "python3":
+   388	                # Windows has no `python3` on PATH; use the agent's own venv
+   389	                # python so scripts can import the agent's deps. But in the
+   390	                # no-admin user-mode install the agent is HOSTED by
+   391	                # pythonw.exe (windowless, no console stdio), and spawning a
+   392	                # script under pythonw hangs with no output until timeout --
+   393	                # so resolve the sibling console python.exe. Linux/macOS keep
+   394	                # the system python3.
+   395	                if sys.platform == "win32":
+   396	                    _py = Path(sys.executable)
+   397	                    if _py.name.lower() == "pythonw.exe":
+   398	                        _py = _py.with_name("python.exe")
+   399	                    py = str(_py)
+   400	                else:
+   401	                    py = "python3"
+   402	                argv.extend([py, str(script_path)])
+   403	            else:  # powershell / pwsh
+   404	                exe = shutil.which(interpreter) or (
+   405	                    "pwsh" if interpreter == "pwsh" else "powershell"
+   406	                )
+   407	                target = str(script_path)
+   408	                if sys.platform == "win32" and interpreter == "powershell":
+   409	                    # Windows PowerShell 5.1 only: run the user's script
+   410	                    # through the UTF-8 bootstrap (see above). pwsh already
+   411	                    # speaks UTF-8 and is left on the direct path, which
+   412	                    # also spares it the extra process.
+   413	                    bootstrap = workdir / "sentinelx_bootstrap.ps1"
+   414	                    bootstrap.write_text(
+   415	                        _POWERSHELL_BOOTSTRAP, encoding="utf-8-sig"
+   416	                    )
+   417	                    target = str(bootstrap)
+   418	                    argv.extend(
+   419	                        [exe, "-NoProfile", "-NonInteractive",
+   420	                         "-ExecutionPolicy", "Bypass", "-File", target,
+   421	                         str(script_path)]
+   422	                    )
+   423	                else:
+   424	                    argv.extend(
+   425	                        [exe, "-NoProfile", "-NonInteractive",
+   426	                         "-ExecutionPolicy", "Bypass", "-File", target]
+   427	                    )
+   428	            argv.extend(args)
+   429	
+   430	            full_env = os.environ.copy()
+   431	            full_env.update(env_extra)
+   432	            if interpreter == "python3" and sys.platform == "win32":
+   433	                # Without this, Python inherits the console's legacy code page
+   434	                # for stdio and raises UnicodeEncodeError the moment a script
+   435	                # prints ordinary accented text or an emoji (issue #28).
+   436	                # setdefault, so an explicit caller value — or one the
+   437	                # operator set for the service — stays authoritative.
+   438	                full_env.setdefault("PYTHONIOENCODING", "utf-8")
+   439	
+   440	            # With sudo, let the ELEVATED process do the chdir.
+   441	            #
+   442	            # Passing cwd= to create_subprocess_exec makes the parent chdir
+   443	            # before exec, which happens as the agent's own user. Asking for
+   444	            # sudo=true on a root-owned directory therefore failed with
+   445	            # PermissionError before sudo ran at all -- the one case where the
+   446	            # privileges were requested precisely because the directory needs
+   447	            # them. Reported against an 0700 worktree the agent user cannot
+   448	            # enter.
+   449	            #
+   450	            # The directory travels as a positional argument, not in the
+   451	            # environment: sudo strips the environment, and an empty $DIR would
+   452	            # make `cd ""` a silent no-op that runs the script in / instead.
+   453	            # As a positional it is also inert -- a value containing shell
+   454	            # metacharacters is just a directory name that does not exist.
+   455	            spawn_cwd = cwd
+   456	            if use_sudo and cwd:
+   457	                argv = [
+   458	                    "sudo",
+   459	                    "sh",
+   460	                    "-c",
+   461	                    'cd "$1" || { echo "sentinelx: cannot enter $1" >&2; exit 126; }; '
+   462	                    'shift; exec "$@"',
+   463	                    "sh",
+   464	                    str(cwd),
+   465	                    *argv[1:],
+   466	                ]
+   467	                spawn_cwd = None
+   468	
+   469	            # Windows: no console window (see winspawn). POSIX: own session, so
+   470	            # the whole tree shares one process group and a timeout can reach
+   471	            # every descendant with a single signal.
+   472	            extra: dict[str, Any] = {}
+   473	            if sys.platform != "win32":
+   474	                extra["start_new_session"] = True
+   475	
+   476	            start = time.time()
+   477	            try:
+   478	                proc = await asyncio.create_subprocess_exec(
+   479	                    *argv,
+   480	                    stdout=asyncio.subprocess.PIPE,
+   481	                    stderr=asyncio.subprocess.PIPE,
+   482	                    **spawn_kwargs(
+   483	                        cwd=spawn_cwd,
+   484	                        env=full_env,
+   485	                        **extra,
+   486	                    ),
+   487	                )
+   488	                stdout_b, stderr_b, timed_out = await communicate_partial(proc, timeout)
+   489	                if timed_out:
+   490	                    raise asyncio.TimeoutError
+   491	                returncode = proc.returncode
+   492	                stdout = _decode_output(stdout_b).strip()
+   493	                stderr = _decode_output(stderr_b).strip()
+   494	            except (PermissionError, NotADirectoryError, FileNotFoundError) as exc:
+   495	                # Without sudo the PARENT chdirs into cwd, as the agent's own
+   496	                # user, before the script exists as a process. A directory that
+   497	                # user cannot enter raised a bare PermissionError here, which
+   498	                # surfaced as "internal_error: [Errno 13]" and read like an
+   499	                # agent defect. Only the cwd case is renamed: a
+   500	                # FileNotFoundError for a missing interpreter is a different
+   501	                # failure and must keep its own meaning.
+   502	                if spawn_cwd and str(getattr(exc, "filename", "") or "") == str(spawn_cwd):
+   503	                    if isinstance(exc, PermissionError):
+   504	                        raise HandlerError(
+   505	                            "permission_denied",
+   506	                            f"cannot enter cwd {cwd!r}: the agent's OS user lacks "
+   507	                            f"permission to change into it ([Errno {exc.errno}]). "
+   508	                            "Being inside an rw file_ops path does not grant Unix "
+   509	                            "access. Either run with sudo=true -- the directory is "
+   510	                            "then entered after elevation -- or grant the agent's "
+   511	                            "user execute (+x) on it and its parents.",
+   512	                        ) from exc
+   513	                    if isinstance(exc, NotADirectoryError):
+   514	                        raise HandlerError(
+   515	                            "not_a_directory", f"cwd {cwd!r} is not a directory."
+   516	                        ) from exc
+   517	                    raise HandlerError(
+   518	                        "not_found", f"cwd {cwd!r} does not exist."
+   519	                    ) from exc
+   520	                raise
+   521	            except asyncio.TimeoutError:
+   522	                _kill_process_tree(proc, elevated=use_sudo)
+   523	                await proc.wait()
+   524	                partial = "\n".join(
+   525	                    t for t in (_decode_output(stdout_b).strip(), _decode_output(stderr_b).strip()) if t
+   526	                )
+   527	                return {
+   528	                    "ok": False,
+   529	                    "interpreter": interpreter,
+   530	                    "sudo": sudo,
+   531	                    "cwd": cwd,
+   532	                    "cleanup": cleanup,
+   533	                    "command": argv,
+   534	                    "output": timeout_text(partial),
+   535	                    "duration": round(time.time() - start, 2),
+   536	                    "returncode": -1,
+   537	                    "timed_out": True,
+   538	                }
+   539	            except FileNotFoundError as exc:
+   540	                # interpreter binary missing
+   541	                raise HandlerError(
+   542	                    "interpreter_missing",
+   543	                    f"interpreter not found: {exc}",
+   544	                ) from exc
+   545	
+   546	            duration = round(time.time() - start, 2)
+   547	            output = (stdout + "\n" + stderr).strip() or "⚠️ Sin salida"
+   548	
+   549	            response: dict[str, Any] = {
+   550	                "ok": returncode == 0,
+   551	                "interpreter": interpreter,
+   552	                "sudo": sudo,
+   553	                "cwd": cwd,
+   554	                "cleanup": cleanup,
+   555	                "command": argv,
+   556	                "output": output,
+   557	                "duration": duration,
+   558	                "returncode": returncode,
+   559	            }
+   560	            if not cleanup:
+   561	                response["script_path"] = str(script_path)
+   562	                response["workdir"] = str(workdir)
+   563	
+   564	            return response
+   565	
+   566	        finally:
+   567	            if cleanup:
+   568	                shutil.rmtree(workdir, ignore_errors=True)
+   569	
+   570	    return handle_script_run

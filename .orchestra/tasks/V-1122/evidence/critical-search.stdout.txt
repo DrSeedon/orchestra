@@ -1,0 +1,113 @@
+28:    28	from sentinelx_core.executor_engine import run_shell
+29:    29	from sentinelx_core.jobs import BACKGROUND_TIMEOUT_MAX
+52:    52	def _classify_rejection(command: str) -> tuple[str, str]:
+68:    68	      3. Contains shell compound tokens (| && ; etc).
+101:   101	                f"contains shell operator '{token}'",
+102:   102	                f"the operator '{token}' is part of a shell pipeline or "
+126:   126	def make_exec_handler(policy: Policy):
+129:   129	    async def handle_exec(payload: dict[str, Any]) -> dict[str, Any]:
+131:   131	        timeout = float(payload.get("timeout", policy.exec_timeout_default))
+139:   139	            ceiling = max(policy.exec_timeout_max, BACKGROUND_TIMEOUT_MAX)
+141:   141	            ceiling = policy.exec_timeout_max
+142:   142	        timeout = min(timeout, ceiling)
+144:   144	        # exec_mode: unrestricted -- the operator's choice for a trusted host: any
+146:   146	        # boundary is the OS (the agent's user, sudoers, file permissions) and
+148:   148	        if policy.effective_exec_mode == "unrestricted":
+149:   149	            return await run_shell(command, timeout=timeout)
+152:   152	        # strict mode, no exec command runs -- not even a chain built only of the
+170:   170	        if policy.exec_strict:
+178:   178	                    f"exec_strict is on for this host, and this command contains "
+179:   179	                    f"a control character ({control}). The shell treats a newline "
+189:   189	                    f"exec_strict is on for this host, and this command uses "
+192:   192	                    f"inside a substitution, so strict mode refuses it rather "
+202:   202	                    f"exec_strict is on for this host, and this command redirects "
+205:   205	                    f"strict mode only allows /dev/null, 2>&1-style descriptor "
+215:   215	                    f"exec_strict is on for this host, and the segment "
+230:   230	        # the chain check below, or by the strict check above. Checking the whole
+235:   235	        if sys.platform == "win32" and not policy.is_command_allowed(command):
+250:   250	        # (GHSA-r2h3-76g7-m95x). exec_strict already did this and more; this is
+253:   253	        if not policy.exec_strict and sys.platform != "win32":
+285:   285	        return await run_shell(command, timeout=timeout)
+21:    21	"command_not_allowed: contains shell operator" is among the most frequent
+22:    22	failures on the exec path. With transport "stdio" there IS a process, the
+49:    49	    def __init__(self, code: str, message: str) -> None:
+55:    55	def project(data: Any, select: tuple[str, ...]) -> Any:
+82:    82	def _render(template: str, params: dict[str, Any]) -> str:
+102:   102	async def _read_http_response(reader: asyncio.StreamReader) -> bytes:
+145:   145	async def call_http(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+171:   171	            "Host: localhost\r\n"
+224:   224	def _relay_command(endpoint: Any) -> list[str]:
+232:   232	async def _call_via_run_as(endpoint: Any, payload: bytes) -> bytes:
+234:   234	    proc = await asyncio.create_subprocess_exec(
+258:   258	    if "a password is required" in detail or "not allowed to execute" in detail or (
+264:   264	            f"agent may not become that user. The host's owner can allow just "
+280:   280	async def call_jsonrpc(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+285:   285	        # it as a string in its own schema, and a string is the shape that
+351:   351	# transport: stdio
+355:   355	# framing MCP servers use over stdio), reads its stdout until the answer with
+356:   356	# the same id arrives, and stops it. Policy accepted `transport: stdio` since
+369:   369	# STOPPING. stdin is closed after the answer (a stdio server exits on EOF);
+392:   392	# The child's environment starts from these, not from the agent's: the agent's
+393:   393	# environment is not the endpoint's business. Windows programs need the system
+405:   405	def _private_group(st: os.stat_result) -> bool:
+426:   426	def _replaceable_by_others(st: os.stat_result) -> bool:
+438:   438	def binary_problem(path: str, run_as: str | None = None) -> tuple[str, str] | None:
+488:   488	def _stdio_command(endpoint: Any) -> list[str]:
+496:   496	def _child_env(endpoint: Any) -> dict[str, str]:
+498:   498	    env = {k: os.environ[k] for k in keys if k in os.environ}
+499:   499	    env.setdefault("PATH", os.defpath)
+501:   501	        env.setdefault("LANG", "C.UTF-8")
+502:   502	    env.update(getattr(endpoint, "env", None) or {})
+503:   503	    return env
+506:   506	def _agent_user() -> str:
+515:   515	def _unwrap(message: Any) -> Any:
+533:   533	    def __init__(self, proc: Any, endpoint: Any) -> None:
+538:   538	    async def send(self, message: dict[str, Any]) -> None:
+545:   545	    async def receive(self, want_id: str) -> dict[str, Any]:
+568:   568	                # A stdio JSON-RPC server must keep stdout for protocol
+598:   598	    async def run(self, action: Any, params: dict[str, Any]) -> dict[str, Any]:
+633:   633	def _kill_stdio_tree(proc: Any) -> None:
+656:   656	async def _stop_stdio(proc: Any, endpoint: Any) -> None:
+667:   667	    _kill_stdio_tree(proc)
+678:   678	def _sudo_refused(detail: str, returncode: int | None) -> bool:
+681:   681	        or "is not allowed to execute" in detail
+686:   686	async def call_stdio_jsonrpc(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+695:   695	        proc = await asyncio.create_subprocess_exec(
+696:   696	            *_stdio_command(endpoint),
+702:   702	                env=_child_env(endpoint),
+718:   718	    async def drain_stderr() -> None:
+729:   729	    def tail() -> str:
+758:   758	                    f"may not become that user. The host's owner can allow just "
+769:   769	        await _stop_stdio(proc, endpoint)
+779:   779	async def _call_transport(endpoint: Any, action: Any, params: dict[str, Any]) -> Any:
+780:   780	    """Route by (transport, protocol). Policy only admits stdio with jsonrpc."""
+781:   781	    if getattr(endpoint, "transport", "unix") == "stdio":
+782:   782	        return await call_stdio_jsonrpc(endpoint, action, params)
+807:   807	# matches. `exact` is the default and `allowed` is how a maintainer widens it
+818:   818	def forget_compatibility(endpoint_name: str) -> None:
+824:   824	def _epoch_key(endpoint: Any) -> Any:
+828:   828	    epoch through endpoint_unreachable. A stdio binary is started fresh on
+833:   833	    if getattr(endpoint, "transport", "unix") != "stdio":
+842:   842	def _extract(data: Any, path: str) -> Any:
+852:   852	async def ensure_compatible(endpoint: Any) -> None:
+856:   856	    read, is refused rather than allowed through on the assumption it is fine.
+926:   926	        ok = found in (accept.get("allowed") or [])
+927:   927	        wanted = f"one of {accept.get('allowed')!r}"
+933:   933	            f"accepts {wanted}. Widen `compatibility.accept.allowed` if the "
+949:   949	async def call_action(endpoint: Any, action_name: str, params: dict[str, Any]) -> Any:
+956:   956	            "action_not_allowed",
+957:   957	            f"'{action_name}' is not an allowed action on '{endpoint.name}'. "
+7:     7	2. Building the ``job_completed`` event payload from an executor dispatch
+8:     8	   response — the payload the agent emits over the existing ``EventMessage``
+24:    24	BACKGROUND_TIMEOUT_MAX = 3600  # 1 hour
+27:    27	# protocol frame limit (sentinelx_protocol.MAX_FRAME_BYTES = 1 MiB); the hub
+30:    30	MAX_EVENT_OUTPUT_BYTES = 256 * 1024  # 256 KiB
+40:    40	    if len(raw) <= MAX_EVENT_OUTPUT_BYTES:
+42:    42	    clipped = raw[:MAX_EVENT_OUTPUT_BYTES].decode("utf-8", errors="replace")
+48:    48	    job_id: str,
+51:    51	    dispatch_response: dict[str, Any],
+54:    54	) -> dict[str, Any]:
+56:    56	    event ``data`` payload.
+58:    58	    ``dispatch_response`` is the dict returned by Executor.dispatch (or the
+83:    83	            error.get("message") if isinstance(error, dict) else str(error)
+100:   100	        "job_id": job_id,

@@ -1,0 +1,286 @@
+     1	# ============================================================================
+     2	# AGENT PROFILE (optional) — advisory MCP toolset preference
+     3	# ============================================================================
+     4	# Advertise which MCP toolset profile this host prefers: 'compact' or 'full'.
+     5	# ADVISORY only: an explicit dashboard/connection choice always wins; the hub
+     6	# applies 'compact' only when ALL of your connected agents agree (a mix never
+     7	# collapses the connection's toolset); an invalid value is sanitized to no
+     8	# preference. Omit entirely (the default) and stock SentinelX gets the full
+     9	# catalog. Uncomment to use:
+    10	#
+    11	# agent:
+    12	#   preferred_profile: compact   # compact | full
+    13	
+    14	# SentinelX Core - Windows example config (derived from config.example.yaml).
+    15	#
+    16	# SCOPE: the default Windows config. allowed_commands ship READ-ONLY
+    17	# (PowerShell-native inspection). The agent runs as a WinSW service (so it can
+    18	# self-restart), ships diagnostic playbooks, and exposes config.yaml as
+    19	# file-scoped rw so the policy self-manages. Write file ops (sentinel_edit
+    20	# write, move/copy/delete, chown via ACLs) work on Windows -- add rw paths and
+    21	# any write / bare `git` commands you want, then reload. The installer fills in
+    22	# file_ops.paths (your profile + a workspace) on a fresh install.
+    23	#
+    24	# allowed_commands: PowerShell-native, read-only. The exec op runs each
+    25	#   command via `powershell -NoProfile -NonInteractive -Command <cmd>`
+    26	#   (pwsh if present). The allowlist matches by PREFIX and is
+    27	#   case-SENSITIVE, so use canonical cmdlet casing (Get-ChildItem, not
+    28	#   get-childitem). Piping an allowlisted Get-* into Select-Object /
+    29	#   Where-Object / Format-* / ConvertTo-Json works: the whole pipeline
+    30	#   runs under the leading (allowlisted) command, so those shaping cmdlets
+    31	#   need not be listed on their own.
+    32	#   NOT listed (deliberately): powershell / pwsh / cmd themselves (listing
+    33	#   the shell would let exec run anything, defeating the allowlist), and
+    34	#   anything that writes or destroys.
+    35	# services: Windows service control (sc.exe / *-Service) lands in
+    36	#   Milestone 2, so the services map ships empty. A commented template is
+    37	#   below.
+    38	# file_ops: read-only. No `rw` paths by default -- config self-management
+    39	#   (file-scoped rw on config.yaml) and a writable workspace arrive with
+    40	#   Milestone 3. Windows has no universal read root like /etc, so pick the
+    41	#   paths you want to expose (examples commented below).
+    42	
+    43	allowed_commands:
+    44	
+    45	  # --- Files & directories (read) ----------------------------------------
+    46	  - Get-ChildItem
+    47	  - Get-Item
+    48	  - Get-ItemProperty
+    49	  - Get-Content
+    50	  - Select-String
+    51	  - Test-Path
+    52	  - Resolve-Path
+    53	  - Get-Location
+    54	  - Get-FileHash
+    55	
+    56	  # --- Processes & services (inspect) ------------------------------------
+    57	  - Get-Process
+    58	  - Get-Service
+    59	  - Get-ScheduledTask
+    60	
+    61	  # --- System & hardware info --------------------------------------------
+    62	  - Get-ComputerInfo
+    63	  - Get-CimInstance
+    64	  - Get-HotFix
+    65	  - Get-Host
+    66	  - Get-Date
+    67	  - Get-TimeZone
+    68	  - Get-Culture
+    69	  - Get-PSDrive
+    70	  - Get-Volume
+    71	  - Get-Disk
+    72	  - Get-Partition
+    73	  - Get-LocalUser
+    74	  - Get-LocalGroup
+    75	
+    76	  # --- Event logs --------------------------------------------------------
+    77	  - Get-WinEvent
+    78	  - Get-EventLog
+    79	
+    80	  # --- PowerShell environment (read) -------------------------------------
+    81	  - Get-Command
+    82	  - Get-Help
+    83	  - Get-Module
+    84	  - Get-Variable
+    85	  - Get-Alias
+    86	  - Get-ExecutionPolicy
+    87	
+    88	  # --- Networking (read) -------------------------------------------------
+    89	  - Get-NetIPConfiguration
+    90	  - Get-NetIPAddress
+    91	  - Get-NetAdapter
+    92	  - Get-NetTCPConnection
+    93	  - Get-NetRoute
+    94	  - Get-DnsClientServerAddress
+    95	  - Resolve-DnsName
+    96	  - Test-NetConnection
+    97	  - Test-Connection
+    98	
+    99	  # --- Classic Windows tools (read) --------------------------------------
+   100	  # NOTE: a few of these have write-ish subcommands the prefix match can't
+   101	  # exclude (e.g. `ipconfig /release`). Drop any you'd rather not expose.
+   102	  - systeminfo
+   103	  - hostname
+   104	  - whoami
+   105	  - tasklist
+   106	  - driverquery
+   107	  - ipconfig
+   108	  - netstat
+   109	  - nslookup
+   110	  - ping
+   111	  - tracert
+   112	  - route print
+   113	  - arp -a
+   114	  - ver
+   115	  - vol
+   116	
+   117	  # --- Dev tooling -------------------------------------------------------
+   118	  # git is write-capable (push / reset / checkout) and runs as the agent's
+   119	  # account (LocalSystem). Included by default. For a tighter setup, drop it
+   120	  # or narrow to read-only prefixes: git status / git log / git diff /
+   121	  # git branch / git remote -v.
+   122	  - git
+   123	
+   124	# ============================================================================
+   125	# Windows services the agent may control. `unit` is the Windows service NAME
+   126	# (what Get-Service -Name expects). The agent's own WinSW service is declared
+   127	# so it can self-restart (restart = detached WMI net stop + net start, which
+   128	# survives the agent being stopped). Add others (inspection or control) here.
+   129	# ============================================================================
+   130	services:
+   131	  sentinelx:
+   132	    unit: SentinelX
+   133	    actions: [status, restart, is-active]
+   134	    requires_sudo: false
+   135	    description: The SentinelX agent itself (WinSW service).
+   136	
+   137	# ===========================================================================
+   138	# Playbooks: Windows-native diagnostic recipes. The LLM follows the step
+   139	# list; each step is a suggested read-only command. Add your own here.
+   140	# ===========================================================================
+   141	playbooks:
+   142	  windows_service_debug:
+   143	    description: Inspect Windows service health (the systemd_debug / launchd_debug equivalent).
+   144	    when: 'User asks whether a service is running, to check the agent, or reports a Windows service problem.
+   145	      Triggers: "is X running", "check the sentinelx service", "why won''t X start", "service health".'
+   146	    steps:
+   147	    - 'Running services: sentinel_exec  Get-Service | Where-Object Status -eq Running | Sort-Object Name
+   148	      . For one service: Get-Service -Name <name>  (shows Status and StartType).'
+   149	    - 'For a service declared in policy, prefer the service op: sentinel_service action=status service=<name>.
+   150	      It maps to Get-Service and returns Status + DisplayName.'
+   151	    - 'Check the agent itself: sentinel_service action=status service=sentinelx. Status = Running confirms
+   152	      health.'
+   153	    - 'Start mode + logon account + binary path: sentinel_exec  Get-CimInstance Win32_Service | Where-Object
+   154	      Name -eq <name> | Select-Object Name,State,StartMode,StartName,PathName .'
+   155	    - 'Recent SCM errors in the System log: sentinel_exec  Get-WinEvent -FilterHashtable @{LogName="System";ProviderName="Service
+   156	      Control Manager"} -MaxEvents 20 | Select-Object TimeCreated,Id,LevelDisplayName,Message .'
+   157	    requires:
+   158	    - Get-Service, Get-CimInstance, Get-WinEvent in the allowlist (default Windows config).
+   159	    notes:
+   160	    - 'Windows has no systemctl/launchctl: services are managed by the SCM. Get-Service inspects; Start/Stop/Restart-Service
+   161	      need admin.'
+   162	    - 'The agent runs as a WinSW service named SentinelX (service key "sentinelx"). Restarting it is a
+   163	      self-restart: the WS session drops (read_loop_ended) and the agent reconnects on its own -- a detached
+   164	      WMI helper does the stop+start.'
+   165	    - 'Agent logs are in C:\ProgramData\SentinelX\logs\ : sentinelx-service.err.log (stderr), .out.log
+   166	      (stdout), .wrapper.log (WinSW).'
+   167	  update_sentinelx_code:
+   168	    description: Update the SentinelX agent on this Windows host to the latest commit on main. Handles AGENT
+   169	      CODE only.
+   170	    when: User asks to update / upgrade / pull the latest agent (e.g. "update sentinelx", "is there a new
+   171	      version?", "pull the latest").
+   172	    steps:
+   173	    - 'Note the current version: call sentinel_capabilities and read the ''version'' field.'
+   174	    - 'Reinstall from git into the venv (Windows installs the agent as a pip package, NOT a git checkout):
+   175	      run in a powershell script_run: C:\ProgramData\SentinelX\.venv\Scripts\python.exe -m pip install --upgrade
+   176	      --force-reinstall "sentinelx-cloud-core @ git+https://github.com/pensados/sentinelx-cloud-core.git@main".
+   177	      This also pulls the pinned sentinelx-cloud-protocol. git must be on PATH so pip can fetch the git
+   178	      dependencies.'
+   179	    - 'Load the new code with a self-restart: sentinel_service action=restart service=sentinelx. A detached
+   180	      WMI helper does the stop+start of the WinSW service; the WS session drops (read_loop_ended) and the
+   181	      agent reconnects on its own. Wait a few seconds, then continue.'
+   182	    - Verify with sentinel_capabilities that the agent responds and the version reflects the update. If
+   183	      capabilities errors out, the new build may have a startup bug - check C:\ProgramData\SentinelX\logs\sentinelx-service.err.log.
+   184	    - (Optional) Mention that config.example.windows.yaml may ship new playbooks/services/commands not yet
+   185	      in C:\ProgramData\SentinelX\config.yaml; adopting them is a separate, manual step (there is no auto-merge).
+   186	    requires:
+   187	    - git on PATH (pip fetches sentinelx-cloud-core and sentinelx-cloud-protocol from GitHub over git+https).
+   188	    - The venv at C:\ProgramData\SentinelX\.venv and outbound network to github.com.
+   189	    - '''sentinelx'' declared in services (default Windows config) for the self-restart.'
+   190	    notes:
+   191	    - Unlike the Linux install (a git checkout under /opt), Windows installs the agent as a pip package
+   192	      inside C:\ProgramData\SentinelX\.venv. There is no local git repo to 'git pull' - reinstalling with
+   193	      --force-reinstall from git is the update path (mirrors the macOS uv approach).
+   194	    - The reinstall updates files on disk but does NOT restart the running agent by itself; the explicit
+   195	      sentinel_service restart is what loads the new code into memory.
+   196	    - The service runs via WinSW (service key 'sentinelx', label SentinelX). Restarting it needs no admin
+   197	      - requires_sudo is false because a detached helper performs the stop+start.
+   198	    - Updates are user-driven - there is intentionally no auto-update.
+   199	  network_debug:
+   200	    description: Windows network diagnostics - interfaces, routes, listening ports, DNS, reachability.
+   201	    when: 'User reports network issues or asks what is listening on a port. Triggers: "internet not working",
+   202	      "can''t reach X", "what''s on port Y", "check DNS".'
+   203	    steps:
+   204	    - 'Interfaces + IPs: sentinel_exec Get-NetIPConfiguration  (or  Get-NetIPAddress | Where-Object AddressFamily
+   205	      -eq IPv4 ). Classic: ipconfig /all.'
+   206	    - 'Routing table / default gateway: sentinel_exec  Get-NetRoute -AddressFamily IPv4 | Sort-Object
+   207	      RouteMetric . The 0.0.0.0/0 destination is the default route.'
+   208	    - 'Listening ports with owning process: sentinel_exec  Get-NetTCPConnection -State Listen | Select-Object
+   209	      LocalAddress,LocalPort,OwningProcess | Sort-Object LocalPort . Map a PID: Get-Process -Id <pid>.'
+   210	    - 'DNS servers: sentinel_exec  Get-DnsClientServerAddress -AddressFamily IPv4 . Resolve a name: Resolve-DnsName
+   211	      <domain>.'
+   212	    - 'Reachability (DNS + ping + TCP + route in one call): sentinel_exec  Test-NetConnection <host> -Port
+   213	      <port> . Plain ping: Test-Connection <host> -Count 3.'
+   214	    requires:
+   215	    - Get-NetIPConfiguration, Get-NetRoute, Get-NetTCPConnection, Get-DnsClientServerAddress, Resolve-DnsName,
+   216	      Test-NetConnection in the allowlist (default Windows config).
+   217	    notes:
+   218	    - 'Prefer the Get-Net* cmdlets over the classic tools: they return objects you can filter and format.
+   219	      netstat -ano still works for a raw view.'
+   220	    - 'Test-NetConnection is the Windows swiss-army probe: DNS + ICMP ping + TCP-connect + route, all
+   221	      in one.'
+   222	  system_debug:
+   223	    description: Windows system health - OS/build, uptime, memory, disks, top processes, recent errors.
+   224	    when: 'User asks about overall system health, resource usage, uptime, or disk space. Triggers: "is
+   225	      the box healthy", "what''s using memory/CPU", "how much disk is left", "how long has it been up".'
+   226	    steps:
+   227	    - 'OS + build + uptime: sentinel_exec  Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,LastBootUpTime
+   228	      .'
+   229	    - 'Memory (GB): sentinel_exec  Get-CimInstance Win32_OperatingSystem | Select-Object @{n="TotalGB";e={[math]::Round($_.TotalVisibleMemorySize/1MB,1)}},@{n="FreeGB";e={[math]::Round($_.FreePhysicalMemory/1MB,1)}}
+   230	      .'
+   231	    - 'Top processes by memory: sentinel_exec  Get-Process | Sort-Object WS -Descending | Select-Object
+   232	      -First 10 Name,Id,@{n="Mem_MB";e={[math]::Round($_.WS/1MB)}},CPU .'
+   233	    - 'Disks / free space: sentinel_exec  Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,FileSystemLabel,@{n="SizeGB";e={[math]::Round($_.Size/1GB,1)}},@{n="FreeGB";e={[math]::Round($_.SizeRemaining/1GB,1)}}
+   234	      .'
+   235	    - 'Recent Critical/Error events: sentinel_exec  Get-WinEvent -FilterHashtable @{LogName="System";Level=1,2}
+   236	      -MaxEvents 20 | Select-Object TimeCreated,Id,ProviderName,Message . (Level 1=Critical, 2=Error.)'
+   237	    requires:
+   238	    - Get-CimInstance, Get-Process, Get-Volume, Get-WinEvent in the allowlist (default Windows config).
+   239	    notes:
+   240	    - CIM/WMI (Get-CimInstance) is the richest source for OS + hardware facts. systeminfo gives a text
+   241	      dump if you prefer.
+   242	    - WS (working set) is a process's resident memory; CPU is total CPU-seconds since it started.
+   243	
+   244	
+   245	log:
+   246	  # On Windows the foreground agent logs to stderr; a service install
+   247	  # (Milestone 2) will point this at a real file, e.g.
+   248	  #   C:\ProgramData\SentinelX\logs\core.log
+   249	  level: INFO
+   250	
+   251	# ============================================================================
+   252	# SSRF defense for file_url uploads (same trusted hosts as other platforms).
+   253	# ============================================================================
+   254	security:
+   255	  trusted_fetch_hosts:
+   256	    - drop.pensa.ar
+   257	    - get.sentinelx.app
+   258	  file_url_timeout_seconds: 15
+   259	
+   260	# ============================================================================
+   261	# file_ops: READ-ONLY on Windows for Milestone 1.
+   262	#
+   263	# Paths use Windows form (drive letter + backslashes); they are matched
+   264	# after canonicalization, which handles case-insensitivity and mixed
+   265	# separators (verified on Windows 11). No `rw` entries yet -- writable
+   266	# workspace + file-scoped rw on config.yaml arrive with Milestone 3.
+   267	#
+   268	# Windows has no universal read root, so choose what to expose. Examples
+   269	# (uncomment / adjust to your machine; the future installer will fill in
+   270	# the profile path):
+   271	#
+   272	#   paths:
+   273	#     - path: 'C:\Users\<you>'
+   274	#       access: r
+   275	#     - path: 'C:\ProgramData'
+   276	#       access: r
+   277	#     - path: 'C:\inetpub\logs'      # IIS logs, if present
+   278	#       access: r
+   279	# ============================================================================
+   280	file_ops:
+   281	  paths: []
+   282	
+   283	# Where the agent stages script_run / upload workdirs. On Windows the
+   284	# cross-platform default resolves oddly (C:\home\sentinelx\uploads); pin it
+   285	# somewhere user-writable instead:
+   286	upload_base: 'C:\Users\Public\sentinelx-uploads'
