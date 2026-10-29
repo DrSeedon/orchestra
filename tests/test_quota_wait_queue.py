@@ -552,3 +552,69 @@ async def test_model_change_immediately_releases_waiting_initial_task(env, monke
     assert checked_models == ["gpt-6-luna"]
     assert env.manager.delivered == ["first task"]
     assert initial_deliveries._delivery_payload(initial_id)["state"] == "SUBMITTED"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("used", [90, 99])
+@pytest.mark.parametrize("table", ["message_deliveries", "initial_deliveries"])
+@pytest.mark.parametrize("orchestrators_first", [False, True])
+async def test_recovery_exempts_orchestrators_without_sharing_verdict_with_workers(env, monkeypatch, table, orchestrators_first, used):
+    """Same-model receipts must not cache a worker's hold for an orchestrator or vice versa."""
+    from app import initial_deliveries, message_deliveries, quota_queue, report_holds
+
+    monkeypatch.setattr(quota_queue, "_release_lock", asyncio.Lock())
+    monkeypatch.setattr(report_holds, "ensure_runner", lambda *_: None)
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda *_: None)
+    monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda *_: None)
+    now = time.time()
+    decision = evaluate_worker_admission(
+        "gpt-6.1-sol", {"codex": {"windows": [{
+            "id": "primary", "utilization": used, "window_minutes": 10080,
+            "resets_at": now + 10080 * 60 * .9,
+        }]}}, {"codex": now}, now=now,
+    )
+    assert decision.state == "blocked"
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", AsyncMock(return_value=decision))
+    order = [True, False] if orchestrators_first else [False, True]
+    expected = {}
+    for index, is_orch in enumerate(order):
+        session_id = f"recovery-{index}"
+        delivery_id = IDS[index]
+        record = _record(session_id, session_id, role="orchestrator" if is_orch else "worker")
+        record["model"] = "gpt-6.1-sol"
+        env.db.save_session(record)
+        expected[delivery_id] = "QUEUED" if is_orch else "WAITING_QUOTA"
+        if table == "initial_deliveries":
+            await initial_deliveries.accept_initial_delivery(
+                delivery_id=delivery_id, session_id=session_id, worker_name=session_id,
+                scope=SCOPE, sender=SOURCE_NAME, message="legacy waiting initial turn",
+                provenance=PROV, quota_wait=decision,
+            )
+        else:
+            await message_deliveries.accept_message_delivery(
+                delivery_id=delivery_id, source_scope=SCOPE, target_session_id=session_id, target_name=session_id,
+                target_scope=SCOPE, target_task_id="678", target_generation="legacy-generation",
+                message="legacy waiting instruction", rendered_message="legacy waiting instruction",
+                provenance=PROV, quota_wait=decision,
+            )
+    await message_deliveries.recover_message_deliveries()
+    assert sum(await asyncio.gather(quota_queue.release_waiting(), quota_queue.release_waiting())) == 1
+    with env.db._conn() as connection:
+        actual = {row["delivery_id"]: row["state"] for row in connection.execute(
+            f"SELECT delivery_id, state FROM {table}",
+        )}
+    assert actual == expected
+    assert await quota_queue.release_waiting() == 0
+
+
+@pytest.mark.parametrize("record,expected", [
+    ({"is_orchestrator": True, "role": "custom-lead"}, True),
+    ({"is_orchestrator": False, "role": "orchestrator"}, False),
+    ({"role": "orchestrator"}, True),
+    ({"is_orchestrator": None, "role": "sub-orchestrator"}, True),
+    ({"role": "worker"}, False), ({}, False),
+])
+def test_recovery_uses_explicit_kind_and_legacy_role_fallback(record, expected):
+    from app.quota_queue import _is_orchestrator
+
+    assert _is_orchestrator(record) is expected

@@ -1,0 +1,2 @@
+app import: app/__init__.py
+interpreter: .venv/bin/python3

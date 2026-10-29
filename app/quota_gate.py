@@ -892,8 +892,12 @@ def quota_bucket_for_model(model: str) -> str | None:
 
 
 def session_requires_quota(runtime: str, *, is_orchestrator: bool) -> bool:
-    """Use the session runtime even when its legacy model has left the catalog."""
-    return not is_orchestrator or runtime == "codex"
+    """All orchestrators are exempt from policy admission, for every runtime.
+
+    Keep runtime in the interface for existing callers, including legacy models.
+    Provider refusals and runtime readiness are separate from this policy.
+    """
+    return not is_orchestrator
 
 
 def lane_for_model(resolved_model: str, bucket: str | None) -> str | None:

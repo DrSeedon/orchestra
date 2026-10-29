@@ -22,6 +22,12 @@
 - The quota gate and worker admission are platform policy: do not monkeypatch, stub or skip them
   in scripts that call real model pools, or change a held worker's model just to escape the hold.
   Report the hold and use the route `model-routing` names for that case; its listed hub route is allowed.
+- **Owner decision, 2026-10-29 18:37 KRS:** every orchestrator is always exempt from our
+  policy quota gate, regardless of backend, model, runtime or message origin. This includes
+  planned initial turns, preflight, submission, pending delivery and limit recovery. Ordinary
+  workers retain quota pacing and the hard stop. Exemption does not create provider capacity,
+  hide real provider refusals, authorize a paid fallback, or bypass ownership, authorization,
+  runtime readiness, data guards or queue integrity. Routing remains owned by `model-routing`.
 - An empty command result does not prove absence: check that the source was readable and
   the command succeeded, including stderr, before interpreting its contents.
 

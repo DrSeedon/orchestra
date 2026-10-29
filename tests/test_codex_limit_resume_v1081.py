@@ -94,6 +94,7 @@ def native_env(tmp_path, monkeypatch):
             coro.close()
 
     session._spawn_bg = spawned
+    session._turn_event_loop = AsyncMock()
     session._notify_scope_running = AsyncMock()
     session._apply_manifest_effort = AsyncMock()
     session._apply_pending_identity_restart = AsyncMock()
@@ -137,6 +138,15 @@ def native_env(tmp_path, monkeypatch):
     yield env
     for coro in scheduled:
         coro.close()
+
+
+def _set_orchestrator_kind(env, value):
+    # Kind is assigned on creation; save_session deliberately preserves it on UPDATE.
+    env.session.is_orchestrator = value
+    env.session.role = "orchestrator" if value else "worker"
+    with env.db._conn() as connection:
+        connection.execute("UPDATE sessions SET is_orchestrator=?, role=? WHERE id=?",
+                           (int(value), env.session.role, env.session.id))
 
 
 def _refuse(env, *, code="usageLimitExceeded", origin="user", subtype="", terminal_only=False):
@@ -183,7 +193,7 @@ async def _release_and_run(env):
 @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
 async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
     env = native_env
-    env.session.is_orchestrator = orchestrator
+    _set_orchestrator_kind(env, orchestrator)
     env.session.model = model
     _refuse(env, terminal_only=orchestrator)
     assert env.session.status == AgentStatus.IDLE
@@ -195,7 +205,8 @@ async def test_backend_through_scheduler_queue_and_real_session_send_once(native
     assert await _release_and_run(env) == 1
     assert _receipts(env)[0]["state"] == "SUBMITTED", _receipts(env)[0]["error_json"]
     env.backend.send.assert_awaited_once()
-    assert env.admission.await_count == 2  # release and submission, including orchestrators
+    assert env.admission.await_count == (0 if orchestrator else 2)
+    assert env.refresh.await_count >= 2  # provider readiness remains checked for everyone
     text = env.backend.send.await_args.args[0]
     assert text.startswith(limit_wake.WAKE_MESSAGE_PREFIX + _receipts(env)[0]["delivery_id"] + "]")
     assert await _release_and_run(env) == 0
@@ -206,13 +217,21 @@ async def test_backend_through_scheduler_queue_and_real_session_send_once(native
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("orchestrator", [False, True])
 @pytest.mark.parametrize("case", ["past_reset", "unknown_window", "no_reset", "stale", "weekly"])
-async def test_capacity_wait_survives_restart_until_fresh_open(native_env, case):
+async def test_capacity_wait_survives_restart_until_fresh_open(native_env, case, orchestrator):
     from app import message_deliveries
 
     env = native_env
+    _set_orchestrator_kind(env, orchestrator)
     _refuse(env)
     await _schedule(env)
+    if case == "weekly" and orchestrator:
+        env.weekly_closed = True
+        assert await _release_and_run(env) == 1
+        env.admission.assert_not_awaited()
+        env.backend.send.assert_awaited_once()
+        return
     if case == "stale":
         env.refresh_error = RuntimeError("synthetic refresh failure; stale cache exists")
     elif case == "weekly":
@@ -236,11 +255,13 @@ async def test_capacity_wait_survives_restart_until_fresh_open(native_env, case)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("orchestrator", [False, True])
 @pytest.mark.parametrize("guard", ["manual", "new_user", "archive", "task", "model", "branch", "native", "needs_switch", "generation", "cancel"])
-async def test_superseded_interruption_never_sends(native_env, guard):
+async def test_superseded_interruption_never_sends(native_env, guard, orchestrator):
     from app import message_deliveries
 
     env = native_env
+    _set_orchestrator_kind(env, orchestrator)
     _refuse(env)
     await _schedule(env)
     session = env.session
@@ -334,10 +355,12 @@ async def test_task_completion_cancels_waiting_continuation(native_env, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_stop_while_submission_admission_awaits_is_rechecked(native_env):
+@pytest.mark.parametrize("orchestrator", [False, True])
+async def test_stop_while_submission_admission_awaits_is_rechecked(native_env, orchestrator):
     from app.quota_gate import evaluate_worker_admission
 
     env = native_env
+    _set_orchestrator_kind(env, orchestrator)
     _refuse(env)
     await _schedule(env)
     calls = 0
@@ -345,11 +368,21 @@ async def test_stop_while_submission_admission_awaits_is_rechecked(native_env):
     async def admission(model, **kw):
         nonlocal calls
         calls += 1
-        if calls == 2:  # send() has released its lifecycle lock for admission
+        if calls == 2:
             await env.session.interrupt()
         return evaluate_worker_admission(model, env.snapshot, {"codex": time.time()})
 
-    env.admission.side_effect = admission
+    async def refresh(**kw):
+        nonlocal calls
+        calls += 1
+        if calls == 2:  # orchestrators await provider capacity, never policy admission
+            await env.session.interrupt()
+        return env.snapshot
+
+    if orchestrator:
+        env.refresh.side_effect = refresh
+    else:
+        env.admission.side_effect = admission
     await _release_and_run(env)
     assert _receipts(env)[0]["state"] == "FAILED_BEFORE_SUBMIT"
     env.backend.send.assert_not_awaited()
@@ -470,11 +503,20 @@ async def test_spark_capacity_never_borrows_codex_windows(native_env):
 
 
 @pytest.mark.asyncio
-async def test_actual_weekly_rule_blocks_open_provider_capacity(native_env):
+@pytest.mark.parametrize("orchestrator", [False, True])
+@pytest.mark.parametrize("used", [96, 99])
+async def test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity(native_env, orchestrator, used):
     env = native_env
     _refuse(env)
     await _schedule(env)
-    env.snapshot["codex"]["windows"][1]["utilization"] = 96
+    _set_orchestrator_kind(env, orchestrator)
+    env.session._persist()
+    env.snapshot["codex"]["windows"][1]["utilization"] = used
+    if orchestrator:
+        assert await _release_and_run(env) == 1
+        env.admission.assert_not_awaited()
+        env.backend.send.assert_awaited_once()
+        return
     assert await _release_and_run(env) == 0
     env.backend.send.assert_not_awaited()
     env.snapshot["codex"]["windows"][1]["utilization"] = 0
@@ -576,3 +618,16 @@ async def test_old_codex_receipt_stays_refused_after_switch_to_claude(native_env
     assert await _release_and_run(env) == 0
     assert _receipts(env)[0]["state"] == "CANCELLED"
     env.backend.send.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_wake_exemption_does_not_fabricate_usage(native_env):
+    env = native_env
+    env.weekly_closed = True
+    decision = await limit_wake.codex_wake_admission(env.session.model, is_orchestrator=True)
+    assert decision.state == "available" and decision.allowed and not decision.gated
+    assert decision.utilization is None and decision.limit_pct is None
+    assert decision.observed_at is None
+    assert decision.release_status == "open"
+    env.refresh.assert_awaited_once()
+    env.admission.assert_not_awaited()

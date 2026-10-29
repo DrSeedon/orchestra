@@ -1,0 +1,634 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 62ms
+........................................................................ [ 46%]
+.FFFFFF..........................F.F.F.........F........................ [ 92%]
+..F.F......                                                              [100%]
+=================================== FAILURES ===================================
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[False-0] _____
+
+clock = None
+tmp_path = PosixPath('<repo>/.orchestra/tasks/V-1128/tmp/pytest/test_creation_planned_first_tu0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x799af2d430b0>
+used = 0, is_orch = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("used", [0, 90, 99])
+    @pytest.mark.parametrize("is_orch", [False, True])
+    async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, used, is_orch):
+        manager = SessionManager()
+        admission = AsyncMock(return_value=decide(used))
+        monkeypatch.setattr(gate, "get_worker_admission", admission)
+    
+        async def create():
+            return await manager.create_session(
+                name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+                role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+                planned_initial_turn=True,
+            )
+    
+        if used >= 90 and not is_orch:
+            with pytest.raises(gate.QuotaGateError):
+                await create()
+            assert manager.get_by_name("planned-agent", str(tmp_path)) is None
+        else:
+>           session = await create()
+                      ^^^^^^^^^^^^^^
+
+tests/test_codex_quota_gate_1121.py:389: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_quota_gate_1121.py:378: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:768: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:693: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <repo>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+____ test_creation_planned_first_turn_exempts_only_orchestrators[False-90] _____
+
+clock = None
+tmp_path = PosixPath('<repo>/.orchestra/tasks/V-1128/tmp/pytest/test_creation_planned_first_tu1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x799af2d7f710>
+used = 90, is_orch = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("used", [0, 90, 99])
+    @pytest.mark.parametrize("is_orch", [False, True])
+    async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, used, is_orch):
+        manager = SessionManager()
+        admission = AsyncMock(return_value=decide(used))
+        monkeypatch.setattr(gate, "get_worker_admission", admission)
+    
+        async def create():
+            return await manager.create_session(
+                name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+                role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+                planned_initial_turn=True,
+            )
+    
+        if used >= 90 and not is_orch:
+            with pytest.raises(gate.QuotaGateError):
+>               await create()
+
+tests/test_codex_quota_gate_1121.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_quota_gate_1121.py:378: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:768: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:693: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <repo>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+____ test_creation_planned_first_turn_exempts_only_orchestrators[False-99] _____
+
+clock = None
+tmp_path = PosixPath('<repo>/.orchestra/tasks/V-1128/tmp/pytest/test_creation_planned_first_tu2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x799af2cdb080>
+used = 99, is_orch = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("used", [0, 90, 99])
+    @pytest.mark.parametrize("is_orch", [False, True])
+    async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, used, is_orch):
+        manager = SessionManager()
+        admission = AsyncMock(return_value=decide(used))
+        monkeypatch.setattr(gate, "get_worker_admission", admission)
+    
+        async def create():
+            return await manager.create_session(
+                name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+                role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+                planned_initial_turn=True,
+            )
+    
+        if used >= 90 and not is_orch:
+            with pytest.raises(gate.QuotaGateError):
+>               await create()
+
+tests/test_codex_quota_gate_1121.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_quota_gate_1121.py:378: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:768: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:693: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <repo>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[True-0] ______
+
+clock = None
+tmp_path = PosixPath('<repo>/.orchestra/tasks/V-1128/tmp/pytest/test_creation_planned_first_tu3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x799af2cd8170>
+used = 0, is_orch = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("used", [0, 90, 99])
+    @pytest.mark.parametrize("is_orch", [False, True])
+    async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, used, is_orch):
+        manager = SessionManager()
+        admission = AsyncMock(return_value=decide(used))
+        monkeypatch.setattr(gate, "get_worker_admission", admission)
+    
+        async def create():
+            return await manager.create_session(
+                name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+                role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+                planned_initial_turn=True,
+            )
+    
+        if used >= 90 and not is_orch:
+            with pytest.raises(gate.QuotaGateError):
+                await create()
+            assert manager.get_by_name("planned-agent", str(tmp_path)) is None
+        else:
+>           session = await create()
+                      ^^^^^^^^^^^^^^
+
+tests/test_codex_quota_gate_1121.py:389: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_quota_gate_1121.py:378: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:768: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:693: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <repo>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[True-90] _____
+
+clock = None
+tmp_path = PosixPath('<repo>/.orchestra/tasks/V-1128/tmp/pytest/test_creation_planned_first_tu4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x799af39c9a00>
+used = 90, is_orch = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("used", [0, 90, 99])
+    @pytest.mark.parametrize("is_orch", [False, True])
+    async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, used, is_orch):
+        manager = SessionManager()
+        admission = AsyncMock(return_value=decide(used))
+        monkeypatch.setattr(gate, "get_worker_admission", admission)
+    
+        async def create():
+            return await manager.create_session(
+                name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+                role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+                planned_initial_turn=True,
+            )
+    
+        if used >= 90 and not is_orch:
+            with pytest.raises(gate.QuotaGateError):
+                await create()
+            assert manager.get_by_name("planned-agent", str(tmp_path)) is None
+        else:
+>           session = await create()
+                      ^^^^^^^^^^^^^^
+
+tests/test_codex_quota_gate_1121.py:389: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_quota_gate_1121.py:378: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:768: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:693: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <repo>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_____ test_creation_planned_first_turn_exempts_only_orchestrators[True-99] _____
+
+clock = None
+tmp_path = PosixPath('<repo>/.orchestra/tasks/V-1128/tmp/pytest/test_creation_planned_first_tu5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x799af2e38770>
+used = 99, is_orch = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("used", [0, 90, 99])
+    @pytest.mark.parametrize("is_orch", [False, True])
+    async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, used, is_orch):
+        manager = SessionManager()
+        admission = AsyncMock(return_value=decide(used))
+        monkeypatch.setattr(gate, "get_worker_admission", admission)
+    
+        async def create():
+            return await manager.create_session(
+                name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+                role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+                planned_initial_turn=True,
+            )
+    
+        if used >= 90 and not is_orch:
+            with pytest.raises(gate.QuotaGateError):
+                await create()
+            assert manager.get_by_name("planned-agent", str(tmp_path)) is None
+        else:
+>           session = await create()
+                      ^^^^^^^^^^^^^^
+
+tests/test_codex_quota_gate_1121.py:389: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_codex_quota_gate_1121.py:378: in create
+    return await manager.create_session(
+app/manager.py:639: in create_session
+    return await self._create_session_locked(
+app/manager.py:768: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:693: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at <repo>/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:474: FileNotFoundError
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6.1-sol-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706403231984'>, admission=<AsyncMock id='133706403220656'>)
+orchestrator = True, model = 'gpt-6.1-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+        assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+        assert not env.backend.send.called
+        assert await _release_and_run(env) == 1
+        assert _receipts(env)[0]["state"] == "SUBMITTED", _receipts(env)[0]["error_json"]
+        env.backend.send.assert_awaited_once()
+>       assert env.admission.await_count == (0 if orchestrator else 2)
+E       AssertionError: assert 1 == 0
+E        +  where 1 = <AsyncMock id='133706403220656'>.await_count
+E        +    where <AsyncMock id='133706403220656'> = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706403231984'>, admission=<AsyncMock id='133706403220656'>).admission
+
+tests/test_codex_limit_resume_v1081.py:198: AssertionError
+----------------------------- Captured stderr call -----------------------------
+quota gate open: released 1 waiting deliveries
+codex_connect_stage worker=native stage=prompt_assembly duration=0.000s
+[native] codex turn started
+[native] codex turn error: 'types.SimpleNamespace' object has no attribute 'events'
+------------------------------ Captured log call -------------------------------
+INFO     orchestra.quota_queue:quota_queue.py:306 quota gate open: released 1 waiting deliveries
+INFO     app.session:session.py:976 codex_connect_stage worker=native stage=prompt_assembly duration=0.000s
+INFO     app.session:session.py:2577 [native] codex turn started
+ERROR    app.session:session.py:2599 [native] codex turn error: 'types.SimpleNamespace' object has no attribute 'events'
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6-luna-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706386037920'>, admission=<AsyncMock id='133706386042624'>)
+orchestrator = True, model = 'gpt-6-luna'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+        assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+        assert not env.backend.send.called
+        assert await _release_and_run(env) == 1
+        assert _receipts(env)[0]["state"] == "SUBMITTED", _receipts(env)[0]["error_json"]
+        env.backend.send.assert_awaited_once()
+>       assert env.admission.await_count == (0 if orchestrator else 2)
+E       AssertionError: assert 1 == 0
+E        +  where 1 = <AsyncMock id='133706386042624'>.await_count
+E        +    where <AsyncMock id='133706386042624'> = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706386037920'>, admission=<AsyncMock id='133706386042624'>).admission
+
+tests/test_codex_limit_resume_v1081.py:198: AssertionError
+----------------------------- Captured stderr call -----------------------------
+quota gate open: released 1 waiting deliveries
+codex_connect_stage worker=native stage=prompt_assembly duration=0.000s
+[native] codex turn started
+[native] codex turn error: 'types.SimpleNamespace' object has no attribute 'events'
+------------------------------ Captured log call -------------------------------
+INFO     orchestra.quota_queue:quota_queue.py:306 quota gate open: released 1 waiting deliveries
+INFO     app.session:session.py:976 codex_connect_stage worker=native stage=prompt_assembly duration=0.000s
+INFO     app.session:session.py:2577 [native] codex turn started
+ERROR    app.session:session.py:2599 [native] codex turn error: 'types.SimpleNamespace' object has no attribute 'events'
+_ test_backend_through_scheduler_queue_and_real_session_send_once[gpt-5.3-codex-spark-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706405986480'>, admission=<AsyncMock id='133706403860832'>)
+orchestrator = True, model = 'gpt-5.3-codex-spark'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("model", ["gpt-6.1-sol", "gpt-6-luna", "gpt-5.3-codex-spark"])
+    async def test_backend_through_scheduler_queue_and_real_session_send_once(native_env, orchestrator, model):
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        env.session.model = model
+        _refuse(env, terminal_only=orchestrator)
+        assert env.session.status == AgentStatus.IDLE
+        assert len(env.scheduled) == 1
+        await _schedule(env)
+        receipts = _receipts(env)
+        assert [row["state"] for row in receipts] == ["WAITING_QUOTA"]
+        assert not env.backend.send.called
+        assert await _release_and_run(env) == 1
+        assert _receipts(env)[0]["state"] == "SUBMITTED", _receipts(env)[0]["error_json"]
+        env.backend.send.assert_awaited_once()
+>       assert env.admission.await_count == (0 if orchestrator else 2)
+E       AssertionError: assert 1 == 0
+E        +  where 1 = <AsyncMock id='133706403860832'>.await_count
+E        +    where <AsyncMock id='133706403860832'> = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706405986480'>, admission=<AsyncMock id='133706403860832'>).admission
+
+tests/test_codex_limit_resume_v1081.py:198: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+quota gate open: released 1 waiting deliveries
+codex_connect_stage worker=native stage=prompt_assembly duration=0.000s
+[native] codex turn started
+[native] codex turn error: 'types.SimpleNamespace' object has no attribute 'events'
+------------------------------ Captured log call -------------------------------
+ERROR    app.backend_codex:backend_codex.py:2226 Codex usage unaccounted: ValueError: No published token price for gpt-5.3-codex-spark
+INFO     orchestra.quota_queue:quota_queue.py:306 quota gate open: released 1 waiting deliveries
+INFO     app.session:session.py:976 codex_connect_stage worker=native stage=prompt_assembly duration=0.000s
+INFO     app.session:session.py:2577 [native] codex turn started
+ERROR    app.session:session.py:2599 [native] codex turn error: 'types.SimpleNamespace' object has no attribute 'events'
+______ test_capacity_wait_survives_restart_until_fresh_open[weekly-True] _______
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/..._closed=True, refresh_error=None, refresh=<AsyncMock id='133706405989408'>, admission=<AsyncMock id='133706405976384'>)
+case = 'weekly', orchestrator = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("case", ["past_reset", "unknown_window", "no_reset", "stale", "weekly"])
+    async def test_capacity_wait_survives_restart_until_fresh_open(native_env, case, orchestrator):
+        from app import message_deliveries
+    
+        env = native_env
+        env.session.is_orchestrator = orchestrator
+        _refuse(env)
+        await _schedule(env)
+        if case == "weekly" and orchestrator:
+            env.weekly_closed = True
+>           assert await _release_and_run(env) == 1
+E           assert 0 == 1
+
+tests/test_codex_limit_resume_v1081.py:221: AssertionError
+_ test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[96-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706403233760'>, admission=<AsyncMock id='133706403867360'>)
+orchestrator = True, used = 96
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("used", [96, 99])
+    async def test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity(native_env, orchestrator, used):
+        env = native_env
+        _refuse(env)
+        await _schedule(env)
+        env.session.is_orchestrator = orchestrator
+        env.session._persist()
+        env.snapshot["codex"]["windows"][1]["utilization"] = used
+        if orchestrator:
+>           assert await _release_and_run(env) == 1
+E           assert 0 == 1
+
+tests/test_codex_limit_resume_v1081.py:492: AssertionError
+_ test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[99-True] _
+
+native_env = namespace(session=AgentSession(id='native', name='native', scope='<home>/orchestra-ws/...closed=False, refresh_error=None, refresh=<AsyncMock id='133706385299680'>, admission=<AsyncMock id='133706385295984'>)
+orchestrator = True, used = 99
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("orchestrator", [False, True])
+    @pytest.mark.parametrize("used", [96, 99])
+    async def test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity(native_env, orchestrator, used):
+        env = native_env
+        _refuse(env)
+        await _schedule(env)
+        env.session.is_orchestrator = orchestrator
+        env.session._persist()
+        env.snapshot["codex"]["windows"][1]["utilization"] = used
+        if orchestrator:
+>           assert await _release_and_run(env) == 1
+E           assert 0 == 1
+
+tests/test_codex_limit_resume_v1081.py:492: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[False-0]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[False-90]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[False-99]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[True-0]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[True-90]
+FAILED tests/test_codex_quota_gate_1121.py::test_creation_planned_first_turn_exempts_only_orchestrators[True-99]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6.1-sol-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-6-luna-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_backend_through_scheduler_queue_and_real_session_send_once[gpt-5.3-codex-spark-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_capacity_wait_survives_restart_until_fresh_open[weekly-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[96-True]
+FAILED tests/test_codex_limit_resume_v1081.py::test_actual_weekly_rule_only_blocks_workers_with_open_provider_capacity[99-True]
+12 failed, 143 passed in 21.49s

@@ -475,7 +475,7 @@
     'Orchestra restarted · data updated': 'Orchestra перезапустилась · данные обновлены',
     'Orchestra unavailable': 'Orchestra недоступна',
     'Orchestrator:': 'Оркестратор:',
-    'Orchestrator: <b>always runs</b>': 'Оркестратор: <b>всегда работает</b>',
+    'All orchestrators: <b>always run</b>': 'Все оркестраторы: <b>всегда работают</b>',
     'Orchestrators': 'Оркестраторы',
     'Own agent loop · free models': 'Свой цикл агента · бесплатные модели',
     'PAID': 'ОПЛАЧЕНО',

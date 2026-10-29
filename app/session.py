@@ -1392,7 +1392,9 @@ class AgentSession:
                 if codex_limit_wake:
                     from app.limit_wake import codex_wake_admission
 
-                    decision = await codex_wake_admission(admitted_model)
+                    decision = await codex_wake_admission(
+                        admitted_model, is_orchestrator=self.is_orchestrator,
+                    )
                 else:
                     decision = await self._worker_admission(admitted_model)
                 continue

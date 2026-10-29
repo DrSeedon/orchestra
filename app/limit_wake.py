@@ -604,9 +604,12 @@ def validate_codex_wake(session, token: str) -> dict:
     return agent
 
 
-async def codex_wake_admission(model: str):
-    """Confirmed fresh capacity AND the normal weekly rule, for every Codex wake."""
-    from app.quota_gate import get_worker_admission, quota_bucket_for_model
+async def codex_wake_admission(model: str, *, is_orchestrator: bool = False):
+    """Confirm provider capacity; apply policy admission only to ordinary workers."""
+    from app.quota_gate import (
+        evaluate_worker_admission, get_worker_admission, quota_bucket_for_model,
+        session_requires_quota,
+    )
     from app.routes.system import current_provider_usage
 
     provider = quota_bucket_for_model(model)
@@ -634,6 +637,13 @@ async def codex_wake_admission(model: str):
         return _codex_wait_decision(model, f"fresh capacity unavailable: {err_text(error)}")
     if readiness["state"] != "available":
         return _codex_wait_decision(model, readiness["reason"])
+    if not session_requires_quota("codex", is_orchestrator=is_orchestrator):
+        # Capacity was confirmed above. Exemption does not invent a usage sample.
+        return replace(evaluate_worker_admission(model, {}, {}), state="available",
+                       gated=False, release_status="open",
+                       reason="provider capacity confirmed; orchestrator policy exemption",
+                       reason_key="orchestrator_exempt",
+                       valid_until=time.time() + 5)
     return await get_worker_admission(model)
 
 

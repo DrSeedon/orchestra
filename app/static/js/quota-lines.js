@@ -713,7 +713,7 @@ function _qlChartSvg(panel, rule) {
         p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74"><title>${_escHtml(laneStopTitle)}</title>${T('stop {label} {pct}%', {label: _escHtml(laneLabel), pct: _formatPercent(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe"><title>${T('Claude')} · ${T('orchestrator always runs — no limit')}</title>${T('Claude')} · ${T('orchestrator ∞')}</text>`);
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe"><title>${T('orchestrator always runs — no limit')}</title>${T('orchestrator ∞')}</text>`);
 
     const byBucket = [];
     for (const id of panel.buckets) {
@@ -872,11 +872,11 @@ function _qlPanelHtml(panel) {
             <span><i style="background:var(--ink-faint)"></i>${T('steady burn')}</span>
             <span><i style="background:var(--model-sol)"></i>${T('threshold for gated lanes')}</span>
             <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _formatPercent(rule.hard_stop_pct)})}</span>
-            <span><i style="background:var(--accent)"></i>${T('Claude')} · ${T('orchestrator — no limit')}</span>
+            <span><i style="background:var(--accent)"></i>${T('orchestrator — no limit')}</span>
         </div>
         ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
         <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>
-        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('Claude')} · ${T('Orchestrator: <b>always runs</b>')}</span></div>
+        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('All orchestrators: <b>always run</b>')}</span></div>
         ${reasons ? `<ul class="ql-reasons">${reasons}</ul>` : ''}
     </section>`;
 }

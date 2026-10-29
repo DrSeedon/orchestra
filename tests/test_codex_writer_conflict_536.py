@@ -82,6 +82,12 @@ async def test_detached_conflict_visible_and_every_send_refused(session, writer_
                 fcntl.flock(rival, fcntl.LOCK_EX | fcntl.LOCK_NB)
     assert session.to_dict()['status'] == 'idle'
     session.is_orchestrator = True
+    session._worker_admission.side_effect = AssertionError('orchestrator must skip policy quota')
+    await session.preflight_delivery_admission()
+    session._worker_admission.assert_not_awaited()
+    assert not session._lifecycle_lock.locked()
+
+    session.is_orchestrator = False
     session._worker_admission.side_effect = None
     session._worker_admission.return_value = _quota_decision(model=session.model)
     await session.preflight_delivery_admission()

@@ -43,6 +43,30 @@ def clock(monkeypatch):
     db.init_db()
 
 
+@pytest.fixture
+def creation_pipeline(tmp_path, monkeypatch):
+    """Creation exercises real admission with a self-contained role manifest."""
+    from app import pipeline
+
+    root = tmp_path / "pipelines"
+    folder = root / "quota-test"
+    folder.mkdir(parents=True)
+    (folder / "pipeline.yaml").write_text("""name: quota-test
+defaults:
+  model: gpt-6.1-sol
+  prompt_layers:
+    orchestrator: []
+    worker: []
+roles:
+  orchestrator: {kind: orchestrator, label: Orchestrator, can_spawn: ['*']}
+  worker: {kind: worker, label: Worker}
+""")
+    monkeypatch.setattr(pipeline, "PIPELINES_DIR", root)
+    pipeline.load_pipeline.cache_clear()
+    yield "quota-test"
+    pipeline.load_pipeline.cache_clear()
+
+
 @pytest.mark.parametrize("model,bucket,lane", [
     (MODEL, "codex", "sol"), ("gpt-6-astra", "codex", "sol"),
     ("gpt-6-luna", "codex", "luna"), ("gpt-5.3-codex-spark", "codex_spark", "spark"),
@@ -211,10 +235,11 @@ def test_dashboard_js_matches_shared_server_formula_and_history(clock):
     script = """
 const fs = require('fs'), vm = require('vm');
 global.window = {}; global.orchLocale = () => 'en'; global.T = x => x;
+global.Connection = {ownsErrors: () => false};
 global.cssToken = () => '#fff'; global._formatPercent = x => String(x); global._escHtml = String;
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 const src = fs.readFileSync(input.source, 'utf8').replace('init: initQuotaLines,',
-    'chartForTest(data) { _quotaLinesData=data; return _qlChartSvg({buckets: data.buckets.map(b=>b.bucket)}, data.rule); }, init: initQuotaLines,');
+    'chartForTest(data) { _quotaLinesData=data; return _qlChartSvg({buckets: data.buckets.map(b=>b.bucket)}, data.rule); }, panelForTest(data) { _quotaLinesData=data; return _qlPanelHtml(_QL_PANELS[0]); }, init: initQuotaLines,');
 vm.runInThisContext(src);
 const values = input.samples.map(s => window.QuotaPanel.monotoneLimitAt(
     s.progress, input.policy, s.lane, s.minutes, input.start * 1000,
@@ -225,9 +250,10 @@ const buckets = [['codex',['sol','luna']], ['codex_spark',['spark']], ['anthropi
             resets_at:new Date((input.start + 10080*60)*1000).toISOString()},
         lanes:lanes.map(lane=>({lane, label:lane, gated:true, limit_pct:20})), trace:{points:[]}}));
 const chart = window.QuotaPanel.chartForTest({rule:input.policy, buckets}).svg;
+const panel = window.QuotaPanel.panelForTest({rule:input.policy, buckets});
 const legacy = {...input.policy, codex_claude_pacing:false, curved_lanes:['sol'], lane_hard_stop_pct:{sol:95}};
 const oldSol = window.QuotaPanel.limitAt(.5, legacy, 'sol');
-process.stdout.write(JSON.stringify({values, chart, oldSol}));
+process.stdout.write(JSON.stringify({values, chart, panel, oldSol}));
 """
     result = subprocess.run([node, "-e", script], input=json.dumps(dict(
         source=str(source), samples=samples, policy=gate.quota_policy_snapshot(policy),
@@ -241,9 +267,12 @@ process.stdout.write(JSON.stringify({values, chart, oldSol}));
     for lane in ["sol", "luna", "spark", "claude"]:
         assert f'data-ql-threshold="{lane}"' in output["chart"]
     assert output["oldSol"] == pytest.approx(81.2858283255199)
+    assert 'All orchestrators: <b>always run</b>' in output["panel"]
+    assert 'Claude · orchestrator' not in output["panel"]
+    assert 'Claude · Orchestrator' not in output["panel"]
 
 
-def make_session(tmp_path, monkeypatch, *, model=MODEL, is_orch=True):
+def make_session(tmp_path, monkeypatch, *, model=MODEL, is_orch=False):
     session = AgentSession(
         id="local-quota-1121", name="local-quota", scope=str(tmp_path), cwd=str(tmp_path),
         model=model, backend_type="codex" if model.startswith("gpt") else "claude",
@@ -258,18 +287,35 @@ def make_session(tmp_path, monkeypatch, *, model=MODEL, is_orch=True):
     return session, backend
 
 
+@pytest.mark.parametrize("runtime", ["codex", "claude", "grok", "harness", "hub", "retired-runtime"])
+@pytest.mark.parametrize("is_orch", [False, True])
+def test_policy_exemption_depends_only_on_orchestrator_kind(runtime, is_orch):
+    assert gate.session_requires_quota(runtime, is_orchestrator=is_orch) is not is_orch
+
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("origin", ["user", "agent", "background_task", "platform", "system"])
-async def test_codex_orchestrator_checks_new_turn_from_every_origin(clock, tmp_path, monkeypatch, origin):
-    session, backend = make_session(tmp_path, monkeypatch)
-    session._admission_service = AsyncMock(return_value=decide(90))
-    with pytest.raises(gate.QuotaGateError):
-        await session.send("held", provenance=MessageProvenance(origin=origin, senders=("test",)))
-    backend.send.assert_not_awaited()
-    assert session.status == AgentStatus.IDLE
-    session._admission_service.return_value = decide(0)
-    await session.send("allowed", provenance=MessageProvenance(origin=origin, senders=("test",)))
+@pytest.mark.parametrize("origin", ["user", "agent", "background_task", "platform", "system", "unknown"])
+@pytest.mark.parametrize("used", [90, 99])
+@pytest.mark.parametrize("is_orch", [False, True])
+async def test_codex_turn_admission_from_every_origin(clock, tmp_path, monkeypatch, origin, used, is_orch):
+    session, backend = make_session(tmp_path, monkeypatch, is_orch=is_orch)
+    session._admission_service = AsyncMock(return_value=decide(used))
+    provenance = MessageProvenance(origin=origin, senders=("test",))
+    if is_orch:
+        await session.preflight_delivery_admission()
+        await session.send("allowed", provenance=provenance)
+        session._admission_service.assert_not_awaited()
+    else:
+        with pytest.raises(gate.QuotaGateError):
+            await session.preflight_delivery_admission()
+        with pytest.raises(gate.QuotaGateError):
+            await session.send("held", provenance=provenance)
+        backend.send.assert_not_awaited()
+        assert session.status == AgentStatus.IDLE
+        session._admission_service.return_value = decide(0)
+        await session.send("allowed", provenance=provenance)
     backend.send.assert_awaited_once()
+    assert not session._lifecycle_lock.locked()
     if session._listen_task:
         await session._listen_task
 
@@ -334,7 +380,7 @@ async def test_pending_transfer_write_failure_retains_messages_and_unlocks(clock
 
 @pytest.mark.asyncio
 async def test_claude_orchestrator_keeps_its_authorized_bypass(clock, tmp_path, monkeypatch):
-    session, backend = make_session(tmp_path, monkeypatch, model="claude-opus-5-5[1m]")
+    session, backend = make_session(tmp_path, monkeypatch, model="claude-opus-5-5[1m]", is_orch=True)
     session._admission_service = AsyncMock(side_effect=AssertionError("unexpected quota read"))
     await session.preflight_delivery_admission()
     await session.send("allowed", provenance=MessageProvenance(origin="user", senders=("test",)))
@@ -350,29 +396,41 @@ async def test_hub_never_reads_local_codex_quota(clock):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("used", [0, 90])
-async def test_codex_orchestrator_creation_checks_planned_first_turn(clock, tmp_path, monkeypatch, used):
+@pytest.mark.parametrize("used", [0, 90, 99])
+@pytest.mark.parametrize("is_orch", [False, True])
+async def test_creation_planned_first_turn_exempts_only_orchestrators(clock, tmp_path, monkeypatch, creation_pipeline, used, is_orch):
     manager = SessionManager()
-    monkeypatch.setattr(gate, "get_worker_admission", AsyncMock(return_value=decide(used)))
+    # Stop immediately after policy admission, before allocating tasks/worktrees.
+    capacity = AsyncMock(side_effect=RuntimeError("creation reached runtime capacity"))
+    monkeypatch.setattr("app.hub_pool.require_hub_capacity", capacity)
+    admission = AsyncMock(return_value=decide(used))
+    monkeypatch.setattr(gate, "get_worker_admission", admission)
 
     async def create():
         return await manager.create_session(
-            name="blocked-orch", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
-            role="orchestrator", is_orchestrator=True, planned_initial_turn=True,
+            pipeline=creation_pipeline, name="planned-agent", scope=str(tmp_path), cwd=str(tmp_path), model=MODEL,
+            role="orchestrator" if is_orch else "worker", is_orchestrator=is_orch,
+            planned_initial_turn=True,
         )
 
-    if used == 90:
+    if used >= 90 and not is_orch:
         with pytest.raises(gate.QuotaGateError):
             await create()
-        assert manager.get_by_name("blocked-orch", str(tmp_path)) is None
+        assert manager.get_by_name("planned-agent", str(tmp_path)) is None
     else:
-        session = await create()
-        assert session.is_orchestrator and session.backend_type == "codex"
+        with pytest.raises(RuntimeError, match="creation reached runtime capacity"):
+            await create()
+        capacity.assert_awaited_once_with(MODEL)
+    assert not manager.sessions
+    if used >= 90 and not is_orch:
+        capacity.assert_not_awaited()
+    if is_orch:
+        admission.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("preflight_hold", [True, False])
-async def test_real_codex_orchestrator_delivery_wait_restart_release_exactly_once(clock, tmp_path, monkeypatch, preflight_hold):
+async def test_real_codex_worker_delivery_wait_restart_release_exactly_once(clock, tmp_path, monkeypatch, preflight_hold):
     from app import deps, message_deliveries as deliveries, quota_queue, report_holds
     from app.routes import sessions as routes
 
@@ -423,3 +481,63 @@ async def test_real_codex_orchestrator_delivery_wait_restart_release_exactly_onc
     backend.send.assert_awaited_once()
     if session._listen_task:
         await session._listen_task
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("runtime,model", [
+    ("codex", MODEL), ("codex", "retired-codex-model"),
+    ("claude", "retired-claude-model"), ("grok", "grok-4"),
+    ("harness", "openrouter:synthetic"), ("hub", "hubsol"),
+])
+@pytest.mark.parametrize("entry", ["send", "pending"])
+async def test_all_orchestrator_runtimes_skip_blocked_policy(clock, tmp_path, monkeypatch, runtime, model, entry):
+    session, backend = make_session(tmp_path, monkeypatch, model=model, is_orch=True)
+    session.backend_type = runtime
+    session._admission_service = AsyncMock(return_value=decide(99))
+    await session.preflight_delivery_admission()
+    if entry == "pending":
+        session._pending_messages.append("pending owner instruction")
+        session._pending_owner_initiated_turn = True
+        await session._flush_pending()
+        assert not session._pending_messages
+        assert not session._pending_owner_initiated_turn
+    else:
+        await session.send("owner instruction", provenance=MessageProvenance(origin="user", senders=("owner",)))
+    session._admission_service.assert_not_awaited()
+    backend.send.assert_awaited_once()
+    assert not session._lifecycle_lock.locked()
+    if session._listen_task:
+        await session._listen_task
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("guard", ["writer", "handoff"])
+async def test_orchestrator_exemption_preserves_delivery_guards(clock, tmp_path, monkeypatch, guard):
+    session, backend = make_session(tmp_path, monkeypatch, is_orch=True)
+    session._admission_service = AsyncMock(return_value=decide(99))
+    if guard == "writer":
+        monkeypatch.setattr(session, "codex_writer_error", Mock(return_value=RuntimeError("writer conflict")))
+        expected = "writer conflict"
+    else:
+        session._handoff_recovery_required = True
+        expected = "handoff_recovery_required"
+    with pytest.raises(RuntimeError, match=expected):
+        await session.preflight_delivery_admission()
+    with pytest.raises(RuntimeError, match=expected):
+        await session.send("owner instruction", provenance=MessageProvenance(origin="user", senders=("owner",)))
+    backend.send.assert_not_awaited()
+    session._admission_service.assert_not_awaited()
+    assert not session._lifecycle_lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_provider_refusal_is_visible_without_fallback(clock, tmp_path, monkeypatch):
+    session, backend = make_session(tmp_path, monkeypatch, is_orch=True)
+    session._admission_service = AsyncMock(return_value=decide(99))
+    backend.send.side_effect = RuntimeError("synthetic provider quota refusal")
+    with pytest.raises(RuntimeError, match="synthetic provider quota refusal"):
+        await session.send("owner instruction", provenance=MessageProvenance(origin="user", senders=("owner",)))
+    backend.send.assert_awaited_once()
+    session._admission_service.assert_not_awaited()
+    assert session.model == MODEL
+    assert not session._lifecycle_lock.locked()

@@ -858,6 +858,10 @@ def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
     assert "ql-badge-always" in page.get_attribute(
         "[data-ql-panel='all'] [data-ql-lane='orchestrator']", "class"
     )
+    badge = page.locator("[data-ql-panel='all'] [data-ql-lane='orchestrator']")
+    assert badge.inner_text() == "All orchestrators: always run"
+    assert "Claude" not in page.locator(".ql-badges .ql-badge-always").inner_text()
+    assert "Claude · orchestrator" not in page.locator("[data-ql-panel='all'] svg[data-ql-chart='all']").text_content()
     page.close()
 
 

@@ -1,0 +1,14 @@
+AST and compile: PASS
+Prior SHA reconstruction: PASS; exactly one assertion line changed.
+Browser not rerun: source copy lacks Chromium.
+--- tests/test_t344_quota_lines_browser.py
++++ tests/test_t344_quota_lines_browser.py
+@@ -861,7 +861,7 @@
+     badge = page.locator("[data-ql-panel='all'] [data-ql-lane='orchestrator']")
+     assert badge.inner_text() == "All orchestrators: always run"
+     assert "Claude" not in page.locator(".ql-badges .ql-badge-always").inner_text()
+-    assert "Claude · orchestrator" not in page.locator("[data-ql-panel='all'] svg[data-ql-chart='all']").inner_text()
++    assert "Claude · orchestrator" not in page.locator("[data-ql-panel='all'] svg[data-ql-chart='all']").text_content()
+     page.close()
+ 
+ 

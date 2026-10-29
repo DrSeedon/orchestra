@@ -127,9 +127,13 @@ def quota_wait_action(row) -> dict:
     }
 
 
-def _model_of(session_id: str) -> str:
-    row = db.get_session(session_id)
-    return str(row["model"]) if row and row.get("model") else ""
+def _is_orchestrator(session: dict) -> bool:
+    """Match AgentSession's explicit kind and legacy role fallback on recovery."""
+    if session.get("is_orchestrator") is not None:
+        return bool(session["is_orchestrator"])
+    from app.prompting import is_orchestrator_role
+
+    return is_orchestrator_role(session.get("role", "worker"))
 
 
 async def _admission_allows(model: str):
@@ -230,7 +234,11 @@ async def release_waiting() -> int:
         await limit_wake.queue_codex_limit_wakes()
         verdicts: dict[str, tuple[bool, object]] = {}
 
-        async def verdict(model: str):
+        async def verdict(session_id: str):
+            session = db.get_session(session_id) or {}
+            if _is_orchestrator(session):
+                return True, None
+            model = str(session.get("model") or "")
             if model not in verdicts:
                 verdicts[model] = await _admission_allows(model)
             return verdicts[model]
@@ -238,7 +246,7 @@ async def release_waiting() -> int:
         # Первые задания — раньше прямых: у свежего воркера они идут первыми по смыслу.
         initial_ids: list[str] = []
         for row in await asyncio.to_thread(_waiting_rows, "initial_deliveries", "session_id"):
-            allowed, decision = await verdict(_model_of(row["session_id"]))
+            allowed, decision = await verdict(row["session_id"])
             if allowed:
                 initial_ids.append(row["delivery_id"])
             elif decision is not None:
@@ -269,9 +277,12 @@ async def release_waiting() -> int:
                 except message_deliveries.TargetTaskChangedError:
                     message_deliveries.cancel_message_delivery(row["delivery_id"], None)
                     continue
-                key = "limit_wake:" + session["model"]
+                is_orch = _is_orchestrator(session)
+                key = f"limit_wake:{is_orch}:" + session["model"]
                 if key not in verdicts:
-                    decision = await limit_wake.codex_wake_admission(session["model"])
+                    decision = await limit_wake.codex_wake_admission(
+                        session["model"], is_orchestrator=is_orch,
+                    )
                     verdicts[key] = (decision.state != "blocked", decision)
                 allowed, decision = verdicts[key]
                 if allowed:
@@ -279,7 +290,7 @@ async def release_waiting() -> int:
                 else:
                     _refresh_eta("message_deliveries", row["delivery_id"], row["error_json"], decision)
                 continue
-            allowed, decision = await verdict(_model_of(session_id))
+            allowed, decision = await verdict(session_id)
             if allowed:
                 message_ids.setdefault(session_id, []).append(row["delivery_id"])
             elif decision is not None:
