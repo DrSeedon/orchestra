@@ -734,6 +734,45 @@ def _enter_sparse_or_full(repo: Path, wt_path: Path, rule, task_id: str, ref: st
             f"git checkout of new worktree failed: {filled.stderr.strip() or filled.stdout.strip()}")
 
 
+def _worker_branch(repo: Path, name: str, task_id: str) -> str:
+    if task_id:
+        return f"task-{_normalize_task_id(task_id)}/{name}"
+    return f"feat/{_slugify(str(repo))}/{name}"
+
+
+def preflight_worktree_layout(
+    repo_path: str, name: str, task_id: str, base_branch: str, *, allocating_task: bool,
+) -> None:
+    """Refuse a definite missing-memory prerequisite before spawn allocations.
+
+    This is read-only: no worker-branch migration or layout bootstrap. A selected
+    branch that already carries layout may work independently of the checkout;
+    leave its validation to the existing worktree lifecycle. Late errors retain
+    their original exception type and ambiguous HTTP outcome.
+    """
+    from app.orchestra_layout import LayoutMigrationError
+    from app.prompting import load_worker_memory
+
+    repo = Path(repo_path)
+    try:
+        # No repository_path: that mode may migrate a linked worker branch.
+        load_worker_memory(name, "", str(repo), allow_absent_project=True)
+    except LayoutMigrationError as error:
+        ref = base_branch
+        if not allocating_task:
+            ref = _inspect_branch_ref(repo, _worker_branch(repo, name, task_id)) or ref
+        selected_layout = _git_cmd(
+            ["git", "ls-tree", ref, "--", ".orchestra/layout.json"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if selected_layout.returncode != 0:
+            raise RuntimeError("cannot inspect spawn source layout") from error
+        if selected_layout.stdout:
+            return
+        # Only this pre-allocation refusal uses the existing HTTP 409 mapping.
+        raise ValueError(str(error)) from error
+
+
 def create_worktree(repo_path: str, name: str, task_id: str = "",
                     base_branch: str = "",
                     worktree_cfg: "WorktreeCfg | None" = None,
@@ -754,11 +793,7 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
         _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
         wt_path = wt_dir / name
 
-        if task_id:
-            par = _normalize_task_id(task_id)
-            branch = f"task-{par}/{name}"
-        else:
-            branch = f"feat/{repo_slug}/{name}"
+        branch = _worker_branch(repo, name, task_id)
 
         if wt_path.exists():
             raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
@@ -856,7 +891,10 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
                     _apply_symlink(repo, wt_path, sl)
                     planted.append(sl.target)
             _exclude_worktree_artifacts(wt_path, planted)
-            private_folder.ensure_private(wt_path)
+            # Reports alone are source-only (V-1069). Planting private + its
+            # ignore file would manufacture managed state and break prompt load.
+            if private_folder.has_worker_memory_project_state(repo):
+                private_folder.ensure_private(wt_path)
             sync_agents_md(str(wt_path))
         except Exception as setup_error:
             cleanup_errors: list[str] = []

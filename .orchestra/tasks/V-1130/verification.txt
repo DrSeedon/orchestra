@@ -1,0 +1,47 @@
+EXPLICITLY EDITED OUTPUT: scalar outcomes and failure names only.
+Absolute paths, machine identities and traceback bodies are omitted.
+Raw private bytes are not published; SHA-256 values identify the observed inputs.
+Runner: broker-provisioned uv 0.11.28, default .venv, normal conftest.
+Imported app: app/__init__.py; resolved absolute path checked against this copy.
+
+before
+raw_sha256=365722627b9d76113222aec18250f604573e0ca70638559569d4158189b0be38
+FAILED tests/test_source_layout_spawn_v1130.py::test_fresh_source_starts_without_layout_or_migration[True-hubsol]
+FAILED tests/test_source_layout_spawn_v1130.py::test_fresh_source_starts_without_layout_or_migration[True-hubopus]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[.orchestra/workers/w.md-hubsol]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[.orchestra/workers/w.md-hubopus]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[docs/workers/w.md-hubsol]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[docs/workers/w.md-hubopus]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[.orchestra/.layout-migration.json-hubsol]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[.orchestra/.layout-migration.json-hubopus]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[.orchestra/unknown/keep.md-hubsol]
+FAILED tests/test_source_layout_spawn_v1130.py::test_layout_prerequisite_refuses_before_any_allocation[.orchestra/unknown/keep.md-hubopus]
+10 failed, 3 passed in 33.35s
+E   assert 500 == 201
+E   assert 500 == 409
+
+after
+raw_sha256=1cb6acf8f529fc34a7582e0b658147f3da8820e69fa6cf55127a821ffb222df7
+13 passed in 20.80s
+
+targeted
+raw_sha256=7b1592de4b2ff3449e848a66f809034e2145c008853dec3447f724d1434e013f
+120 passed, 2 subtests passed in 84.42s (0:01:24)
+
+callers
+raw_sha256=638f5d3f45dd8d180126a5feb8c63b0b2a3ddd9d0398aa8df3b2d8fa0f2169e4
+FAILED tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision
+1 failed, 323 passed in 121.20s (0:02:01)
+
+original-path-collision
+raw_sha256=a1af02496a6e1cc5f703c01ac1d0d1c19c30f77f493984ef67edd383a4a74562
+FAILED tests/test_workspace.py::TestCreateWorktree::test_different_repos_no_collision
+1 failed in 3.89s
+
+restored-source
+raw_sha256=88ed6916a24ab5aa96c242c40d1e7a8144d8e7d5ffd84dea664f1512437f5fad
+18 passed in 31.38s
+
+Original-source control: final modules restored byte-for-byte in a finally block.
+Post-restoration source/context hashes: match provenance.json.
+Secret-shape scan: changed source and public result artifacts, zero findings.

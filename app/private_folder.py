@@ -16,6 +16,25 @@ PRIVATE_REL = ".orchestra/private"
 EXCLUDE_PATTERN = f"/{PRIVATE_REL}"
 
 
+def has_worker_memory_project_state(base: Path) -> bool:
+    """Reports alone do not establish managed memory or require private bootstrap."""
+    # LEGACY_PATH_FIXTURE: old roots signal migration, never memory fallbacks.
+    if any((base / path).exists() or (base / path).is_symlink() for path in (
+        "docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines",
+    )):
+        return True
+    state = base / ".orchestra"
+    if not state.exists() and not state.is_symlink():
+        return False
+    if not state.is_dir() or state.is_symlink():
+        return True
+    # Unknown entries, migration journals and broken links remain project state.
+    return any(
+        entry.name != "tasks" or not entry.is_dir() or entry.is_symlink()
+        for entry in state.iterdir()
+    )
+
+
 def main_checkout(path: str | Path) -> Path:
     done = subprocess.run(
         ["git", "-C", str(path), "rev-parse", "--path-format=absolute", "--git-common-dir"],

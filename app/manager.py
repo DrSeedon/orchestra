@@ -36,7 +36,7 @@ from app.workspace import (
     create_worktree, discard_prepared_worktree, remove_worktree,
     parse_owned_dirs,
     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
-    repo_root,
+    repo_root, preflight_worktree_layout,
 )
 from app.models import (
     COMPAT_MODEL_SPECS,
@@ -786,6 +786,10 @@ class SessionManager:
         if use_worktree and repo_path:
             base_branch = self._resolve_base_branch(
                 base_branch, pipeline, role, parent_name, scope, repo_path,
+            )
+            await asyncio.to_thread(
+                preflight_worktree_layout, repo_path, name, task_id, base_branch,
+                allocating_task=planned_initial_turn and not task_id and not is_orch,
             )
 
         task_identity = None

@@ -1,0 +1,159 @@
+--- before/app/manager.py
++++ after/app/manager.py
+@@ -36,7 +36,7 @@
+     create_worktree, discard_prepared_worktree, remove_worktree,
+     parse_owned_dirs,
+     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
+-    repo_root,
++    repo_root, preflight_worktree_layout,
+ )
+ from app.models import (
+     COMPAT_MODEL_SPECS,
+@@ -786,6 +786,10 @@
+         if use_worktree and repo_path:
+             base_branch = self._resolve_base_branch(
+                 base_branch, pipeline, role, parent_name, scope, repo_path,
++            )
++            await asyncio.to_thread(
++                preflight_worktree_layout, repo_path, name, task_id, base_branch,
++                allocating_task=planned_initial_turn and not task_id and not is_orch,
+             )
+ 
+         task_identity = None
+--- before/app/workspace.py
++++ after/app/workspace.py
+@@ -734,6 +734,45 @@
+             f"git checkout of new worktree failed: {filled.stderr.strip() or filled.stdout.strip()}")
+ 
+ 
++def _worker_branch(repo: Path, name: str, task_id: str) -> str:
++    if task_id:
++        return f"task-{_normalize_task_id(task_id)}/{name}"
++    return f"feat/{_slugify(str(repo))}/{name}"
++
++
++def preflight_worktree_layout(
++    repo_path: str, name: str, task_id: str, base_branch: str, *, allocating_task: bool,
++) -> None:
++    """Refuse a definite missing-memory prerequisite before spawn allocations.
++
++    This is read-only: no worker-branch migration or layout bootstrap. A selected
++    branch that already carries layout may work independently of the checkout;
++    leave its validation to the existing worktree lifecycle. Late errors retain
++    their original exception type and ambiguous HTTP outcome.
++    """
++    from app.orchestra_layout import LayoutMigrationError
++    from app.prompting import load_worker_memory
++
++    repo = Path(repo_path)
++    try:
++        # No repository_path: that mode may migrate a linked worker branch.
++        load_worker_memory(name, "", str(repo), allow_absent_project=True)
++    except LayoutMigrationError as error:
++        ref = base_branch
++        if not allocating_task:
++            ref = _inspect_branch_ref(repo, _worker_branch(repo, name, task_id)) or ref
++        selected_layout = _git_cmd(
++            ["git", "ls-tree", ref, "--", ".orchestra/layout.json"],
++            cwd=str(repo), capture_output=True, text=True,
++        )
++        if selected_layout.returncode != 0:
++            raise RuntimeError("cannot inspect spawn source layout") from error
++        if selected_layout.stdout:
++            return
++        # Only this pre-allocation refusal uses the existing HTTP 409 mapping.
++        raise ValueError(str(error)) from error
++
++
+ def create_worktree(repo_path: str, name: str, task_id: str = "",
+                     base_branch: str = "",
+                     worktree_cfg: "WorktreeCfg | None" = None,
+@@ -754,11 +793,7 @@
+         _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
+         wt_path = wt_dir / name
+ 
+-        if task_id:
+-            par = _normalize_task_id(task_id)
+-            branch = f"task-{par}/{name}"
+-        else:
+-            branch = f"feat/{repo_slug}/{name}"
++        branch = _worker_branch(repo, name, task_id)
+ 
+         if wt_path.exists():
+             raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
+@@ -856,7 +891,10 @@
+                     _apply_symlink(repo, wt_path, sl)
+                     planted.append(sl.target)
+             _exclude_worktree_artifacts(wt_path, planted)
+-            private_folder.ensure_private(wt_path)
++            # Reports alone are source-only (V-1069). Planting private + its
++            # ignore file would manufacture managed state and break prompt load.
++            if private_folder.has_worker_memory_project_state(repo):
++                private_folder.ensure_private(wt_path)
+             sync_agents_md(str(wt_path))
+         except Exception as setup_error:
+             cleanup_errors: list[str] = []
+--- before/app/prompting.py
++++ after/app/prompting.py
+@@ -13,6 +13,7 @@
+ from pathlib import Path
+ 
+ from app.workspace import _exclude_worktree_artifacts, tracked_paths
++from app.private_folder import has_worker_memory_project_state as _has_worker_memory_project_state
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -143,25 +144,6 @@
+ def safe_format_prompt(template: str, **kwargs: str) -> str:
+     """Substitute only known identity placeholders, leaving other {braces} intact."""
+     return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
+-
+-
+-def _has_worker_memory_project_state(base: Path) -> bool:
+-    # LEGACY_PATH_FIXTURE: old roots signal migration, never memory fallbacks.
+-    if any((base / path).exists() or (base / path).is_symlink() for path in (
+-        "docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines",
+-    )):
+-        return True
+-    state = base / ".orchestra"
+-    if not state.exists() and not state.is_symlink():
+-        return False
+-    if not state.is_dir() or state.is_symlink():
+-        return True
+-    # Reports alone do not establish managed project memory. Unknown entries,
+-    # migration journals and broken links remain evidence of project state.
+-    return any(
+-        entry.name != "tasks" or not entry.is_dir() or entry.is_symlink()
+-        for entry in state.iterdir()
+-    )
+ 
+ 
+ def load_worker_memory(
+--- before/app/private_folder.py
++++ after/app/private_folder.py
+@@ -14,6 +14,25 @@
+ PRIVATE_REL = ".orchestra/private"
+ # No trailing slash: in a worktree the entry is a symlink, which `private/` would not match.
+ EXCLUDE_PATTERN = f"/{PRIVATE_REL}"
++
++
++def has_worker_memory_project_state(base: Path) -> bool:
++    """Reports alone do not establish managed memory or require private bootstrap."""
++    # LEGACY_PATH_FIXTURE: old roots signal migration, never memory fallbacks.
++    if any((base / path).exists() or (base / path).is_symlink() for path in (
++        "docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines",
++    )):
++        return True
++    state = base / ".orchestra"
++    if not state.exists() and not state.is_symlink():
++        return False
++    if not state.is_dir() or state.is_symlink():
++        return True
++    # Unknown entries, migration journals and broken links remain project state.
++    return any(
++        entry.name != "tasks" or not entry.is_dir() or entry.is_symlink()
++        for entry in state.iterdir()
++    )
+ 
+ 
+ def main_checkout(path: str | Path) -> Path:

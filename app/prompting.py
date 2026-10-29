@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.workspace import _exclude_worktree_artifacts, tracked_paths
+from app.private_folder import has_worker_memory_project_state as _has_worker_memory_project_state
 
 logger = logging.getLogger(__name__)
 
@@ -143,25 +144,6 @@ def _copy_skill_file(source: Path, destination: Path) -> bool:
 def safe_format_prompt(template: str, **kwargs: str) -> str:
     """Substitute only known identity placeholders, leaving other {braces} intact."""
     return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
-
-
-def _has_worker_memory_project_state(base: Path) -> bool:
-    # LEGACY_PATH_FIXTURE: old roots signal migration, never memory fallbacks.
-    if any((base / path).exists() or (base / path).is_symlink() for path in (
-        "docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines",
-    )):
-        return True
-    state = base / ".orchestra"
-    if not state.exists() and not state.is_symlink():
-        return False
-    if not state.is_dir() or state.is_symlink():
-        return True
-    # Reports alone do not establish managed project memory. Unknown entries,
-    # migration journals and broken links remain evidence of project state.
-    return any(
-        entry.name != "tasks" or not entry.is_dir() or entry.is_symlink()
-        for entry in state.iterdir()
-    )
 
 
 def load_worker_memory(
