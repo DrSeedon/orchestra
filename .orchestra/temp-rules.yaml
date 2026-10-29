@@ -8,16 +8,21 @@ rules:
   - all
   author: Orchestra-orchestrator
   created_at: '2026-10-22T11:30:51.528596+00:00'
-  text: 'Hub models have no practical limits for us. When our own subscription gate is closed, or by default,
-    run workers on the MultiCode hub: `hubsol` (GPT-6.1 Sol), `hubsonnet` or `hubopus`, any of them. Sol
-    6.1 is for any work, regardless of how much of its pool remains. Use Opus or Sonnet for important
-    creative work, or when the user asks for that model; name that reason in `model_reason`. Model choice
-    is owned by Orchestra''s model-routing and this rule: do not keep model-routing rules in personal
-    memory or project rules files.'
-  reason: 'Owner decision 2026-10-22 18:30 KRS: the hub pool is effectively unlimited; Sol for any work
-    regardless of remaining quota, Opus and Sonnet for important creative work or on the user''s request;
-    personal and project prompts must not carry their own model routing, the default lives in Orchestra.
-    Permanent by the owner''s word.'
+  text: 'Owner decision, 2026-10-29: use Codex for local orchestrators and run all workers on the MultiCode
+    hub. Do not use our own Claude subscription or fall back to it. Use hubsol for general work; actively
+    use hubsonnet or hubopus for any creative work, without the former ''important creative work'' restriction.
+    The owner has removed the former model-choice restrictions for hub creative work; supply model_reason
+    while the tool requires it. Model routing belongs only to Orchestra''s model-routing module and this
+    deployment rule, never to personal memory or project rules. This does not authorize new paid API calls,
+    shipping secrets or personal/client/company data to the hub, or changing deployment, restart, deletion
+    or freeze boundaries. Delegate only safe source-only material to the hub; when safe separation is
+    impossible, report the blocker instead of uploading protected data or enabling local Claude. The suspension
+    and submitted appeal are already confirmed: do not ask the owner to pay or repeat verification as
+    a remedy.'
+  reason: 'Owner''s direct command 2026-10-29 15:11 KRS, verified in logs.id=960402: local Claude access
+    is suspended under Supported Countries Policy and an appeal is submitted; he chose local Codex orchestrators,
+    all workers on the hub, and unrestricted hub Claude selection for creative work. This replaces the
+    2026-10-22 routing decision without lifting data, API spending, restart or project-freeze boundaries.'
 - id: rule-e402924620
   project: '*'
   mode: permanent
