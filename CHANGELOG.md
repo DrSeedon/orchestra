@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+- **Recurring-error scans classify the standalone provider capacity refusal as expected external noise** (V-1146; `app/error_watch.py`). Only `Selected model is at capacity. Please try a different model.` after existing logger/whitespace normalization is excluded from new findings and registered-fix recurrences. Mixed Hub failures and added error text remain actionable; raw logs, frontend errors and provider calls are unchanged.
+
 - **Main checkout's shared `.orchestra/private/` is git-ignored despite root `!.orchestra/**` negations** (V-1142; `app/private_folder.py`, `app/manager.py`, `app/orchestra_layout.py`). New `ensure_main_private` reuses `ensure_private`/`_ignore_private` for a managed project's main checkout when the main orchestrator is created, loaded from the DB, and on startup layout pass. Only projects with a current `.orchestra/layout.json` and managed state are touched; source-only, report-only and pre-migration projects are not changed. Tracked private content, tracked/symlinked ignore files and existing ignore rules are preserved (refusals are logged, never fatal). Python activation follows the idle watcher.
 
 - **Composer no longer shows the technical "Message queue" panel** (V-1137; `dashboard.html`, `chat.js`, `app.js`, `i18n.js`). The panel, its 5 s polling, per-selection refresh, cancel UI and obsolete translations are removed. Current-turn/after-turn submission, SSE echoes and the mailbox/queued-messages APIs are unchanged. The after-turn draft ownership (`restoredGeneration`) that the refresh used to update now happens in `restoreDraft()` via `_noteDraftRestored()`. JS/template hot-load only; no Python restart. `vendor/tailwind.css` regenerated (V-1138) to drop the three now-unused queue classes.

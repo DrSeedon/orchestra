@@ -43,6 +43,10 @@ _CODEX_QUOTA_RESET = (
 _CODEX_QUOTA_REFUSAL = re.compile(
     rf"^квота Codex исчерпана, сброс {_CODEX_QUOTA_RESET}(?:, {_CODEX_QUOTA_RESET})*$", re.I,
 )
+# Only the standalone upstream refusal; embedded or appended failures remain actionable.
+_PROVIDER_CAPACITY_REFUSAL = re.compile(
+    r"\ASelected model is at capacity\. Please try a different model\.\Z",
+)
 # Match only the recoverable input refusal, including its complete recovery hint.
 # Other expected_head failures and appended gate/conflict errors remain visible.
 _MERGE_EXPECTED_HEAD_REFUSAL = re.compile(
@@ -63,6 +67,7 @@ _NOISE = (
     )),
     ("quota/rate limit", re.compile(r"quota|rate[_ -]?limit|rate_limited|subscription limit", re.I)),
     ("quota/rate limit", _CODEX_QUOTA_REFUSAL),
+    ("external provider capacity", _PROVIDER_CAPACITY_REFUSAL),
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
     ("expected command termination", re.compile(r"command exited with code", re.I)),
@@ -321,6 +326,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
         if (event_signature := normalize_signature(event["message"])) == signature
         and _event_noise(event, event_signature) not in _EXPECTED_HUB_NOISE
         and not _CODEX_QUOTA_REFUSAL.fullmatch(event_signature)
+        and not _PROVIDER_CAPACITY_REFUSAL.fullmatch(event_signature)
         and not _MERGE_EXPECTED_HEAD_REFUSAL.fullmatch(event_signature)
         and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at

@@ -158,6 +158,141 @@ def test_english_quota_noise_unchanged(message):
     assert watch.classify_noise(watch.normalize_signature(message)) == "quota/rate limit"
 
 
+_CAPACITY_REFUSAL = "Selected model is at capacity. Please try a different model."
+
+
+@pytest.mark.parametrize("message", [
+    _CAPACITY_REFUSAL,
+    "ERROR:app.session:" + _CAPACITY_REFUSAL,
+    "WARNING:app.backend_hub: " + _CAPACITY_REFUSAL,
+    " \t" + _CAPACITY_REFUSAL + "\r\n",
+    "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n",
+])
+@pytest.mark.parametrize("source", ["logs", "journalctl"])
+def test_standalone_provider_capacity_is_noise_without_changing_event(message, source):
+    event = dict(_event(message, source=source), type="error")
+    original = dict(event)
+    assert watch.classify_noise(_CAPACITY_REFUSAL) == "external provider capacity"
+    assert watch.normalize_signature(message) == _CAPACITY_REFUSAL
+    assert watch.classify_noise(watch.normalize_signature(message)) == "external provider capacity"
+    candidates, noise = watch.aggregate([event], datetime.now(timezone.utc), threshold=1)
+    assert candidates == []
+    assert [(item["signature"], item["noise"], item["count"]) for item in noise] == [
+        (_CAPACITY_REFUSAL, "external provider capacity", 1),
+    ]
+    assert event == original
+
+
+@pytest.mark.parametrize("message", [
+    "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+    "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+    "Hub worker turn failed: RuntimeError: " + _CAPACITY_REFUSAL,
+    "RuntimeError: " + _CAPACITY_REFUSAL,
+    "Data loss detected; " + _CAPACITY_REFUSAL,
+    _CAPACITY_REFUSAL + " Data loss detected.",
+    _CAPACITY_REFUSAL + "\nTraceback (most recent call last): RuntimeError: delivery failed",
+    "ERROR:app.session:" + _CAPACITY_REFUSAL + " DatabaseError: transaction failed",
+    'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+    '"' + _CAPACITY_REFUSAL + '"',
+    "Other failure: " + _CAPACITY_REFUSAL,
+    "Selected model is at capacity.",
+    "Please try a different model.",
+    _CAPACITY_REFUSAL.lower(),
+    _CAPACITY_REFUSAL[:-1],
+    "database capacity exceeded",
+    "worker capacity accounting failed",
+])
+def test_other_capacity_messages_stay_actionable_raw_and_normalized(message):
+    signature = watch.normalize_signature(message)
+    assert watch.classify_noise(message) is None
+    assert watch.classify_noise(signature) is None
+    events = [_event(message, i, source="logs") for i in range(10)]
+    assert watch.aggregate(events[:9], datetime.now(timezone.utc)) == ([], [])
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc))
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 10)]
+    assert noise == []
+    started = datetime.fromisoformat(events[0]["ts"])
+    assert watch.post_fix_verdict(events, signature, started, 168)["count"] == 10
+
+
+@pytest.mark.parametrize("failure", [
+    _CAPACITY_REFUSAL + " Data loss detected.",
+    "ERROR:app.session:" + _CAPACITY_REFUSAL + "\nRuntimeError: delivery failed",
+    "Hub worker turn failed: " + _CAPACITY_REFUSAL,
+    "Hub worker turn failed: hub thread ended with status failed; " + _CAPACITY_REFUSAL,
+    'Parser failed while reading "' + _CAPACITY_REFUSAL + '"',
+])
+def test_capacity_scan_groups_expected_refusal_but_reports_real_errors(
+    failure, hub_finish_db, monkeypatch, capsys, scan_reports,
+):
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stamp = started + timedelta(seconds=1)
+    raw = "ERROR:app.session: Selected model is at capacity.\n  Please try a different model.\n"
+    _insert_error_rows(hub_finish_db, [("error", _CAPACITY_REFUSAL, None, 1)] * 5 + [
+        ("error", raw, None, 1),
+    ] * 4, stamp)
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: [])
+    monkeypatch.setattr(watch, "_existing_refs", lambda _: {"tasks": []})
+    args = SimpleNamespace(db=str(hub_finish_db), window_hours=168, threshold=10, dry_run=True)
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_events"] == 0
+
+    _insert_error_rows(hub_finish_db, [("error", raw, None, 1)], stamp)
+    original_events = watch.collect_db_events(hub_finish_db, started)
+    assert [event["message"] for event in original_events] == [_CAPACITY_REFUSAL] * 5 + [raw] * 5
+    assert watch.scan(args) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_count"] == 1
+    assert output["noise_events"] == 10
+    assert output["noise_by_class"] == {"external provider capacity": 10}
+
+    assert watch.record_fix(SimpleNamespace(
+        db=str(hub_finish_db), signature=_CAPACITY_REFUSAL, task="legacy-capacity-control",
+        commit="example", started_at=started.isoformat(), window_hours=168,
+    )) == 0
+    capsys.readouterr()
+    state_path = hub_finish_db.parent / "error_watch.json"
+    fixes = watch._load_state(state_path)["fixes"]
+    args.dry_run = False
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    state = watch._load_state(state_path)
+    assert state["alerts"] == {}
+    assert state["fixes"] == fixes
+    assert watch.collect_db_events(hub_finish_db, started) == original_events
+
+    _insert_error_rows(hub_finish_db, [("error", failure, None, 1)] * 9, stamp)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert not scan_reports.called
+    _insert_error_rows(hub_finish_db, [("error", failure, None, 1)], stamp)
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    signals, verdicts = scan_reports.call_args.args
+    signature = watch.normalize_signature(failure)
+    assert [(item["signature"], item["count"]) for item in signals] == [(signature, 10)]
+    assert verdicts == []
+    state = watch._load_state(state_path)
+    assert set(state["alerts"]) == {signature}
+    assert state["fixes"] == fixes
+    assert watch.scan(args) == 0
+    capsys.readouterr()
+    assert scan_reports.call_count == 1
+    assert watch._load_state(state_path) == state
+
+
+def test_capacity_refusal_fix_observation_completes_without_recurrence():
+    started = datetime.now(timezone.utc) - timedelta(hours=2)
+    event = dict(_event(_CAPACITY_REFUSAL, source="logs"), ts=started.isoformat())
+    result = watch.post_fix_verdict([event], _CAPACITY_REFUSAL, started, 1)
+    assert result["count"] == 0
+    assert result["complete"] is True
+
+
 def test_repeated_codex_quota_refusals_are_aggregated_without_alert(tmp_path, monkeypatch, capsys, scan_reports):
     events = [
         _event(f"квота Codex исчерпана, сброс 5h 2026-10-24T09:{30 + i}:34Z", i, source="logs")
