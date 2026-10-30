@@ -1,0 +1,62 @@
+== S0 no envelope (repository has <5 green turns): guard never acts, judge never started
+[no-envelope] calls=40 envelope=None decisions=[] judge_starts=None resolved_proxy=False
+
+== S1a genuine loop, SMALL envelope=6 (backstop = 2.5x = 15 turns < min_turns 20): the strict rule's backstop fires with NO judge call
+[true-loop-small-envelope] calls=60 envelope=6.0 decisions=[(20, ('nudge', 'cum-backstop:20>=15t')), (40, ('abort', 'cum-backstop:40>=15t'))] judge_starts=0 resolved_proxy=False
+
+== S1b genuine loop, envelope=14 (backstop 35): judge path; stub judge says stuck@0.9, nudge budget r=1
+[true-loop] calls=60 envelope=14.0 decisions=[(21, ('nudge', 'judge-stuck@0.90:same failure')), (41, ('abort', 'cum-backstop:41>=35t'))] judge_starts=1 resolved_proxy=False
+   first judge digest sent (verbatim):
+turns=20 edit_churn=10 distinct_edit_files=1 error_outputs=10 test_runs=10 repeated_identical_failures=9 stagnation=0.90
+repo_context: tasks here usually RESOLVE within ~14 turns; this trajectory is at 20 turns = 1.4x that typical length. The last verification run failed. A trajectory far past the typical resolved length with recurring failures is likely a dead-end loop, even if it touches many files.
+Recent actions (oldest->newest):
+  1: edit a.py
+  2: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+  3: edit a.py
+  4: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+  5: edit a.py
+  6: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+  7: edit a.py
+  8: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+  9: edit a.py
+ 10: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+ 11: edit a.py
+ 12: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+ 13: edit a.py
+ 14: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+ 15: edit a.py
+ 16: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+ 17: edit a.py
+ 18: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+ 19: edit a.py
+ 20: $ python -m pytest tests/test_a.py -q  [err#2c649d29e5]
+
+== S2 same loop but stub judge says productive: spared; judge re-asked with growing gap (5,10,15,20)
+[loop-judge-productive] calls=80 envelope=30.0 decisions=[(75, ('nudge', 'cum-backstop:75>=75t'))] judge_starts=4 resolved_proxy=False
+   judge starts: 4
+
+== S3 changing failures + many edits (productive grind), stub judge productive
+[changing-failures] calls=40 envelope=30.0 decisions=[] judge_starts=2 resolved_proxy=False
+   judge starts: 2
+
+== S4 FALSE-POSITIVE LIMIT: productive turn, tiny learned envelope (5), NO judge wired / judge paused -> deterministic rule+backstop only
+[productive-but-repetitive-red-then-green (ends GREEN at call 22)] calls=22 envelope=5.0 decisions=[(20, ('nudge', 'cum-backstop:20>=12t'))] judge_starts=None resolved_proxy=True
+   (same trace with envelope=20: )
+[same-trace-envelope-20] calls=22 envelope=20.0 decisions=[(20, ('nudge', 'envelope:20>=20'))] judge_starts=None resolved_proxy=True
+
+== S5 no-progress that never fails visibly: 40 identical successful greps -> no error signal, nothing fires
+[silent-spin] calls=40 envelope=6.0 decisions=[] judge_starts=0 resolved_proxy=True
+
+== S6 exit-code hiding: pipe/|| after the test run (loopguard.turn.status_of_tests / runner_verdict)
+   'npm test 2>&1 | tail -n 8'        status_of_tests='hidden' runner_verdict=True
+   'pytest -q || true'                status_of_tests='hidden' runner_verdict=True
+   'pytest -q; echo exit=$?'          status_of_tests='hidden' runner_verdict=False
+   'pytest -q'                        status_of_tests='own' runner_verdict=True
+
+== S7 what the judge/writer is sent: first 90 chars of every shell command (no secret masking)
+turns=1 edit_churn=0 distinct_edit_files=0 error_outputs=1 test_runs=1 repeated_identical_failures=0 stagnation=0.00
+Recent actions (oldest->newest):
+  1: $ curl -H "Authorization: Bearer sk-FAKE-0123456789abcdef" https://internal.example/api && p  [err#2c649d29e5]
+
+== S8 persistence: TurnGuard.to_dict() JSON round-trip size (stored per hook call under session json)
+4944 bytes; events: [{"segment": 0, "action": "nudge", "turn_in_segment": 21, "cum_turns": 21, "envelope": 14.0, "reason": "judge-stuck@0.90:same failure", "snapshot": {"turns": 21, "edit_churn": 11, "distinct_edit_files": 1, "error_outputs": 10, "test_runs": 10, "stagnation": 0.9, "repeated_fail_sigs": 9}}, {"segment": 1, "action": "abort", "turn_in_segment": 20, "cum_turns": 41, "envelope": 14.0, "reason": "cum-bac

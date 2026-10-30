@@ -1,0 +1,71 @@
+--- SessionStart
+{}
+   (exit=0)
+--- UserPromptSubmit
+{}
+   (exit=0)
+--- PostToolUse (Bash, string tool_response, no exit code)
+{}
+   (exit=0)
+--- Stop
+{}
+   (exit=0)
+--- SessionEnd (transcript missing)
+{}
+   (exit=0)
+--- garbage stdin
+{}
+   (exit=0)
+--- empty stdin
+{}
+   (exit=0)
+--- TE_DISABLE=1
+{}
+   (exit=0)
+--- TE_SIDECALL=1 (nested side-call guard)
+{}
+   (exit=0)
+--- state tree
+./.index.lock
+./bin/te
+./errors.log
+./index.json
+./repos/proj-adf66f76e4/codex/.envelope.lock
+./repos/proj-adf66f76e4/codex/.fold.lock
+./repos/proj-adf66f76e4/codex/envelope.json
+./repos/proj-adf66f76e4/codex/events.jsonl
+./repos/proj-adf66f76e4/codex/fold.log
+./repos/proj-adf66f76e4/codex/folded.json
+./repos/proj-adf66f76e4/codex/ledger.jsonl
+./repos/proj-adf66f76e4/codex/migrate.log
+./repos/proj-adf66f76e4/codex/sessions/sess-0001.json
+./repos/proj-adf66f76e4/repo.json
+./sessions/codex/.pruned
+./sessions/codex/sess-0001.json
+--- files written outside state root in repo:
+--- errors.log
+--- 2026-10-30T06:32:31 pid=3289325
+Traceback (most recent call last):
+  File "/tmp/v1143-run/repo/plugin/lib/tokeneconomizer/plugin/hook.py", line 62, in main
+    payload = json.loads(raw) if raw.strip() else {}
+              ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+--- config set microskills=envfacts via the te CLI, then SessionStart with a seeded injection.json
+/tmp/p4-7SZ14P/te/repos/proj-adf66f76e4/config.json: {"microskills": "envfacts"}
+applies from the next hook call; a new fact-size cap applies once the next session has been folded
+store dir: te/repos/proj-adf66f76e4/codex
+--- SessionStart (new session) with injection
+{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "# environment facts learned from earlier sessions in this repository\n- `python -m pytest` fails here; `/opt/p/bin/python -m pytest` works.\n"}, "systemMessage": "TokenEconomizer: added 1 learned fact(s) about proj to this session's context (review with `$tokeneconomizer:microskills`)."}
+   (exit=0)
+--- SessionStart source=resume (Codex replays start context; plugin should not re-inject)
+{}
+   (exit=0)
+W=/tmp/p4-7SZ14P

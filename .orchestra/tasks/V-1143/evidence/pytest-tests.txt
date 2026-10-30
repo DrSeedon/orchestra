@@ -1,0 +1,11 @@
+ss...................................................................... [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 50%]
+........................................................................ [ 67%]
+..................................s..................................... [ 84%]
+................................................................         [100%]
+=========================== short test summary info ============================
+SKIPPED [1] repo/tests/test_codex_cli.py:62: drives a real Codex CLI: set TE_CODEX_E2E=1 with `codex` on PATH (CI's codex job)
+SKIPPED [1] repo/tests/test_codex_cli.py:126: drives a real Codex CLI: set TE_CODEX_E2E=1 with `codex` on PATH (CI's codex job)
+SKIPPED [1] repo/tests/test_live_repomap.py:112: aider is not installed
+421 passed, 3 skipped in 20.29s
