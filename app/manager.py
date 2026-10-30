@@ -23,7 +23,7 @@ from app.tool_scoping import parse_disabled_tools
 from app.session_state import ACTIVE_SESSION_STATUSES, platform_interruption_notice
 from app.events import InjectedMessage, MessageProvenance
 from app.kb_index import kb_index_block
-from app import temp_rules
+from app import private_folder, temp_rules
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree,
@@ -870,6 +870,9 @@ class SessionManager:
                     _skills = None
                 if bt == "claude" and _skills and _skills != "all":
                     await asyncio.to_thread(inject_skills_to_worktree, _skills, wt.path)
+
+            else:
+                await asyncio.to_thread(private_folder.ensure_main_private, session.cwd)
 
             try:
                 await asyncio.to_thread(
@@ -2111,6 +2114,9 @@ class SessionManager:
                     db_branch = actual_branch
                     m = _TASK_BRANCH_RE.match(actual_branch)
                     db_task_id = next(group for group in m.groups() if group) if m else ""
+
+        if not (wt_path and Path(wt_path).is_dir()):
+            await asyncio.to_thread(private_folder.ensure_main_private, cwd)
 
         current_prompt, prompt_overlay = self.assemble_prompt(
             pipeline=pipeline, role=role, scope=db_row["scope"], is_orch=is_orch,

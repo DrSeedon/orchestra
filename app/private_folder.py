@@ -145,3 +145,23 @@ def ensure_private(wt_path: str | Path) -> Path | None:
     link.symlink_to(shared, target_is_directory=True)
     _ignore_private(wt)
     return shared
+
+
+def ensure_main_private(path: str | Path) -> Path | None:
+    """Best-effort `ensure_private` for a managed project's MAIN checkout (V-1142).
+
+    The main orchestrator writes `.orchestra/private/` itself, so nothing else creates the
+    folder or its ignore rule before git sees it. Only a project that already has a current
+    `.orchestra/layout.json` and managed memory state is touched: source-only projects and
+    ones awaiting layout migration stay as they are. Inspection failures never block callers.
+    """
+    try:
+        main = main_checkout(path)
+        if not (main / ".orchestra" / "layout.json").is_file():
+            return None
+        if not has_worker_memory_project_state(main):
+            return None
+        return ensure_private(main)
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        logger.warning("Could not prepare shared private folder for %s: %s", path, error)
+        return None

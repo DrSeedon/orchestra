@@ -15,6 +15,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
+from app import private_folder
 from app.workspace import repo_mutation_lock
 
 logger = logging.getLogger("orchestra_layout")
@@ -1267,6 +1268,8 @@ def migrate_registered_projects(
                     Path(repository), repair=False, live_session_ids=live_session_ids,
                 )
             results[str(project_id)] = result
+            # Optional ignore metadata: a refusal there must not fail the migration.
+            private_folder.ensure_main_private(repository)
         except LayoutMigrationError as exc:
             results[str(project_id)] = {
                 "status": "failed",
