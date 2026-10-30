@@ -67,3 +67,10 @@ Results: new file 7 passed. Neighbors: see summary below.
 - Not run: full suite.
 
 Publication normalization by parent: deployed user/host identifiers in the import path are replaced with placeholders; original report retained privately. Source and test outcomes unchanged.
+
+## Parent full-host acceptance
+The complete `uv run --frozen python scripts/run_tests.py` passed: 6937 passed, 54 skipped, 6 warnings in 428.33s. Four ownership checks among the skips need passwordless sudo and real distinct owners. Imported app: `/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-main-private-ignore/app/__init__.py`. Instruction contract and diff checks passed. All six changed files passed shape, known-value and forbidden-string scans. Historical generated screenshots were preserved privately and restored.
+
+Parent process-local removal of each actual create/load/startup hook independently made the corresponding committed integration test fail at its intended ignore-file/Git-status assertion. Full traces were read and retained privately. The partial-copy neighbor failures are green on the complete host; no production original-baseline cause is claimed. Entire final report/source/tests inspected before accepting pinned HEAD. Original remote-identifier report retained privately; only the public path was normalized.
+
+Merged as bad8c24370ecf852b8261d2d2f0062be239f6847; worker checked clean and archived immediately. Live Python activation still requires the already authorized idle watcher, no manual restart was performed. No foreign project or protected source data was modified. Reporter should keep external private storage until activation and actual ignored-path verification. Public push CI is checked separately.
