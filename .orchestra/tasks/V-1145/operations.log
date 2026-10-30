@@ -1,0 +1,5 @@
+PARTIAL-COPY HARNESS: synthetic missing imports/schema; real operation and gate source
+Imported operations: <COPY_ROOT>/app/merge_operations.py
+Imported gate: <COPY_ROOT>/app/merge_test_gate.py
+........................                                                 [100%]
+24 passed, 40 deselected in 9.19s

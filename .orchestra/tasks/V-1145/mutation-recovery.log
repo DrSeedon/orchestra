@@ -1,0 +1,548 @@
+PARTIAL-COPY HARNESS: synthetic missing imports/schema; real operation and gate source
+Imported operations: /proc/self/cwd/app/merge_operations.py
+Imported gate: /proc/self/cwd/app/merge_test_gate.py
+MUTATION: every non-red gate gets the legacy timeout action
+FFFFF.FFFFF...FFFF                                                       [100%]
+=================================== FAILURES ===================================
+_ test_gate_reason_controls_durable_recovery[inconclusive-pytest_timeout_unavailable-REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc4bb00>
+status = 'inconclusive', reason = 'pytest_timeout_unavailable'
+action = 'REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'REPAIR_TEST_...NEW_OPERATION'
+E         
+E         - REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[inconclusive-pytest_unavailable-REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc4b920>
+status = 'inconclusive', reason = 'pytest_unavailable'
+action = 'REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'REPAIR_TEST_...NEW_OPERATION'
+E         
+E         - REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[inconclusive-pytest_usage_error-FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc4b7e0>
+status = 'inconclusive', reason = 'pytest_usage_error'
+action = 'FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'FIX_PYTEST_I...NEW_OPERATION'
+E         
+E         - FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[inconclusive-not_found-REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9c2c0>
+status = 'inconclusive', reason = 'not_found'
+action = 'REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'REPAIR_TEST_...NEW_OPERATION'
+E         
+E         - REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[inconclusive-os_error-REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9c680>
+status = 'inconclusive', reason = 'os_error'
+action = 'REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'REPAIR_TEST_...NEW_OPERATION'
+E         
+E         - REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[inconclusive-future_reason-INSPECT_TEST_GATE_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9e020>
+status = 'inconclusive', reason = 'future_reason'
+action = 'INSPECT_TEST_GATE_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'INSPECT_TEST...NEW_OPERATION'
+E         
+E         - INSPECT_TEST_GATE_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[inconclusive-batch_inconclusive-INSPECT_TEST_GATE_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9dda0>
+status = 'inconclusive', reason = 'batch_inconclusive'
+action = 'INSPECT_TEST_GATE_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'INSPECT_TEST...NEW_OPERATION'
+E         
+E         - INSPECT_TEST_GATE_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[skipped-no_diff-RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9dd00>
+status = 'skipped', reason = 'no_diff'
+action = 'RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'RESTORE_TEST...NEW_OPERATION'
+E         
+E         - RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[skipped-no_mapped_tests-RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9e0c0>
+status = 'skipped', reason = 'no_mapped_tests'
+action = 'RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'RESTORE_TEST...NEW_OPERATION'
+E         
+E         - RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_gate_reason_controls_durable_recovery[skipped-no_tests_after_deselect-RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9f1a0>
+status = 'skipped', reason = 'no_tests_after_deselect'
+action = 'RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status,reason,action", [
+        ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+        ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        # Old aggregate records lack child evidence: never assume they timed out.
+        ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+        ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+        ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+        ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+    ])
+    async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+        evidence = {
+            "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+            "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+        }
+        result = await diagnosed_gate_operation(evidence)
+        assert result["test_gate"] == evidence
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'RESTORE_TEST...NEW_OPERATION'
+E         
+E         - RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:171: AssertionError
+_ test_batch_causes_reach_durable_recovery[reasons1-REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9f2e0>
+tmp_path = PosixPath('<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/mutation-recovery/test_batch_causes_reach_durabl1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d0c0ccff1a0>
+reasons = ['timeout', 'pytest_timeout_unavailable', '']
+action = 'REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reasons,action", [
+        (["timeout", "timeout", ""], "TEST_GATE_UNFINISHED"),
+        (["timeout", "pytest_timeout_unavailable", ""], "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        (["pytest_usage_error", "timeout", ""], "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        (["timeout", "os_error", ""], "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        (["timeout", "unknown_problem", ""], "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+    ])
+    async def test_batch_causes_reach_durable_recovery(
+        diagnosed_gate_operation, tmp_path, monkeypatch, reasons, action,
+    ):
+        from app import merge_test_gate as gate
+    
+        outcomes = iter(reasons)
+    
+        def fake_run(_worktree, tests, **_kwargs):
+            reason = next(outcomes)
+            return {"status": "inconclusive" if reason else "passed", "reason": reason,
+                    "exit_code": None if reason else 0, "tests": tests, "output": "synthetic"}
+    
+        monkeypatch.setattr(gate, "run_pytest", fake_run)
+        batches = [[f"test_{index}.py"] for index in range(len(reasons))]
+        evidence = gate._batch_result(str(tmp_path), batches)
+        result = await diagnosed_gate_operation(evidence)
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'REPAIR_TEST_...NEW_OPERATION'
+E         
+E         - REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:210: AssertionError
+_ test_batch_causes_reach_durable_recovery[reasons2-FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9f560>
+tmp_path = PosixPath('<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/mutation-recovery/test_batch_causes_reach_durabl2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d0c0cce4560>
+reasons = ['pytest_usage_error', 'timeout', '']
+action = 'FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reasons,action", [
+        (["timeout", "timeout", ""], "TEST_GATE_UNFINISHED"),
+        (["timeout", "pytest_timeout_unavailable", ""], "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        (["pytest_usage_error", "timeout", ""], "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        (["timeout", "os_error", ""], "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        (["timeout", "unknown_problem", ""], "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+    ])
+    async def test_batch_causes_reach_durable_recovery(
+        diagnosed_gate_operation, tmp_path, monkeypatch, reasons, action,
+    ):
+        from app import merge_test_gate as gate
+    
+        outcomes = iter(reasons)
+    
+        def fake_run(_worktree, tests, **_kwargs):
+            reason = next(outcomes)
+            return {"status": "inconclusive" if reason else "passed", "reason": reason,
+                    "exit_code": None if reason else 0, "tests": tests, "output": "synthetic"}
+    
+        monkeypatch.setattr(gate, "run_pytest", fake_run)
+        batches = [[f"test_{index}.py"] for index in range(len(reasons))]
+        evidence = gate._batch_result(str(tmp_path), batches)
+        result = await diagnosed_gate_operation(evidence)
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'FIX_PYTEST_I...NEW_OPERATION'
+E         
+E         - FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:210: AssertionError
+_ test_batch_causes_reach_durable_recovery[reasons3-REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9d940>
+tmp_path = PosixPath('<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/mutation-recovery/test_batch_causes_reach_durabl3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d0c0cce5310>
+reasons = ['timeout', 'os_error', '']
+action = 'REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reasons,action", [
+        (["timeout", "timeout", ""], "TEST_GATE_UNFINISHED"),
+        (["timeout", "pytest_timeout_unavailable", ""], "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        (["pytest_usage_error", "timeout", ""], "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        (["timeout", "os_error", ""], "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        (["timeout", "unknown_problem", ""], "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+    ])
+    async def test_batch_causes_reach_durable_recovery(
+        diagnosed_gate_operation, tmp_path, monkeypatch, reasons, action,
+    ):
+        from app import merge_test_gate as gate
+    
+        outcomes = iter(reasons)
+    
+        def fake_run(_worktree, tests, **_kwargs):
+            reason = next(outcomes)
+            return {"status": "inconclusive" if reason else "passed", "reason": reason,
+                    "exit_code": None if reason else 0, "tests": tests, "output": "synthetic"}
+    
+        monkeypatch.setattr(gate, "run_pytest", fake_run)
+        batches = [[f"test_{index}.py"] for index in range(len(reasons))]
+        evidence = gate._batch_result(str(tmp_path), batches)
+        result = await diagnosed_gate_operation(evidence)
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'REPAIR_TEST_...NEW_OPERATION'
+E         
+E         - REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:210: AssertionError
+_ test_batch_causes_reach_durable_recovery[reasons4-INSPECT_TEST_GATE_THEN_NEW_OPERATION] _
+
+diagnosed_gate_operation = <function diagnosed_gate_operation.<locals>.run at 0x7d0c0cc9d620>
+tmp_path = PosixPath('<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/mutation-recovery/test_batch_causes_reach_durabl4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d0c0cce61b0>
+reasons = ['timeout', 'unknown_problem', '']
+action = 'INSPECT_TEST_GATE_THEN_NEW_OPERATION'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reasons,action", [
+        (["timeout", "timeout", ""], "TEST_GATE_UNFINISHED"),
+        (["timeout", "pytest_timeout_unavailable", ""], "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+        (["pytest_usage_error", "timeout", ""], "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+        (["timeout", "os_error", ""], "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+        (["timeout", "unknown_problem", ""], "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+    ])
+    async def test_batch_causes_reach_durable_recovery(
+        diagnosed_gate_operation, tmp_path, monkeypatch, reasons, action,
+    ):
+        from app import merge_test_gate as gate
+    
+        outcomes = iter(reasons)
+    
+        def fake_run(_worktree, tests, **_kwargs):
+            reason = next(outcomes)
+            return {"status": "inconclusive" if reason else "passed", "reason": reason,
+                    "exit_code": None if reason else 0, "tests": tests, "output": "synthetic"}
+    
+        monkeypatch.setattr(gate, "run_pytest", fake_run)
+        batches = [[f"test_{index}.py"] for index in range(len(reasons))]
+        evidence = gate._batch_result(str(tmp_path), batches)
+        result = await diagnosed_gate_operation(evidence)
+>       assert result["next_action"]["code"] == action
+E       AssertionError: assert 'TEST_GATE_UNFINISHED' == 'INSPECT_TEST...NEW_OPERATION'
+E         
+E         - INSPECT_TEST_GATE_THEN_NEW_OPERATION
+E         + TEST_GATE_UNFINISHED
+
+tests/test_merge_operations.py:210: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-pytest_timeout_unavailable-REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-pytest_unavailable-REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-pytest_usage_error-FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-not_found-REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-os_error-REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-future_reason-INSPECT_TEST_GATE_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[inconclusive-batch_inconclusive-INSPECT_TEST_GATE_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[skipped-no_diff-RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[skipped-no_mapped_tests-RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_gate_reason_controls_durable_recovery[skipped-no_tests_after_deselect-RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_batch_causes_reach_durable_recovery[reasons1-REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_batch_causes_reach_durable_recovery[reasons2-FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_batch_causes_reach_durable_recovery[reasons3-REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION]
+FAILED tests/test_merge_operations.py::test_batch_causes_reach_durable_recovery[reasons4-INSPECT_TEST_GATE_THEN_NEW_OPERATION]
+14 failed, 4 passed, 49 deselected in 3.48s

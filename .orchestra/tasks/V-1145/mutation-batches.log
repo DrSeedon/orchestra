@@ -1,0 +1,66 @@
+PARTIAL-COPY HARNESS: synthetic missing imports/schema; real operation and gate source
+Imported operations: /proc/self/cwd/app/merge_operations.py
+Imported gate: /proc/self/cwd/app/merge_test_gate.py
+MUTATION: restore old PASSED aggregation for skipped batches
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_batch_with_unverified_tests_never_claims_passed[statuses0] ________
+
+tmp_path = PosixPath('<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/mutation-batches/test_batch_with_unverified_tes0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b8df7333800>
+statuses = ['skipped', 'skipped']
+
+    @pytest.mark.parametrize("statuses", [
+        ["skipped", "skipped"], ["passed", "skipped"],
+    ])
+    def test_batch_with_unverified_tests_never_claims_passed(tmp_path, monkeypatch, statuses):
+        from app import merge_test_gate as gate
+    
+        outcomes = iter(statuses)
+    
+        def fake_run(_worktree, tests, **_kwargs):
+            status = next(outcomes)
+            return {"status": status, "reason": "no_tests_after_deselect" if status == "skipped" else "",
+                    "exit_code": 5 if status == "skipped" else 0, "tests": tests, "output": ""}
+    
+        monkeypatch.setattr(gate, "run_pytest", fake_run)
+        result = gate._batch_result(str(tmp_path), [["test_a.py"], ["test_b.py"]])
+>       assert result["status"] == gate.SKIPPED
+E       AssertionError: assert 'passed' == 'skipped'
+E         
+E         - skipped
+E         + passed
+
+tests/test_merge_test_gate.py:665: AssertionError
+_______ test_batch_with_unverified_tests_never_claims_passed[statuses1] ________
+
+tmp_path = PosixPath('<COPY_ROOT>/.orchestra/tasks/V-1145/tmp/mutation-batches/test_batch_with_unverified_tes1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b8df7332c00>
+statuses = ['passed', 'skipped']
+
+    @pytest.mark.parametrize("statuses", [
+        ["skipped", "skipped"], ["passed", "skipped"],
+    ])
+    def test_batch_with_unverified_tests_never_claims_passed(tmp_path, monkeypatch, statuses):
+        from app import merge_test_gate as gate
+    
+        outcomes = iter(statuses)
+    
+        def fake_run(_worktree, tests, **_kwargs):
+            status = next(outcomes)
+            return {"status": status, "reason": "no_tests_after_deselect" if status == "skipped" else "",
+                    "exit_code": 5 if status == "skipped" else 0, "tests": tests, "output": ""}
+    
+        monkeypatch.setattr(gate, "run_pytest", fake_run)
+        result = gate._batch_result(str(tmp_path), [["test_a.py"], ["test_b.py"]])
+>       assert result["status"] == gate.SKIPPED
+E       AssertionError: assert 'passed' == 'skipped'
+E         
+E         - skipped
+E         + passed
+
+tests/test_merge_test_gate.py:665: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_test_gate.py::test_batch_with_unverified_tests_never_claims_passed[statuses0]
+FAILED tests/test_merge_test_gate.py::test_batch_with_unverified_tests_never_claims_passed[statuses1]
+2 failed, 55 deselected in 0.15s

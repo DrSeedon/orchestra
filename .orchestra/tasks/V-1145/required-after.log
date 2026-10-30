@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+________________ ERROR collecting tests/test_merge_test_gate.py ________________
+ImportError while importing test module '<COPY_ROOT>/tests/test_merge_test_gate.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_merge_test_gate.py:8: in <module>
+    from tests.task_seeds import create_task as seed_task
+E   ModuleNotFoundError: No module named 'tests.task_seeds'
+=========================== short test summary info ============================
+ERROR tests/test_merge_test_gate.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.29s

@@ -74,6 +74,260 @@ def merge_db(tmp_path, monkeypatch):
     return db_path
 
 
+@pytest.fixture
+def diagnosed_gate_operation(merge_db, monkeypatch):
+    """Real operation storage/runner with synthetic identity and gate evidence only."""
+    import app.merge_operations as operations
+    import app.merge_test_gate as gate
+    from app.ia import merge_receipts
+    import sys
+    from types import ModuleType
+
+    monkeypatch.setattr(
+        "app.workspace.inspect_worktree_identity",
+        lambda _path: ("task-42/worker", "b" * 40),
+    )
+    # Never consult a live manager, provider, task oracle or merge executor.
+    monkeypatch.setattr(operations, "_current_session_status", lambda *_: "idle")
+    monkeypatch.setattr(merge_receipts, "merge_receipt_configured", lambda: False)
+    # If a gate regression lets execution through, fail without loading real routes.
+    sessions = ModuleType("app.routes.sessions")
+
+    async def forbidden_execute(**_kwargs):
+        pytest.fail("Blocked gate reached merge execution")
+
+    sessions.execute_merge_session = forbidden_execute
+    monkeypatch.setitem(sys.modules, "app.routes.sessions", sessions)
+    accepted = _accepted()
+    accepted["admission"] = {
+        "target": {"branch": "main", "sha": "a" * 40},
+        "oracle": {"source": "none", "required": True},
+    }
+    calls = []
+
+    async def run(evidence):
+        def evaluate(*_args, **_kwargs):
+            calls.append(evidence)
+            return evidence
+
+        monkeypatch.setattr(gate, "evaluate_test_gate", evaluate)
+        operation_id = str(uuid.uuid4())
+        request = operations.normalize_request(name="worker", scope="/scope", target="main")
+        _, created, status = operations.accept_operation_snapshot(
+            operation_id=operation_id, request=request, accepted=accepted,
+        )
+        assert created and status == 202
+        await operations._run_operation(operation_id)
+        result = operations.get_operation_result(operation_id)
+        assert result["operation_state"] == "FAILED"
+        assert result["commit_point"] == "NOT_REACHED"
+        assert operations.get_operation_record(operation_id)["state"] == "FAILED"
+
+        # Terminal receipts survive a new DB connection and the public same-ID path.
+        replayed, status = await operations.accept_merge_operation(
+            operation_id=operation_id, name="worker", scope="/scope", target="main",
+        )
+        assert status == 200
+        assert replayed == result
+        assert len(calls) == 1  # A same-operation retry never reruns the gate.
+        assert operations.claim_operation(operation_id, "second-owner") is False
+
+        # Failure does not quarantine the worker: a fresh ID can be accepted.
+        fresh, created, status = operations.accept_operation_snapshot(
+            operation_id=str(uuid.uuid4()), request=request, accepted=accepted,
+        )
+        assert created and status == 202
+        assert fresh["operation_id"] != operation_id
+        await operations._run_operation(fresh["operation_id"])
+        assert len(calls) == 2
+        assert operations.get_operation_result(fresh["operation_id"])["operation_state"] == "FAILED"
+        return result
+
+    return run
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,reason,action", [
+    ("inconclusive", "pytest_timeout_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+    ("inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+    ("inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+    ("inconclusive", "not_found", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+    ("inconclusive", "os_error", "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+    ("inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+    ("inconclusive", "future_reason", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+    # Old aggregate records lack child evidence: never assume they timed out.
+    ("inconclusive", "batch_inconclusive", "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+    ("skipped", "no_diff", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+    ("skipped", "no_mapped_tests", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+    ("skipped", "no_tests_after_deselect", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+    ("failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+    ("failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+])
+async def test_gate_reason_controls_durable_recovery(diagnosed_gate_operation, status, reason, action):
+    evidence = {
+        "status": status, "reason": reason, "interpreter": "/synthetic/project/.venv/bin/python",
+        "output": "synthetic diagnostic", "tests": ["tests/test_widget.py"],
+    }
+    result = await diagnosed_gate_operation(evidence)
+    assert result["test_gate"] == evidence
+    assert result["next_action"]["code"] == action
+    assert result["error"]["code"] == (
+        "TEST_GATE_FAILED" if status == "failed" else "TEST_GATE_INCONCLUSIVE"
+    )
+    assert result["retryable"] is False
+    assert result["error"]["retryable"] is False
+    details = result["error"]["details"]
+    assert details["reason"] == reason
+    assert details["blocking_reasons"] == [reason]
+    assert details["interpreter"] == evidence["interpreter"]
+    assert details["retry_operation"] == "new"
+    if reason in {"pytest_unavailable", "pytest_timeout_unavailable"}:
+        assert details["required_packages"] == ["pytest", "pytest-timeout"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reasons,action", [
+    (["timeout", "timeout", ""], "TEST_GATE_UNFINISHED"),
+    (["timeout", "pytest_timeout_unavailable", ""], "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+    (["pytest_usage_error", "timeout", ""], "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+    (["timeout", "os_error", ""], "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"),
+    (["timeout", "unknown_problem", ""], "INSPECT_TEST_GATE_THEN_NEW_OPERATION"),
+])
+async def test_batch_causes_reach_durable_recovery(
+    diagnosed_gate_operation, tmp_path, monkeypatch, reasons, action,
+):
+    from app import merge_test_gate as gate
+
+    outcomes = iter(reasons)
+
+    def fake_run(_worktree, tests, **_kwargs):
+        reason = next(outcomes)
+        return {"status": "inconclusive" if reason else "passed", "reason": reason,
+                "exit_code": None if reason else 0, "tests": tests, "output": "synthetic"}
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    batches = [[f"test_{index}.py"] for index in range(len(reasons))]
+    evidence = gate._batch_result(str(tmp_path), batches)
+    result = await diagnosed_gate_operation(evidence)
+    assert result["next_action"]["code"] == action
+    assert result["error"]["details"]["blocking_reasons"] == sorted(set(filter(None, reasons)))
+    assert [batch["reason"] for batch in result["test_gate"]["batches"]] == reasons
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcomes,status,reason,action", [
+    ([("skipped", "no_tests_after_deselect"), ("passed", "")],
+     "skipped", "batch_skipped", "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"),
+    ([("failed", "timeout_with_failures"), ("inconclusive", "pytest_timeout_unavailable")],
+     "failed", "batch_failed", "FIX_TESTS_THEN_RETRY"),
+])
+async def test_batch_skips_and_red_controls_reach_durable_recovery(
+    diagnosed_gate_operation, tmp_path, monkeypatch, outcomes, status, reason, action,
+):
+    from app import merge_test_gate as gate
+
+    remaining = iter(outcomes)
+
+    def fake_run(_worktree, tests, **_kwargs):
+        outcome, cause = next(remaining)
+        return {"status": outcome, "reason": cause, "tests": tests, "output": "", "exit_code": None}
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    evidence = gate._batch_result(str(tmp_path), [["test_a.py"], ["test_b.py"]])
+    assert evidence["status"] == status
+    assert evidence["reason"] == reason
+    result = await diagnosed_gate_operation(evidence)
+    assert result["next_action"]["code"] == action
+
+
+@pytest.mark.asyncio
+async def test_mutation_failure_keeps_durable_red_recovery(diagnosed_gate_operation):
+    result = await diagnosed_gate_operation({
+        "status": "failed", "reason": "tests_not_guarding_source",
+        "mutation_gate": {"status": "failed", "reason": "tests_not_guarding_source"},
+        "batches": [{"status": "passed", "reason": ""}],
+    })
+    assert result["error"]["code"] == "TEST_MUTATION_GATE_FAILED"
+    assert result["next_action"]["code"] == "FIX_TESTS_THEN_RETRY"
+    assert result["error"]["details"]["blocking_reasons"] == ["tests_not_guarding_source"]
+
+
+@pytest.mark.asyncio
+async def test_real_missing_timeout_plugin_reaches_durable_recovery(
+    diagnosed_gate_operation, tmp_path, monkeypatch,
+):
+    import sys
+    from app import merge_test_gate as gate
+
+    # Select a project Python, then disable entry-point autoload only in the child.
+    python = tmp_path / ".venv" / "bin" / "python"
+    (tmp_path / ".venv").symlink_to(sys.prefix, target_is_directory=True)
+    (tmp_path / "test_probe.py").write_text(
+        "def test_probe():\n    raise AssertionError('must not run without timeout plugin')\n",
+    )
+    monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    monkeypatch.delenv("PYTEST_PLUGINS", raising=False)
+    monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    monkeypatch.setattr(gate, "changed_paths", lambda *_args, **_kwargs: ["tests/test_probe.py"])
+    # No Git or foreign config; exercise the real runner and interpreter selection.
+    monkeypatch.setattr(gate, "select_tests", lambda *_args, **_kwargs: ["test_probe.py"])
+    evidence = gate.evaluate_test_gate(str(tmp_path))
+    assert evidence["status"] == "inconclusive", evidence["output"]
+    assert evidence["reason"] == "pytest_timeout_unavailable"
+    assert evidence["exit_code"] == 4
+    assert evidence["interpreter"] == str(python)
+    result = await diagnosed_gate_operation(evidence)
+    assert result["next_action"]["code"] == "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"
+    assert result["error"]["details"]["interpreter"] == str(python)
+    assert result["error"]["details"]["required_packages"] == ["pytest", "pytest-timeout"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case,status,reason,action", [
+    ("missing_pytest", "inconclusive", "pytest_unavailable", "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"),
+    ("usage", "inconclusive", "pytest_usage_error", "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"),
+    ("red", "failed", "exit_nonzero", "FIX_TESTS_THEN_RETRY"),
+    ("budget", "inconclusive", "timeout", "TEST_GATE_UNFINISHED"),
+    ("partial_red", "failed", "timeout_with_failures", "FIX_TESTS_THEN_RETRY"),
+])
+async def test_real_runner_causes_reach_durable_recovery(
+    diagnosed_gate_operation, tmp_path, monkeypatch, case, status, reason, action,
+):
+    import sys
+    import venv
+    from app import merge_test_gate as gate
+
+    if case == "missing_pytest":
+        # Real isolated environment, no pip, downloads or package installation.
+        venv.EnvBuilder(with_pip=False).create(tmp_path / ".venv")
+    else:
+        (tmp_path / ".venv").symlink_to(sys.prefix, target_is_directory=True)
+    # Explicit child plugin loading makes controls independent of host autoload settings.
+    monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    monkeypatch.delenv("PYTEST_PLUGINS", raising=False)
+    monkeypatch.setenv("PYTEST_ADDOPTS", "-p pytest_timeout" + (
+        " --unknown-merge-option" if case == "usage" else ""
+    ))
+    body = "def test_red():\n    assert False\n"
+    if case in {"budget", "partial_red"}:
+        body = (body if case == "partial_red" else "") + (
+            "def test_wait():\n    import time\n    time.sleep(30)\n"
+        )
+    (tmp_path / "test_probe.py").write_text(body)
+    monkeypatch.setenv("PYTHONUNBUFFERED", "1")
+    evidence = gate.run_pytest(
+        str(tmp_path), ["test_probe.py"],
+        timeout=2 if case in {"budget", "partial_red"} else 10,
+    )
+    assert evidence["status"] == status, evidence["output"]
+    assert evidence["reason"] == reason, evidence["output"]
+    evidence["interpreter"] = gate._pytest_interpreter(str(tmp_path))
+    result = await diagnosed_gate_operation(evidence)
+    assert result["next_action"]["code"] == action
+    if case == "partial_red":
+        assert evidence["failed_tests"] == ["test_probe.py::test_red"]
+
+
 def test_schema_and_cross_process_arbitration_allow_one_owner(merge_db):
     import app.db as dbmod
     import app.merge_operations as operations

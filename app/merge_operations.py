@@ -151,6 +151,80 @@ def _action(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": _text(message, code)}
 
 
+def _test_gate_recovery(test_gate: dict[str, Any]) -> tuple[dict[str, str], dict[str, Any]]:
+    """Diagnose structured gate evidence; FAILED operations only replay their receipt."""
+    reason = str(test_gate.get("reason") or "unknown")
+    batches = test_gate.get("batches") or []
+    reasons = [reason]
+    if batches and reason in {
+        "batch_failed", "batch_inconclusive", "batch_skipped",
+    }:
+        reasons = sorted({
+            str(batch.get("reason") or "unknown")
+            for batch in batches if batch.get("status") != "passed"
+        }) or [reason]
+    interpreter = str(test_gate.get("interpreter") or "")
+    details = {
+        "reason": reason,
+        "blocking_reasons": reasons,
+        "interpreter": interpreter,
+        "retry_operation": "new",
+    }
+    selected = f"selected Python {interpreter}" if interpreter else "selected project Python"
+    if test_gate["status"] == "failed":
+        mutation_failed = (test_gate.get("mutation_gate") or {}).get("status") == "failed"
+        code = "FIX_TESTS_THEN_RETRY"
+        message = (
+            "Fix the changed tests so they fail when the worker source change is rolled back."
+            if mutation_failed else "Fix the failing merge-gate tests."
+        )
+    elif any(item in reasons for item in ("pytest_unavailable", "pytest_timeout_unavailable")):
+        code = "REPAIR_TEST_ENVIRONMENT_THEN_NEW_OPERATION"
+        details["required_packages"] = ["pytest", "pytest-timeout"]
+        message = (
+            f"The {selected} needs pytest and an enabled pytest-timeout plugin. "
+            "Repair test dependencies/plugin loading in that interpreter's environment; "
+            "check PYTEST_DISABLE_PLUGIN_AUTOLOAD, PYTEST_ADDOPTS and plugin exclusions. "
+            "Verify with that Python's -m pytest --help that --timeout and --timeout-method "
+            "are available. The per-node timeout remains required."
+        )
+    elif any(item in reasons for item in ("not_found", "os_error")):
+        code = "REPAIR_TEST_INTERPRETER_THEN_NEW_OPERATION"
+        message = (
+            f"Inspect the OS error and repair the {selected}, its executable permissions "
+            "and the worktree path before running the gate again."
+        )
+    elif "pytest_usage_error" in reasons:
+        code = "FIX_PYTEST_INVOCATION_THEN_NEW_OPERATION"
+        message = (
+            f"Inspect pytest's usage error from the {selected}; repair project pytest "
+            "configuration, arguments or plugin loading before running the gate again."
+        )
+    elif reasons == ["timeout"]:
+        code = "TEST_GATE_UNFINISHED"
+        message = (
+            "The gate exhausted its elapsed time budget without reporting a red test. "
+            "Inspect verified and unreached tests before another attempt; repeated budget "
+            "exhaustion needs an explicit decision about the mapped subset and gate budget."
+        )
+    elif test_gate["status"] == "skipped" or any(item in reasons for item in (
+        "no_diff", "no_mapped_tests", "no_tests_after_deselect",
+    )):
+        code = "RESTORE_TEST_COVERAGE_THEN_NEW_OPERATION"
+        message = (
+            "The required mapped gate did not verify tests. Inspect target-relative diff, "
+            "test mapping and deselection; restore runnable coverage before another attempt."
+        )
+    else:
+        code = "INSPECT_TEST_GATE_THEN_NEW_OPERATION"
+        message = "Inspect the gate's structured reasons and diagnostics before another attempt."
+    return _action(
+        code,
+        message + " Start a new merge with a new operation_id (or omit it) after addressing "
+        "the cause. Reusing this operation_id only returns the saved terminal result.",
+    ), details
+
+
 # Инструкция без разрешённого действия не выполняется: чужой оркестратор смержил руками
 # не по недисциплинированности, а потому что «do not merge manually» не называло выхода.
 _RESOLVE_HINT = (
@@ -2086,6 +2160,7 @@ async def _run_operation(operation_id: str) -> None:
                     # Учёт дописывается ПОСЛЕ хвоста выхода: получатель видит `[-400:]`,
                     # то есть конец строки, — сводка в начале до него не доехала бы.
                     progress = describe_progress(test_gate)
+                    next_action, recovery_details = _test_gate_recovery(test_gate)
                     error = _error(
                         code,
                         (
@@ -2096,29 +2171,7 @@ async def _run_operation(operation_id: str) -> None:
                         ),
                         operation_id=operation_id,
                         status=409,
-                        retryable=test_gate["status"] in {INCONCLUSIVE, SKIPPED},
-                    )
-                    # Разные исходы требуют разных действий, и раньше оба получали
-                    # «Fix the failing merge-gate tests» — для незавершённого прогона это
-                    # прямая ложь (чинить нечего), из-за которой #329 смержили руками.
-                    next_action = (
-                        _action(
-                            "FIX_TESTS_THEN_RETRY",
-                            (
-                                "Fix the changed tests so they fail when the worker source "
-                                "change is rolled back, then start a new merge."
-                                if mutation_failed
-                                else "Fix the failing merge-gate tests, then start a new merge."
-                            ),
-                        )
-                        if test_gate["status"] == FAILED
-                        else _action(
-                            "TEST_GATE_UNFINISHED",
-                            "No test was reported red — the gate ran out of its time "
-                            "budget. Do NOT 'fix' tests. Retry the same operation; if it "
-                            "keeps running out, the mapped subset costs more than the "
-                            "gate budget and the merge needs an explicit decision.",
-                        )
+                        details=recovery_details,
                     )
                     result = _base_result(
                         operation_id,

@@ -293,6 +293,8 @@ def pytest_argv(
     # +1 — тот же режим, что голый `-v`. Писать `-q -v` НЕЛЬЗЯ: сумма 0, снова точки.
     #
     # `--timeout` / `--timeout-method` — потолок на ОДИН узел (см. PER_TEST_TIMEOUT_SECONDS).
+    # The selected project Python must have pytest and an enabled pytest-timeout plugin;
+    # installing it only in Orchestra's environment does not repair that interpreter.
     # Он нужен гейту, который держит чужие мержи; локальный полный набор ограничивает
     # собственный runner, а ручной целевой запуск остаётся без этого потолка.
     python = interpreter or sys.executable
@@ -593,6 +595,7 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
     inconclusive = [
         result for result in results if result["status"] == INCONCLUSIVE
     ]
+    skipped = [result for result in results if result["status"] == SKIPPED]
     if failed:
         status = FAILED
         reason = "batch_failed"
@@ -600,6 +603,10 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
     elif inconclusive:
         status = INCONCLUSIVE
         reason = "batch_inconclusive"
+        exit_code = None
+    elif skipped:
+        status = SKIPPED
+        reason = "batch_skipped"
         exit_code = None
     else:
         status = PASSED
@@ -629,6 +636,12 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
         "reason": reason,
         "exit_code": exit_code,
         "output": "\n".join(sections),
+        # Preserve causes without duplicating unbounded subprocess output. Recovery must
+        # not read every batch_inconclusive as elapsed budget exhaustion.
+        "batches": [
+            {key: result.get(key) for key in ("status", "reason", "exit_code", "tests")}
+            for result in results
+        ],
         "tests": list(sum(batches, [])),
         "failed_tests": [
             node for result in results for node in result.get("failed_tests", [])
