@@ -24,3 +24,6 @@ No sleeps, retries, skips, or weakened assertions. No production, CHANGELOG, or 
   before the fix (it is timing-dependent; the cause is from code ordering plus the CI assertion).
 
 Files changed: `tests/test_bg_run_adoption_919.py` only.
+
+## Parent acceptance
+Host normal-fixture `uv run --frozen python -m pytest tests/test_bg_run_adoption_919.py -q`: 5 passed in 7.10s. Imported app: `/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-bg-adoption-ci/app/__init__.py`. Own process-local cleanup-off mutation (`_unlink_run_files` no-op) made the committed target assertion fail in 3.42s; full raw result is private. Both changed files passed secret-shape, known-value and forbidden-string scans, instruction contract and diff checks. Entire report and actual CI failure/source ordering read; original timing failure was not separately reproduced and no stress/significance claim is made. Accepted six-line test-only fix, merged, checked clean and archived worker immediately. Production and service unchanged; actual push CI remains final validation.
