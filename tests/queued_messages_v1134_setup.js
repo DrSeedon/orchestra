@@ -18,3 +18,4 @@ var api = (url, options = {}) => new Promise((resolve, reject) => {
 function clearPastePreview() {}
 function liveResetActivity() {}
 function cancelAnimationFrame() {}
+function showImagePreview() {}

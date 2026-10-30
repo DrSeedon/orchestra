@@ -13,8 +13,8 @@ async function sendChat(options = {}) {
     const afterTurn = Boolean(options.afterTurn);
     const targetName = selectedAgent;
     const targetScope = currentScope;
-    const generation = _queuedViewGeneration;
-    const isCurrent = () => generation === _queuedViewGeneration
+    const generation = _chatViewGeneration;
+    const isCurrent = () => generation === _chatViewGeneration
         && targetName === selectedAgent && targetScope === currentScope;
     const input = $('#chat-input');
     const actionButton = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
@@ -56,7 +56,7 @@ async function sendChat(options = {}) {
             if (!saved.text) saved.images = [];
         }
         const restoredDraft = afterTurnDraft
-            && afterTurnDraft.restoredGeneration === _queuedViewGeneration
+            && afterTurnDraft.restoredGeneration === _chatViewGeneration
             && targetName === selectedAgent && targetScope === currentScope;
         if (!isCurrent() && !restoredDraft) return;
         if (afterTurn) {
@@ -72,7 +72,6 @@ async function sendChat(options = {}) {
                 if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
                 removeWaitingIndicator();
             }
-            await refreshQueuedMessages();
         }
     } catch (e) {
         if (!isCurrent() || e.name === 'TimeoutError') return;
@@ -90,163 +89,25 @@ async function sendChat(options = {}) {
     }
 }
 
-let _queuedUnsupported = false;
-let _queuedViewGeneration = 0;
-let _queuedRequestGeneration = 0;
-let _queuedResponseGeneration = 0;
-const _queuedCancellations = new Set();
+let _chatViewGeneration = 0;
 
-function _resetQueuedMessages() {
+function _resetChatView() {
     const sending = _chatAfterTurnDraft;
     if (sending && selectedAgent === sending.targetName
-        && (sending.generation === _queuedViewGeneration || sending.restoredGeneration === _queuedViewGeneration)) {
+        && (sending.generation === _chatViewGeneration || sending.restoredGeneration === _chatViewGeneration)) {
         const saved = drafts[selectedAgent];
         if (saved?.text.startsWith(sending.inputText)) sending.savedDraft = saved;
     }
-    ++_queuedViewGeneration;
-    _queuedResponseGeneration = ++_queuedRequestGeneration;
-    const panel = $('#queued-messages');
-    if (panel) {
-        panel.replaceChildren();
-        delete panel.dataset.target;
-    }
+    ++_chatViewGeneration;
 }
 
-async function refreshQueuedMessages() {
-    const panel = $('#queued-messages');
-    if (!panel) return;
-    const targetName = selectedAgent;
-    const targetScope = currentScope;
-    const targetKey = JSON.stringify([targetName, targetScope]);
+// Called after restoreDraft(): a pending after-turn send owns its exact saved
+// draft again once the user returns to the same agent and scope.
+function _noteDraftRestored() {
     const sending = _chatAfterTurnDraft;
-    if (sending && sending.savedDraft && targetName === sending.targetName && targetScope === sending.targetScope
-        && drafts[targetName] === sending.savedDraft && $('#chat-input')?.value === sending.savedDraft.text) {
-        sending.restoredGeneration = _queuedViewGeneration;
-    }
-    if (panel.dataset.target !== targetKey) {
-        panel.replaceChildren();
-        panel.dataset.target = targetKey;
-    }
-    const generation = _queuedViewGeneration;
-    const requestGeneration = ++_queuedRequestGeneration;
-    const isCurrent = () => generation === _queuedViewGeneration
-        && requestGeneration >= _queuedResponseGeneration
-        && targetName === selectedAgent && targetScope === currentScope;
-    if (!targetName || !targetScope || _queuedUnsupported) return;
-    try {
-        const result = await api(
-            `/api/sessions/${encodeURIComponent(targetName)}/queued-messages?scope=${encodeURIComponent(targetScope)}`,
-        );
-        if (!isCurrent()) return;
-        _queuedResponseGeneration = requestGeneration;
-        panel.replaceChildren();
-        panel.classList.remove('hidden');
-        const messages = result.messages || [];
-        if (!messages.length) return;
-        const heading = document.createElement('div');
-        heading.className = 'text-xs font-medium text-slate-300';
-        heading.textContent = T('Message queue · {agent}', {agent: targetName});
-        panel.appendChild(heading);
-        for (const item of messages) {
-            const state = item.state || (item.claimed ? 'handing_off' : 'pending');
-            const row = document.createElement('div');
-            row.className = 'flex items-start gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
-            row.dataset.queueState = state;
-            row.dataset.queueId = String(item.id);
-            const content = document.createElement('div');
-            content.className = 'min-w-0 flex-1';
-            const body = document.createElement('div');
-            body.className = 'truncate';
-            body.textContent = item.body;
-            body.title = item.body;
-            content.appendChild(body);
-            const status = document.createElement('div');
-            status.className = 'text-slate-400';
-            status.textContent = T({
-                after_turn: 'Waiting for the current turn to end. Will be sent automatically.',
-                handing_off: 'Taken for delivery to the agent. Confirmation is pending.',
-                current_turn: 'Sent to the current turn. Kept until the turn completes.',
-                current_turn_unconfirmed: 'Current-turn delivery is unconfirmed. Saved for retry.',
-            }[state] || 'Waiting for delivery confirmation.');
-            content.appendChild(status);
-            row.appendChild(content);
-            // Old servers do not distinguish steering backups; avoid offering a
-            // cancellation that cannot retract an already submitted message.
-            if (item.cancellable === true && !item.claimed) {
-                const cancel = document.createElement('button');
-                cancel.type = 'button';
-                cancel.textContent = T('Cancel');
-                cancel.className = 'text-red-300 hover:text-red-200';
-                const cancelKey = JSON.stringify([targetName, targetScope, item.id]);
-                cancel.disabled = _queuedCancellations.has(cancelKey);
-                cancel.addEventListener('click', async () => {
-                    if (_queuedCancellations.has(cancelKey)) return;
-                    _queuedCancellations.add(cancelKey);
-                    cancel.disabled = true;
-                    // Invalidate GETs begun before the mutation, even if they
-                    // return after the post-cancellation refresh.
-                    _queuedResponseGeneration = ++_queuedRequestGeneration;
-                    const sameView = () => generation === _queuedViewGeneration
-                        && targetName === selectedAgent && targetScope === currentScope;
-                    try {
-                        const outcome = await api(`/api/sessions/${encodeURIComponent(targetName)}/queued-messages/${item.id}?scope=${encodeURIComponent(targetScope)}`, {method: 'DELETE'});
-                        if (!sameView()) return;
-                        _queuedResponseGeneration = ++_queuedRequestGeneration;
-                        if (outcome.cancelled === true) {
-                            panel.querySelectorAll('[data-queue-id]').forEach(currentRow => {
-                                if (currentRow.dataset.queueId === String(item.id)) currentRow.remove();
-                            });
-                        }
-                        await refreshQueuedMessages();
-                        if (!sameView()) return;
-                        if (outcome.cancelled !== true) {
-                            const message = document.createElement('div');
-                            message.className = 'text-xs text-amber-300';
-                            message.setAttribute('role', 'status');
-                            message.textContent = T('Could not cancel: delivery may have started or the message is no longer queued.');
-                            panel.appendChild(message);
-                        }
-                    } catch (error) {
-                        if (sameView()) {
-                            const message = document.createElement('div');
-                            message.className = 'text-xs text-amber-300';
-                            message.setAttribute('role', 'status');
-                            message.textContent = T('Cancellation was not confirmed. The message may still be sent.');
-                            panel.appendChild(message);
-                        }
-                    } finally {
-                        _queuedCancellations.delete(cancelKey);
-                        if (sameView()) {
-                            panel.querySelectorAll('button').forEach(button => {
-                                if (button.dataset.cancelKey === cancelKey) button.disabled = false;
-                            });
-                        }
-                    }
-                });
-                cancel.dataset.cancelKey = cancelKey;
-                row.appendChild(cancel);
-            }
-            panel.appendChild(row);
-        }
-    } catch (error) {
-        if (!isCurrent()) return;
-        _queuedResponseGeneration = requestGeneration;
-        if (String(error.message || '').startsWith('404')) {
-            _queuedUnsupported = true;
-            panel.replaceChildren();
-            panel.classList.add('hidden');
-            return;
-        }
-        // Keep the last known pending rows during a transient failure.
-        let failure = panel.querySelector('[data-queue-error]');
-        if (!failure) {
-            failure = document.createElement('div');
-            failure.dataset.queueError = 'true';
-            failure.className = 'text-xs text-amber-300';
-            failure.setAttribute('role', 'status');
-            panel.appendChild(failure);
-        }
-        failure.textContent = T('Queue could not be refreshed. Showing the last known status.');
+    if (sending && sending.savedDraft && selectedAgent === sending.targetName && currentScope === sending.targetScope
+        && drafts[selectedAgent] === sending.savedDraft && $('#chat-input')?.value === sending.savedDraft.text) {
+        sending.restoredGeneration = _chatViewGeneration;
     }
 }
 
@@ -1899,7 +1760,7 @@ function _resetCodexActivityState() {
 }
 
 function resetChatTransientState() {
-    _resetQueuedMessages();
+    _resetChatView();
     liveResetActivity();
     localMessages.clear();
     pendingUserMsgs = [];

@@ -895,6 +895,7 @@ function restoreDraft() {
         pastedImages = [...d.images];
         d.images.forEach(url => showImagePreview(url));
     }
+    _noteDraftRestored();
 }
 
 
@@ -912,7 +913,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.OrchestraOwnerActivity?.init();
     $('#send-btn').addEventListener('click', sendChat);
     $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
-    window._queuedMessagesTimer = setInterval(() => refreshQueuedMessages(), 5000);
     $('#stop-btn').addEventListener('click', stopAgent);
     $('#chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
@@ -2664,7 +2664,6 @@ async function onOrchestratorChange() {
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
-    refreshQueuedMessages();
     // История и поток идут первыми и не ждут refreshSessions: тому нужно два круга
     // (sessions+stats, затем orchestrators), а нам для показа чата не нужно ни одного (D2).
     _showChatFor(selectedAgent, currentScope);
@@ -2690,7 +2689,6 @@ async function selectAgent(name) {
     _prepareChatAnchorRestore(false);
     updateInputState();
     restoreDraft();
-    refreshQueuedMessages();
     const hadContext = Boolean(contextCache[`${currentScope}:${name}`]);
     renderAgentList(currentSessions);
     if (_infoTabActive) loadInfoPanel();

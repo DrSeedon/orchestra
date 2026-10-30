@@ -47,13 +47,23 @@ class Element {
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
 }
 const body = new Element('body');
-for (const [tag, id] of [['div','queued-messages'], ['div','chat'], ['textarea','chat-input'], ['button','send-btn'], ['button','send-after-turn-btn']]) {
+for (const [tag, id] of [['div','chat'], ['textarea','chat-input'], ['button','send-btn'], ['button','send-after-turn-btn']]) {
     const element = new Element(tag); element.id = id; element.value = ''; body.appendChild(element);
 }
 global.document = {body, addEventListener() {}, createElement: tag => new Element(tag), querySelector: selector => body.querySelector(selector)};
 global.window = global;
 const root = path.resolve(__dirname, '..');
-for (const filename of ['tests/queued_messages_v1134_setup.js', 'app/static/js/chat.js', 'tests/queued_messages_v1134_scenarios.js']) {
-    vm.runInThisContext(fs.readFileSync(path.join(root, filename), 'utf8'), {filename});
+// Only the production draft functions are taken from app.js (rest needs the full page).
+const appSource = fs.readFileSync(path.join(root, 'app/static/js/app.js'), 'utf8');
+const draftFunctions = ['saveDraft', 'restoreDraft'].map(name => {
+    const match = new RegExp(`^function ${name}\\(\\) \\{\\n[\\s\\S]*?\\n\\}\\n`, 'm').exec(appSource);
+    if (!match) throw new Error(`${name} not found in app.js`);
+    return match[0];
+}).join('\n');
+for (const [filename, source] of [
+    ['tests/queued_messages_v1134_setup.js', null], ['app/static/js/chat.js', null],
+    ['app/static/js/app.js#drafts', draftFunctions], ['tests/queued_messages_v1134_scenarios.js', null],
+]) {
+    vm.runInThisContext(source ?? fs.readFileSync(path.join(root, filename), 'utf8'), {filename});
 }
 runQueueScenario(process.argv[2]).then(name => console.log(`PASS ${name}`)).catch(error => { console.error(error); process.exitCode = 1; });
