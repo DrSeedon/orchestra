@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+- **Hub outbox examples preserve valid JSON** (V-1147; `app/backend_hub.py`). Template braces are unescaped before inserting the already formatted `send_message` line, preserving both closing braces. Regression checks parse the generated code spans with JSON and the outbox parser, cover link/parent availability and worker-owned request routing, and replace exact prose assertions in the trimmed-prompt test with assembly and tool-contract checks. Outbox validation and ownership are unchanged.
+
 - **Merge-gate recovery follows its failure reason** (V-1145). Missing pytest/pytest-timeout, pytest usage errors, interpreter/OS errors, skipped coverage and actual elapsed-budget exhaustion now have distinct structured recovery actions. Environment repair names the selected project Python and required timeout plugin; no automatic installation or gate bypass. Failed operation IDs replay their durable result, so recovery asks for a new operation. Batch receipts retain individual reasons and never label skipped tests PASSED. Red tests, including partial failures before timeout, still block merging.
 - **Recurring-error scans classify the standalone provider capacity refusal as expected external noise** (V-1146; `app/error_watch.py`). Only `Selected model is at capacity. Please try a different model.` after existing logger/whitespace normalization is excluded from new findings and registered-fix recurrences. Mixed Hub failures and added error text remain actionable; raw logs, frontend errors and provider calls are unchanged.
 

@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import re
 import shlex as _shlex
 import subprocess
 import tarfile
@@ -1641,21 +1642,64 @@ def _first_prompt(mc):
     return next(args["message"] for name, args in mc.calls if name == "t3_thread_launch")
 
 
+def _prompt_outbox_examples(prompt):
+    section = prompt.partition("<orchestra-link>")[2].partition("</orchestra-link>")[0]
+    spans = re.findall(r"`(\{[^`\n]*)`", section)
+    examples = [json.loads(span) for span in spans]
+    entries, dropped = ob.parse_outbox("\n".join(spans).encode())
+    assert not dropped
+    assert entries == examples
+    return entries
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_link", [False, True])
+@pytest.mark.parametrize("parent", ["synthetic-parent", "", None])
+async def test_hub_preamble_examples_are_valid_outbox_requests(parent, has_link):
+    who = _who(parent)
+    prompt = backend_hub.hub_preamble(who, "V-1147", has_link=has_link)
+    entries = _prompt_outbox_examples(prompt)
+    expected = ((["send_message"] if parent else []) + ["update_progress", "update_checklist"]
+                if has_link else [])
+    assert [entry["tool"] for entry in entries] == expected
+    assert (ob.OUTBOX_NAME in prompt) == has_link
+    for tool in ob.ALLOWED_TOOLS:
+        assert (tool in prompt) == (tool in expected)
+
+    call = _Calls()
+    report = await ob.execute(entries, who, call)
+    assert report.done == expected and not report.dropped
+    assert len(call.calls) == len(entries)
+    for entry, (method, path, body) in zip(entries, call.calls):
+        assert method == "POST"
+        if entry["tool"] == "send_message":
+            assert path == f"/api/sessions/{parent}/send"
+            assert body["message"] == entry["args"]["message"]
+            assert body["sender"] == who.name and body["scope"] == who.scope
+        elif entry["tool"] == "update_progress":
+            assert path == f"/api/sessions/{who.name}/progress"
+            assert body == {**entry["args"], "scope": who.scope}
+        else:
+            assert path == f"/api/sessions/{who.name}/checklist"
+            assert body == entry["args"]
+
+
 @pytest.mark.asyncio
 async def test_hub_model_gets_a_trimmed_prompt_with_the_outbox_tools(repo, tmp_path, monkeypatch):
     backend, ssh, mc = _outbox_backend(repo, tmp_path, monkeypatch, [], _Calls())
     await _turn(backend, "implement the thing")
     prompt = _first_prompt(mc)
-    assert "worker wrk" in prompt and "orchestrator boss" in prompt and "task-V-9/x" in prompt
-    assert ob.OUTBOX_NAME in prompt and "send_message" in prompt and "update_progress" in prompt
-    assert "update_checklist" in prompt and "goes to your orchestrator boss only" in prompt
-    assert "Do not run git push/clone/commit" in prompt
-    assert prompt.rstrip().endswith("implement the thing") and "Task:\nimplement the thing" in prompt
+    who = backend._bridge.identity()
+    assert all(value in prompt for value in (who.name, who.parent_name, who.branch))
+    assert ob.OUTBOX_NAME in prompt
+    assert {entry["tool"] for entry in _prompt_outbox_examples(prompt)} == set(ob.ALLOWED_TOOLS)
+    preamble = backend._preamble()
+    assert prompt == preamble + "implement the thing"
     from app.manager import ROLE_SYSTEM_PROMPT
     full = ROLE_SYSTEM_PROMPT("default", "worker")
-    assert len(prompt.split("Task:\n")[0]) < len(full) / 2              # materially lighter than the native prompt
+    assert len(preamble) < len(full) / 2              # materially lighter than the native prompt
     for native_only in ("spawn_worker", "task_get", "bg_create", "mcp__", "get_worker_logs", "search_logs"):
-        assert native_only not in prompt.split("Task:\n")[0], native_only
+        assert native_only not in preamble, native_only
 
 
 @pytest.mark.asyncio

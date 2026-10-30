@@ -96,7 +96,7 @@ def hub_preamble(who, task_ref: str = "", *, has_link: bool = False) -> str:
     if has_link:
         send = (f'- `{{"tool":"send_message","args":{{"message":"..."}}}}` goes to your orchestrator '
                 f'{parent} only; any "to" is ignored\n') if parent else ""
-        link = OUTBOX_SECTION.replace("{send_line}", send).replace("{{", "{").replace("}}", "}")
+        link = OUTBOX_SECTION.replace("{{", "{").replace("}}", "}").replace("{send_line}", send)
     return f"{role}{hw.HUB_UV_INSTRUCTIONS}{where}{link}Task:\n"
 
 
