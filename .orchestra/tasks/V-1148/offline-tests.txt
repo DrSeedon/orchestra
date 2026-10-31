@@ -1,0 +1,37 @@
+/home/<runtime-user-redacted>/.local/share/orchestra/tools/uv/0.11.28/bin/uv
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 457ms
+
+==================================== ERRORS ====================================
+______________ ERROR collecting tests/test_codex_compact_state.py ______________
+ImportError while importing test module '/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-4cbfb6e327fb4c1b/tests/test_codex_compact_state.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_codex_compact_state.py:16: in <module>
+    import app.backend_codex as source
+app/backend_codex.py:21: in <module>
+    from app.runtime_process_group import RuntimeProcessGroup
+E   ModuleNotFoundError: No module named 'app.runtime_process_group'
+_________________ ERROR collecting tests/test_backend_codex.py _________________
+ImportError while importing test module '/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-4cbfb6e327fb4c1b/tests/test_backend_codex.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_backend_codex.py:17: in <module>
+    from app.backend_codex import (
+app/backend_codex.py:21: in <module>
+    from app.runtime_process_group import RuntimeProcessGroup
+E   ModuleNotFoundError: No module named 'app.runtime_process_group'
+=========================== short test summary info ============================
+ERROR tests/test_codex_compact_state.py
+ERROR tests/test_backend_codex.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+2 errors in 4.15s
+PYTEST_EXIT=2

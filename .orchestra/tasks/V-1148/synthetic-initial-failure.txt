@@ -1,0 +1,21 @@
+scope={"diagnostic_timestamps": "injected synthetic clock, not elapsed measurements", "kind": "AST-only; not normal import/integration", "real_deadline_seconds": 0.02, "source_sha256": "ef96690394c582881f9420408b56f6903d999bc7e68d4f4032e8f0338d3cf232"}
+Traceback (most recent call last):
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-4cbfb6e327fb4c1b/.orchestra/tasks/V-1148/synthetic_probe.py", line 215, in <module>
+    asyncio.run(main())
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-4cbfb6e327fb4c1b/.orchestra/tasks/V-1148/synthetic_probe.py", line 146, in main
+    backend, snapshot = await timeout_fixture(module, clock)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/<runtime-user-redacted>/orchestra-ws/<runtime-host-redacted>/hub-4cbfb6e327fb4c1b/.orchestra/tasks/V-1148/synthetic_probe.py", line 120, in timeout_fixture
+    assert backend._compact_operation.acknowledged
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+PROBE_EXIT=1
