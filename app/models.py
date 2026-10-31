@@ -687,15 +687,23 @@ def hub_alternative_hint(model_id: str | None = None) -> str:
 
 
 AGENT_HUB_ROUTE_RULE = "agent_workers_require_hub"
+LOCAL_LUNA_MODEL = "gpt-6-luna"
 
 
-def ensure_spawn_allowed(model_id: str, *, billing: str = "subscription") -> None:
+def ensure_spawn_allowed(
+    model_id: str, *, billing: str = "subscription", model_reason: str = "",
+) -> None:
     """Gate agent dispatch; explicit Claude API-credit tasks retain their own admission.
 
     Owner routing decision, 2026-10-29: ordinary workers use the hub. This is
     independent of stored catalog flags and does not change manual selection or
     persisted-session recovery. Billing is supplied only by opt-in eval callers;
     worker spawn and agent model changes use the subscription default.
+
+    Owner decision, 2026-10-31: the one native exception is local GPT-6 Luna for
+    protected work that cannot safely go to the hub. It is admitted only with a
+    non-empty model_reason naming the protection constraint; every other native
+    route stays refused and the catalog flag, quota and role guards still apply.
     """
     spec = get_model_spec(model_id)
     if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
@@ -703,12 +711,18 @@ def ensure_spawn_allowed(model_id: str, *, billing: str = "subscription") -> Non
     if billing == "api_credit":
         if spec.runtime != "claude":
             raise ValueError("billing='api_credit' requires a Claude model")
-    elif spec.runtime != "hub":
+    elif spec.runtime != "hub" and not (
+        model_id == LOCAL_LUNA_MODEL and isinstance(model_reason, str) and model_reason.strip()
+    ):
         raise ValueError(
             f"{AGENT_HUB_ROUTE_RULE}: model '{model_id}' is disabled for agents on "
             "subscription routes; use hubsol for general work or hubsonnet/hubopus "
-            "for creative work. If safe hub delegation is impossible, report the "
-            "blocker; do not fall back to a native subscription."
+            "for creative work. The only native route is model='luna' for protected "
+            "work that cannot safely go to the hub, with a non-empty model_reason "
+            "naming the protection constraint. If neither is possible (or this process "
+            "predates the route and needs the owner's idle restart), report the "
+            "blocker; do not retry the spawn, run the work yourself or fall back to "
+            "another native subscription."
         )
     if spec.runtime == "hub":
         from app.backend_hub import hub_configured
@@ -1091,6 +1105,14 @@ def requires_model_reason(model: str) -> bool:
 
 
 def validate_model_reason(model: str, reason: str = "") -> str:
+    try:
+        local_luna = resolve_model(model) == LOCAL_LUNA_MODEL
+    except (ValueError, AttributeError):
+        local_luna = False
+    if local_luna:
+        # Optional metadata here: ensure_spawn_allowed refuses an agent route without
+        # it, while manual selection keeps working without a reason.
+        return reason.strip() if isinstance(reason, str) else ""
     if not requires_model_reason(model):
         return ""
     if not isinstance(reason, str) or not reason.strip():

@@ -2039,7 +2039,7 @@ async def change_model(name: str, req: dict):
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     try:
         if via == "mcp":
-            ensure_spawn_allowed(new_model)
+            ensure_spawn_allowed(new_model, model_reason=req.get("model_reason") or "")
         else:
             ensure_dashboard_visible(new_model)
     except ValueError as exc:

@@ -66,15 +66,25 @@ Do not fix a blocker by deleting state, rotating credentials, changing proxy rou
 bypassing the user's approval boundary.
 
 ### Step 0.5: Choose the smallest useful team
-Keep project changes delegated. Inspect the repository, configuration and evidence yourself, and
-keep only the orchestrator's own bookkeeping and delivery operations in your hands: personal
-memory, `TODO.md` lines, task records and reports, the owner-decision entry in the project rules
+Keep project changes delegated. Targeted inspection needed for a decision is yours; bulk
+collection and repeated checks follow the delegation split below. Keep only the orchestrator's own bookkeeping and delivery
+operations in your hands: personal memory, `TODO.md` lines, task records and reports, the owner-decision entry in the project rules
 file, merge and push. Every other project change — even one file or one line in code, tests,
 web/layout, configuration, scripts, prompts or user documentation — goes to one accountable
 worker. Select the model through `model-routing`. If delegating
 would delay urgent restoration of a live class-A failure, restore that live work yourself and
 report the exception. Do not split a bounded implementation across workers without a reason;
 prefer one accountable worker.
+
+**Owner decision, 2026-10-31 (delegate collection, keep judgement):** spend your own turns on
+talking to the user, clarifying goals and authority, delegating bounded work, and the final
+acceptance and decisions. Log collection, deterministic calculations, repetitive inspection,
+test execution and detailed evidence preparation go to a worker — prefer a deterministic
+script to repeated model tool loops — instead of being repeated in your own tool loops.
+The reason is that those loops consume the capacity that judgement needs. Safe work uses the
+hub route; protected work that cannot go there uses the local `luna` route in `model-routing`.
+This does not move accountability: acceptance stays with you, and the order must state the
+evidence and mechanical checks you will rely on (see `worker-lifecycle`).
 
 ### Step 1: Worker route
 - A clear bounded task → worker.
@@ -292,7 +302,7 @@ The knowledge module owns persistence of task results and personal observations.
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Worker context is NOT your problem — Codex/Sol workers compact their thread natively. Don't watch their ctx%, don't call `compact_worker` preventively
 - Don't take a worker's "review ran / approved" on faith for critical work — require the route, reviewer model, artifact, named evidence and independence status recorded by the canonical gate. A live process proves a run, not a verdict
-- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, reviewer-artifact excerpts), not the worker's narration ("I tested it", "I verified"). A beautiful story with no artifact = not accepted
+- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, reviewer-artifact excerpts) that the report names and the executor has preserved, not the worker's narration ("I tested it", "I verified"). Open the raw artifact yourself when the report is inconsistent or the risk is high. A beautiful story with no artifact = not accepted
 </rules>
 
 <pricing>

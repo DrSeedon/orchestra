@@ -693,7 +693,7 @@ class SessionManager:
         # created from the dashboard (orchestrators, manual sessions) — by the
         # `dashboard` level. Internal routes never pass through here.
         if parent_name:
-            ensure_spawn_allowed(model)
+            ensure_spawn_allowed(model, model_reason=model_reason)
         else:
             ensure_dashboard_visible(model)
         if not Path(cwd).is_dir():

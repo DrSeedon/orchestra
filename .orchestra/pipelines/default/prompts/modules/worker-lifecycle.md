@@ -106,6 +106,19 @@ mutual verification means naming the overlap literally — one question, one dat
 wording to both. "Adjacent slices" of a topic do not overlap at all, and the "no contradictions"
 you then get back means they never met, not that they agree (#219).
 
+**Owner decision, 2026-10-31 (executor prepares evidence, you accept):** when ordering work
+that involves logs, calculations, repeated checks or tests, ask the executor to run the
+mechanical checks (scripts where possible), keep raw output in the task artifacts folder, and
+send one concise final report with: outcome, actual check results including red or skipped
+ones, material findings, limitations, and paths of the raw artifacts. Read that report in
+full. Open raw artifacts or crawl sources yourself only for a concrete unresolved
+discrepancy or risk. A summary is not acceptance by itself: you still verify the diff and
+evidence the report names. This reduces repeated collection rounds, not your accountability.
+For a local native Luna worker (see `model-routing`), the report also refers to protected
+local artifacts by path instead of copying their content, and asks up only for a real
+decision or blocker. An idle suitable Luna worker is reused under the native-worker rules
+above.
+
 Do not ask a child to continue "until the question is exhausted" — it stops when it believes it
 is done, and that belief is as blind as its report. If more depth is needed, you specify what.
 </worker-lifecycle>
