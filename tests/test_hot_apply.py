@@ -47,6 +47,21 @@ def mock_db(monkeypatch):
     monkeypatch.setattr("app.bg_jobs.bg_manager", None)
 
 
+@pytest.fixture
+def restart_sessions(monkeypatch):
+    """Give cut accounting and the real durable barrier the same test sessions.
+
+    Patching only `_drain_sessions` leaves persistence reading the shared manager,
+    including log futures whose owning loop a previous test has already closed.
+    """
+    from app.routes import system
+
+    def install(*sessions):
+        monkeypatch.setattr(system.manager, "sessions", {s.id: s for s in sessions})
+
+    return install
+
+
 def _worker(**kw):
     from app.session import AgentSession
     s = AgentSession(
@@ -94,6 +109,10 @@ class _FakeSession:
     def is_busy(self):
         from app.session import AgentStatus
         return self.status == AgentStatus.RUNNING or self._compacting
+
+    async def _drain_handoff_log_writes(self):
+        # This double has no queued writes; real pending writes are covered below.
+        return {"ok": True, "retried_log_writes": 0}
 
 
 # ── T1: промпт пересобирается из файлов на переинжекте ──
@@ -320,7 +339,7 @@ async def test_t2_internal_starter_queues_a_fact_instead_of_starting(
 # ── T3: рестарт сразу прерывает живые ходы ──
 
 @pytest.mark.asyncio
-async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch):
+async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch, restart_sessions):
     """`/api/restart` interrupts live turns instead of granting them a grace period."""
     from app.routes import system
     from app.session import AgentStatus
@@ -330,7 +349,7 @@ async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch):
     # This test forbids waiting for turns, not slow filesystem telemetry.
     # Persistence-before-signal has its own test below.
     monkeypatch.setattr(system, "_record_restart_outcome_bounded", AsyncMock(return_value=None))
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [running, idle], raising=False)
+    restart_sessions(running, idle)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
 
@@ -343,7 +362,7 @@ async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_t3_restart_cuts_blocking_turns_without_grace(monkeypatch):
+async def test_t3_restart_cuts_blocking_turns_without_grace(monkeypatch, restart_sessions):
     """Live turns cannot postpone a restart, even when they never finish.
 
     The interrupted session is named for startup recovery, but no wait is permitted first.
@@ -352,7 +371,7 @@ async def test_t3_restart_cuts_blocking_turns_without_grace(monkeypatch):
     from app.session import AgentStatus
 
     stuck = _FakeSession("stuck", AgentStatus.RUNNING)
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [stuck], raising=False)
+    restart_sessions(stuck)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
 
@@ -368,7 +387,7 @@ async def test_t3_restart_cuts_blocking_turns_without_grace(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_t3_restart_never_attempts_live_turn_handover(monkeypatch):
+async def test_t3_restart_never_attempts_live_turn_handover(monkeypatch, restart_sessions):
     """Every live turn is cut; adopt capability is irrelevant to restart latency."""
     from app import main as app_main
     from app.routes import system
@@ -383,7 +402,7 @@ async def test_t3_restart_never_attempts_live_turn_handover(monkeypatch):
     monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [running])
+    restart_sessions(running)
     prepare = AsyncMock(return_value=would_refuse)
     monkeypatch.setattr(system.manager, "prepare_restart_handover", prepare, raising=False)
     kill = MagicMock()
@@ -399,7 +418,7 @@ async def test_t3_restart_never_attempts_live_turn_handover(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch):
+async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch, restart_sessions):
     """После SIGINT процесса нет — значит отчитаться ПОСЛЕ него физически нельзя.
 
     Дыра, которую тест закрывает (Codex round 1, blocking #3): `restart_server()`
@@ -415,7 +434,7 @@ async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch):
     # сигналом дело не доходит вовсе. Проверяемое свойство — порядок «запись → сигнал» —
     # прежнее; изменился только путь, на котором сигнал вообще случается.
     idle = _FakeSession("idle", AgentStatus.IDLE)
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [idle], raising=False)
+    restart_sessions(idle)
     monkeypatch.setattr(system.os, "kill", lambda *a: order.append("kill"))
 
     record = getattr(system, "_record_restart_outcome", None)
@@ -432,7 +451,7 @@ async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch):
+async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch, restart_sessions):
     """Сбой ПОБОЧНОГО учёта не отменяет рестарт.
 
     Дедлайн назван безусловным, значит исключение из `_record_restart_outcome()` не
@@ -445,8 +464,7 @@ async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch):
     kill = MagicMock()
     # #237 T3: свободная сессия, потому что живой неподдержанный ход теперь отменяет рестарт,
     # и «сбой учёта не отменяет сигнал» стало бы непроверяемым — сигнала не было бы и так.
-    monkeypatch.setattr(system, "_drain_sessions",
-                        lambda: [_FakeSession("idle", AgentStatus.IDLE)], raising=False)
+    restart_sessions(_FakeSession("idle", AgentStatus.IDLE))
     monkeypatch.setattr(system.os, "kill", kill)
 
     record = getattr(system, "_record_restart_outcome", None)
@@ -460,6 +478,69 @@ async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch):
     await asyncio.wait_for(system._restart_service_after_response(), timeout=5)
 
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+
+
+@pytest.mark.asyncio
+async def test_restart_context_drains_current_logs_before_signal_with_a_stale_session(
+    monkeypatch, restart_sessions,
+):
+    """A previous test's dead loop cannot replace this restart's persistence work."""
+    from app.routes import system
+    from app.session import AgentStatus
+
+    old_loop = asyncio.new_event_loop()
+    stale_write = old_loop.create_future()
+    old_loop.close()
+    stale = _worker()
+    stale.id = "previous-test"
+    stale._log_futures.add(stale_write)
+    previous_sessions = {stale.id: stale}
+
+    current = _worker()
+    current.status = AgentStatus.RUNNING
+    write = asyncio.get_running_loop().create_future()
+    current._log_futures.add(write)
+    drain_entered = asyncio.Event()
+    real_await_logs = current._await_log_futures
+
+    async def await_current_logs():
+        drain_entered.set()
+        await real_await_logs()
+
+    order = []
+
+    def record(outcome):
+        assert write.done() and not write.cancelled()
+        order.append("record")
+
+    def signal_restart(*_args):
+        assert order == ["record"]
+        order.append("signal")
+
+    monkeypatch.setattr(current, "_await_log_futures", await_current_logs)
+    monkeypatch.setattr(system, "_record_restart_outcome", record)
+    monkeypatch.setattr(system.os, "kill", signal_restart)
+    # Model an earlier test's leaked singleton state before installing this context.
+    monkeypatch.setattr(system.manager, "sessions", previous_sessions)
+    restart_sessions(current)
+    restart = asyncio.create_task(system._restart_service_after_response())
+    try:
+        await asyncio.wait_for(drain_entered.wait(), timeout=1)
+        assert not restart.done()
+        assert order == []
+        assert not write.cancelled()
+        write.set_result(None)
+        outcome = await asyncio.wait_for(restart, timeout=5)
+    finally:
+        if not restart.done():
+            restart.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await restart
+
+    assert order == ["record", "signal"]
+    assert outcome["cut_ids"] == [current.id]
+    assert not stale_write.done()
+    assert stale._log_futures == {stale_write}
 
 
 @pytest.mark.asyncio
