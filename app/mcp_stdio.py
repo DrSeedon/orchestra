@@ -2015,8 +2015,9 @@ async def get_log_context(log_id: int, project: str = "", all_projects: bool = F
 async def compact_worker(name: str) -> str:
     """Manually compact an idle worker's context. Codex compacts natively in the same thread;
     Claude creates a summary, reconnects fresh, and retains that handoff. This is a manual escape
-    hatch, not the auto-compact policy. Returns the runtime result; may take 30-60s."""
-    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE}, timeout=120)
+    hatch, not the auto-compact policy. Returns the runtime result; may take several minutes."""
+    # Native compact has one 600s backend budget; leave time to drain its response.
+    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE}, timeout=660)
     if isinstance(result, dict) and result.get("error"):
         return f"Compact failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):

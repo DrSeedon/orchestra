@@ -1,0 +1,3 @@
+APP_IMPORT=app/__init__.py (absolute path preserved privately)
+PASS: 18 file identities, Python syntax, secret forms and runtime-user literals
+PASS: current revision identity recorded

@@ -1,0 +1,5 @@
+PASS: timeout defect rejected by behavioral regression
+PASS: late_publication defect rejected by behavioral regression
+PASS: last_call defect rejected by behavioral regression
+PASS: queue_recovery defect rejected by behavioral regression
+PASS: browser_timeout defect rejected by behavioral regression

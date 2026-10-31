@@ -1195,6 +1195,7 @@ function connectSSE(fromHistoryLoad) {
                 liveAgentStatus(l.agent_status);
             }
             else if (Number.isFinite(l.id)) _wakeStatusRefreshFromStream();
+            _refreshContextAfterCompact(targetAgent, l);
             if (l.type === '__session') return;  // рукопожатие: сессию уже сверили выше
             if (l.type === 'user_message' && localMessages.size > 0) {
                 const isLocal = localMessages.has(l.content) ||
@@ -1444,6 +1445,8 @@ async function compactAgent() {
     try {
         const res = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/compact`, {
             method: 'POST',
+            // Native compact has a 600s backend budget; allow the response to drain.
+            timeoutMs: 660000,
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({scope: currentScope}),
         });
@@ -2997,6 +3000,7 @@ function setContextDisplay(text) {
 }
 
 function formatContext(ctx) {
+    if (ctx.known === false) return T('Context usage unknown');
     const pct = Math.round(ctx.percentage || 0);
     const total = ctx.total_tokens || 0;
     const max = ctx.max_tokens || 0;
@@ -3391,6 +3395,13 @@ function _refreshContextAfterTurn(name, status) {
     _agentLiveStatuses.set(key, status);
     if (!wasRunning || status === 'running') return;
     delete contextCache[key];
+    if (name === selectedAgent) fetchAgentContext(name);
+}
+
+function _refreshContextAfterCompact(name, entry) {
+    if (!currentScope || entry.type !== 'status'
+        || !String(entry.content || '').startsWith('compact done (native Codex):')) return;
+    delete contextCache[`${currentScope}:${name}`];
     if (name === selectedAgent) fetchAgentContext(name);
 }
 

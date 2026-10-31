@@ -861,9 +861,10 @@ class AgentSession:
         )
         result = await self.compact()
         state["compact_result"] = result
+        outcome = "compacted" if result.get("ok") else "failed"
         self._log(
             "status",
-            f"precompact timer compacted: {self._precompact_payload(state)}",
+            f"precompact timer {outcome}: {self._precompact_payload(state)}",
         )
 
     def _clock_running(self) -> bool:
@@ -3202,6 +3203,24 @@ class AgentSession:
                     return await operation()
             permit = await self._compaction_permit()
 
+    def _publish_codex_compact_context(self, result: dict) -> None:
+        context_tokens = result.get("context_tokens")
+        max_tokens = result.get("max_tokens")
+        if isinstance(max_tokens, int) and not isinstance(max_tokens, bool) and max_tokens > 0:
+            self._last_context["max_tokens"] = max_tokens
+        else:
+            max_tokens = None
+        if (isinstance(context_tokens, int) and not isinstance(context_tokens, bool)
+                and context_tokens >= 0 and max_tokens is not None):
+            self._last_context.update(
+                total_tokens=context_tokens, known=True,
+                percentage=round(context_tokens * 100 / max_tokens),
+            )
+        else:
+            self._last_context.update(percentage=0, total_tokens=0, known=False)
+            self._log("status", "native Codex compact context usage unknown")
+        self._persist()
+
     async def _compact_codex_context(self) -> dict:
         try:
             permit = await self._compaction_permit(reserve=True)
@@ -3225,25 +3244,78 @@ class AgentSession:
                 if not callable(compact_context):
                     raise RuntimeError("Codex backend does not support native compact")
                 self._hibernated = False
-                return asyncio.create_task(compact_context())
+                generation = (self.session_id, self.model, self.backend_type)
+                turn_gen = self._turn_gen
+                stop_gen = self._turn_start_cancel_gen
+                transport_gen = getattr(backend, "_transport_generation", None)
+                owner = self._backend
 
-            compact_task = await self._run_compaction_start(permit, start_native_compact)
+                def backend_snapshot():
+                    return (
+                        getattr(backend, "_transport_generation", None),
+                        getattr(backend, "_context_generation", None),
+                        getattr(backend, "session_id", None),
+                        getattr(backend, "model", None),
+                    )
+
+                native_snapshot = backend_snapshot()
+
+                def require_current_snapshot():
+                    if (owner is not self._backend or turn_gen != self._turn_gen
+                            or generation != (self.session_id, self.model, self.backend_type)
+                            or native_snapshot != backend_snapshot()):
+                        error = RuntimeError(
+                            "Codex compact completed for an obsolete session snapshot; "
+                            "context publication refused"
+                        )
+                        error.compact_diagnostics = getattr(backend, "compact_diagnostics", {})
+                        raise error
+
+                def reconciled(result):
+                    # No await between freshness validation and publication. The
+                    # reader owns this observation even after the HTTP/auto caller
+                    # timed out or was cancelled; it never rewrites that response.
+                    if (backend is not self._backend
+                            or transport_gen != getattr(backend, "_transport_generation", None)
+                            or generation != (self.session_id, self.model, self.backend_type)):
+                        return
+                    diagnostics = json.dumps(result["compact_diagnostics"], sort_keys=True)
+                    fresh = result["fresh"] and turn_gen == self._turn_gen
+                    if result["ok"] and fresh:
+                        self._publish_codex_compact_context(result)
+                        self._log(
+                            "status", f"compact done (native Codex): {before_pct}% → "
+                            f"{self._last_context['percentage']}%, late reconciliation; "
+                            + diagnostics,
+                        )
+                    elif fresh:
+                        self._log("status", "native Codex compact reconciled without success; "
+                                  + diagnostics)
+                    else:
+                        self._log("status", "native Codex compact reconciled; newer context retained; "
+                                  + diagnostics)
+                    # A submission may have been refused while the remote compact
+                    # still ran. Retry the retained queue through normal admission,
+                    # without undoing a manual stop or touching a running turn.
+                    if (self._pending_messages and self.status != AgentStatus.RUNNING
+                            and stop_gen == self._turn_start_cancel_gen
+                            and not self._manually_interrupted):
+                        self._spawn_bg(self._flush_pending())
+                    elif self.status == AgentStatus.IDLE and not self._pending_messages:
+                        self._hibernate.schedule()
+                    self._wake_durable_message_deliveries()
+
+                backend._compact_reconciler = reconciled
+                return asyncio.create_task(compact_context()), require_current_snapshot
+
+            compact_task, require_current_snapshot = await self._run_compaction_start(
+                permit, start_native_compact,
+            )
             result = await compact_task
+            require_current_snapshot()
 
             context_tokens = result.get("context_tokens")
-            max_tokens = result.get("max_tokens")
-            if isinstance(max_tokens, int) and max_tokens > 0:
-                self._last_context["max_tokens"] = max_tokens
-            if isinstance(context_tokens, int) and context_tokens >= 0:
-                self._last_context["total_tokens"] = context_tokens
-                self._last_context["known"] = True
-                if isinstance(max_tokens, int) and max_tokens > 0:
-                    self._last_context["percentage"] = round(
-                        context_tokens * 100 / max_tokens
-                    )
-            else:
-                self._last_context.update(percentage=0, total_tokens=0, known=False)
-                self._log("status", "native Codex compact context usage unknown")
+            self._publish_codex_compact_context(result)
 
             after_pct = self._last_context.get("percentage", 0)
             summary = result.get("summary")
@@ -3252,10 +3324,12 @@ class AgentSession:
                     summary = await self._build_runtime_handoff()
                 except Exception as exc:
                     logger.debug(f"[{self.name}] Codex compact handoff snapshot failed: {exc}")
+            require_current_snapshot()
             if summary:
                 self.last_summary = _bounded_summary(summary)
             self._persist()
             await self._drain_persist()
+            require_current_snapshot()
             self._log(
                 "status",
                 f"compact done (native Codex): {before_pct}% → {after_pct}%, "

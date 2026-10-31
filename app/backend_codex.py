@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Callable, Optional
 
 from app.runtime_process_group import RuntimeProcessGroup
 from app.backend_jsonrpc import (
@@ -81,7 +81,10 @@ CODEX_TOKEN_PRICES = {
 # excluded: it is a client-side mode, not a plain effort level for a generic worker field.
 CODEX_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
-CODEX_COMPACT_TIMEOUT_SECONDS = 120
+# One bounded budget, including ACK. Observed explicit compact terminals took
+# 103–227s (V-1148); ten minutes leaves headroom without an unbounded retry or
+# heartbeat extension. Native in-turn compaction has no such caller deadline.
+CODEX_COMPACT_TIMEOUT_SECONDS = 600
 CODEX_PROCESS_TIMEOUT_SECONDS = 5
 DEFERRED_INTERRUPT_TERMINAL_TIMEOUT_SECONDS = 5.0
 CODEX_STREAM_LIMIT = 16 * 1024 * 1024
@@ -124,6 +127,10 @@ class _CompactOperation:
     times: dict = field(default_factory=dict)
     caller_stage: str | None = None
     ignored: dict[str, int] = field(default_factory=dict)
+    context_tokens: int | None = None
+    max_tokens: int | None = None
+    context_generation: int = 0
+    on_reconciled: Callable[[dict], None] | None = None
 
     @property
     def stage(self) -> str:
@@ -559,11 +566,12 @@ class CodexBackend(JsonRpcStdioTransport):
         self._compact_operation: _CompactOperation | None = None
         self._last_compact: _CompactOperation | None = None
         self._compact_sequence = 0
+        self._compact_reconciler: Callable[[dict], None] | None = None
+        self._context_generation = 0
         self._transport_generation = 0
         self._retired_compact_turns: set[str] = set()
         self._seen_compact_items: set[str] = set()
         self._starting_user_turn: list[dict] | None = None
-        self._compact_context_tokens: int | None = None
         self._process_group: RuntimeProcessGroup | None = None
         self._hibernate_safe = False
         self._scope_reason = "process containment has not been checked"
@@ -684,6 +692,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if old_fallback != new_fallback or self._model_context_window == old_fallback:
             self._model_context_window = new_fallback
         self.model = model
+        self._context_generation += 1
 
     async def _verify_history_version(self) -> None:
         if not self._history_import:
@@ -885,6 +894,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._clear_deferred_control()
         await self._reload_stale_managed_config_before_turn()
 
+        self._context_generation += 1
         self._last_turn_error = {}
         self._last_call_usage = None
         self._started_items.clear()
@@ -1141,6 +1151,10 @@ class CodexBackend(JsonRpcStdioTransport):
 
     async def compact_context(self) -> dict:
         """Await ACK, compaction evidence and a successful terminal as one operation."""
+        # A session installs its publication hook before starting the coroutine.
+        # Capture it per operation, including across cancellation. A later failed
+        # attempt cannot replace the unresolved operation's observer.
+        observer, self._compact_reconciler = self._compact_reconciler, None
         if not self.is_alive or self._reader_failure is not None or self._stdout_closed:
             raise RuntimeError("Codex app-server is not running or its transport is closed")
         if not self._thread_id:
@@ -1154,10 +1168,12 @@ class CodexBackend(JsonRpcStdioTransport):
         future = asyncio.get_running_loop().create_future()
         op = _CompactOperation(
             self._compact_sequence, self._thread_id, future, self._transport_generation,
+            max_tokens=self._model_context_window,
+            context_generation=self._context_generation,
+            on_reconciled=observer,
         )
         self._compact_operation = op
         self._compact_future = future
-        self._compact_context_tokens = None
         # ACK and notifications are independent. A definitive error/EOF must also
         # wake a caller whose ACK is missing; notifications may precede the ACK.
         request = asyncio.create_task(self._request(
@@ -1175,8 +1191,8 @@ class CodexBackend(JsonRpcStdioTransport):
                 result = await asyncio.shield(future)
                 # Include usage delivered immediately after C/T in the same batch.
                 await asyncio.sleep(0)
-            result["context_tokens"] = self._compact_context_tokens
-            result["max_tokens"] = self._model_context_window
+            result["context_tokens"] = op.context_tokens
+            result["max_tokens"] = op.max_tokens
             op.outcome = "success"
             return result
         except TimeoutError as exc:
@@ -1227,6 +1243,26 @@ class CodexBackend(JsonRpcStdioTransport):
         if op.turn_id and op.turn_id not in self._retired_compact_turns:
             self._retired_compact_turns.add(op.turn_id)
         self._last_compact = op
+        observer, op.on_reconciled = op.on_reconciled, None
+        if observer is not None and op.late:
+            # The original caller result is immutable. Publish a separate terminal
+            # observation, with usage owned by this operation rather than a user turn.
+            result = {
+                "ok": (op.acknowledged and op.started and op.compacted
+                       and op.terminal == "completed"
+                       and (not op.error or op.error.get("willRetry") is True)
+                       and op.outcome in ("timeout", "cancelled")),
+                "context_tokens": op.context_tokens,
+                "max_tokens": op.max_tokens,
+                "fresh": (op.transport_generation == self._transport_generation
+                          and op.thread_id == self._thread_id
+                          and op.context_generation == self._context_generation),
+                "compact_diagnostics": op.diagnostics(),
+            }
+            try:
+                observer(result)
+            except Exception:
+                logger.exception("Codex compact reconciliation observer failed")
 
     def _fail_compact_transport(self, error: BaseException) -> None:
         op = self._compact_operation
@@ -1479,9 +1515,6 @@ class CodexBackend(JsonRpcStdioTransport):
         last = usage.get("last") or {}
         self._thread_usage_total = self._usage_breakdown(total)
         self._last_call_usage = self._usage_breakdown(last)
-        context_tokens = last.get("totalTokens")
-        if isinstance(context_tokens, int) and context_tokens >= 0:
-            self._compact_context_tokens = context_tokens
         window = usage.get("modelContextWindow")
         if isinstance(window, int) and window > 0:
             self._model_context_window = window
@@ -1588,7 +1621,20 @@ class CodexBackend(JsonRpcStdioTransport):
             elif not op.started:
                 self._fail_compact_operation(op, "completed without a preceding turn/started")
         elif method == "thread/tokenUsage/updated":
-            self._record_token_usage(params)
+            usage = params.get("tokenUsage") or {}
+            tokens = (usage.get("last") or {}).get("totalTokens")
+            window = usage.get("modelContextWindow")
+            op.context_tokens = self._optional_nonnegative_int(tokens)
+            if isinstance(window, int) and not isinstance(window, bool) and window > 0:
+                op.max_tokens = window
+            # An old compact cannot overwrite last-call usage, cumulative totals
+            # or the window of a newer user/model snapshot.
+            if (op.context_generation == self._context_generation
+                    and op.transport_generation == self._transport_generation
+                    and op.thread_id == self._thread_id):
+                self._thread_usage_total = self._usage_breakdown(usage.get("total") or {})
+                if op.max_tokens:
+                    self._model_context_window = op.max_tokens
             return True
         self._finish_compact_if_ready(op)
         if not op.waiting and op.terminal is not None:
