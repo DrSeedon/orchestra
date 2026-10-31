@@ -952,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#project-picker').classList.add('hidden');
         loadProfilesDropdown();
         loadPipelinesDropdown();
+        loadModels();
         $('#orch-cwd').focus();
     });
     $('#orch-pipeline').addEventListener('change', populateRoleDropdown);
@@ -1345,6 +1346,15 @@ function _renderModels(data) {
     _modelsLoaded = true;
     const select = $('#orch-model');
     if (select) {
+        if (!select.dataset.modelSelectionBound) {
+            select.addEventListener('change', () => {
+                select.dataset.userSelectedModel = select.value;
+            });
+            select.dataset.modelSelectionBound = 'true';
+        }
+        const selected = select.dataset.userSelectedModel;
+        const explicit = models.some(model => model.id === selected);
+        if (!explicit) delete select.dataset.userSelectedModel;
         select.innerHTML = '';
         for (const m of models) {
             const opt = document.createElement('option');
@@ -1352,6 +1362,8 @@ function _renderModels(data) {
             opt.textContent = `${m.name} (${m.id})`;
             select.appendChild(opt);
         }
+        const preferred = explicit ? selected : data.default_orchestrator_model;
+        if (models.some(model => model.id === preferred)) select.value = preferred;
     }
     _updateProxyStatus(data.proxy_connected);
 }

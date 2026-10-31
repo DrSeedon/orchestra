@@ -317,6 +317,16 @@ class CreateSessionRequest(BaseModel):
     def validate_worktree(self):
         if self.use_worktree and not self.repo_path:
             raise ValueError("repo_path required when use_worktree=True")
+        if self.is_orchestrator and "model" not in self.model_fields_set:
+            from app.pipeline import get_role
+            from yaml import YAMLError
+
+            try:
+                role = get_role(self.pipeline or "default", self.role or "orchestrator")
+            except (OSError, YAMLError) as error:
+                raise ValueError(str(error)) from error
+            if role is not None and role.is_orchestrator:
+                self.model = resolve_model(role.model)
         return self
 
 

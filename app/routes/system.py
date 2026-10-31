@@ -529,8 +529,23 @@ async def list_models(response: Response):
         if spec.price_output is not None:
             entry["price_output"] = spec.price_output
         models.append(entry)
+    from app.pipeline import get_role
+    from app.models import resolve_model
+    from yaml import YAMLError
+
+    preferred = None
+    try:
+        orchestrator = get_role("default", "orchestrator")
+        if orchestrator is not None and orchestrator.is_orchestrator:
+            preferred = resolve_model(orchestrator.model)
+    except (ValueError, OSError, YAMLError):
+        # A broken/missing manifest must not remove the model catalog itself.
+        logger.warning("Default orchestrator model unavailable from pipeline")
     return {
         "models": models,
+        "default_orchestrator_model": (
+            preferred if any(model["id"] == preferred for model in models) else None
+        ),
         "provider_metadata": provider_metadata_payload(),
         "proxy_connected": is_proxy_connected(),
     }
