@@ -1,0 +1,13 @@
+# V-1156 Terra High default acceptance
+
+The owner explicitly authorized current Terra activation, restart and migration of all managed orchestrators at 00:51. The VPS was restarted exactly once through the existing API on source a215e0ea0ead690283d76ad0b28e4f28ca46a845. A new live process returned root302 and the Terra/Codex model catalog before the new default manifest was merged. Detailed PID/cgroup/startup/recovery receipts remain private under V-1163. The bot service was unchanged.
+
+Root read the complete36-line author report, completeYAML/routing/changelog diff and100-line committed behavior test. Author source5e56e22f18db8cdea5de822f75ad3e30be15c73e was tested on host:113passed,0failed/skipped in6.76s; canonical instruction checkRC0, actualAGENTS/CLAUDE symlink and indexed model rule confirmed. Two independent temporary-pipeline mutations (Terra→Sol andHigh→Low) reddened intended committed assertions, each after11-test greenbaseline. Sourcehashes/cleanworktree remained exact. Author's broker-only instructionRC1 for absentCLAUDE is preserved as an observed environment limitation.
+
+Twenty-two small author raw artifacts and original report were privately copied and hash-verified. The only post-test author-branch change normalized the remote import identity in the public report. Canonical merge87514411ebb53ce094ffe49188fb0eb00d025c68 applied only the manifest/model-routing/changelog/test/report changes. ProductPython/frontend/catalog/backend/quota/session code did not change; no extra service restart is needed. Modelreview remains frozen.
+
+The live API now advertises Terra as its orchestrator default, and both roles explicitly map Terra toHigh. Existing sessions remain under separateV-1163 migration through the supported owner API; source acceptance is not evidence of their migration or successful inference. Ordinaryworker hub routing, manual-only admission, protectedLuna, quota and billing are unchanged.
+
+Offline laptop remains a separate availability blocker. Its executor owns exactly one connection watcher and an ordered bootstrap: verifycleanorigin ancestry; ifTerra is absent, fast-forward only to published safeancestor a215 with OLDYAML, perform the one authorized laptop restart and verify liveTerra, then fast-forward to latest defaultmanifest. The readyVPS need not wait for that independent host; the local live-registry requirement applies before each receiving host's hotmanifest.
+
+At acceptance publication/actual newCI were pending. Canonical private publication receipt will record exact originref and finalCI; do not repeat the full suite or create a report-onlyCI loop just to change this sentence.
