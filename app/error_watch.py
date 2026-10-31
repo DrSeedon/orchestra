@@ -119,6 +119,9 @@ _HUB_TURN_FAILURE = re.compile(r"\bHub worker turn failed:\s*(.*)", re.I | re.S)
 _HUB_HTTP_STATUS = re.compile(r"\bHTTP\s+([1-5]\d{2})\b", re.I)
 _HUB_THREAD_FAILED = re.compile(r"\bhub thread ended with status failed\b", re.I)
 _HUB_EXCEPTION = re.compile(r"\b([A-Za-z_]\w*(?:Error|Timeout|Exception))\b")
+_SUCCESSFUL_HTTP_ACCESS_LOG = re.compile(
+    r'INFO:\s+\S+\s+-\s+"\S+\s+\S+\s+HTTP/\d(?:\.\d)?"\s+2\d\d\s+OK',
+)
 
 
 def normalize_signature(message: str) -> str:
@@ -177,6 +180,12 @@ def _event_noise(event: dict, signature: str) -> str | None:
     if (event.get("source") == "logs" and event.get("type") == "tool_result"
             and event.get("tool_name") == "Bash" and event["message"].strip() == "Terminated"):
         return _BASH_TERMINATED_NOISE
+    # The journal's error-word filter can admit successful access lines when the
+    # requested URL or query contains words such as "failed" or "traceback".
+    # Match the complete raw record so an error context or non-2xx response stays visible.
+    if (event.get("source") == "journalctl"
+            and _SUCCESSFUL_HTTP_ACCESS_LOG.fullmatch(event["message"].strip())):
+        return "successful HTTP access log"
     if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE:
         return _FOREIGN_PROJECT_PYTEST_NOISE
     return classify_noise(signature)
