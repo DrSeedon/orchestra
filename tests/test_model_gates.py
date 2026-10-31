@@ -72,7 +72,7 @@ def test_t3_worker_spawn_rejected_on_agents_off(vendor_model, monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", ["astra", "sol"])
+@pytest.mark.parametrize("model", ["astra", "sol", "terra"])
 async def test_manual_only_model_cannot_be_spawned_by_an_agent(model):
     from app.manager import SessionManager
 
@@ -84,7 +84,7 @@ async def test_manual_only_model_cannot_be_spawned_by_an_agent(model):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("model", ["astra", "sol"])
+@pytest.mark.parametrize("model", ["astra", "sol", "terra"])
 async def test_mcp_change_model_rejects_manual_only_models_before_loading(model, monkeypatch):
     from app.routes import sessions as routes
     from fastapi.responses import JSONResponse

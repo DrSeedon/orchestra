@@ -80,7 +80,7 @@ def test_selectable_models_match_the_curated_catalog():
         "claude-opus-5-5[1m]", "claude-sonnet-5-5[1m]", "gpt-6-luna",
         "gpt-5.3-codex-spark", "grok-4.6", "claude-opus-4-6[1m]",
         "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
-        "gpt-6.1-sol", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
+        "gpt-6.1-sol", "gpt-6.1-terra", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
         "hub-claude-haiku-5-5", "hub-claude-sonnet-5-5", "hub-claude-opus-5-5",
         "hub-gpt-6-luna", "hub-gpt-6.1-sol", "hub-grok-4.7",
@@ -127,7 +127,7 @@ def test_claude_cache_rates_and_prompt_tier_are_registry_data():
     assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_over_threshold_multiplier"] == 5.0
 
 
-@pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol"])
+@pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra"])
 def test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents(model_id, monkeypatch):
     monkeypatch.setattr(
         "app.models._load_model_flags",

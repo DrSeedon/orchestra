@@ -46,6 +46,8 @@ CODEX_CONTEXT_LIMITS = {
     "gpt-5.6-sol":   258400,
     "gpt-6-astra":   258400,
     "gpt-5.6-terra": 258400,
+    # Conservative fallback pending local metadata; never infer CLI budget from API.
+    "gpt-6.1-terra": 258400,
     "gpt-5.6-luna":  258400,
     "gpt-5.5": 258400,
 }
@@ -71,6 +73,10 @@ CODEX_TOKEN_PRICES = {
     "gpt-6-sol":     {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 10.0},
     # GPT-6.1 Sol: official OpenAI model pricing; cached input is 5% of input.
     "gpt-6.1-sol":   {"input": 2.0, "cached": 0.1, "write": 2.5, "output": 10.0},
+    # Standard API-equivalent accounting, verified 31.10.2026 against
+    # developers.openai.com/api/docs/models/gpt-6.1-terra (30-minute cache writes).
+    # Codex subscription credits are a separate contract, without cache-write billing.
+    "gpt-6.1-terra": {"input": 1.0, "cached": 0.05, "write": 1.25, "output": 5.0},
     "gpt-6-luna":    {"input": 0.1, "cached": 0.01, "write": 0.125, "output": 0.5},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
     "gpt-5.3-codex-spark": None,

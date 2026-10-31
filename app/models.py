@@ -55,7 +55,7 @@ class ProviderMetadata:
 
 
 # Models that owners may select for manual orchestrator sessions but agents cannot use.
-MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol"})
+MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra"})
 RETIRED_SELECTABLE_MODEL_IDS = frozenset({
     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
     "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
@@ -116,6 +116,13 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ),
     ModelSpec(
         id="gpt-6.1-sol", name="GPT-6.1 Sol",
+        runtime="codex", provider="openai", context_length=258400,
+        default_agents=False,
+    ),
+    # Conservative Codex fallback, not the public API's 1.05M window. Native
+    # catalog/config metadata and rollout telemetry remain the runtime authority.
+    ModelSpec(
+        id="gpt-6.1-terra", name="GPT-6.1 Terra",
         runtime="codex", provider="openai", context_length=258400,
         default_agents=False,
     ),
@@ -223,6 +230,8 @@ ALIASES = {
     "codexspark": "gpt-5.3-codex-spark",
     "gpt5.3spark": "gpt-5.3-codex-spark",
     "sol": "gpt-6.1-sol",
+    "terra": "gpt-6.1-terra",
+    "gpt6.1terra": "gpt-6.1-terra",
     "astra": "gpt-6-astra",
     "gpt6astra": "gpt-6-astra",
     # 23.09.2026 владелец перевёл рабочую лошадку на GPT-6 после замера V-616…V-620.

@@ -132,7 +132,7 @@ def test_cached_input_rates_match_each_codex_model():
     for model, price in CODEX_TOKEN_PRICES.items():
         if price is None:
             continue
-        ratio = 0.05 if model == "gpt-6.1-sol" else 0.1
+        ratio = 0.05 if model in {"gpt-6.1-sol", "gpt-6.1-terra"} else 0.1
         assert price["cached"] == pytest.approx(price["input"] * ratio), model
 
 
