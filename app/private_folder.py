@@ -17,7 +17,7 @@ EXCLUDE_PATTERN = f"/{PRIVATE_REL}"
 
 
 def has_worker_memory_project_state(base: Path) -> bool:
-    """Reports alone do not establish managed memory or require private bootstrap."""
+    """Reports and ordinary private folders alone do not establish managed memory."""
     # LEGACY_PATH_FIXTURE: old roots signal migration, never memory fallbacks.
     if any((base / path).exists() or (base / path).is_symlink() for path in (
         "docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines",
@@ -28,9 +28,11 @@ def has_worker_memory_project_state(base: Path) -> bool:
         return False
     if not state.is_dir() or state.is_symlink():
         return True
-    # Unknown entries, migration journals and broken links remain project state.
+    # A real private directory is an output artifact, just like task reports.
+    # Its contents are irrelevant here: never inspect private bytes for memory.
+    # Unknown entries, migration journals and links remain project state.
     return any(
-        entry.name != "tasks" or not entry.is_dir() or entry.is_symlink()
+        entry.name not in {"tasks", "private"} or not entry.is_dir() or entry.is_symlink()
         for entry in state.iterdir()
     )
 

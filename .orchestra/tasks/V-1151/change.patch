@@ -1,0 +1,16 @@
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -607,9 +607,12 @@
+             new_overlay = None
+         else:
+             new_overlay = self._without_ownership_prompt(session.prompt_overlay) + new_ownership
++        # Scope is the parent's routing namespace, which may own a different Git
++        # repository. Existing workers without a recorded worktree still have their
++        # own checkout in cwd; do not load/refuse memory from the parent's project.
+         prompt = refresh_worker_memory(
+             prompt, session.name, session.role, session.scope,
+-            session.worktree_path or "",
++            session.worktree_path or session.cwd,
+             allow_absent_project=True,
+         )
+         return prompt, new_overlay

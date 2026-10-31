@@ -1,0 +1,124 @@
+E
+==================================== ERRORS ====================================
+_ ERROR at setup of test_source_ownership_persists_without_parent_memory[parent-missing-source-cwd-detached] _
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:558: in setup
+    return super().setup()
+           ^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+tests/conftest.py:389: in _no_tg_bridge
+    import app.tg_bridge as tb
+app/tg_bridge.py:21: in <module>
+    from aiogram import Bot, Dispatcher, types, F
+.venv/lib/python3.12/site-packages/aiogram/__init__.py:3: in <module>
+    from . import enums, methods, types
+.venv/lib/python3.12/site-packages/aiogram/methods/__init__.py:1: in <module>
+    from .add_sticker_to_set import AddStickerToSet
+.venv/lib/python3.12/site-packages/aiogram/methods/add_sticker_to_set.py:5: in <module>
+    from ..types import InputSticker
+.venv/lib/python3.12/site-packages/aiogram/types/__init__.py:703: in <module>
+    _entity.model_rebuild(
+.venv/lib/python3.12/site-packages/pydantic/main.py:683: in model_rebuild
+    return _model_construction.complete_model_class(
+.venv/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py:667: in complete_model_class
+    schema = gen_schema.generate_schema(cls)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:744: in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1038: in _generate_schema_inner
+    return self._model_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:868: in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1245: in _generate_md_field_schema
+    schema, metadata = self._common_field_schema(name, field_info, decorators)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1299: in _common_field_schema
+    schema = self._apply_annotations(
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2252: in _apply_annotations
+    schema = get_inner_schema(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_schema_generation_shared.py:83: in __call__
+    schema = self._handler(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2231: in inner_handler
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1043: in _generate_schema_inner
+    return self.match_type(obj)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1161: in match_type
+    return self._match_generic_type(obj, origin)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1184: in _match_generic_type
+    return self._union_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1344: in _union_schema
+    choices.append(self.generate_schema(arg))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:744: in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1043: in _generate_schema_inner
+    return self.match_type(obj)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1161: in match_type
+    return self._match_generic_type(obj, origin)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1188: in _match_generic_type
+    return self._list_schema(self._get_first_arg_or_any(obj))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:399: in _list_schema
+    return core_schema.list_schema(self.generate_schema(items_type))
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:744: in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1038: in _generate_schema_inner
+    return self._model_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:868: in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1245: in _generate_md_field_schema
+    schema, metadata = self._common_field_schema(name, field_info, decorators)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1299: in _common_field_schema
+    schema = self._apply_annotations(
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2252: in _apply_annotations
+    schema = get_inner_schema(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_schema_generation_shared.py:83: in __call__
+    schema = self._handler(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2231: in inner_handler
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1043: in _generate_schema_inner
+    return self.match_type(obj)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1161: in match_type
+    return self._match_generic_type(obj, origin)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1184: in _match_generic_type
+    return self._union_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1344: in _union_schema
+    choices.append(self.generate_schema(arg))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:744: in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:1038: in _generate_schema_inner
+    return self._model_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:811: in _model_schema
+    chain(
+E   Failed: Timeout (>30.0s) from pytest-timeout.
+=========================== short test summary info ============================
+ERROR tests/test_source_owned_dirs_v1151.py::test_source_ownership_persists_without_parent_memory[parent-missing-source-cwd-detached]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 error in 58.66s
