@@ -21,3 +21,18 @@ rules:
     sheet in 40 s with Codex''s built-in gpt-image-2 without our money; the owner ordered using it as
     much as possible instead of our paid generator, for any images and designs, as a permanent rule for
     everyone.'
+- id: rule-bcbb1c8260
+  project: '*'
+  mode: permanent
+  targets:
+  - orchestrators
+  author: Orchestra-orchestrator
+  created_at: '2026-10-31T04:11:50.651392+00:00'
+  text: 'Owner decision, 2026-10-31: Claude Code updates are paused until the owner explicitly resumes
+    them. Do not install newer Claude Code versions or run update canaries for Claude on the VPS or laptop.
+    Keep the currently installed Claude version. Continue the existing authorized Codex CLI update workflow:
+    read release notes, isolated canary, then install and verify only if successful. This pause does not
+    change model routing, subscriptions, credentials or service restart policy.'
+  reason: The owner explicitly paused Claude updates after the subscription-refused update canary and
+    reaffirmed continuing Codex updates. No expiry is assumed; the pause remains until his next explicit
+    decision.
