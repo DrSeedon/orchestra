@@ -1,0 +1,73 @@
+{
+  "checked_at_utc": "2026-10-31T14:59:03.899762+00:00",
+  "scope": "Offline archive integrity and delivery only; no fresh billing verification",
+  "runner": "provisioned uv 0.11.28, frozen lock, default .venv",
+  "original_inventory_entries": 176,
+  "required_non_cache_originals_verified": 172,
+  "required_original_bytes_verified": 17034919,
+  "all_required_original_hashes_match": true,
+  "excluded_cache_metadata": [
+    {
+      "path": ".pytest_cache/.gitignore",
+      "bytes": 37,
+      "sha256": "3ed731b65d06150c138e2dadb0be0697550888a6b47eb8c45ecc9adba8b8e9bd"
+    },
+    {
+      "path": ".pytest_cache/CACHEDIR.TAG",
+      "bytes": 191,
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "path": ".pytest_cache/README.md",
+      "bytes": 302,
+      "sha256": "73fd6fccdd802c419a6b2d983d6c3173b7da97558ac4b589edec2dfe443db9ad"
+    },
+    {
+      "path": ".pytest_cache/v/cache/nodeids",
+      "bytes": 1016,
+      "sha256": "c8199cb5d4be94e721c8a0be17382661e0224c749e587d8af8d421ddde6a6335"
+    }
+  ],
+  "cache_exception": "Four exact broker-excluded rebuildable caches; metadata only, bodies not read or recreated",
+  "receipt_scope": "Hashes checked at selected evidence root; not an assertion that 176 copies were transported",
+  "source_body_hashes_match": 38,
+  "http200_non_evidence_stubs": [
+    "anthropic_opus5",
+    "anthropic_opus48",
+    "anthropic_sonnet5"
+  ],
+  "public_files": [
+    ".gitignore",
+    "CHECKS.md",
+    "REPORT.md",
+    "calculate.py",
+    "calculations.json",
+    "preservation_manifest.json",
+    "source_index.json",
+    "test_research.py",
+    "verification.json",
+    "verify_evidence.py"
+  ],
+  "publication_scope": "Explicit PUBLIC_FILES allowlist only; extra physical files and actual Git index are parent responsibility",
+  "local_publication_scan": {
+    "kind": "task-local forms/literals, NOT canonical guard",
+    "finding_count": 0
+  },
+  "relative_public_links_ok": true,
+  "normalized_original_import": "worker-copy/app/usage_contract.py",
+  "full_app_import": false,
+  "original_pytest_result": "10 passed in 0.04s",
+  "original_report_sha256": "2ea40e76e52944518d829e09ace3d72b6a998564c2d854efce95d9ac51c5c521",
+  "private_inventory_sha256": "4d8bb8c8120f6d93ee6f8bd09044264e9193ee7143e1ba4b269086bb93bee504",
+  "original_inventory_target": "private-evidence/original_inventory.json",
+  "raw_target": "private-evidence/original",
+  "ignore_rule": "task .gitignore: /private-evidence/; parent must verify Git index",
+  "git_head": null,
+  "git_head_reason": "Worker copy has no .git; platform assigns commit on import",
+  "migration_pytest_return_code": 0,
+  "migration_pytest_result": "10 passed in 0.14s",
+  "final_pytest_return_code": 0,
+  "final_pytest_result": "10 passed in 0.20s",
+  "transport_pytest_return_code": 0,
+  "transport_pytest_result": "13 passed in 0.13s"
+}
